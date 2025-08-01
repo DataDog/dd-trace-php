@@ -1367,6 +1367,157 @@ static void dd_disable_if_incompatible_sapi_detected(void) {
     }
 }
 
+static php_stream_wrapper_ops traced_http_wrapper_wops;
+static php_stream_wrapper_ops traced_https_wrapper_wops;
+static php_stream_wrapper ddtrace_original_http_wrapper;
+static php_stream_wrapper ddtrace_original_https_wrapper;
+static php_stream_wrapper ddtrace_traced_http_wrapper;
+static php_stream_wrapper ddtrace_traced_https_wrapper;
+
+#define DDTRACE_STREAM_OPENER_ARGS \
+    php_stream_wrapper *wrapper, \
+    const char *filename, \
+    const char *mode, \
+    int options, \
+    zend_string **opened_path, \
+    php_stream_context *context \
+    STREAMS_DC
+
+#define DDTRACE_STREAM_OPENER_CALL_ARGS \
+    wrapper, filename, mode, options, opened_path, context STREAMS_REL_CC
+
+static php_stream *ddtrace_stream_opener(
+    php_stream_wrapper *original_wrapper,
+    DDTRACE_STREAM_OPENER_ARGS
+) {
+    bool clean_context = false;
+    if (!context) {
+        context = php_stream_context_alloc();
+        clean_context = true;
+    }
+
+    // Ensure context->options is safe to modify
+    zval *options_zv = &context->options;
+    SEPARATE_ARRAY(options_zv);
+
+    // Retrieve or create the "http" subarray
+    zval *http_context_zv = zend_hash_str_find_deref(Z_ARRVAL_P(options_zv), "http", sizeof("http") - 1);
+    if (!http_context_zv) {
+        zval tmp;
+        array_init(&tmp);
+        zend_hash_str_update(Z_ARRVAL_P(options_zv), "http", sizeof("http") - 1, &tmp);
+        http_context_zv = zend_hash_str_find_deref(Z_ARRVAL_P(options_zv), "http", sizeof("http") - 1);
+    }
+
+    if (Z_TYPE_P(http_context_zv) == IS_ARRAY) {
+        SEPARATE_ARRAY(http_context_zv);
+        HashTable *http_context = Z_ARRVAL_P(http_context_zv);
+
+        zval *header_zv = zend_hash_str_find(http_context, ZEND_STRL("header"));
+        if (header_zv && Z_TYPE_P(header_zv) == IS_ARRAY) {
+            SEPARATE_ARRAY(header_zv);
+            ddtrace_inject_distributed_headers(Z_ARRVAL_P(header_zv), HEADER_MODE_ARRAY);
+        } else {
+            ddtrace_inject_distributed_headers(http_context, HEADER_MODE_CONTEXT);
+        }
+    }
+
+    // Open internal span
+    ddtrace_span_data *span = ddtrace_alloc_execute_data_span(-2, EG(current_execute_data));
+    if (span) {
+        ddtrace_set_global_span_properties(span);
+
+        zend_array *meta = ddtrace_property_array(&span->property_meta);
+        zval zv;
+
+        ZVAL_STRING(&zv, "php.stream");
+        zend_hash_str_update(meta, ZEND_STRL("component"), &zv);
+
+        ZVAL_STRING(&zv, "client");
+        zend_hash_str_update(meta, ZEND_STRL("span.kind"), &zv);
+
+        ZVAL_STRING(&zv, filename);
+        zend_hash_str_update(meta, ZEND_STRL("http.url"), &zv);
+
+        zval *method_zv = zend_hash_str_find(Z_ARRVAL_P(options_zv), "method", sizeof("method") - 1);
+        if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
+            zend_hash_str_update(meta, ZEND_STRL("http.method"), method_zv);
+        }
+
+        const char *host_start = strstr(filename, "://");
+        if (host_start) {
+            host_start += 3; // skip "://"
+            const char *host_end = strchr(host_start, '/');
+            size_t host_len = host_end ? (size_t)(host_end - host_start) : strlen(host_start);
+            ZVAL_STRINGL(&zv, host_start, host_len);
+            zend_hash_str_update(meta, ZEND_STRL("network.destination.name"), &zv);
+        }
+    }
+
+    php_stream *stream = original_wrapper->wops->stream_opener(DDTRACE_STREAM_OPENER_CALL_ARGS);
+
+    if (span) {
+        ddtrace_clear_execute_data_span((zend_ulong)-2, true);
+    }
+
+    if (clean_context) {
+        php_stream_context_free(context);
+    }
+
+    return stream;
+}
+
+static php_stream *ddtrace_stream_opener_http(DDTRACE_STREAM_OPENER_ARGS) {
+    return ddtrace_stream_opener(&ddtrace_original_http_wrapper, DDTRACE_STREAM_OPENER_CALL_ARGS);
+}
+
+static php_stream *ddtrace_stream_opener_https(DDTRACE_STREAM_OPENER_ARGS) {
+    return ddtrace_stream_opener(&ddtrace_original_https_wrapper, DDTRACE_STREAM_OPENER_CALL_ARGS);
+}
+
+static void ddtrace_instrument_stream_wrapper(
+    const char *name,
+    php_stream_wrapper *original_wrapper,
+    php_stream_wrapper *traced_wrapper,
+    php_stream_wrapper_ops *traced_wops,
+    php_stream *(*stream_opener)(DDTRACE_STREAM_OPENER_ARGS)
+) {
+    HashTable *wrappers = php_stream_get_url_stream_wrappers_hash_global();
+    zval *wrapper_zv = zend_hash_str_find(wrappers, name, strlen(name));
+
+    if (!wrapper_zv) {
+        return;
+    }
+
+    php_stream_wrapper *orig = (php_stream_wrapper *)Z_PTR_P(wrapper_zv);
+    memcpy(original_wrapper, orig, sizeof(php_stream_wrapper));
+    memcpy(traced_wrapper, orig, sizeof(php_stream_wrapper));
+    memcpy(traced_wops, orig->wops, sizeof(php_stream_wrapper_ops));
+
+    traced_wops->stream_opener = stream_opener;
+    traced_wrapper->wops = traced_wops;
+
+    zend_hash_str_update_ptr(wrappers, name, strlen(name), traced_wrapper);
+}
+
+static void ddtrace_instrument_stream_wrappers(void) {
+    ddtrace_instrument_stream_wrapper(
+        "http",
+        &ddtrace_original_http_wrapper,
+        &ddtrace_traced_http_wrapper,
+        &traced_http_wrapper_wops,
+        ddtrace_stream_opener_http
+    );
+
+    ddtrace_instrument_stream_wrapper(
+        "https",
+        &ddtrace_original_https_wrapper,
+        &ddtrace_traced_https_wrapper,
+        &traced_https_wrapper_wops,
+        ddtrace_stream_opener_https
+    );
+}
+
 #if PHP_VERSION_ID < 80500
 zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 void ddtrace_init_known_strings(void) {
@@ -1521,6 +1672,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     // We need a free_obj wrapper as zend_objects_store_free_object_storage will skip freeing of classes with the default free_obj handler when fast_shutdown is active. This will mess with our refcount and leak cached git metadata.
     ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
+
+    ddtrace_instrument_stream_wrappers();
 
     ddtrace_engine_hooks_minit();
     ddtrace_init_proxy_info_map();
@@ -3512,10 +3665,10 @@ PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
                     zend_hash_add_empty_element(inject_set, Z_STR_P(val));
                 }
             } ZEND_HASH_FOREACH_END();
-            ddtrace_inject_distributed_headers_config(Z_ARR_P(return_value), true, inject_set);
+            ddtrace_inject_distributed_headers_config(Z_ARR_P(return_value), HEADER_MODE_KV_PAIRS, inject_set);
             zend_array_destroy(inject_set);
         } else {
-            ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+            ddtrace_inject_distributed_headers(Z_ARR_P(return_value), HEADER_MODE_KV_PAIRS);
         }
     }
 }
