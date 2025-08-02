@@ -206,7 +206,7 @@ void format_waf_result(
         if (events != nullptr) {
             const parameter_view events_pv{*events};
             for (const auto &event_pv : events_pv) {
-                event.data.emplace_back(parameter_to_json(event_pv));
+                event.triggers.emplace_back(parameter_to_json(event_pv));
             }
         }
     } catch (const std::exception &e) {
@@ -563,19 +563,20 @@ void instance::listener::call(
         // This converts the events to JSON which is already done in the
         // switch below so it's slightly inefficient, albeit since it's only
         // done on debug, we can live with it...
+        std::string events_json;
         if (events != nullptr) {
-            DD_STDLOG(DD_STDLOG_AFTER_WAF,
-                parameter_to_json(parameter_view{*events}), duration / millis);
+            events_json = parameter_to_json(parameter_view{*events});
+            DD_STDLOG(DD_STDLOG_AFTER_WAF, events_json, duration / millis);
         }
-        SPDLOG_DEBUG(
-            "Waf response: code {} - actions {} - attributes {} - keep {}",
-            fmt::underlying(code),
+        SPDLOG_DEBUG("Waf response: code {} - keep {} - duration {} - timeout "
+                     "{} - actions {} - attributes {} - events {}",
+            fmt::underlying(code), event.keep, duration / millis, timeout,
             actions != nullptr ? parameter_to_json(parameter_view{*actions})
                                : "",
             attributes != nullptr
                 ? parameter_to_json(parameter_view{*attributes})
                 : "",
-            event.keep);
+            events_json);
     } else {
         run_waf();
     }
@@ -618,12 +619,40 @@ void instance::listener::call(
     }
     if (attributes != nullptr) {
         const parameter_view attributes_pv{*attributes};
-        for (const auto &derivative : attributes_pv) {
+        for (const parameter_view &derivative : attributes_pv) {
             if (derivative.key().starts_with("_dd.appsec.s.")) {
-                attributes_.emplace(
-                    derivative.key(), parameter_to_json(derivative));
+                std::string json_derivative = parameter_to_json(derivative);
+                if (json_derivative.length() > max_plain_schema_allowed) {
+                    auto encoded = compress(json_derivative);
+                    if (encoded) {
+                        json_derivative = base64_encode(encoded.value(), false);
+                    }
+                }
+                if (json_derivative.length() <= max_schema_size) {
+                    meta_attributes_.emplace(
+                        derivative.key(), std::move(json_derivative));
+                } else {
+                    SPDLOG_WARN("Schema for key {} is too large to submit",
+                        derivative.key());
+                }
             } else {
-                attributes_.emplace(derivative.key(), derivative);
+                if (derivative.is_signed()) {
+                    auto value =
+                        static_cast<double>(static_cast<int64_t>(derivative));
+                    metrics_attributes_.emplace(derivative.key(), value);
+                } else if (derivative.is_unsigned()) {
+                    auto value =
+                        static_cast<double>(static_cast<uint64_t>(derivative));
+                    metrics_attributes_.emplace(derivative.key(), value);
+                } else if (derivative.is_float()) {
+                    auto value = static_cast<double>(derivative);
+                    metrics_attributes_.emplace(derivative.key(), value);
+                } else if (derivative.is_string()) {
+                    meta_attributes_.emplace(derivative.key(), derivative);
+                } else {
+                    SPDLOG_WARN("Unsupported attribute type for key {}",
+                        derivative.key());
+                }
             }
         }
     }
@@ -696,21 +725,13 @@ void instance::listener::submit_metrics(
         }
     }
 
-    for (const auto &[key, value] : attributes_) {
-        std::string derivative = value;
-        if (value.length() > max_plain_schema_allowed &&
-            key.starts_with("_dd.appsec.s.")) {
-            auto encoded = compress(derivative);
-            if (encoded) {
-                derivative = base64_encode(encoded.value(), false);
-            }
-        }
+    for (const auto &[key, value] : meta_attributes_) {
+        msubmitter.submit_span_meta_copy_key(
+            std::string{key}, std::string(value));
+    }
 
-        if (derivative.length() <= max_schema_size) {
-            msubmitter.submit_span_meta_copy_key(key, std::move(derivative));
-        } else {
-            SPDLOG_WARN("Schema for key {} is too large to submit", key);
-        }
+    for (const auto &[key, value] : metrics_attributes_) {
+        msubmitter.submit_span_metric(key, value);
     }
 }
 
