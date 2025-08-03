@@ -38,7 +38,7 @@ public:
 
     struct result {
         std::vector<dds::action> actions;
-        std::vector<std::string> events;
+        std::vector<std::string> triggers; // json fragments
         bool force_keep;
     };
 
