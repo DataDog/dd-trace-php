@@ -89,6 +89,10 @@ class RemoteConfigTests {
                 Capability.ASM_RASP_SQLI,
                 Capability.ASM_DD_MULTICONFIG,
                 Capability.ASM_TRACE_TAGGING_RULES,
+                Capability.ASM_ENDPOINT_FINGERPRINT,
+                Capability.ASM_SESSION_FINGERPRINT,
+                Capability.ASM_NETWORK_FINGERPRINT,
+                Capability.ASM_HEADER_FINGERPRINT,
         ].each { assert it in capSet }
 
         doReq.call(403)
