@@ -1431,7 +1431,7 @@ static php_stream *ddtrace_stream_opener(
 
     // Open internal span
     ddtrace_span_data *span = NULL;
-    if (ddtrace_integrations[DDTRACE_INTEGRATION_HTTPSTREAM].is_enabled()) {
+    if (ddtrace_integrations[DDTRACE_INTEGRATION_HTTPSTREAM].is_enabled() && get_DD_TRACE_ENABLED()) {
         span = ddtrace_alloc_execute_data_span(-2, EG(current_execute_data));
         if (span) {
             ddtrace_set_global_span_properties(span);
