@@ -49,10 +49,10 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
-      ["db.instance"]=>
-      string(8) "only_tag"
       ["_dd.peer.service.source"]=>
       string(11) "db.instance"
+      ["db.instance"]=>
+      string(8) "only_tag"
       ["peer.service"]=>
       string(8) "only_tag"
     }
@@ -79,10 +79,10 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
-      ["db.instance"]=>
-      string(3) "foo"
       ["_dd.peer.service.source"]=>
       string(11) "db.instance"
+      ["db.instance"]=>
+      string(3) "foo"
       ["peer.service"]=>
       string(3) "foo"
     }

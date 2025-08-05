@@ -19,7 +19,7 @@ DDTrace\start_span();
 $root = DDTrace\root_span();
 
 $root->service = 'simple-telemetry-app';
-$root->meta['env'] = 'test-env';
+$root->env = 'test-env';
 
 DDTrace\close_span();
 

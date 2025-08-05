@@ -1,3 +1,7 @@
+#include "components-rs/common.h"
+#include "components-rs/sidecar.h"
+#include "zend_API.h"
+#include "zend_hash.h"
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -106,6 +110,7 @@
 #include "inferred_proxy_headers.h"
 #include "live_debugger.h"
 #include "agent_info.h"
+#include "code_origins.h"
 
 #if PHP_VERSION_ID < 70200
 #pragma pop_macro("ZVAL_EMPTY_STRING")
@@ -294,7 +299,7 @@ static void dd_patch_zend_call_known_function(void) {
 #endif
 
 #ifdef _WIN32
-    VirtualProtect(page, page_size, old_protection, NULL);
+    VirtualProtect(page, page_size, old_protection, &old_protection /* dummy, but must be valid */);
 #else
     mprotect(page, page_size, PROT_READ | PROT_EXEC);
 #endif
@@ -682,6 +687,10 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     zai_hook_gshutdown();
     if (ddtrace_globals->telemetry_buffer) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
+    }
+
+    if (ddtrace_globals->telemetry_cache) {
+        ddog_sidecar_telemetry_cache_drop(ddtrace_globals->telemetry_cache);
     }
 
     zend_hash_destroy(&ddtrace_globals->git_metadata);
@@ -1399,6 +1408,7 @@ void ddtrace_init_known_strings(void) {
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
+    ddog_init_span_func((void *)zend_string_release, (void *)zend_string_addref);
 
     ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
 
@@ -1797,13 +1807,9 @@ void dd_force_shutdown_tracing(void) {
     DDTRACE_G(in_shutdown) = false;
 }
 
-static void dd_finalize_sidecar_lifecycle(void) {
+static void dd_finalize_sidecar_lifecycle(bool clear_id) {
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_telemetry_finalize();
-        if (ddtrace_sidecar) {
-            ddtrace_ffi_try("Failed signaling lifecycle end",
-                ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
-        }
+        ddtrace_telemetry_finalize(clear_id);
     }
 }
 
@@ -1833,7 +1839,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         DDTRACE_G(active_stack) = NULL;
     }
 
-    dd_finalize_sidecar_lifecycle();
+    dd_finalize_sidecar_lifecycle(true);
     DDTRACE_G(request_initialized) = false;
 
     ddtrace_telemetry_rshutdown();
@@ -2320,16 +2326,17 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
 
     ddtrace_mark_all_span_stacks_flushable();
 
-    zval traces;
-    array_init(&traces);
-    ddtrace_serialize_closed_spans_with_cycle(&traces);
+    ddog_TracesBytes *traces = ddog_get_traces();
+    ddtrace_serialize_closed_spans_with_cycle(traces);
 
-    if (zend_hash_num_elements(Z_ARR(traces)) == 1) {
-        ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces)));
+    zval traces_zv = dd_serialize_rust_traces_to_zval(traces);
+
+    if (zend_hash_num_elements(Z_ARR(traces_zv)) == 1) {
+        ZVAL_COPY(return_value, zend_hash_get_current_data(Z_ARR(traces_zv)));
     } else {
         array_init(return_value);
         zval *spans;
-        ZEND_HASH_FOREACH_VAL(Z_ARR(traces), spans) {
+        ZEND_HASH_FOREACH_VAL(Z_ARR(traces_zv), spans) {
             zval *span;
             ZEND_HASH_FOREACH_VAL(Z_ARR_P(spans), span) {
                 Z_ADDREF_P(span);
@@ -2338,7 +2345,8 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
         } ZEND_HASH_FOREACH_END();
     }
 
-    zval_ptr_dtor(&traces);
+    ddog_free_traces(traces);
+    zval_ptr_dtor(&traces_zv);
 
     ddtrace_free_span_stacks(false);
     ddtrace_init_span_stacks();
@@ -2785,7 +2793,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
-            dd_finalize_sidecar_lifecycle();
+            dd_finalize_sidecar_lifecycle(false);
+            ddtrace_telemetry_lifecycle_end();
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
@@ -3592,6 +3601,26 @@ PHP_FUNCTION(DDTrace_get_sanitized_exception_trace) {
     RETURN_STR(zai_get_trace_without_args_from_exception_skip_frames(ex, skip));
 }
 
+PHP_FUNCTION(DDTrace_collect_code_origins) {
+    zend_long skip = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+            Z_PARAM_OPTIONAL
+            Z_PARAM_LONG(skip)
+    ZEND_PARSE_PARAMETERS_END();
+
+    if (!get_DD_CODE_ORIGIN_FOR_SPANS_ENABLED()) {
+        return;
+    }
+
+    ddtrace_span_data *span = ddtrace_active_span();
+    if (!span) {
+        return;
+    }
+
+    ddtrace_add_code_origin_information(span, skip);
+}
+
 PHP_FUNCTION(DDTrace_startup_logs) {
     if (zend_parse_parameters_none() == FAILURE) {
         RETURN_THROWS();
@@ -3682,3 +3711,4 @@ void dd_prepare_for_new_trace(void) {
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 #endif
 }
+

@@ -22,6 +22,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " asm_event.c";
 	DDTRACE_EXT_SOURCES += " auto_flush.c";
 	DDTRACE_EXT_SOURCES += " autoload_php_files.c";
+	DDTRACE_EXT_SOURCES += " code_origins.c";
 	DDTRACE_EXT_SOURCES += " collect_backtrace.c";
 	DDTRACE_EXT_SOURCES += " compat_string.c";
 	DDTRACE_EXT_SOURCES += " configuration.c";

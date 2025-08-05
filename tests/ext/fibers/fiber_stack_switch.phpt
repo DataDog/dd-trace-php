@@ -5,6 +5,7 @@ Test fiber observing
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -84,17 +85,17 @@ spans(\DDTrace\SpanData) (1) {
       inFiber (fiber_stack_switch.php, inFiber, cli)
         otherFiber (fiber_stack_switch.php, otherFiber, cli) (error: Thrown Exception: ex in %s:%d)
           error.message => Thrown Exception: ex in %s:%d
-          error.type => Exception
           error.stack => #0 [internal function]: otherFiber()
 #1 %s(%d): Fiber->resume()
 #2 {main}
+          error.type => Exception
           Fiber.suspend (fiber_stack_switch.php, Fiber.suspend, cli)
         Fiber.suspend (fiber_stack_switch.php, Fiber.suspend, cli)
     Fiber.resume (fiber_stack_switch.php, Fiber.resume, cli)
     Fiber.resume (fiber_stack_switch.php, Fiber.resume, cli) (error: Thrown Exception: ex in %s:%d)
       error.message => Thrown Exception: ex in %s:%d
-      error.type => Exception
       error.stack => #0 [internal function]: otherFiber()
 #1 %s(%d): Fiber->resume()
 #2 {main}
+      error.type => Exception
 }

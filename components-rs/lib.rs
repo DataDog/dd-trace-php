@@ -6,9 +6,10 @@ pub mod log;
 pub mod remote_config;
 pub mod sidecar;
 pub mod telemetry;
+pub mod bytes;
 
 use ddcommon::entity_id::{get_container_id, set_cgroup_file};
-use http::uri::Scheme;
+use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use std::borrow::Cow;
 use std::ffi::c_char;
@@ -90,6 +91,9 @@ pub unsafe extern "C" fn ddtrace_parse_agent_url(
             if url.scheme().is_none() {
                 let mut parts = url.into_parts();
                 parts.scheme = Some(Scheme::HTTP);
+                if parts.path_and_query.is_none() {
+                    parts.path_and_query = Some(PathAndQuery::from_static("/"));
+                }
                 url = Uri::from_parts(parts).unwrap();
             }
             Box::new(Endpoint::from_url(url))

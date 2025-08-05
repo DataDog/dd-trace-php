@@ -35,6 +35,10 @@ void ddog_evaluated_value_drop(struct ddog_InternalIntermediateValue*);
 struct ddog_VoidCollection ddog_evaluated_value_into_unmanaged_string(struct ddog_InternalIntermediateValue *value,
                                                                       void *context);
 
+/**
+ * # Safety
+ * The `json` must be a valid UTF-8 string.
+ */
 struct ddog_LiveDebuggingParseResult ddog_parse_live_debugger_json(ddog_CharSlice json);
 
 void ddog_drop_live_debugger_parse_result(struct ddog_LiveDebuggingParseResult);

@@ -276,7 +276,7 @@ std::shared_ptr<typename T::response> client::publish(
                 extra_record_action.parameters = {};
                 response->actions.push_back(extra_record_action);
             }
-            response->triggers = std::move(res->events);
+            response->triggers = std::move(res->triggers);
             response->force_keep = res->force_keep;
 
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);

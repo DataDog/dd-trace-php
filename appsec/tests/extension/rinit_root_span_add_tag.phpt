@@ -6,6 +6,7 @@ datadog.appsec.log_file=/tmp/php_appsec_test.log
 datadog.appsec.log_level=debug
 --ENV--
 DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_ENV=staging
 DD_VERSION=0.42.69
 SERVER_NAME=localhost:8888

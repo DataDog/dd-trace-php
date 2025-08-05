@@ -5,6 +5,7 @@ DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_GIT_REPOSITORY_URL=https://u:t@github.com/user/repo_new
 DD_GIT_COMMIT_SHA=123456
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -41,31 +42,31 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(5) {
-      ["runtime-id"]=>
-      string(36) "%s"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
       ["_dd.git.repository_url"]=>
       string(32) "https://github.com/user/repo_new"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%d)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
-      ["php.memory.peak_usage_bytes"]=>
-      float(%f)
       ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
+      ["php.memory.peak_usage_bytes"]=>
+      float(%f)
+      ["process_id"]=>
+      float(%d)
     }
   }
   [1]=>

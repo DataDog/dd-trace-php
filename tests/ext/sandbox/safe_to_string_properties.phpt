@@ -50,7 +50,7 @@ $i = 0;
 foreach (dd_trace_serialize_closed_spans() as $span) {
     var_dump($allTheTypes[$i]);
     foreach (['name', 'resource', 'service', 'type'] as $prop) {
-        if (isset($span[$prop])) {
+        if (isset($span[$prop]) && $span[$prop] !== "") {
             var_dump($span[$prop]);
         } else {
             printf("'%s' dropped\n", $prop);
@@ -117,7 +117,7 @@ NULL
 
 bool(false)
 string(5) "false"
-string(5) "false"
+'resource' dropped
 string(5) "false"
 string(5) "false"
 

@@ -6,6 +6,7 @@
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
 #include <components/sapi/sapi.h>
 
@@ -169,6 +170,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable git_metadata;
     zend_object *git_object;
 
+    ddog_ShmCacheMap *telemetry_cache;
     bool inferred_span_created;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on

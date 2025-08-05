@@ -164,7 +164,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
         auto res = ctx.publish(std::move(p));
         ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
-        EXPECT_EQ(res->events.size(), 1);
+        EXPECT_EQ(res->triggers.size(), 1);
     }
 }
 
@@ -201,7 +201,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
-        EXPECT_EQ(res->events.size(), 1);
+        EXPECT_EQ(res->triggers.size(), 1);
     }
 
     remote_config::engine_listener listener(
@@ -586,7 +586,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
-        EXPECT_EQ(res->events.size(), 1);
+        EXPECT_EQ(res->triggers.size(), 1);
     }
 }
 
