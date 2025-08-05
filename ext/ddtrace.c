@@ -1394,11 +1394,8 @@ static php_stream *ddtrace_stream_opener(
     php_stream_wrapper *original_wrapper,
     DDTRACE_STREAM_OPENER_ARGS
 ) {
-    bool clean_context = false;
-
     if (!context) {
         context = php_stream_context_alloc();
-        clean_context = true;
     }
 
     zval *options_zv = &context->options;
@@ -1468,10 +1465,6 @@ static php_stream *ddtrace_stream_opener(
 
     if (span) {
         ddtrace_clear_execute_data_span((zend_ulong)-2, true);
-    }
-
-    if (clean_context) {
-        php_stream_context_free(context);
     }
 
     return stream;

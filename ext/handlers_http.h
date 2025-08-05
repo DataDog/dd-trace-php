@@ -207,6 +207,72 @@ typedef enum {
     HEADER_MODE_CONTEXT      // "Header1: value\r\nHeader2: value"
 } header_format;
 
+static inline zend_string *ddtrace_extract_header_key(zval *header) {
+    if (Z_TYPE_P(header) != IS_STRING) {
+        return NULL;
+    }
+
+    const char *val = Z_STRVAL_P(header);
+    const char *colon = strchr(val, ':');
+    if (!colon) {
+        return NULL;
+    }
+
+    size_t key_len = (size_t)(colon - val);
+    zend_string *key = zend_string_init(val, key_len, 0);
+    zend_str_tolower(ZSTR_VAL(key), key_len);
+    return key;
+}
+
+static inline HashTable *ddtrace_init_header_keys_set(zend_array *array, header_format format) {
+    HashTable *set = zend_new_array(0);
+
+    if (format != HEADER_MODE_ARRAY) {
+        return set;
+    }
+
+    ulong idx = 0;
+    ZEND_HASH_FOREACH_VAL(array, zval *entry) {
+        zend_string *header_key = ddtrace_extract_header_key(entry);
+        if (!header_key) {
+            idx++;
+            continue;
+        }
+
+        zval index_zv;
+        ZVAL_LONG(&index_zv, idx);
+        zend_hash_update(set, header_key, &index_zv);
+        zend_string_release(header_key);
+        idx++;
+    } ZEND_HASH_FOREACH_END();
+
+    return set;
+}
+
+static inline void ddtrace_add_or_update_header_array(zend_array *array, HashTable *keys, const char *header_key, size_t header_key_len, zend_string *header) {
+    zend_string *key = zend_string_init(header_key, header_key_len, 0);
+    zend_str_tolower(ZSTR_VAL(key), header_key_len);
+
+    // Check for duplicates
+    zval *existing_idx_zv = zend_hash_find(keys, key);
+    if (existing_idx_zv && Z_TYPE_P(existing_idx_zv) == IS_LONG) {
+        zend_hash_index_del(array, Z_LVAL_P(existing_idx_zv));
+    }
+
+    // Update keys set
+    zend_long new_idx = zend_hash_num_elements(array);
+    zval idx_zv;
+    ZVAL_LONG(&idx_zv, new_idx);
+    zend_hash_update(keys, key, &idx_zv);
+
+    // Insert header
+    zval arr_zv;
+    ZVAL_ARR(&arr_zv, array);
+    add_next_index_str(&arr_zv, header);
+
+    zend_string_release(key);
+}
+
 static inline void ddtrace_inject_distributed_headers_config(zend_array *array, header_format format, zend_array *inject) {
     ddtrace_root_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active ? SPANDATA(DDTRACE_G(active_stack)->active)->root : NULL;
     zend_string *origin = DDTRACE_G(dd_origin);
@@ -236,18 +302,25 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     zval headers;
     ZVAL_ARR(&headers, array);
     smart_str stream_header = {0};
+    HashTable *header_keys = ddtrace_init_header_keys_set(array, format);
 
 #define ADD_HEADER(header, ...) \
     if (format == HEADER_MODE_KV_PAIRS) { \
         add_assoc_str_ex(&headers, ZEND_STRL(header), zend_strpprintf(0, __VA_ARGS__)); \
     } else if (format == HEADER_MODE_ARRAY) { \
-        add_next_index_str(&headers, zend_strpprintf(0, header ": " __VA_ARGS__)); \
+        ddtrace_add_or_update_header_array(Z_ARRVAL(headers), header_keys, ZEND_STRL(header), zend_strpprintf(0, header ": " __VA_ARGS__)); \
     } else { \
         if (stream_header.s) { \
             smart_str_appendl(&stream_header, "\r\n", 2); \
         } \
         zend_string *formatted = zend_strpprintf(0, header ": " __VA_ARGS__); \
         smart_str_append(&stream_header, formatted); \
+        \
+        zend_string *key = zend_string_init(ZEND_STRL(header), 0); \
+        zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key)); \
+        zend_hash_add_empty_element(header_keys, key); \
+        zend_string_release(key); \
+        \
         zend_string_release(formatted); \
     }
 
@@ -265,6 +338,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     ddtrace_root_span_data *root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
     zend_array *meta = root_span ? ddtrace_property_array(&root_span->property_meta) : &DDTRACE_G(root_span_tags_preset);
     if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
+        zend_array_destroy(header_keys);
         return;
     }
 
@@ -376,26 +450,47 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     }
 
     if (format == HEADER_MODE_CONTEXT && stream_header.s) {
-        smart_str_0(&stream_header);
+        zval *existing_header_zv = zend_hash_str_find(array, ZEND_STRL("header"));
 
-        zval headers_zv;
-        zval *existing_header = zend_hash_str_find(array, ZEND_STRL("header"));
-        if (existing_header && Z_TYPE_P(existing_header) == IS_STRING) {
-            smart_str merged = {0};
-            smart_str_append(&merged, Z_STR_P(existing_header));
-            smart_str_appendl(&merged, "\r\n", 2);
-            smart_str_append(&merged, stream_header.s);
-            smart_str_0(&merged);
+        if (existing_header_zv && Z_TYPE_P(existing_header_zv) == IS_STRING) {
+            const char *cursor = ZSTR_VAL(Z_STR_P(existing_header_zv));
+            const char *end = cursor + ZSTR_LEN(Z_STR_P(existing_header_zv));
 
-            zend_string_release(stream_header.s);
+            while (cursor < end) {
+                const char *eol = strstr(cursor, "\r\n");
+                size_t len = eol ? (size_t)(eol - cursor) : (size_t)(end - cursor);
+                if (len == 0) {
+                    cursor += eol ? 2 : 0;
+                    continue;
+                }
 
-            ZVAL_STR(&headers_zv, merged.s);
-        } else {
-            ZVAL_STR(&headers_zv, stream_header.s);
+                zend_string *line = zend_string_init(cursor, len, 0);
+                zval tmp;
+                ZVAL_STR(&tmp, line);
+
+                zend_string *key = ddtrace_extract_header_key(&tmp);
+                if (key) {
+                    if (!zend_hash_exists(header_keys, key)) {
+                        smart_str_appendl(&stream_header, "\r\n", 2);
+                        smart_str_appendl(&stream_header, ZSTR_VAL(line), ZSTR_LEN(line));
+                        zend_hash_add_empty_element(header_keys, key);
+                    }
+                    zend_string_release(key);
+                }
+
+                zend_string_release(line);
+                cursor += len + (eol ? 2 : 0);
+            }
         }
 
-        zend_hash_str_update(array, ZEND_STRL("header"), &headers_zv);
+        smart_str_0(&stream_header);
+
+        zval result;
+        ZVAL_STR(&result, stream_header.s);
+        zend_hash_str_update(array, ZEND_STRL("header"), &result);
     }
+
+    zend_array_destroy(header_keys);
 
 #undef ADD_HEADER
 }

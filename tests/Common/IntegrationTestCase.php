@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Common;
 
 use DDTrace\NoopTracer;
 
+ini_set("datadog.trace.httpstream_enabled", 0);
 /**
  * A basic class to be extended when testing integrations.
  * @retryAttempts 3

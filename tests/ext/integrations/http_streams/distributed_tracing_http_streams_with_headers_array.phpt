@@ -42,6 +42,7 @@ $responses[] = fetch_with_headers([
 $responses[] = fetch_with_headers([
     'x-foo: two',
     'x-bar: beta',
+    'x-datadog-sampling-priority: 123',
 ]);
 
 include 'distributed_tracing.inc';

@@ -35,7 +35,7 @@ function fetch_with_header_string(string $headerString)
 $responses = [];
 
 $responses[] = fetch_with_header_string("x-foo: one\r\nx-bar: alpha");
-$responses[] = fetch_with_header_string("x-foo: two\r\nx-bar: beta");
+$responses[] = fetch_with_header_string("x-foo: two\r\nx-bar: beta\r\nx-datadog-sampling-priority: 123");
 
 include 'distributed_tracing.inc';
 foreach ($responses as $key => $response) {
