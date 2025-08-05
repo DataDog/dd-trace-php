@@ -113,9 +113,10 @@ static inline bool zai_is_func_recv_opcode(zend_uchar opcode) {
 // Replace EXT_NOP by EXT_STMT, then move it after RECV ops if possible
 void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
     zend_op *opcodes = op_array->opcodes;
-    for (zend_op *cur = opcodes, *last = cur + op_array->last; cur < last; ++cur) {
+    for (zend_op *cur = opcodes, *last = cur + op_array->last; cur < last - 1; ++cur) {
         if (cur->opcode == ZEND_EXT_STMT && cur->extended_value == ZAI_INTERCEPTOR_CUSTOM_EXT) {
             cur->opcode = ZEND_EXT_NOP;
+            cur->lineno = (cur + 1)->lineno; // adjust to actual lineno of next op
             break;
         }
     }
@@ -132,6 +133,7 @@ void zai_interceptor_op_array_pass_two(zend_op_array *op_array) {
         if (--i > nop_i) {
             memmove(&opcodes[nop_i], &opcodes[nop_i + 1], (i - nop_i) * sizeof(zend_op));
             zai_set_ext_nop(&opcodes[i]);
+            opcodes[i].lineno = opcodes[i + 1].lineno;
         }
 
         // For generators we need our own temporary to store a constant array which is converted to an iterator
