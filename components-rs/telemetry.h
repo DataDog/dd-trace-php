@@ -41,7 +41,8 @@ ddog_MaybeError ddog_telemetry_builder_with_rust_shared_lib_deps(struct ddog_Tel
 ddog_MaybeError ddog_telemetry_builder_with_config(struct ddog_TelemetryWorkerBuilder *builder,
                                                    ddog_CharSlice name,
                                                    ddog_CharSlice value,
-                                                   enum ddog_ConfigurationOrigin origin);
+                                                   enum ddog_ConfigurationOrigin origin,
+                                                   ddog_CharSlice config_id);
 
 /**
  * Builds the telemetry worker and return a handle to it
@@ -62,6 +63,31 @@ ddog_MaybeError ddog_telemetry_builder_run(struct ddog_TelemetryWorkerBuilder *b
  */
 ddog_MaybeError ddog_telemetry_builder_run_metric_logs(struct ddog_TelemetryWorkerBuilder *builder,
                                                        struct ddog_TelemetryWorkerHandle **out_handle);
+
+ddog_MaybeError ddog_telemetry_builder_with_endpoint_config_endpoint(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
+                                                                     const struct ddog_Endpoint *endpoint);
+
+/**
+ * Sets a property from it's string value.
+ *
+ * Available properties:
+ *
+ * * config.endpoint
+ */
+ddog_MaybeError ddog_telemetry_builder_with_property_endpoint(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
+                                                              enum ddog_TelemetryWorkerBuilderEndpointProperty _property,
+                                                              const struct ddog_Endpoint *endpoint);
+
+/**
+ * Sets a property from it's string value.
+ *
+ * Available properties:
+ *
+ * * config.endpoint
+ */
+ddog_MaybeError ddog_telemetry_builder_with_endpoint_named_property(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
+                                                                    ddog_CharSlice property,
+                                                                    const struct ddog_Endpoint *endpoint);
 
 ddog_MaybeError ddog_telemetry_builder_with_str_application_service_version(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
                                                                             ddog_CharSlice param);
@@ -190,35 +216,6 @@ ddog_MaybeError ddog_telemetry_builder_with_property_bool(struct ddog_TelemetryW
 ddog_MaybeError ddog_telemetry_builder_with_bool_named_property(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
                                                                 ddog_CharSlice property,
                                                                 bool param);
-
-ddog_MaybeError ddog_telemetry_builder_with_endpoint_config_endpoint(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
-                                                                     const struct ddog_Endpoint *param);
-
-/**
- *      Sets a property from it's string value.
- *
- *     Available properties:
- *
- *     * config.endpoint
- *
- *
- */
-ddog_MaybeError ddog_telemetry_builder_with_property_endpoint(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
-                                                              enum ddog_TelemetryWorkerBuilderEndpointProperty property,
-                                                              const struct ddog_Endpoint *param);
-
-/**
- *      Sets a property from it's string value.
- *
- *     Available properties:
- *
- *     * config.endpoint
- *
- *
- */
-ddog_MaybeError ddog_telemetry_builder_with_endpoint_named_property(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
-                                                                    ddog_CharSlice property,
-                                                                    const struct ddog_Endpoint *param);
 
 ddog_MaybeError ddog_telemetry_handle_add_dependency(const struct ddog_TelemetryWorkerHandle *handle,
                                                      ddog_CharSlice dependency_name,

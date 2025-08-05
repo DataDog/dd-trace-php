@@ -98,9 +98,6 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                 zend_class_entry *ce = zend_lookup_class(aux->classname);
                 if (!ce) {
                     LOG(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
-                    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                        INTEGRATION_ERROR_TELEMETRY(WARN, "Error loading deferred integration %s: Class not loaded and not autoloadable", ZSTR_VAL(aux->classname));
-                    }
                     success = true;
                     break;
                 }

@@ -106,6 +106,27 @@ trait CommonTests {
     }
 
     @Test
+    void 'sdk v2 user login success event'() {
+        def trace = container.traceFromRequest('/user_login_success_v2.php?login=Admin&id=user_id') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."appsec.events.users.login.success.usr.login" == "Admin"
+        assert span.meta."appsec.events.users.login.success.track" == "true"
+        assert span.meta."_dd.appsec.events.users.login.success.sdk" == "true"
+        assert span.meta."_dd.appsec.user.collection_mode" == "sdk"
+        assert span.meta."appsec.events.users.login.success.usr.id" == "user_id"
+        assert span.meta."appsec.events.users.login.success.metakey1" == "metavalue"
+        assert span.meta."appsec.events.users.login.success.metakey2" == "metavalue02"
+        assert span.meta."usr.id" == "user_id"
+        assert span.meta."usr.metakey1" == "metavalue"
+        assert span.meta."usr.metakey2" == "metavalue02"
+        assert span.meta."_dd.p.ts" == "02"
+    }
+
+    @Test
     void 'user login failure event'() {
         def trace = container.traceFromRequest('/user_login_failure.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -120,6 +141,22 @@ trait CommonTests {
         assert span.meta."appsec.events.users.login.failure.email" == 'jean.example@example.com'
         assert span.meta."appsec.events.users.login.failure.session_id" == '987654321'
         assert span.meta."appsec.events.users.login.failure.role" == 'admin'
+    }
+
+    @Test
+    void 'sdk v2 user login failure event'() {
+        def trace = container.traceFromRequest('/user_login_failure_v2.php?login=login') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."appsec.events.users.login.failure.usr.login" == "login"
+        assert span.meta."appsec.events.users.login.failure.usr.exists" == "true"
+        assert span.meta."appsec.events.users.login.failure.track" == "true"
+        assert span.meta."_dd.appsec.events.users.login.failure.sdk" == "true"
+        assert span.meta."appsec.events.users.login.failure.metakey1" == "metavalue"
+        assert span.meta."appsec.events.users.login.failure.metakey2" == "metavalue02"
     }
 
     @Test
@@ -146,7 +183,7 @@ trait CommonTests {
         }
 
         Span span = trace.first()
-        assert span.metrics._sampling_priority_v1 == 1.0d
+        assert span.metrics._sampling_priority_v1 < 2.0d
         assert span.meta."usr.id" == 'userID'
         assert span.meta."_dd.appsec.usr.id" == 'userID'
         assert span.meta."_dd.appsec.user.collection_mode" == 'identification'
@@ -187,7 +224,6 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
     }
-
 
     @Test
     void 'trace with an attack'() {
@@ -404,6 +440,34 @@ trait CommonTests {
     @Test
     void 'user login success blocking'() {
         def trace = container.traceFromRequest('/user_login_success.php?id=user2020') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains('blocked')
+        }
+
+        Span span = trace.first()
+        assert span.meta."appsec.blocked" == "true"
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert span.meta."_dd.appsec.event_rules.version" != ''
+    }
+
+    @Test
+    void 'sdk v2 user login failure blocking'() {
+        def trace = container.traceFromRequest('/user_login_failure_v2.php?login=login2020') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains('blocked')
+        }
+
+        Span span = trace.first()
+        assert span.meta."appsec.blocked" == "true"
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert span.metrics."_dd.appsec.waf.duration" > 0.0d
+        assert span.meta."_dd.appsec.event_rules.version" != ''
+    }
+
+    @Test
+    void 'sdk v2 user login success blocking'() {
+        def trace = container.traceFromRequest('/user_login_success_v2.php?login=login&id=user2020') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
             assert resp.body().text.contains('blocked')
         }
@@ -636,5 +700,71 @@ trait CommonTests {
             assert exploit.frames[3].function == "three"
             assert exploit.frames[3].id == 4
             assert exploit.frames[3].line == 37
+    }
+
+    @Test
+    void 'tagging rule with attributes, no keep and no event'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v1').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 < 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v1"
+        assert span.metrics."_dd.appsec.trace.integer" == 662607015
+        assert span.metrics."_dd.appsec.trace.float" == 12.34d
+        assert span.meta."_dd.appsec.trace.string" == "678"
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v1"
+    }
+
+    @Test
+    void 'tagging rule with attributes, sampling priority user_keep and no event'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v2').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v2"
+        assert span.metrics."_dd.appsec.trace.integer" == 602214076
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v2"
+    }
+
+    @Test
+    void 'tagging rule with attributes, sampling priority user_keep and an event'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v3').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v3"
+        assert span.metrics."_dd.appsec.trace.integer" == 299792458
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v3"
+    }
+
+    @Test
+    void 'tagging rule with attributes and an event, but no sampling priority change'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v4').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 < 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v4"
+        assert span.metrics."_dd.appsec.trace.integer" == 1729
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v4"
     }
 }

@@ -1,10 +1,3 @@
-hunter_add_package(Boost COMPONENTS system)
-find_package(Boost CONFIG REQUIRED COMPONENTS system)
-
-hunter_add_package(RapidJSON)
-find_package(RapidJSON CONFIG REQUIRED)
-set_target_properties(RapidJSON::rapidjson PROPERTIES INTERFACE_COMPILE_DEFINITIONS "RAPIDJSON_HAS_STDSTRING=1")
-
 configure_file(src/helper/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/helper/version.hpp)
 
 set(HELPER_SOURCE_DIR src/helper)
@@ -20,7 +13,10 @@ set_target_properties(helper_objects PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED YES
     POSITION_INDEPENDENT_CODE 1)
-target_include_directories(helper_objects INTERFACE ${HELPER_INCLUDE_DIR})
+target_include_directories(helper_objects
+    INTERFACE ${HELPER_INCLUDE_DIR}
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../components-rs
+)
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
   target_compile_options(helper_objects PRIVATE -Wall)
@@ -28,7 +24,8 @@ else()
   target_compile_options(helper_objects PRIVATE -Wall -Wextra -pedantic -Werror)
 endif()
 target_compile_options(helper_objects PRIVATE -ftls-model=global-dynamic)
-target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog cpp-base64 msgpack_c RapidJSON::rapidjson Boost::system zlibstatic)
+target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog
+    cpp-base64 msgpack_c rapidjson_appsec boost_system zlibstatic)
 
 add_library(ddappsec-helper SHARED
     src/helper/main.cpp
@@ -89,12 +86,10 @@ if(DD_APPSEC_TESTING)
        add_subdirectory(tests/fuzzer EXCLUDE_FROM_ALL)
 
        if(DD_APPSEC_ENABLE_COVERAGE)
-           target_compile_options(helper_objects PRIVATE --coverage)
-           target_compile_options(ddappsec_helper_test PRIVATE --coverage)
+           maybe_enable_coverage(helper_objects)
+           maybe_enable_coverage(ddappsec_helper_test)
 
-           target_link_options(ddappsec_helper_test PRIVATE --coverage)
-
-           # helper objects are shared, so we need to link ddappsec-helper with --coverage too
-           target_link_options(ddappsec-helper PRIVATE --coverage)
+           # helper objects are shared, so we need to link ddappsec-helper with coverage too
+           maybe_enable_coverage(ddappsec-helper)
        endif()
 endif()

@@ -19,7 +19,7 @@ DDTrace\start_span();
 $root = DDTrace\root_span();
 
 $root->service = 'simple-telemetry-app';
-$root->meta['env'] = 'test-env';
+$root->env = 'test-env';
 
 DDTrace\close_span();
 
@@ -28,7 +28,7 @@ dd_trace_serialize_closed_spans();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-for ($i = 0; $i < 100; ++$i) {
+for ($i = 0; $i < 300; ++$i) {
     usleep(100000);
     if (file_exists(__DIR__ . '/simple-telemetry.out')) {
         $batches = [];

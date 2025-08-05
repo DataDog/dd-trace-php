@@ -19,7 +19,7 @@
         "fzaninotto/faker": "^1.4",
         "mockery/mockery": "^1.0",
         "nunomaduro/collision": "^2.0",
-        "phpunit/phpunit": "^7.5"
+        "phpunit/phpunit": "<10"
     },
     "config": {
         "optimize-autoloader": true,
@@ -54,7 +54,7 @@
     "scripts": {
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-            "@php -r \"(new PDO('mysql:host=mysql_integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel58');\"",
+            "@php -r \"(new PDO('mysql:host=mysql-integration', 'test', 'test'))->exec('CREATE DATABASE IF NOT EXISTS laravel58');\"",
             "@php artisan package:discover --ansi",
             "@php artisan migrate:fresh --force"
         ],

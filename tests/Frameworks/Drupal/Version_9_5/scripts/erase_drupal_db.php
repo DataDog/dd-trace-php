@@ -1,6 +1,6 @@
 <?php
 
-$pdo = new \PDO('mysql:host=mysql_integration', 'test', 'test');
+$pdo = new \PDO('mysql:host=mysql-integration', 'test', 'test');
 
 $pdo->query("CREATE DATABASE IF NOT EXISTS drupal95");
 

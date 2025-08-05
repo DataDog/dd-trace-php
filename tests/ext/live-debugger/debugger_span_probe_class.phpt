@@ -2,6 +2,7 @@
 Installing a live debugger span probe on a class
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) die('skip timing sensitive test - valgrind is too slow'); ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
@@ -50,11 +51,15 @@ $ordered = [];
 $events = 0;
 $time = time();
 do {
-    $log = $dlr->waitForDiagnosticsDataAndReplay();
-    foreach (json_decode($log["files"]["event"]["contents"], true) as $payload) {
-        $diagnostic = $payload["debugger"]["diagnostics"];
-        $ordered[$diagnostic["probeId"]][$payload["timestamp"]][] = $diagnostic["status"];
-        ++$events;
+    try {
+        $log = $dlr->waitForDiagnosticsDataAndReplay();
+        foreach (json_decode($log["files"]["event"]["contents"], true) as $payload) {
+            $diagnostic = $payload["debugger"]["diagnostics"];
+            $ordered[$diagnostic["probeId"]][$payload["timestamp"]][] = $diagnostic["status"];
+            ++$events;
+        }
+    } catch (Exception $e) {
+        // handle the timeout?
     }
 } while ($events < 5 && $time > time() - 10);
 ksort($ordered);

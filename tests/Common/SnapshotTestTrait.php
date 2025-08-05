@@ -164,8 +164,7 @@ trait SnapshotTestTrait
         // Relevant logs are assumed to be in JSON format. If they're not, shame on you.
         $lines = array_values(array_filter(array_map('json_decode', $lines)));
 
-        $basePath = implode('/', array_slice(explode('/', getcwd()), 0, 4)); // /home/circleci/[app|datadog]
-        $expectedLogsFile = $basePath . '/tests/snapshots/logs/' . $token . '.txt';
+        $expectedLogsFile = realpath(__DIR__ . '/../..') . '/tests/snapshots/logs/' . $token . '.txt';
         if (file_exists($expectedLogsFile)) {
             $expectedLogs = file_get_contents($expectedLogsFile);
             $expectedLogs = explode("\n", $expectedLogs);
@@ -207,8 +206,7 @@ trait SnapshotTestTrait
             return $metric["name"] !== "tracer-snapshot-end." . $token;
         });
 
-        $basePath = implode('/', array_slice(explode('/', getcwd()), 0, 4)); // /home/circleci/[app|datadog]
-        $expectedMetricsFile = $basePath . '/tests/snapshots/metrics/' . $token . '.txt';
+        $expectedMetricsFile = realpath(__DIR__ . '/../..') . '/tests/snapshots/metrics/' . $token . '.txt';
         if (file_exists($expectedMetricsFile)) {
             $expectedMetrics = file_get_contents($expectedMetricsFile);
             $this->compareMetrics($expectedMetrics, $receivedMetrics, $fieldsToIgnore);
@@ -330,6 +328,9 @@ trait SnapshotTestTrait
     ) {
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
         self::putEnv('DD_TRACE_AGENT_RETRIES=3');
+        if (ini_get("datadog.code_origin_max_user_frames") == "8" /* default, not used in tests */) {
+            self::putEnv('DD_CODE_ORIGIN_MAX_USER_FRAMES=0');
+        }
 
         $token = $this->generateToken();
         $this->startSnapshotSession($token, $logsFile);
@@ -368,6 +369,7 @@ trait SnapshotTestTrait
         update_test_agent_session_token($originalToken);
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
+        self::putEnv('DD_CODE_ORIGIN_MAX_USER_FRAMES');
     }
 
     public function snapshotFromTraces(

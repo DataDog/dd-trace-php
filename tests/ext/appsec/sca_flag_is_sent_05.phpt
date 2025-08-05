@@ -18,13 +18,15 @@ datadog.appsec.sca_enabled=0
 --FILE_EXTERNAL--
 sca_test.inc
 --EXPECT--
-array(3) {
+array(4) {
   ["name"]=>
   string(18) "appsec.sca_enabled"
   ["value"]=>
   string(1) "0"
   ["origin"]=>
-  string(6) "EnvVar"
+  string(7) "env_var"
+  ["config_id"]=>
+  NULL
 }
 string(4) "Sent"
 --CLEAN--

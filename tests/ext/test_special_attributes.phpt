@@ -1,5 +1,7 @@
 --TEST--
 Reserved OTel attributes that have special meaning
+--ENV--
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 

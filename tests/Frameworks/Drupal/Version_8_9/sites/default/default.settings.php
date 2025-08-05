@@ -93,7 +93,7 @@ $databases['default']['default'] = [
     'database' => 'drupal89',
     'username' => 'test',
     'password' => 'test',
-    'host' => 'mysql_integration',
+    'host' => 'mysql-integration',
     'prefix' => '',
 ];
 
@@ -261,7 +261,7 @@ $databases['default']['default'] = [
     'database' => 'drupal89',
     'username' => 'test',
     'password' => 'test',
-    'host' => 'mysql_integration',
+    'host' => 'mysql-integration',
     'prefix' => '',
 ];
 

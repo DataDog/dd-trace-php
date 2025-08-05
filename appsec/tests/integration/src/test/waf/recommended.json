@@ -184,6 +184,31 @@
       ]
     },
     {
+      "id": "blk-001-005",
+      "name": "Block User Addresses by login",
+      "tags": {
+        "type": "block_user",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "usr.login"
+              }
+            ],
+            "data": "blocked_users_by_login"
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },    
+    {
       "id": "redirect-001-001",
       "name": "Redirected IP Addresses",
       "tags": {
@@ -429,6 +454,33 @@
         }
       ],
       "transformers": []
+    },
+    {
+      "id": "e2e-001-001",
+      "name": "This rule will be used to test authorization header gets pass to waf",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [ "authorization" ]
+              }
+            ],
+            "type": "string",
+            "value": "digest 1234567890"
+          },
+          "operator": "equals"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
     },
     {
       "id": "crs-921-160",
@@ -3769,39 +3821,6 @@
       "transformers": []
     },
     {
-      "id": "crs-942-100",
-      "name": "SQL Injection Attack Detected via libinjection",
-      "tags": {
-        "type": "sql_injection",
-        "crs_id": "942100",
-        "category": "attack_attempt"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.query"
-              },
-              {
-                "address": "server.request.body"
-              },
-              {
-                "address": "server.request.path_params"
-              },
-              {
-                "address": "grpc.server.request.message"
-              }
-            ]
-          },
-          "operator": "is_sqli"
-        }
-      ],
-      "transformers": [
-        "removeNulls"
-      ]
-    },
-    {
       "id": "crs-942-160",
       "name": "Detects blind sqli tests using sleep() or benchmark()",
       "tags": {
@@ -3901,41 +3920,6 @@
             "options": {
               "case_sensitive": true,
               "min_length": 11
-            }
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
-    },
-    {
-      "id": "crs-942-270",
-      "name": "Basic SQL injection",
-      "tags": {
-        "type": "sql_injection",
-        "crs_id": "942270",
-        "category": "attack_attempt"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.query"
-              },
-              {
-                "address": "server.request.body"
-              },
-              {
-                "address": "server.request.path_params"
-              },
-              {
-                "address": "grpc.server.request.message"
-              }
-            ],
-            "regex": "union.*?select.*?from",
-            "options": {
-              "min_length": 15
             }
           },
           "operator": "match_regex"
@@ -4044,41 +4028,6 @@
       "transformers": [
         "keys_only"
       ]
-    },
-    {
-      "id": "crs-942-360",
-      "name": "Detects concatenated basic SQL injection and SQLLFI attempts",
-      "tags": {
-        "type": "sql_injection",
-        "crs_id": "942360",
-        "category": "attack_attempt"
-      },
-      "conditions": [
-        {
-          "parameters": {
-            "inputs": [
-              {
-                "address": "server.request.query"
-              },
-              {
-                "address": "server.request.body"
-              },
-              {
-                "address": "server.request.path_params"
-              },
-              {
-                "address": "grpc.server.request.message"
-              }
-            ],
-            "regex": "(?:^[\\W\\d]+\\s*?(?:alter\\s*(?:a(?:(?:pplication\\s*rol|ggregat)e|s(?:ymmetric\\s*ke|sembl)y|u(?:thorization|dit)|vailability\\s*group)|c(?:r(?:yptographic\\s*provider|edential)|o(?:l(?:latio|um)|nversio)n|ertificate|luster)|s(?:e(?:rv(?:ice|er)|curity|quence|ssion|arch)|y(?:mmetric\\s*key|nonym)|togroup|chema)|m(?:a(?:s(?:ter\\s*key|k)|terialized)|e(?:ssage\\s*type|thod)|odule)|l(?:o(?:g(?:file\\s*group|in)|ckdown)|a(?:ngua|r)ge|ibrary)|t(?:(?:abl(?:espac)?|yp)e|r(?:igger|usted)|hreshold|ext)|p(?:a(?:rtition|ckage)|ro(?:cedur|fil)e|ermission)|d(?:i(?:mension|skgroup)|atabase|efault|omain)|r(?:o(?:l(?:lback|e)|ute)|e(?:sourc|mot)e)|f(?:u(?:lltext|nction)|lashback|oreign)|e(?:xte(?:nsion|rnal)|(?:ndpoi|ve)nt)|in(?:dex(?:type)?|memory|stance)|b(?:roker\\s*priority|ufferpool)|x(?:ml\\s*schema|srobject)|w(?:ork(?:load)?|rapper)|hi(?:erarchy|stogram)|o(?:perator|utline)|(?:nicknam|queu)e|us(?:age|er)|group|java|view)|union\\s*(?:(?:distin|sele)ct|all))\\b|\\b(?:(?:(?:trunc|cre|upd)at|renam)e|(?:inser|selec)t|de(?:lete|sc)|alter|load)\\s+(?:group_concat|load_file|char)\\b\\s*\\(?|[\\s(]load_file\\s*?\\(|[\\\"'`]\\s+regexp\\W)",
-            "options": {
-              "min_length": 5
-            }
-          },
-          "operator": "match_regex"
-        }
-      ],
-      "transformers": []
     },
     {
       "id": "crs-942-500",
@@ -6934,6 +6883,216 @@
         }
       ],
       "transformers": []
+    },
+    {
+      "id": "rasp-942-100",
+      "name": "SQL injection exploit",
+      "tags": {
+        "type": "sql_injection",
+        "category": "vulnerability_trigger",
+        "cwe": "89",
+        "capec": "1000/152/248/66",
+        "confidence": "0",
+        "module": "rasp"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "resource": [
+              {
+                "address": "server.db.statement"
+              }
+            ],
+            "params": [
+              {
+                "address": "server.request.query"
+              },
+              {
+                "address": "server.request.body"
+              },
+              {
+                "address": "server.request.path_params"
+              },
+              {
+                "address": "graphql.server.all_resolvers"
+              },
+              {
+                "address": "graphql.server.resolver"
+              }
+            ],
+            "db_type": [
+              {
+                "address": "server.db.system"
+              }
+            ]
+          },
+          "operator": "sqli_detector@v2"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "stack_trace"
+      ]
+    }
+  ],
+  "rules_compat": [
+    {
+      "id": "ttr-000-001",
+      "name": "Trace Tagging Rule: Attributes, No Keep, No Event",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^TraceTagging\\/v1"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "output": {
+          "event": false,
+          "keep": false,
+          "attributes": {
+              "_dd.appsec.trace.integer": {
+                  "value": 662607015
+              },
+              "_dd.appsec.trace.float": {
+                "value": 12.34
+              },
+              "_dd.appsec.trace.string": {
+                "value": "678"
+              },
+              "_dd.appsec.trace.agent": {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["user-agent"]
+              }
+          }
+      },
+      "on_match": []
+    },
+    {
+      "id": "ttr-000-002",
+      "name": "Trace Tagging Rule: Attributes, Keep, No Event",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^TraceTagging\\/v2"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "output": {
+          "event": false,
+          "keep": true,
+          "attributes": {
+              "_dd.appsec.trace.integer": {
+                  "value": 602214076
+              },
+              "_dd.appsec.trace.agent": {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["user-agent"]
+              }
+          }
+      },
+      "on_match": []
+    },
+    {
+      "id": "ttr-000-003",
+      "name": "Trace Tagging Rule: Attributes, Keep, Event",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^TraceTagging\\/v3"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "output": {
+          "event": true,
+          "keep": true,
+          "attributes": {
+              "_dd.appsec.trace.integer": {
+                  "value": 299792458
+              },
+              "_dd.appsec.trace.agent": {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["user-agent"]
+              }
+          }
+      },
+      "on_match": []
+    },
+    {
+      "id": "ttr-000-004",
+      "name": "Trace Tagging Rule: Attributes, No Keep, Event",
+      "tags": {
+        "type": "security_scanner",
+        "category": "attack_attempt"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "user-agent"
+                ]
+              }
+            ],
+            "regex": "^TraceTagging\\/v4"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "output": {
+          "event": true,
+          "keep": false,
+          "attributes": {
+              "_dd.appsec.trace.integer": {
+                  "value": 1729
+              },
+              "_dd.appsec.trace.agent": {
+                "address": "server.request.headers.no_cookies",
+                "key_path": ["user-agent"]
+              }
+          }
+      },
+      "on_match": []
     }
   ],
   "rules_data": [
@@ -6967,6 +7126,16 @@
         }
       ]
     },
+    {
+      "id": "blocked_users_by_login",
+      "type": "data_with_expiration",
+      "data": [
+        {
+          "value": "login2020",
+          "expiration": 0
+        }
+      ]
+    },    
     {
       "id": "blocked_users_with_stack",
       "type": "data_with_expiration",

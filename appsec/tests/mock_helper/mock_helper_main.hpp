@@ -40,6 +40,8 @@ class EchoPipe { // lifetime: till the end of the program
                 stream_.async_wait(wait_type, yield);
                 SPDLOG_INFO("The echo pipe was closed"); // NOLINT
                 cb();
+            }, [](std::exception_ptr e) {
+                if (e) std::rethrow_exception(e);
             });
     }
 

@@ -12,10 +12,18 @@
 #include "msgpack_helpers.h"
 #include "request_abort.h"
 #include "tags.h"
+#include "telemetry.h"
 #include "user_tracking.h"
 #include <ext/standard/base64.h>
 #include <mpack.h>
 #include <stdatomic.h>
+
+static const char WAF_REQUEST_METRIC[] = "waf.requests";
+static const size_t WAF_REQUEST_METRIC_LEN = sizeof(WAF_REQUEST_METRIC) - 1;
+static const char TRUNCATED_TAG[] = "input_truncated=true";
+static const size_t TRUNCATED_TAG_LEN = sizeof(TRUNCATED_TAG);
+static const char TAG_SEPARATOR = ',';
+static const size_t TAG_SEPARATOR_LEN = sizeof(TAG_SEPARATOR);
 
 typedef struct _dd_omsg {
     zend_llist iovecs;
@@ -150,8 +158,10 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
             return dd_helper_error;
         } else {
             mlog(dd_log_debug,
-                "Received message for command %.*s unexpected: %.*s\n", NAME_L,
-                (int)mpack_node_strlen(type), mpack_node_str(type));
+                "Received message for command %.*s unexpected: \"%.*s\". "
+                "Expected \"config_features\", \"error\" or \"%.*s\"",
+                NAME_L, (int)mpack_node_strlen(type), mpack_node_str(type),
+                NAME_L);
             return dd_error;
         }
 
@@ -453,7 +463,6 @@ dd_result dd_command_proc_resp_verd_span_data(
 
     if (res == dd_should_block || res == dd_should_redirect ||
         res == dd_should_record) {
-        dd_trace_emit_asm_event();
         _set_appsec_span_data(
             mpack_node_array_at(root, RESP_INDEX_APPSEC_SPAN_DATA));
     }
@@ -461,7 +470,7 @@ dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t force_keep = mpack_node_array_at(root, RESP_INDEX_FORCE_KEEP);
     if (mpack_node_type(force_keep) == mpack_type_bool &&
         mpack_node_bool(force_keep)) {
-        dd_tags_set_sampling_priority();
+        dd_trace_emit_asm_event();
     }
 
     if (mpack_node_array_length(root) >= RESP_INDEX_SETTINGS + 1) {
@@ -610,6 +619,7 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
     }
 
     size_t count = mpack_node_map_count(root);
+    bool has_schemas = false;
 
     for (size_t i = 0; i < count; i++) {
         mpack_node_t key = mpack_node_map_key_at(root, i);
@@ -630,6 +640,12 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
             key_len = INT_MAX;
         }
 
+        if (!has_schemas && dd_string_starts_with_lc(
+                                key_str, key_len, ZEND_STRL("_dd.appsec.s."))) {
+            // There is schemas extrated
+            has_schemas = true;
+        }
+
         bool res = dd_trace_span_add_tag_str(span, key_str, key_len,
             mpack_node_str(value), mpack_node_strlen(value));
 
@@ -638,6 +654,10 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
                 key_str);
             return;
         }
+    }
+
+    if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
+        dd_trace_emit_asm_event();
     }
 }
 
@@ -738,6 +758,7 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             double dval = mpack_node_double(dval_node);
 
             const char *tags_str = "";
+            char *modified_tags_str = NULL;
             size_t tags_len = 0;
             if (mpack_node_array_length(value) >= 2) {
                 mpack_node_t tags = mpack_node_array_at(value, 1);
@@ -747,9 +768,33 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             if (mpack_node_error(metrics) != mpack_ok) {
                 break;
             }
+            if (dd_msgpack_helpers_is_data_truncated() &&
+                WAF_REQUEST_METRIC_LEN == key_len &&
+                memcmp(WAF_REQUEST_METRIC, key_str, WAF_REQUEST_METRIC_LEN) ==
+                    0) {
+                size_t separator = 0;
+                if (tags_len > 0) {
+                    separator = TAG_SEPARATOR_LEN;
+                }
+                modified_tags_str =
+                    emalloc(tags_len + TRUNCATED_TAG_LEN + 1 + separator);
+                if (modified_tags_str) {
+                    memcpy(modified_tags_str, tags_str, tags_len);
+                    if (separator > 0) {
+                        modified_tags_str[tags_len] = TAG_SEPARATOR;
+                    }
+                    memcpy(modified_tags_str + tags_len + separator,
+                        TRUNCATED_TAG, TRUNCATED_TAG_LEN);
+                    tags_len += TRUNCATED_TAG_LEN + separator;
+                    tags_str = modified_tags_str;
+                }
+            }
 
             _handle_telemetry_metric(
                 key_str, key_len, dval, tags_str, tags_len);
+            if (modified_tags_str) {
+                efree(modified_tags_str);
+            }
         }
     }
 
@@ -781,9 +826,7 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
             static zend_string *_Atomic key_zstr;                              \
             _init_zstr(&key_zstr, name, LSTRLEN(name));                        \
             zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 1);  \
-            ddtrace_metric_register_buffer(                                    \
-                key_zstr, type, DDTRACE_METRIC_NAMESPACE_APPSEC);              \
-            ddtrace_metric_add_point(key_zstr, value, tags_zstr);              \
+            dd_telemetry_add_metric(key_zstr, value, tags_zstr, type);         \
             zend_string_release(tags_zstr);                                    \
             mlog_g(dd_log_debug,                                               \
                 "Telemetry metric %.*s added with tags %.*s and value %f",     \
@@ -804,6 +847,7 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
     HANDLE_METRIC("rasp.timeout", DDTRACE_METRIC_TYPE_COUNT);
     HANDLE_METRIC("rasp.rule.match", DDTRACE_METRIC_TYPE_COUNT);
     HANDLE_METRIC("rasp.rule.eval", DDTRACE_METRIC_TYPE_COUNT);
+    HANDLE_METRIC("rasp.error", DDTRACE_METRIC_TYPE_COUNT);
 
     mlog_g(dd_log_info, "Unknown telemetry metric %.*s", (int)key_len, key_str);
 }

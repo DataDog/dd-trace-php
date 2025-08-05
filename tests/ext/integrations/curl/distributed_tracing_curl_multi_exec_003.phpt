@@ -32,7 +32,7 @@ function doMulti($url)
     $ch = [];
 
     for ($i = 0; $i < 46; ++$i) {
-        $ch[$i] = curl_init();
+        $ch[$i] = curl_init_no_dns_cache();
         curl_setopt($ch[$i], CURLOPT_URL, $url);
         curl_setopt($ch[$i], CURLOPT_RETURNTRANSFER, true);
 

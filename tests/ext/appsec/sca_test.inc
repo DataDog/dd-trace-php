@@ -14,7 +14,7 @@ dd_trace_serialize_closed_spans();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-for ($i = 0; $i < 100; ++$i) {
+for ($i = 0; $i < 300; ++$i) {
     usleep(100000);
     if (file_exists(__DIR__ . '/'.$id.'-telemetry.out')) {
         $batches = [];
@@ -30,7 +30,7 @@ for ($i = 0; $i < 100; ++$i) {
             }
         }
         $found = array_filter($batches, function ($json) {
-            if ($json["request_type"] !== "app-started") {
+            if ($json["request_type"] !== "app-client-configuration-change") {
                 return false;
             }
             foreach($json["payload"]["configuration"] as $configuration) {
@@ -47,7 +47,7 @@ for ($i = 0; $i < 100; ++$i) {
         }
     }
 }
-if ($i == 100) {
+if ($i == 300) {
     var_dump(file(__DIR__ . '/'.$id.'-telemetry.out'));
 }
 

@@ -12,7 +12,9 @@ if ('/override-resource' === $uriPath) {
 }
 
 if ('/curl-host' === $uriPath) {
-    $ch = curl_init("http://httpbin_integration/status/200");
+    $port = getenv('HTTPBIN_PORT') ?: '80';
+    $url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/status/200';
+    $ch = curl_init($url);
     curl_exec($ch);
     error_log('/curl-host completed');
 }

@@ -22,7 +22,7 @@ using dds::remote_config::changeset;
 using dds::remote_config::parsed_config_key;
 
 const std::string waf_rule =
-    R"({"version": "2.1", "metadata": {"rules_version": "1.2.3" }, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ], "action": "record" }, {"id": "2", "name": "ssrf", "tags": {"type": "ssrf", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"resource": [{"address": "server.io.net.url" } ], "params": [{"address": "server.request.body" } ] }, "operator": "ssrf_detector" } ] }, {"id": "3", "name": "lfi", "tags": {"type": "lfi", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"params": [{"address": "server.request.query" } ], "resource": [{"address": "server.io.fs.file" } ] }, "operator": "lfi_detector" } ] } ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2" } ], "output": "_dd.appsec.s.arg2" } ], "scanners": [{"tags": {"category": "pii" } } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
+    R"({"version": "2.1", "metadata": {"rules_version": "1.2.3" }, "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ], "action": "record" }, {"id": "2", "name": "ssrf", "tags": {"type": "ssrf", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"resource": [{"address": "server.io.net.url" } ], "params": [{"address": "server.request.body" } ] }, "operator": "ssrf_detector" } ] }, {"id": "3", "name": "lfi", "tags": {"type": "lfi", "category": "vulnerability_trigger" }, "conditions": [{"parameters": {"params": [{"address": "server.request.query" } ], "resource": [{"address": "server.io.fs.file" } ] }, "operator": "lfi_detector" } ] } ], "rules_compat": [{"id": "ttr-000-001", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg3", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": false, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.float": {"value": 12.34 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] } ], "processors": [{"id": "processor-001", "generator": "extract_schema", "parameters": {"mappings": [{"inputs": [{"address": "arg2" } ], "output": "_dd.appsec.s.arg2" } ], "scanners": [{"tags": {"category": "pii" } } ] }, "evaluate": false, "output": true } ], "scanners": [] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -76,7 +76,7 @@ TEST(WafTest, InitWithInvalidRules)
     EXPECT_CALL(submitm, submit_metric("waf.init"sv, 1, _));
     EXPECT_CALL(
         submitm, submit_metric("waf.config_errors", 3.,
-                     metrics::telemetry_tags::from_string(
+                     telemetry::telemetry_tags::from_string(
                          std::string{"waf_version:"} + ddwaf_get_version() +
                          ",event_rules_version:1.2.3,"
                          "config_key:rules,scope:item")));
@@ -119,13 +119,54 @@ TEST(WafTest, InitWithInvalidRules)
 
 TEST(WafTest, RunWithInvalidParam)
 {
-    NiceMock<mock::tel_submitter> submitm{};
-    std::shared_ptr<subscriber> wi{
-        waf::instance::from_string(waf_rule, submitm)};
-    auto ctx = wi->get_listener();
-    parameter_view pv;
-    dds::event e;
-    EXPECT_THROW(ctx->call(pv, e), invalid_object);
+    { // No rasp
+        NiceMock<mock::tel_submitter> submitm{};
+        std::shared_ptr<subscriber> wi{
+            waf::instance::from_string(waf_rule, submitm)};
+        auto ctx = wi->get_listener();
+        parameter_view pv;
+        dds::event e;
+        EXPECT_THROW(ctx->call(pv, e), invalid_object);
+    }
+    { // Rasp
+        NiceMock<mock::tel_submitter> submitm{};
+        std::shared_ptr<subscriber> wi(
+            waf::instance::from_string(waf_rule, submitm, 0));
+        auto ctx = wi->get_listener();
+
+        EXPECT_CALL(submitm,
+            submit_metric("waf.requests"sv, 1,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",waf_error:true"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.eval"sv, 1,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.match"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.timeout"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, 1,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+
+        parameter_view pv;
+        dds::event e;
+        std::string rasp = "lfi";
+        EXPECT_THROW(ctx->call(pv, e, rasp), invalid_object);
+        ctx->submit_metrics(submitm);
+        Mock::VerifyAndClearExpectations(&submitm);
+    }
 }
 
 TEST(WafTest, RunWithTimeout)
@@ -192,7 +233,7 @@ TEST(WafTest, ValidRunGood)
             .WillOnce(SaveArg<1>(&duration));
         EXPECT_CALL(submitm,
             submit_metric("waf.requests"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version())));
         ctx->submit_metrics(submitm);
@@ -221,21 +262,29 @@ TEST(WafTest, ValidRunGood)
                                  std::string{"1.2.3"}));
         EXPECT_CALL(submitm,
             submit_metric("waf.requests"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("rasp.rule.eval"sv, 1,
-                                 metrics::telemetry_tags::from_string(
-                                     std::string{"rule_type:lfi,waf_version:"} +
-                                     ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("rasp.rule.match"sv, 0,
-                                 metrics::telemetry_tags::from_string(
-                                     std::string{"rule_type:lfi,waf_version:"} +
-                                     ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("rasp.timeout"sv, 0,
-                                 metrics::telemetry_tags::from_string(
-                                     std::string{"rule_type:lfi,waf_version:"} +
-                                     ddwaf_get_version())));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.eval"sv, 1,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.match"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.timeout"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 1.0));
         EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _))
             .WillOnce(SaveArg<1>(&duration));
@@ -262,7 +311,7 @@ TEST(WafTest, ValidRunMonitor)
     dds::event e;
     ctx->call(pv, e);
 
-    for (auto &match : e.data) {
+    for (auto &match : e.triggers) {
         rapidjson::Document doc;
         doc.Parse(match);
         EXPECT_FALSE(doc.HasParseError());
@@ -276,7 +325,7 @@ TEST(WafTest, ValidRunMonitor)
     EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
     EXPECT_CALL(
         submitm, submit_metric("waf.requests"sv, 1,
-                     metrics::telemetry_tags::from_string(
+                     telemetry::telemetry_tags::from_string(
                          std::string{"event_rules_version:1.2.3,waf_version:"} +
                          ddwaf_get_version() + ",rule_triggered:true")));
     EXPECT_CALL(
@@ -303,9 +352,9 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     dds::event e;
     ctx->call(pv, e);
 
-    EXPECT_EQ(e.data.size(), 1);
+    EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(e.data[0]);
+    doc.Parse(e.triggers[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
@@ -337,9 +386,9 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     dds::event e;
     ctx->call(pv, e);
 
-    EXPECT_EQ(e.data.size(), 1);
+    EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(e.data[0]);
+    doc.Parse(e.triggers[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
@@ -394,9 +443,9 @@ TEST(WafTest, UpdateRuleData)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -433,7 +482,7 @@ TEST(WafTest, UpdateInvalid)
     cs.added.emplace("employee/ASM_DD/0/empty"sv, parameter::map());
     EXPECT_CALL(submitm,
         submit_metric("waf.updates"sv, 1,
-            metrics::telemetry_tags::from_string(
+            telemetry::telemetry_tags::from_string(
                 std::string{"success:true,event_rules_version:,waf_version:"} +
                 ddwaf_get_version())));
 
@@ -459,15 +508,15 @@ TEST(WafTest, SchemasAreAdded)
     dds::event e;
     ctx->call(pv, e);
 
-    EXPECT_EQ(e.data.size(), 1);
+    EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
-    doc.Parse(e.data[0]);
+    doc.Parse(e.triggers[0]);
     EXPECT_FALSE(doc.HasParseError());
     EXPECT_TRUE(doc.IsObject());
 
     EXPECT_CALL(
         submitm, submit_metric("waf.requests"sv, 1,
-                     metrics::telemetry_tags::from_string(
+                     telemetry::telemetry_tags::from_string(
                          std::string{"event_rules_version:1.2.3,waf_version:"} +
                          ddwaf_get_version() + ",rule_triggered:true")));
     EXPECT_CALL(
@@ -580,9 +629,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -619,9 +668,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -658,9 +707,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -692,9 +741,9 @@ TEST(WafTest, ActionsAreSentAndParsed)
         dds::event e;
         ctx->call(pv, e);
 
-        EXPECT_EQ(e.data.size(), 1);
+        EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
-        doc.Parse(e.data[0]);
+        doc.Parse(e.triggers[0]);
         EXPECT_FALSE(doc.HasParseError());
         EXPECT_TRUE(doc.IsObject());
 
@@ -748,47 +797,66 @@ TEST(WafTest, TelemetryIsSent)
         parameter_view pv3(p3);
         ctx->call(pv3, e, "lfi");
 
+        parameter_view pv4;
+        EXPECT_THROW(ctx->call(pv4, e, "lfi"), invalid_object);
+
+        parameter_view pv5;
+        EXPECT_THROW(ctx->call(pv5, e, "lfi"), invalid_object);
+
         EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
                                  std::string{"1.2.3"}));
         EXPECT_CALL(submitm,
             submit_metric("waf.requests"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() +
-                    std::string{",rule_triggered:true"})));
+                    std::string{",rule_triggered:true,waf_error:true"})));
 
         // SSRF
-        EXPECT_CALL(
-            submitm, submit_metric("rasp.rule.eval"sv, 2,
-                         metrics::telemetry_tags::from_string(
-                             std::string{"rule_type:ssrf,waf_version:"} +
-                             ddwaf_get_version())));
-        EXPECT_CALL(
-            submitm, submit_metric("rasp.rule.match"sv, 1,
-                         metrics::telemetry_tags::from_string(
-                             std::string{"rule_type:ssrf,waf_version:"} +
-                             ddwaf_get_version())));
-        EXPECT_CALL(
-            submitm, submit_metric("rasp.timeout"sv, 0,
-                         metrics::telemetry_tags::from_string(
-                             std::string{"rule_type:ssrf,waf_version:"} +
-                             ddwaf_get_version())));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.eval"sv, 2,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:ssrf"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.match"sv, 1,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:ssrf"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.timeout"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:ssrf"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:ssrf"})));
 
-        // LFI
-        EXPECT_CALL(submitm, submit_metric("rasp.rule.eval"sv, 1,
-                                 metrics::telemetry_tags::from_string(
-                                     std::string{"rule_type:lfi,waf_version:"} +
-                                     ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("rasp.rule.match"sv, 1,
-                                 metrics::telemetry_tags::from_string(
-                                     std::string{"rule_type:lfi,waf_version:"} +
-                                     ddwaf_get_version())));
-        EXPECT_CALL(submitm, submit_metric("rasp.timeout"sv, 0,
-                                 metrics::telemetry_tags::from_string(
-                                     std::string{"rule_type:lfi,waf_version:"} +
-                                     ddwaf_get_version())));
+        // // LFI
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.eval"sv, 3,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.rule.match"sv, 1,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.timeout"sv, 0,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
+        EXPECT_CALL(submitm,
+            submit_metric("rasp.error"sv, 2,
+                telemetry::telemetry_tags::from_string(
+                    std::string{"event_rules_version:1.2.3,waf_version:"} +
+                    ddwaf_get_version() + std::string{",rule_type:lfi"})));
 
-        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 3));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_rule_eval, 5));
         EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
         ctx->submit_metrics(submitm);
@@ -821,25 +889,72 @@ TEST(WafTest, TelemetryTimeoutMetric)
         submit_span_meta(metrics::event_rules_version, std::string{"1.2.3"}));
     EXPECT_CALL(submitm,
         submit_metric("waf.requests"sv, 1,
-            metrics::telemetry_tags::from_string(
+            telemetry::telemetry_tags::from_string(
                 std::string{"event_rules_version:1.2.3,waf_version:"} +
                 ddwaf_get_version() + std::string{",waf_timeout:true"})));
 
-    EXPECT_CALL(submitm, submit_metric("rasp.rule.eval"sv, 1,
-                             metrics::telemetry_tags::from_string(
-                                 std::string{"rule_type:lfi,waf_version:"} +
-                                 ddwaf_get_version())));
-    EXPECT_CALL(submitm, submit_metric("rasp.rule.match"sv, 0,
-                             metrics::telemetry_tags::from_string(
-                                 std::string{"rule_type:lfi,waf_version:"} +
-                                 ddwaf_get_version())));
-    EXPECT_CALL(submitm, submit_metric("rasp.timeout"sv, 1,
-                             metrics::telemetry_tags::from_string(
-                                 std::string{"rule_type:lfi,waf_version:"} +
-                                 ddwaf_get_version())));
+    EXPECT_CALL(
+        submitm, submit_metric("rasp.rule.eval"sv, 1,
+                     telemetry::telemetry_tags::from_string(
+                         std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version() + std::string{",rule_type:lfi"})));
+    EXPECT_CALL(
+        submitm, submit_metric("rasp.rule.match"sv, 0,
+                     telemetry::telemetry_tags::from_string(
+                         std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version() + std::string{",rule_type:lfi"})));
+    EXPECT_CALL(
+        submitm, submit_metric("rasp.timeout"sv, 1,
+                     telemetry::telemetry_tags::from_string(
+                         std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version() + std::string{",rule_type:lfi"})));
+    EXPECT_CALL(
+        submitm, submit_metric("rasp.error"sv, 0,
+                     telemetry::telemetry_tags::from_string(
+                         std::string{"event_rules_version:1.2.3,waf_version:"} +
+                         ddwaf_get_version() + std::string{",rule_type:lfi"})));
 
     ctx->submit_metrics(submitm);
     Mock::VerifyAndClearExpectations(&submitm);
 }
 
+TEST(WafTest, TraceAttributesAreSent)
+{
+    NiceMock<mock::tel_submitter> submitm{};
+
+    auto p = parameter::map();
+    p.add("arg3", parameter::string("string 3"sv));
+
+    auto headers = parameter::map();
+    headers.add("user-agent", parameter::string("some-agent"sv));
+    p.add("server.request.headers.no_cookies", std::move(headers));
+    parameter_view pv(p);
+
+    {
+        std::shared_ptr<subscriber> wi{
+            waf::instance::from_string(waf_rule, submitm)};
+        ASSERT_TRUE(wi);
+
+        EXPECT_CALL(
+            submitm, submit_span_metric(
+                         std::string_view{"_dd.appsec.trace.integer"}, 12345));
+        EXPECT_CALL(
+            submitm, submit_span_metric(
+                         std::string_view{"_dd.appsec.trace.float"}, 12.34));
+        EXPECT_CALL(
+            submitm, submit_span_meta_copy_key(
+                         "_dd.appsec.trace.string", std::string{"678"}));
+        EXPECT_CALL(submitm, submit_span_meta_copy_key("_dd.appsec.trace.agent",
+                                 std::string{"some-agent"}));
+        EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
+        EXPECT_CALL(submitm,
+            submit_span_meta("_dd.appsec.event_rules.version", "1.2.3"));
+
+        auto ctx = wi->get_listener();
+        dds::event e;
+        ctx->call(pv, e);
+        ctx->submit_metrics(submitm);
+        Mock::VerifyAndClearExpectations(&submitm);
+    }
+}
 } // namespace dds

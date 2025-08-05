@@ -80,7 +80,7 @@ namespace
 
     dd_trace_internal_fn("finalize_telemetry");
 
-    for ($i = 0; $i < 100; ++$i) {
+    for ($i = 0; $i < 300; ++$i) {
         usleep(100000);
         if (file_exists(__DIR__ . '/metrics-spans_created-telemetry.out')) {
             foreach (file(__DIR__ . '/metrics-spans_created-telemetry.out') as $l) {

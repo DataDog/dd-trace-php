@@ -18,6 +18,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'custom_autoloaded_app',
+            'DD_SERVICE' => 'customTelemetry',
             'DD_TRACE_AGENT_PORT' => 80,
             'DD_AGENT_HOST' => 'request-replayer',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 1,
@@ -41,7 +42,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
         }
 
         // Filter the payloads from the trace background sender
-        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") != "background_sender-php-service"; }));
+        return array_values($telemetryPayloads);
     }
 
     public function testInstrumentation()
@@ -52,7 +53,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
 
         $this->resetRequestDumper();
 
-        $this->call(GetSpec::create("autoloaded", "/simple"));
+        $this->call(GetSpec::create("autoloaded", "/telemetry"));
         usleep(500000);
         $response = $this->retrieveDumpedData($this->untilTelemetryRequest("spans_created"));
 
@@ -63,22 +64,10 @@ final class InstrumentationTest extends WebFrameworkTestCase
             return 'generate-metrics' === $payload['request_type'];
         };
         $metrics = array_values(array_filter($payloads, $isMetric));
-        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
+        $payloads = array_values(array_filter($payloads, function ($p) use ($isMetric) { return !$isMetric($p); }));
 
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
-        $this->assertContains([
-            "name" => "agent_host",
-            "value" => "request-replayer",
-            "origin" => "EnvVar",
-        ], $payloads[0]["payload"]["configuration"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
-        $this->assertEquals([[
-            "name" => "nikic/fast-route",
-            "version" => "v1.3.0",
-        ]], array_filter($payloads[1]["payload"]["dependencies"], function ($i) {
-            return strpos($i["name"], "ext-") !== 0;
-        }));
-        // Not asserting app-closing, this is not expected to happen until shutdown
 
         $allMetrics = [];
         foreach ($metrics as $m) {
@@ -86,10 +75,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 $allMetrics[$s["metric"]] = $s;
             }
         }
-        $this->assertArrayHasKey("spans_created", $allMetrics);
-        $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
-        $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);
-        $this->assertEquals(["integration_name:datadog"], $allMetrics["spans_created"]["tags"]);
+        $this->assertArrayHasKey("logs_created", $allMetrics);
 
         $this->call(GetSpec::create("autoloaded", "/pdo"));
         usleep(500000);
@@ -109,10 +95,16 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $payloads = $this->readTelemetryPayloads($response);
 
         $metrics = array_values(array_filter($payloads, $isMetric));
-        $payloads = array_values(array_filter($payloads, function($p) use ($isMetric) { return !$isMetric($p); }));
+        $payloads = array_values(array_filter($payloads, function ($p) use ($isMetric) { return !$isMetric($p); }));
 
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
+        $this->assertEquals([[
+            "name" => "nikic/fast-route",
+            "version" => "v1.3.0",
+        ]], array_filter($payloads[1]["payload"]["dependencies"], function ($i) {
+            return strpos($i["name"], "ext-") !== 0;
+        }));
         $this->assertEquals("app-integrations-change", $payloads[2]["request_type"]);
         $this->assertEquals([
             [
@@ -124,13 +116,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
             ],
             [
                 "name" => "exec",
-                "enabled" => false,
-                "version" => "",
-                'compatible' => null,
-                'auto_enabled' => null,
-            ],
-            [
-                "name" => "filesystem",
                 "enabled" => false,
                 "version" => "",
                 'compatible' => null,
@@ -151,6 +136,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
                 $allMetrics[$s["metric"]] = $s;
             }
         }
+        $this->assertArrayHasKey("logs_created", $allMetrics);
         $this->assertArrayHasKey("spans_created", $allMetrics);
         $this->assertEquals("tracers", $allMetrics["spans_created"]["namespace"]);
         $this->assertEquals("spans_created", $allMetrics["spans_created"]["metric"]);

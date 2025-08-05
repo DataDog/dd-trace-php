@@ -29,10 +29,13 @@ dependencies {
     implementation 'io.javalin:javalin:6.1.4'
 
     implementation platform('org.testcontainers:testcontainers-bom:1.19.8')
+    implementation 'org.testcontainers:mysql'
     implementation "org.testcontainers:junit-jupiter"
     implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.16'
     implementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
     implementation 'org.junit.jupiter:junit-jupiter-params:5.9.2'
+
+    testRuntimeOnly 'mysql:mysql-connector-java:8.0.28'
 }
 
 test {
@@ -46,6 +49,9 @@ ext.uuid = "id -u".execute().text.trim()
 
 apply from: "$rootDir/gradle/images.gradle"
 
+def dockerMirror = ext.dockerMirror
+def map_tag = ext.map_tag
+def repo = ext.repo
 def arch = System.getProperty('os.arch')
 
 def dockerPullTask(String tag) {
@@ -55,7 +61,7 @@ def dockerPullTask(String tag) {
     }
 
     tasks.register("dockerPull-${tag}", Exec) {
-        String imageName = "datadog/dd-appsec-php-ci:$tag"
+        String imageName = "$dockerMirror/${repo}${map_tag(tag)}"
         description = "Pull ${imageName} from Docker Hub"
 
         onlyIf {
@@ -93,8 +99,9 @@ def createVolumeTask = { String volumeName ->
         it.commandLine 'docker', 'volume', 'create', volumeName
         doLast {
             exec {
-                commandLine 'docker', 'run', '--rm', '-v', "${volumeName}:/vol", 'busybox', 'sh', '-c',
-                        "chown -R ${uuid} /vol"
+                commandLine 'docker', 'run', '--rm', '-v', "${volumeName}:/vol",
+                        "$dockerMirror/library/busybox",
+                        'sh', '-c', "chown -R ${uuid} /vol"
             }
         }
     }
@@ -127,7 +134,7 @@ def buildRunInDockerTask = { Map options ->
     def version = options.get('version')
     def variant = options.get('variant')
     String imageTag = "${options.get('baseTag', 'php')}-$version-$variant"
-    String imageName = "$ext.repo:$imageTag"
+    String imageName = "$dockerMirror/${repo}${map_tag(imageTag)}"
     def pullTask = dockerPullTask(imageTag)
 
     def volumes = [:]
@@ -145,12 +152,12 @@ def buildRunInDockerTask = { Map options ->
                 mountPoint: '/appsec',
         ]
     }
-    if (options.get('needsHunterCache', true)) {
-        if (project.hasProperty('localHunterCache')) {
-            binds[project.getProperty('localHunterCache')] = '/root/.hunter'
+    if (options.get('needsBoostCache', true)) {
+        if (project.hasProperty('localBoostCache')) {
+            binds[project.getProperty('localBoostCache')] = '/root/.boost'
         } else {
-            volumes['php-appsec-hunter-cache'] = [
-                    mountPoint: '/root/.hunter',
+            volumes['php-appsec-boost-cache'] = [
+                    mountPoint: '/root/.boost',
             ]
         }
     }
@@ -211,7 +218,7 @@ def buildRunInDockerTask = { Map options ->
                 outputs.upToDateWhen {
                     Process proc = ['docker', 'run', '--rm', '--mount',
                                     "type=volume,src=$volumeName,dst=/vol",
-                                    'busybox', 'sh', '-c',
+                                    "$dockerMirror/library/busybox", 'sh', '-c',
                                     "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')} | sort -n | head -1"]
                             .execute()
 
@@ -413,6 +420,11 @@ testMatrix.each { spec ->
             it.systemProperty 'XDEBUG', '1'
         }
 
+        it.systemProperty 'DOCKER_MIRROR', dockerMirror
+        if (!project.hasProperty("floatingImageTags")) {
+            it.systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
+        }
+
         dependsOn "buildTracer-${phpVersion}-${variant}"
         dependsOn "buildAppsec-${phpVersion}-${variant}"
 
@@ -426,12 +438,6 @@ testMatrix.each { spec ->
     tasks['check'].dependsOn task
 }
 
-task downloadCaches(type: Download) {
-    src "https://sqreen-ci-java.s3.amazonaws.com/php-appsec-volume-caches-${arch}.tar.gz"
-    dest "build/php-appsec-volume-caches-${arch}.tar.gz"
-    overwrite false
-}
-
 task loadCaches(type: Exec) {
     description = "Load the docker caches"
     inputs.file "${project.buildDir}/php-appsec-volume-caches-${arch}.tar.gz"
@@ -439,17 +445,32 @@ task loadCaches(type: Exec) {
     commandLine 'docker', 'run', '--rm',
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
             '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
-            '-v', 'php-appsec-hunter-cache:/caches/php-appsec-hunter-cache',
+            '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
             '-v', "${project.buildDir}:/build",
-            'busybox',
+            "$dockerMirror/library/busybox",
             'sh', '-c',
             "tar -xzf /build/php-appsec-volume-caches-${arch}.tar.gz -C /caches && \
                 chown -R ${uuid} /caches"
 
-    dependsOn downloadCaches
     dependsOn 'createVolume-php-tracer-cargo-cache'
     dependsOn 'createVolume-php-tracer-cargo-cache-git'
-    dependsOn 'createVolume-php-appsec-hunter-cache'
+    dependsOn 'createVolume-php-appsec-boost-cache'
+}
+
+task saveCaches(type: Exec) {
+    description = "Save the docker caches"
+    outputs.file "${project.buildDir}/php-appsec-volume-caches-${arch}.tar.gz"
+    commandLine 'docker', 'run', '--rm',
+            '-e', "UUID=${uuid}",
+            '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
+            '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
+            '-v', "${project.buildDir}:/build",
+            "$dockerMirror/library/busybox",
+            'sh', '-c',
+            """tar -czf /build/php-appsec-volume-caches-${arch}.tar.gz \
+              -C /caches php-tracer-cargo-cache php-tracer-cargo-cache-git php-appsec-boost-cache && \
+              chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
 }
 
 if (hasProperty('buildScan')) {

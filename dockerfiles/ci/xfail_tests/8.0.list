@@ -213,6 +213,7 @@ ext/json/tests/pass001.phpt
 ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
 ext/mbstring/tests/zend_multibyte-06.phpt
+ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-date.phpt
 ext/openssl/tests/bug46127.phpt
 ext/openssl/tests/bug48182.phpt
 ext/openssl/tests/bug54992.phpt
@@ -313,10 +314,16 @@ ext/simplexml/tests/bug72971.phpt
 ext/simplexml/tests/bug72971_2.phpt
 ext/simplexml/tests/bug75245.phpt
 ext/simplexml/tests/simplexml_load_file.phpt
+ext/soap/tests/bug71610.phpt
 ext/soap/tests/bug77088.phpt
+ext/sockets/tests/mcast_ipv6_recv.phpt
+ext/sockets/tests/mcast_ipv6_send.phpt
+ext/sockets/tests/mcast_ipv6_recv_limited.phpt
 ext/sockets/tests/socket_addrinfo_bind.phpt
 ext/sockets/tests/socket_addrinfo_connect.phpt
 ext/sockets/tests/socket_create_pair.phpt
+ext/sockets/tests/socket_create_listen-nobind.phpt
+ext/sockets/tests/socket_import_stream-4.phpt
 ext/sockets/tests/socket_set_nonblock.phpt
 ext/sodium/tests/utils.phpt
 ext/spl/tests/ArrayObject_clone_other_std_props.phpt
@@ -426,6 +433,7 @@ ext/standard/tests/class_object/get_object_vars_variation_002.phpt
 ext/standard/tests/class_object/get_object_vars_variation_004.phpt
 ext/standard/tests/file/disk_free_space_basic.phpt
 ext/standard/tests/file/lstat_stat_variation10.phpt
+ext/standard/tests/file/lstat_stat_variation15.phpt
 ext/standard/tests/filters/bug54350.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/floatval.phpt
@@ -445,6 +453,7 @@ ext/standard/tests/math/hexdec_variation1_64bit.phpt
 ext/standard/tests/math/octdec_variation1.phpt
 ext/standard/tests/misc/bug77338.phpt
 ext/standard/tests/misc/get_browser_variation2.phpt
+ext/standard/tests/network/bug80067.phpt
 ext/standard/tests/serialize/005.phpt
 ext/standard/tests/serialize/006.phpt
 ext/standard/tests/serialize/__serialize_001.phpt
@@ -507,3 +516,8 @@ tests/classes/tostring_001.phpt
 tests/lang/bug45392.phpt
 tests/lang/type_hints_002.phpt
 tests/output/ob_start_basic_002.phpt
+tests/output/stream_isatty_err.phpt
+tests/output/stream_isatty_out.phpt
+tests/output/stream_isatty_out-err.phpt
+tests/output/stream_isatty_in-err.phpt
+tests/output/stream_isatty_in-out.phpt

@@ -14,7 +14,7 @@ class MongoTest extends IntegrationTestCase
 {
     protected static $lockedResource = "mongodb";
 
-    const HOST = 'mongodb_integration';
+    const HOST = 'mongodb-integration';
     const PORT = '27017';
     const USER = 'test';
     const PASSWORD = 'test';
@@ -47,7 +47,7 @@ class MongoTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
                 ->withExactTags([
-                    'mongodb.server' => 'mongodb://mongodb_integration:27017',
+                    'mongodb.server' => 'mongodb://mongodb-integration:27017',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -76,7 +76,7 @@ class MongoTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
                 ->withExactTags([
-                    'mongodb.server' => 'mongodb://?:?@mongodb_integration:27017',
+                    'mongodb.server' => 'mongodb://?:?@mongodb-integration:27017',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
@@ -105,7 +105,7 @@ class MongoTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('MongoClient.__construct', 'mongo', 'mongodb', '__construct')
                 ->withExactTags([
-                    'mongodb.server' => 'mongodb://mongodb_integration:27017/' . self::DATABASE,
+                    'mongodb.server' => 'mongodb://mongodb-integration:27017/' . self::DATABASE,
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',

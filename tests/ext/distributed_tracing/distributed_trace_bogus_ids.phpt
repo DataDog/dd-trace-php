@@ -6,6 +6,7 @@ HTTP_X_DATADOG_TRACE_ID=foo
 HTTP_X_DATADOG_PARENT_ID=bar
 HTTP_X_DATADOG_ORIGIN=datadog
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -38,28 +39,28 @@ array(1) {
     string(3) "cli"
     ["meta"]=>
     array(4) {
-      ["runtime-id"]=>
-      string(36) "%s"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
       ["_dd.origin"]=>
       string(7) "datadog"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%f)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

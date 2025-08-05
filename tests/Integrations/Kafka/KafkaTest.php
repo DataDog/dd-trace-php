@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 
 class KafkaTest extends IntegrationTestCase
 {
-    private static $host = 'kafka_integration';
+    private static $host = 'kafka-integration';
     private static $port = '9092';
 
     const FIELDS_TO_IGNORE = [
@@ -51,6 +51,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_SERVICE' => 'kafka_test',
                 'DD_TRACE_EXEC_ENABLED' => 'false',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
             ],
             [],
             'test-highlevel',
@@ -72,6 +73,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'true',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
                 'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'true',
+                'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
             ],
             [],
             null,
@@ -93,7 +95,7 @@ class KafkaTest extends IntegrationTestCase
         // Get the latest offset of the test-lowlevel topic
         $this->isolateLimitedTracer(function () use (&$low, &$high) {
             $conf = new \RdKafka\Conf();
-            $conf->set('bootstrap.servers', 'kafka_integration:9092');
+            $conf->set('bootstrap.servers', 'kafka-integration:9092');
             $conf->set('group.id', 'consumer-lowlevel');
             $conf->set('enable.partition.eof', 'true');
 
@@ -113,6 +115,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_SERVICE' => 'kafka_test',
                 'DD_TRACE_EXEC_ENABLED' => 'false',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
             ],
             [],
             'test-lowlevel',
@@ -138,6 +141,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_TRACE_EXEC_ENABLED' => 'false',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
                 'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
+                'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
             ],
             [],
             $high,
@@ -167,6 +171,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_SERVICE' => 'kafka_test',
                 'DD_TRACE_EXEC_ENABLED' => 'false',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
+                'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
             ],
             [],
             'test-highlevel',
@@ -192,6 +197,7 @@ class KafkaTest extends IntegrationTestCase
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
                 'DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED' => 'false',
                 'DD_TRACE_KAFKA_DISTRIBUTED_TRACING' => 'false',
+                'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
             ],
             [],
             null,

@@ -10,17 +10,35 @@ packages_build_dir=$2
 # '+' char is not allowed
 release_version_sanitized=${release_version/+/-}
 
-tmp_folder=/tmp/ssi-bundle
+tmp_folder="${CI_PROJECT_DIR:-}/tmp/ssi-bundle"
 tmp_folder_final=$tmp_folder/final
 
-architectures=(x86_64 aarch64)
+if [[ -n "${ARCHITECTURE:-}" ]]; then
+  architectures=(${ARCHITECTURE})
+else
+  architectures=(x86_64 aarch64)
+fi
 
 if [[ -n ${DDTRACE_MAKE_PACKAGES_ASAN:-} ]]; then
     exit 0
 fi
 
 function stripto() {
-   $(if [[ "${architecture}" == "aarch64" ]]; then echo aarch64-linux-gnu-; fi)strip -o "$2" "$1"
+    source=$1
+    target=$2
+
+    local arch_cmd_prefix=""
+    if [[ "${architecture}" == "aarch64" ]]; then
+        arch_cmd_prefix="aarch64-linux-gnu-"
+    fi
+
+    "${arch_cmd_prefix}objcopy" --only-keep-debug --compress-debug-sections=zlib "$source" "${target}.debug"
+    "${arch_cmd_prefix}strip" -o "$target" "$source"
+    (
+        cd "$(dirname "$target")"
+        filename=$(basename "$target")
+        "${arch_cmd_prefix}objcopy" --add-gnu-debuglink="${filename}.debug" "${filename}"
+    )
 }
 
 for architecture in "${architectures[@]}"; do
@@ -101,15 +119,15 @@ for architecture in "${architectures[@]}"; do
 
     # AppSec
     mkdir -p "${root}/appsec/lib" "${root}/appsec/etc"
-    ln "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
-    ln "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
+    stripto "./appsec_${architecture}/libddappsec-helper.so" "${root}/appsec/lib/libddappsec-helper.so"
+    cp "./appsec_${architecture}/recommended.json"  "${root}/appsec/etc/recommended.json"
 
     ########################
     # Final archives
     ########################
 
     echo "$release_version_sanitized" > ${root}/version
-    ln ./loader/packaging/requirements.json ${root}/requirements.json
+    cp ./loader/packaging/requirements.json ${root}/requirements.json
 
     tar -czv \
         -f ${packages_build_dir}/dd-library-php-ssi-${release_version}-$architecture-linux.tar.gz \

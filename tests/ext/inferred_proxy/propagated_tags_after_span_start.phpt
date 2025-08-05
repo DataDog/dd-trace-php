@@ -3,6 +3,7 @@ Span creation with distributed context set after starting span
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_SERVICE=aws-server
 DD_ENV=local-prod
 DD_VERSION=1.0
@@ -45,35 +46,6 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
 [
     {
         "trace_id": "42",
-        "span_id": "11788048577503494824",
-        "parent_id": "1",
-        "start": 100000000,
-        "duration": %d,
-        "name": "aws.apigateway",
-        "resource": "GET \/test",
-        "service": "example.com",
-        "type": "web",
-        "meta": {
-            "http.method": "GET",
-            "http.url": "example.com\/test",
-            "stage": "aws-prod",
-            "component": "aws-apigateway",
-            "_dd.parent_id": "00000000000000bb",
-            "_dd.p.dm": "-4",
-            "_dd.p.usr.id": "12345",
-            "env": "local-prod",
-            "version": "1.0",
-            "http.status_code": "200",
-            "_dd.origin": "rum",
-            "_dd.p.tid": "0"
-        },
-        "metrics": {
-            "_dd.inferred_span": 1,
-            "_sampling_priority_v1": 1
-        }
-    },
-    {
-        "trace_id": "42",
         "span_id": "13930160852258120406",
         "parent_id": "11788048577503494824",
         "start": 120000000,
@@ -83,21 +55,50 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "aws-server",
         "type": "web",
         "meta": {
-            "runtime-id": "%s",
-            "http.url": "http:\/\/localhost:8888\/foo",
-            "http.method": "GET",
-            "_dd.parent_id": "00000000000000bb",
+            "_dd.origin": "rum",
             "_dd.p.usr.id": "12345",
+            "_dd.parent_id": "00000000000000bb",
             "env": "local-prod",
-            "version": "1.0",
+            "http.method": "GET",
             "http.status_code": "200",
-            "_dd.origin": "rum"
+            "http.url": "http:\/\/localhost:8888\/foo",
+            "runtime-id": "%s",
+            "version": "1.0"
         },
         "metrics": {
-            "process_id": %d,
             "php.compilation.total_time_ms": %f,
+            "php.memory.peak_real_usage_bytes": %d,
             "php.memory.peak_usage_bytes": %d,
-            "php.memory.peak_real_usage_bytes": %d
+            "process_id": %d
+        }
+    },
+    {
+        "trace_id": "42",
+        "span_id": "11788048577503494824",
+        "parent_id": "1",
+        "start": 100000000,
+        "duration": %d,
+        "name": "aws.apigateway",
+        "resource": "GET \/test",
+        "service": "example.com",
+        "type": "web",
+        "meta": {
+            "_dd.origin": "rum",
+            "_dd.p.dm": "-4",
+            "_dd.p.tid": "0",
+            "_dd.p.usr.id": "12345",
+            "_dd.parent_id": "00000000000000bb",
+            "component": "aws-apigateway",
+            "env": "local-prod",
+            "http.method": "GET",
+            "http.status_code": "200",
+            "http.url": "example.com\/test",
+            "stage": "aws-prod",
+            "version": "1.0"
+        },
+        "metrics": {
+            "_dd.inferred_span": 1,
+            "_sampling_priority_v1": 1
         }
     }
 ]

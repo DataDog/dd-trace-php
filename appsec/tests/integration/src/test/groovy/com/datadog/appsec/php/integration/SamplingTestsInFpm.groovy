@@ -1,11 +1,16 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
+import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
 
 import java.net.http.HttpResponse
 
 trait SamplingTestsInFpm {
+
+    void assertSamplingPriority(Trace trace) {
+        //Nothing to do here. The work will be done on overrides
+    }
 
     @Test
     void 'default sampling behavior of extract-schema'() {
@@ -16,6 +21,7 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
+        assertSamplingPriority(trace);
 
         // the second time we should not see it
         trace = container.traceFromRequest('/api_security.php') {
@@ -32,6 +38,7 @@ trait SamplingTestsInFpm {
         }
         assert trace != null
         assert trace.first().meta."_dd.appsec.s.res.body" == '[{"messages":[[[8]],{"len":2}],"status":[8]}]'
+        assertSamplingPriority(trace);
     }
 
     @Test
@@ -47,6 +54,7 @@ trait SamplingTestsInFpm {
                 }
                 assert trace != null
                 assert trace.first().meta."_dd.appsec.s.res.body" != null
+                assertSamplingPriority(trace);
             }
         } finally {
             resetFpm()
@@ -83,6 +91,7 @@ trait SamplingTestsInFpm {
             }
             assert trace != null
             assert trace.first().meta."_dd.appsec.s.res.body" != null
+            assertSamplingPriority(trace);
         } finally {
             resetFpm()
         }

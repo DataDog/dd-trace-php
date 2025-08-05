@@ -1,122 +1,95 @@
 stages:
   - build
-  - shared-pipeline # OCI packaging
+  - tests
   - deploy
-  - benchmarks
   - ci-build
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  GIT_SUBMODULE_UPDATE_FLAGS: --jobs 12
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
-  LATEST_LIBRARY_x86_64_LINUX_GNU:
-    value: ""
-    description: "Location where to download latest dd-library-php-*-x86_64-linux-gnu.tar.gz archive. Leave empty to take it from the latest released github tag."
   DOWNSTREAM_REL_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
 
 include:
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/ci_authenticated_job.yml
-  - remote: https://gitlab-templates.ddbuild.io/libdatadog/include/one-pipeline.yml
-  - local: .gitlab/benchmarks.yml
+  - project: DataDog/apm-reliability/libdatadog-build
+    ref: 5826819695d93286569e70ed087ae6bf906ce2c3
+    file: templates/ci_authenticated_job.yml
   - local: .gitlab/ci-images.yml
-  - local: .gitlab/compile.yml
 
-build:
-  extends: .ci_authenticated_job
+generate-templates:
   stage: build
-  image: registry.ddbuild.io/images/ci_docker_base
-  tags: [ "runner:main", "size:large" ]
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
+  needs: []
   script:
-    - |
-      if [ -z "$LATEST_LIBRARY_x86_64_LINUX_GNU" ]; then
-        source /download-binary-tracer.sh
-        get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-.*-x86_64-linux-gnu.tar.gz" "dd-library-php-x86_64-linux-gnu.tar.gz"
-        get_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "datadog-setup.php" "datadog-setup.php"
-        echo "UPSTREAM_TRACER_VERSION=dev-master" >> upstream.env
-      else
-        UPSTREAM_TRACER_VERSION=$(echo "$LATEST_LIBRARY_x86_64_LINUX_GNU" | grep -Po '(?<=dd-library-php-).+(?=-x86_64-linux-gnu.tar.gz)')
-        echo "UPSTREAM_TRACER_VERSION=${UPSTREAM_TRACER_VERSION}" >> upstream.env
-        curl --fail --location --output 'dd-library-php-x86_64-linux-gnu.tar.gz' "$LATEST_LIBRARY_x86_64_LINUX_GNU"
-        curl --fail --location -O "$(dirname $LATEST_LIBRARY_x86_64_LINUX_GNU)/datadog-setup.php"
-      fi
-    - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'
+    - php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
+    - php ./.gitlab/generate-tracer.php | tee .gitlab/tracer-gen.yml
+    - php ./.gitlab/generate-appsec.php | tee .gitlab/appsec-gen.yml
+    - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
+    - php ./.gitlab/generate-shared.php | tee .gitlab/shared-gen.yml
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
   artifacts:
     paths:
-      - 'upstream.env'
-      - 'datadog-setup-x86_64-linux-gnu.tar'
+      - .gitlab/*-gen.yml
 
-download_artifacts:
-  extends: .ci_authenticated_job
-  stage: build
-  image: registry.ddbuild.io/images/ci_docker_base
-  tags: [ "runner:main", "size:large" ]
-  script:
-    - |
-      sleep 2m # Let time for the CircleCI pipeline to start
-      source .gitlab/download-circleci_artifact.sh
-
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-x86_64-linux.tar.gz" "dd-library-php-ssi-x86_64-linux.tar.gz"
-      download_circleci_artifact "gh/DataDog/dd-trace-php" "build_packages" "package extension" "dd-library-php-ssi-.*-aarch64-linux.tar.gz" "dd-library-php-ssi-aarch64-linux.tar.gz"
-  artifacts:
-    paths:
-      - 'dd-library-php-ssi-x86_64-linux.tar.gz'
-      - 'dd-library-php-ssi-aarch64-linux.tar.gz'
-
-deploy_to_reliability_env:
-  stage: deploy
-  needs: [ build ]
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
-      when: always
-    - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
-      when: always
-    - when: manual
-      allow_failure: true
+tracer-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
   trigger:
-    project: DataDog/apm-reliability/datadog-reliability-env
-    branch: $DOWNSTREAM_REL_BRANCH
+    include:
+      - artifact: .gitlab/tracer-gen.yml
+        job: "generate-templates"
+    strategy: depend
   variables:
-    UPSTREAM_PACKAGE_JOB: build
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
-#    COMMIT_SHA would be wrong because the artifact is not built here
-#    UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
 
-tracer-base-image:
-  extends: .ci_authenticated_job
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: always
-  stage: deploy
-  needs: [ build ]
-  script:
-    - echo $GH_TOKEN|docker login ghcr.io/datadog -u uploader --password-stdin
-
-    #Dev X86
-    - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh dev
-    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest_snapshot
-
-    #Prod X86
-    - rm -rf ./tooling/ci/binaries
-    - ./tooling/ci/download-binary-php.sh prod
-    - docker buildx build --load --progress=plain --platform linux/amd64 -f ./tooling/ci/Dockerfile -t ghcr.io/datadog/dd-trace-php/dd-library-php:latest .
-    - docker push ghcr.io/datadog/dd-trace-php/dd-library-php:latest
-
-configure_system_tests:
+appsec-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/appsec-gen.yml
+        job: "generate-templates"
+    strategy: depend
   variables:
-    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding"
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
 
-requirements_json_test:
-  rules:
-    - when: on_success
+profiler-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/profiler-gen.yml
+        job: "generate-templates"
+    strategy: depend
   variables:
-    REQUIREMENTS_BLOCK_JSON_PATH: "loader/packaging/block_tests.json"
-    REQUIREMENTS_ALLOW_JSON_PATH: "loader/packaging/allow_tests.json"
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+shared-trigger:
+  stage: tests
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/shared-gen.yml
+        job: "generate-templates"
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+
+package-trigger:
+  stage: build
+  needs: [ "generate-templates" ]
+  trigger:
+    include:
+      - artifact: .gitlab/package-gen.yml
+        job: "generate-templates"
+      - local: .gitlab/benchmarks.yml
+    strategy: depend
+  variables:
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c

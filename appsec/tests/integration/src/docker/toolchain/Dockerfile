@@ -1,4 +1,5 @@
-FROM debian@sha256:08db48d59c0a91afb802ebafc921be3154e200c452e4d0b19634b426b03e0e25 AS toolchain
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}/library/debian@sha256:08db48d59c0a91afb802ebafc921be3154e200c452e4d0b19634b426b03e0e25 AS toolchain
 
 RUN apt-get update && apt-get install -y \
   binutils \
@@ -13,7 +14,8 @@ RUN apt-get update && apt-get install -y \
   software-properties-common \
   wget \
   wget \
-  xz-utils
+  xz-utils \
+  && rm -rf /var/lib/apt/lists/*
 
 RUN ln -s /bin/sed /usr/bin/sed
 COPY . /build/

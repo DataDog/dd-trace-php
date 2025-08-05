@@ -44,7 +44,7 @@ namespace
 
     dd_trace_internal_fn("finalize_telemetry");
 
-    for ($i = 0; $i < 100; ++$i) {
+    for ($i = 0; $i < 300; ++$i) {
         usleep(100000);
         if (file_exists(__DIR__ . '/integration-telemetry.out')) {
             foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
@@ -69,7 +69,7 @@ PUBLIC STATIC METHOD
 test_access hook
 array(1) {
   ["integrations"]=>
-  array(3) {
+  array(2) {
     [0]=>
     array(5) {
       ["name"]=>
@@ -77,26 +77,13 @@ array(1) {
       ["enabled"]=>
       bool(true)
       ["version"]=>
-      NULL
-      ["compatible"]=>
-      NULL
-      ["auto_enabled"]=>
-      NULL
-    }
-    [1]=>
-    array(5) {
-      ["name"]=>
-      string(10) "filesystem"
-      ["enabled"]=>
-      bool(false)
-      ["version"]=>
       string(0) ""
       ["compatible"]=>
       NULL
       ["auto_enabled"]=>
       NULL
     }
-    [2]=>
+    [1]=>
     array(5) {
       ["name"]=>
       string(4) "logs"

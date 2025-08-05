@@ -17,8 +17,10 @@ $context->propagatedPrioritySampling = 1;
 $context->parentId = '789';
 
 $ch = curl_init();
+$port = getenv('HTTPBIN_PORT') ?: '80';
+$url = 'http://' . getenv('HTTPBIN_HOSTNAME') . ':' . $port .'/headers';
 curl_setopt_array($ch, [
-    CURLOPT_URL => 'http://httpbin_integration/headers',
+    CURLOPT_URL => $url,
     CURLOPT_RETURNTRANSFER => true,
 ]);
 $response = json_decode(curl_exec($ch), 1);

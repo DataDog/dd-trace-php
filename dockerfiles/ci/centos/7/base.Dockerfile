@@ -41,7 +41,7 @@ COPY download-src.sh /root/
 
 # Latest version of m4 required
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh m4 https://ftp.gnu.org/gnu/m4/m4-1.4.18.tar.gz; \
+    /root/download-src.sh m4 https://mirrors.kernel.org/gnu/m4/m4-1.4.18.tar.gz; \
     cd "${SRC_DIR}/m4"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
@@ -49,7 +49,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 
 # Latest version of autoconf required
 RUN set -eux; \
-    /root/download-src.sh autoconf https://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz; \
+    /root/download-src.sh autoconf https://mirrors.kernel.org/gnu/autoconf/autoconf-2.69.tar.gz; \
     cd "${SRC_DIR}/autoconf"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
@@ -81,7 +81,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 
 # Required: bison >= 3.0.0 (not installed by deafult)
 RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh bison https://ftp.gnu.org/gnu/bison/bison-3.7.3.tar.gz; \
+    /root/download-src.sh bison https://mirrors.kernel.org/gnu/bison/bison-3.7.3.tar.gz; \
     cd "${SRC_DIR}/bison"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
@@ -103,6 +103,15 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     mkdir -v 'build' && cd 'build'; \
     ../bootstrap && make -j $(nproc) && make install; \
     cd - && rm -fr build
+
+# Install Catch2
+RUN set -eux; \
+    /root/download-src.sh catch2 https://github.com/catchorg/Catch2/archive/v2.13.10.tar.gz; \
+    cd "${SRC_DIR}/catch2"; \
+    cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
+    cmake --build build/ --target install; \
+    cd - && rm -fr build
+
 
 # Required: libzip >= 0.11 (default version is 0.9)
 RUN source scl_source enable devtoolset-7; set -eux; \
@@ -202,9 +211,9 @@ RUN source scl_source enable devtoolset-7 \
   && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
 # rust sha256sum generated locally after verifying it with sha256
-ARG RUST_VERSION="1.78.0"
-ARG RUST_SHA256_ARM="131eda738cd977fff2c912e5838e8e9b9c260ecddc1247c0fe5473bf09c594af"
-ARG RUST_SHA256_X86="1307747915e8bd925f4d5396ab2ae3d8d9c7fad564afbc358c081683d0f22e87"
+ARG RUST_VERSION="1.84.1"
+ARG RUST_SHA256_ARM="be89f6ad9b70cc4b25182ae299f94ab047a713a51fddf95284823c8afe4aef85"
+ARG RUST_SHA256_X86="106c89f23ce1c763fcbea8e2714b2ba869bf7af70804813987a4483896398933"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup

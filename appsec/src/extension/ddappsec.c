@@ -38,6 +38,7 @@
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
+#include "telemetry.h"
 #include "user_tracking.h"
 #include "version.h"
 
@@ -221,6 +222,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_entity_body_startup();
     dd_backtrace_startup();
     dd_msgpack_helpers_startup();
+    dd_telemetry_startup();
 
     return SUCCESS;
 }
@@ -274,7 +276,10 @@ static PHP_RINIT_FUNCTION(ddappsec)
         return SUCCESS;
     }
     DDAPPSEC_G(skip_rshutdown) = false;
+    dd_msgpack_helpers_rinit();
+    dd_trace_rinit();
 
+    // Waf calls happen here. Not many rinits should go after this line.
     dd_req_lifecycle_rinit(false);
 
     if (UNEXPECTED(get_global_DD_APPSEC_TESTING())) {

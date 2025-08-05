@@ -10,11 +10,13 @@ import org.junit.jupiter.api.Test
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
+import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getTracerVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
+import static java.net.http.HttpResponse.BodyHandlers.ofString
 import static org.testcontainers.containers.Container.ExecResult
 
 @Testcontainers
@@ -49,5 +51,16 @@ class Apache2ModTests implements CommonTests {
             assert it.body().text == 'Hello world!'
         }
         assert trace.first().metrics."_dd.appsec.enabled" == 1.0d
+    }
+
+    @Test
+    void 'test authorization header'() {
+        //This test is only on Apache2mod because it requires to configure webserver to pass down authorization headers
+        HttpRequest req = container.buildReq('/phpinfo.php')
+                .header('Authorization', 'digest 1234567890').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
     }
 }

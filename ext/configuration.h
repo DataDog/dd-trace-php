@@ -147,7 +147,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_SYMFONY_HTTP_ROUTE, "true")                                                          \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER, "true")                                          \
-    CONFIG(BOOL, DD_APPSEC_RASP_ENABLED , "false")                                                             \
+    CONFIG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS, "false")                                         \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                      \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_MAPPING_INCOMING, "")                                                    \
@@ -172,6 +172,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_INJECT, "datadog,tracecontext,baggage")                   \
     CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE, "datadog,tracecontext,baggage",                          \
            .env_config_fallback = ddtrace_conf_otel_propagators)                                               \
+    CONFIG(SET, DD_TRACE_BAGGAGE_TAG_KEYS, "user.id,session.id,account.id")                          \
     CONFIG(BOOL, DD_TRACE_IGNORE_AGENT_SAMPLING_RATES, "false", .ini_change = zai_config_system_ini_change)    \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                        \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                             \
@@ -248,7 +249,11 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_ITEMS, "64")                                                              \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
-    CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                             \
+    CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                            \
+    CONFIG(SET, DD_TRACE_HTTP_CLIENT_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true")                                                     \
+    CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

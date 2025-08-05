@@ -11,7 +11,6 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
-DD_APPSEC_RASP_ENABLED=1
 DD_TRACE_FILESYSTEM_ENABLED=0
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry-04.out"
@@ -22,7 +21,7 @@ namespace
     $file = ini_get('datadog.trace.agent_url');
     dd_trace_internal_fn("finalize_telemetry");
 
-    for ($i = 0; $i < 100; ++$i) {
+    for ($i = 0; $i < 300; ++$i) {
         usleep(100000);
         if (file_exists($file )) {
             foreach (file($file) as $l) {

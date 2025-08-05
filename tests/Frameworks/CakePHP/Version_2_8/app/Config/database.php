@@ -69,7 +69,7 @@ class DATABASE_CONFIG {
 	public $default = array(
 		'datasource' => 'Database/Mysql',
 		'persistent' => false,
-		'host' => 'mysql_integration',
+		'host' => 'mysql-integration',
 		'login' => 'test',
 		'password' => 'test',
 		'database' => 'cake28',

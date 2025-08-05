@@ -1,6 +1,6 @@
 use crate::profiling::Profiler;
 use crate::zend::{self, zend_execute_data, zend_generator, zval, InternalFunctionHandler};
-use crate::REQUEST_LOCALS;
+use crate::{RefCellExt, REQUEST_LOCALS};
 use log::{error, info};
 use rand::rngs::ThreadRng;
 use std::cell::RefCell;
@@ -15,10 +15,13 @@ use rand_distr::{Distribution, Poisson};
 /// (in ZTS), so we do not need a thread local for this function pointer.
 static mut PREV_ZEND_THROW_EXCEPTION_HOOK: Option<zend::VmZendThrowExceptionHook> = None;
 
-/// Take a sample every 100 exceptions
-/// Will be initialized on first RINIT and is controlled by a INI_SYSTEM, so we do not need a
-/// thread local for the profiling interval.
-pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 = AtomicU32::new(100);
+const EXCEPTION_PROFILING_INTERVAL_DEFAULT: u32 = 100;
+
+/// Take a sample every N exceptions.
+/// Will be initialized on first RINIT and is controlled by a system INI, so
+/// we do not need a thread local for the profiling interval.
+pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 =
+    AtomicU32::new(EXCEPTION_PROFILING_INTERVAL_DEFAULT);
 
 /// This will store the number of exceptions thrown during a profiling period. It will overflow
 /// when throwing more then 4_294_967_295 exceptions during this period which we currently
@@ -50,48 +53,48 @@ impl ExceptionProfilingStats {
         self.next_sample = self.poisson.sample(&mut self.rng) as u32;
     }
 
-    fn track_exception(
-        &mut self,
-        #[cfg(php7)] exception: *mut zend::zval,
-        #[cfg(php8)] exception: *mut zend::zend_object,
-    ) {
+    fn should_collect_exception(&mut self) -> bool {
         if let Some(next_sample) = self.next_sample.checked_sub(1) {
             self.next_sample = next_sample;
-            return;
+            return false;
         }
-
-        #[cfg(php7)]
-        let exception = unsafe { (*exception).value.obj };
-
-        let exception_name = unsafe { (*exception).class_name() };
-
-        let collect_message = REQUEST_LOCALS.with(|cell| {
-            cell.try_borrow()
-                .map(|locals| locals.system_settings().profiling_exception_message_enabled)
-                .unwrap_or(false)
-        });
-
-        let message = if collect_message {
-            Some(unsafe {
-                zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut())
-                    .into_string()
-            })
-        } else {
-            None
-        };
 
         self.next_sampling_interval();
 
-        if let Some(profiler) = Profiler::get() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_exception(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    exception_name,
-                    message,
-                )
-            };
-        }
+        true
+    }
+}
+
+#[cold]
+fn collect_exception(
+    #[cfg(php7)] exception: *mut zend::zval,
+    #[cfg(php8)] exception: *mut zend::zend_object,
+) {
+    #[cfg(php7)]
+    let exception = unsafe { (*exception).value.obj };
+
+    let exception_name = unsafe { (*exception).class_name() };
+
+    let collect_message = REQUEST_LOCALS
+        .borrow_or_false(|locals| locals.system_settings().profiling_exception_message_enabled);
+
+    let message = if collect_message {
+        Some(unsafe {
+            zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut()).into_string()
+        })
+    } else {
+        None
+    };
+
+    if let Some(profiler) = Profiler::get() {
+        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+        unsafe {
+            profiler.collect_exception(
+                zend::ddog_php_prof_get_current_execute_data(),
+                exception_name,
+                message,
+            )
+        };
     }
 }
 
@@ -151,25 +154,19 @@ pub fn exception_profiling_minit() {
 /// This initializes the `EXCEPTION_PROFILING_INTERVAL` atomic on first RINIT with the value from
 /// the INI / ENV variable.
 pub fn exception_profiling_first_rinit() {
-    let exception_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_exception_enabled)
-            .unwrap_or(false)
-    });
+    let (exception_profiling, sampling_distance) = REQUEST_LOCALS
+        .try_with_borrow(|locals| {
+            let settings = locals.system_settings();
+            (settings.profiling_exception_enabled, settings.profiling_exception_sampling_distance)
+        })
+        .unwrap_or_else(|err| {
+            error!("Exception profiling was not initialized correctly due to an error. Please report this to Datadog. Error: {err:?}");
+            (false, EXCEPTION_PROFILING_INTERVAL_DEFAULT)
+        });
 
     if !exception_profiling {
         return;
     }
-
-    let sampling_distance = REQUEST_LOCALS.with(|cell| {
-        match cell.try_borrow() {
-            Ok(locals) => locals.system_settings().profiling_exception_sampling_distance,
-            Err(_err) => {
-                error!("Exception profiling was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                100
-            }
-        }
-    });
 
     EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
 
@@ -189,21 +186,19 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
 ) {
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
 
-    let exception_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_exception_enabled)
-            .unwrap_or(false)
-    });
+    let exception_enabled = REQUEST_LOCALS
+        .borrow_or_false(|locals| locals.system_settings().profiling_exception_enabled);
 
     // Up to PHP 7.1, when PHP propagated exceptions up the call stack, it would re-throw them.
     // This process involved calling this hook for each stack frame or try...catch block it
     // traversed. Fortunately, this behavior can be easily identified by checking for a NULL
     // pointer.
-    if exception_profiling && !exception.is_null() {
-        EXCEPTION_PROFILING_STATS.with(|cell| {
-            let mut exceptions = cell.borrow_mut();
-            exceptions.track_exception(exception)
-        });
+    if exception_enabled
+        && !exception.is_null()
+        && EXCEPTION_PROFILING_STATS
+            .borrow_mut_or_false(|exceptions| exceptions.should_collect_exception())
+    {
+        collect_exception(exception);
     }
 
     if let Some(prev) = PREV_ZEND_THROW_EXCEPTION_HOOK {

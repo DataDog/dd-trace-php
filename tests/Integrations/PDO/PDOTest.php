@@ -11,7 +11,7 @@ final class PDOTest extends IntegrationTestCase
     public static $database = 'pdotest';
     const MYSQL_USER = 'test';
     const MYSQL_PASSWORD = 'test';
-    const MYSQL_HOST = 'mysql_integration';
+    const MYSQL_HOST = 'mysql-integration';
 
     // phpcs:disable
     const ERROR_CONSTRUCT = 'SQLSTATE[HY000] [1045] Access denied for user \'wrong_user\'@\'%s\' (using password: YES)';
@@ -181,7 +181,7 @@ final class PDOTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('PDO.__construct', 'pdo-mysql_integration', 'sql', 'PDO.__construct')
+            SpanAssertion::build('PDO.__construct', 'pdo-mysql-integration', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
         ]);
     }
@@ -195,7 +195,7 @@ final class PDOTest extends IntegrationTestCase
         });
 
         $this->assertSpans($traces, [
-            SpanAssertion::build('PDO.__construct', 'my-pdo-mysql_integration', 'sql', 'PDO.__construct')
+            SpanAssertion::build('PDO.__construct', 'my-pdo-mysql-integration', 'sql', 'PDO.__construct')
                 ->withExactTags($this->baseTags()),
         ]);
     }
@@ -504,13 +504,13 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build(
                 'PDO.prepare',
-                'pdo-mysql_integration',
+                'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )->withExactTags($this->baseTags()),
             SpanAssertion::build(
                 'PDOStatement.execute',
-                'pdo-mysql_integration',
+                'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )
@@ -543,13 +543,13 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build(
                 'PDO.prepare',
-                'pdo-mysql_integration',
+                'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )->withExactTags($this->baseTags()),
             SpanAssertion::build(
                 'PDOStatement.execute',
-                'pdo-mysql_integration',
+                'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )
@@ -793,6 +793,7 @@ final class PDOTest extends IntegrationTestCase
             'span.kind' => 'client',
             Tag::COMPONENT => 'pdo',
             Tag::DB_SYSTEM => 'mysql',
+            Tag::DB_TYPE => 'mysql',
         ];
 
         if ($expectPeerService) {

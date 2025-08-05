@@ -5,16 +5,16 @@
     "resource": "GET /does_not_exist",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 18053264272838572482,
+    "parent_id": 275741807449918271,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "664c899e00000000",
+      "_dd.p.tid": "686e4d2700000000",
       "component": "laravel",
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
-      "runtime-id": "3bd45f16-c853-4884-a7ca-1017a443b1fe"
+      "runtime-id": "143d2b36-2082-43af-b61f-f60b9133ac91"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0
@@ -215,7 +215,7 @@
         {
           "name": "laravel.view",
           "service": "laravel_test_app",
-          "resource": "/home/circleci/app/tests/Frameworks/Laravel/Version_8_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
+          "resource": "{path}/tests/Frameworks/Laravel/Version_8_x/vendor/laravel/framework/src/Illuminate/Foundation/Exceptions/views/404.blade.php",
           "trace_id": 0,
           "span_id": 19,
           "parent_id": 16,

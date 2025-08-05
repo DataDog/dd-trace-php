@@ -52,9 +52,11 @@ ext/mbstring/tests/zend_multibyte-01.phpt
 ext/mbstring/tests/zend_multibyte-02.phpt
 ext/mbstring/tests/zend_multibyte-06.phpt
 ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-double.phpt
+ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-date.phpt
 ext/mysqli/tests/ghsa-h35g-vwh6-m678-stmt-row-time.phpt
 ext/mysqli/tests/protocol_stmt_row_fetch_data.phpt
 ext/opcache/tests/bug66251.phpt
+ext/opcache/tests/jit/fetch_obj_001.phpt
 ext/opcache/tests/match/001.phpt
 ext/opcache/tests/match/003.phpt
 ext/opcache/tests/match/004.phpt
@@ -129,7 +131,13 @@ ext/phar/tests/phar_oo_007.phpt
 ext/readline/tests/libedit_callback_handler_install_001.phpt
 ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
+ext/soap/tests/bug71610.phpt
 ext/soap/tests/bug77088.phpt
+ext/sockets/tests/mcast_ipv6_recv.phpt
+ext/sockets/tests/mcast_ipv6_recv_limited.phpt
+ext/sockets/tests/mcast_ipv6_send.phpt
+ext/sockets/tests/socket_create_listen-nobind.phpt
+ext/sockets/tests/socket_import_stream-4.phpt
 ext/spl/tests/SplFixedArray_setSize_param_float.phpt
 ext/spl/tests/bug40091.phpt
 ext/spl/tests/bug44144.phpt
@@ -184,6 +192,8 @@ ext/tokenizer/tests/PhpToken_getAll.phpt
 ext/zend_test/tests/
 ext/zip/tests/bug38943.phpt
 sapi/cli/tests/bug80092.phpt
+sapi/cli/tests/gh8827-001.phpt
+sapi/cli/tests/gh8827-003.phpt
 sapi/cli/tests/upload_2G.phpt
 sapi/fpm/tests/log-bm-in-shutdown-fn.phpt
 sapi/fpm/tests/log-bm-limit-1024-msg-80.phpt
@@ -205,4 +215,9 @@ sapi/phpdbg/tests/stepping_001.phpt
 tests/classes/__call_007.phpt
 tests/lang/bug45392.phpt
 tests/output/ob_start_basic_002.phpt
+tests/output/stream_isatty_err.phpt
+tests/output/stream_isatty_out.phpt
+tests/output/stream_isatty_out-err.phpt
+tests/output/stream_isatty_in-err.phpt
+tests/output/stream_isatty_in-out.phpt
 Zend/tests/gh12073.phpt

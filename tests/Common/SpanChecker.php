@@ -490,6 +490,13 @@ final class SpanChecker
             if (!isset($expectedTags['http.client_ip'])) {
                 unset($filtered['http.client_ip']);
             }
+            if (!isset($expectedTags['_dd.code_origin.type'])) {
+                foreach ($filtered as $key => $value) {
+                    if (strpos($key, '_dd.code_origin.') === 0) {
+                        unset($filtered[$key]);
+                    }
+                }
+            }
             foreach ($expectedTags as $tagName => $tagValue) {
                 TestCase::assertArrayHasKey(
                     $tagName,

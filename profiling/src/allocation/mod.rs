@@ -1,20 +1,25 @@
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
-use crate::REQUEST_LOCALS;
+use crate::{RefCellExt, REQUEST_LOCALS};
 use libc::size_t;
-use log::{error, trace};
+use log::{debug, error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
-use std::sync::atomic::AtomicU64;
+use std::ffi::c_void;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
-mod allocation_ge84;
+pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
 
-/// take a sample every 4096 KiB
-pub const ALLOCATION_PROFILING_INTERVAL: f64 = 1024.0 * 4096.0;
+/// Default sampling interval in bytes (4MB)
+pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: u64 = 1024 * 4096;
+
+/// Sampling distance feed into poison sampling algo
+pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
+    AtomicU64::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL);
 
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
@@ -36,7 +41,8 @@ pub struct AllocationProfilingStats {
 impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
         // Safety: this will only error if lambda <= 0
-        let poisson = Poisson::new(ALLOCATION_PROFILING_INTERVAL).unwrap();
+        let poisson =
+            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             poisson,
@@ -50,25 +56,30 @@ impl AllocationProfilingStats {
         self.next_sample = self.poisson.sample(&mut self.rng) as i64;
     }
 
-    fn track_allocation(&mut self, len: size_t) {
+    fn should_collect_allocation(&mut self, len: size_t) -> bool {
         self.next_sample -= len as i64;
 
         if self.next_sample > 0 {
-            return;
+            return false;
         }
 
         self.next_sampling_interval();
 
-        if let Some(profiler) = Profiler::get() {
-            // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            unsafe {
-                profiler.collect_allocations(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    1_i64,
-                    len as i64,
-                )
-            };
-        }
+        true
+    }
+}
+
+#[cold]
+pub fn collect_allocation(len: size_t) {
+    if let Some(profiler) = Profiler::get() {
+        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+        unsafe {
+            profiler.collect_allocations(
+                zend::ddog_php_prof_get_current_execute_data(),
+                1_i64,
+                len as i64,
+            )
+        };
     }
 }
 
@@ -94,21 +105,40 @@ pub fn alloc_prof_startup() {
     allocation_le83::alloc_prof_startup();
 }
 
-pub fn alloc_prof_rinit() {
-    let allocation_profiling: bool = REQUEST_LOCALS.with(|cell| {
-        match cell.try_borrow() {
-            Ok(locals) => {
-                let system_settings = locals.system_settings();
-                system_settings.profiling_allocation_enabled
-            },
-            Err(_err) => {
-                error!("Memory allocation was not initialized correctly due to a borrow error. Please report this to Datadog.");
-                false
-            }
-        }
-    });
+pub fn alloc_prof_first_rinit() {
+    let (allocation_enabled, sampling_distance) = REQUEST_LOCALS
+        .try_with_borrow(|locals| {
+            let settings = locals.system_settings();
+            (settings.profiling_allocation_enabled, settings.profiling_allocation_sampling_distance)
+        })
+        .unwrap_or_else(|err| {
+            error!("Allocation profiling first rinit failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
+            (false, DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32)
+        });
 
-    if !allocation_profiling {
+    if !allocation_enabled {
+        return;
+    }
+
+    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
+
+    trace!(
+        "Memory allocation profiling initialized with a sampling distance of {} bytes.",
+        ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst)
+    );
+}
+
+pub fn alloc_prof_rinit() {
+    let allocation_enabled = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
+        .unwrap_or_else(|err| {
+            // Debug rather than error because this is every request, could
+            // be very spammy.
+            debug!("Allocation profiling rinit failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
+            false
+        });
+
+    if !allocation_enabled {
         return;
     }
 
@@ -116,18 +146,19 @@ pub fn alloc_prof_rinit() {
     allocation_le83::alloc_prof_rinit();
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
     allocation_ge84::alloc_prof_rinit();
-
-    trace!("Memory allocation profiling enabled.")
 }
 
 pub fn alloc_prof_rshutdown() {
-    let allocation_profiling = REQUEST_LOCALS.with(|cell| {
-        cell.try_borrow()
-            .map(|locals| locals.system_settings().profiling_allocation_enabled)
-            .unwrap_or(false)
-    });
+    let allocation_enabled = REQUEST_LOCALS
+        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
+        .unwrap_or_else(|err| {
+            // Debug rather than error because this is every request, could
+            // be very spammy.
+            debug!("Allocation profiling rshutdown failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
+            false
+        });
 
-    if !allocation_profiling {
+    if !allocation_enabled {
         return;
     }
 
@@ -135,4 +166,21 @@ pub fn alloc_prof_rshutdown() {
     allocation_le83::alloc_prof_rshutdown();
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
     allocation_ge84::alloc_prof_rshutdown();
+}
+
+#[track_caller]
+fn initialization_panic() -> ! {
+    panic!("Allocation profiler was not initialized properly. Please fill an issue stating the PHP version and the backtrace from this panic.");
+}
+
+unsafe fn alloc_prof_panic_alloc(_len: size_t) -> *mut c_void {
+    initialization_panic();
+}
+
+unsafe fn alloc_prof_panic_realloc(_prev_ptr: *mut c_void, _len: size_t) -> *mut c_void {
+    initialization_panic();
+}
+
+unsafe fn alloc_prof_panic_free(_ptr: *mut c_void) {
+    initialization_panic();
 }

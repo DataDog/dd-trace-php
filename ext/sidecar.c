@@ -2,6 +2,7 @@
 #include "auto_flush.h"
 #include "compat_string.h"
 #include "configuration.h"
+#include "ddtrace_export.h"
 #include "dogstatsd.h"
 #include "logging.h"
 #include <components-rs/common.h>
@@ -34,6 +35,17 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     ddog_CharSlice runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_run_time_id, .len = sizeof(formatted_run_time_id)};
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
+}
+
+DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
+    if (memcmp(dd_sidecar_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
+        return NULL;
+    }
+    return dd_sidecar_formatted_session_id;
+}
+
+DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
+    return DDTRACE_G(sidecar_queue_id);
 }
 
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
@@ -82,6 +94,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddog_sidecar_session_set_config(&sidecar_transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
+                                    dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION")))),
                                     DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
                                     (int)(get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS() * 1000),
@@ -96,6 +109,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
                                     DDTRACE_REMOTE_CONFIG_PRODUCTS.len,
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.ptr,
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.len,
+                                    get_global_DD_REMOTE_CONFIG_ENABLED(),
                                     is_fork);
 
     ddog_endpoint_drop(dogstatsd_endpoint);
@@ -336,7 +350,7 @@ void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddtrace_root_span_dat
 }
 
 void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version) {
-    if (!ddtrace_sidecar || !get_global_DD_REMOTE_CONFIG_ENABLED()) {
+    if (!ddtrace_sidecar) {
         return;
     }
 
@@ -383,9 +397,20 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
     bool changed = true;
     if (DDTRACE_G(remote_config_state)) {
         changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
+        if (!changed && root) {
+            // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
+            // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
+            ddog_process_remote_configs(DDTRACE_G(remote_config_state));
+        }
     }
+
     if (changed || !root) {
-        ddtrace_ffi_try("Failed sending remote config data", ddog_sidecar_set_remote_config_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+        ddtrace_ffi_try("Failed sending config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+    }
+
+    if (DDTRACE_G(telemetry_buffer)) {
+        ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
+            ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
     }
 
     if (free_string) {

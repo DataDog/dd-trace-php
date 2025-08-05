@@ -91,10 +91,9 @@ std::string parameter_to_json(const parameter_view &pv)
 }
 
 // TODO: we should limit the recursion
-template <typename T,
-    typename = std::enable_if_t<std::disjunction_v<
-        std::is_same<rapidjson::Document, std::remove_cv_t<std::decay_t<T>>>,
-        std::is_same<rapidjson::Value, std::remove_cv_t<std::decay_t<T>>>>>>
+template <typename T, typename = std::enable_if_t<std::disjunction_v<
+                          std::is_same<rapidjson::Document, std::decay_t<T>>,
+                          std::is_same<rapidjson::Value, std::decay_t<T>>>>>
 // NOLINTNEXTLINE(misc-no-recursion)
 void json_to_object(ddwaf_object *object, T &doc)
 {
@@ -133,9 +132,11 @@ void json_to_object(ddwaf_object *object, T &doc)
     }
     case rapidjson::kNumberType: {
         if (doc.IsInt64()) {
-            ddwaf_object_string_from_signed(object, doc.GetInt64());
+            ddwaf_object_signed(object, doc.GetInt64());
         } else if (doc.IsUint64()) {
-            ddwaf_object_string_from_unsigned(object, doc.GetUint64());
+            ddwaf_object_unsigned(object, doc.GetUint64());
+        } else if (doc.IsDouble()) {
+            ddwaf_object_float(object, doc.GetDouble());
         }
         break;
     }

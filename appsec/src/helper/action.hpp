@@ -27,7 +27,8 @@ struct action {
 };
 
 struct event {
-    std::vector<std::string> data;
+    bool keep = false;
+    std::vector<std::string> triggers; // json fragments
     std::vector<action> actions;
 };
 } // namespace dds

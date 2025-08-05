@@ -131,17 +131,16 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             // The following values should be made configurable from the outside. I could not get env XDEBUG_CONFIG
             // to work setting it both in docker-compose.yml and in `getEnvs()` above, but that should be the best
             // option.
-            'xdebug.start_with_request' => 'yes',
-
-            // 2
+            // Xdebug 2.x configuration
             'xdebug.remote_enable' => 1,
             'xdebug.remote_host' => 'host.docker.internal',
             'xdebug.remote_autostart' => 1,
             // 'xdebug.remote_log' => '/tmp/xdebug.log',
 
-            // 3
+            // Xdebug 3.x configuration
             'xdebug.mode' => 'develop,debug',
             'xdebug.client_host' => 'host.docker.internal',
+            'xdebug.start_with_request' => 'yes',
             // 'xdebug.log' => '/tmp/xdebug.log',
         ] + ($enableOpcache ? ["zend_extension" => "opcache.so"] : []);
     }

@@ -3,7 +3,7 @@ Assert that the default environment can be read from agent info
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
 <?php
-if (PHP_OS === "WINNT" && PHP_VERSION_ID < 70400) die("skip: Windows on PHP 7.2 and 7.3 have permission issues with synchronous access to sidecar data");
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
 if (PHP_VERSION_ID >= 80100) {
     echo "nocache\n";
 }
@@ -30,12 +30,19 @@ datadog.trace.agent_test_session_token=dd_trace_agent_env
 --FILE--
 <?php
 
+include __DIR__ . '/../includes/request_replayer.inc';
+
+$rr = new RequestReplayer();
+
 $span = \DDTrace\start_span();
-if (getenv('USE_ZEND_ALLOC') === '0' && !getenv("SKIP_ASAN")) {
-    sleep(3); // timing sensitive
-} else {
-    sleep(1);
-}
+
+// make sure sidecar keeps up with us
+$start = microtime(true);
+\DDTrace\start_trace_span();
+\DDTrace\close_span();
+$rr->waitForDataAndReplay();
+usleep(floor(microtime(true) - $start) * 100000);
+
 \DDTrace\close_span();
 var_dump($span->env);
 

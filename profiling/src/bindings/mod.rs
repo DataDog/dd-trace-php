@@ -148,8 +148,20 @@ impl _zend_function {
 
     #[inline]
     pub fn is_internal(&self) -> bool {
-        // Safety: the function's type field is always safe to access.
+        // SAFETY: the function's type field is always safe to access.
         unsafe { self.type_ == ZEND_INTERNAL_FUNCTION }
+    }
+
+    /// Returns the op_array if this is a user function or eval code.
+    #[inline]
+    pub fn op_array(&self) -> Option<&_zend_op_array> {
+        if !self.is_internal() {
+            // SAFETY: If it's not internal, then both user and eval types use
+            // the op_array field.
+            unsafe { Some(&self.op_array) }
+        } else {
+            None
+        }
     }
 }
 
@@ -165,7 +177,7 @@ pub struct ModuleEntry {
     pub zts: c_uchar,
     pub ini_entry: *const _zend_ini_entry,
     pub deps: *const ModuleDep,
-    pub name: *const u8,
+    pub name: *const c_char,
     pub functions: *const _zend_function_entry,
     pub module_startup_func:
         Option<unsafe extern "C" fn(type_: c_int, module_number: c_int) -> ZendResult>,
@@ -209,11 +221,11 @@ pub use ModuleEntry as zend_module_entry;
 
 #[repr(C)]
 pub struct ZendExtension {
-    pub name: *const u8,
-    pub version: *const u8,
-    pub author: *const u8,
-    pub url: *const u8,
-    pub copyright: *const u8,
+    pub name: *const c_char,
+    pub version: *const c_char,
+    pub author: *const c_char,
+    pub url: *const c_char,
+    pub copyright: *const c_char,
     pub startup: Option<unsafe extern "C" fn(extension: *mut ZendExtension) -> ZendResult>,
     pub shutdown: shutdown_func_t,
     pub activate: activate_func_t,
@@ -248,7 +260,7 @@ impl Default for ModuleEntry {
             zts: USING_ZTS as u8,
             ini_entry: ptr::null(),
             deps: ptr::null(),
-            name: b"\0".as_ptr(),
+            name: c"".as_ptr(),
             functions: ptr::null(),
             module_startup_func: None,
             module_shutdown_func: None,
@@ -278,11 +290,11 @@ impl Default for ModuleEntry {
 impl Default for ZendExtension {
     fn default() -> Self {
         Self {
-            name: b"\0".as_ptr(),
-            version: b"\0".as_ptr(),
-            author: b"\0".as_ptr(),
-            url: b"\0".as_ptr(),
-            copyright: b"\0".as_ptr(),
+            name: c"".as_ptr(),
+            version: c"".as_ptr(),
+            author: c"".as_ptr(),
+            url: c"".as_ptr(),
+            copyright: c"".as_ptr(),
             startup: None,
             shutdown: None,
             activate: None,
@@ -675,6 +687,7 @@ pub struct ZaiConfigMemoizedEntry {
     pub decoded_value: zval,
     pub default_encoded_value: zai_str<'static>,
     pub name_index: i16,
+    pub config_id: zai_str<'static>,
     pub ini_change: zai_config_apply_ini_change,
     pub parser: zai_custom_parse,
     pub displayer: zai_custom_display,

@@ -6,7 +6,7 @@ use DDTrace\Tests\Common\Utils;
 
 class PHPRedisBench
 {
-    const REDIS_HOST = 'redis_integration';
+    const REDIS_HOST = 'redis-integration';
     const REDIS_PORT = '6379';
 
     public $redis;

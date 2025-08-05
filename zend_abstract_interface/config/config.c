@@ -41,20 +41,27 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     int16_t name_index = 0;
     for (; name_index < memoized->names_count; name_index++) {
         zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
-        if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_FLEET)) {
+        zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
+        if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG) {
+            strcpy(buf.ptr, ZSTR_VAL(entry->value));
             zai_config_process_env(memoized, buf, &value);
+            name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
+            memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         } else if (zai_config_get_env_value(name, buf)) {
             zai_config_process_env(memoized, buf, &value);
             break;
-        } else if (zai_config_stable_file_get_value(name, buf, ZAI_CONFIG_STABLE_FILE_SOURCE_LOCAL)) {
+        } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG) {
+            strcpy(buf.ptr, ZSTR_VAL(entry->value));
             zai_config_process_env(memoized, buf, &value);
+            name_index = ZAI_CONFIG_ORIGIN_LOCAL_STABLE;
+            memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         }
     }
     if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(buf, true)) {
         zai_config_process_env(memoized, buf, &value);
-        name_index = 0;
+        name_index = ZAI_CONFIG_ORIGIN_MODIFIED;
     }
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
@@ -108,7 +115,7 @@ static zai_config_memoized_entry *zai_config_memoize_entry(zai_config_entry *ent
     if (!zai_config_decode_value(entry->default_encoded_value, memoized->type, memoized->parser, &memoized->decoded_value, /* persistent */ true)) {
         assert(0 && "Error decoding default value");
     }
-    memoized->name_index = -1;
+    memoized->name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
     memoized->original_on_modify = NULL;
     memoized->env_config_fallback = entry->env_config_fallback;
     memoized->ini_change = entry->ini_change;
@@ -132,6 +139,10 @@ static void zai_config_entries_init(zai_config_entry entries[], zai_config_id en
     }
 }
 
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
+zend_new_interned_string_func_t zai_persistent_new_interned_string;
+#endif
+
 bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_config_env_to_ini_name env_to_ini,
                       int module_number) {
     if (!entries || !entries_count) return false;
@@ -139,6 +150,9 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
     zai_config_entries_init(entries, entries_count);
     zai_config_ini_minit(env_to_ini, module_number);
     zai_config_stable_file_minit();
+#if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
+    zai_persistent_new_interned_string = zend_new_interned_string;
+#endif
     return true;
 }
 
@@ -169,6 +183,8 @@ static void zai_config_intern_zval(zval *pzval) {
     if (Z_TYPE_P(pzval) == IS_STRING) {
 #if PHP_VERSION_ID >= 70400
         ZVAL_INTERNED_STR(pzval, zend_new_interned_string(Z_STR_P(pzval)));
+#elif PHP_VERSION_ID >= 70300
+        ZVAL_INTERNED_STR(pzval, zai_persistent_new_interned_string(Z_STR_P(pzval)));
 #else
         GC_ADD_FLAGS(Z_STR_P(pzval), IS_STR_INTERNED);
         Z_TYPE_INFO_P(pzval) = IS_INTERNED_STRING_EX;
@@ -199,6 +215,8 @@ static void zai_config_intern_zval(zval *pzval) {
                 if (bucket->key) {
 #if PHP_VERSION_ID >= 70400
                     bucket->key = zend_new_interned_string(bucket->key);
+#elif PHP_VERSION_ID >= 70300
+                    bucket->key = zai_persistent_new_interned_string(bucket->key);
 #else
                     GC_ADD_FLAGS(bucket->key, IS_STR_INTERNED);
 #endif
@@ -210,18 +228,25 @@ static void zai_config_intern_zval(zval *pzval) {
 }
 
 void zai_config_first_time_rinit(bool in_request) {
+    // On PHP 7.3 zend_interned_strings_switch_storage has undesired side effects (it calls interned_string_copy_storage); hence we collect zend_new_interned_string_permanent via zai_persistent_new_interned_string at minit.
 #if PHP_VERSION_ID >= 70400
     if (in_request) {
         zend_interned_strings_switch_storage(0);
     }
+#else
+    (void)in_request;
 #endif
 
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         zai_config_find_and_set_value(memoized, i);
+#if PHP_VERSION_ID >= 70300
+        zai_config_intern_zval(&memoized->decoded_value);
+#else
         if (in_request) {
             zai_config_intern_zval(&memoized->decoded_value);
         }
+#endif
     }
 
 #if PHP_VERSION_ID >= 70400

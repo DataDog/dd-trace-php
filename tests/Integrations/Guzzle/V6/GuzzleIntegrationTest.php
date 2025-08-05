@@ -20,7 +20,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 {
     use SnapshotTestTrait;
 
-    const URL = 'http://httpbin_integration';
+    const URL = 'http://' . HTTPBIN_INTEGRATION . '';
 
     public static function ddSetUpBeforeClass()
     {
@@ -47,6 +47,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_CODE_ORIGIN_MAX_USER_FRAMES',
         ];
     }
 
@@ -86,6 +87,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testSend()
     {
+        self::putenv('DD_CODE_ORIGIN_MAX_USER_FRAMES=2');
         $traces = $this->isolateTracer(function () {
             $request = new Request('put', 'http://example.com');
             $this->getMockedClient()->send($request);
@@ -98,7 +100,17 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    // Note that the leaf span is guzzle, not the curl inside
+                    '_dd.code_origin.frames.0.file' => '%s/vendor/guzzlehttp/guzzle/src/Client.php',
+                    '_dd.code_origin.frames.0.line' => '%d',
+                    '_dd.code_origin.frames.0.method' => 'send',
+                    '_dd.code_origin.frames.0.type' => 'GuzzleHttp\Client',
+                    '_dd.code_origin.frames.1.file' => '%s/GuzzleIntegrationTest.php',
+                    '_dd.code_origin.frames.1.line' => '%d',
+                    '_dd.code_origin.frames.1.method' => '%s}', // closure format differs on PHP versions
+                    '_dd.code_origin.frames.1.type' => 'DDTrace\Tests\Integrations\Guzzle\%s\GuzzleIntegrationTest',
+                    '_dd.code_origin.type' => 'exit',
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
@@ -403,7 +415,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.method' => 'GET',
                             'http.url' => self::URL . '/status/200',
                             'http.status_code' => '200',
-                            'network.destination.name' => 'httpbin_integration',
+                            'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle',
                             '_dd.base_service' => 'top_level_app',

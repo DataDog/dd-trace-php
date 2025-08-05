@@ -3,10 +3,15 @@
 #include <components-rs/common.h>
 #include <components/log/log.h>
 #include <zai_string/string.h>
+#include "ddtrace_export.h"
+#include "ddtrace.h"
+#include "zend_string.h"
 
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+
+DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
 
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
@@ -17,6 +22,7 @@ void ddtrace_sidecar_submit_root_span_data(void);
 void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);
 void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags);
 ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void);
+void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddtrace_root_span_data *root);
 void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version);
 
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads);

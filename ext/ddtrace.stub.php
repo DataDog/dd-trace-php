@@ -205,7 +205,7 @@ namespace DDTrace {
         /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
-        public readonly SpanData|null $parent;
+        public readonly SpanData|null $parent = null;
 
         /**
          * @var SpanStack The span's stack trace
@@ -321,7 +321,7 @@ namespace DDTrace {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public readonly SpanStack|null $parent;
+        public readonly SpanStack|null $parent = null;
 
         /**
          * @var SpanData|null The active span
@@ -643,6 +643,16 @@ namespace DDTrace {
     function get_sanitized_exception_trace(\Throwable $exception, int $skipFrames = 0): string {}
 
     /**
+     * Collects code origin tags for the current active span given the current stack. It is advised to set attributes
+     * like meta[span.kind] and type before calling this function as it makes use of them. Has no effect without active
+     * span
+     *
+     * @param int $skipFrames The number of frames to be dropped from the start. E.g. to hide the fact that we're
+     * in a hook function.
+     */
+    function collect_code_origins(int $skipFrames = 0): void {}
+
+    /**
      * Update datadog headers for distributed tracing for new spans. Also applies this information to the current trace,
      * if there is one, as well as the future ones if it isn't overwritten
      *
@@ -907,6 +917,28 @@ namespace DDTrace\Internal {
      * @internal
      */
     function handle_fork(): void {}
+}
+
+namespace datadog\appsec\v2 {
+    /**
+ * Track a user login success event.
+ *
+ * @param string $login is the data used by the user to authenticate
+ * @param string|array $user when string, it represents the user id. When array it represents the user information.
+ *  The array should at least contain the following keys:
+ * - id: string, Unique identifier of the user. Should be the same id and format used on set_user
+ * @param array $metadata User metadata added to the root span
+ */
+function track_user_login_success(string $login, string|array|null $user = null, array $metadata = []): void {}
+
+/**
+ * Track a user login failure event.
+ *
+ * @param string $login is the data used by the user to authenticate
+ * @param bool $exists Whether the user exists in the system
+ * @param array $metadata User metadata added to the root span
+ */
+function track_user_login_failure(string $login, bool $exists, array $metadata = []): void {}
 }
 
 namespace {

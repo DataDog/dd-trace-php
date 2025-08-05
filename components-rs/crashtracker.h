@@ -58,23 +58,32 @@ extern "C" {
 #endif // __cplusplus
 
 /**
- * Cleans up after the crash-tracker:
- * Unregister the crash handler, restore the previous handler (if any), and
- * shut down the receiver.  Note that the use of this function is optional:
- * the receiver will automatically shutdown when the pipe is closed on program
- * exit.
+ * Disables the crashtracker.
+ * Note that this does not restore the old signal handlers, but rather turns crash-tracking into a
+ * no-op, and then chains the old handlers.  This means that handlers registered after the
+ * crashtracker will continue to work as expected.
  *
  * # Preconditions
- *   This function assumes that the crashtracker has previously been
- *   initialized.
+ *   None
  * # Safety
- *   Crash-tracking functions are not reentrant.
- *   No other crash-handler functions should be called concurrently.
+ *   None
  * # Atomicity
- *   This function is not atomic. A crash during its execution may lead to
- *   unexpected crash-handling behaviour.
+ *   This function is atomic and idempotent.  Calling it multiple times is allowed.
  */
-DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_shutdown(void);
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_disable(void);
+
+/**
+ * Enables the crashtracker, if it had been previously disabled.
+ * If crashtracking has not been initialized, this function will have no effect.
+ *
+ * # Preconditions
+ *   None
+ * # Safety
+ *   None
+ * # Atomicity
+ *   This function is atomic and idempotent.  Calling it multiple times is allowed.
+ */
+DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_enable(void);
 
 /**
  * Reinitialize the crash-tracking infrastructure after a fork.
@@ -116,6 +125,24 @@ DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_init(struct ddog_crasht_Config config,
                                         struct ddog_crasht_ReceiverConfig receiver_config,
                                         struct ddog_crasht_Metadata metadata);
+
+/**
+ * Reconfigure the crashtracker and re-enables it.
+ * If the crashtracker has not been initialized, this function will have no effect.
+ *
+ * # Preconditions
+ *   None.
+ * # Safety
+ *   Crash-tracking functions are not reentrant.
+ *   No other crash-handler functions should be called concurrently.
+ * # Atomicity
+ *   This function is not atomic. A crash during its execution may lead to
+ *   unexpected crash-handling behaviour.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_reconfigure(struct ddog_crasht_Config config,
+                                               struct ddog_crasht_ReceiverConfig receiver_config,
+                                               struct ddog_crasht_Metadata metadata);
 
 /**
  * Initialize the crash-tracking infrastructure without launching the receiver.
@@ -386,6 +413,14 @@ HRESULT OutOfProcessExceptionEventCallback(const void *context,
 
 /**
  * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfo_demangle_names(struct ddog_crasht_Handle_CrashInfo *crash_info);
+
+/**
+ * # Safety
  * The `builder` can be null, but if non-null it must point to a Frame
  * made by this module, which has not previously been dropped.
  */
@@ -645,6 +680,16 @@ DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid_random(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
 
 /**
+ * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                 ddog_CharSlice message);
+
+/**
  * Create a new StackFrame, and returns an opaque reference to it.
  * # Safety
  * No safety issues.
@@ -841,7 +886,7 @@ struct ddog_StringWrapperResult ddog_crasht_demangle(ddog_CharSlice name,
  * signal handler is dangerous, so we fork a sidecar to do the stuff we aren't
  * allowed to do in the handler.
  *
- * See comments in [crashtracker/lib.rs] for a full architecture description.
+ * See comments in [datadog-crashtracker/lib.rs] for a full architecture description.
  * # Safety
  * No safety concerns
  */
@@ -855,7 +900,7 @@ DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_receiver_entry_point_stdin(
  * signal handler is dangerous, so we fork a sidecar to do the stuff we aren't
  * allowed to do in the handler.
  *
- * See comments in [profiling/crashtracker/mod.rs] for a full architecture
+ * See comments in [datadog-crashtracker/lib.rs] for a full architecture
  * description.
  * # Safety
  * No safety concerns

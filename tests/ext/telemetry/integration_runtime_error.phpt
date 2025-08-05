@@ -35,7 +35,7 @@ foo();
 
 dd_trace_internal_fn("finalize_telemetry");
 
-for ($i = 0; $i < 100; ++$i) {
+for ($i = 0; $i < 300; ++$i) {
     usleep(100000);
     if (file_exists(__DIR__ . '/integration-runtime-error-telemetry.out')) {
         foreach (file(__DIR__ . '/integration-runtime-error-telemetry.out') as $l) {
@@ -66,7 +66,7 @@ foo
 [ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
 array(2) {
   [0]=>
-  array(6) {
+  array(7) {
     ["message"]=>
     string(165) "Error raised in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:12 for foo(): Testnotice in <redacted>%cintegration_runtime_error.php on line 13"
     ["level"]=>
@@ -79,9 +79,11 @@ array(2) {
     string(0) ""
     ["is_sensitive"]=>
     bool(false)
+    ["is_crash"]=>
+    bool(false)
   }
   [1]=>
-  array(6) {
+  array(7) {
     ["message"]=>
     string(161) "Exception thrown in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:7 for foo(): test in <redacted>%cintegration_runtime_error.php on line %d"
     ["level"]=>
@@ -93,6 +95,8 @@ array(2) {
     ["tags"]=>
     string(0) ""
     ["is_sensitive"]=>
+    bool(false)
+    ["is_crash"]=>
     bool(false)
   }
 }

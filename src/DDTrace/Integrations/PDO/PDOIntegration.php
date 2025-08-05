@@ -78,6 +78,7 @@ class PDOIntegration extends Integration
             $integration->addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
+            PDOIntegration::handleRasp($this, $span);
         }, function (HookData $hook) use ($integration) {
             $span = $hook->span();
             if (is_numeric($hook->returned)) {
@@ -102,6 +103,7 @@ class PDOIntegration extends Integration
             $integration->addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
+            PDOIntegration::handleRasp($this, $span);
         }, function (HookData $hook) use ($integration) {
             $span = $hook->span();
             if ($hook->returned instanceof \PDOStatement) {
@@ -122,6 +124,7 @@ class PDOIntegration extends Integration
             PDOIntegration::setCommonSpanInfo($this, $span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
+            PDOIntegration::handleRasp($this, $span);
         }, function (HookData $hook) use ($integration) {
             ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
         });
@@ -201,9 +204,11 @@ class PDOIntegration extends Integration
     {
         $engine = substr($dsn, 0, strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
-        $tags[Tag::DB_SYSTEM] = isset(self::$DB_DRIVER_TO_SYSTEM[$engine])
-            ? self::$DB_DRIVER_TO_SYSTEM[$engine]
-            : 'other_sql';
+        $dbSystem = isset(self::$DB_DRIVER_TO_SYSTEM[$engine])
+          ? self::$DB_DRIVER_TO_SYSTEM[$engine]
+          : 'other_sql';
+        $tags[Tag::DB_SYSTEM] = $dbSystem;
+        $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
         $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
         foreach ($valStrings as $valString) {
             if (!strpos($valString, '=')) {
@@ -277,8 +282,7 @@ class PDOIntegration extends Integration
         $span->type = Type::SQL;
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = PDOIntegration::NAME;
-        if (
-            \dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
+        if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
                 isset($storedConnectionInfo[Tag::TARGET_HOST])
         ) {
             Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME, true);
@@ -291,5 +295,37 @@ class PDOIntegration extends Integration
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;
         }
+
+        if (\dd_trace_env_config("DD_APPSEC_RASP_ENABLED") && function_exists('datadog\appsec\push_addresses')
+            && !empty($span->resource) && !empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
+        }
+    }
+
+    /**
+     * @param PDO $source
+     * @param DDTrace\SpanData $span
+     */
+    public static function handleRasp(\PDO $source, SpanData $span)
+    {
+        static $raspEnabled = null;
+        if ($raspEnabled === null) {
+            $raspEnabled = \dd_trace_env_config("DD_APPSEC_RASP_ENABLED") &&
+                function_exists('datadog\appsec\push_addresses');
+        }
+
+        if (!$raspEnabled) {
+            return;
+        }
+
+        $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+        if (!\is_array($storedConnectionInfo) || empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
+            return;
+        }
+
+        $addresses = array(
+            'server.db.statement' => $span->resource,
+            'server.db.system' => $storedConnectionInfo[Tag::DB_SYSTEM],
+        );
+        \datadog\appsec\push_addresses($addresses, "sqli");
     }
 }

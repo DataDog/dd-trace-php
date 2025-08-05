@@ -105,10 +105,9 @@ TEST(ServiceManagerTest, UniqueServices)
     auto fn = create_sample_rules_ok();
     dds::engine_settings engine_settings;
     engine_settings.rules_file = fn;
-
+    engine_settings.waf_timeout_us = 42;
     auto service1 = manager.create_service(engine_settings, {});
     auto service2 = manager.create_service(engine_settings, {});
-
-    EXPECT_EQ(service1.get(), service2.get());
+    EXPECT_EQ(service1, service2);
 }
 } // namespace dds

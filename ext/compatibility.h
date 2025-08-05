@@ -185,6 +185,15 @@ static inline zend_string *php_base64_encode_str(const zend_string *str) {
     _key = _p->key; \
     _val = _z;
 
+static zend_always_inline zval *zend_hash_str_find_deref(const HashTable *ht, const char *str, size_t len)
+{
+    zval *zv = zend_hash_str_find(ht, str, len);
+    if (zv) {
+        ZVAL_DEREF(zv);
+    }
+    return zv;
+}
+
 #else
 #define DD_PARAM_PROLOGUE Z_PARAM_PROLOGUE
 #endif
@@ -576,6 +585,35 @@ static zend_always_inline zend_object *zend_weakref_key_to_object(zend_ulong key
 static zend_always_inline zend_result zend_call_function_with_return_value(zend_fcall_info *fci, zend_fcall_info_cache *fci_cache, zval *retval) {
     fci->retval = retval;
     return zend_call_function(fci, fci_cache);
+}
+
+static inline zend_string *zend_ini_str_ex(const char *name, size_t len, bool orig, bool *exists) {
+    zend_ini_entry *ini_entry = zend_hash_str_find_ptr(EG(ini_directives), name, len);
+    if (ini_entry) {
+        if (exists) {
+            *exists = true;
+        }
+
+        if (orig && ini_entry->modified) {
+            return ini_entry->orig_value ? ini_entry->orig_value : NULL;
+        }
+        return ini_entry->value ? ini_entry->value : NULL;
+    }
+    if (exists) {
+        *exists = false;
+    }
+    return NULL;
+}
+
+static inline zend_string *zend_ini_str(const char *name, size_t name_length, bool orig) {
+    bool exists = false;
+    zend_string *return_value = zend_ini_str_ex(name, name_length, orig, &exists);
+    if (!exists) {
+        return NULL;
+    } else if (!return_value) {
+        return_value = ZSTR_EMPTY_ALLOC();
+    }
+    return return_value;
 }
 
 #define zend_zval_value_name zend_zval_type_name

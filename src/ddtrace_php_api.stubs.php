@@ -6,19 +6,19 @@ namespace OpenTelemetry\Context {
      */
     final class Context implements \OpenTelemetry\Context\ContextInterface
     {
-        public static function createKey(string $key) : \OpenTelemetry\Context\ContextKeyInterface
+        public static function createKey(string $key): \OpenTelemetry\Context\ContextKeyInterface
         {
         }
         /**
          * @param ContextStorageInterface&ExecutionContextAwareInterface $storage
          */
-        public static function setStorage(\OpenTelemetry\Context\ContextStorageInterface $storage) : void
+        public static function setStorage(\OpenTelemetry\Context\ContextStorageInterface $storage): void
         {
         }
         /**
          * @return ContextStorageInterface&ExecutionContextAwareInterface
          */
-        public static function storage() : \OpenTelemetry\Context\ContextStorageInterface
+        public static function storage(): \OpenTelemetry\Context\ContextStorageInterface
         {
         }
         /**
@@ -26,25 +26,25 @@ namespace OpenTelemetry\Context {
          *
          * @internal OpenTelemetry
          */
-        public static function resolve($context, ?\OpenTelemetry\Context\ContextStorageInterface $contextStorage = null) : \OpenTelemetry\Context\ContextInterface
+        public static function resolve($context, ?\OpenTelemetry\Context\ContextStorageInterface $contextStorage = null): \OpenTelemetry\Context\ContextInterface
         {
         }
         /**
          * @internal
          */
-        public static function getRoot() : \OpenTelemetry\Context\ContextInterface
+        public static function getRoot(): \OpenTelemetry\Context\ContextInterface
         {
         }
-        public static function getCurrent() : \OpenTelemetry\Context\ContextInterface
+        public static function getCurrent(): \OpenTelemetry\Context\ContextInterface
         {
         }
-        public function activate() : \OpenTelemetry\Context\ScopeInterface
+        public function activate(): \OpenTelemetry\Context\ScopeInterface
         {
         }
-        public function withContextValue(\OpenTelemetry\Context\ImplicitContextKeyedInterface $value) : \OpenTelemetry\Context\ContextInterface
+        public function withContextValue(\OpenTelemetry\Context\ImplicitContextKeyedInterface $value): \OpenTelemetry\Context\ContextInterface
         {
         }
-        public function with(\OpenTelemetry\Context\ContextKeyInterface $key, $value) : self
+        public function with(\OpenTelemetry\Context\ContextKeyInterface $key, $value): self
         {
         }
         public function get(\OpenTelemetry\Context\ContextKeyInterface $key)
@@ -56,7 +56,7 @@ namespace DDTrace\OpenTelemetry {
     // Operation Name Conventions
     class Convention
     {
-        public static function defaultOperationName(\DDTrace\SpanData $span) : string
+        public static function defaultOperationName(\DDTrace\SpanData $span): string
         {
         }
     }
@@ -75,43 +75,43 @@ namespace OpenTelemetry\SDK\Trace {
          * @internal
          * @psalm-internal OpenTelemetry
          */
-        public static function startSpan(\DDTrace\SpanData $span, \OpenTelemetry\API\Trace\SpanContextInterface $context, \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface $instrumentationScope, int $kind, \OpenTelemetry\API\Trace\SpanInterface $parentSpan, \OpenTelemetry\Context\ContextInterface $parentContext, \OpenTelemetry\SDK\Trace\SpanProcessorInterface $spanProcessor, \OpenTelemetry\SDK\Resource\ResourceInfo $resource, array $attributes, array $links, int $totalRecordedLinks, array $events, bool $isRemapped = true) : self
+        public static function startSpan(\DDTrace\SpanData $span, \OpenTelemetry\API\Trace\SpanContextInterface $context, \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface $instrumentationScope, int $kind, \OpenTelemetry\API\Trace\SpanInterface $parentSpan, \OpenTelemetry\Context\ContextInterface $parentContext, \OpenTelemetry\SDK\Trace\SpanProcessorInterface $spanProcessor, \OpenTelemetry\SDK\Resource\ResourceInfo $resource, array $attributes, array $links, int $totalRecordedLinks, array $events, bool $isRemapped = true): self
         {
         }
-        public function getName() : string
-        {
-        }
-        /**
-         * @inheritDoc
-         */
-        public function getContext() : \OpenTelemetry\API\Trace\SpanContextInterface
-        {
-        }
-        public function getParentContext() : \OpenTelemetry\API\Trace\SpanContextInterface
-        {
-        }
-        public function getInstrumentationScope() : \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface
-        {
-        }
-        public function hasEnded() : bool
+        public function getName(): string
         {
         }
         /**
          * @inheritDoc
          */
-        public function toSpanData() : \OpenTelemetry\SDK\Trace\SpanDataInterface
+        public function getContext(): \OpenTelemetry\API\Trace\SpanContextInterface
+        {
+        }
+        public function getParentContext(): \OpenTelemetry\API\Trace\SpanContextInterface
+        {
+        }
+        public function getInstrumentationScope(): \OpenTelemetry\SDK\Common\Instrumentation\InstrumentationScopeInterface
+        {
+        }
+        public function hasEnded(): bool
         {
         }
         /**
          * @inheritDoc
          */
-        public function getDuration() : int
+        public function toSpanData(): \OpenTelemetry\SDK\Trace\SpanDataInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function getKind() : int
+        public function getDuration(): int
+        {
+        }
+        /**
+         * @inheritDoc
+         */
+        public function getKind(): int
         {
         }
         /**
@@ -120,80 +120,80 @@ namespace OpenTelemetry\SDK\Trace {
         public function getAttribute(string $key)
         {
         }
-        public function getStartEpochNanos() : int
+        public function getStartEpochNanos(): int
         {
         }
-        public function getTotalRecordedLinks() : int
+        public function getTotalRecordedLinks(): int
         {
         }
-        public function getTotalRecordedEvents() : int
-        {
-        }
-        /**
-         * @inheritDoc
-         */
-        public function isRecording() : bool
+        public function getTotalRecordedEvents(): int
         {
         }
         /**
          * @inheritDoc
          */
-        public function setAttribute(string $key, $value) : \OpenTelemetry\API\Trace\SpanInterface
+        public function isRecording(): bool
         {
         }
         /**
          * @inheritDoc
          */
-        public function setAttributes(iterable $attributes) : \OpenTelemetry\API\Trace\SpanInterface
+        public function setAttribute(string $key, $value): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanInterface
+        public function setAttributes(iterable $attributes): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function addEvent(string $name, iterable $attributes = [], $timestamp = null) : \OpenTelemetry\API\Trace\SpanInterface
+        public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function recordException(\Throwable $exception, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanInterface
+        public function addEvent(string $name, iterable $attributes = [], $timestamp = null): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function updateName(string $name) : \OpenTelemetry\API\Trace\SpanInterface
+        public function recordException(\Throwable $exception, iterable $attributes = []): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function setStatus(string $code, ?string $description = null) : \OpenTelemetry\API\Trace\SpanInterface
+        public function updateName(string $name): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function end(?int $endEpochNanos = null) : void
+        public function setStatus(string $code, ?string $description = null): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
-        public function endOTelSpan(?int $endEpochNanos = null) : void
+        /**
+         * @inheritDoc
+         */
+        public function end(?int $endEpochNanos = null): void
         {
         }
-        public function getResource() : \OpenTelemetry\SDK\Resource\ResourceInfo
+        public function endOTelSpan(?int $endEpochNanos = null): void
+        {
+        }
+        public function getResource(): \OpenTelemetry\SDK\Resource\ResourceInfo
         {
         }
         /**
          * @internal
          * @return SpanData
          */
-        public function getDDSpan() : \DDTrace\SpanData
+        public function getDDSpan(): \DDTrace\SpanData
         {
         }
     }
@@ -206,42 +206,42 @@ namespace OpenTelemetry\SDK\Trace {
         /**
          * @inheritDoc
          */
-        public function setParent($context) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function setParent($context): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
-        public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function addLink(\OpenTelemetry\API\Trace\SpanContextInterface $context, iterable $attributes = []): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
-        public function addEvent(string $name, iterable $attributes = [], ?int $timestamp = null) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function addEvent(string $name, iterable $attributes = [], ?int $timestamp = null): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
-        public function recordException(\Throwable $exception, iterable $attributes = []) : \OpenTelemetry\API\Trace\SpanBuilderInterface
-        {
-        }
-        /** @inheritDoc */
-        public function setAttribute(string $key, $value) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function recordException(\Throwable $exception, iterable $attributes = []): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
         /** @inheritDoc */
-        public function setAttributes(iterable $attributes) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function setAttribute(string $key, $value): \OpenTelemetry\API\Trace\SpanBuilderInterface
+        {
+        }
+        /** @inheritDoc */
+        public function setAttributes(iterable $attributes): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function setStartTimestamp(int $timestampNanos) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function setStartTimestamp(int $timestampNanos): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function setSpanKind(int $spanKind) : \OpenTelemetry\API\Trace\SpanBuilderInterface
+        public function setSpanKind(int $spanKind): \OpenTelemetry\API\Trace\SpanBuilderInterface
         {
         }
         /**
          * @inheritDoc
          */
-        public function startSpan() : \OpenTelemetry\API\Trace\SpanInterface
+        public function startSpan(): \OpenTelemetry\API\Trace\SpanInterface
         {
         }
     }
@@ -252,46 +252,46 @@ namespace DDTrace\OpenTelemetry\API\Trace {
         /**
          * @inheritDoc
          */
-        public function getTraceId() : string
+        public function getTraceId(): string
         {
         }
-        public function getTraceIdBinary() : string
+        public function getTraceIdBinary(): string
         {
         }
         /**
          * @inheritDoc
          */
-        public function getSpanId() : string
+        public function getSpanId(): string
         {
         }
-        public function getSpanIdBinary() : string
+        public function getSpanIdBinary(): string
         {
         }
-        public function getTraceState() : ?\OpenTelemetry\API\Trace\TraceStateInterface
+        public function getTraceState(): ?\OpenTelemetry\API\Trace\TraceStateInterface
         {
         }
-        public function isSampled() : bool
+        public function isSampled(): bool
         {
         }
-        public function isValid() : bool
+        public function isValid(): bool
         {
         }
-        public function isRemote() : bool
+        public function isRemote(): bool
         {
         }
-        public function getTraceFlags() : int
-        {
-        }
-        /** @inheritDoc */
-        public static function createFromRemoteParent(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null) : \OpenTelemetry\API\Trace\SpanContextInterface
+        public function getTraceFlags(): int
         {
         }
         /** @inheritDoc */
-        public static function create(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null) : \OpenTelemetry\API\Trace\SpanContextInterface
+        public static function createFromRemoteParent(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null): \OpenTelemetry\API\Trace\SpanContextInterface
         {
         }
         /** @inheritDoc */
-        public static function getInvalid() : \OpenTelemetry\API\Trace\SpanContextInterface
+        public static function create(string $traceId, string $spanId, int $traceFlags = \OpenTelemetry\API\Trace\TraceFlags::DEFAULT, ?\OpenTelemetry\API\Trace\TraceStateInterface $traceState = null): \OpenTelemetry\API\Trace\SpanContextInterface
+        {
+        }
+        /** @inheritDoc */
+        public static function getInvalid(): \OpenTelemetry\API\Trace\SpanContextInterface
         {
         }
         public static function createFromLocalSpan(\DDTrace\SpanData $span, bool $sampled, ?string $traceId = null, ?string $spanId = null)
@@ -1922,7 +1922,7 @@ namespace DDTrace\Log {
         public function log(string $level, $message, array $context = [])
         {
         }
-        public function customErrorHandler(int $code, string $msg) : bool
+        public function customErrorHandler(int $code, string $msg): bool
         {
         }
     }

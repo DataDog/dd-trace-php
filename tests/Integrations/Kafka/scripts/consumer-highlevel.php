@@ -6,7 +6,7 @@ use RdKafka\Conf;
 use RdKafka\KafkaConsumer;
 
 $conf = new Conf();
-$conf->set('bootstrap.servers', 'kafka_integration:9092');
+$conf->set('bootstrap.servers', 'kafka-integration:9092');
 $conf->set('group.id', 'consumer-highlevel');
 $conf->set('enable.partition.eof', 'true');
 $conf->set('auto.offset.reset', 'earliest');

@@ -6,6 +6,7 @@
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
 #include <components/sapi/sapi.h>
 
@@ -124,6 +125,11 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_span_stack *top_closed_stack;
     HashTable traced_spans; // tie a span to a specific active execute_data
     uint32_t open_spans_count;
+    uint32_t baggage_extract_count;
+    uint32_t baggage_inject_count;
+    uint32_t baggage_malformed_count;
+    uint32_t baggage_max_item_count;
+    uint32_t baggage_max_byte_count;
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;
@@ -164,6 +170,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable git_metadata;
     zend_object *git_object;
 
+    ddog_ShmCacheMap *telemetry_cache;
     bool inferred_span_created;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
