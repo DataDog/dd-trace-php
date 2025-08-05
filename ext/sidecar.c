@@ -384,7 +384,7 @@ void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddog_SidecarTransport
 }
 
 void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transport, ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version) {
-    if (!transport) {
+    if (!*transport) {
         return;
     }
 
