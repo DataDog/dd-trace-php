@@ -14,6 +14,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_VERSION=1.1
 DD_SERVICE=appsec_tests
 DD_ENV=prod
+DD_TRACE_LOG_FILE=/tmp/dd_trace_test.log
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;
@@ -42,5 +43,3 @@ Array
     [service_name] => appsec_tests
     [env_name] => prod
 )
-[ddtrace] [error] Failed flushing filtered telemetry buffer: %s
-[ddtrace] [error] Failed removing application from sidecar: %s

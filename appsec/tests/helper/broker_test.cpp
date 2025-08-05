@@ -274,7 +274,7 @@ TEST(BrokerTest, RecvClientInit)
     pack_str(packer, "client_init");
 
     // Message contents
-    packer.pack_array(7);
+    packer.pack_array(8);
     packer.pack_unsigned_int(20); // 1. PID
     pack_str(packer, "one");      // 2. client_version
     pack_str(packer, "two");      // 3. runtime_version
@@ -307,7 +307,13 @@ TEST(BrokerTest, RecvClientInit)
     pack_str(packer, "shmem_path");
     pack_str(packer, "/shmem_path_test");
 
-    packer.pack_map(2); // 7. sc_settings
+    packer.pack_map(2); // 7. telemetry_settings
+    pack_str(packer, "service_name");
+    pack_str(packer, "test_service_name");
+    pack_str(packer, "env_name");
+    pack_str(packer, "test_env_name");
+
+    packer.pack_map(2); // 8. sc_settings
     pack_str(packer, "session_id");
     pack_str(packer, "test_session_id");
     pack_str(packer, "runtime_id");
@@ -344,6 +350,10 @@ TEST(BrokerTest, RecvClientInit)
     // RC settings
     EXPECT_EQ(command.rc_settings.enabled, true);
     EXPECT_EQ(command.rc_settings.shmem_path, std::string{"/shmem_path_test"});
+
+    // Telemetry settings
+    EXPECT_STREQ(command.telemetry_settings.service_name.c_str(), "test_service_name");
+    EXPECT_STREQ(command.telemetry_settings.env_name.c_str(), "test_env_name");
 
     // SC settings
     EXPECT_STREQ(command.sc_settings.session_id.c_str(), "test_session_id");

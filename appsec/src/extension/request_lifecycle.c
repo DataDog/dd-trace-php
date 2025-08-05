@@ -888,8 +888,8 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
     zend_long sampling_priority =
         dd_trace_get_priority_sampling_on_span_zobj(root_span);
     if (get_DD_APM_TRACING_ENABLED() && sampling_priority < 1) {
-        mlog_g(dd_log_debug, "Sampling priority is %ld; not sampling",
-            sampling_priority);
+        mlog_g(dd_log_debug, "Sampling priority is %" PRIi64 "; not sampling",
+            (int64_t)sampling_priority);
         return 0;
     }
 

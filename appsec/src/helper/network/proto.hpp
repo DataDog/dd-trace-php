@@ -14,6 +14,7 @@
 #include "msgpack_helpers.hpp"
 #include <msgpack.hpp>
 #include <optional>
+#include <sstream>
 #include <type_traits>
 #include <typeinfo>
 
