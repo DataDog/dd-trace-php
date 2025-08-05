@@ -1270,13 +1270,6 @@ static void _serialize_meta(ddog_SpanBytes *rust_span, ddtrace_span_data *span, 
         existing_env = &new_env;
     }
 
-    if (!span->parent) {
-        if (DDTRACE_G(last_flushed_root_env_name)) {
-            zend_string_release(DDTRACE_G(last_flushed_root_env_name));
-        }
-        DDTRACE_G(last_flushed_root_env_name) = zend_string_copy(Z_STR_P(existing_env));
-    }
-
     if (existing_env == &new_env) {
         zval_ptr_dtor(&new_env);
         ZVAL_UNDEF(&new_env);
@@ -1669,13 +1662,6 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         if (new_name) {
             zend_string_release(Z_STR(prop_service_as_string));
             ZVAL_COPY(&prop_service_as_string, new_name);
-        }
-
-        if (!span->parent) {
-            if (DDTRACE_G(last_flushed_root_service_name)) {
-                zend_string_release(DDTRACE_G(last_flushed_root_service_name));
-            }
-            DDTRACE_G(last_flushed_root_service_name) = zend_string_copy(Z_STR(prop_service_as_string));
         }
 
         ddog_set_span_service_zstr(rust_span, Z_STR_P(&prop_service_as_string));

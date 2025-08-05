@@ -23,14 +23,6 @@ ddog_Endpoint *ddtrace_endpoint;
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 static uint8_t dd_sidecar_formatted_session_id[36];
 
-#ifdef ZTS
-static __thread zend_string *last_service_name;
-static __thread zend_string *last_env_name;
-#else
-static zend_string *last_service_name;
-static zend_string *last_env_name;
-#endif
-
 // Set the globals that stay unchanged in case of fork
 static void ddtrace_set_non_resettable_sidecar_globals(void) {
     ddtrace_format_runtime_id(&dd_sidecar_formatted_session_id);
@@ -55,8 +47,8 @@ DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
 
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void) {
     struct telemetry_rc_info info = {
-        .service_name = last_service_name,
-        .env_name = last_env_name,
+        .service_name = DDTRACE_G(last_service_name),
+        .env_name = DDTRACE_G(last_env_name),
     };
     if (DDTRACE_G(remote_config_state)) {
         info.rc_path = ddog_remote_config_get_path(DDTRACE_G(remote_config_state));
@@ -426,11 +418,17 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddtrace_root_span_data *root, 
     }
 
     if (changed || !root) {
-        bool res = ddtrace_ffi_try("Failed sending config data", ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
-        if (res) {
-            last_service_name = zend_string_init(service_slice.ptr, service_slice.len, true /* persistent */);
-            last_env_name = zend_string_init(env_slice.ptr, env_slice.len, true /* persistent */);
+        ddtrace_ffi_try("Failed sending config data",
+                        ddog_sidecar_set_universal_service_tags(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id),
+                                                                service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+        if (DDTRACE_G(last_service_name)) {
+            zend_string_release(DDTRACE_G(last_service_name));
         }
+        DDTRACE_G(last_service_name) = zend_string_init(service_slice.ptr, service_slice.len, false);
+        if (DDTRACE_G(last_env_name)) {
+            zend_string_release(DDTRACE_G(last_env_name));
+        }
+        DDTRACE_G(last_env_name) = zend_string_init(env_slice.ptr, env_slice.len, false);
     }
 
     if (DDTRACE_G(telemetry_buffer)) {

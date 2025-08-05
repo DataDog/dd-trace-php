@@ -148,8 +148,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
     HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
-    zend_string *last_flushed_root_service_name;
-    zend_string *last_flushed_root_env_name;
+    zend_string *last_service_name;
+    zend_string *last_env_name;
     ddog_Vec_Tag active_global_tags;
 
     bool request_initialized;

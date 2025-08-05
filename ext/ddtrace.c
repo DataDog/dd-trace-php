@@ -1845,13 +1845,13 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_telemetry_rshutdown();
     ddtrace_sidecar_rshutdown();
 
-    if (DDTRACE_G(last_flushed_root_service_name)) {
-        zend_string_release(DDTRACE_G(last_flushed_root_service_name));
-        DDTRACE_G(last_flushed_root_service_name) = NULL;
+    if (DDTRACE_G(last_service_name)) {
+        zend_string_release(DDTRACE_G(last_service_name));
+        DDTRACE_G(last_service_name) = NULL;
     }
-    if (DDTRACE_G(last_flushed_root_env_name)) {
-        zend_string_release(DDTRACE_G(last_flushed_root_env_name));
-        DDTRACE_G(last_flushed_root_env_name) = NULL;
+    if (DDTRACE_G(last_env_name)) {
+        zend_string_release(DDTRACE_G(last_env_name));
+        DDTRACE_G(last_env_name) = NULL;
     }
 
     ddtrace_clean_git_object();

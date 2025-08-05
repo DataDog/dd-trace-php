@@ -133,25 +133,16 @@ void ddtrace_telemetry_finalize(bool clear_id) {
         return;
     }
 
+    if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
+        LOG(WARN, "No telemetry submission can happen without service/env");
+        return;
+    }
+
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+
     ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
     DDTRACE_G(telemetry_buffer) = NULL;
-
-    zend_string *free_string = NULL;
-    ddog_CharSlice service_name = DDOG_CHARSLICE_C_BARE("unnamed-php-service");
-    if (DDTRACE_G(last_flushed_root_service_name)) {
-        service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_service_name));
-    } else if (ZSTR_LEN(get_DD_SERVICE())) {
-        service_name = dd_zend_string_to_CharSlice(get_DD_SERVICE());
-    } else {
-        free_string = ddtrace_default_service_name();
-        service_name = dd_zend_string_to_CharSlice(free_string);
-    }
-    ddog_CharSlice env_name = DDOG_CHARSLICE_C_BARE("none");
-    if (DDTRACE_G(last_flushed_root_env_name)) {
-        env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_flushed_root_env_name));
-    } else if (ZSTR_LEN(get_DD_ENV())) {
-        env_name = dd_zend_string_to_CharSlice(get_DD_ENV());
-    }
 
     zend_module_entry *module;
     char module_name[261] = { 'e', 'x', 't', '-' };
@@ -269,10 +260,6 @@ void ddtrace_telemetry_finalize(bool clear_id) {
     if (clear_id) {
         ddtrace_ffi_try("Failed removing application from sidecar",
                         ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
-    }
-
-    if (free_string) {
-        zend_string_release(free_string);
     }
 }
 
