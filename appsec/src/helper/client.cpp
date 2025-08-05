@@ -166,8 +166,8 @@ bool client::handle_command(const network::client_init::request &command)
     client_enabled_conf = command.enabled_configuration;
 
     try {
-        set_service(service_manager_->create_service(
-            eng_settings, command.rc_settings));
+        set_service(service_manager_->get_or_create_service(
+            eng_settings, command.rc_settings, command.telemetry_settings));
 
         // save engine settings so we can recreate the service if rc path
         // changes
@@ -367,13 +367,13 @@ bool client::handle_command(network::config_sync::request &command)
         return false;
     }
 
-    SPDLOG_DEBUG(
-        "received command config_sync with rem cfg path {} and queue id {}",
-        command.rem_cfg_path, command.queue_id);
+    SPDLOG_DEBUG("received command config_sync with rem cfg path {} and "
+                 "telemetry settings {}",
+        command.rem_cfg_path, command.telemetry_settings);
 
-    service_->drain_logs(sc_settings_, command.queue_id);
+    service_->drain_logs(sc_settings_);
 
-    update_remote_config_path(command.rem_cfg_path);
+    update_settings(command.rem_cfg_path, command.telemetry_settings);
 
     if (compute_client_status()) {
         auto response_cf =
@@ -471,26 +471,34 @@ bool client::handle_command(network::request_shutdown::request &command)
     }
 
     collect_metrics(*response, *service_, context_);
-    service_->drain_logs(sc_settings_, command.queue_id);
+    service_->drain_logs(sc_settings_);
 
     return send_message<network::request_shutdown>(response);
 }
 
-void client::update_remote_config_path(std::string_view path)
+void client::update_settings(
+    std::string_view path, const telemetry_settings &telemetry_settings)
 {
-    if (service_->is_remote_config_shmem_path(path) ||
-        !engine_settings_.has_value()) {
+    if (!engine_settings_.has_value()) {
+        return;
+    }
+
+    if (service_->is_remote_config_shmem_path(path) &&
+        service_->is_telemetry_settings(telemetry_settings)) {
+        // nothing has changed
         return;
     }
 
     remote_config::settings rc_settings;
     if (path.empty()) {
         SPDLOG_INFO("Remote config path is empty, recreating service with "
-                    "disabled remote config");
+                    "disabled remote config and telemetry settings={}",
+            telemetry_settings);
         rc_settings.enabled = false;
     } else {
-        SPDLOG_INFO(
-            "Remote config path changed to {}, recreating service", path);
+        SPDLOG_INFO("Remote config path changed to {}, recreating service with "
+                    "telemetry settings={}",
+            path, telemetry_settings);
         rc_settings.enabled = true;
         rc_settings.shmem_path = path;
     }
@@ -498,7 +506,8 @@ void client::update_remote_config_path(std::string_view path)
     sidecar_settings const current_sc_settings =
         service_->get_sidecar_settings();
     std::shared_ptr<service> new_service =
-        service_manager_->create_service(*engine_settings_, rc_settings);
+        service_manager_->get_or_create_service(
+            *engine_settings_, rc_settings, telemetry_settings);
 
     set_service(std::move(new_service));
 }

@@ -45,8 +45,14 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx_)
     // 1. rem_cfg_path
     dd_mpack_write_nullable_cstr(w, data->rem_cfg_path);
 
-    // 2. queue_id
-    mpack_write_u64(w, dd_trace_get_sidecar_queue_id());
+    // 2. telemetry_settings
+    struct telemetry_rc_info tel_rc_info = dd_trace_get_telemetry_rc_info();
+    mpack_start_map(w, 2);
+    dd_mpack_write_lstr(w, "service_name");
+    dd_mpack_write_nullable_zstr(w, tel_rc_info.service_name);
+    dd_mpack_write_lstr(w, "env_name");
+    dd_mpack_write_nullable_zstr(w, tel_rc_info.env_name);
+    mpack_finish_map(w); // telemetry_settings
 
     return dd_success;
 }

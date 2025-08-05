@@ -12,6 +12,13 @@ extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
+struct telemetry_rc_info {
+    const char *rc_path;
+    zend_string *service_name;
+    zend_string *env_name;
+    // caller does not own the data
+};
+DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);

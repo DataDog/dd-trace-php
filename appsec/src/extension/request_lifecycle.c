@@ -145,7 +145,8 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
         return false;
     }
 
-    const char *cur_path = dd_trace_remote_config_get_path();
+    struct telemetry_rc_info tel_rc_info = dd_trace_get_telemetry_rc_info();
+    const char *cur_path = tel_rc_info.rc_path;
     if (!cur_path) {
         cur_path = "";
     }
@@ -158,9 +159,13 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
         return false;
     }
 
-    mlog(dd_log_info, "Remote config path changed from %s to %s",
+    mlog(dd_log_info,
+        "Remote config path changed from %s to %s; "
+        "current service_name=%.*s, env_name=%.*s",
         _last_rem_cfg_path[0] ? _last_rem_cfg_path : "(none)",
-        cur_path[0] ? cur_path : "(none)");
+        cur_path[0] ? cur_path : "(none)",
+        ZSTR_PRINTF(tel_rc_info.service_name),
+        ZSTR_PRINTF(tel_rc_info.env_name));
 
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.strcpy)
     strcpy(_last_rem_cfg_path, cur_path);

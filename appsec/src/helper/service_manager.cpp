@@ -7,29 +7,34 @@
 
 namespace dds {
 
-std::shared_ptr<service> service_manager::create_service(
-    const engine_settings &settings, const remote_config::settings &rc_settings)
+std::shared_ptr<service> service_manager::get_or_create_service(
+    const engine_settings &eng_settings,
+    const remote_config::settings &rc_settings,
+    const telemetry_settings &telemetry_settings)
 {
-    const cache_key key{settings, rc_settings};
+    const cache_key key{eng_settings, rc_settings, telemetry_settings};
     SPDLOG_DEBUG(
         "Will try to fetch service with cache hash={}", cache_key::hash{}(key));
 
     const std::lock_guard guard{mutex_};
     auto hit = cache_.find(key);
     if (hit != cache_.end()) {
-        auto service_ptr = hit->second.lock();
+        std::shared_ptr<service> service_ptr = hit->second.lock();
         if (service_ptr) { // not expired
             SPDLOG_DEBUG(
-                "Found an existing service for settings={} rc_settings={}",
-                settings, rc_settings);
+                "Found an existing service for settings={} rc_settings={} "
+                "telemetry_settings={}",
+                eng_settings, rc_settings, telemetry_settings);
             return service_ptr;
         }
     }
 
-    SPDLOG_DEBUG("Creating a service for settings={} rc_settings={}", settings,
-        rc_settings);
+    SPDLOG_DEBUG("Creating a service for settings={} rc_settings={} "
+                 "telemetry_settings={}",
+        eng_settings, rc_settings, telemetry_settings);
 
-    auto service_ptr = service::from_settings(settings, rc_settings);
+    auto service_ptr =
+        service::from_settings(eng_settings, rc_settings, telemetry_settings);
     cache_.emplace(key, std::move(service_ptr));
 
     last_service_ = service_ptr;

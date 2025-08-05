@@ -28,9 +28,10 @@ public:
         cache_.clear();
     }
 
-    virtual std::shared_ptr<service> create_service(
+    virtual std::shared_ptr<service> get_or_create_service(
         const engine_settings &settings,
-        const remote_config::settings &rc_settings);
+        const remote_config::settings &rc_settings,
+        const telemetry_settings &telemetry_settings);
 
     void notify_of_rc_updates(std::string_view shmem_path);
 
@@ -38,16 +39,20 @@ protected:
     class cache_key {
     public:
         cache_key(engine_settings engine_settings,
-            remote_config::settings config_settings)
+            remote_config::settings config_settings,
+            telemetry_settings telemetry_settings)
             : engine_settings_{std::move(engine_settings)},
               config_settings_{std::move(config_settings)},
-              hash_{dds::hash(engine_settings_, config_settings_)}
+              telemetry_settings_{std::move(telemetry_settings)},
+              hash_{dds::hash(
+                  engine_settings_, config_settings_, telemetry_settings_)}
         {}
 
         bool operator==(const cache_key &other) const
         {
             return engine_settings_ == other.engine_settings_ &&
-                   config_settings_ == other.config_settings_;
+                   config_settings_ == other.config_settings_ &&
+                   telemetry_settings_ == other.telemetry_settings_;
         }
 
         struct hash {
@@ -65,6 +70,7 @@ protected:
     private:
         engine_settings engine_settings_;
         remote_config::settings config_settings_;
+        telemetry_settings telemetry_settings_;
         std::size_t hash_;
     };
 

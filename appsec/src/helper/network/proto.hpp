@@ -9,6 +9,7 @@
 #include "../parameter.hpp"
 #include "../remote_config/settings.hpp"
 #include "../sidecar_settings.hpp"
+#include "../telemetry_settings.hpp"
 #include "../version.hpp"
 #include "msgpack_helpers.hpp"
 #include <msgpack.hpp>
@@ -107,6 +108,7 @@ struct client_init {
 
         dds::engine_settings engine_settings;
         dds::remote_config::settings rc_settings;
+        dds::telemetry_settings telemetry_settings;
         dds::sidecar_settings sc_settings;
 
         request() = default;
@@ -117,7 +119,8 @@ struct client_init {
         ~request() override = default;
 
         MSGPACK_DEFINE(pid, client_version, runtime_version,
-            enabled_configuration, engine_settings, rc_settings, sc_settings)
+            enabled_configuration, engine_settings, rc_settings,
+            telemetry_settings, sc_settings)
     };
 
     struct response : base_response_generic<response> {
@@ -235,9 +238,9 @@ struct config_sync {
         ~request() override = default;
 
         std::string rem_cfg_path;
-        std::uint64_t queue_id{0};
+        dds::telemetry_settings telemetry_settings;
 
-        MSGPACK_DEFINE(rem_cfg_path, queue_id)
+        MSGPACK_DEFINE(rem_cfg_path, telemetry_settings)
     };
 
     struct response : base_response_generic<response> {
