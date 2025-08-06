@@ -149,7 +149,8 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_sidecar_telemetry_buffer_flush(
+// C-unwind to make a panic *here* fall through (as pthread_cancel is implemented as exception, which rust otherwise catches!
+pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush(
     transport: &mut Box<SidecarTransport>,
     instance_id: &InstanceId,
     queue_id: &QueueId,

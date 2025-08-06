@@ -101,12 +101,22 @@ pub extern "C" fn ddog_sidecar_enable_appsec(
     });
 }
 
+fn sidecar_connect(cfg: config::Config) -> anyhow::Result<Box<SidecarTransport>> {
+    let mut stream = Box::new(run_sidecar(cfg)?);
+    // Generally the Send buffer ought to be big enough for instantaneous transmission
+    _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
+    _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
+    // We do not put reconnect_fn into sidecar_connect, as the reconnect shall not reconnect again on error to prevent recursion
+    Ok(stream)
+}
+
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_connect_php(
     connection: &mut *mut SidecarTransport,
     error_path: *const c_char,
     log_level: CharSlice,
     enable_telemetry: bool,
+    on_reconnect: Option<extern "C" fn(*mut SidecarTransport)>,
 ) -> MaybeError {
     let mut cfg = config::FromEnv::config();
     cfg.self_telemetry = enable_telemetry;
@@ -137,10 +147,18 @@ pub extern "C" fn ddog_sidecar_connect_php(
             let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
         cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
     }
-    let mut stream = Box::new(try_c!(run_sidecar(cfg)));
-    // Generally the Send buffer ought to be big enough for instantaneous transmission
-    _ = stream.set_write_timeout(Some(Duration::from_millis(100)));
-    _ = stream.set_read_timeout(Some(Duration::from_secs(10)));
+    
+    let reconnect_fn = on_reconnect.map(|on_reconnect| {
+        let cfg = cfg.clone();
+        Box::new(move || {
+            let mut transport = sidecar_connect(cfg.clone()).ok()?;
+            on_reconnect(transport.as_mut() as *mut _);
+            Some(transport)
+        }) as Box<dyn Fn() -> _>
+    });
+    
+    let mut stream = try_c!(sidecar_connect(cfg));
+    stream.reconnect_fn = reconnect_fn;
     *connection = Box::into_raw(stream);
 
     MaybeError::None
