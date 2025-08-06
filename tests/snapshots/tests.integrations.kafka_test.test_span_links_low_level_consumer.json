@@ -24,7 +24,7 @@
     "metrics": {
       "_dd.agent_psr": 1,
       "_sampling_priority_v1": 1,
-      "messaging.kafka.message_offset": 20,
+      "messaging.kafka.message_offset": 10,
       "messaging.kafka.partition": 0,
       "messaging.message_payload_size_bytes": 11
     }
@@ -55,9 +55,9 @@
     "metrics": {
       "_dd.agent_psr": 1,
       "_sampling_priority_v1": 1,
-      "messaging.kafka.message_offset": 21,
+      "messaging.kafka.message_offset": 11,
       "messaging.kafka.partition": 0,
-      "messaging.message_payload_size_bytes": 24
+      "messaging.message_payload_size_bytes": 76
     }
   }],
 [

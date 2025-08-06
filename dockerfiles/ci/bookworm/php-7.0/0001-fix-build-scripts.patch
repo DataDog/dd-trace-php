@@ -1,0 +1,91 @@
+--- a/acinclude.m4	2024-10-24 19:18:39.914585008 +0000
++++ b/acinclude.m4	2024-10-24 19:19:21.978743014 +0000
+@@ -1171,7 +1171,7 @@
+ AC_TRY_RUN([
+ #include <time.h>
+
+-main() {
++int main() {
+ char buf[27];
+ struct tm t;
+ time_t old = 0;
+@@ -1187,7 +1187,7 @@
+ ],[
+   AC_TRY_RUN([
+ #include <time.h>
+-main() {
++int main() {
+   struct tm t, *s;
+   time_t old = 0;
+   char buf[27], *p;
+@@ -1225,7 +1225,7 @@
+ #include <unistd.h>
+ #include <errno.h>
+ $1
+-    main() {
++    int main() {
+     int fd = open("conftest_in", O_WRONLY|O_CREAT, 0600);
+
+     if (fd < 0) exit(1);
+@@ -1368,7 +1368,7 @@
+ #define PATH_MAX 1024
+ #endif
+
+-main() {
++int main() {
+   DIR *dir;
+   char entry[sizeof(struct dirent)+PATH_MAX];
+   struct dirent *pentry = (struct dirent *) &entry;
+@@ -1487,7 +1487,7 @@
+ dnl
+ AC_DEFUN([PHP_AC_BROKEN_SPRINTF],[
+   AC_CACHE_CHECK(whether sprintf is broken, ac_cv_broken_sprintf,[
+-    AC_TRY_RUN([main() {char buf[20];exit(sprintf(buf,"testing 123")!=11); }],[
++    AC_TRY_RUN([int main() {char buf[20];exit(sprintf(buf,"testing 123")!=11); }],[
+       ac_cv_broken_sprintf=no
+     ],[
+       ac_cv_broken_sprintf=yes
+@@ -1511,7 +1511,7 @@
+   AC_CACHE_CHECK(whether snprintf is broken, ac_cv_broken_snprintf,[
+     AC_TRY_RUN([
+ #define NULL (0L)
+-main() {
++int main() {
+   char buf[20];
+   int res = 0;
+   res = res || (snprintf(buf, 2, "marcus") != 6);
+@@ -1794,7 +1794,7 @@
+
+ cookie_io_functions_t funcs = {reader, writer, seeker, closer};
+
+-main() {
++int main() {
+   struct cookiedata g = { 0 };
+   FILE *fp = fopencookie(&g, "r", funcs);
+
+@@ -1911,7 +1911,7 @@
+   if test "$found" = "yes"; then
+     ac_libs=$LIBS
+     LIBS="$LIBS -l$2"
+-    AC_TRY_RUN([main() { return (0); }],[found=yes],[found=no],[found=no])
++    AC_TRY_RUN([int main() { return (0); }],[found=yes],[found=no],[found=no])
+     LIBS=$ac_libs
+   fi
+
+@@ -2647,7 +2647,7 @@
+
+ X
+     cat >conftest.$ac_ext <<X
+-main()
++int main()
+ {
+   exit(0);
+ }
+@@ -2892,7 +2892,7 @@
+
+ #define TEXT "This is the test message -- "
+
+-main()
++int main()
+ {
+   int n;

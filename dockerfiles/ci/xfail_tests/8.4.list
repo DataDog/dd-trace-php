@@ -101,6 +101,7 @@ ext/pcntl/tests/pcntl_unshare_02.phpt
 ext/pcntl/tests/pcntl_unshare_03.phpt
 ext/pcntl/tests/pcntl_cpuaffinity.phpt
 ext/pcntl/tests/pcntl_getcpu.phpt
+ext/pcntl/tests/pcntl_setns_basic.phpt
 ext/pdo/tests/pdo_023.phpt
 ext/pdo/tests/pdo_030.phpt
 ext/pdo_sqlite/tests/bug43831.phpt

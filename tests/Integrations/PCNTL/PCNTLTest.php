@@ -128,15 +128,15 @@ final class PCNTLTest extends IntegrationTestCase
         $this->assertCount(2, $requests);
         $this->assertFlameGraph([$requests[0]], [ // child
             SpanAssertion::exists('short-running.php')->withChildren([
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/get'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/ip'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/get'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/ip'),
             ]),
         ]);
         $this->assertFlameGraph([$requests[1]], [
             SpanAssertion::exists('short-running.php')->withChildren([
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/get'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/user-agent'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/get'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/user-agent'),
                 SpanAssertion::exists('pcntl_fork'),
             ]),
         ]);
@@ -160,13 +160,13 @@ final class PCNTLTest extends IntegrationTestCase
 
         $this->assertFlameGraph([array_pop($requests)], [ // main trace
             SpanAssertion::exists('short-running-multiple.php')->withChildren([
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/get'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/user-agent'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/get'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/user-agent'),
                 SpanAssertion::exists('pcntl_fork'),
                 SpanAssertion::exists('pcntl_fork'),
                 SpanAssertion::exists('pcntl_fork'),
@@ -178,7 +178,7 @@ final class PCNTLTest extends IntegrationTestCase
         foreach ($requests as $traces) {
             $this->assertFlameGraph([$traces], [
                 SpanAssertion::exists('short-running-multiple.php')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/ip'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/ip'),
                 ]),
             ]);
         }
@@ -196,25 +196,25 @@ final class PCNTLTest extends IntegrationTestCase
 
         $this->assertFlameGraph([array_pop($requests)], [ // main trace
             SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/get'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/user-agent'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/get'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/user-agent'),
                 SpanAssertion::exists('pcntl_fork'),
             ]),
         ]);
 
         $this->assertFlameGraph([array_shift($requests)], [
             SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/ip'),
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/user-agent'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/ip'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/user-agent'),
             ]),
         ]);
 
         foreach ($requests as $traces) {
             $this->assertFlameGraph([$traces], [
                 SpanAssertion::exists('short-running-multiple-nested.php')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/ip'),
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/user-agent'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/ip'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/user-agent'),
                     SpanAssertion::exists('pcntl_fork'),
                 ]),
             ]);
@@ -235,18 +235,18 @@ final class PCNTLTest extends IntegrationTestCase
             '',
             false,
             $this->until(
-                $this->untilSpan(SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/child-0')),
-                $this->untilSpan(SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/child-1')),
+                $this->untilSpan(SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/child-0')),
+                $this->untilSpan(SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/child-1')),
                 $this->untilSpan(SpanAssertion::exists('long_running_entry_point')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/entry_point-0'),
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/main_process-0'),
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/end_entry_point-0'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/entry_point-0'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/main_process-0'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/end_entry_point-0'),
                     SpanAssertion::exists('pcntl_fork'),
                 ])),
                 $this->untilSpan(SpanAssertion::exists('long_running_entry_point')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/entry_point-1'),
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/main_process-1'),
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/end_entry_point-1'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/entry_point-1'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/main_process-1'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/end_entry_point-1'),
                     SpanAssertion::exists('pcntl_fork'),
                 ]))
             )
@@ -278,22 +278,22 @@ final class PCNTLTest extends IntegrationTestCase
 
         for ($i = 0; $i < 3; ++$i) {
             $this->assertFlameGraph([$requests[$i]], [
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/ip'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/ip'),
             ]);
         }
 
         for ($i = 3; $i < 6; ++$i) {
             $this->assertFlameGraph([$requests[$i]], [
-                SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/user-agent'),
+                SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/user-agent'),
             ]);
         }
 
         for ($i = 6; $i < 9; ++$i) {
             $this->assertFlameGraph([$requests[$i]], [
                 SpanAssertion::exists('manual_tracing')->withChildren([
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/get'),
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/headers'),
-                    SpanAssertion::exists('curl_exec', '/' . HTTPBIN_INTEGRATION . '/user-agent'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/get'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/headers'),
+                    SpanAssertion::exists('curl_exec', 'http://' . HTTPBIN_INTEGRATION . '/user-agent'),
                     SpanAssertion::exists('pcntl_fork'),
                 ]),
             ]);

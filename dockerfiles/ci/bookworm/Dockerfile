@@ -13,6 +13,7 @@ ENV DEVLIBS \
     libclang-rt-17-dev \
     llvm-17-dev \
     lld-17 \
+    libbrotli-dev \
     libcurl4-openssl-dev \
     libedit-dev \
     libffi-dev \
@@ -26,38 +27,42 @@ ENV DEVLIBS \
     libonig-dev \
     libpq-dev \
     libpng-dev \
+    librabbitmq-dev \
+    librdkafka-dev \
     libsodium-dev \
     libsqlite3-dev \
     libssl-dev \
+    libltdl-dev \
     libwebp-dev \
     libxml2-dev \
     libxslt1-dev \
     libzip-dev \
+    libc6-dbg \
     odbcinst1debian2 \
     zlib1g-dev \
     libasan6 \
-    gnupg \
     unixodbc-dev \
     unixodbc
 
-#netcat
 ENV RUNTIME_DEPS \
     apache2 \
     apache2-dev \
     ca-certificates \
+    clang-format-17 \
+    clang-tidy-17 \
     curl \
     debian-goodies \
-    gdb \
     git \
+    gnupg \
     jq \
     less \
     lsof \
     netbase \
+    netcat-openbsd \
     nginx \
     strace \
     sudo \
     unzip \
-    valgrind \
     vim \
     xz-utils \
     zip
@@ -65,10 +70,12 @@ ENV RUNTIME_DEPS \
 ENV PHPIZE_DEPS \
     autoconf \
     bison \
-    catch2 \
     clang-17 \
     cmake \
     dpkg-dev \
+    file \
+    gnupg \
+    gpg \
     file \
     libc-dev \
     make \
@@ -137,6 +144,35 @@ RUN set -eux; \
     echo "-L /usr/lib/llvm-17/lib/clang/17/lib/linux" > /usr/lib/llvm-17/bin/clang.cfg; \
 # Include libasan library path
     echo /usr/lib/llvm-17/lib/clang/17/lib/linux > /etc/ld.so.conf.d/libasan.conf && ldconfig
+
+ENV CMAKE_VERSION="3.24.4"
+
+# Install CMake
+RUN set -eux; \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+        CMAKE_SHA256="86f823f2636bf715af89da10e04daa476755a799d451baee66247846e95d7bee"; \
+    else \
+        CMAKE_SHA256="cac77d28fb8668c179ac02c283b058aeb846fe2133a57d40b503711281ed9f19"; \
+    fi; \
+    cd /tmp && curl -L --output cmake.tar.gz https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSION}/cmake-${CMAKE_VERSION}-Linux-$(uname -m).tar.gz; \
+    (echo "${CMAKE_SHA256} cmake.tar.gz" | sha256sum -c -); \
+    mkdir -p /opt/cmake/${CMAKE_VERSION}; \
+    tar --strip-components 1 -C /opt/cmake/${CMAKE_VERSION} -xf /tmp/cmake.tar.gz; \
+# Currently there's only one version of cmake, make it default
+    ln -s /opt/cmake/${CMAKE_VERSION}/bin/cmake /usr/local/bin/cmake; \
+    rm -rfv /tmp/*
+
+# Install Catch2
+RUN set -eux; \
+    CATCH2_VERSION="2.13.10"; \
+    CATCH2_SHA256="d54a712b7b1d7708bc7a819a8e6e47b2fde9536f487b89ccbca295072a7d9943"; \
+    cd /tmp && curl -OL https://github.com/catchorg/Catch2/archive/v${CATCH2_VERSION}.tar.gz; \
+    (echo "${CATCH2_SHA256}  v${CATCH2_VERSION}.tar.gz" | sha256sum -c -); \
+    mkdir catch2 && cd catch2; \
+    tar -xf ../v${CATCH2_VERSION}.tar.gz --strip 1; \
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
+    /opt/cmake/${CMAKE_VERSION}/bin/cmake --build build/ --target install; \
+    rm -rfv /tmp/*
 
 # Install lcov
 RUN set -eux; \
@@ -261,6 +297,7 @@ RUN set -eux; \
     mkdir -p $PHP_INSTALL_DIR; \
     chown -R circleci:circleci /opt;
 
+# rust sha256sum generated locally after verifying it with sha256
 ARG RUST_VERSION="1.84.1"
 ARG RUST_NIGHTLY_VERSION="-2025-06-13"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
@@ -275,6 +312,20 @@ RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}-$MARCH-unknown-linux-gnu
 
 ENV PATH="/rust/cargo/bin:${PATH}"
+
+ARG GO_VERSION="1.22.1"
+ARG GO_SHA256_ARM="e56685a245b6a0c592fc4a55f0b7803af5b3f827aaa29feab1f40e491acf35b8"
+ARG GO_SHA256_X86="aab8e15785c997ae20f9c88422ee35d962c4562212bb0f879d052a35c8307c7f"
+ENV GOROOT=/go
+RUN MARCH=$(uname -m) \
+    && GO_SHA256=$(if [ "$MARCH" = "x86_64" ]; then echo ${GO_SHA256_X86}; elif [ "$MARCH" = "aarch64" ]; then echo ${GO_SHA256_ARM}; fi) \
+    && FILENAME=go${GO_VERSION}.linux-$(if [ "$MARCH" = "x86_64" ]; then echo amd64; elif [ "$MARCH" = "aarch64" ]; then echo arm64; fi).tar.gz \
+    && curl -L --write-out '%{http_code}' -O https://go.dev/dl/${FILENAME} \
+    && printf '%s  %s' "$GO_SHA256" "$FILENAME" | sha256sum --check --status \
+    && tar -xf "$FILENAME" -C / \
+    && rm "${FILENAME}"
+
+ENV PATH="/go/bin:${PATH}"
 
 # Add the wait script to the image: note SHA 672a28f0509433e3b4b9bcd4d9cd7668cea7e31a has been reviewed and should not
 # be changed without an appropriate code review.
