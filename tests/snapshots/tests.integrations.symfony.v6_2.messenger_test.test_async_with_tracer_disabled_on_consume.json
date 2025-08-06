@@ -12,6 +12,7 @@
       "_dd.p.tid": "686e4ae700000000",
       "component": "symfony",
       "http.method": "GET",
+      "http.route": "/lucky/number",
       "http.status_code": "200",
       "http.url": "http://localhost/lucky/number",
       "runtime-id": "8d575e05-da62-4382-a61a-a3c04f3e8cad",

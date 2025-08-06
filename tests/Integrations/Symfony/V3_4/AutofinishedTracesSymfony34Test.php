@@ -36,6 +36,7 @@ class AutofinishedTracesSymfony34Test extends WebFrameworkTestCase
             )->withExactTags([
                 'symfony.route.action' => 'AppBundle\Controller\HomeController@actionBeingTerminatedByExit',
                 'symfony.route.name' => 'terminated_by_exit',
+                'http.route' => '/terminated_by_exit',
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost/terminated_by_exit',
                 'http.status_code' => '200',
