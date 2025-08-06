@@ -136,7 +136,7 @@
          "component": "guzzle",
          "http.method": "GET",
          "http.status_code": "200",
-         "http.url": "https://www.google.com",
+         "http.url": "https://www.google.com/",
          "network.destination.name": "www.google.com",
          "span.kind": "client"
        }
@@ -154,7 +154,7 @@
          "component": "guzzle",
          "http.method": "GET",
          "http.status_code": "200",
-         "http.url": "https://www.google.com",
+         "http.url": "https://www.google.com/",
          "network.destination.name": "www.google.com",
          "span.kind": "client"
        }
@@ -172,7 +172,7 @@
          "component": "guzzle",
          "http.method": "GET",
          "http.status_code": "200",
-         "http.url": "https://www.google.com",
+         "http.url": "https://www.google.com/",
          "network.destination.name": "www.google.com",
          "span.kind": "client"
        }
@@ -516,7 +516,7 @@
         {
           "name": "curl_exec",
           "service": "host-www.google.com",
-          "resource": "https://www.google.com",
+          "resource": "https://www.google.com/",
           "trace_id": 0,
           "span_id": 18,
           "parent_id": 11,
@@ -552,7 +552,7 @@
             "curl.total_time_us": "5102544",
             "curl.upload_content_length": "-1",
             "http.status_code": "200",
-            "http.url": "https://www.google.com",
+            "http.url": "https://www.google.com/",
             "network.bytes_read": "19469",
             "network.bytes_written": "0",
             "network.client.ip": "172.20.0.15",
@@ -569,7 +569,7 @@
         {
           "name": "curl_exec",
           "service": "host-www.google.com",
-          "resource": "https://www.google.com",
+          "resource": "https://www.google.com/",
           "trace_id": 0,
           "span_id": 19,
           "parent_id": 11,
@@ -605,7 +605,7 @@
             "curl.total_time_us": "5119631",
             "curl.upload_content_length": "-1",
             "http.status_code": "200",
-            "http.url": "https://www.google.com",
+            "http.url": "https://www.google.com/",
             "network.bytes_read": "19572",
             "network.bytes_written": "0",
             "network.client.ip": "172.20.0.15",
@@ -622,7 +622,7 @@
         {
           "name": "curl_exec",
           "service": "host-www.google.com",
-          "resource": "https://www.google.com",
+          "resource": "https://www.google.com/",
           "trace_id": 0,
           "span_id": 20,
           "parent_id": 11,
@@ -658,7 +658,7 @@
             "curl.total_time_us": "5102712",
             "curl.upload_content_length": "-1",
             "http.status_code": "200",
-            "http.url": "https://www.google.com",
+            "http.url": "https://www.google.com/",
             "network.bytes_read": "19506",
             "network.bytes_written": "0",
             "network.client.ip": "172.20.0.15",

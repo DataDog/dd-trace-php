@@ -48,13 +48,13 @@ $build_platforms = [
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_buster",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-5",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_buster",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-5",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -282,7 +282,7 @@ if ($suffix == "-alpine") {
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-5"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -332,7 +332,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-5"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -1071,7 +1071,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-5"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1215,11 +1215,12 @@ endforeach;
 <?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
   tags: [ "arch:$ARCH" ]
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
+    CONTAINER_SUFFIX: bookworm-5
   needs:
     - job: "package loader: [<?= $arch ?>]"
       artifacts: true
@@ -1228,6 +1229,9 @@ endforeach;
 <?php if ($arch == "amd64"): ?>
       - MAJOR_MINOR:
           - "5.6"
+        PHP_FLAVOUR: nts
+        CONTAINER_SUFFIX: buster
+      - MAJOR_MINOR:
           - "7.0"
           - "7.1"
           - "7.2"
