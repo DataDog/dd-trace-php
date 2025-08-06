@@ -35,23 +35,25 @@ public:
 
     void notify_of_rc_updates(std::string_view shmem_path);
 
+    void dump_table();
+
 protected:
     class cache_key {
     public:
         cache_key(engine_settings engine_settings,
-            remote_config::settings config_settings,
+            remote_config::settings rc_settings,
             telemetry_settings telemetry_settings)
             : engine_settings_{std::move(engine_settings)},
-              config_settings_{std::move(config_settings)},
+              rc_settings_{std::move(rc_settings)},
               telemetry_settings_{std::move(telemetry_settings)},
               hash_{dds::hash(
-                  engine_settings_, config_settings_, telemetry_settings_)}
+                  engine_settings_, rc_settings_, telemetry_settings_)}
         {}
 
         bool operator==(const cache_key &other) const
         {
             return engine_settings_ == other.engine_settings_ &&
-                   config_settings_ == other.config_settings_ &&
+                   rc_settings_ == other.rc_settings_ &&
                    telemetry_settings_ == other.telemetry_settings_;
         }
 
@@ -64,14 +66,16 @@ protected:
 
         [[nodiscard]] const std::string &get_shmem_path() const
         {
-            return config_settings_.shmem_path;
+            return rc_settings_.shmem_path;
         }
 
     private:
         engine_settings engine_settings_;
-        remote_config::settings config_settings_;
+        remote_config::settings rc_settings_;
         telemetry_settings telemetry_settings_;
         std::size_t hash_;
+
+        friend struct ::fmt::formatter<dds::service_manager::cache_key>;
     };
 
     using cache_t =
@@ -82,6 +86,21 @@ protected:
     std::mutex mutex_;
     cache_t cache_;
     std::shared_ptr<service> last_service_; // keep always one
+
+    friend struct ::fmt::formatter<dds::service_manager::cache_key>;
 };
 
 } // namespace dds
+
+template <> struct fmt::formatter<dds::service_manager::cache_key> {
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
+
+    template <typename FormatContext>
+    auto format(
+        const dds::service_manager::cache_key &key, FormatContext &ctx) const
+    {
+        return fmt::format_to(ctx.out(),
+            "{{rc_settings={}, telemetry_settings={}, engine_settings={}}}",
+            key.rc_settings_, key.telemetry_settings_, key.engine_settings_);
+    }
+};

@@ -436,10 +436,12 @@ class RemoteConfigTests {
             def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
                 assert resp.body() == 'Hello world!'
             }
+            def meta = trace.first().meta
             if (expectedRuleId) {
-                assert trace.first().meta."_dd.appsec.json".contains("\"rule\":{\"id\":\"${expectedRuleId}\"")
+                assert meta.containsKey("_dd.appsec.json")
+                assert meta."_dd.appsec.json".contains("\"rule\":{\"id\":\"${expectedRuleId}\"")
             } else {
-                assert !trace.first().meta.containsKey("_dd.appsec.json")
+                assert !meta.containsKey("_dd.appsec.json")
             }
         }
 

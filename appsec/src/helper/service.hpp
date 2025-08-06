@@ -180,7 +180,10 @@ public:
     service(service &&) = delete;
     service &operator=(service &&) = delete;
 
-    virtual ~service() = default;
+    virtual ~service()
+    {
+        SPDLOG_TRACE("service {} destroyed", static_cast<void *>(this));
+    }
 
     static std::shared_ptr<service> from_settings(
         const dds::engine_settings &eng_settings,
@@ -218,13 +221,23 @@ public:
 
     [[nodiscard]] bool is_remote_config_shmem_path(std::string_view path)
     {
-        return rc_path_ == path;
+        if (rc_path_ != path) {
+            SPDLOG_DEBUG(
+                "remote config path changed: {} -> {}", rc_path_, path);
+            return false;
+        }
+        return true;
     }
 
     [[nodiscard]] bool is_telemetry_settings(
         const telemetry_settings &telemetry_settings) const
     {
-        return telemetry_settings_ == telemetry_settings;
+        if (telemetry_settings_ != telemetry_settings) {
+            SPDLOG_DEBUG("telemetry_settings changed: {} -> {}",
+                telemetry_settings_, telemetry_settings);
+            return false;
+        }
+        return true;
     }
 
     void notify_of_rc_updates() { client_handler_->poll(); }
