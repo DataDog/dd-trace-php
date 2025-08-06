@@ -29,6 +29,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
             )->withExactTags([
                 'symfony.route.action' => 'AppBundle\Controller\HomeController@indexAction',
                 'symfony.route.name' => 'alternate_templating',
+                'http.route' => '/alternate_templating',
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost/alternate_templating',
                 'http.status_code' => '200',

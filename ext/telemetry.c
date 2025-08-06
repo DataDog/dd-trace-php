@@ -101,7 +101,7 @@ void ddtrace_telemetry_rshutdown(void) {
 }
 
 // Register in the sidecar services not bound to the request lifetime
-void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
+void ddtrace_telemetry_register_services(ddog_SidecarTransport **sidecar) {
     if (!dd_bgs_queued_id) {
         dd_bgs_queued_id = ddog_sidecar_queueId_generate();
     }
@@ -116,7 +116,7 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar) {
 
     // FIXME: it seems we must call "enqueue_actions" (even with an empty list of actions) for things to work properly
     ddtrace_ffi_try("Failed flushing background sender telemetry buffer",
-                    ddog_sidecar_telemetry_buffer_flush(&sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
+                    ddog_sidecar_telemetry_buffer_flush(sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
 }
 
 void ddtrace_telemetry_lifecycle_end() {

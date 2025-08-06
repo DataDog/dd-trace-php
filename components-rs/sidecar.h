@@ -355,6 +355,8 @@ void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
  */
 void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
 
+void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
+
 ddog_TracesBytes *ddog_get_traces(void);
 
 void ddog_free_traces(ddog_TracesBytes *_traces);

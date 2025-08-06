@@ -6,7 +6,6 @@ import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.MethodOrderer
-import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIf
@@ -44,12 +43,6 @@ class Symfony62Tests {
                     phpVariant: variant,
                     www: 'symfony62',
             )
-
-    @Test
-    @Order(1)
-    void 'reported telemetry integrations are not repeated'() {
-
-    }
 
     @Test
     void 'login success automated event'() {
@@ -113,5 +106,32 @@ class Symfony62Tests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
+        assert span.meta."http.route" == '/dynamic-path/{param01}'
+    }
+
+    @Test
+    void 'symfony http route disabled'() {
+        try {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''echo export DD_TRACE_SYMFONY_HTTP_ROUTE=false >> /etc/apache2/envvars;
+                   service apache2 restart''')
+            assert res.exitCode == 0
+
+            HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
+            def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+                assert re.statusCode() == 200
+                assert re.body().contains('Hi someValue!')
+            }
+
+            Span span = trace.first()
+            assert span.meta."http.route" != '/dynamic-path/{param01}'
+        } finally {
+            def res = CONTAINER.execInContainer(
+                    'bash', '-c',
+                    '''sed -i '/export DD_TRACE_SYMFONY_HTTP_ROUTE=/d' /etc/apache2/envvars;
+                       service apache2 restart''')
+            assert res.exitCode == 0
+        }
     }
 }

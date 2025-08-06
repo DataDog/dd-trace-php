@@ -444,6 +444,7 @@ task loadCaches(type: Exec) {
 
     commandLine 'docker', 'run', '--rm',
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
             '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
             '-v', "${project.buildDir}:/build",
             "$dockerMirror/library/busybox",
@@ -462,12 +463,13 @@ task saveCaches(type: Exec) {
     commandLine 'docker', 'run', '--rm',
             '-e', "UUID=${uuid}",
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
             '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
             '-v', "${project.buildDir}:/build",
             "$dockerMirror/library/busybox",
             'sh', '-c',
             """tar -czf /build/php-appsec-volume-caches-${arch}.tar.gz \
-              -C /caches php-tracer-cargo-cache php-appsec-boost-cache && \
+              -C /caches php-tracer-cargo-cache php-tracer-cargo-cache-git php-appsec-boost-cache && \
               chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
 }
 
