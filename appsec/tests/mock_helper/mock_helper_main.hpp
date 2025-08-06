@@ -31,21 +31,26 @@ class EchoPipe { // lifetime: till the end of the program
     template <typename Callable> void add_close_cb(Callable &&cb)
     {
         spawn(
-            iocontext, [this, cb = std::forward<decltype(cb)>(cb)](auto yield) {
+            iocontext,
+            [this, cb = std::forward<Callable>(cb)](auto yield) {
 #ifdef __linux__
                 auto wait_type = posix::stream_descriptor::wait_error;
 #else
-            auto wait_type = posix::stream_descriptor::wait_read;
+                auto wait_type = posix::stream_descriptor::wait_read;
 #endif
                 stream_.async_wait(wait_type, yield);
                 SPDLOG_INFO("The echo pipe was closed"); // NOLINT
-                cb();
-            }, [](std::exception_ptr e) {
-                if (e) std::rethrow_exception(e);
+
+                post(iocontext, [cb = std::move(cb)] { cb(); });
+            },
+            [](const std::exception_ptr &e) {
+                if (e) {
+                    std::rethrow_exception(e);
+                }
             });
     }
 
-  private:
+private:
     static posix::stream_descriptor try_fds();
 
     static std::optional<posix::stream_descriptor> try_single_fd(int fd);
