@@ -25,11 +25,11 @@ std::shared_ptr<service> service_manager::get_or_create_service(
         if (service_ptr) { // not expired
             SPDLOG_DEBUG("Found an existing service for {}", key);
             return service_ptr;
-        } else {
-            // expired. Free up the map entry so that we can recreate it
-            cleanup_cache();
-            ran_cleanup = true;
         }
+
+        // expired. Free up the map entry so that we can recreate it
+        cleanup_cache();
+        ran_cleanup = true;
     }
 
     SPDLOG_DEBUG("Creating a service for {}", key);
@@ -82,7 +82,7 @@ void service_manager::dump_table()
 {
     // requires lock to be held
     for (auto &[key, service_ptr] : cache_) {
-        if (std::shared_ptr<service> service = service_ptr.lock()) {
+        if (std::shared_ptr<service> const service = service_ptr.lock()) {
             SPDLOG_DEBUG("RC path {} -> service {}", key.get_shmem_path(),
                 static_cast<void *>(service.get()));
         } else {
@@ -97,7 +97,7 @@ void service_manager::cleanup_cache()
     auto entries_before = cache_.size();
     for (auto it = cache_.begin(); it != cache_.end();) {
         if (it->second.expired()) {
-            cache_key key = it->first;
+            cache_key const key = it->first;
             SPDLOG_TRACE(
                 "Service had expired; removing entry with key={}", it->first);
             it = cache_.erase(it);
