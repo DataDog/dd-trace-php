@@ -11,6 +11,7 @@ require __DIR__ . '/../includes/clear_skipif_telemetry.inc'
 DD_TRACE_GENERATE_ROOT_SPAN=0
 _DD_LOAD_TEST_INTEGRATIONS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
+DD_LOGS_INJECTION=false
 --INI--
 datadog.trace.agent_url="file://{PWD}/integration-telemetry-02.out"
 --FILE--
@@ -41,7 +42,24 @@ namespace
 
 ?>
 --EXPECT--
-
+array(1) {
+  ["integrations"]=>
+  array(1) {
+    [0]=>
+    array(5) {
+      ["name"]=>
+      string(4) "logs"
+      ["enabled"]=>
+      bool(false)
+      ["version"]=>
+      string(0) ""
+      ["compatible"]=>
+      NULL
+      ["auto_enabled"]=>
+      NULL
+    }
+  }
+}
 --CLEAN--
 <?php
 

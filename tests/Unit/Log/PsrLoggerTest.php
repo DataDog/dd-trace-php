@@ -7,6 +7,20 @@ use DDTrace\Tests\Common\BaseTestCase;
 
 class PsrLoggerTest extends BaseTestCase
 {
+    protected function ddSetUp()
+    {
+        $this->putEnvAndReloadConfig([
+            'DD_LOGS_INJECTION=false',
+        ]);
+    }
+
+    protected function envsToCleanUpAtTearDown()
+    {
+        return [
+            'DD_LOGS_INJECTION',
+        ];
+    }
+
     public function testForwardDebugToPsrLogger()
     {
         $message = '__message__';

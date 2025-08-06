@@ -17,6 +17,7 @@ services:
       MYSQL_ROOT_PASSWORD: ""
       MYSQL_ALLOW_EMPTY_PASSWORD: 1
       MYSQL_ROOT_HOST: "%"
+      DD_LOGS_INJECTION: "false"
     expose: ["3306"]
     healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]

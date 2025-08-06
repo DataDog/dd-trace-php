@@ -66,6 +66,8 @@ final class InstrumentationTest extends WebFrameworkTestCase
         $metrics = array_values(array_filter($payloads, $isMetric));
         $payloads = array_values(array_filter($payloads, function ($p) use ($isMetric) { return !$isMetric($p); }));
 
+        // dont understand why payloads is undefined
+        // how can I debug this test? tried print_r
         $this->assertEquals("app-started", $payloads[0]["request_type"]);
         $this->assertEquals("app-dependencies-loaded", $payloads[1]["request_type"]);
 
