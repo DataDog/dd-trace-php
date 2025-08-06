@@ -31,8 +31,10 @@ dd_result dd_config_sync(
     dd_conn *nonnull conn, const struct config_sync_data *nonnull data)
 {
     mlog_g(dd_log_debug,
-        "Sending config sync request to the helper with path %s",
-        data->rem_cfg_path);
+        "Sending config sync request to the helper with path=%s, "
+        "service_name=%.*s, env_name=%.*s",
+        data->rem_cfg_path, ZSTR_PRINTF(data->telemetry_settings.service_name),
+        ZSTR_PRINTF(data->telemetry_settings.env_name));
 
     return dd_command_exec(conn, &_spec, (void *)data);
 }
@@ -46,12 +48,11 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx_)
     dd_mpack_write_nullable_cstr(w, data->rem_cfg_path);
 
     // 2. telemetry_settings
-    struct telemetry_rc_info tel_rc_info = dd_trace_get_telemetry_rc_info();
     mpack_start_map(w, 2);
     dd_mpack_write_lstr(w, "service_name");
-    dd_mpack_write_nullable_zstr(w, tel_rc_info.service_name);
+    dd_mpack_write_nullable_zstr(w, data->telemetry_settings.service_name);
     dd_mpack_write_lstr(w, "env_name");
-    dd_mpack_write_nullable_zstr(w, tel_rc_info.env_name);
+    dd_mpack_write_nullable_zstr(w, data->telemetry_settings.env_name);
     mpack_finish_map(w); // telemetry_settings
 
     return dd_success;

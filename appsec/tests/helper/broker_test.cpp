@@ -352,7 +352,8 @@ TEST(BrokerTest, RecvClientInit)
     EXPECT_EQ(command.rc_settings.shmem_path, std::string{"/shmem_path_test"});
 
     // Telemetry settings
-    EXPECT_STREQ(command.telemetry_settings.service_name.c_str(), "test_service_name");
+    EXPECT_STREQ(
+        command.telemetry_settings.service_name.c_str(), "test_service_name");
     EXPECT_STREQ(command.telemetry_settings.env_name.c_str(), "test_env_name");
 
     // SC settings

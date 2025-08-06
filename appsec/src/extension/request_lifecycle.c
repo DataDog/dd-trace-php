@@ -210,8 +210,9 @@ static zend_array *nullable _do_request_begin(
     if (_rem_cfg_path_changed(true) ||
         (!DDAPPSEC_G(active) &&
             DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG)) {
-        res = dd_config_sync(conn,
-            &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path});
+        res = dd_config_sync(
+            conn, &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
+                      .telemetry_settings = dd_trace_get_telemetry_rc_info()});
         if (res == dd_success && DDAPPSEC_G(active)) {
             res = dd_request_init(conn, &req_info);
         }
@@ -289,7 +290,8 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
                 "No connection to the helper for rshutdown config sync");
         } else {
             dd_result res = dd_config_sync(conn,
-                &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path});
+                &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
+                    .telemetry_settings = dd_trace_get_telemetry_rc_info()});
             if (res == dd_network) {
                 mlog_g(dd_log_info, "request_init/config_sync failed with "
                                     "dd_network; closing "
