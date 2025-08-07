@@ -84,7 +84,7 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddog_sidecar_session_set_config(transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
-                                    dd_zend_string_to_CharSlice(Z_STR_P(zend_get_constant_str(ZEND_STRL("PHP_VERSION")))),
+                                    php_version_rt,
                                     DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
                                     (int)(get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS() * 1000),

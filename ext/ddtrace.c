@@ -133,6 +133,8 @@ static int dd_observer_extension_backup = -1;
 
 datadog_php_sapi ddtrace_active_sapi = DATADOG_PHP_SAPI_UNKNOWN;
 
+ddog_CharSlice php_version_rt;
+
 _Atomic(int64_t) ddtrace_warn_legacy_api;
 
 ZEND_DECLARE_MODULE_GLOBALS(ddtrace)
@@ -1408,6 +1410,14 @@ void ddtrace_init_known_strings(void) {
 
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
+    zval *php_version = zend_get_constant_str(ZEND_STRL("PHP_VERSION"));
+    if (php_version && Z_TYPE_P(php_version) == IS_STRING) {
+        php_version_rt = (ddog_CharSlice){Z_STRVAL_P(php_version), Z_STRLEN_P(php_version)};
+    } else {
+        zend_error(E_CORE_WARNING, "Failed to get PHP_VERSION constant");
+        return FAILURE;
+    }
+
     ddog_init_span_func((void *)zend_string_release, (void *)zend_string_addref);
 
     ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));

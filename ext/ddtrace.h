@@ -42,6 +42,8 @@ typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
 extern datadog_php_sapi ddtrace_active_sapi;
 
+extern ddog_CharSlice php_version_rt;
+
 static inline zend_array *ddtrace_property_array(zval *zv) {
     ZVAL_DEREF(zv);
     if (Z_TYPE_P(zv) != IS_ARRAY) {
