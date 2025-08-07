@@ -116,15 +116,13 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
 
     dd_sidecar_post_connect(&transport, false, logpath);
 
-    if (DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span) {
-        ddtrace_sidecar_submit_root_span_data_direct_defaults(&transport, DDTRACE_G(active_stack)->root_span);
-    } else {
-        // when we get disconnected during shutdown
-        ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
-        ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+    // when we get disconnected during shutdown
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
 
-        ddtrace_ffi_try("Failed sending config data", ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name, env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags)));
-    }
+    ddtrace_ffi_try("Failed sending config data",
+                    ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
+                                                            env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags)));
 }
 
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
