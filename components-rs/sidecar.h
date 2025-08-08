@@ -209,7 +209,8 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
  */
 ddog_MaybeError ddog_sidecar_enqueue_telemetry_log(ddog_CharSlice session_id_ffi,
                                                    ddog_CharSlice runtime_id_ffi,
-                                                   uint64_t queue_id,
+                                                   ddog_CharSlice service_name_ffi,
+                                                   ddog_CharSlice env_name_ffi,
                                                    ddog_CharSlice identifier_ffi,
                                                    enum ddog_LogLevel level,
                                                    ddog_CharSlice message_ffi,

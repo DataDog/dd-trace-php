@@ -86,6 +86,9 @@ namespace
             foreach (file(__DIR__ . '/metrics-spans_created-telemetry.out') as $l) {
                 if ($l) {
                     $json = json_decode($l, true);
+                    if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
+                        continue;
+                    }
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                     foreach ($batch as $json) {
                         if ($json["request_type"] == "generate-metrics") {

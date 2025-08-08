@@ -55,7 +55,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                     .lang_interpreter = (ddog_CharSlice) {.ptr = sapi_module.name, .len = strlen(sapi_module.name)},
                     .lang_vendor = DDOG_CHARSLICE_C_BARE(""),
                     .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
-                    .lang_version = dd_zend_string_to_CharSlice(ddtrace_php_version),
+                    .lang_version = php_version_rt,
                     .client_computed_top_level = false,
                     .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED(),
                 },

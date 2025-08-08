@@ -29,7 +29,7 @@ add_custom_target(ddtrace_exports
 elseif(APPLE)
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.sym")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "sed 's/^/_/' '${CMAKE_SOURCE_DIR}'/../ddtrace.sym > '${EXPORTS_FILE}'"
+    COMMAND sed "s/^/_/" "${CMAKE_SOURCE_DIR}/../ddtrace.sym" > "${EXPORTS_FILE}"
     BYPRODUCT ${EXPORTS_FILE}
     DEPENDS ${CMAKE_SOURCE_DIR}/../ddtrace.sym
 )

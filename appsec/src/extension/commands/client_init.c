@@ -25,7 +25,7 @@ static void _process_meta_and_metrics(
 static const dd_command_spec _spec = {
     .name = "client_init",
     .name_len = sizeof("client_init") - 1,
-    .num_args = 7,
+    .num_args = 8,
     .outgoing_cb = _pack_command,
     .incoming_cb = _process_response,
     .config_features_cb = dd_command_process_config_features_unexpected,
@@ -97,17 +97,29 @@ static dd_result _pack_command(
 
     mpack_finish_map(w); // engine settings
 
+    struct telemetry_rc_info tel_rc_info = dd_trace_get_telemetry_rc_info();
+
     // Remote config settings
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     mpack_start_map(w, 2);
 
     dd_mpack_write_lstr(w, "enabled");
     mpack_write_bool(w, get_DD_REMOTE_CONFIG_ENABLED());
 
     dd_mpack_write_lstr(w, "shmem_path");
-    dd_mpack_write_nullable_cstr(w, dd_trace_remote_config_get_path());
+    dd_mpack_write_nullable_cstr(w, tel_rc_info.rc_path);
 
-    mpack_finish_map(w);
+    mpack_finish_map(w); // remote config settings
+
+    // Telemetry settings
+    mpack_start_map(w, 2);
+
+    dd_mpack_write_lstr(w, "service_name");
+    dd_mpack_write_nullable_zstr(w, tel_rc_info.service_name);
+
+    dd_mpack_write_lstr(w, "env_name");
+    dd_mpack_write_nullable_zstr(w, tel_rc_info.env_name);
+
+    mpack_finish_map(w); // telemetry settings
 
     // Sidecar settings
     mpack_start_map(w, 2);

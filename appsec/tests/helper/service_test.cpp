@@ -39,10 +39,11 @@ __attribute__((visibility("default"))) void ddog_remote_config_reader_drop(
 
 __attribute__((visibility("default"))) ddog_MaybeError
 ddog_sidecar_enqueue_telemetry_log(ddog_CharSlice /*session_id_ffi*/,
-    ddog_CharSlice /*runtime_id_ffi*/, uint64_t /*queue_id*/,
-    ddog_CharSlice /*identifier_ffi*/, enum ddog_LogLevel /*level*/,
-    ddog_CharSlice /*message_ffi*/, ddog_CharSlice * /*stack_trace_ffi*/,
-    ddog_CharSlice * /*tags_ffi*/, bool /*is_sensitive*/)
+    ddog_CharSlice /*runtime_id_ffi*/, ddog_CharSlice /*service_name_ffi*/,
+    ddog_CharSlice /*env_name_ffi*/, ddog_CharSlice /*identifier_ffi*/,
+    enum ddog_LogLevel /*level*/, ddog_CharSlice /*message_ffi*/,
+    ddog_CharSlice * /*stack_trace_ffi*/, ddog_CharSlice * /*tags_ffi*/,
+    bool /*is_sensitive*/)
 {
     return ddog_MaybeError{
         .tag = DDOG_OPTION_ERROR_NONE_ERROR,

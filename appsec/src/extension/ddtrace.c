@@ -57,7 +57,7 @@ static bool (*nullable _ddtrace_user_req_add_listeners)(
 
 static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 
-static const char *nullable (*_ddtrace_remote_config_get_path)(void);
+static struct telemetry_rc_info (*_ddtrace_get_telemetry_rc_info)(void);
 static void *(*nullable _ddtrace_emit_asm_event)(void);
 
 static void _test_ddtrace_metric_register_buffer(
@@ -110,7 +110,7 @@ static void dd_trace_load_symbols(zend_module_entry *module)
         _ddtrace_user_req_add_listeners, "ddtrace_user_req_add_listeners");
     ASSIGN_DLSYM(_ddtrace_ip_extraction_find, "ddtrace_ip_extraction_find");
     ASSIGN_DLSYM(
-        _ddtrace_remote_config_get_path, "ddtrace_remote_config_get_path");
+        _ddtrace_get_telemetry_rc_info, "ddtrace_get_telemetry_rc_info");
     ASSIGN_DLSYM(
         ddtrace_metric_register_buffer, "ddtrace_metric_register_buffer");
     ASSIGN_DLSYM(ddtrace_metric_add_point, "ddtrace_metric_add_point");
@@ -420,14 +420,20 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
     return _ddtrace_ip_extraction_find(server);
 }
 
-const char *nullable dd_trace_remote_config_get_path(void)
+struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void)
 {
-    if (!_ddtrace_remote_config_get_path) {
-        return NULL;
+    if (!_ddtrace_get_telemetry_rc_info) {
+        return (struct telemetry_rc_info){0};
     }
-    __auto_type path = _ddtrace_remote_config_get_path();
-    mlog(dd_log_trace, "Remote config path: %s", path ? path : "(unset)");
-    return path;
+    __auto_type tel_rc_info = _ddtrace_get_telemetry_rc_info();
+
+    mlog(dd_log_trace,
+        "Remote config path: %s, service name: %.*s, env name: %.*s",
+        tel_rc_info.rc_path ? tel_rc_info.rc_path : "(unset)",
+        ZSTR_PRINTF(tel_rc_info.service_name),
+        ZSTR_PRINTF(tel_rc_info.env_name));
+
+    return tel_rc_info;
 }
 
 void dd_trace_span_add_propagated_tags(

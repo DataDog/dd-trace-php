@@ -61,7 +61,8 @@ public:
     void run(worker::queue_consumer &q);
     bool compute_client_status();
 
-    void update_remote_config_path(std::string_view path);
+    void update_settings(
+        std::string_view rc_path, const telemetry_settings &telemetry_settings);
 
 protected:
     void set_service(std::shared_ptr<service> new_service)
