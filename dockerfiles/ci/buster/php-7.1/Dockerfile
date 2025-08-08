@@ -2,9 +2,6 @@ FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch /home/circleci
-COPY php-7.1/0001-fix-broken-sprintf-detection.patch /home/circleci
-COPY php-7.1/0001-Fix-stream_cookie_seeker-signature-under-musl.patch /home/circleci
-COPY php-7.1/0001-fix-build-scripts.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
@@ -15,9 +12,6 @@ RUN set -eux; \
     patch -p1 < /home/circleci/0001-fix-build-scripts.patch; \
     git apply /home/circleci/0001-Fix-stream_cookie_seeker-signature-under-musl.patch; \
     patch Zend/zend_alloc.c /home/circleci/0001-Fixed-incorrect-behavior-of-internal-memory-debugger.patch; \
-    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
-    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
-    ./buildconf --force
 
 FROM --platform=$BUILDPLATFORM datadog/dd-trace-ci:buster AS build
 ARG phpVersion
@@ -49,12 +43,6 @@ RUN /home/circleci/build-extensions.sh
 FROM build AS php-nts
 ARG TARGETPLATFORM
 RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSION
-COPY build-extensions.sh /home/circleci
-RUN /home/circleci/build-extensions.sh
-
-FROM build AS php-zts
-ARG TARGETPLATFORM
-RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 

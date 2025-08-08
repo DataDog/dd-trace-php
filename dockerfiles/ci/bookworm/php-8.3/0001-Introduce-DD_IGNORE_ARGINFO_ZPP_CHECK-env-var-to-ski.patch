@@ -1,0 +1,27 @@
+From 16d2a319a36e90cf1bd3f0d3f3732c8035e81c02 Mon Sep 17 00:00:00 2001
+From: Bob Weinand <bobwei9@hotmail.com>
+Date: Wed, 7 Aug 2024 22:53:39 +0200
+Subject: [PATCH] Introduce DD_IGNORE_ARGINFO_ZPP_CHECK env var to skip these
+ assertions in testing
+
+See e.g. https://github.com/phpredis/phpredis/issues/1869, where phpredis 5 fails these assertions, and it likely will never be fixed there
+This allows a simpler approach than having an extra nts-runner just for that test.
+---
+ Zend/zend_execute.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Zend/zend_execute.c b/Zend/zend_execute.c
+index 8da2d37a25..869c547be0 100644
+--- a/Zend/zend_execute.c
++++ b/Zend/zend_execute.c
+@@ -1297,6 +1297,7 @@ ZEND_API bool zend_internal_call_should_throw(zend_function *fbc, zend_execute_d
+ 
+ ZEND_API ZEND_COLD void zend_internal_call_arginfo_violation(zend_function *fbc)
+ {
++	if (getenv("DD_IGNORE_ARGINFO_ZPP_CHECK")) return;
+ 	zend_error(E_ERROR, "Arginfo / zpp mismatch during call of %s%s%s()",
+ 		fbc->common.scope ? ZSTR_VAL(fbc->common.scope->name) : "",
+ 		fbc->common.scope ? "::" : "",
+-- 
+2.41.0
+

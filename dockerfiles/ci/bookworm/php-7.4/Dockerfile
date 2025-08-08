@@ -3,14 +3,18 @@ FROM --platform=$BUILDPLATFORM $BUILD_BASE AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Fix-OpenSSL-3.patch /home/circleci
+COPY php-7.4/0001-fix-build-scripts.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    ./buildconf --force; \
-    patch ext/openssl/openssl.c /home/circleci/0001-Fix-OpenSSL-3.patch;
+    patch -p1 < /home/circleci/0001-fix-build-scripts.patch; \
+    patch ext/openssl/openssl.c /home/circleci/0001-Fix-OpenSSL-3.patch; \
+    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
+    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
+    ./buildconf --force;
 
 FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion

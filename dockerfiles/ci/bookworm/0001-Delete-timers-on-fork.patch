@@ -1,0 +1,31 @@
+From 97c104a11dec32eb2d6eacc570d08a2d3174eac7 Mon Sep 17 00:00:00 2001
+From: Bob Weinand <bobwei9@hotmail.com>
+Date: Thu, 28 Mar 2024 19:55:12 +0100
+Subject: [PATCH] Delete timers on fork
+
+Works around https://github.com/php/php-src/issues/12298 and the related memory leaks.
+This is necessary with the relatively old version of glibc we are building against.
+
+Signed-off-by: Bob Weinand <bobwei9@hotmail.com>
+---
+ Zend/zend_max_execution_timer.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/Zend/zend_max_execution_timer.c b/Zend/zend_max_execution_timer.c
+index 48a4d1bd66..26dacd83ad 100644
+--- a/Zend/zend_max_execution_timer.c
++++ b/Zend/zend_max_execution_timer.c
+@@ -41,6 +41,10 @@ ZEND_API void zend_max_execution_timer_init(void) /* {{{ */
+ 		return;
+ 	}
+ 
++	if (EG(pid)) {
++		free(EG(max_execution_timer_timer));
++	}
++
+ 	struct sigevent sev;
+ 	sev.sigev_notify = SIGEV_THREAD_ID;
+ 	sev.sigev_value.sival_ptr = &EG(max_execution_timer_timer);
+-- 
+2.41.0
+

@@ -54,29 +54,31 @@ Execute one the following commands from your command line, this will bring up al
 
 ```bash
 # For 7.0
-$ docker compose run --rm 7.0-buster bash
+$ docker compose run --rm 7.0-bookworm bash
 # For 7.1
-$ docker compose run --rm 7.1-buster bash
+$ docker compose run --rm 7.1-bookworm bash
 # For 7.2
-$ docker compose run --rm 7.2-buster bash
+$ docker compose run --rm 7.2-bookworm bash
 # For 7.3
-$ docker compose run --rm 7.3-buster bash
+$ docker compose run --rm 7.3-bookworm bash
 # For 7.4
-$ docker compose run --rm 7.4-buster bash
+$ docker compose run --rm 7.4-bookworm bash
 # For 8.0
-$ docker compose run --rm 8.0-buster bash
+$ docker compose run --rm 8.0-bookworm bash
 # For 8.1
-$ docker compose run --rm 8.1-buster bash
+$ docker compose run --rm 8.1-bookworm bash
 # For 8.2
-$ docker compose run --rm 8.2-buster bash
+$ docker compose run --rm 8.2-bookworm bash
 # For 8.3
-$ docker compose run --rm 8.3-buster bash
+$ docker compose run --rm 8.3-bookworm bash
+# For 8.4
+$ docker compose run --rm 8.4-bookworm bash
 ```
 
 > :memo: **Note:** To run the container in debug mode, pass `docker-compose` an environment variable: `DD_TRACE_DOCKER_DEBUG=1`, eg:
 
 ```bash
-$ docker compose run -e DD_TRACE_DOCKER_DEBUG=1 --rm 8.3-buster bash
+$ docker compose run -e DD_TRACE_DOCKER_DEBUG=1 --rm 8.3-bookworm bash
 ```
 
 #### Set up the container

@@ -5,6 +5,7 @@ set -eo pipefail
 function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
 
 sudo rm -f /opt/php/debug/conf.d/memcached.ini
+sudo rm -f /opt/php/debug/conf.d/rdkafka.ini
 if [[ ! "${XFAIL_LIST:-none}" == "none" ]]; then
   cp "${XFAIL_LIST}" /usr/local/src/php/xfail_tests.list
   (

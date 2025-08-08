@@ -18,11 +18,8 @@ if [[ ${INSTALL_VERSION} == *asan* ]]; then
 fi
 
 if [[ ${PHP_VERSION_ID} -le 73 ]]; then
-  if [[ -z "${CFLAGS:-}" ]]; then
-    export CFLAGS="-Wno-implicit-function-declaration -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0"
-  else
-    export CFLAGS="${CFLAGS} -Wno-implicit-function-declaration -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0"
-  fi
+  export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0 -DTRUE=1 -DFALSE=0"
+  export CXXFLAGS="-DTRUE=true -DFALSE=false"
 fi
 
 mkdir -p /tmp/build-php && cd /tmp/build-php
@@ -50,7 +47,7 @@ ${PHP_SRC_DIR}/configure \
         $(if [[ ${PHP_VERSION_ID} -ge 71 ]]; then echo --enable-intl; fi) \
         --enable-mbstring \
         --enable-opcache \
-        $(if [[ ${PHP_VERSION_ID} -ge 80 ]] && [[ ${INSTALL_VERSION} != *asan* ]]; then echo --enable-zend-test=shared; fi) \
+        $(if [[ ${PHP_VERSION_ID} -ge 80 ]]; then echo --enable-zend-test=shared; fi) \
         --enable-pcntl \
         --enable-soap \
         --enable-sockets \
@@ -88,6 +85,8 @@ ${PHP_SRC_DIR}/configure \
     $(if [[ $INSTALL_VERSION == *zts* ]]; then echo --enable$(if grep -q 'maintainer-zts' ${PHP_SRC_DIR}/configure; then echo "-maintainer"; fi)-zts; fi) \
     `# https://externals.io/message/118859` \
     $(if [[ $INSTALL_VERSION == *zts* ]]; then echo --disable-zend-signals; fi) \
+    $(if [[ $INSTALL_VERSION == *zts* && ${PHP_VERSION_ID} -ge 82 ]]; then echo --enable-zend-max-execution-timers; fi) \
+    $(if [[ $INSTALL_VERSION == *asan* ]]; then echo --without-pcre-jit; fi) \
     --prefix=${INSTALL_DIR} \
     --with-config-file-path=${INSTALL_DIR} \
     --with-config-file-scan-dir=${INSTALL_DIR}/conf.d

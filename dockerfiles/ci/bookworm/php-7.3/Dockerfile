@@ -3,14 +3,20 @@ FROM --platform=$BUILDPLATFORM $BUILD_BASE AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
 COPY 0001-Fix-OpenSSL-3.patch /home/circleci
+COPY php-7.3/0001-fix-build-scripts.patch /home/circleci
+COPY php-7.3/0001-Change-UBool-to-bool-for-equality-operators-in-ICU-7.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
-    ./buildconf --force; \
-    patch ext/openssl/openssl.c /home/circleci/0001-Fix-OpenSSL-3.patch;
+    patch -p1 < /home/circleci/0001-fix-build-scripts.patch; \
+    patch ext/openssl/openssl.c /home/circleci/0001-Fix-OpenSSL-3.patch; \
+    patch -p1 < /home/circleci/0001-Change-UBool-to-bool-for-equality-operators-in-ICU-7.patch; \
+    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
+    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
+    ./buildconf --force;
 
 FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
 ARG phpVersion
@@ -45,11 +51,18 @@ RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR nts $PHP_VERSIO
 COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 
+FROM build AS php-zts
+ARG TARGETPLATFORM
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR zts $PHP_VERSION $SHARED_BUILD
+COPY build-extensions.sh /home/circleci
+RUN /home/circleci/build-extensions.sh
+
 FROM $BUILD_BASE AS final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts $PHP_INSTALL_DIR/debug-zts $PHP_INSTALL_DIR/debug-zts
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR/nts $PHP_INSTALL_DIR/nts
+COPY --chown=circleci:circleci --from=php-zts $PHP_INSTALL_DIR/zts $PHP_INSTALL_DIR/zts
 
 USER root
 

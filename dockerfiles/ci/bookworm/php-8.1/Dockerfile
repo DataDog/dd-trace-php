@@ -7,12 +7,22 @@ ENV PHP_VERSION=${phpVersion}
 FROM --platform=$BUILDPLATFORM $BUILD_BASE AS src
 ARG phpTarGzUrl
 ARG phpSha256Hash
+COPY php-8.1/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch /home/circleci
+COPY php-8.1/0002-fix-tsrm-jit-aarch64.patch /home/circleci
+COPY php-8.1/0001-Disable-inlining-and-inter-procedure-analyses-for-ze.patch /home/circleci
+COPY 0001-Disable-ZEND_RC_MOD_CHECK-while-loading-shared-exten.patch /home/circleci
 RUN set -eux; \
     curl -fsSL -o /tmp/php.tar.gz "${phpTarGzUrl}"; \
     (echo "${phpSha256Hash} /tmp/php.tar.gz" | sha256sum -c -); \
     tar xf /tmp/php.tar.gz -C "${PHP_SRC_DIR}" --strip-components=1; \
     rm -f /tmp/php.tar.gz; \
     cd ${PHP_SRC_DIR}; \
+    git apply /home/circleci/0001-Introduce-DD_IGNORE_ARGINFO_ZPP_CHECK-env-var-to-ski.patch; \
+    git apply /home/circleci/0002-fix-tsrm-jit-aarch64.patch; \
+    git apply /home/circleci/0001-Disable-inlining-and-inter-procedure-analyses-for-ze.patch; \
+    git apply /home/circleci/0001-Disable-ZEND_RC_MOD_CHECK-while-loading-shared-exten.patch; \
+    # We need to remove the dl() calls from run-tests as some extensions don't properly switch interned string storage for INIs. \
+    sed -i 's/\bdl(/(bool)(/' run-tests.php; \
     ./buildconf --force;
 
 FROM --platform=$BUILDPLATFORM $BUILD_BASE AS build
