@@ -116,13 +116,33 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
 
     dd_sidecar_post_connect(&transport, false, logpath);
 
-    // when we get disconnected during shutdown
-    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
-    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+    // update the sidecar connection on all threads on ZTS
+#if ZTS
+    tsrm_mutex_lock(ddtrace_threads_mutex);
 
-    ddtrace_ffi_try("Failed sending config data",
-                    ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
-                                                            env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags)));
+    void *TSRMLS_CACHE; // DDTRACE_G() accesses a variable named TSRMLS_CACHE. Make use of variable shadowing in scopes...
+    ZEND_HASH_FOREACH_PTR(&ddtrace_tls_bases, TSRMLS_CACHE) {
+#endif
+        // We need the lock even on NTS as it might originate from the background sender
+        tsrm_mutex_lock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+
+        // when we get disconnected during shutdown
+        if (DDTRACE_G(sidecar_queue_id) && DDTRACE_G(last_service_name)) {
+            ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+            ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+
+            ddtrace_ffi_try("Failed sending config data",
+                            ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
+                                                                    env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags)));
+        }
+
+        tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+#if ZTS
+    } ZEND_HASH_FOREACH_END();
+
+    tsrm_mutex_unlock(ddtrace_threads_mutex);
+#endif
+
 }
 
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
@@ -203,6 +223,26 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
 void ddtrace_sidecar_ensure_active(void) {
     if (ddtrace_sidecar) {
         ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory);
+    }
+}
+
+void ddtrace_sidecar_finalize(bool clear_id) {
+    if (!ddtrace_sidecar) {
+        return;
+    }
+
+    if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+        ddtrace_telemetry_finalize();
+    }
+
+    tsrm_mutex_lock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+    ddog_QueueId queue_id = DDTRACE_G(sidecar_queue_id);
+    DDTRACE_G(sidecar_queue_id) = 0;
+    tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+
+    if (clear_id) {
+        ddtrace_ffi_try("Failed removing application from sidecar",
+                        ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &queue_id));
     }
 }
 
@@ -394,32 +434,37 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
         return;
     }
 
-    ddog_CharSlice service_slice = DDOG_CHARSLICE_C("unnamed-php-service");
-    zend_string *free_string = NULL;
+    zend_string *service_string;
     if (root) {
         zval *service = &root->property_service;
         if (Z_TYPE_P(service) == IS_STRING && Z_STRLEN_P(service) > 0) {
-            service_slice = dd_zend_string_to_CharSlice(Z_STR_P(service));
+            service_string = zend_string_copy(Z_STR_P(service));
+        } else {
+            service_string = zend_string_init(ZEND_STRL("unnamed-php-service"), 0);
         }
     } else if (ZSTR_LEN(cfg_service)) {
-        service_slice = dd_zend_string_to_CharSlice(cfg_service);
+        service_string = zend_string_copy(cfg_service);
     } else {
-        free_string = ddtrace_default_service_name();
-        service_slice = dd_zend_string_to_CharSlice(free_string);
+        service_string = ddtrace_default_service_name();
     }
+    ddog_CharSlice service_slice = dd_zend_string_to_CharSlice(service_string);
 
-    ddog_CharSlice env_slice = DDOG_CHARSLICE_C("none");
+    zend_string *env_string = NULL;
     if (root) {
         zval *env = zend_hash_str_find(ddtrace_property_array(&root->property_meta), ZEND_STRL("env"));
         if (!env) {
             env = &root->property_env;
         }
         if (Z_TYPE_P(env) == IS_STRING && Z_STRLEN_P(env) > 0) {
-            env_slice = dd_zend_string_to_CharSlice(Z_STR_P(env));
+            env_string = zend_string_copy(Z_STR_P(env));
         }
     } else if (ZSTR_LEN(cfg_env)) {
-        env_slice = dd_zend_string_to_CharSlice(cfg_env);
+        env_string = zend_string_copy(cfg_env);
     }
+    if (!env_string) {
+        env_string = zend_string_init(ZEND_STRL("none"), 0);
+    }
+    ddog_CharSlice env_slice = dd_zend_string_to_CharSlice(env_string);
 
     ddog_CharSlice version_slice = DDOG_CHARSLICE_C("");
     if (root) {
@@ -446,26 +491,28 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
 
     // Force resend on reconnect
     if (changed || !root || *transport != ddtrace_sidecar) {
-        ddtrace_ffi_try("Failed sending config data",
-                        ddog_sidecar_set_universal_service_tags(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice,
-                                                                env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+        tsrm_mutex_lock(DDTRACE_G(sidecar_universal_service_tags_mutex));
         if (DDTRACE_G(last_service_name)) {
             zend_string_release(DDTRACE_G(last_service_name));
         }
-        DDTRACE_G(last_service_name) = zend_string_init(service_slice.ptr, service_slice.len, false);
+        DDTRACE_G(last_service_name) = service_string;
         if (DDTRACE_G(last_env_name)) {
             zend_string_release(DDTRACE_G(last_env_name));
         }
-        DDTRACE_G(last_env_name) = zend_string_init(env_slice.ptr, env_slice.len, false);
+        DDTRACE_G(last_env_name) = env_string;
+        tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+
+        // This must not be in mutex, as a reconnect may happen here
+        ddtrace_ffi_try("Failed sending config data",
+                        ddog_sidecar_set_universal_service_tags(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+    } else {
+        zend_string_release(service_string);
+        zend_string_release(env_string);
     }
 
     if ((changed || !root) && DDTRACE_G(telemetry_buffer)) {
         ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
             ddog_sidecar_telemetry_filter_flush(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
-    }
-
-    if (free_string) {
-        zend_string_release(free_string);
     }
 }
 

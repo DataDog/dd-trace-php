@@ -128,11 +128,7 @@ void ddtrace_telemetry_lifecycle_end() {
                     ddog_sidecar_lifecycle_end(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
 }
 
-void ddtrace_telemetry_finalize(bool clear_id) {
-    if (!ddtrace_sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
-        return;
-    }
-
+void ddtrace_telemetry_finalize() {
     if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
         LOG(WARN, "No telemetry submission can happen without service/env");
         return;
@@ -257,10 +253,6 @@ void ddtrace_telemetry_finalize(bool clear_id) {
 
     ddog_sidecar_telemetry_buffer_drop(buffer);
 
-    if (clear_id) {
-        ddtrace_ffi_try("Failed removing application from sidecar",
-                        ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
-    }
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {

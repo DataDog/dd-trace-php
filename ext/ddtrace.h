@@ -17,6 +17,7 @@
 #include "ext/version.h"
 #include "compatibility.h"
 #include "git.h"
+#include "threads.h"
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
@@ -142,6 +143,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     char *cgroup_file;
     ddog_QueueId sidecar_queue_id;
+    MUTEX_T sidecar_universal_service_tags_mutex;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     ddog_AgentInfoReader *agent_info_reader;

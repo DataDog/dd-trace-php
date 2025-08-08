@@ -601,6 +601,7 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #if ZTS
     ddtrace_thread_ginit();
 #endif
+    ddtrace_globals->sidecar_universal_service_tags_mutex = tsrm_mutex_alloc();
     zai_hook_ginit();
     zend_hash_init(&ddtrace_globals->git_metadata, 8, unused, (dtor_func_t)ddtrace_git_metadata_dtor, 1);
 }
@@ -696,6 +697,8 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     zend_hash_destroy(&ddtrace_globals->git_metadata);
+
+    tsrm_mutex_free(ddtrace_globals->sidecar_universal_service_tags_mutex);
 
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
     // FrankenPHP calls `ts_free_thread()` in rshutdown
@@ -1819,7 +1822,7 @@ void dd_force_shutdown_tracing(void) {
 
 static void dd_finalize_sidecar_lifecycle(bool clear_id) {
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_telemetry_finalize(clear_id);
+        ddtrace_sidecar_finalize(clear_id);
     }
 }
 
@@ -2803,7 +2806,9 @@ PHP_FUNCTION(dd_trace_internal_fn) {
     RETVAL_FALSE;
     if (ZSTR_LEN(function_val) > 0) {
         if (FUNCTION_NAME_MATCHES("finalize_telemetry")) {
+            ddog_QueueId queueId = DDTRACE_G(sidecar_queue_id);
             dd_finalize_sidecar_lifecycle(false);
+            DDTRACE_G(sidecar_queue_id) = queueId; // usually we want to stop using it, except here
             ddtrace_telemetry_lifecycle_end();
             RETVAL_TRUE;
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
