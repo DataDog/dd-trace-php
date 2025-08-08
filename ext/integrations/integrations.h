@@ -24,6 +24,7 @@
     INTEGRATION(FRANKENPHP, "frankenphp")                                                                                \
     INTEGRATION(GOOGLESPANNER, "googlespanner")                                                                          \
     INTEGRATION(GUZZLE, "guzzle")                                                                                        \
+    INTEGRATION(HTTPSTREAM, "httpstream")                                                                                \
     INTEGRATION(KAFKA, "kafka")                                                                                          \
     INTEGRATION(LAMINAS, "laminas")                                                                                      \
     INTEGRATION(LARAVEL, "laravel")                                                                                      \
@@ -43,7 +44,7 @@
     INTEGRATION(PHPREDIS, "phpredis")                                                                                    \
     INTEGRATION(PREDIS, "predis")                                                                                        \
     INTEGRATION(PSR18, "psr18")                                                                                          \
-    INTEGRATION(RATCHET, "ratchet")                                                                                       \
+    INTEGRATION(RATCHET, "ratchet")                                                                                      \
     INTEGRATION(ROADRUNNER, "roadrunner")                                                                                \
     INTEGRATION(SQLSRV, "sqlsrv")                                                                                        \
     INTEGRATION(SLIM, "slim")                                                                                            \
