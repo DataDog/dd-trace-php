@@ -90,7 +90,6 @@
 #include "hook/uhook.h"
 #include "handlers_fiber.h"
 #include "handlers_exception.h"
-#include "handlers_httpstreams.h"
 #include "exceptions/exceptions.h"
 #include "git.h"
 
@@ -1522,8 +1521,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     memcpy(&ddtrace_git_metadata_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     // We need a free_obj wrapper as zend_objects_store_free_object_storage will skip freeing of classes with the default free_obj handler when fast_shutdown is active. This will mess with our refcount and leak cached git metadata.
     ddtrace_git_metadata_handlers.free_obj = ddtrace_free_obj_wrapper;
-
-    ddtrace_instrument_stream_wrappers();
 
     ddtrace_engine_hooks_minit();
     ddtrace_init_proxy_info_map();
