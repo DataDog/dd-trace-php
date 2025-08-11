@@ -1,0 +1,29 @@
+From a820aab9da3389e3df5711306d05660d8bf35ff0 Mon Sep 17 00:00:00 2001
+From: Anatol Belski <ab@php.net>
+Date: Mon, 9 Jul 2018 21:21:41 +0200
+Subject: [PATCH] Sync callback signature with libxml2 2.9.8
+
+---
+ ext/dom/dom_iterators.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/ext/dom/dom_iterators.c b/ext/dom/dom_iterators.c
+index 5c800c36f25..1dd1a9970f6 100644
+--- a/ext/dom/dom_iterators.c
++++ b/ext/dom/dom_iterators.c
+@@ -42,7 +42,11 @@ struct _notationIterator {
+ 	xmlNotation *notation;
+ };
+ 
+-static void itemHashScanner (void *payload, void *data, xmlChar *name) /* {{{ */
++#if LIBXML_VERSION >= 20908
++static void itemHashScanner (void *payload, void *data, const xmlChar *name) /* {{{ */
++#else
++static void itemHashScanner (void *payload, void *data, xmlChar *name)
++#endif
+ {
+ 	nodeIterator *priv = (nodeIterator *)data;
+ 
+-- 
+2.50.1
+

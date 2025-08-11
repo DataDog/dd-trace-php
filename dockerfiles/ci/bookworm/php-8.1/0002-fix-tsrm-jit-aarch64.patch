@@ -1,0 +1,131 @@
+From e4d2a3e53aeb94446616860a945b1b3293f4d912 Mon Sep 17 00:00:00 2001
+From: nielsdos <7771979+nielsdos@users.noreply.github.com>
+Date: Fri, 12 May 2023 20:04:51 +0200
+Subject: [PATCH] Fix GH-11188: Error when building TSRM in ARM64
+
+Although the issue mentioned FreeBSD, this is a broader problem:
+the current ARM64 code to load the TLS offset assumes a setup with
+the non-default TLS model. This problem can also apply on some
+configurations on other platforms.
+---
+ TSRM/TSRM.c                         | 11 +++++++-
+ TSRM/TSRM.h                         |  3 +++
+ ext/opcache/jit/zend_jit_arm64.dasc | 39 +++++++++++++++++++++++++++--
+ 3 files changed, 50 insertions(+), 3 deletions(-)
+
+diff --git a/TSRM/TSRM.c b/TSRM/TSRM.c
+index 61871da3fa81c..9770adc926a73 100644
+--- a/TSRM/TSRM.c
++++ b/TSRM/TSRM.c
+@@ -777,11 +777,20 @@ TSRM_API size_t tsrm_get_ls_cache_tcb_offset(void)
+ 	asm("adrp %0, #__tsrm_ls_cache@TLVPPAGE\n\t"
+ 	    "ldr %0, [%0, #__tsrm_ls_cache@TLVPPAGEOFF]"
+ 	     : "=r" (ret));
+-# else
++# elif defined(TSRM_TLS_MODEL_DEFAULT)
++	/* Surplus Static TLS space isn't guaranteed. */
++	ret = 0;
++# elif defined(TSRM_TLS_MODEL_INITIAL_EXEC)
++	asm("adrp %0, :gottprel:_tsrm_ls_cache\n\t"
++		"ldr %0, [%0, #:gottprel_lo12:_tsrm_ls_cache]"
++		: "=r" (ret));
++# elif defined(TSRM_TLS_MODEL_LOCAL_EXEC)
+ 	asm("mov %0, xzr\n\t"
+ 	    "add %0, %0, #:tprel_hi12:_tsrm_ls_cache, lsl #12\n\t"
+ 	    "add %0, %0, #:tprel_lo12_nc:_tsrm_ls_cache"
+ 	     : "=r" (ret));
++# else
++#  error "TSRM TLS model not set"
+ # endif
+ 	return ret;
+ #else
+diff --git a/TSRM/TSRM.h b/TSRM/TSRM.h
+index 60b65ca8ec762..1b7c904fdb62c 100644
+--- a/TSRM/TSRM.h
++++ b/TSRM/TSRM.h
+@@ -150,10 +150,13 @@ TSRM_API const char *tsrm_api_name(void);
+
+ #if !__has_attribute(tls_model) || defined(__FreeBSD__) || defined(__MUSL__) || defined(__HAIKU__)
+ # define TSRM_TLS_MODEL_ATTR
++# define TSRM_TLS_MODEL_DEFAULT
+ #elif __PIC__
+ # define TSRM_TLS_MODEL_ATTR __attribute__((tls_model("initial-exec")))
++# define TSRM_TLS_MODEL_INITIAL_EXEC
+ #else
+ # define TSRM_TLS_MODEL_ATTR __attribute__((tls_model("local-exec")))
++# define TSRM_TLS_MODEL_LOCAL_EXEC
+ #endif
+
+ #define TSRM_SHUFFLE_RSRC_ID(rsrc_id)		((rsrc_id)+1)
+diff --git a/ext/opcache/jit/zend_jit_arm64.dasc b/ext/opcache/jit/zend_jit_arm64.dasc
+index 910105aa5bbff..f6b34e3baf36d 100644
+--- a/ext/opcache/jit/zend_jit_arm64.dasc
++++ b/ext/opcache/jit/zend_jit_arm64.dasc
+@@ -110,6 +110,8 @@ static void* dasm_labels[zend_lb_MAX];
+
+ #if ZTS
+ static size_t tsrm_ls_cache_tcb_offset = 0;
++static size_t tsrm_tls_index = 0;
++static size_t tsrm_tls_offset = 0;
+ # ifdef __APPLE__
+ struct TLVDescriptor {
+ 	void*       (*thunk)(struct TLVDescriptor*);
+@@ -117,6 +119,13 @@ struct TLVDescriptor {
+ 	uint64_t    offset;
+ };
+ typedef struct TLVDescriptor TLVDescriptor;
++# elif defined(__FreeBSD__)
++/* https://github.com/freebsd/freebsd-src/blob/c52ca7dd09066648b1cc40f758289404d68ab886/libexec/rtld-elf/aarch64/reloc.c#L180-L184 */
++typedef struct TLSDescriptor {
++	void*   thunk;
++	int     index;
++	size_t  offset;
++} TLSDescriptor;
+ # endif
+ #endif
+
+@@ -494,8 +503,14 @@ static bool logical_immediate_p(uint64_t value, uint32_t reg_size)
+ |	MEM_ACCESS_64_WITH_UOFFSET_64 ldr, reg, TMP3, (((TLVDescriptor*)tsrm_ls_cache_tcb_offset)->offset), TMP1
+ ||#else
+ |	.long 0xd53bd051 // TODO: hard-coded: mrs TMP3, tpidr_el0
+-||	ZEND_ASSERT(tsrm_ls_cache_tcb_offset <= LDR_STR_PIMM64);
+-|	ldr reg, [TMP3, #tsrm_ls_cache_tcb_offset]
++||	if (tsrm_ls_cache_tcb_offset == 0) {
++|		ldr TMP3, [TMP3, #0]
++|		MEM_ACCESS_64_WITH_UOFFSET_64 ldr, TMP3, TMP3, tsrm_tls_index, TMP1
++|		MEM_ACCESS_64_WITH_UOFFSET_64 ldr, reg, TMP3, tsrm_tls_offset, TMP1
++||	} else {
++||		ZEND_ASSERT(tsrm_ls_cache_tcb_offset <= LDR_STR_PIMM64);
++|		ldr reg, [TMP3, #tsrm_ls_cache_tcb_offset]
++||	}
+ ||#endif
+ |.endmacro
+
+@@ -2754,7 +2769,27 @@ static int zend_jit_setup(void)
+
+ #if ZTS
+ 	tsrm_ls_cache_tcb_offset = tsrm_get_ls_cache_tcb_offset();
++# if defined(__FreeBSD__)
++	if (tsrm_ls_cache_tcb_offset == 0) {
++		TLSDescriptor **where;
++
++		__asm__(
++			"adrp %0, :tlsdesc:_tsrm_ls_cache\n"
++			"add %0, %0, :tlsdesc_lo12:_tsrm_ls_cache\n"
++			: "=r" (where));
++		/* See https://github.com/ARM-software/abi-aa/blob/2a70c42d62e9c3eb5887fa50b71257f20daca6f9/aaelf64/aaelf64.rst
++		 * section "Relocations for thread-local storage".
++		 * The first entry holds a pointer to the variable's TLS descriptor resolver function and the second entry holds
++		 * a platform-specific offset or pointer. */
++		TLSDescriptor *tlsdesc = where[1];
++
++		tsrm_tls_offset = tlsdesc->offset;
++		/* Index is offset by 1 on FreeBSD (https://github.com/freebsd/freebsd-src/blob/22ca6db50f4e6bd75a141f57cf953d8de6531a06/lib/libc/gen/tls.c#L88) */
++		tsrm_tls_index = (tlsdesc->index + 1) * 8;
++	}
++# else
+ 	ZEND_ASSERT(tsrm_ls_cache_tcb_offset != 0);
++# endif
+ #endif
+
+     memset(sp_adj, 0, sizeof(sp_adj));

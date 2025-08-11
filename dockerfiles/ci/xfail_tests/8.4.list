@@ -47,6 +47,7 @@ ext/curl/tests/curl_int_cast.phpt
 ext/curl/tests/curl_postfields_array.phpt
 ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt
 ext/curl/tests/curl_setopt_CURLOPT_DEBUGFUNCTION.phpt
+ext/curl/tests/curl_upkeep_001.phpt
 ext/date/tests/bug52113.phpt
 ext/dom/tests/dom_set_attr_node.phpt
 ext/dom/tests/dom003.phpt
@@ -101,6 +102,7 @@ ext/pcntl/tests/pcntl_unshare_02.phpt
 ext/pcntl/tests/pcntl_unshare_03.phpt
 ext/pcntl/tests/pcntl_cpuaffinity.phpt
 ext/pcntl/tests/pcntl_getcpu.phpt
+ext/pcntl/tests/pcntl_setns_basic.phpt
 ext/pdo/tests/pdo_023.phpt
 ext/pdo/tests/pdo_030.phpt
 ext/pdo_sqlite/tests/bug43831.phpt

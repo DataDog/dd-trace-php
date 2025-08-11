@@ -63,7 +63,7 @@ spans(\DDTrace\SpanData) (3) {
     _dd.code_origin.frames.0.line => 22
     _dd.code_origin.frames.0.method => bar
     _dd.code_origin.frames.1.file => %s
-    _dd.code_origin.frames.1.line => 1
+    _dd.code_origin.frames.1.line => 40
     _dd.code_origin.type => entry
     _dd.p.dm => -0
     _dd.p.tid => %s
@@ -74,10 +74,10 @@ spans(\DDTrace\SpanData) (3) {
       _dd.code_origin.frames.0.method => simple
       _dd.code_origin.frames.0.type => Foo
       _dd.code_origin.frames.1.file => %s
-      _dd.code_origin.frames.1.line => 22
+      _dd.code_origin.frames.1.line => 23
       _dd.code_origin.frames.1.method => bar
       _dd.code_origin.frames.2.file => %s
-      _dd.code_origin.frames.2.line => 1
+      _dd.code_origin.frames.2.line => 40
       _dd.code_origin.type => exit
       a => b
       data => dog
@@ -86,7 +86,7 @@ spans(\DDTrace\SpanData) (3) {
     _dd.code_origin.frames.0.line => 27
     _dd.code_origin.frames.0.method => recursion
     _dd.code_origin.frames.1.file => %s
-    _dd.code_origin.frames.1.line => 1
+    _dd.code_origin.frames.1.line => 45
     _dd.code_origin.type => entry
     _dd.p.dm => -0
     _dd.p.tid => %s
@@ -97,7 +97,7 @@ spans(\DDTrace\SpanData) (3) {
     _dd.code_origin.frames.0.line => 34
     _dd.code_origin.frames.0.method => noRecursion
     _dd.code_origin.frames.1.file => %s
-    _dd.code_origin.frames.1.line => 1
+    _dd.code_origin.frames.1.line => 46
     _dd.code_origin.type => entry
     _dd.p.dm => -0
     _dd.p.tid => %s
