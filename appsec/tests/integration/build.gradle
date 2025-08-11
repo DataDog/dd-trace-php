@@ -152,12 +152,12 @@ def buildRunInDockerTask = { Map options ->
                 mountPoint: '/appsec',
         ]
     }
-    if (options.get('needsHunterCache', true)) {
-        if (project.hasProperty('localHunterCache')) {
-            binds[project.getProperty('localHunterCache')] = '/root/.hunter'
+    if (options.get('needsBoostCache', true)) {
+        if (project.hasProperty('localBoostCache')) {
+            binds[project.getProperty('localBoostCache')] = '/root/.boost'
         } else {
-            volumes['php-appsec-hunter-cache'] = [
-                    mountPoint: '/root/.hunter',
+            volumes['php-appsec-boost-cache'] = [
+                    mountPoint: '/root/.boost',
             ]
         }
     }
@@ -444,7 +444,8 @@ task loadCaches(type: Exec) {
 
     commandLine 'docker', 'run', '--rm',
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
-            '-v', 'php-appsec-hunter-cache:/caches/php-appsec-hunter-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
+            '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
             '-v', "${project.buildDir}:/build",
             "$dockerMirror/library/busybox",
             'sh', '-c',
@@ -453,7 +454,7 @@ task loadCaches(type: Exec) {
 
     dependsOn 'createVolume-php-tracer-cargo-cache'
     dependsOn 'createVolume-php-tracer-cargo-cache-git'
-    dependsOn 'createVolume-php-appsec-hunter-cache'
+    dependsOn 'createVolume-php-appsec-boost-cache'
 }
 
 task saveCaches(type: Exec) {
@@ -462,12 +463,13 @@ task saveCaches(type: Exec) {
     commandLine 'docker', 'run', '--rm',
             '-e', "UUID=${uuid}",
             '-v', 'php-tracer-cargo-cache:/caches/php-tracer-cargo-cache',
-            '-v', 'php-appsec-hunter-cache:/caches/php-appsec-hunter-cache',
+            '-v', 'php-tracer-cargo-cache-git:/caches/php-tracer-cargo-cache-git',
+            '-v', 'php-appsec-boost-cache:/caches/php-appsec-boost-cache',
             '-v', "${project.buildDir}:/build",
             "$dockerMirror/library/busybox",
             'sh', '-c',
             """tar -czf /build/php-appsec-volume-caches-${arch}.tar.gz \
-              -C /caches php-tracer-cargo-cache php-appsec-hunter-cache && \
+              -C /caches php-tracer-cargo-cache php-tracer-cargo-cache-git php-appsec-boost-cache && \
               chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
 }
 

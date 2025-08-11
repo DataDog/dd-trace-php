@@ -225,7 +225,6 @@ trait CommonTests {
         assert span.meta."_dd.appsec.event_rules.version" != ''
     }
 
-
     @Test
     void 'trace with an attack'() {
         HttpRequest req = container.buildReq('/hello.php')
@@ -701,5 +700,71 @@ trait CommonTests {
             assert exploit.frames[3].function == "three"
             assert exploit.frames[3].id == 4
             assert exploit.frames[3].line == 37
+    }
+
+    @Test
+    void 'tagging rule with attributes, no keep and no event'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v1').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 < 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v1"
+        assert span.metrics."_dd.appsec.trace.integer" == 662607015
+        assert span.metrics."_dd.appsec.trace.float" == 12.34d
+        assert span.meta."_dd.appsec.trace.string" == "678"
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v1"
+    }
+
+    @Test
+    void 'tagging rule with attributes, sampling priority user_keep and no event'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v2').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v2"
+        assert span.metrics."_dd.appsec.trace.integer" == 602214076
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v2"
+    }
+
+    @Test
+    void 'tagging rule with attributes, sampling priority user_keep and an event'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v3').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v3"
+        assert span.metrics."_dd.appsec.trace.integer" == 299792458
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v3"
+    }
+
+    @Test
+    void 'tagging rule with attributes and an event, but no sampling priority change'() {
+        HttpRequest req = container.buildReq('/hello.php')
+                .header('User-Agent', 'TraceTagging/v4').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            resp.body() == 'Hello world!'
+        }
+
+        Span span = trace.first()
+
+        assert span.metrics._sampling_priority_v1 < 2.0d
+        assert span.meta."http.useragent" == "TraceTagging/v4"
+        assert span.metrics."_dd.appsec.trace.integer" == 1729
+        assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v4"
     }
 }

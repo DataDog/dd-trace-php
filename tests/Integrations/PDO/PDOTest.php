@@ -793,6 +793,7 @@ final class PDOTest extends IntegrationTestCase
             'span.kind' => 'client',
             Tag::COMPONENT => 'pdo',
             Tag::DB_SYSTEM => 'mysql',
+            Tag::DB_TYPE => 'mysql',
         ];
 
         if ($expectPeerService) {

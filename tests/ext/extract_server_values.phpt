@@ -5,6 +5,7 @@ Test invalid $_SERVER values are properly ignored
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_HEADER_TAGS=0
 HTTP_0=http_zero_header
 --FILE--
@@ -24,12 +25,12 @@ var_dump(dd_trace_serialize_closed_spans()[0]["meta"]);
 ?>
 --EXPECTF--
 array(4) {
-  ["runtime-id"]=>
-  string(36) "%s"
-  ["http.request.headers.0"]=>
-  string(16) "http_zero_header"
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["http.request.headers.0"]=>
+  string(16) "http_zero_header"
+  ["runtime-id"]=>
+  string(36) "%s"
 }

@@ -6,6 +6,8 @@
 #include "common.hpp"
 #include "parameter.hpp"
 #include "service_config.hpp"
+#include "sidecar_settings.hpp"
+#include "subscriber/waf.hpp"
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
@@ -45,8 +47,9 @@ public:
 class service : public dds::service {
 public:
     service(std::shared_ptr<engine> engine,
-        std::shared_ptr<service_config> service_config)
-        : dds::service{engine, service_config, {},
+        std::shared_ptr<service_config> service_config,
+        dds::sidecar_settings sc_settings)
+        : dds::service{std::move(engine), std::move(service_config), {},
               dds::service::create_shared_metrics(), "/rc_path"}
     {}
 };
@@ -172,7 +175,8 @@ TEST(ClientTest, ClientInitRegisterRuntimeId)
     std::shared_ptr<engine> engine{engine::create()};
     auto service_config = std::make_shared<dds::service_config>();
 
-    auto service = std::make_shared<mock::service>(engine, service_config);
+    auto service = std::make_shared<mock::service>(
+        engine, service_config, dds::sidecar_settings{});
     auto smanager = std::make_shared<mock::service_manager>();
     auto broker = new mock::broker();
 
@@ -206,7 +210,8 @@ TEST(ClientTest, ClientInitGeneratesRuntimeId)
     std::shared_ptr<engine> engine{engine::create()};
     auto service_config = std::make_shared<dds::service_config>();
 
-    auto service = std::make_shared<mock::service>(engine, service_config);
+    auto service = std::make_shared<mock::service>(
+        engine, service_config, dds::sidecar_settings{});
     auto smanager = std::make_shared<mock::service_manager>();
     auto broker = new mock::broker();
 

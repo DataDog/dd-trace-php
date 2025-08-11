@@ -328,6 +328,9 @@ trait SnapshotTestTrait
     ) {
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT=666666'); // Arbitrarily high value to avoid flakiness
         self::putEnv('DD_TRACE_AGENT_RETRIES=3');
+        if (ini_get("datadog.code_origin_max_user_frames") == "8" /* default, not used in tests */) {
+            self::putEnv('DD_CODE_ORIGIN_MAX_USER_FRAMES=0');
+        }
 
         $token = $this->generateToken();
         $this->startSnapshotSession($token, $logsFile);
@@ -366,6 +369,7 @@ trait SnapshotTestTrait
         update_test_agent_session_token($originalToken);
         self::putEnv('DD_TRACE_SHUTDOWN_TIMEOUT');
         self::putEnv('DD_TRACE_AGENT_RETRIES');
+        self::putEnv('DD_CODE_ORIGIN_MAX_USER_FRAMES');
     }
 
     public function snapshotFromTraces(

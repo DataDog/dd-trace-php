@@ -35,6 +35,10 @@ void ddog_evaluated_value_drop(struct ddog_InternalIntermediateValue*);
 struct ddog_VoidCollection ddog_evaluated_value_into_unmanaged_string(struct ddog_InternalIntermediateValue *value,
                                                                       void *context);
 
+/**
+ * # Safety
+ * The `json` must be a valid UTF-8 string.
+ */
 struct ddog_LiveDebuggingParseResult ddog_parse_live_debugger_json(ddog_CharSlice json);
 
 void ddog_drop_live_debugger_parse_result(struct ddog_LiveDebuggingParseResult);
@@ -89,6 +93,19 @@ void ddog_capture_value_add_field(struct ddog_CaptureValue *value,
                                   struct ddog_CaptureValue element);
 
 void ddog_snapshot_format_new_uuid(uint8_t (*buf)[36]);
+
+void ddog_snapshot_push_stack_frame(struct ddog_DebuggerPayload *payload,
+                                    ddog_CharSlice file_name,
+                                    ddog_CharSlice function_name,
+                                    ddog_CharSlice type_name,
+                                    int64_t line_number);
+
+void ddog_snapshot_push_stack_frame_with_column(struct ddog_DebuggerPayload *payload,
+                                                ddog_CharSlice file_name,
+                                                ddog_CharSlice function_name,
+                                                ddog_CharSlice type_name,
+                                                int64_t line_number,
+                                                int64_t column_number);
 
 ddog_CharSlice ddog_evaluation_error_first_msg(const struct ddog_Vec_SnapshotEvaluationError *vec);
 

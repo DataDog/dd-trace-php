@@ -675,14 +675,14 @@ impl Profiler {
     /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
     pub fn init(system_settings: &mut SystemSettings) {
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
-        // PROFILER is not being mutated outside single-threaded phases such
-        // as minit/mshutdown.
+        // PROFILER is only being mutated in single-threaded phases such as
+        //minit/mshutdown.
         unsafe { (*ptr::addr_of!(PROFILER)).get_or_init(|| Profiler::new(system_settings)) };
     }
 
     pub fn get() -> Option<&'static Profiler> {
         // SAFETY: the `get` access is a thread-safe API, and the PROFILER is
-        // not being mutated outside single-threaded phases such as minit and
+        // only being mutated in single-threaded phases such as minit and
         // mshutdown.
         unsafe { (*ptr::addr_of!(PROFILER)).get() }
     }

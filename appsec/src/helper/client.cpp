@@ -153,9 +153,9 @@ bool client::handle_command(const network::client_init::request &command)
 {
     SPDLOG_DEBUG("Got client_id with pid={}, client_version={}, "
                  "runtime_version={}, engine_settings={}, "
-                 "remote_config_settings={}",
+                 "remote_config_settings={}, sidecar_settings={}",
         command.pid, command.client_version, command.runtime_version,
-        command.engine_settings, command.rc_settings);
+        command.engine_settings, command.rc_settings, command.sc_settings);
 
     auto &&eng_settings = command.engine_settings;
     DD_STDLOG(DD_STDLOG_STARTUP);
@@ -172,6 +172,9 @@ bool client::handle_command(const network::client_init::request &command)
         // save engine settings so we can recreate the service if rc path
         // changes
         engine_settings_ = eng_settings;
+
+        // sidecar settings (session/runtime id)should not change
+        sc_settings_ = command.sc_settings;
     } catch (std::system_error &e) {
         // TODO: logging should happen at WAF impl
         DD_STDLOG(DD_STDLOG_RULES_FILE_NOT_FOUND,
@@ -273,7 +276,7 @@ std::shared_ptr<typename T::response> client::publish(
                 extra_record_action.parameters = {};
                 response->actions.push_back(extra_record_action);
             }
-            response->triggers = std::move(res->events);
+            response->triggers = std::move(res->triggers);
             response->force_keep = res->force_keep;
 
             DD_STDLOG(DD_STDLOG_ATTACK_DETECTED);
@@ -365,7 +368,10 @@ bool client::handle_command(network::config_sync::request &command)
     }
 
     SPDLOG_DEBUG(
-        "received command config_sync with path {}", command.rem_cfg_path);
+        "received command config_sync with rem cfg path {} and queue id {}",
+        command.rem_cfg_path, command.queue_id);
+
+    service_->drain_logs(sc_settings_, command.queue_id);
 
     update_remote_config_path(command.rem_cfg_path);
 
@@ -413,8 +419,22 @@ bool client::send_message(const std::shared_ptr<typename T::response> &message)
                 all_verdicts << "no verdicts";
             }
         }
-        SPDLOG_DEBUG("sending response to {}, verdicts: {}",
-            message->get_type(), all_verdicts.str());
+        // NOLINTNEXTLINE(misc-const-correctness)
+        std::string force_keep = "not provided";
+        if constexpr (std::is_same_v<typename T::response,
+                          network::request_init::response> ||
+                      std::is_same_v<typename T::response,
+                          network::request_exec::response> ||
+                      std::is_same_v<typename T::response,
+                          network::request_shutdown::response>) {
+            if (message->force_keep) {
+                force_keep = "true";
+            } else {
+                force_keep = "false";
+            }
+        }
+        SPDLOG_DEBUG("sending response to {}, verdicts: {}, force_keep: {}",
+            message->get_type(), all_verdicts.str(), force_keep);
     }
     try {
         return broker_->send(message);
@@ -451,6 +471,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     }
 
     collect_metrics(*response, *service_, context_);
+    service_->drain_logs(sc_settings_, command.queue_id);
 
     return send_message<network::request_shutdown>(response);
 }
@@ -474,8 +495,12 @@ void client::update_remote_config_path(std::string_view path)
         rc_settings.shmem_path = path;
     }
 
-    set_service(
-        service_manager_->create_service(*engine_settings_, rc_settings));
+    sidecar_settings const current_sc_settings =
+        service_->get_sidecar_settings();
+    std::shared_ptr<service> new_service =
+        service_manager_->create_service(*engine_settings_, rc_settings);
+
+    set_service(std::move(new_service));
 }
 
 bool client::run_client_init()
@@ -517,7 +542,7 @@ void client::run(worker::queue_consumer &q)
 
 namespace {
 
-struct request_metrics_submitter : public metrics::telemetry_submitter {
+struct request_metrics_submitter : public telemetry::telemetry_submitter {
     request_metrics_submitter() = default;
     ~request_metrics_submitter() override = default;
     request_metrics_submitter(const request_metrics_submitter &) = delete;
@@ -527,7 +552,7 @@ struct request_metrics_submitter : public metrics::telemetry_submitter {
     request_metrics_submitter &operator=(request_metrics_submitter &&) = delete;
 
     void submit_metric(std::string_view name, double value,
-        metrics::telemetry_tags tags) override
+        telemetry::telemetry_tags tags) override
     {
         std::string tags_s = tags.consume();
         SPDLOG_TRACE("submit_metric [req]: name={}, value={}, tags={}", name,
@@ -550,6 +575,15 @@ struct request_metrics_submitter : public metrics::telemetry_submitter {
         SPDLOG_TRACE(
             "submit_span_meta_copy_key [req]: name={}, value={}", name, value);
         meta[name] = value;
+    }
+
+    void submit_log(telemetry::telemetry_submitter::log_level /*level*/,
+        std::string /*identifier*/, std::string /*message*/,
+        std::optional<std::string> /*stack_trace*/,
+        std::optional<std::string> /*tags*/, bool /*is_sensitive*/) override
+    {
+        // this class only exists to collect metrics, not logs
+        SPDLOG_WARN("submit_log [req]: should not be called");
     }
 
     std::map<std::string, std::string> meta;

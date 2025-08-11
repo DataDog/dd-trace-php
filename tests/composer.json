@@ -17,6 +17,7 @@
         "phpunit/phpunit": "<10",
         "phpspec/prophecy": "*",
         "symfony/process": "<5",
+        "symfony/routing": "<=6.0",
         "ext-sockets": "*"
     },
     "config": {

@@ -11,7 +11,6 @@
 #include "engine_settings.hpp"
 #include "exception.hpp"
 #include "json_helper.hpp"
-#include "metrics.hpp"
 #include "parameter_view.hpp"
 #include "remote_config/changeset.hpp"
 #include "remote_config/listeners/config_aggregators/asm_aggregator.hpp"
@@ -53,8 +52,8 @@ void engine::subscribe(std::unique_ptr<subscriber> sub)
     common_->subscribers.emplace_back(std::move(sub));
 }
 
-void engine::update(
-    const rapidjson::Document &doc, metrics::telemetry_submitter &submit_metric)
+void engine::update(const rapidjson::Document &doc,
+    telemetry::telemetry_submitter &submit_metric)
 {
     std::vector<std::unique_ptr<subscriber>> new_subscribers;
     auto old_common =
@@ -98,7 +97,7 @@ std::optional<engine::result> engine::context::publish(
         DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, entry.key());
     }
 
-    event event_;
+    event event;
 
     auto common =
         std::atomic_load_explicit(&common_, std::memory_order_acquire);
@@ -114,25 +113,30 @@ std::optional<engine::result> engine::context::publish(
         }
         try {
             const auto &listener = it->second;
-            listener->call(data, event_, rasp_rule);
+            listener->call(data, event, rasp_rule);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }
     }
 
-    if (event_.actions.empty() && event_.data.empty()) {
+    // force_keep indicates to the extension that it should change the
+    // priority of the span. We set it to true if libddwaf tells us to AND
+    // if the limiter allows it.
+    // XXX: the limiter should probably only be invoked once per request
+    const bool force_keep = event.keep && limiter_.allow();
+
+    if (!force_keep && event.actions.empty() && event.triggers.empty()) {
         return std::nullopt;
     }
 
-    const bool force_keep = event_.keep || limiter_.allow();
-    dds::engine::result res{{}, std::move(event_.data), force_keep};
-    // Currently the only action the extension can perform is block
-    if (event_.actions.empty()) {
+    // no actions, but we have json fragments in triggers. Add a record action
+    if (event.actions.empty()) {
         action record = {dds::action_type::record, {}};
-        res.actions.emplace_back(std::move(record));
+        event.actions.emplace_back(std::move(record));
     }
 
-    for (auto const &action : event_.actions) {
+    dds::engine::result res{{}, std::move(event.triggers), force_keep};
+    for (auto const &action : event.actions) {
         dds::action new_action;
         new_action.type = action.type;
         new_action.parameters.insert(
@@ -145,7 +149,7 @@ std::optional<engine::result> engine::context::publish(
     return res;
 }
 
-void engine::context::get_metrics(metrics::telemetry_submitter &msubmitter)
+void engine::context::get_metrics(telemetry::telemetry_submitter &msubmitter)
 {
     for (const auto &[subscriber, listener] : listeners_) {
         listener->submit_metrics(msubmitter);
@@ -154,7 +158,7 @@ void engine::context::get_metrics(metrics::telemetry_submitter &msubmitter)
 
 std::unique_ptr<engine> engine::from_settings(
     const dds::engine_settings &eng_settings,
-    metrics::telemetry_submitter &msubmitter)
+    telemetry::telemetry_submitter &msubmitter)
 {
     auto &&rules_path = eng_settings.rules_file_or_default();
     auto ruleset = read_file(rules_path);
@@ -162,7 +166,7 @@ std::unique_ptr<engine> engine::from_settings(
     rapidjson::Document doc;
     rapidjson::ParseResult const result =
         doc.Parse(ruleset.data(), ruleset.size());
-    if ((result == nullptr) || !doc.IsObject()) {
+    if (result.IsError() || !doc.IsObject()) {
         throw parsing_error("invalid json rule");
     }
     dds::parameter ruleset_param = json_to_parameter(doc);

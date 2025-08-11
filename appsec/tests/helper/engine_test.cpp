@@ -6,8 +6,8 @@
 
 #include "common.hpp"
 #include "ddwaf.h"
-#include "metrics.hpp"
 #include "remote_config/mocks.hpp"
+#include "telemetry.hpp"
 #include <engine.hpp>
 #include <gmock/gmock-nice-strict.h>
 #include <memory>
@@ -18,7 +18,7 @@
 using dds::remote_config::changeset;
 
 const std::string waf_rule =
-    R"({"version":"2.1","rules":[{"id":"1","name":"rule1","tags":{"type":"flow1","category":"category1"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg1","key_path":[]}],"regex":"^string.*"}},{"operator":"match_regex","parameters":{"inputs":[{"address":"arg2","key_path":[]}],"regex":".*"}}]},{"id":"2","name":"rule2","tags":{"type":"flow2","category":"category2"},"conditions":[{"operator":"match_regex","parameters":{"inputs":[{"address":"arg3","key_path":[]}],"regex":"^string.*"}}]}]})";
+    R"({"version": "2.1", "rules": [{"id": "1", "name": "rule1", "tags": {"type": "flow1", "category": "category1" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg1", "key_path": [] } ], "regex": "^string.*" } }, {"operator": "match_regex", "parameters": {"inputs": [{"address": "arg2", "key_path": [] } ], "regex": ".*" } } ] }, {"id": "2", "name": "rule2", "tags": {"type": "flow2", "category": "category2" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg3", "key_path": [] } ], "regex": "^string.*" } } ] } ], "rules_compat": [{"id": "ttr-000-001", "name": "Trace Tagging Rule: Attributes, Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg4", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": true, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] }, {"id": "ttr-000-002", "name": "Trace Tagging Rule: Attributes, No Keep, No Event", "tags": {"type": "security_scanner", "category": "attack_attempt" }, "conditions": [{"operator": "match_regex", "parameters": {"inputs": [{"address": "arg5", "key_path": [] } ], "regex": "^string.*" } } ], "output": {"event": false, "keep": false, "attributes": {"_dd.appsec.trace.integer": {"value": 12345 }, "_dd.appsec.trace.string": {"value": "678" }, "_dd.appsec.trace.agent": {"address": "server.request.headers.no_cookies", "key_path": ["user-agent" ] } } }, "on_match": [] } ] })";
 const std::string waf_rule_with_data =
     R"({"version":"2.1","rules":[{"id":"blk-001-001","name":"Block IP Addresses","tags":{"type":"block_ip","category":"security_response"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]}]})";
 
@@ -30,7 +30,7 @@ namespace dds {
 namespace mock {
 class listener : public dds::subscriber::listener {
 public:
-    MOCK_METHOD1(submit_metrics, void(metrics::telemetry_submitter &));
+    MOCK_METHOD1(submit_metrics, void(telemetry::telemetry_submitter &));
     MOCK_METHOD3(
         call, void(dds::parameter_view &, dds::event &, const std::string &));
     MOCK_METHOD2(
@@ -44,7 +44,7 @@ public:
     MOCK_METHOD0(get_listener, std::unique_ptr<dds::subscriber::listener>());
     MOCK_METHOD0(get_subscriptions, std::unordered_set<std::string>());
     MOCK_METHOD2(update, std::unique_ptr<dds::subscriber>(const changeset &,
-                             metrics::telemetry_submitter &));
+                             telemetry::telemetry_submitter &));
 };
 } // namespace mock
 
@@ -104,7 +104,7 @@ TEST(EngineTest, MultipleSubscriptors)
                                    std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
             if (subs.find(data[0].parameterName) != subs.end()) {
-                event_.data.push_back("some event");
+                event_.triggers.push_back("some event");
                 event_.actions.push_back({dds::action_type::block, {}});
             }
         }));
@@ -115,7 +115,7 @@ TEST(EngineTest, MultipleSubscriptors)
                                    std::string rasp) -> void {
             std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
             if (subs.find(data[0].parameterName) != subs.end()) {
-                event_.data.push_back("some event");
+                event_.triggers.push_back("some event");
             }
         }));
 
@@ -382,8 +382,8 @@ TEST(EngineTest, WafSubscriptorBasic)
     Mock::VerifyAndClearExpectations(&msubmitter);
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
-    EXPECT_EQ(res->events.size(), 1);
-    for (auto &match : res->events) {
+    EXPECT_EQ(res->triggers.size(), 1);
+    for (auto &match : res->triggers) {
         rapidjson::Document doc;
         doc.Parse(match);
         EXPECT_FALSE(doc.HasParseError());
@@ -540,7 +540,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
             msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
         EXPECT_CALL(msubmitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -562,7 +562,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
-        EXPECT_EQ(res->events.size(), 1);
+        EXPECT_EQ(res->triggers.size(), 1);
     }
 
     {
@@ -570,7 +570,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
             msubmitter, submit_span_meta("_dd.appsec.waf.version"sv, _));
         EXPECT_CALL(msubmitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -615,7 +615,7 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
         // success is true because WAF is capable of generating a handle
         EXPECT_CALL(submitter,
             submit_metric("waf.updates"sv, 1,
-                metrics::telemetry_tags::from_string(
+                telemetry::telemetry_tags::from_string(
                     std::string{
                         "success:true,event_rules_version:,waf_version:"} +
                     ddwaf_get_version())));
@@ -672,7 +672,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
-        EXPECT_EQ(res->events.size(), 1);
+        EXPECT_EQ(res->triggers.size(), 1);
     }
 }
 
@@ -790,6 +790,56 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         auto res = ctx.publish(std::move(p));
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
+    }
+
+    { // Test keep is true
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg4", parameter::string("string 4"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
+        EXPECT_EQ(res->force_keep, true);
+    }
+}
+
+TEST(EngineTest, TestKeep)
+{
+    auto msubmitter = NiceMock<mock::tel_submitter>{};
+
+    auto e{engine::create()};
+    e->subscribe(waf::instance::from_string(waf_rule, msubmitter));
+
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg12", parameter::string("string 12"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg5", parameter::string("string 5"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_FALSE(res);
+    }
+    {
+        auto ctx = e->get_context();
+
+        auto p = parameter::map();
+        p.add("arg4", parameter::string("string 4"sv));
+
+        auto res = ctx.publish(std::move(p));
+        EXPECT_TRUE(res);
+        EXPECT_EQ(res->actions[0].type, dds::action_type::record);
+        EXPECT_EQ(res->force_keep, true);
     }
 }
 
@@ -942,32 +992,6 @@ TEST(EngineTest, WafSubscriptorCustomRules)
     }
 }
 
-TEST(EngineTest, RateLimiterForceKeep)
-{
-    // Rate limit 0 allows all calls
-    int rate_limit = 0;
-    auto e{engine::create(rate_limit)};
-
-    auto listener = std::make_unique<mock::listener>();
-    EXPECT_CALL(*listener, call(_, _, _))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   std::string rasp) -> void {
-            event_.actions.push_back({dds::action_type::redirect, {}});
-        }));
-
-    auto sub = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
-        return std::move(listener);
-    }));
-
-    e->subscribe(std::move(sub));
-
-    parameter p = parameter::map();
-    p.add("a", parameter::string("value"sv));
-    auto res = e->get_context().publish(std::move(p));
-    EXPECT_TRUE(res->force_keep);
-}
-
 TEST(EngineTest, RateLimiterDoNotForceKeep)
 {
     // Lets set max 1 per second and do two calls
@@ -995,36 +1019,6 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
     p2.add("a", parameter::string("value"sv));
     res = e->get_context().publish(std::move(p2));
     EXPECT_FALSE(res->force_keep);
-}
-
-TEST(EngineTest, ListenersCanForceKeep)
-{
-    // Lets set max 1 per second but both calls should be allowed
-    int rate_limit = 1;
-    auto e{engine::create(rate_limit)};
-
-    auto sub = std::make_unique<mock::subscriber>();
-    EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([&]() {
-        auto listener = std::make_unique<mock::listener>();
-        EXPECT_CALL(*listener, call(_, _, _))
-            .WillOnce(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                 std::string rasp) -> void {
-                event_.actions.push_back({dds::action_type::redirect, {}});
-                event_.keep = true;
-            }));
-        return listener;
-    }));
-
-    e->subscribe(std::move(sub));
-
-    parameter p = parameter::map();
-    p.add("a", parameter::string("value"sv));
-    auto res = e->get_context().publish(std::move(p));
-    EXPECT_TRUE(res->force_keep);
-    parameter p2 = parameter::map();
-    p2.add("a", parameter::string("value"sv));
-    res = e->get_context().publish(std::move(p2));
-    EXPECT_TRUE(res->force_keep);
 }
 
 } // namespace dds

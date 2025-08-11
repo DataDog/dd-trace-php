@@ -174,7 +174,7 @@ static bool ddloader_is_opcache_jit_enabled() {
     if (php_api_no > 20230831) { // PHP > 8.3 (https://wiki.php.net/rfc/jit_config_defaults)
         // opcache.jit == disable (default: disable)
         zval *opcache_jit = ddloader_ini_get_configuration(ZEND_STRL("opcache.jit"));
-        if (!opcache_jit || Z_TYPE_P(opcache_jit) != IS_STRING || Z_STRLEN_P(opcache_jit) == 0 || strcmp(Z_STRVAL_P(opcache_jit), "disable") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "off") == 0) {
+        if (!opcache_jit || Z_TYPE_P(opcache_jit) != IS_STRING || Z_STRLEN_P(opcache_jit) == 0 || strcmp(Z_STRVAL_P(opcache_jit), "disable") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "off") == 0 || strcmp(Z_STRVAL_P(opcache_jit), "0") == 0) {
             return false;
         }
     } else {
@@ -188,7 +188,7 @@ static bool ddloader_is_opcache_jit_enabled() {
     return true;
 }
 
-static void ddtrace_pre_minit_hook(injected_ext *config) {
+static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *sources_path;
@@ -228,9 +228,21 @@ static void ddtrace_pre_minit_hook(injected_ext *config) {
     if (disable_tracer) {
         ddloader_ini_set_configuration(config, ZEND_STRL("ddtrace.disable"), ZEND_STRL("1"));
     }
+
+    // Let ddtrace knows that it was loaded by the loader
+    bool *ddtrace_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_loaded_by_ssi");
+    if (ddtrace_loaded_by_ssi) {
+        *ddtrace_loaded_by_ssi = true;
+    }
+    bool *ddtrace_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_ssi_forced_injection_enabled");
+    if (ddtrace_ssi_forced_injection_enabled) {
+        *ddtrace_ssi_forced_injection_enabled = force_load;
+    }
 }
 
-static void appsec_pre_minit_hook(injected_ext *config) {
+static void appsec_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
+    UNUSED(module);
+
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *helper_path;
@@ -242,7 +254,9 @@ static void appsec_pre_minit_hook(injected_ext *config) {
     }
 }
 
-static void profiling_pre_minit_hook(injected_ext *config) {
+static void profiling_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
+    UNUSED(module);
+
     if (!ddloader_ini_get_configuration(ZEND_STRL("datadog.profiling.enabled"))) {
         ddloader_ini_set_configuration(config, ZEND_STRL("datadog.profiling.enabled"), ZEND_STRL("0"));
     }
@@ -301,10 +315,14 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...) {
+    const char *result_class = "unknown";
+    const char *result = "unknown";
     log_level level = ERROR;
     switch (reason) {
         case REASON_ERROR:
             if (config) {
+                result = "abort";
+                result_class = "internal_error";
                 config->injection_error = error;
                 config->injection_success = false;
             }
@@ -312,6 +330,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_EOL_RUNTIME:
             if (config) {
+                result = "abort";
+                result_class = "incompatible_runtime";
                 config->injection_error = "Incompatible runtime (end-of-life)";
                 config->injection_success = false;
             }
@@ -319,6 +339,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_INCOMPATIBLE_RUNTIME:
             if (config) {
+                result = "abort";
+                result_class = "incompatible_runtime";
                 config->injection_error = "Incompatible runtime";
                 config->injection_success = false;
             }
@@ -326,6 +348,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_ALREADY_LOADED:
             if (config) {
+                result = "abort";
+                result_class = "already_instrumented";
                 config->injection_error = "Already loaded";
                 config->injection_success = false;
             }
@@ -333,6 +357,8 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
             break;
         case REASON_COMPLETE:
             if (config) {
+                result = "success";
+                result_class = injection_forced ? "success_forced" : "success";
                 config->injection_success = true;
             }
             level = INFO;
@@ -346,7 +372,16 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
 
     va_list va;
     va_start(va, format);
-    ddloader_logv(config,level, format, va);
+    va_list va_copy;
+    va_copy(va_copy, va);
+    char result_reason[1024];
+    if (config && format) {
+        vsnprintf(result_reason, sizeof(result_reason), format, va_copy);
+    } else {
+        strcpy(result_reason, "unknown");
+    }
+    va_end(va_copy);
+    ddloader_logv(config, level, format, va);
     va_end(va);
 
     // Skip COMPLETE telemetry except for ddtrace
@@ -442,7 +477,10 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         \"language_name\": \"php\",\
         \"language_version\": \"%s\",\
         \"tracer_version\": \"%s\",\
-        \"pid\": %d\
+        \"pid\": %d,\
+        \"result\": \"%s\",\
+        \"result_reason\": \"%s\",\
+        \"result_class\": \"%s\"\
     },\
     \"points\": [%s]\
 }\
@@ -450,7 +488,7 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     char *tracer_version = ddloader_injected_ext_config[0].version ?: "unknown";
 
     char payload[1024];
-    snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, points);
+    snprintf(payload, sizeof(payload), template, runtime_version, runtime_version, tracer_version, loader_pid, result, result_reason, result_class, points);
 
     char *argv[] = {telemetry_forwarder_path, "library_entrypoint", payload, NULL};
 
@@ -606,7 +644,7 @@ static PHP_MINIT_FUNCTION(ddloader_injected_extension_minit) {
     }
 
     if (config->pre_minit_hook) {
-        config->pre_minit_hook(config);
+        config->pre_minit_hook(config, module);
     }
 
     zend_result ret = module->module_startup_func(INIT_FUNC_ARGS_PASSTHRU);

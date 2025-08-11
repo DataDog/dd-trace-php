@@ -9,7 +9,7 @@ if(DD_APPSEC_BUILD_HELPER)
     FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG e2239ee6043f73722e7aa812a459f54a28552929)
+        GIT_TAG 52eb8108c5bdec04579160ae17225d66034bd723)
 
     FetchContent_MakeAvailable(googletest)
 
@@ -42,6 +42,7 @@ if(DD_APPSEC_BUILD_EXTENSION)
     endif()
 endif()
 
+# spdlog
 FetchContent_Declare(
     spdlog
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
@@ -49,6 +50,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(spdlog)
 set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
+# zlib
 set(ZLIB_VERSION v1.3)
 FetchContent_Declare(
         zlib
@@ -62,3 +64,15 @@ endif()
 
 target_compile_definitions(zlibstatic PUBLIC ZLIB_CONST=1)
 target_include_directories(zlibstatic INTERFACE ${zlib_SOURCE_DIR} ${zlib_BINARY_DIR})
+
+# rapidJson
+FetchContent_Declare(
+    rapidjson
+    GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+    GIT_TAG 24b5e7a8b27f42fa16b96fc70aade9106cf7102f
+    GIT_SHALLOW TRUE
+)
+FetchContent_Populate(rapidjson) # don't read its CMakeLists.txt
+add_library(rapidjson_appsec INTERFACE)
+target_include_directories(rapidjson_appsec INTERFACE ${rapidjson_SOURCE_DIR}/include)
+target_compile_definitions(rapidjson_appsec INTERFACE RAPIDJSON_HAS_STDSTRING=1)

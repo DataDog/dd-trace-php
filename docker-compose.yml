@@ -201,7 +201,7 @@ services:
       - ZOOKEEPER_TICK_TIME=2000
 
   mongodb-integration:
-    image: "circleci/mongo:4.0"
+    image: "mongo:4.2.24"
     ports:
       - "27017:27017"
     environment:
@@ -280,7 +280,7 @@ services:
   test-agent:
     image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
     ports:
-      - "127.0.0.1:9126:8126"
+      - "9126:9126"
     volumes:
       - ./tests/snapshots:/snapshots
     environment:

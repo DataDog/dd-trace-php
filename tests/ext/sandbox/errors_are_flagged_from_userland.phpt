@@ -3,6 +3,7 @@ Errors from userland will be flagged on span
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -46,28 +47,28 @@ array(1) {
     int(1)
     ["meta"]=>
     array(4) {
-      ["runtime-id"]=>
-      string(36) "%s"
-      ["error.message"]=>
-      string(9) "Foo error"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["error.message"]=>
+      string(9) "Foo error"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%f)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

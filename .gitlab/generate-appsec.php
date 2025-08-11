@@ -46,11 +46,11 @@ stages:
 <?php unset_dd_runner_env_vars() ?>
     - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
     - sudo apt install -y clang-tidy-17 libc++-17-dev libc++abi-17-dev
-    - mkdir -p appsec/build hunter-cache hunter-cache
+    - mkdir -p appsec/build boost-cache boost-cache
   cache:
-    - key: "appsec hunter cache"
+    - key: "appsec boost cache"
       paths:
-        - hunter-cache
+        - boost-cache
 
 .docker_push_job:
   stage: docker-build
@@ -97,7 +97,7 @@ stages:
     - cd appsec/build
     - "cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF
       -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
-      -DDD_APPSEC_TESTING=ON -DHUNTER_ROOT=$CI_PROJECT_DIR/hunter-cache"
+      -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache"
     - make -j 4 xtest
 
 "appsec integration tests":
@@ -169,6 +169,7 @@ stages:
       unzip vault.zip
       sudo cp -v vault /usr/local/bin
       cd -
+      sudo sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
       sudo apt-get update && sudo apt-get install -y jq gcovr llvm-17 clang-17
 
       echo "Installing codecov"
@@ -191,7 +192,7 @@ stages:
         -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_C_COMPILER=/usr/bin/clang-17 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-17 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
-        -DHUNTER_ROOT="$CI_PROJECT_DIR/hunter-cache"
+        -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache"
     - |
       export PATH=$PATH:$HOME/.cargo/bin
       LLVM_PROFILE_FILE="/tmp/cov-ext/%p.profraw" \
@@ -270,7 +271,7 @@ stages:
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
         -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
-        -DHUNTER_ROOT="$CI_PROJECT_DIR/hunter-cache" \
+        -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
         -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 \
         -DCLANG_FORMAT=/usr/bin/clang-format-17
     - make -j 4 extension ddappsec-helper
@@ -296,7 +297,7 @@ stages:
         -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak \
         -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
         -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-        -DHUNTER_ROOT="$CI_PROJECT_DIR/hunter-cache" \
+        -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
         -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
     - make -j 4 ddappsec_helper_test
     - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
@@ -323,7 +324,7 @@ stages:
 #    - cd -
 #
 #    - cd appsec/build
-#    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DHUNTER_ROOT=/hunter-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+#    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DBOOST_CACHE_PREFIX=/boost-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
 #    - make -j 4 ddappsec_helper_fuzzer corpus_generator
 #    - cd ..
 #    - mkdir -p tests/fuzzer/{corpus,results,logs}

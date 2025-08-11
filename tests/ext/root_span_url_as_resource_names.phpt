@@ -2,6 +2,7 @@
 root span with DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=1
 DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED=""
 HTTPS=on
@@ -20,16 +21,16 @@ var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
 array(6) {
-  ["runtime-id"]=>
-  string(36) "%s"
-  ["http.url"]=>
-  string(26) "https://localhost:9999/foo"
-  ["http.method"]=>
-  string(3) "GET"
   ["_dd.p.dm"]=>
   string(2) "-0"
-  ["http.status_code"]=>
-  string(3) "200"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["http.method"]=>
+  string(3) "GET"
+  ["http.status_code"]=>
+  string(3) "200"
+  ["http.url"]=>
+  string(26) "https://localhost:9999/foo"
+  ["runtime-id"]=>
+  string(36) "%s"
 }

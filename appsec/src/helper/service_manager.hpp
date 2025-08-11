@@ -5,13 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "engine.hpp"
 #include "engine_settings.hpp"
-#include "exception.hpp"
-#include "network/proto.hpp"
 #include "service.hpp"
-#include "std_logging.hpp"
-#include "subscriber/waf.hpp"
 #include "utils.hpp"
 #include <memory>
 #include <mutex>
@@ -27,7 +22,11 @@ public:
     service_manager &operator=(const service_manager &) = delete;
     service_manager(service_manager &&) = delete;
     service_manager &operator=(service_manager &&) = delete;
-    virtual ~service_manager() = default;
+    virtual ~service_manager()
+    {
+        std::lock_guard guard{mutex_};
+        cache_.clear();
+    }
 
     virtual std::shared_ptr<service> create_service(
         const engine_settings &settings,

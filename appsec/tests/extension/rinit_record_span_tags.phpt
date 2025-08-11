@@ -7,6 +7,7 @@ datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 HTTPS=on
 SERVER_NAME=localhost:8888
 SCRIPT_NAME=/foo.php
@@ -56,6 +57,7 @@ echo "tags:\n";
 ksort($tags);
 print_r($tags);
 echo "metrics:\n";
+ksort($metrics);
 print_r($metrics);
 
 $helper->finished_with_commands();
@@ -81,9 +83,8 @@ Array
 (
     [_dd.appsec.json] => {"triggers":[{"found":"attack"},{"another":"attack"},{"yet another":"attack"}]}
     [_dd.p.appsec] => 1
-    [_dd.p.dm] => -5
+    [_dd.p.dm] => -0
     [_dd.p.tid] => %s
-    [_dd.p.ts] => 02
     [_dd.runtime_family] => php
     [appsec.event] => true
     [http.method] => GET
@@ -99,10 +100,11 @@ metrics:
 Array
 (
     [%s] => %d
-    [rshutdown_metric] => 2.1
     [_dd.appsec.enabled] => 1
-    [_sampling_priority_v1] => 2
+    [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
-    [php.memory.peak_usage_bytes] => %f
     [php.memory.peak_real_usage_bytes] => %f
+    [php.memory.peak_usage_bytes] => %f
+    [process_id] => %d
+    [rshutdown_metric] => 2.1
 )

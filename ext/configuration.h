@@ -144,6 +144,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING, "true")                                           \
     CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING, "true")                                       \
     CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES, "false")                                              \
+    CONFIG(BOOL, DD_TRACE_SYMFONY_HTTP_ROUTE, "true")                                                          \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER, "true")                                          \
     CONFIG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                              \
@@ -251,6 +252,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                            \
     CONFIG(SET, DD_TRACE_HTTP_CLIENT_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
     CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true")                                                     \
+    CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

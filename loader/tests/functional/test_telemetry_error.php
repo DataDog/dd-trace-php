@@ -22,7 +22,10 @@ $metrics = [<<<EOS
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result": "abort",
+        "result_reason": "%s",
+        "result_class": "internal_error"
     },
     "points": [
         {
@@ -44,7 +47,10 @@ EOS
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result": "abort",
+        "result_reason": "%s",
+        "result_class": "internal_error"
     },
     "points": [
         {
@@ -68,7 +74,10 @@ if ('7.0' === php_minor_version()) {
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result": "abort",
+        "result_reason": "%s",
+        "result_class": "incompatible_runtime"
     },
     "points": [
         {
@@ -94,7 +103,10 @@ EOS
         "language_name": "php",
         "language_version": "%d.%d.%d%S",
         "tracer_version": "%s",
-        "pid": %d
+        "pid": %d,
+        "result": "abort",
+        "result_reason": "%s",
+        "result_class": "internal_error"
     },
     "points": [
         {

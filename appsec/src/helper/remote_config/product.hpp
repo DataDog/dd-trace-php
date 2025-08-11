@@ -22,6 +22,10 @@ public:
     constexpr ~product() = default;
 
     [[nodiscard]] constexpr std::string_view name() const { return name_; }
+    [[nodiscard]] std::string name_lower() const
+    {
+        return dds::dd_tolower(std::string{name_});
+    }
 
     constexpr bool operator==(const product &other) const
     {
