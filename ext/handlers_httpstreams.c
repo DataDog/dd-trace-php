@@ -1,7 +1,6 @@
 #include "configuration.h"
 #include "handlers_http.h"
 #include "serializer.h"
-#include "handlers_httpstreams.h"
 
 static php_stream_wrapper_ops traced_http_wrapper_wops;
 static php_stream_wrapper_ops traced_https_wrapper_wops;
