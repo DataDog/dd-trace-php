@@ -33,7 +33,7 @@ namespace {
 namespace DDTrace\Integrations\Curl {
     class CurlIntegration implements \DDTrace\Integration
     {
-        function init(): int
+        static function init(): int
         {
             return self::LOADED;
         }

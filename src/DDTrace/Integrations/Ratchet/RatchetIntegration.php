@@ -47,7 +47,7 @@ class RatchetIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -55,14 +55,11 @@ class RatchetIntegration extends Integration
     /**
      * @return int
      */
-    public function init(): int
+    public static function init(): int
     {
         if (!self::shouldLoad(self::NAME)) {
             return Integration::NOT_LOADED;
         }
-
-        $integration = $this;
-        $service = \ddtrace_config_app_name('ratchet');
 
         \DDTrace\install_hook(Connector::class . "::__invoke", function (HookData $hook) {
             $url = $hook->args[0];
@@ -122,7 +119,7 @@ class RatchetIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook(HttpServerInterface::class . "::onOpen", function (HookData $hook) use ($service, $integration) {
+        \DDTrace\install_hook(HttpServerInterface::class . "::onOpen", function (HookData $hook) {
             if (!\dd_trace_env_config("DD_TRACE_WEBSOCKET_MESSAGES_ENABLED")) {
                 return;
             }
@@ -179,12 +176,12 @@ class RatchetIntegration extends Integration
             $pseudoglobals['_FILES'] = [];
 
             $activeSpan = $hook->span(new SpanStack);
-            $activeSpan->service = $service;
+            $activeSpan->service = \ddtrace_config_app_name('ratchet');
             $activeSpan->name = "web.request";
             $activeSpan->type = Type::WEB_SERVLET;
             $activeSpan->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
             $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-            $integration->addTraceAnalyticsIfEnabled($activeSpan);
+            RatchetIntegration::addTraceAnalyticsIfEnabled($activeSpan);
 
             ObjectKVStore::put($parentConn, "handshake", $activeSpan);
 

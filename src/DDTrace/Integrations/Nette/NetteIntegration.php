@@ -14,7 +14,7 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -22,12 +22,11 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function init(): int
+    public static function init(): int
     {
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
-        $integration = $this;
-        $setRootSpanFn = function () use ($service, $integration) {
+        $setRootSpanFn = function () use ($service) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan === null) {
                 return;
@@ -35,7 +34,7 @@ class NetteIntegration extends Integration
 
             $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
-            $integration->addTraceAnalyticsIfEnabled($rootSpan);
+            NetteIntegration::addTraceAnalyticsIfEnabled($rootSpan);
             $rootSpan->service = $service;
             $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
         };
