@@ -17,6 +17,7 @@
 #include "ext/version.h"
 #include "compatibility.h"
 #include "git.h"
+#include "threads.h"
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
@@ -41,6 +42,8 @@ typedef struct ddtrace_exception_span_event ddtrace_exception_span_event;
 typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
 extern datadog_php_sapi ddtrace_active_sapi;
+
+extern ddog_CharSlice php_version_rt;
 
 static inline zend_array *ddtrace_property_array(zval *zv) {
     ZVAL_DEREF(zv);
@@ -140,6 +143,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     char *cgroup_file;
     ddog_QueueId sidecar_queue_id;
+    MUTEX_T sidecar_universal_service_tags_mutex;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     ddog_AgentInfoReader *agent_info_reader;
@@ -148,8 +152,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
     HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
-    zend_string *last_flushed_root_service_name;
-    zend_string *last_flushed_root_env_name;
+    zend_string *last_service_name;
+    zend_string *last_env_name;
     ddog_Vec_Tag active_global_tags;
 
     bool request_initialized;

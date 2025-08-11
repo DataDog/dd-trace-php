@@ -7,6 +7,7 @@
 
 #include <stdbool.h>
 #include <stdlib.h>
+#include <limits.h>
 #include "attributes.h"
 
 #define STR_FOR_FMT(a) ((a) != NULL ? (a) : "(null)")
@@ -20,6 +21,11 @@
 #define LSTRLEN(str) (sizeof(str "") - 1)
 #define LSTRARG(str) (str ""), LSTRLEN(str)
 #define LSTRLEN_MAX(a, b) (LSTRLEN(a) > LSTRLEN(b) ? LSTRLEN(a) : LSTRLEN(b))
+
+#define ZSTR_PRINTF(zstr)                                                      \
+    ((zstr) && ZSTR_LEN(zstr) < INT_MAX) ? (int)ZSTR_LEN(zstr)                 \
+                                         : (int)sizeof("(null)") - 1,          \
+        ((zstr) && ZSTR_LEN(zstr) < INT_MAX) ? ZSTR_VAL(zstr) : "(null)"
 
 bool dd_string_starts_with_lc(const char *nonnull s, size_t len,
     const char *nonnull cmp_lc, size_t cmp_lc_len);

@@ -11,6 +11,5 @@ void ddtrace_check_for_new_config_now(void);
 
 
 DDTRACE_PUBLIC void ddtrace_set_all_thread_vm_interrupt(void);
-DDTRACE_PUBLIC const char *ddtrace_remote_config_get_path(void);
 
 #endif

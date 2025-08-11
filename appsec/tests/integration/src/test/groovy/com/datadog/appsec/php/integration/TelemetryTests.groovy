@@ -282,7 +282,8 @@ class TelemetryTests {
         ])
 
         def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
-            logs.any { it.logs.any { it.tags.contains('log_type:rc::') && it.level == 'ERROR' } }
+            def relevantLogs = logs.collectMany { it.logs.findAll { it.tags.contains('log_type:rc::') } }
+            relevantLogs.size() >= 3
         }.collectMany { it.logs }
 
         assert requestSup.get() != null

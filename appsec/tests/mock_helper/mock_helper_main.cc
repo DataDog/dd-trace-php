@@ -5,6 +5,7 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/local/stream_protocol.hpp>
 #include <boost/asio/posix/stream_descriptor.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/signal_set.hpp>
 #include <boost/asio/spawn.hpp>
@@ -49,8 +50,9 @@ namespace local = asio::local;
 namespace posix = asio::posix;
 using boost::system::error_code;
 
+// NOLINTNEXTLINE(cert-err58-cpp,fuchsia-statically-constructed-objects)
 asio::io_context iocontext;
-static bool continuous_mode;
+bool continuous_mode;
 
 MsgpackToJson::MsgpackToJson(const char *buffer, size_t size)
 {
@@ -138,8 +140,7 @@ EchoPipe::EchoPipe() : stream_{try_fds()}
         throw std::runtime_error{"No open pipe stream found"};
     }
 }
-void EchoPipe::write(
-    asio::const_buffer buff, asio::yield_context yield)
+void EchoPipe::write(asio::const_buffer buff, asio::yield_context yield)
 {
     std::array<asio::const_buffer, 2> buffers{buff, {"", 1}};
     SPDLOG_INFO("Writing to echo pipe {} + 1 bytes", buffers[0].size());
@@ -155,9 +156,9 @@ posix::stream_descriptor EchoPipe::try_fds()
 {
     // if running with valgrind, the fd for the valgrind log can be before
     // or after ours so the pipe can be 4 or 5
-    auto res = try_single_fd(5);
+    auto res = try_single_fd(5); // NOLINT
     if (!res) {
-        res = try_single_fd(4);
+        res = try_single_fd(4); // NOLINT
     }
     if (!res) {
         res = try_single_fd(STDOUT_FILENO);
@@ -201,35 +202,37 @@ struct OwningBuffer {
     OwningBuffer(const char *buf, std::size_t len) : buf_{buf}, len_{len} {}
     OwningBuffer(const OwningBuffer &) = delete;
     const OwningBuffer &operator=(const OwningBuffer &) = delete;
-    OwningBuffer(OwningBuffer &&oth)  noexcept : OwningBuffer{}
+    OwningBuffer(OwningBuffer &&oth) noexcept : OwningBuffer{}
     {
         *this = std::move(oth);
     }
     OwningBuffer &operator=(OwningBuffer &&oth) noexcept
     {
-        std::free(const_cast<char *>(buf_));
+        std::free(const_cast<char *>(buf_)); // NOLINT
         buf_ = oth.buf_;
         len_ = oth.len_;
         oth.buf_ = nullptr;
         oth.len_ = 0UL;
         return *this;
     }
-    ~OwningBuffer() noexcept { std::free(const_cast<char *>(buf_)); }
+    ~OwningBuffer() noexcept { std::free(const_cast<char *>(buf_)); } // NOLINT
 };
 
 class MpackWriter {
-  public:
-    MpackWriter() : data_{nullptr}
+public:
+    MpackWriter() noexcept
     {
         mpack_writer_init_growable(&writer_, &data_, &size_);
     }
 
+    MpackWriter(MpackWriter &&) = delete;
+    MpackWriter &operator=(MpackWriter &&) = delete;
     MpackWriter(const MpackWriter &) = delete;
     MpackWriter &operator=(const MpackWriter &) = delete;
     ~MpackWriter()
     {
         mpack_writer_destroy(&writer_);
-        std::free(data_);
+        std::free(data_); // NOLINT
     }
 
     // NOLINTNEXTLINE(misc-no-recursion)
@@ -254,13 +257,13 @@ class MpackWriter {
         } else if (val.IsArray()) {
             auto arr = val.GetArray();
             mpack_start_array(&writer_, arr.Size());
-            for (auto &val : arr) { *this << val; }
+            for (const auto &val : arr) { *this << val; }
             mpack_finish_array(&writer_);
         } else if (val.IsObject()) {
             auto obj = val.GetObject();
             mpack_start_map(&writer_, obj.MemberCount());
             for (auto it = val.MemberBegin(); it != val.MemberEnd(); it++) {
-                auto &name = it->name;
+                const auto &name = it->name;
                 mpack_write_str(
                     &writer_, name.GetString(), name.GetStringLength());
                 *this << it->value;
@@ -281,15 +284,15 @@ class MpackWriter {
         return ret;
     }
 
-  private:
-    char *data_;
-    std::size_t size_;
-    mpack_writer_t writer_;
+private:
+    char *data_{};
+    std::size_t size_{};
+    mpack_writer_t writer_{};
 };
 
 class JsonToMsgpack {
-  public:
-    JsonToMsgpack(rapidjson::Document &doc) : doc_{doc} {}
+public:
+    explicit JsonToMsgpack(rapidjson::Document &doc) : doc_{doc} {}
 
     void convert()
     {
@@ -323,32 +326,35 @@ class JsonToMsgpack {
         out_buf_ = writer.move_data();
     }
 
-    std::uint16_t delay() const noexcept { return delay_; }
+    [[nodiscard]] std::uint16_t delay() const noexcept { return delay_; }
     OwningBuffer move_buffer() { return std::move(out_buf_); }
 
-  private:
+private:
     std::uint16_t delay_ = 0;
     OwningBuffer out_buf_;
-    rapidjson::Document &doc_;
+    rapidjson::Document &doc_; // NOLINT
 };
 
 class Client {
+private:
     struct Header {
-        char marker[4];
+        char marker[4]; // NOLINT
         uint32_t size;
     } __attribute__((packed));
 
-  public:
+public:
     Client(local::stream_protocol::socket &&sock, EchoPipe &echo_pipe,
         std::vector<rapidjson::Document> responses)
         : sock_{std::move(sock)}, echo_pipe_{echo_pipe},
           responses_{std::move(responses)}, next_response_{responses_.begin()}
-    {
-    }
+    {}
+    ~Client() = default;
+    Client(Client &&) = delete;
+    Client &operator=(Client &&) = delete;
     Client(const Client &) = delete;
     const Client &operator=(const Client &) = delete;
 
-    void run_loop(asio::yield_context yield)
+    void run_loop(const asio::yield_context &yield)
     {
         unsigned count = 0;
         bool exited = false;
@@ -360,20 +366,21 @@ class Client {
         if (continuous_mode) {
             next_response_--;
             while (!exited) {
-                SPDLOG_INFO(
-                    "Will read message #{} (continuous mode)", ++count);
+                SPDLOG_INFO("Will read message #{} (continuous mode)", ++count);
                 exited = run_loop_body(yield);
             }
         }
         SPDLOG_INFO("All responses given; exiting");
     }
 
-  private:
-    bool run_loop_body(asio::yield_context yield)
+private:
+    bool run_loop_body(const asio::yield_context &yield)
     {
         SPDLOG_INFO("Waiting for client message...");
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
         Header header;
         auto buffer = asio::mutable_buffer(
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             reinterpret_cast<char *>(&header), sizeof(header));
 
         error_code ec;
@@ -390,7 +397,9 @@ class Client {
             throw std::runtime_error{"Read " + std::to_string(num_read) +
                                      " bytes, less than the header size"};
         }
-        if (std::memcmp(header.marker, "dds", sizeof header.marker) != 0) {
+
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
+        if (std::memcmp(header.marker, "dds", sizeof(header.marker)) != 0) {
             throw std::runtime_error{"Invalid header on client message"};
         }
         SPDLOG_INFO("Reading client message with size {}",
@@ -434,10 +443,11 @@ class Client {
         Header h{};
         memcpy(&h.marker, "dds", 4);
         h.size = buf.len_;
-        SPDLOG_INFO("Writing response; size {} (header) + {} (body)",
-            sizeof(h), buf.len_);
+        SPDLOG_INFO("Writing response; size {} (header) + {} (body)", sizeof(h),
+            buf.len_);
 
         std::array const buffers = {
+            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             asio::const_buffer(reinterpret_cast<char *>(&h), sizeof(h)),
             asio::const_buffer(buf.buf_, buf.len_),
         };
@@ -447,13 +457,13 @@ class Client {
     }
 
     local::stream_protocol::socket sock_;
-    EchoPipe &echo_pipe_;
+    EchoPipe &echo_pipe_; // NOLINT
     std::vector<rapidjson::Document> responses_;
     decltype(responses_.begin()) next_response_;
 };
 
 class Dispatcher {
-  public:
+public:
     Dispatcher(EchoPipe &echo_pipe, std::vector<rapidjson::Document> responses)
         : acceptor_{try_fds()}, echo_pipe_{echo_pipe}, responses_{
                                                            std::move(responses)}
@@ -462,6 +472,8 @@ class Dispatcher {
             throw std::runtime_error{"UNIX socket is not open"};
         }
     }
+    Dispatcher(Dispatcher &&) = delete;
+    Dispatcher &operator=(Dispatcher &&) = delete;
     Dispatcher(const Dispatcher &) = delete;
     const Dispatcher &operator=(const Dispatcher &) = delete;
 
@@ -481,15 +493,20 @@ class Dispatcher {
         SPDLOG_INFO("Accepted a connection on UNIX socket");
         auto client = std::make_unique<Client>(
             std::move(client_socket), echo_pipe_, std::move(responses_));
-        spawn(iocontext, [client = std::move(client)](auto yield) {
-            client->run_loop(yield);
-            iocontext.stop();
-        }, [](std::exception_ptr e) {
-            if (e) std::rethrow_exception(e);
-        });
+        spawn(
+            iocontext,
+            [client = std::move(client)](auto yield) {
+                client->run_loop(yield);
+                post(iocontext, [] { iocontext.stop(); });
+            },
+            [](const std::exception_ptr &e) {
+                if (e) {
+                    std::rethrow_exception(e);
+                }
+            });
     }
 
-  private:
+private:
     static local::stream_protocol::acceptor try_fds()
     {
         auto maybe_sock = try_single_fd(4);
@@ -506,18 +523,20 @@ class Dispatcher {
     {
         struct ::stat statbuf = {0};
         if (fstat(fd, &statbuf) == -1) {
-            error_code ec = {errno, boost::system::system_category()};
+            error_code const ec = {errno, boost::system::system_category()};
             SPDLOG_INFO("fstat() failed for fd {}: {}", fd, ec.message());
             return std::nullopt;
         }
-        if (!(statbuf.st_mode & S_IFSOCK)) {
+        if ((statbuf.st_mode & S_IFSOCK) == 0) {
             SPDLOG_INFO("File descriptor {0} is not a socket: {1:o}", fd,
                 statbuf.st_mode & S_IFMT);
             return std::nullopt;
         }
 
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
         sockaddr_un addr;
         socklen_t len = sizeof(addr);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         if (::getsockname(fd, reinterpret_cast<sockaddr *>(&addr), &len) ==
             -1) {
             error_code const ec = {errno, boost::system::system_category()};
@@ -530,9 +549,9 @@ class Dispatcher {
             return std::nullopt;
         }
 
-        int new_fd = ::dup(fd);
+        int const new_fd = ::dup(fd); // NOLINT
         if (new_fd == -1) {
-            error_code ec = {errno, boost::system::system_category()};
+            error_code const ec = {errno, boost::system::system_category()};
             SPDLOG_INFO("Call to dup of fd {} failed: {}", fd, ec.message());
             return std::nullopt;
         }
@@ -546,15 +565,15 @@ class Dispatcher {
     }
 
     local::stream_protocol::acceptor acceptor_;
-    EchoPipe &echo_pipe_;
+    EchoPipe &echo_pipe_; // NOLINT
     std::vector<rapidjson::Document> responses_;
 };
 
-auto parse_responses(const std::vector<std::string> responses_str)
+auto parse_responses(const std::vector<std::string> &responses_str)
 {
     std::vector<rapidjson::Document> responses{responses_str.size()};
     auto out_iter = responses.begin();
-    for (auto &str : responses_str) {
+    for (const auto &str : responses_str) {
         out_iter->Parse(str.c_str());
         if (out_iter->HasParseError()) {
             throw std::runtime_error{
@@ -568,21 +587,29 @@ auto parse_responses(const std::vector<std::string> responses_str)
 }
 
 class SignallingLock {
-  public:
-    SignallingLock(const std::string &str)
+public:
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, hicpp-vararg)
+    explicit SignallingLock(const std::string &str)
+        : fd_(open(str.c_str(), O_CREAT | O_CLOEXEC, S_IRUSR | S_IWUSR))
     {
-        fd_ = open(str.c_str(), O_CREAT, S_IRUSR | S_IWUSR);
+
         if (fd_ == -1) {
-            error_code ec = {errno, boost::system::system_category()};
+            error_code const ec = {errno, boost::system::system_category()};
             throw std::runtime_error{
                 "Could not open " + str + ": " + ec.message()};
         }
     }
+    SignallingLock(SignallingLock &&) = delete;
+    SignallingLock(const SignallingLock &) = delete;
     ~SignallingLock() { close(fd_); }
-    void lock(asio::yield_context yield)
+
+    SignallingLock operator=(const SignallingLock &) = delete;
+    SignallingLock operator=(SignallingLock &&) = delete;
+
+    void lock(asio::yield_context yield) const
     {
-        for (int tries = 5; tries > 0; tries--) {
-            int res = flock(fd_, LOCK_EX | LOCK_NB);
+        for (int tries = 5; tries > 0; tries--) { // NOLINT
+            int const res = flock(fd_, LOCK_EX | LOCK_NB);
             if (res == 0) {
                 SPDLOG_INFO("Acquired signalling lock");
                 return;
@@ -592,29 +619,38 @@ class SignallingLock {
                 timer.expires_after(std::chrono::seconds{1});
                 timer.async_wait(yield);
             } else {
-                error_code ec = {errno, boost::system::system_category()};
+                error_code const ec = {errno, boost::system::system_category()};
                 throw std::runtime_error{"flock() failed: " + ec.message()};
             }
         }
         throw std::runtime_error{"Failed acquiring lock"};
     }
 
-  private:
+private:
     int fd_;
 };
 
-static void _fatal_signal_handler(int signum) {
-    ::signal(signum, SIG_DFL);
+void _fatal_signal_handler(int signum)
+{
+    ::signal(signum, SIG_DFL); // NOLINT(cert-err33-c)
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     std::cerr << "Got signal " << ::strsignal(signum) << "\n";
     std::cerr << boost::stacktrace::stacktrace();
+    // NOLINTNEXTLINE(cert-err33-c)
     ::raise(SIGABRT);
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, char *argv[])
 {
-    auto console = spdlog::stderr_logger_mt("console");
-    spdlog::set_default_logger(console);
-    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e][%l] %v at %s:%!");
+    try {
+        auto console = spdlog::stderr_logger_mt("console");
+        spdlog::set_default_logger(console);
+        spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e][%l] %v at %s:%!");
+    } catch (const std::exception &ex) {
+        std::cerr << "Logger initialization failed: " << ex.what() << "\n";
+        return 1;
+    }
 
     auto prev = ::signal(SIGSEGV, _fatal_signal_handler);
     if (prev == SIG_ERR) { // NOLINT(cppcoreguidelines-pro-type-cstyle-cast)
@@ -671,28 +707,42 @@ int main(int argc, char *argv[])
     EchoPipe echo_pipe;
     echo_pipe.add_close_cb([]() { iocontext.stop(); });
 
-    spawn(iocontext, [&](auto yield) {
-        Dispatcher dispatcher{echo_pipe, std::move(responses)};
-        dispatcher.accept_one(yield);
-    }, [](std::exception_ptr e) {
-        if (e) std::rethrow_exception(e);
-    });
+    spawn(
+        iocontext,
+        [&](auto yield) {
+            Dispatcher dispatcher{echo_pipe, std::move(responses)};
+            dispatcher.accept_one(yield);
+        },
+        [](const std::exception_ptr &e) {
+            if (e) {
+                std::rethrow_exception(e);
+            }
+        });
 
-    spawn(iocontext, [&](auto yield) {
-        HttpServerDispatcher dispatcher{echo_pipe, 18126 /* port */};
-        dispatcher.start();
-        dispatcher.run_loop(yield);
-    }, [](std::exception_ptr e) {
-        if (e) std::rethrow_exception(e);
-    });
+    spawn(
+        iocontext,
+        [&](auto yield) {
+            HttpServerDispatcher dispatcher{
+                echo_pipe, 18126 /* port */}; // NOLINT
+            dispatcher.start();
+            dispatcher.run_loop(yield);
+        },
+        [](const std::exception_ptr &e) {
+            if (e) {
+                std::rethrow_exception(e);
+            }
+        });
 
     std::optional<SignallingLock> signal_lock;
     if (opt_vm.count("lock") != 0U) {
         signal_lock.emplace(opt_vm["lock"].as<std::string>());
-        spawn(iocontext,
-            [&signal_lock](auto yield) { signal_lock->lock(yield); }, [](std::exception_ptr e) {
-                    if (e) std::rethrow_exception(e);
-                });
+        spawn(
+            iocontext, [&signal_lock](auto yield) { signal_lock->lock(yield); },
+            [](const std::exception_ptr &e) {
+                if (e) {
+                    std::rethrow_exception(e);
+                }
+            });
     }
 
     asio::signal_set signals{iocontext, SIGINT, SIGTERM};

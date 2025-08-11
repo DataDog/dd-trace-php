@@ -64,13 +64,6 @@ void ddtrace_check_for_new_config_now(void) {
     }
 }
 
-DDTRACE_PUBLIC const char *ddtrace_remote_config_get_path() {
-    if (DDTRACE_G(remote_config_state)) {
-        return ddog_remote_config_get_path(DDTRACE_G(remote_config_state));
-    }
-    return NULL;
-}
-
 #ifndef _WIN32
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
