@@ -14,18 +14,18 @@ use DDTrace\Util\Normalizer;
 
 class CakePHPIntegrationLoader
 {
-    public function load($integration)
+    public static function load()
     {
-        \DDTrace\hook_method('App\Application', '__construct', $integration->setRootSpanInfoFn);
-        \DDTrace\hook_method('Cake\Http\Server', '__construct', $integration->setRootSpanInfoFn);
+        \DDTrace\hook_method('App\Application', '__construct', CakePHPIntegration::$setRootSpanInfoFn);
+        \DDTrace\hook_method('Cake\Http\Server', '__construct', CakePHPIntegration::$setRootSpanInfoFn);
 
         \DDTrace\trace_method(
             'Cake\Controller\Controller',
             'invokeAction',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 $span->name = $span->resource = 'Controller.invokeAction';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->appName;
+                $span->service = CakePHPIntegration::$appName;
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                 /** @var \Cake\Controller\Controller $this */
@@ -57,14 +57,14 @@ class CakePHPIntegrationLoader
         \DDTrace\hook_method(
             'Cake\Error\Middleware\ErrorHandlerMiddleware',
             'handleException',
-            $integration->handleExceptionFn
+            CakePHPIntegration::$handleExceptionFn
         );
 
         \DDTrace\hook_method(
             'Cake\Http\Response',
             'getStatusCode',
             null,
-            $integration->setStatusCodeFn
+            CakePHPIntegration::$setStatusCodeFn
         );
 
         // Create a trace span for every template rendered
@@ -86,11 +86,11 @@ class CakePHPIntegrationLoader
                         \DDTrace\remove_hook($hook->id);
                     }
                 );
-            }, function (HookData $renderHook) use ($integration) {
+            }, function (HookData $renderHook) {
                 $span = $renderHook->span();
                 $span->name = 'cakephp.view';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = $integration->appName;
+                $span->service = CakePHPIntegration::$appName;
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                 $absoluteFilePath = $renderHook->data['viewFileName'] ?? '';
@@ -116,7 +116,7 @@ class CakePHPIntegrationLoader
             'Cake\Routing\Route\Route',
             'parseRequest',
             null,
-            $integration->parseRouteFn
+            CakePHPIntegration::$parseRouteFn
         );
 
         return Integration::LOADED;
