@@ -120,7 +120,7 @@ fn alloc_prof_needs_disabled_for_jit(version: u32) -> bool {
     // see https://github.com/php/php-src/pull/11380
     (80000..80121).contains(&version)
         || (80200..80208).contains(&version)
-        || (80400..80406).contains(&version)
+        || (80400..80407).contains(&version)
 }
 
 lazy_static! {
