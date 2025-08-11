@@ -477,7 +477,6 @@ tests/output/stream_isatty_out.phpt
 tests/output/stream_isatty_out-err.phpt
 tests/output/stream_isatty_in-err.phpt
 tests/output/stream_isatty_in-out.phpt
-
 Zend/tests/dval_to_lval_64.phpt
 Zend/tests/int_overflow_64bit.phpt
 ext/standard/tests/math/decbin_variation1_64bit.phpt
@@ -486,3 +485,15 @@ ext/standard/tests/math/decoct_variation1_64bit.phpt
 ext/standard/tests/strings/bug47842.phpt
 ext/standard/tests/strings/vprintf_variation15_64bit.phpt
 ext/standard/tests/strings/vsprintf_variation15_64bit.phpt
+ext/standard/tests/http/bug67430.phpt
+ext/standard/tests/http/bug61548.phpt
+ext/standard/tests/http/bug53198.phpt
+ext/standard/tests/http/bug48929.phpt
+ext/standard/tests/http/bug38802.phpt
+ext/standard/tests/http/bug65634.phpt
+ext/standard/tests/http/bug79265.phpt
+ext/standard/tests/http/bug79265_2.phpt
+ext/standard/tests/http/ghsa-hgf5-96fm-v528-003.phpt
+ext/standard/tests/http/ghsa-hgf5-96fm-v528-002.phpt
+ext/standard/tests/http/ghsa-hgf5-96fm-v528-001.phpt
+ext/standard/tests/http/ignore_errors.phpt

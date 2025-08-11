@@ -201,7 +201,67 @@ static inline zend_string *ddtrace_serialize_baggage(HashTable *baggage) {
     return serialized_baggage.s;
 }
 
-static inline void ddtrace_inject_distributed_headers_config(zend_array *array, bool key_value_pairs, zend_array *inject) {
+typedef enum {
+    HEADER_MODE_ARRAY,       // ["Header: value", ...]
+    HEADER_MODE_KV_PAIRS,    // [key => value]
+    HEADER_MODE_CONTEXT      // "Header1: value\r\nHeader2: value"
+} header_format;
+
+static inline zend_string *ddtrace_extract_header_key(char *header) {
+    const char *colon = strchr(header, ':');
+    if (!colon) {
+        return NULL;
+    }
+
+    size_t key_len = (size_t)(colon - header);
+    zend_string *key = zend_string_init(header, key_len, 0);
+    zend_str_tolower(ZSTR_VAL(key), key_len);
+    return key;
+}
+
+static inline void ddtrace_init_header_keys_set(zend_array *array, header_format format, HashTable *header_keys) {
+    if (format == HEADER_MODE_KV_PAIRS) {
+        return;
+    }
+
+    zend_hash_init(header_keys, 8, NULL, NULL, 0);
+
+    if (format != HEADER_MODE_ARRAY) {
+        return;
+    }
+
+    uint32_t idx = 0;
+    ZEND_HASH_FOREACH_VAL(array, zval *entry) {
+        zend_string *header_key = ddtrace_extract_header_key(Z_STRVAL_P(entry));
+        if (!header_key) {
+            idx++;
+            continue;
+        }
+
+        zval index_zv;
+        ZVAL_LONG(&index_zv, idx);
+        zend_hash_update(header_keys, header_key, &index_zv);
+        zend_string_release(header_key);
+        idx++;
+    } ZEND_HASH_FOREACH_END();
+}
+
+static inline void ddtrace_add_or_update_header_array(zend_array *array, HashTable *keys, const char *header_key, size_t header_key_len, zend_string *header) {
+    // Check for duplicates
+    if (zend_hash_num_elements(keys) > 0) {
+        zval *existing_idx_zv = zend_hash_str_find(keys, header_key, header_key_len);
+        if (existing_idx_zv) {
+           zend_hash_index_del(array, Z_LVAL_P(existing_idx_zv));
+       }
+    }
+
+    // Insert header
+    zval zv;
+    ZVAL_STR(&zv, header);
+    zend_hash_next_index_insert(array, &zv);
+}
+
+static inline void ddtrace_inject_distributed_headers_config(zend_array *array, header_format format, zend_array *inject) {
     ddtrace_root_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->active ? SPANDATA(DDTRACE_G(active_stack)->active)->root : NULL;
     zend_string *origin = DDTRACE_G(dd_origin);
     zend_array *tracestate_unknown_dd_keys = &DDTRACE_G(tracestate_unknown_dd_keys);
@@ -229,13 +289,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
 
     zval headers;
     ZVAL_ARR(&headers, array);
-
-#define ADD_HEADER(header, ...) \
-    if (key_value_pairs) { \
-        add_assoc_str_ex(&headers, ZEND_STRL(header), zend_strpprintf(0, __VA_ARGS__)); \
-    } else { \
-        add_next_index_str(&headers, zend_strpprintf(0, header ": " __VA_ARGS__)); \
-    }
+    smart_str stream_header = {0};
 
     bool send_datadog = zend_hash_str_exists(inject, ZEND_STRL("datadog"));
     bool send_tracestate = zend_hash_str_exists(inject, ZEND_STRL("tracecontext"));
@@ -252,6 +306,29 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
     zend_array *meta = root_span ? ddtrace_property_array(&root_span->property_meta) : &DDTRACE_G(root_span_tags_preset);
     if (!get_DD_APM_TRACING_ENABLED() && !ddtrace_asm_event_emitted() && !ddtrace_trace_source_is_meta_asm_sourced(meta)) {
         return;
+    }
+
+    HashTable header_keys;
+    ddtrace_init_header_keys_set(array, format, &header_keys);
+
+#define ADD_HEADER(header, ...) \
+    if (format == HEADER_MODE_KV_PAIRS) { \
+        add_assoc_str_ex(&headers, ZEND_STRL(header), zend_strpprintf(0, __VA_ARGS__)); \
+    } else if (format == HEADER_MODE_ARRAY) { \
+        ddtrace_add_or_update_header_array(Z_ARRVAL(headers), &header_keys, ZEND_STRL(header), zend_strpprintf(0, header ": " __VA_ARGS__)); \
+    } else { \
+        if (stream_header.s) { \
+            smart_str_appendl(&stream_header, "\r\n", 2); \
+        } \
+        zend_string *formatted = zend_strpprintf(0, header ": " __VA_ARGS__); \
+        smart_str_append(&stream_header, formatted); \
+        \
+        zend_string *key = zend_string_init(ZEND_STRL(header), 0); \
+        zend_str_tolower(ZSTR_VAL(key), ZSTR_LEN(key)); \
+        zend_hash_add_empty_element(&header_keys, key); \
+        zend_string_release(key); \
+        \
+        zend_string_release(formatted); \
     }
 
     if (sampling_priority != DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
@@ -285,9 +362,9 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         }
         if (send_b3) {
             if (trace_id.high) {
-                ADD_HEADER("X-B3-TraceId", "%016" PRIx64 "%016" PRIx64, trace_id.high, trace_id.low);
+                ADD_HEADER("x-b3-traceid", "%016" PRIx64 "%016" PRIx64, trace_id.high, trace_id.low);
             } else {
-                ADD_HEADER("X-B3-TraceId", "%016" PRIx64, trace_id.low);
+                ADD_HEADER("x-b3-traceid", "%016" PRIx64, trace_id.low);
             }
         }
         if (span_id) {
@@ -295,7 +372,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                 ADD_HEADER("x-datadog-parent-id", "%" PRIu64, span_id);
             }
             if (send_b3) {
-                ADD_HEADER("X-B3-SpanId", "%016" PRIx64, span_id);
+                ADD_HEADER("x-b3-spanid", "%016" PRIx64, span_id);
             }
             if (send_tracestate) {
                 ADD_HEADER("traceparent", "00-%016" PRIx64 "%016" PRIx64 "-%016" PRIx64 "-%02" PRIx8,
@@ -356,17 +433,56 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
             zend_string_release(full_baggage);
         }
     }
-    
+
     if (propagated_tags) {
         zend_string_release(propagated_tags);
+    }
+
+    if (format == HEADER_MODE_CONTEXT && stream_header.s) {
+        zval *existing_header_zv = zend_hash_str_find(array, ZEND_STRL("header"));
+
+        if (existing_header_zv && Z_TYPE_P(existing_header_zv) == IS_STRING) {
+            char *cursor = ZSTR_VAL(Z_STR_P(existing_header_zv));
+            char *end = cursor + ZSTR_LEN(Z_STR_P(existing_header_zv));
+
+            while (cursor < end) {
+                const char *eol = strstr(cursor, "\r\n");
+                size_t len = eol ? (size_t)(eol - cursor) : (size_t)(end - cursor);
+                if (len == 0) {
+                    cursor += eol ? 2 : 0;
+                    continue;
+                }
+
+                zend_string *key = ddtrace_extract_header_key(cursor);
+                if (key) {
+                    if (!zend_hash_exists(&header_keys, key)) {
+                        smart_str_appendl(&stream_header, "\r\n", 2);
+                        smart_str_appendl(&stream_header, cursor, len);
+                    }
+                    zend_string_release(key);
+                }
+
+                cursor += len + (eol ? 2 : 0);
+            }
+        }
+
+        smart_str_0(&stream_header);
+
+        zval result;
+        ZVAL_STR(&result, stream_header.s);
+        zend_hash_str_update(array, ZEND_STRL("header"), &result);
+    }
+
+    if (format != HEADER_MODE_KV_PAIRS) {
+        zend_hash_destroy(&header_keys);
     }
 
 #undef ADD_HEADER
 }
 
-static inline void ddtrace_inject_distributed_headers(zend_array *array, bool key_value_pairs) {
+static inline void ddtrace_inject_distributed_headers(zend_array *array, header_format format) {
     zend_array *inject = zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE)
                          && !zai_config_is_modified(DDTRACE_CONFIG_DD_TRACE_PROPAGATION_STYLE_INJECT)
                          ? get_DD_TRACE_PROPAGATION_STYLE() : get_DD_TRACE_PROPAGATION_STYLE_INJECT();
-    ddtrace_inject_distributed_headers_config(array, key_value_pairs, inject);
+    ddtrace_inject_distributed_headers_config(array, format, inject);
 }

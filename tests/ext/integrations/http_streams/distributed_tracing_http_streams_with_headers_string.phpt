@@ -1,0 +1,82 @@
+--TEST--
+Distributed tracing headers propagate via file_get_contents() with pre-existing headers as string.
+--SKIPIF--
+<?php
+if (!getenv('HTTPBIN_HOSTNAME')) {
+    die('skip: HTTPBIN_HOSTNAME env var required');
+}
+?>
+--ENV--
+DD_TRACE_AUTO_FLUSH_ENABLED=0
+DD_TRACE_LOG_LEVEL=info,startup=off
+DD_TRACE_HTTPSTREAM_ENABLED=1
+--FILE--
+<?php
+
+$port = getenv('HTTPBIN_PORT') ?: '80';
+$host = getenv('HTTPBIN_HOSTNAME');
+$url = 'http://' . $host . ':' . $port . '/headers';
+
+DDTrace\trace_function('file_get_contents', function (\DDTrace\SpanData $span) {
+    $span->name = 'httpstream';
+});
+
+function fetch_with_header_string(string $headerString)
+{
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'header' => $headerString,
+        ],
+    ]);
+    return file_get_contents($GLOBALS['url'], false, $ctx);
+}
+
+$responses = [];
+
+$responses[] = fetch_with_header_string("x-foo: one\r\nx-bar: alpha");
+$responses[] = fetch_with_header_string("x-foo: two\r\nx-bar: beta\r\nx-datadog-sampling-priority: 123");
+
+include 'distributed_tracing.inc';
+foreach ($responses as $key => $response) {
+    echo 'Response #' . $key . PHP_EOL;
+    $headers = dt_decode_headers_from_httpbin($response);
+    dt_dump_headers_from_httpbin($headers, [
+        'x-datadog-trace-id',
+        'x-datadog-parent-id',
+        'x-datadog-sampling-priority',
+        'x-datadog-tags',
+        'traceparent',
+        'tracestate',
+        'x-foo',
+        'x-bar',
+    ]);
+    echo PHP_EOL;
+}
+
+echo 'Done.' . PHP_EOL;
+?>
+--EXPECTF--
+[ddtrace] [warning] Error loading deferred integration DDTrace\Integrations\Filesystem\FilesystemIntegration: Class not loaded and not autoloadable
+Response #0
+traceparent: %s
+tracestate: %s
+x-bar: alpha
+x-datadog-parent-id: %d
+x-datadog-sampling-priority: 1
+x-datadog-tags: %s
+x-datadog-trace-id: %d
+x-foo: one
+
+Response #1
+traceparent: %s
+tracestate: %s
+x-bar: beta
+x-datadog-parent-id: %d
+x-datadog-sampling-priority: 1
+x-datadog-tags: %s
+x-datadog-trace-id: %d
+x-foo: two
+
+Done.
+[ddtrace] [info] Flushing trace of size 5 to send-queue for %s

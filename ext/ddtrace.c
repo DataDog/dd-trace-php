@@ -3520,10 +3520,10 @@ PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
                     zend_hash_add_empty_element(inject_set, Z_STR_P(val));
                 }
             } ZEND_HASH_FOREACH_END();
-            ddtrace_inject_distributed_headers_config(Z_ARR_P(return_value), true, inject_set);
+            ddtrace_inject_distributed_headers_config(Z_ARR_P(return_value), HEADER_MODE_KV_PAIRS, inject_set);
             zend_array_destroy(inject_set);
         } else {
-            ddtrace_inject_distributed_headers(Z_ARR_P(return_value), true);
+            ddtrace_inject_distributed_headers(Z_ARR_P(return_value), HEADER_MODE_KV_PAIRS);
         }
     }
 }
