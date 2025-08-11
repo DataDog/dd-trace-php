@@ -45,6 +45,7 @@ ext/curl/tests/bug79033.phpt
 ext/curl/tests/curl_int_cast.phpt
 ext/curl/tests/curl_postfields_array.phpt
 ext/curl/tests/curl_setopt_CURLOPT_ACCEPT_ENCODING.phpt
+ext/curl/tests/curl_upkeep_001.phpt
 ext/date/tests/bug52113.phpt
 ext/dom/tests/dom_set_attr_node.phpt
 ext/dom/tests/dom003.phpt
@@ -162,6 +163,7 @@ ext/standard/tests/math/bindec_variation1_64bit.phpt
 ext/standard/tests/math/hexdec_variation1_64bit.phpt
 ext/standard/tests/math/octdec_variation1.phpt
 ext/standard/tests/network/bug80067.phpt
+ext/standard/tests/network/gh12190.phpt
 ext/standard/tests/network/syslog_new_line.phpt
 ext/standard/tests/network/syslog_null_byte.phpt
 ext/standard/tests/serialize/005.phpt
@@ -200,3 +202,15 @@ tests/output/stream_isatty_out.phpt
 tests/output/stream_isatty_out-err.phpt
 tests/output/stream_isatty_in-err.phpt
 tests/output/stream_isatty_in-out.phpt
+ext/standard/tests/http/bug67430.phpt
+ext/standard/tests/http/bug61548.phpt
+ext/standard/tests/http/bug53198.phpt
+ext/standard/tests/http/bug48929.phpt
+ext/standard/tests/http/bug38802.phpt
+ext/standard/tests/http/bug65634.phpt
+ext/standard/tests/http/bug79265.phpt
+ext/standard/tests/http/bug79265_2.phpt
+ext/standard/tests/http/ghsa-hgf5-96fm-v528-003.phpt
+ext/standard/tests/http/ghsa-hgf5-96fm-v528-002.phpt
+ext/standard/tests/http/ghsa-hgf5-96fm-v528-001.phpt
+ext/standard/tests/http/ignore_errors.phpt

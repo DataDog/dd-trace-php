@@ -80,17 +80,36 @@ EOD
 chmod +x /tmp/apxs_wrapper
 }
 
+function run_dsymutil {
+  if [[ $(uname) != Darwin ]] then
+    return
+  fi
+  local readonly dir=$1 exe=
+  find "$dir" -type f -exec test -x '{}' \; -print | while read -r exe; do
+    if [[ $exe != *.a ]]; then
+      if ! grep -q '^#!' "$exe"; then
+        local readonly dSYM_DIR="${exe}.dSYM"
+        if [[ ! -d $dSYM_DIR ]]; then
+          dsymutil "$exe"
+        fi
+      fi
+    fi
+  done
+}
+
 function get_xdebug_version {
   local -r version=$1
   local readonly version_id=$(php_version_id $version)
-  if [[ $version_id -lt 70300 ]]; then
-    echo '2.8.1'
-  elif [[ $version_id -lt 80000 ]]; then
+  if [[ $version_id -lt 70100 ]]; then
+    echo '2.6.1'
+  elif [[ $version_id -lt 70200 ]]; then
     echo '2.9.8'
+  elif [[ $version_id -lt 80000 ]]; then
+    echo '3.1.6'
   elif [[ $version_id -lt 80400 ]]; then
-    echo '3.3.1'
+    echo '3.3.2'
   elif [[ $version_id -ge 80400 ]]; then
-    echo '3.4.0beta1'
+    echo '3.4.0'
   fi
 }
 
@@ -294,6 +313,7 @@ function build_php {
   make install-sapi || true
   make install-binaries install-headers install-modules install-programs install-build
 
+  run_dsymutil "$prefix_dir"
   rm -rf "$build_dir"
   cd -
 }
@@ -462,11 +482,12 @@ function install_xdebug {
   "$php_prefix/bin/phpize"
   mkdir -p "$build_dir"
   cd "$build_dir"
-  "$xdebug_source_dir/configure" "--with-php-config=$php_prefix/bin/php-config"
+  CFLAGS="$CFLAGS -ggdb" "$xdebug_source_dir/configure" "--with-php-config=$php_prefix/bin/php-config"
   make -j
   make install
   cd -
 
+  run_dsymutil "$php_prefix/lib"
   rm -rf "$build_dir"
 }
 
@@ -483,7 +504,7 @@ fi
 
 if [[ -d /opt/homebrew/lib ]]; then
   export LDFLAGS="${LDFLAGS:-} -L/opt/homebrew/lib"
-  export CPPFLAGS="${CPPFLAGS:-} -I/opt/homebrew/include"
+  export CPPFLAGS="${CPPFLAGS:-} -idirafter /opt/homebrew/include"
 fi
 export CXXFLAGS="${CXXFLAGS:-} -std=c++11"
 export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration"

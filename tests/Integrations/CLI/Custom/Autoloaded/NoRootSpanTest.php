@@ -40,7 +40,7 @@ final class NoRootSpanTest extends CLITestCase
                 'foo' => 'bar',
                 '_dd.code_origin.frames.0.method' => 'my_app',
                 '_dd.code_origin.type' => 'entry',
-                '_dd.code_origin.frames.1.line' => '1',
+                '_dd.code_origin.frames.1.line' => '30',
                 '_dd.code_origin.frames.1.file' => '%s',
                 '_dd.code_origin.frames.0.file' => '%s',
                 '_dd.code_origin.frames.0.line' => '6',

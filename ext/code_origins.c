@@ -1,5 +1,6 @@
 #include "code_origins.h"
 #include "configuration.h"
+#include "zend_generators.h"
 #include <Zend/zend_API.h>
 
 void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frames) {
@@ -9,6 +10,9 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
     zend_long max_frames = get_DD_CODE_ORIGIN_MAX_USER_FRAMES();
     int current_frame = 0;
     while (execute_data && current_frame < max_frames) {
+        if (UNEXPECTED(!EX(func))) {
+            execute_data = zend_generator_check_placeholder_frame(execute_data);
+        }
         if (EX(func) && ZEND_USER_CODE(EX(func)->type) && EX(func)->op_array.filename) {
             if (skip_frames > 0) {
                 --skip_frames;
@@ -22,7 +26,7 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
                 zend_string_release(key);
 
                 key = zend_strpprintf(0, "_dd.code_origin.frames.%d.line", current_frame);
-                ZVAL_LONG(&zv, EX(func)->op_array.line_start);
+                ZVAL_LONG(&zv, current_frame == 0 ? EX(func)->op_array.line_start : EX(opline)->lineno);
                 zend_hash_update(meta, key, &zv);
                 zend_string_release(key);
 

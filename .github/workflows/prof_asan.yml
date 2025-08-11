@@ -36,7 +36,6 @@ jobs:
         run: |
           set -eux
           switch-php nts-asan
-          rm $(php-config --ini-dir)/sqlsrv.ini #sqlsrv leaks memory and triggers asan
           cd profiling
           export CARGO_TARGET_DIR=/tmp/build-cargo
           export CC=clang-17
