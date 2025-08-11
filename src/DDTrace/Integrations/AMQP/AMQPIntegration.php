@@ -20,7 +20,7 @@ class AMQPIntegration extends Integration
 {
     const NAME = 'amqp';
     const SYSTEM = 'rabbitmq';
-    protected $protocolVersion;
+    public static $protocolVersion = "";
 
     // Source: https://magp.ie/2015/09/30/convert-large-integer-to-hexadecimal-without-php-math-extension/
     public static function largeBaseConvert($numString, $fromBase, $toBase)
@@ -55,16 +55,13 @@ class AMQPIntegration extends Integration
     /**
      * Add instrumentation to AMQP requests
      */
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-        $this->protocolVersion = "";
-
         hook_method(
             'PhpAmqpLib\Connection\AbstractConnection',
             '__construct',
-            function ($This) use ($integration) {
-                $integration->protocolVersion = $This::getProtocolVersion();
+            static function($This) {
+                AMQPIntegration::$protocolVersion = $This::getProtocolVersion();
             }
         );
 
@@ -72,24 +69,24 @@ class AMQPIntegration extends Integration
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_deliver",
             [
-                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                'prehook' => function (SpanData $span, $args) use (&$newTrace) {
                     /** @var AMQPMessage $message */
                     $message = $args[1];
-                    if ($integration->hasDistributedHeaders($message)) {
+                    if (AMQPIntegration::hasDistributedHeaders($message)) {
                         $newTrace = start_trace_span();
-                        $integration->extractContext($message);
+                        AMQPIntegration::extractContext($message);
                         $span->links[] = $newTrace->getLink();
                         $newTrace->links[] = $span->getLink();
                     }
                 },
-                'posthook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
+                'posthook' => function (SpanData $span, $args) use (&$newTrace) {
                     /** @var AMQPMessage $message */
                     $message = $args[1];
 
-                    $exchangeDisplayName = $integration->formatExchangeName($message->getExchange());
-                    $routingKeyDisplayName = $integration->formatRoutingKey($message->getRoutingKey());
+                    $exchangeDisplayName = AMQPIntegration::formatExchangeName($message->getExchange());
+                    $routingKeyDisplayName = AMQPIntegration::formatRoutingKey($message->getRoutingKey());
 
-                    $integration->setGenericTags(
+                    AMQPIntegration::setGenericTags(
                         $span,
                         'basic.deliver',
                         'consumer',
@@ -101,11 +98,11 @@ class AMQPIntegration extends Integration
                     $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
                     $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
 
-                    $integration->setOptionalMessageTags($span, $message);
+                    AMQPIntegration::setOptionalMessageTags($span, $message);
 
                     $activeSpan = active_span();
                     if ($activeSpan !== $span && $activeSpan == $newTrace) {
-                        $integration->setGenericTags(
+                        AMQPIntegration::setGenericTags(
                             $newTrace,
                             'basic.deliver',
                             'consumer',
@@ -116,7 +113,7 @@ class AMQPIntegration extends Integration
                         $newTrace->meta[Tag::MQ_CONSUMER_ID] = $message->getConsumerTag();
                         $newTrace->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
                         $newTrace->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
-                        $integration->setOptionalMessageTags($newTrace, $message);
+                        AMQPIntegration::setOptionalMessageTags($newTrace, $message);
 
                         // Close the created root span in the prehook
                         close_span();
@@ -129,14 +126,14 @@ class AMQPIntegration extends Integration
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_publish",
             [
-                'prehook' => function (SpanData $span, $args) use ($integration) {
+                'prehook' => function (SpanData $span, $args) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     if (!is_null($message)) {
-                        $integration->injectContext($message);
+                        AMQPIntegration::injectContext($message);
                     }
                 },
-                'posthook' => function (SpanData $span, $args, $exception) use ($integration) {
+                'posthook' => function (SpanData $span, $args, $exception) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     /** @var string $exchange */
@@ -144,10 +141,10 @@ class AMQPIntegration extends Integration
                     /** @var string $routing_key */
                     $routingKey = $args[2] ?? '';
 
-                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
-                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+                    $exchangeDisplayName = AMQPIntegration::formatExchangeName($exchange);
+                    $routingKeyDisplayName = AMQPIntegration::formatRoutingKey($routingKey);
 
-                    $integration->setGenericTags(
+                    AMQPIntegration::setGenericTags(
                         $span,
                         'basic.publish',
                         'producer',
@@ -161,7 +158,7 @@ class AMQPIntegration extends Integration
 
                     if (!is_null($message)) {
                         $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
-                        $integration->setOptionalMessageTags($span, $message);
+                        AMQPIntegration::setOptionalMessageTags($span, $message);
                     }
                 }
             ]
@@ -171,14 +168,14 @@ class AMQPIntegration extends Integration
             "PhpAmqpLib\Channel\AMQPChannel",
             "batch_basic_publish",
             [
-                'prehook' => function (SpanData $span, $args) use ($integration) {
+                'prehook' => function (SpanData $span, $args) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     if (!is_null($message)) {
-                        $integration->injectContext($message);
+                        AMQPIntegration::injectContext($message);
                     }
                 },
-                'posthook' => function (SpanData $span, $args, $exception) use ($integration) {
+                'posthook' => function (SpanData $span, $args, $exception) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     /** @var string $exchange */
@@ -186,10 +183,10 @@ class AMQPIntegration extends Integration
                     /** @var string $routing_key */
                     $routingKey = $args[2] ?? '';
 
-                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
-                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+                    $exchangeDisplayName = AMQPIntegration::formatExchangeName($exchange);
+                    $routingKeyDisplayName = AMQPIntegration::formatRoutingKey($routingKey);
 
-                    $integration->setGenericTags(
+                    AMQPIntegration::setGenericTags(
                         $span,
                         'batch_basic.add',
                         'producer',
@@ -202,7 +199,7 @@ class AMQPIntegration extends Integration
 
                     if (!is_null($message)) {
                         $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = strlen($message->getBody());
-                        $integration->setOptionalMessageTags($span, $message);
+                        AMQPIntegration::setOptionalMessageTags($span, $message);
                     }
                 }
             ]
@@ -211,8 +208,8 @@ class AMQPIntegration extends Integration
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
             "publish_batch",
-            function (SpanData $span, $args, $exception) use ($integration) {
-                $integration->setGenericTags(
+            function (SpanData $span, $args, $exception) {
+                AMQPIntegration::setGenericTags(
                     $span,
                     'publish_batch',
                     'producer',
@@ -226,15 +223,15 @@ class AMQPIntegration extends Integration
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_consume",
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+            function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $queue */
                 $queue = $args[0];
                 /** @var string $consumer_tag */
                 $consumerTag = $args[1];
 
-                $queueDisplayName = $integration->formatQueueName($queue);
+                $queueDisplayName = AMQPIntegration::formatQueueName($queue);
 
-                $integration->setGenericTags(
+                AMQPIntegration::setGenericTags(
                     $span,
                     'basic.consume',
                     'client',
@@ -250,13 +247,13 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'exchange_declare',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+            function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $exchange */
                 $exchange = $args[0];
 
-                $exchangeDisplayName = $integration->formatExchangeName($exchange);
+                $exchangeDisplayName = AMQPIntegration::formatExchangeName($exchange);
 
-                $integration->setGenericTags(
+                AMQPIntegration::setGenericTags(
                     $span,
                     'exchange.declare',
                     'client',
@@ -270,16 +267,16 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'queue_declare',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+            function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $queue */
                 $queue = $args[0];
                 if (empty($queue) && is_array($retval)) {
                     list($queue, ,) = $retval;
                 }
 
-                $queueDisplayName = $integration->formatQueueName($queue);
+                $queueDisplayName = AMQPIntegration::formatQueueName($queue);
 
-                $integration->setGenericTags(
+                AMQPIntegration::setGenericTags(
                     $span,
                     'queue.declare',
                     'client',
@@ -293,7 +290,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'queue_bind',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+            function (SpanData $span, $args, $retval, $exception) {
 
                 /** @var string $queue */
                 $queue = $args[0];
@@ -302,11 +299,11 @@ class AMQPIntegration extends Integration
                 /** @var string $routingKey */
                 $routingKey = $args[2] ?? '';
 
-                $queueDisplayName = $integration->formatQueueName($queue);
-                $exchangeDisplayName = $integration->formatExchangeName($exchange);
-                $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+                $queueDisplayName = AMQPIntegration::formatQueueName($queue);
+                $exchangeDisplayName = AMQPIntegration::formatExchangeName($exchange);
+                $routingKeyDisplayName = AMQPIntegration::formatRoutingKey($routingKey);
 
-                $integration->setGenericTags(
+                AMQPIntegration::setGenericTags(
                     $span,
                     'queue.bind',
                     'client',
@@ -323,8 +320,8 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_consume_ok',
-            function (SpanData $span) use ($integration) {
-                $integration->setGenericTags($span, 'basic.consume_ok', 'server');
+            function (SpanData $span) {
+                AMQPIntegration::setGenericTags($span, 'basic.consume_ok', 'server');
 
                 $span->meta[Tag::MQ_OPERATION] = 'process';
             }
@@ -333,11 +330,11 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_cancel',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+            function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $consumerTag */
                 $consumerTag = $args[0];
 
-                $integration->setGenericTags(
+                AMQPIntegration::setGenericTags(
                     $span,
                     'basic.cancel',
                     'client',
@@ -351,59 +348,59 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_cancel_ok',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setGenericTags($span, 'basic.cancel_ok', 'server', null, $exception);
+            function (SpanData $span, $args, $retval, $exception) {
+                AMQPIntegration::setGenericTags($span, 'basic.cancel_ok', 'server', null, $exception);
             }
         );
 
         trace_method(
             'PhpAmqpLib\Connection\AbstractConnection',
             'connect',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setGenericTags($span, 'connect', 'client', null, $exception);
+            function (SpanData $span, $args, $retval, $exception) {
+                AMQPIntegration::setGenericTags($span, 'connect', 'client', null, $exception);
             }
         );
 
         trace_method(
             'PhpAmqpLib\Connection\AbstractConnection',
             'reconnect',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setGenericTags($span, 'reconnect', 'client', null, $exception);
+            function (SpanData $span, $args, $retval, $exception) {
+                AMQPIntegration::setGenericTags($span, 'reconnect', 'client', null, $exception);
             }
         );
 
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_ack',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+            function (SpanData $span, $args, $retval, $exception) {
                 /** @var int $deliveryTag */
                 $deliveryTag = $args[0];
 
-                $integration->setGenericTags($span, 'basic.ack', 'process', $deliveryTag, $exception);
+                AMQPIntegration::setGenericTags($span, 'basic.ack', 'process', $deliveryTag, $exception);
             }
         );
 
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_nack',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
+            function (SpanData $span, $args, $retval, $exception) {
                 /** @var int $deliveryTag */
                 $deliveryTag = $args[0];
 
-                $integration->setGenericTags($span, 'basic.nack', 'process', $deliveryTag, $exception);
+                AMQPIntegration::setGenericTags($span, 'basic.nack', 'process', $deliveryTag, $exception);
             }
         );
 
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_get',
-            function (SpanData $span, $args, $message, $exception) use ($integration) {
+            function (SpanData $span, $args, $message, $exception) {
                 /** @var string $queue */
                 $queue = $args[0];
 
-                $queueDisplayName = $integration->formatQueueName($queue);
+                $queueDisplayName = AMQPIntegration::formatQueueName($queue);
 
-                $integration->setGenericTags(
+                AMQPIntegration::setGenericTags(
                     $span,
                     'basic.get',
                     'consumer',
@@ -418,15 +415,15 @@ class AMQPIntegration extends Integration
                     $exchange = $message->getExchange();
                     $routingKey = $message->getRoutingKey();
 
-                    $exchangeDisplayName = $integration->formatExchangeName($exchange);
-                    $routingKeyDisplayName = $integration->formatRoutingKey($routingKey);
+                    $exchangeDisplayName = AMQPIntegration::formatExchangeName($exchange);
+                    $routingKeyDisplayName = AMQPIntegration::formatRoutingKey($routingKey);
 
                     $span->meta[Tag::MQ_MESSAGE_PAYLOAD_SIZE] = $message->getBodySize();
 
                     $span->meta[Tag::RABBITMQ_ROUTING_KEY] = $routingKeyDisplayName;
                     $span->meta[Tag::RABBITMQ_EXCHANGE] = $exchangeDisplayName;
 
-                    $integration->setOptionalMessageTags($span, $message);
+                    AMQPIntegration::setOptionalMessageTags($span, $message);
 
                     // Create the span link to the emitting trace
                     if ($message->has('application_headers')) {
@@ -463,26 +460,26 @@ class AMQPIntegration extends Integration
         return Integration::LOADED;
     }
 
-    public function formatQueueName($queue)
+    public static function formatQueueName($queue)
     {
         return empty($queue) || !str_starts_with($queue, 'amq.gen-')
             ? $queue
             : '<generated>';
     }
 
-    public function formatExchangeName($exchange)
+    public static function formatExchangeName($exchange)
     {
         return empty($exchange) ? '<default>' : $exchange;
     }
 
-    public function formatRoutingKey($routingKey)
+    public static function formatRoutingKey($routingKey)
     {
         return empty($routingKey)
             ? '<all>'
-            : $this->formatQueueName($routingKey);
+            : self::formatQueueName($routingKey);
     }
 
-    public function setGenericTags(
+    public static function setGenericTags(
         SpanData $span,
         string $name,
         string $spanKind,
@@ -499,14 +496,14 @@ class AMQPIntegration extends Integration
         $span->meta[Tag::MQ_SYSTEM] = AMQPIntegration::SYSTEM;
         $span->meta[Tag::MQ_DESTINATION_KIND] = 'queue';
         $span->meta[Tag::MQ_PROTOCOL] = 'AMQP';
-        $span->meta[Tag::MQ_PROTOCOL_VERSION] = $this->protocolVersion;
+        $span->meta[Tag::MQ_PROTOCOL_VERSION] = self::$protocolVersion;
 
         if ($exception) {
             $span->exception = $exception;
         }
     }
 
-    public function setOptionalMessageTags(SpanData $span, AMQPMessage $message)
+    public static function setOptionalMessageTags(SpanData $span, AMQPMessage $message)
     {
         if ($message->has('delivery_mode')) {
             $span->meta[Tag::RABBITMQ_DELIVERY_MODE] = $message->get('delivery_mode');
@@ -519,7 +516,7 @@ class AMQPIntegration extends Integration
         }
     }
 
-    public function injectContext(AMQPMessage $message)
+    public static function injectContext(AMQPMessage $message)
     {
         if (\ddtrace_config_distributed_tracing_enabled() === false) {
             return;
@@ -539,7 +536,7 @@ class AMQPIntegration extends Integration
         $message->set('application_headers', $newHeaders);
     }
 
-    public function extractContext(AMQPMessage $message)
+    public static function extractContext(AMQPMessage $message)
     {
         if ($message->has('application_headers')) {
             $headers = $message->get('application_headers');
@@ -549,7 +546,7 @@ class AMQPIntegration extends Integration
         }
     }
 
-    public function hasDistributedHeaders(AMQPMessage $message)
+    public static function hasDistributedHeaders(AMQPMessage $message)
     {
         if ($message->has('application_headers')) {
             $headers = $message->get('application_headers');

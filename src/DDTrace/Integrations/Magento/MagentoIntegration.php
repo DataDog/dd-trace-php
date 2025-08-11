@@ -20,7 +20,7 @@ class MagentoIntegration extends Integration
 {
     const NAME = 'magento';
 
-    public function calculateEntropy(string $value)
+    public static function calculateEntropy(string $value)
     {
         $h = 0.0;
         $size = strlen($value);
@@ -45,7 +45,7 @@ class MagentoIntegration extends Integration
         return $class instanceof InterceptorInterface ? get_parent_class($class) : get_class($class);
     }
 
-    public function init(): int
+    public static function init(): int
     {
         ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
 
@@ -539,11 +539,10 @@ class MagentoIntegration extends Integration
             }
         );
 
-        $integration = $this;
         trace_method(
             'Magento\Framework\View\Element\AbstractBlock',
             'toHtml',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.block.render');
 
                 /** @var \Magento\Framework\View\Element\AbstractBlock $block */
@@ -580,7 +579,7 @@ class MagentoIntegration extends Integration
                 // For Legacy, see Magento\Widget\Model\Widget\Instance::generateLayoutUpdateXml
                 if (strlen($blockName) === 32
                     && $class === 'Magento\Cms\Block\Widget\Block'
-                    && $integration->calculateEntropy($blockName) > 4.0) {
+                    && MagentoIntegration::calculateEntropy($blockName) > 4.0) {
                     $span->resource = "$moduleName:<widget>";
                 }
             }
@@ -596,12 +595,11 @@ class MagentoIntegration extends Integration
         );
 
         // Exception handling
-        $integration = $this;
         hook_method(
             'Magento\Framework\AppInterface',
             'catchException',
             null,
-            function ($http, $scope, $args) use ($integration) {
+            function ($http, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->exception = $args[1];

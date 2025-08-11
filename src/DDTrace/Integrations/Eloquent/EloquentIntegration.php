@@ -14,74 +14,72 @@ class EloquentIntegration extends Integration
     /**
      * @var string The app name. Note that this value is used as a cache, you should use method getAppName().
      */
-    private $appName;
+    private static $appName = null;
 
     /**
      * {@inheritDoc}
      */
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Builder',
             'getModels',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 $span->name = 'eloquent.get';
                 $sql = $this->getQuery()->toSql();
                 $span->resource = $sql;
                 $span->meta[Tag::DB_STATEMENT] = $sql;
-                $integration->setCommonValues($span);
+                EloquentIntegration::setCommonValues($span);
             }
         );
 
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'performInsert',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 $span->name = 'eloquent.insert';
                 $span->resource = get_class($this);
-                $integration->setCommonValues($span);
+                EloquentIntegration::setCommonValues($span);
             }
         );
 
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'performUpdate',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 $span->name = 'eloquent.update';
                 $span->resource = get_class($this);
-                $integration->setCommonValues($span);
+                EloquentIntegration::setCommonValues($span);
             }
         );
 
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'delete',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 $span->name = 'eloquent.delete';
                 $span->resource = get_class($this);
-                $integration->setCommonValues($span);
+                EloquentIntegration::setCommonValues($span);
             }
         );
 
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'destroy',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 $span->name = 'eloquent.destroy';
                 $span->resource = get_called_class();
-                $integration->setCommonValues($span);
+                EloquentIntegration::setCommonValues($span);
             }
         );
 
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'refresh',
-            function (SpanData $span) use ($integration) {
+            function (SpanData $span) {
                 $span->name = 'eloquent.refresh';
                 $span->resource = get_class($this);
-                $integration->setCommonValues($span);
+                EloquentIntegration::setCommonValues($span);
             }
         );
 
@@ -93,10 +91,10 @@ class EloquentIntegration extends Integration
      *
      * @param SpanData $span
      */
-    public function setCommonValues(SpanData $span)
+    public static function setCommonValues(SpanData $span)
     {
         $span->type = Type::SQL;
-        Integration::handleInternalSpanServiceName($span, $this->getAppName());
+        Integration::handleInternalSpanServiceName($span, self::getAppName());
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = EloquentIntegration::NAME;
         $span->meta[Tag::DB_SYSTEM] = 'other_sql';
@@ -105,10 +103,10 @@ class EloquentIntegration extends Integration
     /**
      * @return string
      */
-    public function getAppName()
+    public static function getAppName()
     {
-        if (null !== $this->appName) {
-            return $this->appName;
+        if (null !== $name = self::$appName) {
+            return $name;
         }
 
         $name = \ddtrace_config_app_name();
@@ -116,7 +114,6 @@ class EloquentIntegration extends Integration
             $name = config('app.name');
         }
 
-        $this->appName = $name ?: 'laravel';
-        return $this->appName;
+        return self::$appName = $name ?: 'laravel';
     }
 }
