@@ -26,7 +26,7 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
                 zend_string_release(key);
 
                 key = zend_strpprintf(0, "_dd.code_origin.frames.%d.line", current_frame);
-                ZVAL_LONG(&zv, EX(func)->op_array.line_start);
+                ZVAL_LONG(&zv, current_frame == 0 ? EX(func)->op_array.line_start : EX(opline)->lineno);
                 zend_hash_update(meta, key, &zv);
                 zend_string_release(key);
 

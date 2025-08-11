@@ -513,9 +513,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     $client->getAsync(self::URL . '/status/201'),
                     $client->getAsync(self::URL . '/status/202'),
                     $client->getAsync('https://google.still.wrong/', ['http_errors' => false]),
-                    $client->getAsync('https://www.google.com'),
-                    $client->getAsync('https://www.google.com'),
-                    $client->getAsync('https://www.google.com'),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
                 ];
                 Utils::unwrap($promises);
             } catch (\Exception $e) {
