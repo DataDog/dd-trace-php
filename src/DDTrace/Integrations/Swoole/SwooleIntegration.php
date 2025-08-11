@@ -22,25 +22,25 @@ class SwooleIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
 
-    public function instrumentRequestStart(callable $callback, SwooleIntegration $integration, Server $server)
+    public static function instrumentRequestStart(callable $callback, Server $server)
     {
         $scheme = $server->ssl ? 'https://' : 'http://';
 
         \DDTrace\install_hook(
             $callback,
-            function (HookData $hook) use ($integration, $server, $scheme) {
+            function (HookData $hook) use ($server, $scheme) {
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
                 $rootSpan->type = Type::WEB_SERVLET;
                 $rootSpan->meta[Tag::COMPONENT] = SwooleIntegration::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
-                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                SwooleIntegration::addTraceAnalyticsIfEnabled($rootSpan);
 
                 $args = $hook->args;
                 /** @var Request $request */
@@ -106,23 +106,21 @@ class SwooleIntegration extends Integration
         );
     }
 
-    public function instrumentWorkerStart(callable $callback, SwooleIntegration $integration, Server $server)
+    public static function instrumentWorkerStart(callable $callback, Server $server)
     {
         \DDTrace\install_hook(
             $callback,
-            function (HookData $hook) use ($integration, $server) {
+            function (HookData $hook) use ($server) {
                 handle_fork();
             }
         );
     }
 
-    public function init(): int
+    public static function init(): int
     {
         if (version_compare(swoole_version(), '5.0.2', '<')) {
             return Integration::NOT_LOADED;
         }
-
-        $integration = $this;
 
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
@@ -131,7 +129,7 @@ class SwooleIntegration extends Integration
             'Swoole\Http\Server',
             '__construct',
             null,
-            function ($server) use ($integration) {
+            function ($server) {
                 $server->on('workerstart', function () { });
             }
         );
@@ -140,7 +138,7 @@ class SwooleIntegration extends Integration
             'Swoole\Http\Server',
             'on',
             null,
-            function ($server, $scope, $args, $retval) use ($integration) {
+            function ($server, $scope, $args, $retval) {
                 if ($retval === false) {
                     return; // Callback wasn't set
                 }
@@ -150,10 +148,10 @@ class SwooleIntegration extends Integration
                 $eventName = strtolower($eventName);
                 switch ($eventName) {
                     case 'request':
-                        $integration->instrumentRequestStart($callback, $integration, $server);
+                        SwooleIntegration::instrumentRequestStart($callback, $server);
                         break;
                     case 'workerstart':
-                        $integration->instrumentWorkerStart($callback, $integration, $server);
+                        SwooleIntegration::instrumentWorkerStart($callback, $server);
                         break;
                 }
 
@@ -163,7 +161,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Response',
             'end',
-            function ($response, $scope, $args) use ($integration) {
+            function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
@@ -183,7 +181,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Response',
             'header',
-            function ($response, $scope, $args) use ($integration) {
+            function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null || \count($args) < 2) {
                     return;
@@ -203,7 +201,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Response',
             'status',
-            function ($response, $scope, $args) use ($integration) {
+            function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan && \count($args) > 0) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $args[0];

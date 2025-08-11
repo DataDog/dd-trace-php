@@ -18,7 +18,7 @@ class ZendFrameworkIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -28,7 +28,7 @@ class ZendFrameworkIntegration extends Integration
      *
      * @return int
      */
-    public function init(): int
+    public static function init(): int
     {
         // Some frameworks, e.g. Yii registers autoloaders that fails with non-psr4 classes. For this reason the
         // Zend framework integration is not compatible with some of them
@@ -36,15 +36,10 @@ class ZendFrameworkIntegration extends Integration
             return self::NOT_AVAILABLE;
         }
 
-        $integration = $this;
-        // For backward compatibility with the legacy API we are not using the integration
-        // name 'zendframework', we are instead using the 'zf1' prefix.
-        $appName = \ddtrace_config_app_name('zf1');
-
         \DDTrace\hook_method(
             'Zend_Controller_Plugin_Broker',
             'preDispatch',
-            function ($broker, $scope, $args) use ($integration, $appName) {
+            function ($broker, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if (null === $rootSpan) {
                     return;
@@ -53,9 +48,11 @@ class ZendFrameworkIntegration extends Integration
                 try {
                     /** @var Zend_Controller_Request_Abstract $request */
                     list($request) = $args;
-                    $integration->addTraceAnalyticsIfEnabled($rootSpan);
-                    $rootSpan->name = $integration->getOperationName();
-                    $rootSpan->service = $appName;
+                    ZendFrameworkIntegration::addTraceAnalyticsIfEnabled($rootSpan);
+                    $rootSpan->name = ZendFrameworkIntegration::getOperationName();
+                    // For backward compatibility with the legacy API we are not using the integration
+                    // name 'zendframework', we are instead using the 'zf1' prefix.
+                    $rootSpan->service = \ddtrace_config_app_name('zf1');
                     $controller = $request->getControllerName();
                     $action = $request->getActionName();
                     $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();

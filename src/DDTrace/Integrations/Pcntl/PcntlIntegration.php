@@ -13,7 +13,7 @@ class PcntlIntegration extends Integration
     /**
      * Add instrumentation to forking
      */
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('pcntl')) {
             // pcntl is provided through an extension and not through a class loader.
