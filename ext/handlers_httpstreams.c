@@ -5,12 +5,12 @@
 
 static php_stream_wrapper_ops traced_http_wrapper_wops;
 static php_stream_wrapper_ops traced_https_wrapper_wops;
-static php_stream_wrapper ddtrace_original_http_wrapper;
-static php_stream_wrapper ddtrace_original_https_wrapper;
-static php_stream_wrapper ddtrace_traced_http_wrapper;
-static php_stream_wrapper ddtrace_traced_https_wrapper;
+static php_stream_wrapper dd_original_http_wrapper;
+static php_stream_wrapper dd_original_https_wrapper;
+static php_stream_wrapper dd_traced_http_wrapper;
+static php_stream_wrapper dd_traced_https_wrapper;
 
-#define DDTRACE_STREAM_OPENER_ARGS \
+#define DD_STREAM_OPENER_ARGS \
     php_stream_wrapper *wrapper, \
     const char *filename, \
     const char *mode, \
@@ -19,16 +19,16 @@ static php_stream_wrapper ddtrace_traced_https_wrapper;
     php_stream_context *context \
     STREAMS_DC
 
-#define DDTRACE_STREAM_OPENER_CALL_ARGS \
+#define DD_STREAM_OPENER_CALL_ARGS \
     wrapper, filename, mode, options, opened_path, context STREAMS_REL_CC
 
 static bool dd_load_http_stream_integration() {
     return get_DD_DISTRIBUTED_TRACING() && get_DD_TRACE_ENABLED();
 }
 
-static php_stream *ddtrace_stream_opener(
+static php_stream *dd_stream_opener(
     php_stream_wrapper *original_wrapper,
-    DDTRACE_STREAM_OPENER_ARGS
+    DD_STREAM_OPENER_ARGS
 ) {
     if (!context) {
         context = php_stream_context_alloc();
@@ -97,7 +97,7 @@ static php_stream *ddtrace_stream_opener(
         }
     }
 
-    php_stream *stream = original_wrapper->wops->stream_opener(DDTRACE_STREAM_OPENER_CALL_ARGS);
+    php_stream *stream = original_wrapper->wops->stream_opener(DD_STREAM_OPENER_CALL_ARGS);
 
     if (span) {
         ddtrace_clear_execute_data_span((zend_ulong)-2, true);
@@ -106,20 +106,20 @@ static php_stream *ddtrace_stream_opener(
     return stream;
 }
 
-static php_stream *ddtrace_stream_opener_http(DDTRACE_STREAM_OPENER_ARGS) {
-    return ddtrace_stream_opener(&ddtrace_original_http_wrapper, DDTRACE_STREAM_OPENER_CALL_ARGS);
+static php_stream *dd_stream_opener_http(DD_STREAM_OPENER_ARGS) {
+    return dd_stream_opener(&dd_original_http_wrapper, DD_STREAM_OPENER_CALL_ARGS);
 }
 
-static php_stream *ddtrace_stream_opener_https(DDTRACE_STREAM_OPENER_ARGS) {
-    return ddtrace_stream_opener(&ddtrace_original_https_wrapper, DDTRACE_STREAM_OPENER_CALL_ARGS);
+static php_stream *dd_stream_opener_https(DD_STREAM_OPENER_ARGS) {
+    return dd_stream_opener(&dd_original_https_wrapper, DD_STREAM_OPENER_CALL_ARGS);
 }
 
-static void ddtrace_instrument_stream_wrapper(
+static void dd_instrument_stream_wrapper(
     const char *name,
     php_stream_wrapper *original_wrapper,
     php_stream_wrapper *traced_wrapper,
     php_stream_wrapper_ops *traced_wops,
-    php_stream *(*stream_opener)(DDTRACE_STREAM_OPENER_ARGS)
+    php_stream *(*stream_opener)(DD_STREAM_OPENER_ARGS)
 ) {
     HashTable *wrappers = php_stream_get_url_stream_wrappers_hash_global();
     zval *wrapper_zv = zend_hash_str_find(wrappers, name, strlen(name));
@@ -140,19 +140,19 @@ static void ddtrace_instrument_stream_wrapper(
 }
 
 void ddtrace_instrument_stream_wrappers(void) {
-    ddtrace_instrument_stream_wrapper(
+    dd_instrument_stream_wrapper(
         "http",
-        &ddtrace_original_http_wrapper,
-        &ddtrace_traced_http_wrapper,
+        &dd_original_http_wrapper,
+        &dd_traced_http_wrapper,
         &traced_http_wrapper_wops,
-        ddtrace_stream_opener_http
+        dd_stream_opener_http
     );
 
-    ddtrace_instrument_stream_wrapper(
+    dd_instrument_stream_wrapper(
         "https",
-        &ddtrace_original_https_wrapper,
-        &ddtrace_traced_https_wrapper,
+        &dd_original_https_wrapper,
+        &dd_traced_https_wrapper,
         &traced_https_wrapper_wops,
-        ddtrace_stream_opener_https
+        dd_stream_opener_https
     );
 }
