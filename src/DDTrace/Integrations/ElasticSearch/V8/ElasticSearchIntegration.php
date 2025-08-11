@@ -3,7 +3,7 @@
 namespace DDTrace\Integrations\ElasticSearch\V8;
 
 use DDTrace\HookData;
-use DDTrace\Integrations\ElasticSearch\V1\ElasticSearchCommon;
+use DDTrace\Integrations\ElasticSearch\ElasticSearchCommon;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -13,25 +13,25 @@ class ElasticSearchIntegration extends Integration
 {
     const NAME = 'elasticsearch';
 
-    public $logNextBody = false;
+    public static $logNextBody = false;
+    public static $constructorCalled = false;
 
     /**
      * Add instrumentation to Elasticsearch requests
      */
-    public function init(): int
+    public static function init(): int
     {
         // Dynamically generate namespace traces to ensure forward compatibility with future ES versions
-        $integration = $this;
         \DDTrace\trace_method('Elastic\Elasticsearch\Client', '__construct', [
-            "posthook" => function (SpanData $span) use (&$constructorCalled, $integration) {
-                if (!$constructorCalled) {
+            "posthook" => function (SpanData $span) {
+                if (!ElasticSearchIntegration::$constructorCalled) {
                     foreach (get_class_methods('Elastic\Elasticsearch\Traits\NamespaceTrait') as $method) {
-                        $hook = function (HookData $hook) use ($integration, $method) {
+                        $hook = function (HookData $hook) use ($method) {
                             $ret = $hook->returned;
                             \DDTrace\remove_hook($hook->id);
                             $class = get_class($ret);
                             foreach (get_class_methods($ret) as $method) {
-                                $integration->traceNamespaceMethod($class, $method);
+                                ElasticSearchIntegration::traceNamespaceMethod($class, $method);
                             }
                         };
 
@@ -51,9 +51,9 @@ class ElasticSearchIntegration extends Integration
                             "scriptsPainlessExecute"
                         ];
                         $traceAnalytics = stripos($method, "search") !== false || in_array($method, $analyticsMethods);
-                        $integration->traceClientMethod($method, $traceAnalytics);
+                        ElasticSearchIntegration::traceClientMethod($method, $traceAnalytics);
                     }
-                    $constructorCalled = true;
+                    ElasticSearchIntegration::$constructorCalled = true;
                 }
 
                 $span->name = "Elasticsearch.Client.__construct";
@@ -65,19 +65,19 @@ class ElasticSearchIntegration extends Integration
         ]);
 
         // Serializers
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\CsvSerializer', 'serialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\CsvSerializer', 'unserialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\JsonSerializer', 'serialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\JsonSerializer', 'unserialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\NDJsonSerializer', 'serialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\NDJsonSerializer', 'unserialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\TextSerializer', 'serialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\TextSerializer', 'unserialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\XmlSerializer', 'serialize');
-        $this->traceSimpleMethod('Elastic\Transport\Serializer\XmlSerializer', 'unserialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\CsvSerializer', 'serialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\CsvSerializer', 'unserialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\JsonSerializer', 'serialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\JsonSerializer', 'unserialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\NDJsonSerializer', 'serialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\NDJsonSerializer', 'unserialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\TextSerializer', 'serialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\TextSerializer', 'unserialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\XmlSerializer', 'serialize');
+        self::traceSimpleMethod('Elastic\Transport\Serializer\XmlSerializer', 'unserialize');
 
         // Endpoints
-        $hook = function ($span, $args) use ($integration) {
+        $hook = function ($span, $args) {
             $span->name = "Elasticsearch.Endpoint.performRequest";
             $span->resource = 'performRequest';
             Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
@@ -97,7 +97,7 @@ class ElasticSearchIntegration extends Integration
                     parse_str($query, $queryParts);
                     $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($queryParts);
                 }
-                if ($integration->logNextBody && ($body = $request->getBody()) && $body->isSeekable()) {
+                if (ElasticSearchIntegration::$logNextBody && ($body = $request->getBody()) && $body->isSeekable()) {
                     $pos = $body->tell();
                     $body->seek(0);
                     $span->meta[Tag::ELASTICSEARCH_BODY] = $body->getContents();
@@ -114,9 +114,8 @@ class ElasticSearchIntegration extends Integration
      * @param string $name
      * @param bool $isTraceAnalyticsCandidate
      */
-    public function traceClientMethod($name, $isTraceAnalyticsCandidate = false)
+    public static function traceClientMethod($name, $isTraceAnalyticsCandidate = false)
     {
-        $integration = $this;
         $class = 'Elastic\Elasticsearch\Client';
 
         /*
@@ -129,12 +128,12 @@ class ElasticSearchIntegration extends Integration
             $class,
             $name,
             [
-                'prehook' => function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate, $integration) {
+                'prehook' => function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate) {
                     $span->name = "Elasticsearch.Client.$name";
 
                     if ($isTraceAnalyticsCandidate) {
-                        $integration->addTraceAnalyticsIfEnabled($span);
-                        $integration->logNextBody = true;
+                        ElasticSearchIntegration::addTraceAnalyticsIfEnabled($span);
+                        ElasticSearchIntegration::$logNextBody = true;
                     }
 
                     $span->meta[Tag::SPAN_KIND] = 'client';
@@ -143,8 +142,8 @@ class ElasticSearchIntegration extends Integration
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
                     $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
                 },
-                'posthook' => function () use ($integration) {
-                    $integration->logNextBody = false;
+                'posthook' => function () {
+                    ElasticSearchIntegration::$logNextBody = false;
                 }
             ]
         );
@@ -154,7 +153,7 @@ class ElasticSearchIntegration extends Integration
      * @param string $class
      * @param string $name
      */
-    public function traceSimpleMethod($class, $name)
+    public static function traceSimpleMethod($class, $name)
     {
         \DDTrace\trace_method($class, $name, function (SpanData $span) use ($class, $name) {
             $operationName = str_replace('\\', '.', "$class.$name");
@@ -170,7 +169,7 @@ class ElasticSearchIntegration extends Integration
      * @param string $namespace
      * @param string $name
      */
-    public function traceNamespaceMethod($class, $name)
+    public static function traceNamespaceMethod($class, $name)
     {
         $namespace = substr(strrchr($class, "\\"), 1);
 

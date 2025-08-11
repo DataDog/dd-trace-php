@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\Integrations\ElasticSearch\V1;
+namespace DDTrace\Integrations\ElasticSearch;
 
 /**
  * Utility class containing business logic shared between the legacy and the sandboxed api.

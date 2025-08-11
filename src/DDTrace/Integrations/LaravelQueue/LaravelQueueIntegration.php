@@ -27,17 +27,15 @@ class LaravelQueueIntegration extends Integration
     const NAME = 'laravelqueue';
 
     /**
-     * @var string The app name. Note that this value is used as a cache, you should use method getAppName().
+     * @var string The app name. Note that this value is used as a cache, you should use method getServiceName().
      */
-    private $appName;
+    private static $serviceName;
 
     /**
      * {@inheritdoc}
      */
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         \DDTrace\hook_method(
             'Illuminate\Queue\Worker',
             'kill',
@@ -57,78 +55,77 @@ class LaravelQueueIntegration extends Integration
             }
         );
 
-        trace_method(
-            'Illuminate\Queue\Worker',
-            'process',
-            [
-                'prehook' => function (SpanData $span, $args) use ($integration, &$newTrace) {
-                    /** @var Job $job */
-                    $job = $args[1];
+        install_hook(
+            'Illuminate\Queue\Worker::process',
+            function (HookData $hook) {
+                $span = $hook->span();
+                /** @var Job $job */
+                $job = $hook->args[1];
 
-                    $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job);
+                LaravelQueueIntegration::setSpanAttributes($span, 'laravel.queue.process', 'receive', $job);
 
-                    $payload = $job->payload();
-                    if (isset($payload['dd_headers'])) {
-                        if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')) {
-                            $newTrace = start_trace_span();
-                            $integration->setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
-                            $integration->extractContext($payload);
-                            $span->links[] = $newTrace->getLink();
-                            $newTrace->links[] = $span->getLink();
-                        } else {
-                            $span->links[] = SpanLink::fromHeaders($payload['dd_headers']);
-                        }
+                $payload = $job->payload();
+                if (isset($payload['dd_headers'])) {
+                    if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')) {
+                        $newTrace = start_trace_span();
+                        LaravelQueueIntegration::setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
+                        LaravelQueueIntegration::extractContext($payload);
+                        $span->links[] = $newTrace->getLink();
+                        $newTrace->links[] = $span->getLink();
+                        $hook->data = $newTrace;
+                    } else {
+                        $span->links[] = SpanLink::fromHeaders($payload['dd_headers']);
                     }
-                },
-                'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration, &$newTrace) {
-                    /** @var Job $job */
-                    $job = $args[1];
+                }
+            },
+            function (HookData $hook) {
+                $span = $hook->span();
+                /** @var Job $job */
+                $job = $hook->args[1];
 
-                    if ($exception) {
-                        // Used by Logs Correlation to track the origin of an exception
-                        ObjectKVStore::put(
-                            $exception,
-                            'exception_trace_identifiers',
-                            [
-                                'trace_id' => logs_correlation_trace_id(),
-                                'span_id' => dd_trace_peek_span_id()
-                            ]
-                        );
-                    }
+                if ($hook->exception) {
+                    // Used by Logs Correlation to track the origin of an exception
+                    ObjectKVStore::put(
+                        $hook->exception,
+                        'exception_trace_identifiers',
+                        [
+                            'trace_id' => logs_correlation_trace_id(),
+                            'span_id' => dd_trace_peek_span_id()
+                        ]
+                    );
+                }
 
-                    $activeSpan = active_span(); // This is the span created in the prehook, if any
-                    if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')
-                        && $activeSpan !== $span
-                        && $activeSpan == $newTrace
+                $activeSpan = active_span(); // This is the span created in the prehook, if any
+                if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')
+                    && $activeSpan !== $span
+                    && $activeSpan === $hook->data
+                ) {
+                    LaravelQueueIntegration::setSpanAttributes(
+                        $activeSpan,
+                        'laravel.queue.process',
+                        'receive',
+                        $job,
+                        $hook->exception
+                    );
+                    close_span();
+
+                    if (
+                        dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
+                        && dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
                     ) {
-                        $integration->setSpanAttributes(
-                            $activeSpan,
-                            'laravel.queue.process',
-                            'receive',
-                            $job,
-                            $exception
-                        );
-                        close_span();
-
-                        if (
-                            dd_trace_env_config("DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE")
-                            && dd_trace_env_config("DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS")
-                        ) {
-                            set_distributed_tracing_context("0", "0");
-                        }
+                        set_distributed_tracing_context("0", "0");
                     }
+                }
 
-                    $integration->setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $exception);
-                },
-                'recurse' => true
-            ]
+                LaravelQueueIntegration::setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $hook->exception);
+            }
         );
 
         hook_method(
             'Illuminate\Queue\Worker',
             'maxAttemptsExceededException',
             null,
-            function ($worker, $scope, $args, $retval) use ($integration) {
+            function ($worker, $scope, $args, $retval) {
                 if (($rootSpan = \DDTrace\root_span()) !== null) {
                     $rootSpan->exception = $retval;
                 }
@@ -139,10 +136,10 @@ class LaravelQueueIntegration extends Integration
             'Illuminate\Queue\Jobs\Job',
             'fire',
             [
-                'prehook' => function (SpanData $span, $args, $retval) use ($integration) {
-                    $integration->setSpanAttributes($span, 'laravel.queue.fire', 'process', $this);
+                'prehook' => function (SpanData $span, $args, $retval) {
+                    LaravelQueueIntegration::setSpanAttributes($span, 'laravel.queue.fire', 'process', $this);
                 },
-                'posthook' => function (SpanData $span, $args, $retval, $exception) use ($integration) {
+                'posthook' => function (SpanData $span, $args, $retval, $exception) {
                     if ($exception) {
                         $span->exception = $exception;
                     }
@@ -152,7 +149,7 @@ class LaravelQueueIntegration extends Integration
 
         install_hook(
             'Illuminate\Queue\Jobs\Job::fire',
-            function (HookData $fireHook) use ($integration) {
+            function (HookData $fireHook) {
                 /** @var \Illuminate\Queue\Jobs\Job $this */
                 $payload = $this->payload();
                 list($class, $method) = JobName::parse($payload['job']);
@@ -164,11 +161,11 @@ class LaravelQueueIntegration extends Integration
 
                 $fireHook->data['id'] = install_hook(
                     "$class::$method",
-                    function (HookData $hook) use ($integration, $class, $method, $fireHook) {
+                    function (HookData $hook) use ($class, $method, $fireHook) {
                         $span = $hook->span();
                         $span->name = 'laravel.queue.action';
                         $span->type = 'queue';
-                        $span->service = $integration->getAppName();
+                        $span->service = LaravelQueueIntegration::getServiceName();
                         $span->resource = $class . '@' . $method;
                         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
@@ -177,7 +174,7 @@ class LaravelQueueIntegration extends Integration
                         }
 
                         if (isset($this->job)) {
-                            $integration->setSpanAttributes(
+                            LaravelQueueIntegration::setSpanAttributes(
                                 $span,
                                 'laravel.queue.action',
                                 null,
@@ -200,8 +197,8 @@ class LaravelQueueIntegration extends Integration
         trace_method(
             'Illuminate\Queue\Jobs\Job',
             'resolve',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes($span, 'laravel.queue.resolve', 'process', $this, $exception);
+            function (SpanData $span, $args, $retval, $exception) {
+                LaravelQueueIntegration::setSpanAttributes($span, 'laravel.queue.resolve', 'process', $this, $exception);
             }
         );
 
@@ -209,8 +206,8 @@ class LaravelQueueIntegration extends Integration
         trace_method(
             'Illuminate\Queue\Queue',
             'enqueueUsing',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes(
+            function (SpanData $span, $args, $retval, $exception) {
+                LaravelQueueIntegration::setSpanAttributes(
                     $span,
                     'laravel.queue.enqueueUsing',
                     null,
@@ -224,10 +221,10 @@ class LaravelQueueIntegration extends Integration
         install_hook(
             'Illuminate\Queue\Queue::createPayload',
             null,
-            function (HookData $hook) use ($integration) {
+            function (HookData $hook) {
                 // $hook->returned, a.k.a. the payload, should be a json encoded string
                 // Decode it, add the distributed tracing headers, re-encode it, return this one instead
-                $payload = $integration->injectContext(json_decode($hook->returned, true));
+                $payload = LaravelQueueIntegration::injectContext(json_decode($hook->returned, true));
                 $hook->overrideReturnValue(json_encode($payload));
             }
         );
@@ -235,8 +232,8 @@ class LaravelQueueIntegration extends Integration
         trace_method(
             'Illuminate\Contracts\Queue\Queue',
             'push',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes(
+            function (SpanData $span, $args, $retval, $exception) {
+                LaravelQueueIntegration::setSpanAttributes(
                     $span,
                     'laravel.queue.push',
                     'send',
@@ -251,8 +248,8 @@ class LaravelQueueIntegration extends Integration
         trace_method(
             'Illuminate\Contracts\Queue\Queue',
             'later',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes(
+            function (SpanData $span, $args, $retval, $exception) {
+                LaravelQueueIntegration::setSpanAttributes(
                     $span,
                     'laravel.queue.later',
                     'send',
@@ -268,8 +265,8 @@ class LaravelQueueIntegration extends Integration
         trace_method(
             'Illuminate\Bus\Batch',
             'add',
-            function (SpanData $span, $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes(
+            function (SpanData $span, $args, $retval, $exception) {
+                LaravelQueueIntegration::setSpanAttributes(
                     $span,
                     'laravel.queue.batch.add',
                     'send',
@@ -287,7 +284,7 @@ class LaravelQueueIntegration extends Integration
         return Integration::LOADED;
     }
 
-    public function setSpanAttributes(
+    public static function setSpanAttributes(
         SpanData $span,
         string $name,
         $operation = null,
@@ -297,7 +294,7 @@ class LaravelQueueIntegration extends Integration
         $resourceSubstitute = null
     ) {
         $span->name = $name;
-        $span->service = $this->getAppName();
+        $span->service = self::getServiceName();
         $span->type = 'queue';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
@@ -310,7 +307,7 @@ class LaravelQueueIntegration extends Integration
             $jobName = $job->resolveName();
             $span->meta = array_merge(
                 $span->meta,
-                $this->getMetadataFromJob($job)
+                self::getMetadataFromJob($job)
             );
             $queue = $queue ?? $job->getQueue();
         } elseif (is_object($job)) { // Most certainly a CallQueuedClosure
@@ -323,7 +320,7 @@ class LaravelQueueIntegration extends Integration
             $span->meta[Tag::MQ_DESTINATION] = $queue;
             $span->meta = array_merge(
                 $span->meta,
-                $this->getMetadataFromObject($job)
+                self::getMetadataFromObject($job)
             );
         } else {
             $jobName = $job;
@@ -340,7 +337,7 @@ class LaravelQueueIntegration extends Integration
         }
     }
 
-    public function getMetadataFromJob(Job $job)
+    public static function getMetadataFromJob(Job $job)
     {
         $metadata = [
             Tag::LARAVELQ_ATTEMPTS => $job->attempts(),
@@ -361,7 +358,7 @@ class LaravelQueueIntegration extends Integration
         return $metadata;
     }
 
-    public function getMetadataFromObject($job)
+    public static function getMetadataFromObject($job)
     {
         $metadata = [
             Tag::LARAVELQ_MAX_TRIES => $job->tries ?? null,
@@ -379,7 +376,7 @@ class LaravelQueueIntegration extends Integration
         return $metadata;
     }
 
-    public function injectContext(array $payload)
+    public static function injectContext(array $payload)
     {
         if (!\ddtrace_config_distributed_tracing_enabled()) {
             return $payload;
@@ -390,25 +387,26 @@ class LaravelQueueIntegration extends Integration
         return $payload;
     }
 
-    public function extractContext(array $payload)
+    public static function extractContext(array $payload)
     {
         if (isset($payload['dd_headers'])) {
             \DDTrace\consume_distributed_tracing_headers($payload['dd_headers']);
         }
     }
 
-    public function getAppName()
+    public static function getServiceName()
     {
-        if (null !== $this->appName) {
-            return $this->appName;
+        if (!empty(self::$serviceName)) {
+            return self::$serviceName;
         }
-
-        $name = \ddtrace_config_app_name();
-        if (empty($name) && is_callable('config')) {
-            $name = config('app.name');
+        self::$serviceName = \ddtrace_config_app_name();
+        try {
+            if (empty(self::$serviceName) && is_callable('config')) {
+                self::$serviceName = config('app.name');
+            }
+        } catch (\Throwable $e) {
+            return 'laravel';
         }
-
-        $this->appName = $name ?: 'laravel';
-        return $this->appName;
+        return self::$serviceName ?: 'laravel';
     }
 }

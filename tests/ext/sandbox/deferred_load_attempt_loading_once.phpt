@@ -11,7 +11,7 @@ namespace DDTrace\Test
 {
     class TestSandboxedIntegration implements \DDTrace\Integration
     {
-        function init(): int
+        static function init(): int
         {
             echo "autoload_attempted" . PHP_EOL;
             return self::LOADED;

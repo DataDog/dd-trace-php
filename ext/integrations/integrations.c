@@ -111,20 +111,13 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     break;
                 }
 
-                zval obj;
-                if (!zai_symbol_new(&obj, ce, 0)) {
-                    break;
-                }
-
                 zval rv;
                 zval *thisp = getThis();
                 if (thisp) {
-                    success = zai_symbol_call_named(ZAI_SYMBOL_SCOPE_OBJECT, &obj, &(zai_str) ZAI_STRL("init"), &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, thisp);
+                    success = zai_symbol_call_static(ce, (zai_str) ZAI_STRL("init"), &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, thisp);
                 } else {
-                    success = zai_symbol_call_named(ZAI_SYMBOL_SCOPE_OBJECT, &obj, &(zai_str) ZAI_STRL("init"), &rv, 0 | ZAI_SYMBOL_SANDBOX, &sandbox);
+                    success = zai_symbol_call_static(ce, (zai_str) ZAI_STRL("init"), &rv, 0 | ZAI_SYMBOL_SANDBOX, &sandbox);
                 }
-
-                zval_ptr_dtor(&obj);
 
                 if (success && get_DD_TRACE_ENABLED()) {
                     switch (Z_LVAL(rv)) {

@@ -18,20 +18,18 @@ class MongoIntegration extends Integration
     const NAME = 'mongo';
     const SYSTEM = 'mongodb';
 
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('mongo')) {
             return Integration::NOT_AVAILABLE;
         }
 
-        $integration = $this;
-
         /**
          * MongoClient
          */
 
-        \DDTrace\trace_method('MongoClient', '__construct', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoClient', '__construct');
+        \DDTrace\trace_method('MongoClient', '__construct', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoClient', '__construct');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_SERVER] = Obfuscation::dsn($args[0]);
                 $dbName = MongoIntegration::extractDatabaseNameFromDsn($args[0]);
@@ -44,8 +42,8 @@ class MongoIntegration extends Integration
             }
         });
 
-        \DDTrace\trace_method('MongoClient', 'selectCollection', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoClient', 'selectCollection');
+        \DDTrace\trace_method('MongoClient', 'selectCollection', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoClient', 'selectCollection');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_DATABASE] = $args[0];
             }
@@ -54,32 +52,32 @@ class MongoIntegration extends Integration
             }
         });
 
-        \DDTrace\trace_method('MongoClient', 'selectDB', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoClient', 'selectDB');
+        \DDTrace\trace_method('MongoClient', 'selectDB', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoClient', 'selectDB');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_DATABASE] = $args[0];
             }
         });
 
-        \DDTrace\trace_method('MongoClient', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoClient', 'setReadPreference');
+        \DDTrace\trace_method('MongoClient', 'setReadPreference', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoClient', 'setReadPreference');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
             }
         });
 
-        $this->traceMongoMethod('MongoClient', 'getHosts');
-        $this->traceMongoMethod('MongoClient', 'getReadPreference');
-        $this->traceMongoMethod('MongoClient', 'getWriteConcern');
-        $this->traceMongoMethod('MongoClient', 'listDBs');
-        $this->traceMongoMethod('MongoClient', 'setWriteConcern');
+        self::traceMongoMethod('MongoClient', 'getHosts');
+        self::traceMongoMethod('MongoClient', 'getReadPreference');
+        self::traceMongoMethod('MongoClient', 'getWriteConcern');
+        self::traceMongoMethod('MongoClient', 'listDBs');
+        self::traceMongoMethod('MongoClient', 'setWriteConcern');
 
         /**
          * MongoCollection
          */
 
-        \DDTrace\trace_method('MongoCollection', '__construct', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoCollection', '__construct');
+        \DDTrace\trace_method('MongoCollection', '__construct', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoCollection', '__construct');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_DATABASE] = Integration::toString($args[0]);
             }
@@ -91,8 +89,8 @@ class MongoIntegration extends Integration
         \DDTrace\trace_method(
             'MongoCollection',
             'createDBRef',
-            function (SpanData $span, $args, $return) use ($integration) {
-                $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'createDBRef');
+            function (SpanData $span, $args, $return) {
+                MongoIntegration::addSpanDefaultMetadata($span, 'MongoCollection', 'createDBRef');
                 if (!is_array($return)) {
                     return;
                 }
@@ -105,8 +103,8 @@ class MongoIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_method('MongoCollection', 'getDBRef', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'getDBRef');
+        \DDTrace\trace_method('MongoCollection', 'getDBRef', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoCollection', 'getDBRef');
 
             if (isset($args[0]['$id'])) {
                 $span->meta[Tag::MONGODB_BSON_ID] = $args[0]['$id'];
@@ -116,9 +114,9 @@ class MongoIntegration extends Integration
             }
         });
 
-        \DDTrace\trace_method('MongoCollection', 'distinct', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'distinct');
-            $integration->addTraceAnalyticsIfEnabled($span);
+        \DDTrace\trace_method('MongoCollection', 'distinct', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoCollection', 'distinct');
+            MongoIntegration::addTraceAnalyticsIfEnabled($span);
             if (isset($args[1])) {
                 $span->meta[Tag::MONGODB_QUERY] = json_encode($args[1]);
             }
@@ -127,59 +125,59 @@ class MongoIntegration extends Integration
         \DDTrace\trace_method(
             'MongoCollection',
             'setReadPreference',
-            function (SpanData $span, $args) use ($integration) {
-                $integration->addSpanDefaultMetadata($span, 'MongoCollection', 'setReadPreference');
+            function (SpanData $span, $args) {
+                MongoIntegration::addSpanDefaultMetadata($span, 'MongoCollection', 'setReadPreference');
                 if (isset($args[0])) {
                     $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
                 }
             }
         );
 
-        $this->traceMongoQuery('MongoCollection', 'count', false);
-        $this->traceMongoQuery('MongoCollection', 'find');
-        $this->traceMongoQuery('MongoCollection', 'findAndModify');
-        $this->traceMongoQuery('MongoCollection', 'findOne');
-        $this->traceMongoQuery('MongoCollection', 'remove', false);
-        $this->traceMongoQuery('MongoCollection', 'update');
+        self::traceMongoQuery('MongoCollection', 'count', false);
+        self::traceMongoQuery('MongoCollection', 'find');
+        self::traceMongoQuery('MongoCollection', 'findAndModify');
+        self::traceMongoQuery('MongoCollection', 'findOne');
+        self::traceMongoQuery('MongoCollection', 'remove', false);
+        self::traceMongoQuery('MongoCollection', 'update');
 
-        $this->traceMongoMethod('MongoCollection', 'aggregate');
-        $this->traceMongoMethod('MongoCollection', 'aggregateCursor');
-        $this->traceMongoMethod('MongoCollection', 'batchInsert');
-        $this->traceMongoMethod('MongoCollection', 'createIndex');
-        $this->traceMongoMethod('MongoCollection', 'deleteIndex');
-        $this->traceMongoMethod('MongoCollection', 'deleteIndexes');
-        $this->traceMongoMethod('MongoCollection', 'drop');
-        $this->traceMongoMethod('MongoCollection', 'getIndexInfo');
-        $this->traceMongoMethod('MongoCollection', 'getName');
-        $this->traceMongoMethod('MongoCollection', 'getReadPreference');
-        $this->traceMongoMethod('MongoCollection', 'getWriteConcern');
-        $this->traceMongoMethod('MongoCollection', 'group');
-        $this->traceMongoMethod('MongoCollection', 'insert');
-        $this->traceMongoMethod('MongoCollection', 'parallelCollectionScan');
-        $this->traceMongoMethod('MongoCollection', 'save');
-        $this->traceMongoMethod('MongoCollection', 'setWriteConcern');
-        $this->traceMongoMethod('MongoCollection', 'validate');
+        self::traceMongoMethod('MongoCollection', 'aggregate');
+        self::traceMongoMethod('MongoCollection', 'aggregateCursor');
+        self::traceMongoMethod('MongoCollection', 'batchInsert');
+        self::traceMongoMethod('MongoCollection', 'createIndex');
+        self::traceMongoMethod('MongoCollection', 'deleteIndex');
+        self::traceMongoMethod('MongoCollection', 'deleteIndexes');
+        self::traceMongoMethod('MongoCollection', 'drop');
+        self::traceMongoMethod('MongoCollection', 'getIndexInfo');
+        self::traceMongoMethod('MongoCollection', 'getName');
+        self::traceMongoMethod('MongoCollection', 'getReadPreference');
+        self::traceMongoMethod('MongoCollection', 'getWriteConcern');
+        self::traceMongoMethod('MongoCollection', 'group');
+        self::traceMongoMethod('MongoCollection', 'insert');
+        self::traceMongoMethod('MongoCollection', 'parallelCollectionScan');
+        self::traceMongoMethod('MongoCollection', 'save');
+        self::traceMongoMethod('MongoCollection', 'setWriteConcern');
+        self::traceMongoMethod('MongoCollection', 'validate');
 
         /**
          * MongoDB
          */
 
-        \DDTrace\trace_method('MongoDB', 'setReadPreference', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoDB', 'setReadPreference');
+        \DDTrace\trace_method('MongoDB', 'setReadPreference', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoDB', 'setReadPreference');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_READ_PREFERENCE] = $args[0];
             }
         });
 
-        \DDTrace\trace_method('MongoDB', 'setProfilingLevel', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoDB', 'setProfilingLevel');
+        \DDTrace\trace_method('MongoDB', 'setProfilingLevel', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoDB', 'setProfilingLevel');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_PROFILING_LEVEL] = json_encode($args[0]);
             }
         });
 
-        \DDTrace\trace_method('MongoDB', 'command', function (SpanData $span, $args, $return) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoDB', 'command');
+        \DDTrace\trace_method('MongoDB', 'command', function (SpanData $span, $args, $return) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoDB', 'command');
             if (isset($args[0]['query'])) {
                 $span->meta[Tag::MONGODB_QUERY] = json_encode($args[0]['query']);
             }
@@ -190,8 +188,8 @@ class MongoIntegration extends Integration
             }
         });
 
-        \DDTrace\trace_method('MongoDB', 'createDBRef', function (SpanData $span, $args, $return) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoDB', 'createDBRef');
+        \DDTrace\trace_method('MongoDB', 'createDBRef', function (SpanData $span, $args, $return) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoDB', 'createDBRef');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = Integration::toString($args[0]);
             }
@@ -200,39 +198,39 @@ class MongoIntegration extends Integration
             }
         });
 
-        \DDTrace\trace_method('MongoDB', 'getDBRef', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoDB', 'getDBRef');
+        \DDTrace\trace_method('MongoDB', 'getDBRef', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoDB', 'getDBRef');
             if (isset($args[0]['$ref'])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = Integration::toString($args[0]['$ref']);
             }
         });
 
-        \DDTrace\trace_method('MongoDB', 'createCollection', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoDB', 'createCollection');
+        \DDTrace\trace_method('MongoDB', 'createCollection', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoDB', 'createCollection');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = Integration::toString($args[0]);
             }
         });
 
-        \DDTrace\trace_method('MongoDB', 'selectCollection', function (SpanData $span, $args) use ($integration) {
-            $integration->addSpanDefaultMetadata($span, 'MongoDB', 'selectCollection');
+        \DDTrace\trace_method('MongoDB', 'selectCollection', function (SpanData $span, $args) {
+            MongoIntegration::addSpanDefaultMetadata($span, 'MongoDB', 'selectCollection');
             if (isset($args[0])) {
                 $span->meta[Tag::MONGODB_COLLECTION] = Integration::toString($args[0]);
             }
         });
 
-        $this->traceMongoMethod('MongoDB', 'drop');
-        $this->traceMongoMethod('MongoDB', 'execute');
-        $this->traceMongoMethod('MongoDB', 'getCollectionInfo');
-        $this->traceMongoMethod('MongoDB', 'getCollectionNames');
-        $this->traceMongoMethod('MongoDB', 'getGridFS');
-        $this->traceMongoMethod('MongoDB', 'getProfilingLevel');
-        $this->traceMongoMethod('MongoDB', 'getReadPreference');
-        $this->traceMongoMethod('MongoDB', 'getWriteConcern');
-        $this->traceMongoMethod('MongoDB', 'lastError');
-        $this->traceMongoMethod('MongoDB', 'listCollections');
-        $this->traceMongoMethod('MongoDB', 'repair');
-        $this->traceMongoMethod('MongoDB', 'setWriteConcern');
+        self::traceMongoMethod('MongoDB', 'drop');
+        self::traceMongoMethod('MongoDB', 'execute');
+        self::traceMongoMethod('MongoDB', 'getCollectionInfo');
+        self::traceMongoMethod('MongoDB', 'getCollectionNames');
+        self::traceMongoMethod('MongoDB', 'getGridFS');
+        self::traceMongoMethod('MongoDB', 'getProfilingLevel');
+        self::traceMongoMethod('MongoDB', 'getReadPreference');
+        self::traceMongoMethod('MongoDB', 'getWriteConcern');
+        self::traceMongoMethod('MongoDB', 'lastError');
+        self::traceMongoMethod('MongoDB', 'listCollections');
+        self::traceMongoMethod('MongoDB', 'repair');
+        self::traceMongoMethod('MongoDB', 'setWriteConcern');
 
         return Integration::LOADED;
     }
@@ -246,11 +244,10 @@ class MongoIntegration extends Integration
      * @param string $method
      * @param boolean $isTraceAnalithicsCandidate [default: `true`]
      */
-    public function traceMongoMethod($class, $method)
+    public static function traceMongoMethod($class, $method)
     {
-        $integration = $this;
-        \DDTrace\trace_method($class, $method, function (SpanData $span) use ($class, $method, $integration) {
-            $integration->addSpanDefaultMetadata($span, $class, $method);
+        \DDTrace\trace_method($class, $method, function (SpanData $span) use ($class, $method) {
+            MongoIntegration::addSpanDefaultMetadata($span, $class, $method);
         });
     }
 
@@ -261,18 +258,17 @@ class MongoIntegration extends Integration
      *
      * @param string $class
      * @param string $method
-     * @param boolean $isTraceAnalithicsCandidate [default: `true`]
+     * @param boolean $isTraceAnalyticsCandidate [default: `true`]
      */
-    public function traceMongoQuery($class, $method, $isTraceAnalithicsCandidate = true)
+    public static function traceMongoQuery($class, $method, $isTraceAnalyticsCandidate = true)
     {
-        $integration = $this;
         \DDTrace\trace_method(
             $class,
             $method,
-            function (SpanData $span, $args) use ($class, $method, $isTraceAnalithicsCandidate, $integration) {
-                $integration->addSpanDefaultMetadata($span, $class, $method);
-                if ($isTraceAnalithicsCandidate) {
-                    $integration->addTraceAnalyticsIfEnabled($span);
+            function (SpanData $span, $args) use ($class, $method, $isTraceAnalyticsCandidate) {
+                MongoIntegration::addSpanDefaultMetadata($span, $class, $method);
+                if ($isTraceAnalyticsCandidate) {
+                    MongoIntegration::addTraceAnalyticsIfEnabled($span);
                 }
                 if (isset($args[0])) {
                     $span->meta[Tag::MONGODB_QUERY] = json_encode($args[0]);
@@ -288,7 +284,7 @@ class MongoIntegration extends Integration
      * @param string $class
      * @param string $method
      */
-    public function addSpanDefaultMetadata(SpanData $span, $class, $method)
+    public static function addSpanDefaultMetadata(SpanData $span, $class, $method)
     {
         $span->name = $class . '.' . $method;
         $span->resource = $method;
