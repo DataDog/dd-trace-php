@@ -89,6 +89,8 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
             'meta.error.stack',
             'meta._dd.p.tid',
             'meta.curl.appconnect_time_us',
+            'meta.curl.cainfo',
+            'meta.curl.capath',
             'meta.curl.connect_time',
             'meta.curl.connect_time_us',
             'meta.curl.download_content_length',

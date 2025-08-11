@@ -202,6 +202,7 @@ ext/openssl/tests/bug77390.phpt
 ext/openssl/tests/bug73711.phpt
 ext/openssl/tests/bug74022_2.phpt
 ext/openssl/tests/bug74159.phpt
+ext/openssl/tests/bug79145.phpt
 ext/openssl/tests/cve2013_4073.phpt
 ext/openssl/tests/ecc.phpt
 ext/openssl/tests/capture_peer_cert_001.phpt
