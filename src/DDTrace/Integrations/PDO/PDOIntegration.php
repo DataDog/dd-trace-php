@@ -34,14 +34,12 @@ class PDOIntegration extends Integration
     /**
      * Add instrumentation to PDO requests
      */
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
-
-        $integration = $this;
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
@@ -66,7 +64,7 @@ class PDOIntegration extends Integration
         }
 
         // public int PDO::exec(string $query)
-        \DDTrace\install_hook('PDO::exec', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('PDO::exec', function (HookData $hook) {
             list($query) = $hook->args;
 
             $span = $hook->span();
@@ -75,11 +73,11 @@ class PDOIntegration extends Integration
             $span->resource = Integration::toString($query);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             PDOIntegration::setCommonSpanInfo($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            PDOIntegration::addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
             PDOIntegration::handleRasp($this, $span);
-        }, function (HookData $hook) use ($integration) {
+        }, function (HookData $hook) {
             $span = $hook->span();
             if (is_numeric($hook->returned)) {
                 $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned;
@@ -92,7 +90,7 @@ class PDOIntegration extends Integration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_CLASS, string $classname, array $ctorargs)
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
-        \DDTrace\install_hook('PDO::query', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('PDO::query', function (HookData $hook) {
             list($query) = $hook->args;
 
             $span = $hook->span();
@@ -100,11 +98,11 @@ class PDOIntegration extends Integration
             $span->resource = Integration::toString($query);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             PDOIntegration::setCommonSpanInfo($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            PDOIntegration::addTraceAnalyticsIfEnabled($span);
 
             PDOIntegration::injectDBIntegration($this, $hook);
             PDOIntegration::handleRasp($this, $span);
-        }, function (HookData $hook) use ($integration) {
+        }, function (HookData $hook) {
             $span = $hook->span();
             if ($hook->returned instanceof \PDOStatement) {
                 $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->rowCount();
@@ -114,7 +112,7 @@ class PDOIntegration extends Integration
         });
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
-        \DDTrace\install_hook('PDO::prepare', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('PDO::prepare', function (HookData $hook) {
             list($query) = $hook->args;
 
             $span = $hook->span();
@@ -125,7 +123,7 @@ class PDOIntegration extends Integration
 
             PDOIntegration::injectDBIntegration($this, $hook);
             PDOIntegration::handleRasp($this, $span);
-        }, function (HookData $hook) use ($integration) {
+        }, function (HookData $hook) {
             ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
         });
 
@@ -140,7 +138,7 @@ class PDOIntegration extends Integration
         \DDTrace\trace_method(
             'PDOStatement',
             'execute',
-            function (SpanData $span, array $args, $retval) use ($integration) {
+            function (SpanData $span, array $args, $retval) {
                 Integration::handleOrphan($span);
                 $span->name = 'PDOStatement.execute';
                 Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
@@ -157,7 +155,7 @@ class PDOIntegration extends Integration
                     }
                 }
                 PDOIntegration::setCommonSpanInfo($this, $span);
-                $integration->addTraceAnalyticsIfEnabled($span);
+                PDOIntegration::addTraceAnalyticsIfEnabled($span);
                 PDOIntegration::detectError($this, $span);
             }
         );

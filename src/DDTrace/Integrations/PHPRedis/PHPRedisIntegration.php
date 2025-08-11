@@ -33,7 +33,7 @@ class PHPRedisIntegration extends Integration
     const INTERNAL_ONLY_TAG_CLUSTER_NAME = '_dd.cluster.name';
     const INTERNAL_ONLY_TAG_FIRST_HOST = '_dd.first.configured.host';
 
-    public function init(): int
+    public static function init(): int
     {
         $traceConnectOpen = function (SpanData $span, $args) {
             Integration::handleOrphan($span);

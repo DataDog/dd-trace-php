@@ -20,7 +20,7 @@ namespace DDTrace\Test
 {
     class TestSandboxedIntegration implements \DDTrace\Integration
     {
-        function init(): int
+        static function init(): int
         {
             dd_trace_method("Test", "public_static_method", function() {
                 echo "test_access hook" . PHP_EOL;

@@ -115,7 +115,6 @@ class WordPressIntegrationLoader
     }
 
     public static function setCommonTags(
-        WordPressIntegration $integration,
         SpanData $span,
         string $name,
         $resource = null
@@ -123,7 +122,7 @@ class WordPressIntegrationLoader
         $span->name = $name;
         $span->resource = $resource ?: $name;
         $span->type = Type::WEB_SERVLET;
-        $span->service = $integration->getServiceName();
+        $span->service = WordPressIntegration::getServiceName();
         $span->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
     }
 
@@ -196,18 +195,18 @@ class WordPressIntegrationLoader
         ini_set('datadog.trace.spans_limit', $spansLimit);
     }
 
-    public function load(WordPressIntegration $integration)
+    public static function load()
     {
         // File loading
-        hook_function('wp_plugin_directory_constants', null, function () use ($integration) {
+        hook_function('wp_plugin_directory_constants', null, function () {
             WordPressIntegrationLoader::allowQueryParamsInResourceName();
 
             // Overwrite the default web integration
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
-                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                WordPressIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'wordpress.request';
-                $rootSpan->service = $integration->getServiceName();
+                $rootSpan->service = WordPressIntegration::getServiceName();
                 $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 if ('cli' !== PHP_SAPI) {
@@ -223,9 +222,9 @@ class WordPressIntegrationLoader
                 $templateLoader = ABSPATH . WPINC . '/template-loader.php';
                 install_hook(
                     $templateLoader,
-                    function (HookData $hook) use ($integration) {
+                    function (HookData $hook) {
                         $span = $hook->span();
-                        WordPressIntegrationLoader::setCommonTags($integration, $span, 'load_template_loader');
+                        WordPressIntegrationLoader::setCommonTags($span, 'load_template_loader');
 
                         remove_hook($hook->id);
                     }
@@ -234,7 +233,7 @@ class WordPressIntegrationLoader
         });
 
 
-        hook_function('wp_templating_constants', null, function () use ($integration) {
+        hook_function('wp_templating_constants', null, function () {
             global $wp_theme_directories;
             if (empty($wp_theme_directories)) {
                 return;
@@ -249,11 +248,10 @@ class WordPressIntegrationLoader
                     if (file_exists($themeRoot . '/' . $dir . '/functions.php')) {
                         install_hook(
                             $themeRoot . '/' . $dir . '/functions.php',
-                            function (HookData $hook) use ($integration, $themeRoot, $dir) {
+                            function (HookData $hook) use ($themeRoot, $dir) {
                                 $span = $hook->span();
                                 $themeName = ucfirst($dir);
                                 WordPressIntegrationLoader::setCommonTags(
-                                    $integration,
                                     $span,
                                     'load_theme',
                                     "$themeName (theme)"
@@ -268,7 +266,7 @@ class WordPressIntegrationLoader
             }
         });
 
-        hook_function('wp', function () use ($integration) {
+        hook_function('wp', function () {
             if (dd_trace_env_config('DD_TRACE_WORDPRESS_CALLBACKS')) {
                 WordPressIntegrationLoader::setSpansLimit();
             }
@@ -297,66 +295,66 @@ class WordPressIntegrationLoader
         $interestingActions = WordPressIntegrationLoader::getInterestingActions();
 
         // Core
-        trace_method('WP', 'main', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP.main');
+        trace_method('WP', 'main', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP.main');
         });
 
-        trace_method('WP', 'init', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP.init');
+        trace_method('WP', 'init', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP.init');
         });
 
-        trace_method('WP', 'parse_request', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP.parse_request');
+        trace_method('WP', 'parse_request', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP.parse_request');
         });
 
-        trace_method('WP', 'send_headers', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP.send_headers');
+        trace_method('WP', 'send_headers', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP.send_headers');
         });
 
-        trace_method('WP', 'query_posts', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP.query_posts');
+        trace_method('WP', 'query_posts', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP.query_posts');
         });
 
-        trace_method('WP', 'handle_404', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP.handle_404');
+        trace_method('WP', 'handle_404', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP.handle_404');
         });
 
-        trace_method('WP', 'register_globals', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP.register_globals');
+        trace_method('WP', 'register_globals', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP.register_globals');
         });
 
-        trace_function('create_initial_post_types', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'create_initial_post_types');
+        trace_function('create_initial_post_types', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'create_initial_post_types');
         });
 
-        trace_function('create_initial_taxonomies', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'create_initial_taxonomies');
+        trace_function('create_initial_taxonomies', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'create_initial_taxonomies');
         });
 
-        trace_function('wp_print_head_scripts', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'wp_print_head_scripts');
+        trace_function('wp_print_head_scripts', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'wp_print_head_scripts');
         });
 
-        trace_function('wp_maybe_load_embeds', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'wp_maybe_load_embeds');
+        trace_function('wp_maybe_load_embeds', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'wp_maybe_load_embeds');
         });
 
-        trace_function('_wp_customize_include', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, '_wp_customize_include');
+        trace_function('_wp_customize_include', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, '_wp_customize_include');
         });
 
         // Widgets
-        trace_function('wp_widgets_init', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'wp_widgets_init');
+        trace_function('wp_widgets_init', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'wp_widgets_init');
         });
 
-        trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'WP_Widget_Factory._register_widgets');
+        trace_method('WP_Widget_Factory', '_register_widgets', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'WP_Widget_Factory._register_widgets');
         });
 
         // These not called in PHP 5 due to call_user_func_array() bug
-        trace_function('wp_maybe_load_widgets', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'wp_maybe_load_widgets');
+        trace_function('wp_maybe_load_widgets', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'wp_maybe_load_widgets');
         });
 
         /* When a widget is registered, trace its `widget` method. The base
@@ -365,7 +363,7 @@ class WordPressIntegrationLoader
          *
          * Widgets have largely been replaced by blocks in WordPress 6.
          */
-        hook_function('register_widget', function ($args) use ($integration) {
+        hook_function('register_widget', function ($args) {
             if (!isset($args[0])) {
                 return;
             }
@@ -380,9 +378,8 @@ class WordPressIntegrationLoader
                 return;
             }
 
-            trace_method($className, 'widget', function (SpanData $span) use ($integration) {
+            trace_method($className, 'widget', function (SpanData $span) {
                 WordPressIntegrationLoader::setCommonTags(
-                    $integration,
                     $span,
                     'widget',
                     isset($this->name) ? "{$this->name} (widget)" : '? (widget)'
@@ -395,34 +392,32 @@ class WordPressIntegrationLoader
         });
 
         // Views
-        trace_function('get_header', function (SpanData $span, array $args) use ($integration) {
+        trace_function('get_header', function (SpanData $span, array $args) {
             WordPressIntegrationLoader::setCommonTags(
-                $integration,
                 $span,
                 'get_header',
                 !empty($args[0]) ? $args[0] : 'get_header'
             );
         });
 
-        trace_function('get_footer', function (SpanData $span, array $args) use ($integration) {
+        trace_function('get_footer', function (SpanData $span, array $args) {
             WordPressIntegrationLoader::setCommonTags(
-                $integration,
                 $span,
                 'get_footer',
                 !empty($args[0]) ? $args[0] : 'get_footer'
             );
         });
 
-        trace_function('the_custom_header_markup', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'the_custom_header_markup');
+        trace_function('the_custom_header_markup', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'the_custom_header_markup');
         });
 
-        trace_function('body_class', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'body_class');
+        trace_function('body_class', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'body_class');
         });
 
-        trace_function('load_template', function (SpanData $span, array $args) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'load_template');
+        trace_function('load_template', function (SpanData $span, array $args) {
+            WordPressIntegrationLoader::setCommonTags($span, 'load_template');
 
             $templateFile = $args[0];
             if ($plugin = WordPressIntegrationLoader::extractPluginNameFromFile($templateFile)) {
@@ -440,8 +435,8 @@ class WordPressIntegrationLoader
             }
         });
 
-        trace_function('the_content', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'the_content');
+        trace_function('the_content', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'the_content');
 
             $postID = get_the_ID();
             if ($postID) {
@@ -449,25 +444,24 @@ class WordPressIntegrationLoader
             }
         });
 
-        trace_function('the_post', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'the_post');
+        trace_function('the_post', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'the_post');
         });
 
-        trace_function('get_avatar', function (SpanData $span) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'get_avatar');
+        trace_function('get_avatar', function (SpanData $span) {
+            WordPressIntegrationLoader::setCommonTags($span, 'get_avatar');
         });
 
-        trace_function('the_post_thumbnail', function (SpanData $span, array $args) use ($integration) {
-            WordPressIntegrationLoader::setCommonTags($integration, $span, 'the_post_thumbnail');
+        trace_function('the_post_thumbnail', function (SpanData $span, array $args) {
+            WordPressIntegrationLoader::setCommonTags($span, 'the_post_thumbnail');
 
             if (isset($args[0]) && is_string($args[0])) {
                 $span->meta['wordpress.post.thumbnail_size'] = $args[0];
             }
         });
 
-        trace_function('comments_template', function (SpanData $span, array $args) use ($integration) {
+        trace_function('comments_template', function (SpanData $span, array $args) {
             WordPressIntegrationLoader::setCommonTags(
-                $integration,
                 $span,
                 'comments_template',
                 !empty($args[0]) ? $args[0] : 'comments_template'
@@ -480,7 +474,7 @@ class WordPressIntegrationLoader
             'render',
             [
                 'recurse' => true,
-                'prehook' => function (SpanData $span, $args) use ($integration) {
+                'prehook' => function (SpanData $span, $args) {
                     /** @var \WP_Block $block */
                     $block = $this;
                     $blockName = $block->name;
@@ -490,7 +484,6 @@ class WordPressIntegrationLoader
                     }
 
                     WordPressIntegrationLoader::setCommonTags(
-                        $integration,
                         $span,
                         'block',
                         "$blockName (block)"
@@ -529,9 +522,8 @@ class WordPressIntegrationLoader
             ]
         );
 
-        trace_function('block_template_part', function (SpanData $span, $args) use ($integration) {
+        trace_function('block_template_part', function (SpanData $span, $args) {
             WordPressIntegrationLoader::setCommonTags(
-                $integration,
                 $span,
                 'block_template_part',
                 isset($args[0]) && is_string($args[0]) ? "{$args[0]} (part)" : null
@@ -542,9 +534,8 @@ class WordPressIntegrationLoader
             }
         });
 
-        trace_function('get_query_template', function (SpanData $span, $args, $path) use ($integration) {
+        trace_function('get_query_template', function (SpanData $span, $args, $path) {
             WordPressIntegrationLoader::setCommonTags(
-                $integration,
                 $span,
                 'template',
                 isset($args[0]) ? "{$args[0]} (type)" : null
@@ -561,18 +552,16 @@ class WordPressIntegrationLoader
         });
 
         // Sidebar
-        trace_function('get_sidebar', function (SpanData $span, array $args) use ($integration) {
+        trace_function('get_sidebar', function (SpanData $span, array $args) {
             WordPressIntegrationLoader::setCommonTags(
-                $integration,
                 $span,
                 'get_sidebar',
                 !empty($args[0]) ? $args[0] : 'get_sidebar'
             );
         });
 
-        trace_function('dynamic_sidebar', function (SpanData $span, array $args) use ($integration) {
+        trace_function('dynamic_sidebar', function (SpanData $span, array $args) {
             WordPressIntegrationLoader::setCommonTags(
-                $integration,
                 $span,
                 'dynamic_sidebar',
                 isset($args[0]) ? $args[0] : 'dynamic_sidebar'
@@ -584,7 +573,6 @@ class WordPressIntegrationLoader
             install_hook(
                 $function,
                 function (HookData $hook) use (
-                    $integration,
                     &$actionHookToPlugin,
                     &$actionHookToTheme,
                     $interestingActions
@@ -593,7 +581,7 @@ class WordPressIntegrationLoader
 
                     if (isset($args[0]) && isset($interestingActions[$args[0]])) {
                         $span = $hook->span();
-                        WordPressIntegrationLoader::setCommonTags($integration, $span, 'action');
+                        WordPressIntegrationLoader::setCommonTags($span, 'action');
 
                         $hookName = isset($args[0]) ? $args[0] : '?';
 
@@ -643,7 +631,7 @@ class WordPressIntegrationLoader
             \DDTrace\install_hook(
                 $plugin_loading_func,
                 null,
-                function (HookData $hook) use (&$plugins, $plugin_loading_func, $integration) {
+                function (HookData $hook) use (&$plugins, $plugin_loading_func) {
                     foreach ($hook->returned as $plugin) {
                         if (is_link($plugin)) {
                             $plugin = \readlink($plugin);
@@ -659,13 +647,12 @@ class WordPressIntegrationLoader
 
                         \DDTrace\install_hook(
                             $plugin,
-                            function (HookData $hook) use (&$plugins, $plugin, $integration, $getPrettyPluginNameFn) {
+                            function (HookData $hook) use (&$plugins, $plugin, $getPrettyPluginNameFn) {
                                 $pluginName = $getPrettyPluginNameFn($plugin);
                                 $plugins[] = $hook->data = $pluginName;
 
                                 $span = $hook->span();
                                 WordPressIntegrationLoader::setCommonTags(
-                                    $integration,
                                     $span,
                                     'load_plugin',
                                     "$pluginName (plugin)"
@@ -685,7 +672,7 @@ class WordPressIntegrationLoader
 
         hook_function(
             'add_action',
-            function ($args) use ($integration, &$actionHookToPlugin, $interestingActions, &$plugins) {
+            function ($args) use (&$actionHookToPlugin, $interestingActions, &$plugins) {
                 $action = $args[0];
                 $callback = $args[1];
                 $pluginName = end($plugins);
@@ -705,7 +692,6 @@ class WordPressIntegrationLoader
                         install_hook(
                             $hookTarget,
                             function (HookData $hook) use (
-                                $integration,
                                 $callback,
                                 $action,
                                 &$actionHookToPlugin,
@@ -715,7 +701,6 @@ class WordPressIntegrationLoader
 
                                 $callbackName = WordPressIntegrationLoader::getPrettyCallbackName($callback);
                                 WordPressIntegrationLoader::setCommonTags(
-                                    $integration,
                                     $span,
                                     'callback',
                                     $callbackName . ' (callback)'

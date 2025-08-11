@@ -23,7 +23,7 @@ class MongoDBIntegration extends Integration
     const NAME = 'mongodb';
     const SYSTEM = 'mongodb';
 
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('mongodb')) {
             return Integration::NOT_AVAILABLE;
@@ -184,20 +184,20 @@ class MongoDBIntegration extends Integration
             'whatsmyuri',
         ];
 
-        $this->traceExecuteQuery('MongoDB\Driver\Manager', 'executeQuery');
-        $this->traceExecuteQuery('MongoDB\Driver\Server', 'executeQuery');
+        self::traceExecuteQuery('MongoDB\Driver\Manager', 'executeQuery');
+        self::traceExecuteQuery('MongoDB\Driver\Server', 'executeQuery');
 
-        $this->traceExecuteBulkWrite('MongoDB\Driver\Manager', 'executeBulkWrite');
-        $this->traceExecuteBulkWrite('MongoDB\Driver\Server', 'executeBulkWrite');
+        self::traceExecuteBulkWrite('MongoDB\Driver\Manager', 'executeBulkWrite');
+        self::traceExecuteBulkWrite('MongoDB\Driver\Server', 'executeBulkWrite');
 
-        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeCommand', $knownCommands);
-        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeCommand', $knownCommands);
-        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeWriteCommand', $knownCommands);
-        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeWriteCommand', $knownCommands);
-        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeReadCommand', $knownCommands);
-        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeReadCommand', $knownCommands);
-        $this->traceExecuteCommand('MongoDB\Driver\Manager', 'executeReadWriteCommand', $knownCommands);
-        $this->traceExecuteCommand('MongoDB\Driver\Server', 'executeReadWriteCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Manager', 'executeCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Server', 'executeCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Manager', 'executeWriteCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Server', 'executeWriteCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Manager', 'executeReadCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Server', 'executeReadCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Manager', 'executeReadWriteCommand', $knownCommands);
+        self::traceExecuteCommand('MongoDB\Driver\Server', 'executeReadWriteCommand', $knownCommands);
 
         // See: https://docs.mongodb.com/php-library/current/reference/class/MongoDBCollection/
         $collectionMethodsWithFilter = [
@@ -217,7 +217,7 @@ class MongoDBIntegration extends Integration
         ];
 
         foreach ($collectionMethodsWithFilter as $method) {
-            $this->traceCollectionMethodWithFilter($method);
+            self::traceCollectionMethodWithFilter($method);
         }
 
         $collectionMethodsNoFilter = [
@@ -232,7 +232,7 @@ class MongoDBIntegration extends Integration
         ];
 
         foreach ($collectionMethodsNoFilter as $method) {
-            $this->traceCollectionMethodNoArgs($method);
+            self::traceCollectionMethodNoArgs($method);
         }
 
         \DDTrace\hook_method(
@@ -313,14 +313,13 @@ class MongoDBIntegration extends Integration
      * @param string $method
      * @return void
      */
-    public function traceCollectionMethodWithFilter($method)
+    public static function traceCollectionMethodWithFilter($method)
     {
-        $integration = $this;
         \DDTrace\trace_method(
             'MongoDB\Collection',
             $method,
-            function (SpanData $span, $args) use ($method, $integration) {
-                $integration->setMetadata(
+            function (SpanData $span, $args) use ($method) {
+                MongoDBIntegration::setMetadata(
                     $span,
                     'mongodb.cmd',
                     $method,
@@ -341,14 +340,13 @@ class MongoDBIntegration extends Integration
      * @param string $method
      * @return void
      */
-    public function traceCollectionMethodNoArgs($method)
+    public static function traceCollectionMethodNoArgs($method)
     {
-        $integration = $this;
         \DDTrace\trace_method(
             'MongoDB\Collection',
             $method,
-            function (SpanData $span, $args) use ($method, $integration) {
-                $integration->setMetadata(
+            function (SpanData $span, $args) use ($method) {
+                MongoDBIntegration::setMetadata(
                     $span,
                     'mongodb.cmd',
                     $method,
@@ -370,13 +368,12 @@ class MongoDBIntegration extends Integration
      * @param string $method
      * @return void
      */
-    public function traceExecuteQuery($class, $method)
+    public static function traceExecuteQuery($class, $method)
     {
-        $integration = $this;
-        \DDTrace\trace_method($class, $method, function ($span, $args) use ($integration) {
+        \DDTrace\trace_method($class, $method, function ($span, $args) {
             list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
 
-            $integration->setMetadata(
+            MongoDBIntegration::setMetadata(
                 $span,
                 'mongodb.driver.cmd',
                 'executeQuery',
@@ -397,13 +394,12 @@ class MongoDBIntegration extends Integration
      * @param string $method
      * @return void
      */
-    public function traceExecuteBulkWrite($class, $method)
+    public static function traceExecuteBulkWrite($class, $method)
     {
-        $integration = $this;
-        \DDTrace\trace_method($class, $method, function ($span, $args) use ($integration) {
+        \DDTrace\trace_method($class, $method, function ($span, $args) {
             list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
 
-            $integration->setMetadata(
+            MongoDBIntegration::setMetadata(
                 $span,
                 'mongodb.driver.cmd',
                 'executeBulkWrite',
@@ -439,10 +435,9 @@ class MongoDBIntegration extends Integration
      * @param string $method
      * @return void
      */
-    public function traceExecuteCommand($class, $method, $knownCommands)
+    public static function traceExecuteCommand($class, $method, $knownCommands)
     {
-        $integration = $this;
-        \DDTrace\trace_method($class, $method, function ($span, $args) use ($method, $knownCommands, $integration) {
+        \DDTrace\trace_method($class, $method, function ($span, $args) use ($method, $knownCommands) {
             // DB name
             $dbName = 'unknown_db';
             if (isset($args[0]) && \is_string($args[0])) {
@@ -469,7 +464,7 @@ class MongoDBIntegration extends Integration
                 }
             }
 
-            $integration->setMetadata(
+            MongoDBIntegration::setMetadata(
                 $span,
                 'mongodb.driver.cmd',
                 $method,
@@ -583,7 +578,7 @@ class MongoDBIntegration extends Integration
      * @param mixed|null $rawQuery If null the corresponding metadata will  not be set.
      * @return void
      */
-    public function setMetadata(
+    public static function setMetadata(
         SpanData $span,
         $name,
         $method,
@@ -601,8 +596,8 @@ class MongoDBIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = 'client';
         $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;
         $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
-        $span->meta[Tag::COMPONENT] = $this::NAME;
-        $span->meta[Tag::DB_SYSTEM] = $this::SYSTEM;
+        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
         if ($database) {
             $span->meta[Tag::MONGODB_DATABASE] = $database;
         }
@@ -621,6 +616,6 @@ class MongoDBIntegration extends Integration
             $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
         }
         $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-        $this->addTraceAnalyticsIfEnabled($span);
+        self::addTraceAnalyticsIfEnabled($span);
     }
 }

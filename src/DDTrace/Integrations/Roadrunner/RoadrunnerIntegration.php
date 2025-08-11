@@ -20,7 +20,7 @@ class RoadrunnerIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -123,10 +123,8 @@ class RoadrunnerIntegration extends Integration
         }
     }
 
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
@@ -144,7 +142,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan = null;
                 $suppressResponse = null;
             },
-            function (HookData $hook) use (&$activeSpan, &$suppressResponse, $integration, $service, &$recCall) {
+            function (HookData $hook) use (&$activeSpan, &$suppressResponse, $service, &$recCall) {
                 /** @var ?\Spiral\RoadRunner\Http\Request $retval */
                 $retval = $hook->returned;
                 if (!$retval && !$hook->exception) {
@@ -161,7 +159,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
                 $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-                $integration->addTraceAnalyticsIfEnabled($activeSpan);
+                RoadrunnerIntegration::addTraceAnalyticsIfEnabled($activeSpan);
                 if ($hook->exception) {
                     $activeSpan->exception = $hook->exception;
                     \DDTrace\close_span();

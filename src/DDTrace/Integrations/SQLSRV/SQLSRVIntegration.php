@@ -22,36 +22,34 @@ class SQLSRVIntegration extends Integration
     /**
      * Load the integration
      */
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('sqlsrv')) {
             return Integration::NOT_AVAILABLE;
         }
 
-        $integration = $this;
-
         // sqlsrv_connect ( string $serverName [, array $connectionInfo] ) : resource
-        \DDTrace\trace_function('sqlsrv_connect', function (SpanData $span, $args, $retval) use ($integration) {
-            $connectionMetadata = $integration->extractConnectionMetadata($args);
+        \DDTrace\trace_function('sqlsrv_connect', function (SpanData $span, $args, $retval) {
+            $connectionMetadata = SQLSRVIntegration::extractConnectionMetadata($args);
             if ($retval) {
                 resource_weak_store($retval, SQLSRVIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
             }
             self::setDefaultAttributes($connectionMetadata, $span, 'sqlsrv_connect');
 
-            $integration->detectError($retval, $span);
+            SQLSRVIntegration::detectError($retval, $span);
         });
 
         // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-        \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) {
             list($conn, $query) = $hook->args;
 
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_query', $query);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            SQLSRVIntegration::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
-        }, function (HookData $hook) use ($integration) {
+        }, function (HookData $hook) {
             list($conn, $query) = $hook->args;
             $span = $hook->span();
             if (is_resource($hook->returned)) {
@@ -60,19 +58,19 @@ class SQLSRVIntegration extends Integration
             }
 
             $result = $hook->returned;
-            $integration->setMetrics($span, $result);
-            $integration->detectError($result, $span);
+            SQLSRVIntegration::setMetrics($span, $result);
+            SQLSRVIntegration::detectError($result, $span);
         });
 
         // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-        \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) {
             list($conn, $query) = $hook->args;
 
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_prepare', $query);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
-        }, function (HookData $hook) use ($integration) {
+        }, function (HookData $hook) {
             list($conn, $query) = $hook->args;
             $span = $hook->span();
             if (is_resource($hook->returned)) {
@@ -80,31 +78,31 @@ class SQLSRVIntegration extends Integration
                 resource_weak_store($hook->returned, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
             }
 
-            $integration->detectError($hook->returned, $span);
+            SQLSRVIntegration::detectError($hook->returned, $span);
         });
 
         // sqlsrv_commit ( resource $conn ) : bool
-        \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) use ($integration) {
+        \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) {
             list($conn) = $args;
             self::setDefaultAttributes($conn, $span, 'sqlsrv_commit', null, $retval);
 
-            $integration->detectError($retval, $span);
+            SQLSRVIntegration::detectError($retval, $span);
         });
 
         // sqlsrv_execute ( resource $stmt ) : bool
-        \DDTrace\trace_function('sqlsrv_execute', function (SpanData $span, $args, $retval) use ($integration) {
+        \DDTrace\trace_function('sqlsrv_execute', function (SpanData $span, $args, $retval) {
             list($stmt) = $args;
             if (is_resource($stmt)) {
                 $query = resource_weak_get($stmt, SQLSRVIntegration::QUERY_TAGS_KEY);
             }
             self::setDefaultAttributes($stmt, $span, 'sqlsrv_execute', $query ?? "", $retval);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            SQLSRVIntegration::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             if ($retval) {
-                $integration->setMetrics($span, $args[0]);
+                SQLSRVIntegration::setMetrics($span, $args[0]);
             }
 
-            $integration->detectError($retval, $span);
+            SQLSRVIntegration::detectError($retval, $span);
         });
 
         return Integration::LOADED;
@@ -212,7 +210,7 @@ class SQLSRVIntegration extends Integration
         $span->meta[Tag::ERROR_TYPE] = 'SQLSRV error';
     }
 
-    protected function setMetrics(SpanData $span, $stmt)
+    protected static function setMetrics(SpanData $span, $stmt)
     {
         if ($stmt) {
             $numRows = sqlsrv_num_rows($stmt);
@@ -223,12 +221,12 @@ class SQLSRVIntegration extends Integration
                 // could lead to some non-negligible overhead.
                 $span->metrics[Tag::DB_ROW_COUNT] = $numRows;
             } else {
-                $this->setMetricRowsAffected($span, $stmt);
+                self::setMetricRowsAffected($span, $stmt);
             }
         }
     }
 
-    protected function setMetricRowsAffected(SpanData $span, $stmt)
+    protected static function setMetricRowsAffected(SpanData $span, $stmt)
     {
         if ($stmt) {
             $rowsAffected = sqlsrv_rows_affected($stmt);

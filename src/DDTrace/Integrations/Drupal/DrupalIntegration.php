@@ -23,12 +23,12 @@ class DrupalIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
 
-    public function init(): int
+    public static function init(): int
     {
         ini_set('datadog.trace.spans_limit', max(1500, ini_get('datadog.trace.spans_limit')));
 
@@ -141,22 +141,18 @@ class DrupalIntegration extends Integration
         );
         */
 
-        $callbackHookId = null;
-        hook_method(
-            'Drupal\Core\Extension\ModuleHandler',
-            'invokeAllWith',
-            function ($moduleHandler, $scope, $args) use (&$callbackHookId) {
+        install_hook(
+            'Drupal\Core\Extension\ModuleHandler::invokeAllWith',
+            function (HookData $hookData) {
                 /** @var string $hook */
-                $hook = $args[0];
+                $hook = $hookData->args[0];
                 /** @var callable $callback */
-                $callback = $args[1];
+                $callback = $hookData->args[1];
 
                 if ($hook === 'cron') {
-                    install_hook(
+                    $hookData->data = install_hook(
                         $callback,
-                        function (HookData $callbackHookData) use ($hook, &$callbackHookId) {
-                            $callbackHookId = $callbackHookData->id;
-
+                        function (HookData $callbackHookData) use ($hook) {
                             // callback's signature: (callable $hook, string $module)
                             $args = $callbackHookData->args;
                             $module = $args[1];
@@ -182,10 +178,9 @@ class DrupalIntegration extends Integration
                         }
                     );
                 }
-            }, function () use (&$callbackHookId) {
-                if ($callbackHookId) {
-                    remove_hook($callbackHookId);
-                    $callbackHookId = null;
+            }, function (HookData $hookData) {
+                if (isset($hookData->data)) {
+                    remove_hook($hookData->data);
                 }
             }
         );

@@ -24,7 +24,7 @@ class ExecIntegration extends Integration
     const REDACTED_BINARIES = array('md5' => null);
     const UNREDACTED_ENV_VARS = array('LD_PRELOAD' => null, 'LD_LIBRARY_PATH' => null, 'PATH' => null);
 
-    public function init(): int
+    public static function init(): int
     {
         \DDTrace\install_hook(
             'exec',

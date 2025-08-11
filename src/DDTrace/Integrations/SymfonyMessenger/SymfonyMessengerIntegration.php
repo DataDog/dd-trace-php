@@ -30,10 +30,8 @@ class SymfonyMessengerIntegration extends Integration
 {
     const NAME = 'symfonymessenger';
 
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         if (!\class_exists(\Symfony\Component\Messenger\Event\WorkerStartedEvent::class)) {
             // Only exists in Symfony Messenger 4.4+
             return Integration::NOT_LOADED;
@@ -42,8 +40,8 @@ class SymfonyMessengerIntegration extends Integration
         trace_method(
             'Symfony\Component\Messenger\MessageBusInterface',
             'dispatch',
-            function (SpanData $span, array $args, $retval, $exception) use ($integration) {
-                $integration->setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, null, true);
+            function (SpanData $span, array $args, $retval, $exception) {
+                SymfonyMessengerIntegration::setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, null, true);
                 if ($exception) {
                     // Worker::handleMessage() will catch the exception. We need to manually attach it to the root span.
                     \DDTrace\root_span()->exception = $exception;
@@ -71,8 +69,8 @@ class SymfonyMessengerIntegration extends Integration
         trace_method(
            'Symfony\Component\Messenger\Transport\TransportInterface',
            'send',
-           function (SpanData $span, array $args, $envelope) use ($integration) {
-               $integration->setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, 'send', true);
+           function (SpanData $span, array $args, $envelope) {
+               SymfonyMessengerIntegration::setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, 'send', true);
            }
         );
 
@@ -80,7 +78,7 @@ class SymfonyMessengerIntegration extends Integration
             'Symfony\Component\Messenger\Worker',
             'handleMessage',
             [
-                'prehook' => function (SpanData $span, array $args) use ($integration) {
+                'prehook' => function (SpanData $span, array $args) {
                     /** @var \Symfony\Component\Messenger\Envelope $envelope */
                     $envelope = $args[0];
                     /** @var string|ReceiverInterface $transportName */
@@ -89,7 +87,7 @@ class SymfonyMessengerIntegration extends Integration
                         $transportName = \get_class($transportName);
                     }
 
-                    $integration->setSpanAttributes(
+                    SymfonyMessengerIntegration::setSpanAttributes(
                         $span,
                         'symfony.messenger.consume',
                         null,
@@ -112,7 +110,7 @@ class SymfonyMessengerIntegration extends Integration
                         }
                     }
                 },
-                'posthook' => function (SpanData $span) use ($integration) {
+                'posthook' => function (SpanData $span) {
                     if ($span->exception !== null) {
                         // Used by Logs Correlation to track the origin of an exception
                         ObjectKVStore::put(
@@ -135,10 +133,10 @@ class SymfonyMessengerIntegration extends Integration
             hook_method(
                 'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
                 'callHandler',
-                function ($This, $scope, $args) use ($integration) {
+                function ($This, $scope, $args) {
                     $message = $args[1];
-                    install_hook($args[0], function (HookData $hook) use ($integration, $message) {
-                        $integration->setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
+                    install_hook($args[0], function (HookData $hook) use ($message) {
+                        SymfonyMessengerIntegration::setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
                         remove_hook($hook->id);
                     });
                 }
@@ -157,18 +155,18 @@ class SymfonyMessengerIntegration extends Integration
             hook_method(
                 'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
                 'handle',
-                function ($This, $scope, $args) use ($integration) {
+                function ($This, $scope, $args) {
                     $envelope = $args[0];
                     $handlersLocator = ObjectKVStore::get($This, 'handlersLocator');
                     $message = $envelope->getMessage();
                     foreach ($handlersLocator->getHandlers($envelope) as $handlerDescriptor) {
-                        if ($integration->messageHasAlreadyBeenHandled($envelope, $handlerDescriptor)) {
+                        if (SymfonyMessengerIntegration::messageHasAlreadyBeenHandled($envelope, $handlerDescriptor)) {
                             continue;
                         }
 
                         $handler = $handlerDescriptor->getHandler();
-                        install_hook($handler, function (HookData $hook) use ($integration, $message) {
-                            $integration->setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
+                        install_hook($handler, function (HookData $hook) use ($message) {
+                            SymfonyMessengerIntegration::setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
                             remove_hook($hook->id);
                         });
                     }
@@ -177,8 +175,8 @@ class SymfonyMessengerIntegration extends Integration
         }
 
         if (dd_trace_env_config('DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES')) {
-            $handleFn = function (SpanData $span, array $args) use ($integration) {
-                $integration->setSpanAttributes($span, 'symfony.messenger.middleware', \get_class($this), $args[0]);
+            $handleFn = function (SpanData $span, array $args) {
+                SymfonyMessengerIntegration::setSpanAttributes($span, 'symfony.messenger.middleware', \get_class($this), $args[0]);
             };
 
             trace_method(
@@ -204,7 +202,7 @@ class SymfonyMessengerIntegration extends Integration
         return Integration::LOADED;
     }
 
-    public function messageHasAlreadyBeenHandled(Envelope $envelope, HandlerDescriptor $handlerDescriptor): bool
+    public static function messageHasAlreadyBeenHandled(Envelope $envelope, HandlerDescriptor $handlerDescriptor): bool
     {
         $some = array_filter($envelope
             ->all(HandledStamp::class), function (HandledStamp $stamp) use ($handlerDescriptor) {
@@ -214,7 +212,7 @@ class SymfonyMessengerIntegration extends Integration
         return \count($some) > 0;
     }
 
-    public function setSpanAttributes(
+    public static function setSpanAttributes(
         SpanData $span,
         string $name,
         $resource = null,
@@ -224,9 +222,9 @@ class SymfonyMessengerIntegration extends Integration
         bool $addStampsInformation = false
     ) {
         if ($envelopeOrMessage instanceof Envelope) {
-            $this->resolveMetadataFromEnvelope($span, $envelopeOrMessage, $resource, $transportName, $operation, $addStampsInformation);
+            self::resolveMetadataFromEnvelope($span, $envelopeOrMessage, $resource, $transportName, $operation, $addStampsInformation);
         } else {
-            $this->tryResolveMetadataFromMessage($span, $envelopeOrMessage, $resource, $transportName, $operation);
+            self::tryResolveMetadataFromMessage($span, $envelopeOrMessage, $resource, $transportName, $operation);
         }
 
         $span->name = $name;
@@ -237,7 +235,7 @@ class SymfonyMessengerIntegration extends Integration
         $span->meta[Tag::COMPONENT] = SymfonyMessengerIntegration::NAME;
     }
 
-    public function resolveMetadataFromEnvelope(
+    public static function resolveMetadataFromEnvelope(
         SpanData $span,
         Envelope $envelope,
         $resource = null,
@@ -288,7 +286,7 @@ class SymfonyMessengerIntegration extends Integration
             Tag::MQ_DESTINATION => $transportName,
             Tag::MQ_MESSAGE_ID => $transportMessageId,
             Tag::MQ_OPERATION => $operation,
-            Tag::SPAN_KIND => $this->determineSpanKind($operation),
+            Tag::SPAN_KIND => self::determineSpanKind($operation),
         ];
 
         $metrics = [
@@ -313,7 +311,7 @@ class SymfonyMessengerIntegration extends Integration
         $span->metrics = \array_merge($span->metrics, \array_filter($metrics));
     }
 
-    public function tryResolveMetadataFromMessage(SpanData $span, $message, $resource, $transportName, $operation) {
+    public static function tryResolveMetadataFromMessage(SpanData $span, $message, $resource, $transportName, $operation) {
         if ($message) {
             $messageName = \get_class($message);
             $resource = $resource ?? $messageName;
@@ -330,13 +328,13 @@ class SymfonyMessengerIntegration extends Integration
             $span->meta[Tag::MQ_OPERATION] = $operation;
         }
 
-        $spanKind = $this->determineSpanKind($operation);
+        $spanKind = self::determineSpanKind($operation);
         if ($spanKind) {
             $span->meta[Tag::SPAN_KIND] = $spanKind;
         }
     }
 
-    public function determineSpanKind($operation) {
+    public static function determineSpanKind($operation) {
         switch ($operation) {
             case 'receive':
                 return Tag::SPAN_KIND_VALUE_CONSUMER;
