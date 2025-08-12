@@ -22,6 +22,7 @@ final class InstrumentationTest extends WebFrameworkTestCase
             'DD_TRACE_AGENT_PORT' => 80,
             'DD_AGENT_HOST' => 'request-replayer',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 1,
+            'DD_LOGS_INJECTION' => 'false',
         ]);
     }
 
