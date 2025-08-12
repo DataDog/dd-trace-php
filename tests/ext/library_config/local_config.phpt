@@ -18,6 +18,8 @@ copy(__DIR__.'/local_config.yaml', '/tmp/test_c_local_config.yaml');
 _DD_TEST_LIBRARY_CONFIG_FLEET_FILE=/foo
 _DD_TEST_LIBRARY_CONFIG_LOCAL_FILE=/tmp/test_c_local_config.yaml
 DD_TRACE_SPANS_LIMIT=42
+DD_TRACE_DEBUG=1
+DD_TRACE_LOG_FILE=/tmp/log-local-config.txt
 --INI--
 datadog.trace.agent_url="file://{PWD}/local-config-telemetry.out"
 --FILE--
@@ -65,6 +67,26 @@ for ($i = 0; $i < 100; ++$i) {
                 }
             }
         }
+    }
+}
+
+if (!file_exists(__DIR__ . '/local-config-telemetry.out')) {
+    echo "Telemetry file not found\n";
+
+    $logFile = '/tmp/log-local-config.txt';
+    if (file_exists($logFile)) {
+        echo "Dumping log preview:\n";
+        $handle = fopen($logFile, 'r');
+        if ($handle) {
+            $lineCount = 0;
+            while (!feof($handle) && $lineCount < 10000) {
+                echo fgets($handle);
+                $lineCount++;
+            }
+            fclose($handle);
+        }
+    } else {
+        echo "Log file does not exist\n";
     }
 }
 

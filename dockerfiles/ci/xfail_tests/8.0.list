@@ -562,3 +562,4 @@ ext/standard/tests/http/ghsa-hgf5-96fm-v528-003.phpt
 ext/standard/tests/http/ghsa-hgf5-96fm-v528-002.phpt
 ext/standard/tests/http/ghsa-hgf5-96fm-v528-001.phpt
 ext/standard/tests/http/ignore_errors.phpt
+ext/standard/tests/general_functions/proc_open02.phpt

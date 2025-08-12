@@ -16,13 +16,13 @@ services:
   # --- Alpine ---
   '8.0-alpine': { <<: *linux_php_service }
   # --- Buster ---
-  '7.0-buster': { <<: *linux_php_service }
-  '7.1-buster': { <<: *linux_php_service }
-  '7.2-buster': { <<: *linux_php_service }
-  '7.3-buster': { <<: *linux_php_service }
-  '7.4-buster': { <<: *linux_php_service }
-  '8.0-buster': { <<: *linux_php_service }
-  '8.1-buster': { <<: *linux_php_service }
-  '8.2-buster': { <<: *linux_php_service }
-  '8.3-buster': { <<: *linux_php_service }
-  '8.4-buster': { <<: *linux_php_service }
+  '7.0-bookworm': { <<: *linux_php_service }
+  '7.1-bookworm': { <<: *linux_php_service }
+  '7.2-bookworm': { <<: *linux_php_service }
+  '7.3-bookworm': { <<: *linux_php_service }
+  '7.4-bookworm': { <<: *linux_php_service }
+  '8.0-bookworm': { <<: *linux_php_service }
+  '8.1-bookworm': { <<: *linux_php_service }
+  '8.2-bookworm': { <<: *linux_php_service }
+  '8.3-bookworm': { <<: *linux_php_service }
+  '8.4-bookworm': { <<: *linux_php_service }
