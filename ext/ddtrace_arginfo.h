@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2fa8c7fb33e71ec0fb70c54ba57a8c5281e6e8d8 */
+ * Stub hash: aab0c7f13a665249a92e68920a3055bb7c8acdee */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -153,6 +153,17 @@ ZEND_END_ARG_INFO()
 #define arginfo_DDTrace_dogstatsd_histogram arginfo_DDTrace_dogstatsd_distribution
 
 #define arginfo_DDTrace_dogstatsd_set arginfo_DDTrace_dogstatsd_count
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_resource_weak_store, 0, 3, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, resource, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, value, IS_MIXED, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_resource_weak_get, 0, 2, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, resource, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
@@ -362,6 +373,8 @@ ZEND_FUNCTION(DDTrace_dogstatsd_distribution);
 ZEND_FUNCTION(DDTrace_dogstatsd_gauge);
 ZEND_FUNCTION(DDTrace_dogstatsd_histogram);
 ZEND_FUNCTION(DDTrace_dogstatsd_set);
+ZEND_FUNCTION(DDTrace_resource_weak_store);
+ZEND_FUNCTION(DDTrace_resource_weak_get);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
@@ -450,6 +463,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_gauge"), zif_DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_histogram"), zif_DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_set"), zif_DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "resource_weak_store"), zif_DDTrace_resource_weak_store, arginfo_DDTrace_resource_weak_store, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "resource_weak_get"), zif_DDTrace_resource_weak_get, arginfo_DDTrace_resource_weak_get, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_sample_rate"), zif_DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate, 0, NULL, NULL)

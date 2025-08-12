@@ -176,6 +176,9 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     ddog_ShmCacheMap *telemetry_cache;
     bool inferred_span_created;
+
+    HashTable resource_weak_storage;
+    dtor_func_t resource_dtor_func;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
