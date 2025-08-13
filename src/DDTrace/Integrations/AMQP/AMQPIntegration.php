@@ -69,7 +69,7 @@ class AMQPIntegration extends Integration
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_deliver",
             [
-                'prehook' => function (SpanData $span, $args) use (&$newTrace) {
+                'prehook' => static function (SpanData $span, $args) use (&$newTrace) {
                     /** @var AMQPMessage $message */
                     $message = $args[1];
                     if (AMQPIntegration::hasDistributedHeaders($message)) {
@@ -79,7 +79,7 @@ class AMQPIntegration extends Integration
                         $newTrace->links[] = $span->getLink();
                     }
                 },
-                'posthook' => function (SpanData $span, $args) use (&$newTrace) {
+                'posthook' => static function (SpanData $span, $args) use (&$newTrace) {
                     /** @var AMQPMessage $message */
                     $message = $args[1];
 
@@ -126,14 +126,14 @@ class AMQPIntegration extends Integration
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_publish",
             [
-                'prehook' => function (SpanData $span, $args) {
+                'prehook' => static function (SpanData $span, $args) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     if (!is_null($message)) {
                         AMQPIntegration::injectContext($message);
                     }
                 },
-                'posthook' => function (SpanData $span, $args, $exception) {
+                'posthook' => static function (SpanData $span, $args, $exception) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     /** @var string $exchange */
@@ -168,14 +168,14 @@ class AMQPIntegration extends Integration
             "PhpAmqpLib\Channel\AMQPChannel",
             "batch_basic_publish",
             [
-                'prehook' => function (SpanData $span, $args) {
+                'prehook' => static function (SpanData $span, $args) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     if (!is_null($message)) {
                         AMQPIntegration::injectContext($message);
                     }
                 },
-                'posthook' => function (SpanData $span, $args, $exception) {
+                'posthook' => static function (SpanData $span, $args, $exception) {
                     /** @var AMQPMessage $message */
                     $message = $args[0];
                     /** @var string $exchange */
@@ -208,7 +208,7 @@ class AMQPIntegration extends Integration
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
             "publish_batch",
-            function (SpanData $span, $args, $exception) {
+            static function (SpanData $span, $args, $exception) {
                 AMQPIntegration::setGenericTags(
                     $span,
                     'publish_batch',
@@ -223,7 +223,7 @@ class AMQPIntegration extends Integration
         trace_method(
             "PhpAmqpLib\Channel\AMQPChannel",
             "basic_consume",
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $queue */
                 $queue = $args[0];
                 /** @var string $consumer_tag */
@@ -247,7 +247,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'exchange_declare',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $exchange */
                 $exchange = $args[0];
 
@@ -267,7 +267,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'queue_declare',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $queue */
                 $queue = $args[0];
                 if (empty($queue) && is_array($retval)) {
@@ -290,7 +290,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'queue_bind',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
 
                 /** @var string $queue */
                 $queue = $args[0];
@@ -320,7 +320,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_consume_ok',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 AMQPIntegration::setGenericTags($span, 'basic.consume_ok', 'server');
 
                 $span->meta[Tag::MQ_OPERATION] = 'process';
@@ -330,7 +330,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_cancel',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 /** @var string $consumerTag */
                 $consumerTag = $args[0];
 
@@ -348,7 +348,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_cancel_ok',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 AMQPIntegration::setGenericTags($span, 'basic.cancel_ok', 'server', null, $exception);
             }
         );
@@ -356,7 +356,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Connection\AbstractConnection',
             'connect',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 AMQPIntegration::setGenericTags($span, 'connect', 'client', null, $exception);
             }
         );
@@ -364,7 +364,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Connection\AbstractConnection',
             'reconnect',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 AMQPIntegration::setGenericTags($span, 'reconnect', 'client', null, $exception);
             }
         );
@@ -372,7 +372,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_ack',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 /** @var int $deliveryTag */
                 $deliveryTag = $args[0];
 
@@ -383,7 +383,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_nack',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 /** @var int $deliveryTag */
                 $deliveryTag = $args[0];
 
@@ -394,7 +394,7 @@ class AMQPIntegration extends Integration
         trace_method(
             'PhpAmqpLib\Channel\AMQPChannel',
             'basic_get',
-            function (SpanData $span, $args, $message, $exception) {
+            static function (SpanData $span, $args, $message, $exception) {
                 /** @var string $queue */
                 $queue = $args[0];
 

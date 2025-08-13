@@ -197,7 +197,7 @@ class SQLSRVIntegration extends Integration
         // There could be multiple errors occurring on the same sqlsrv operation
         // If this is the case, we concatenate them using ' | ' as the separator
         // Format: SQL Error: <code>. Driver error: <sqlstate>. Driver-specific error data: <message>
-        $errorMessages = implode(' | ', array_map(function ($error) {
+        $errorMessages = implode(' | ', array_map(static function ($error) {
             return sprintf(
                 'SQL error: %s. Driver error: %s. Driver-specific error data: %s',
                 $error['code'],
