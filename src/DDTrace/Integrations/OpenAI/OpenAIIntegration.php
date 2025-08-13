@@ -158,7 +158,7 @@ class OpenAIIntegration extends Integration
                 $method,
                 [
                     'prehook' => $handleRequestPrehook(false, $operationID),
-                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
                         // Files::download - i.e., downloadFile - returns a string instead of a Response instance
                         OpenAIIntegration::handleResponse(
@@ -180,7 +180,7 @@ class OpenAIIntegration extends Integration
                 $method,
                 [
                     'prehook' => $handleRequestPrehook(true, $operationID),
-                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var \OpenAI\Responses\StreamResponse $response */
                         OpenAIIntegration::handleStreamedResponse(
                             span: $span,
@@ -1070,7 +1070,7 @@ class OpenAIIntegration extends Integration
         }
 
         // Create a new Generator with the same data
-        $newGenerator = function () use ($responseArray) {
+        $newGenerator = static function () use ($responseArray) {
             foreach ($responseArray as $item) {
                 yield $item;
             }

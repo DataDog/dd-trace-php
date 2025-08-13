@@ -49,14 +49,14 @@ class MemcacheIntegration extends Integration
         self::traceCommand('prepend');
         self::traceCommand('replace');
 
-        \DDTrace\trace_method('Memcache', 'flush', function (SpanData $span) {
+        \DDTrace\trace_method('Memcache', 'flush', static function (SpanData $span) {
             MemcacheIntegration::setCommonData($span, 'flush');
         });
-        \DDTrace\trace_function('memcache_flush', function (SpanData $span) {
+        \DDTrace\trace_function('memcache_flush', static function (SpanData $span) {
             MemcacheIntegration::setCommonData($span, 'flush');
         });
 
-        $memcache_addServer = function ($memcache, $scope, $args) {
+        $memcache_addServer = static function ($memcache, $scope, $args) {
             // We just care about the first server to add tags
             if (count($args) > 1 && !ObjectKVStore::get($memcache, 'server')) {
                 ObjectKVStore::put($memcache, 'server', $args);
@@ -108,7 +108,7 @@ class MemcacheIntegration extends Integration
 
     public static function wrapClosureForTraceFunction(\Closure $closure)
     {
-        return function (SpanData $span, $args, $retval, $exception) use ($closure) {
+        return static function (SpanData $span, $args, $retval, $exception) use ($closure) {
             $memcache = array_shift($args);
             return $closure->call($memcache, $span, $args, $retval, $exception);
         };
@@ -116,7 +116,7 @@ class MemcacheIntegration extends Integration
 
     public static function wrapClosureForHookFunction(\Closure $closure)
     {
-        return function ($args, $retval, $exception) use ($closure) {
+        return static function ($args, $retval, $exception) use ($closure) {
             $memcache = array_shift($args);
             return $closure($memcache, 'Memcache', $args, $retval, $exception);
         };

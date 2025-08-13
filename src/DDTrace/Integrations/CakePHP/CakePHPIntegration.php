@@ -28,7 +28,7 @@ class CakePHPIntegration extends Integration
 
     public static function init(): int
     {
-        self::$setRootSpanInfoFn = function () {
+        self::$setRootSpanInfoFn = static function () {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan === null) {
                 return;
@@ -63,7 +63,7 @@ class CakePHPIntegration extends Integration
             }
         };
 
-        self::$parseRouteFn = function ($app, $appClass, $args, $retval) {
+        self::$parseRouteFn = static function ($app, $appClass, $args, $retval) {
             if (!$retval) {
                 return;
             }

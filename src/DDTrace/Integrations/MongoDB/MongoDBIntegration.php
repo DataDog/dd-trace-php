@@ -239,7 +239,7 @@ class MongoDBIntegration extends Integration
             'MongoDB\Driver\Query',
             '__construct',
             null,
-            function ($self, $_2, $args, $_4) {
+            static function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     ObjectKVStore::put($self, 'filter', $args[0]);
                 }
@@ -250,7 +250,7 @@ class MongoDBIntegration extends Integration
             'MongoDB\Driver\Command',
             '__construct',
             null,
-            function ($self, $_2, $args, $_4) {
+            static function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     ObjectKVStore::put($self, 'cmd', $args[0]);
                 }
@@ -261,7 +261,7 @@ class MongoDBIntegration extends Integration
             'MongoDB\Driver\BulkWrite',
             'delete',
             null,
-            function ($self, $_2, $args, $_4) {
+            static function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     $existingDeletes = ObjectKVStore::get($self, 'deletes', []);
                     \array_push($existingDeletes, MongoDBIntegration::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
@@ -274,7 +274,7 @@ class MongoDBIntegration extends Integration
             'MongoDB\Driver\BulkWrite',
             'update',
             null,
-            function ($self, $_2, $args, $_4) {
+            static function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     $existingUpdates = ObjectKVStore::get($self, 'updates', []);
                     \array_push($existingUpdates, MongoDBIntegration::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
@@ -287,7 +287,7 @@ class MongoDBIntegration extends Integration
             'MongoDB\Driver\BulkWrite',
             'insert',
             null,
-            function ($self, $_2, $args, $_4) {
+            static function ($self, $_2, $args, $_4) {
                 $existingInsertCount = ObjectKVStore::get($self, 'insertsCount', 0);
                 ObjectKVStore::put($self, 'insertsCount', $existingInsertCount + 1);
             }
@@ -297,7 +297,7 @@ class MongoDBIntegration extends Integration
             'MongoDB\Driver\Manager',
             'selectServer',
             null,
-            function ($self, $_2, $_3, $server) {
+            static function ($self, $_2, $_3, $server) {
                 ObjectKVStore::put($self, 'host', $server->getHost());
                 ObjectKVStore::put($self, 'port', $server->getPort());
             }
@@ -370,7 +370,7 @@ class MongoDBIntegration extends Integration
      */
     public static function traceExecuteQuery($class, $method)
     {
-        \DDTrace\trace_method($class, $method, function ($span, $args) {
+        \DDTrace\trace_method($class, $method, static function ($span, $args) {
             list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
 
             MongoDBIntegration::setMetadata(
@@ -396,7 +396,7 @@ class MongoDBIntegration extends Integration
      */
     public static function traceExecuteBulkWrite($class, $method)
     {
-        \DDTrace\trace_method($class, $method, function ($span, $args) {
+        \DDTrace\trace_method($class, $method, static function ($span, $args) {
             list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
 
             MongoDBIntegration::setMetadata(
@@ -437,7 +437,7 @@ class MongoDBIntegration extends Integration
      */
     public static function traceExecuteCommand($class, $method, $knownCommands)
     {
-        \DDTrace\trace_method($class, $method, function ($span, $args) use ($method, $knownCommands) {
+        \DDTrace\trace_method($class, $method, static function ($span, $args) use ($method, $knownCommands) {
             // DB name
             $dbName = 'unknown_db';
             if (isset($args[0]) && \is_string($args[0])) {
