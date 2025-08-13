@@ -55,7 +55,7 @@ class SlimIntegration extends Integration
                     \DDTrace\hook_method(
                         'Slim\\Middleware\\ErrorMiddleware',
                         'handleException',
-                        function ($errorMiddleware, $self, $args) use ($rootSpan, $integration) {
+                        static function ($errorMiddleware, $self, $args) use ($rootSpan, $integration) {
                             if (isset($args[1])) {
                                 $throwable = $args[1];
                                 if ($throwable instanceof \Throwable) {
@@ -73,7 +73,7 @@ class SlimIntegration extends Integration
                         'Slim\\Router',
                         'lookupRoute',
                         null,
-                        function ($router, $scope, $args, $return) use ($rootSpan) {
+                        static function ($router, $scope, $args, $return) use ($rootSpan) {
                             /** @var \Slim\Interfaces\RouteInterface $return */
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $return->getPattern();
 
@@ -89,7 +89,7 @@ class SlimIntegration extends Integration
                         'Slim\\Routing\\RouteCollector',
                         'lookupRoute',
                         null,
-                        function ($router, $scope, $args, $return) use ($rootSpan) {
+                        static function ($router, $scope, $args, $return) use ($rootSpan) {
                             /** @var \Slim\Interfaces\RouteInterface $route */
                             $route = $return;
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPattern();
@@ -98,7 +98,7 @@ class SlimIntegration extends Integration
                 }
 
                 // Providing info about the controller
-                $traceControllers = function (SpanData $span, $args) use ($rootSpan, $majorVersion) {
+                $traceControllers = static function (SpanData $span, $args) use ($rootSpan, $majorVersion) {
                     $callable = $args[0];
                     $callableName = '{unknown callable}';
                     \is_callable($callable, false, $callableName);
@@ -144,7 +144,7 @@ class SlimIntegration extends Integration
                 ]);
 
                 // Handling Twig views
-                \DDTrace\trace_method('Slim\Views\Twig', 'render', function (SpanData $span, $args) {
+                \DDTrace\trace_method('Slim\Views\Twig', 'render', static function (SpanData $span, $args) {
                     $span->name = 'slim.view';
                     $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
                     $span->type = Type::WEB_SERVLET;
