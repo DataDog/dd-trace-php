@@ -115,7 +115,7 @@ class ElasticSearchIntegration extends Integration
             } catch (\Exception $ex) {
             }
         });
-        \DDTrace\trace_method('Elasticsearch\Connections\Connection', 'performRequest', function ($span, $args) {
+        \DDTrace\trace_method('Elasticsearch\Connections\Connection', 'performRequest', static function ($span, $args) {
             $span->name = "Elasticsearch.Endpoint.performRequest";
             $span->resource = 'performRequest';
             Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
@@ -152,7 +152,7 @@ class ElasticSearchIntegration extends Integration
             $class,
             $name,
             [
-                'prehook' => function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate) {
+                'prehook' => static function (SpanData $span, $args) use ($name, $isTraceAnalyticsCandidate) {
                     $span->name = "Elasticsearch.Client.$name";
 
                     if ($isTraceAnalyticsCandidate) {
@@ -175,7 +175,7 @@ class ElasticSearchIntegration extends Integration
      */
     public static function traceSimpleMethod($class, $name)
     {
-        \DDTrace\trace_method($class, $name, function (SpanData $span) use ($class, $name) {
+        \DDTrace\trace_method($class, $name, static function (SpanData $span) use ($class, $name) {
             $operationName = str_replace('\\', '.', "$class.$name");
             $span->name = $operationName;
             $span->resource = $operationName;
@@ -193,7 +193,7 @@ class ElasticSearchIntegration extends Integration
     {
         $class = 'Elasticsearch\Namespaces\\' . $namespace;
 
-        \DDTrace\trace_method($class, $name, function (SpanData $span, $args) use ($namespace, $name) {
+        \DDTrace\trace_method($class, $name, static function (SpanData $span, $args) use ($namespace, $name) {
             $params = [];
             if (isset($args[0])) {
                 list($params) = $args;

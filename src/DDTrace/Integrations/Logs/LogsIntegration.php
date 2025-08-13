@@ -154,7 +154,7 @@ class LogsIntegration extends Integration
         int $contextIndex,
         $levelIndex = null
     ): callable {
-        return function (HookData $hook) use ($levelName, $messageIndex, $contextIndex, $levelIndex) {
+        return static function (HookData $hook) use ($levelName, $messageIndex, $contextIndex, $levelIndex) {
             /** @var string $message */
             $message = $hook->args[$messageIndex];
             /** @var array $context */

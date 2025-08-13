@@ -40,27 +40,27 @@ class GoogleSpannerIntegration extends Integration
             GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
         });
 
-        \DDTrace\trace_method('Google\Cloud\Spanner\Database', 'runTransaction', function (SpanData $span, $args) {
+        \DDTrace\trace_method('Google\Cloud\Spanner\Database', 'runTransaction', static function (SpanData $span, $args) {
             GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.run_transaction', 'transaction');
             GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
         });
 
-        \DDTrace\trace_method('Google\Cloud\Spanner\Database', 'transaction', function (SpanData $span, $args) {
+        \DDTrace\trace_method('Google\Cloud\Spanner\Database', 'transaction', static function (SpanData $span, $args) {
             GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.transaction', 'transaction');
             GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
         });
 
-        \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'commit', function (SpanData $span) {
+        \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'commit', static function (SpanData $span) {
             GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.commit', "commit");
             GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
         });
 
-        \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'executeUpdate', function (SpanData $span, $args) {
+        \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'executeUpdate', static function (SpanData $span, $args) {
             GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.execute_update', $args[0]);
             GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
         });
 
-        \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'executeUpdateBatch', function (SpanData $span) {
+        \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'executeUpdateBatch', static function (SpanData $span) {
             GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.execute_update_batch', 'execute_update_batch');
             GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
         });

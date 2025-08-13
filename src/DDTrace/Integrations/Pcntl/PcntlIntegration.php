@@ -20,7 +20,7 @@ class PcntlIntegration extends Integration
             return Integration::NOT_AVAILABLE;
         }
 
-        $trace_fork = function (SpanData $span, $args, $retval) {
+        $trace_fork = static function (SpanData $span, $args, $retval) {
             $span->name = $span->resource = 'pcntl_fork';
             $span->meta[Tag::COMPONENT] = PcntlIntegration::NAME;
             if ($retval > 0) {
