@@ -39,7 +39,7 @@ class ZendFrameworkIntegration extends Integration
         \DDTrace\hook_method(
             'Zend_Controller_Plugin_Broker',
             'preDispatch',
-            function ($broker, $scope, $args) {
+            static function ($broker, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if (null === $rootSpan) {
                     return;
@@ -78,7 +78,7 @@ class ZendFrameworkIntegration extends Integration
             }
         );
 
-        \DDTrace\hook_method('Zend_Controller_Plugin_Broker', 'postDispatch', null, function ($broker) {
+        \DDTrace\hook_method('Zend_Controller_Plugin_Broker', 'postDispatch', null, static function ($broker) {
             $rootSpan = \DDTrace\root_span();
             if (null === $rootSpan) {
                 return;

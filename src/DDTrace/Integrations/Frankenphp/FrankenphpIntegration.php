@@ -34,7 +34,7 @@ class FrankenphpIntegration extends Integration
 
         self::$is_hooked = new \WeakMap();
 
-        \DDTrace\install_hook('frankenphp_handle_request', function (HookData $hook) {
+        \DDTrace\install_hook('frankenphp_handle_request', static function (HookData $hook) {
             $handler = $hook->args[0];
             if (isset(self::$is_hooked[$handler])) {
                 return;
@@ -46,7 +46,7 @@ class FrankenphpIntegration extends Integration
             // $hook->data: whether to block
             \DDTrace\install_hook(
                 $handler,
-                function (HookData $hook) use (&$blockingException, &$rootSpan) {
+                static function (HookData $hook) use (&$blockingException, &$rootSpan) {
                     $blockingException = null;
                     $rootSpan = $hook->span(new SpanStack());
                     $rootSpan->name = "web.request";
@@ -100,7 +100,7 @@ class FrankenphpIntegration extends Integration
                         );
                     }
                 },
-                function (HookData $hookData) {
+                static function (HookData $hookData) {
                     $rootSpan = $hookData->span();
 
                     $res = notify_commit(

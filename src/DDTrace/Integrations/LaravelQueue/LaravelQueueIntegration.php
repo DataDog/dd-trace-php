@@ -39,7 +39,7 @@ class LaravelQueueIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Queue\Worker',
             'kill',
-            function () {
+            static function () {
                 // span.c:ddtrace_close_all_open_spans() -> ensure the span is closed rather than dropped
                 ini_set('datadog.autofinish_spans', '1');
 
@@ -57,7 +57,7 @@ class LaravelQueueIntegration extends Integration
 
         install_hook(
             'Illuminate\Queue\Worker::process',
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 $span = $hook->span();
                 /** @var Job $job */
                 $job = $hook->args[1];
@@ -78,7 +78,7 @@ class LaravelQueueIntegration extends Integration
                     }
                 }
             },
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 $span = $hook->span();
                 /** @var Job $job */
                 $job = $hook->args[1];
@@ -125,7 +125,7 @@ class LaravelQueueIntegration extends Integration
             'Illuminate\Queue\Worker',
             'maxAttemptsExceededException',
             null,
-            function ($worker, $scope, $args, $retval) {
+            static function ($worker, $scope, $args, $retval) {
                 if (($rootSpan = \DDTrace\root_span()) !== null) {
                     $rootSpan->exception = $retval;
                 }
@@ -139,7 +139,7 @@ class LaravelQueueIntegration extends Integration
                 'prehook' => function (SpanData $span, $args, $retval) {
                     LaravelQueueIntegration::setSpanAttributes($span, 'laravel.queue.fire', 'process', $this);
                 },
-                'posthook' => function (SpanData $span, $args, $retval, $exception) {
+                'posthook' => static function (SpanData $span, $args, $retval, $exception) {
                     if ($exception) {
                         $span->exception = $exception;
                     }
@@ -189,7 +189,7 @@ class LaravelQueueIntegration extends Integration
                     }
                 );
             },
-            function (HookData $fireHook) {
+            static function (HookData $fireHook) {
                 remove_hook($fireHook->data['id']);
             }
         );
@@ -206,7 +206,7 @@ class LaravelQueueIntegration extends Integration
         trace_method(
             'Illuminate\Queue\Queue',
             'enqueueUsing',
-            function (SpanData $span, $args, $retval, $exception) {
+            static function (SpanData $span, $args, $retval, $exception) {
                 LaravelQueueIntegration::setSpanAttributes(
                     $span,
                     'laravel.queue.enqueueUsing',
@@ -221,7 +221,7 @@ class LaravelQueueIntegration extends Integration
         install_hook(
             'Illuminate\Queue\Queue::createPayload',
             null,
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 // $hook->returned, a.k.a. the payload, should be a json encoded string
                 // Decode it, add the distributed tracing headers, re-encode it, return this one instead
                 $payload = LaravelQueueIntegration::injectContext(json_decode($hook->returned, true));
@@ -351,7 +351,7 @@ class LaravelQueueIntegration extends Integration
             Tag::MQ_DESTINATION_KIND => 'queue',
         ];
 
-        $metadata = array_filter($metadata, function ($value) {
+        $metadata = array_filter($metadata, static function ($value) {
             return !empty($value);
         });
 
@@ -369,7 +369,7 @@ class LaravelQueueIntegration extends Integration
             Tag::MQ_DESTINATION_KIND => 'queue',
         ];
 
-        $metadata = array_filter($metadata, function ($value) {
+        $metadata = array_filter($metadata, static function ($value) {
             return !empty($value);
         });
 

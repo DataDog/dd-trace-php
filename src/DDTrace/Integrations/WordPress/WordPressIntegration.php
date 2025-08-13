@@ -36,7 +36,7 @@ class WordPressIntegration extends Integration
     public static function init(): int
     {
         // This call happens right in central config initialization
-        \DDTrace\hook_function('wp_check_php_mysql_versions', null, function () {
+        \DDTrace\hook_function('wp_check_php_mysql_versions', null, static function () {
             if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
                 return false;
             }
@@ -66,7 +66,7 @@ class WordPressIntegration extends Integration
         \DDTrace\hook_function(
             'wp_authenticate',
             null,
-            function ($args, $retval) {
+            static function ($args, $retval) {
                 $userClass = '\WP_User';
 
                 $username = null;
@@ -121,7 +121,7 @@ class WordPressIntegration extends Integration
         \DDTrace\hook_function(
             'register_new_user',
             null,
-            function ($args, $retval) {
+            static function ($args, $retval) {
                 if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
                     return;
                 }
@@ -149,7 +149,7 @@ class WordPressIntegration extends Integration
         \DDTrace\hook_function(
             'wp_validate_auth_cookie',
             null,
-            function ($args, $retval) {
+            static function ($args, $retval) {
                 if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
                     return;
                 }

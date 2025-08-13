@@ -66,7 +66,7 @@ class EloquentIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'destroy',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 $span->name = 'eloquent.destroy';
                 $span->resource = get_called_class();
                 EloquentIntegration::setCommonValues($span);

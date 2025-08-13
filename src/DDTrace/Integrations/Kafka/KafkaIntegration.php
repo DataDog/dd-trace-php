@@ -104,7 +104,7 @@ class KafkaIntegration extends Integration
         foreach ($consumerMethods as $method) {
             \DDTrace\install_hook(
                 $method,
-                function (HookData $hook) {
+                static function (HookData $hook) {
                     $hook->data['start'] = microtime(true);
                 },
                 function (HookData $hook) {

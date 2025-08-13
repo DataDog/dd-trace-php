@@ -70,7 +70,7 @@ class CakePHPIntegrationLoader
         // Create a trace span for every template rendered
         \DDTrace\install_hook(
             'Cake\View\View::render',
-            function (HookData $renderHook) {
+            static function (HookData $renderHook) {
                 $renderHook->span();
 
                 // The next Cake\View\View::_getViewFileName (v3) or Cake\View\View::_getTemplateFileName (v4+) call
@@ -81,7 +81,7 @@ class CakePHPIntegrationLoader
                 \DDTrace\install_hook(
                     $methodName,
                     null,
-                    function (HookData $hook) use ($renderHook) {
+                    static function (HookData $hook) use ($renderHook) {
                         $renderHook->data['viewFileName'] = $hook->returned;
                         \DDTrace\remove_hook($hook->id);
                     }

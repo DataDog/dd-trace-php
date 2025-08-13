@@ -95,7 +95,7 @@ class RoadrunnerIntegration extends Integration
 
         // _FILES
         $ret['_FILES'] = array_map(
-            function ($upload) {
+            static function ($upload) {
                 return [
                     'name' => $upload['name'],
                     'type' => $upload['mime'],
@@ -134,7 +134,7 @@ class RoadrunnerIntegration extends Integration
         $recCall = 0;
 
         \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::waitRequest',
-            function () use (&$activeSpan, &$suppressResponse) {
+            static function () use (&$activeSpan, &$suppressResponse) {
                 if ($activeSpan) {
                     \DDTrace\close_spans_until($activeSpan);
                     \DDTrace\close_span();
@@ -170,7 +170,7 @@ class RoadrunnerIntegration extends Integration
                         $header = implode(", ", $header);
                         $headers[strtolower($headername)] = $header;
                     }
-                    \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
+                    \DDTrace\consume_distributed_tracing_headers(static function ($headername) use ($headers) {
                         return $headers[$headername] ?? null;
                     });
 
@@ -207,7 +207,7 @@ class RoadrunnerIntegration extends Integration
                 }
             });
 
-        $respondBefore = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+        $respondBefore = static function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
             $hook->disableJitInlining();
             if (!$activeSpan || count($hook->args) < 3) {
                 return;
@@ -243,7 +243,7 @@ class RoadrunnerIntegration extends Integration
             }
         };
 
-        $respondAfter = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+        $respondAfter = static function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
             if (!$activeSpan || count($hook->args) < 3) {
                 return;
             }

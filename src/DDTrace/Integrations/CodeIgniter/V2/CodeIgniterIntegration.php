@@ -107,7 +107,7 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             'CI_Loader',
             'view',
-            function (SpanData $span, $args, $retval, $ex) use ($service) {
+            static function (SpanData $span, $args, $retval, $ex) use ($service) {
                 $span->name = 'CI_Loader.view';
                 $span->service = $service;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
@@ -144,7 +144,7 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             'CI_Cache',
             '__get',
-            function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
+            static function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
                 if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {

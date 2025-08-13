@@ -40,7 +40,7 @@ class SymfonyMessengerIntegration extends Integration
         trace_method(
             'Symfony\Component\Messenger\MessageBusInterface',
             'dispatch',
-            function (SpanData $span, array $args, $retval, $exception) {
+            static function (SpanData $span, array $args, $retval, $exception) {
                 SymfonyMessengerIntegration::setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, null, true);
                 if ($exception) {
                     // Worker::handleMessage() will catch the exception. We need to manually attach it to the root span.
@@ -52,7 +52,7 @@ class SymfonyMessengerIntegration extends Integration
         // Attach current context to Envelope before sender sends it to remote queue
         install_hook(
             'Symfony\Component\Messenger\Transport\Sender\SenderInterface::send',
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 /** @var \Symfony\Component\Messenger\Envelope $envelope */
                 $envelope = $hook->args[0];
 
@@ -69,7 +69,7 @@ class SymfonyMessengerIntegration extends Integration
         trace_method(
            'Symfony\Component\Messenger\Transport\TransportInterface',
            'send',
-           function (SpanData $span, array $args, $envelope) {
+           static function (SpanData $span, array $args, $envelope) {
                SymfonyMessengerIntegration::setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, 'send', true);
            }
         );
@@ -78,7 +78,7 @@ class SymfonyMessengerIntegration extends Integration
             'Symfony\Component\Messenger\Worker',
             'handleMessage',
             [
-                'prehook' => function (SpanData $span, array $args) {
+                'prehook' => static function (SpanData $span, array $args) {
                     /** @var \Symfony\Component\Messenger\Envelope $envelope */
                     $envelope = $args[0];
                     /** @var string|ReceiverInterface $transportName */
@@ -110,7 +110,7 @@ class SymfonyMessengerIntegration extends Integration
                         }
                     }
                 },
-                'posthook' => function (SpanData $span) {
+                'posthook' => static function (SpanData $span) {
                     if ($span->exception !== null) {
                         // Used by Logs Correlation to track the origin of an exception
                         ObjectKVStore::put(
@@ -205,7 +205,7 @@ class SymfonyMessengerIntegration extends Integration
     public static function messageHasAlreadyBeenHandled(Envelope $envelope, HandlerDescriptor $handlerDescriptor): bool
     {
         $some = array_filter($envelope
-            ->all(HandledStamp::class), function (HandledStamp $stamp) use ($handlerDescriptor) {
+            ->all(HandledStamp::class), static function (HandledStamp $stamp) use ($handlerDescriptor) {
             return $stamp->getHandlerName() === $handlerDescriptor->getName();
         });
 

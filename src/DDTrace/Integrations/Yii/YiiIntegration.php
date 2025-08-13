@@ -33,7 +33,7 @@ class YiiIntegration extends Integration
         \DDTrace\hook_method(
             'yii\di\Container',
             '__construct',
-            function () {
+            static function () {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
@@ -60,7 +60,7 @@ class YiiIntegration extends Integration
             'yii\web\Application',
             'createController',
             null,
-            function ($app, $appClass, $args, $retval) use (&$firstController) {
+            static function ($app, $appClass, $args, $retval) use (&$firstController) {
                 if ($firstController === null && isset($args[0], $retval) && \is_array($retval) && !empty($retval)) {
                     $firstController = $retval[0];
                 }

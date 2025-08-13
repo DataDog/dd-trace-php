@@ -33,7 +33,7 @@ class MysqliIntegration extends Integration
             return Integration::NOT_AVAILABLE;
         }
 
-        \DDTrace\trace_function('mysqli_connect', function (SpanData $span, $args, $result) {
+        \DDTrace\trace_function('mysqli_connect', static function (SpanData $span, $args, $result) {
             list($host) = $args;
             $dbName = empty($args[3]) ? null : $args[3];
             if ($dbName) {
@@ -74,7 +74,7 @@ class MysqliIntegration extends Integration
             }
         );
 
-        \DDTrace\trace_function('mysqli_real_connect', function (SpanData $span, $args) {
+        \DDTrace\trace_function('mysqli_real_connect', static function (SpanData $span, $args) {
             list($mysqli) = $args;
             $host = empty($args[1]) ? null : $args[0];
             $dbName = empty($args[4]) ? null : $args[4];
@@ -102,7 +102,7 @@ class MysqliIntegration extends Integration
             MysqliIntegration::setConnectionInfo($span, $this);
         });
 
-        \DDTrace\install_hook('mysqli_query', function (HookData $hook) {
+        \DDTrace\install_hook('mysqli_query', static function (HookData $hook) {
             list($mysqli, $query) = $hook->args;
 
             $span = $hook->span();
@@ -113,7 +113,7 @@ class MysqliIntegration extends Integration
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             MysqliIntegration::handleRasp($span);
-        }, function (HookData $hook) {
+        }, static function (HookData $hook) {
             list($mysqli, $query) = $hook->args;
             $span = $hook->span();
             MysqliIntegration::setConnectionInfo($span, $mysqli);
@@ -127,7 +127,7 @@ class MysqliIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook('mysqli_real_query', function (HookData $hook) {
+        \DDTrace\install_hook('mysqli_real_query', static function (HookData $hook) {
             list($mysqli, $query) = $hook->args;
 
             $span = $hook->span();
@@ -138,7 +138,7 @@ class MysqliIntegration extends Integration
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             MysqliIntegration::handleRasp($span);
-        }, function (HookData $hook) {
+        }, static function (HookData $hook) {
             list($mysqli, $query) = $hook->args;
             $span = $hook->span();
             MysqliIntegration::setConnectionInfo($span, $mysqli);
@@ -146,7 +146,7 @@ class MysqliIntegration extends Integration
             MysqliCommon::storeQuery($mysqli, $query);
         });
 
-        \DDTrace\install_hook('mysqli_prepare', function (HookData $hook) {
+        \DDTrace\install_hook('mysqli_prepare', static function (HookData $hook) {
             list(, $query) = $hook->args;
 
             $span = $hook->span();
@@ -154,7 +154,7 @@ class MysqliIntegration extends Integration
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
             MysqliIntegration::handleRasp($span);
-        }, function (HookData $hook) {
+        }, static function (HookData $hook) {
             list($mysqli, $query) = $hook->args;
             $span = $hook->span();
             MysqliIntegration::setConnectionInfo($span, $mysqli);
@@ -214,7 +214,7 @@ class MysqliIntegration extends Integration
             MysqliCommon::storeQuery($this, $query);
         });
 
-        \DDTrace\install_hook('mysqli::prepare', function (HookData $hook) {
+        \DDTrace\install_hook('mysqli::prepare', static function (HookData $hook) {
             list($query) = $hook->args;
 
             $span = $hook->span();
@@ -237,7 +237,7 @@ class MysqliIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook('mysqli_select_db', function (HookData $hook) {
+        \DDTrace\install_hook('mysqli_select_db', static function (HookData $hook) {
             list($mysqli, $dbName) = $hook->args;
             ObjectKVStore::put($mysqli, MysqliIntegration::KEY_DATABASE_NAME, $dbName);
         });
@@ -248,7 +248,7 @@ class MysqliIntegration extends Integration
         });
 
         if (PHP_VERSION_ID >= 80200) {
-            \DDTrace\install_hook('mysqli_execute_query', function (HookData $hook) {
+            \DDTrace\install_hook('mysqli_execute_query', static function (HookData $hook) {
                 list(, $query) = $hook->args;
 
                 $span = $hook->span();
@@ -258,7 +258,7 @@ class MysqliIntegration extends Integration
 
                 DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
                 MysqliIntegration::handleRasp($span);
-            }, function (HookData $hook) {
+            }, static function (HookData $hook) {
                 list($mysqli, $query) = $hook->args;
                 $span = $hook->span();
                 MysqliIntegration::setConnectionInfo($span, $mysqli);
@@ -273,7 +273,7 @@ class MysqliIntegration extends Integration
                 }
             });
 
-            \DDTrace\install_hook('mysqli::execute_query', function (HookData $hook) {
+            \DDTrace\install_hook('mysqli::execute_query', static function (HookData $hook) {
                 list($query) = $hook->args;
 
                 $span = $hook->span();
@@ -300,20 +300,20 @@ class MysqliIntegration extends Integration
         }
         \DDTrace\install_hook(
             'mysqli_multi_query',
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 list(, $query) = $hook->args;
                 MysqliIntegration::handleRasp($query);
             }
         );
         \DDTrace\install_hook(
             'mysqli::multi_query',
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 list($query) = $hook->args;
                 MysqliIntegration::handleRasp($query);
             }
         );
 
-        \DDTrace\trace_function('mysqli_commit', function (SpanData $span, $args) {
+        \DDTrace\trace_function('mysqli_commit', static function (SpanData $span, $args) {
             list($mysqli) = $args;
             $resource = MysqliCommon::retrieveQuery($mysqli, 'mysqli_commit');
             MysqliIntegration::setDefaultAttributes($span, 'mysqli_commit', $resource);
@@ -324,7 +324,7 @@ class MysqliIntegration extends Integration
             }
         });
 
-        \DDTrace\trace_function('mysqli_stmt_execute', function (SpanData $span, $args) {
+        \DDTrace\trace_function('mysqli_stmt_execute', static function (SpanData $span, $args) {
             list($statement) = $args;
             $resource = MysqliCommon::retrieveQuery($statement, 'mysqli_stmt_execute');
             MysqliIntegration::setDefaultAttributes($span, 'mysqli_stmt_execute', $resource);
@@ -335,7 +335,7 @@ class MysqliIntegration extends Integration
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
 
-        \DDTrace\trace_function('mysqli_stmt_get_result', function (SpanData $span, $args, $result) {
+        \DDTrace\trace_function('mysqli_stmt_get_result', static function (SpanData $span, $args, $result) {
             list($statement) = $args;
             $resource = MysqliCommon::retrieveQuery($statement, 'mysqli_stmt_get_result');
             MysqliCommon::storeQuery($result, $resource);

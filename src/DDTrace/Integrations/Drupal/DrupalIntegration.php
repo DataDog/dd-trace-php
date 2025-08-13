@@ -36,7 +36,7 @@ class DrupalIntegration extends Integration
             'Drupal\Core\DrupalKernel',
             'handle',
             [
-                'prehook' => function (SpanData $span) {
+                'prehook' => static function (SpanData $span) {
                     // A pre-hook is used here to ensure that the root span name is set before the symfony integration
                     // checks for it.
                     $service = \ddtrace_config_app_name('drupal');
@@ -56,7 +56,7 @@ class DrupalIntegration extends Integration
             ]
         );
 
-        $stackedHttpKernelTracer = function (SpanData $span) {
+        $stackedHttpKernelTracer = static function (SpanData $span) {
             $span->name = 'drupal.httpkernel.handle';
             $span->type = Type::WEB_SERVLET;
             $span->service = \ddtrace_config_app_name('drupal');
@@ -74,7 +74,7 @@ class DrupalIntegration extends Integration
             'Drupal\Core\DrupalKernel',
             'boot',
             [
-                'prehook' => function (SpanData $span) {
+                'prehook' => static function (SpanData $span) {
                     $span->name = 'drupal.kernel.boot';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name('drupal');
@@ -88,10 +88,10 @@ class DrupalIntegration extends Integration
         hook_method(
             'Drupal\Core\Cache\CacheBackendInterface',
             'getMultiple',
-            function ($cacheBackend, $scope, $args) {
+            static function ($cacheBackend, $scope, $args) {
                 $candidates = count($args[0]);
             },
-            function ($cacheBackend, $scope, $args, $retval) {
+            static function ($cacheBackend, $scope, $args, $retval) {
                 $hits = count($args[0]); // the &cids parameter is modified by reference to match the cache hits
             }
         );
@@ -102,7 +102,7 @@ class DrupalIntegration extends Integration
         hook_method(
             'Drupal\Core\Extension\ModuleHandler',
             'invokeAllWith',
-            function ($moduleHandler, $scope, $args) {
+            static function ($moduleHandler, $scope, $args) {
                 // @var string $hook
                 $hook = $args[0];
                 // @var callable $callback
@@ -110,7 +110,7 @@ class DrupalIntegration extends Integration
 
                 install_hook(
                     $callback,
-                    function (HookData $callbackHookData) use ($hook) {
+                    static function (HookData $callbackHookData) use ($hook) {
                         // callback's signature: (callable $hook, string $module)
                         $args = $callbackHookData->args;
                         $module = $args[1];
@@ -118,7 +118,7 @@ class DrupalIntegration extends Integration
                         $functionName = $module . '_' . $hook;
                         install_hook(
                             $functionName,
-                            function (HookData $fnHookData) use ($hook, $module, $functionName) {
+                            static function (HookData $fnHookData) use ($hook, $module, $functionName) {
                                 // Create a span as a metric workaround
                                 $span = $fnHookData->span();
                                 $span->name = 'drupal.hook.' . $hook;
@@ -143,7 +143,7 @@ class DrupalIntegration extends Integration
 
         install_hook(
             'Drupal\Core\Extension\ModuleHandler::invokeAllWith',
-            function (HookData $hookData) {
+            static function (HookData $hookData) {
                 /** @var string $hook */
                 $hook = $hookData->args[0];
                 /** @var callable $callback */
@@ -152,7 +152,7 @@ class DrupalIntegration extends Integration
                 if ($hook === 'cron') {
                     $hookData->data = install_hook(
                         $callback,
-                        function (HookData $callbackHookData) use ($hook) {
+                        static function (HookData $callbackHookData) use ($hook) {
                             // callback's signature: (callable $hook, string $module)
                             $args = $callbackHookData->args;
                             $module = $args[1];
@@ -160,7 +160,7 @@ class DrupalIntegration extends Integration
                             $functionName = $module . '_' . $hook;
                             install_hook(
                                 $functionName,
-                                function (HookData $fnHookData) use ($hook, $module, $functionName) {
+                                static function (HookData $fnHookData) use ($hook, $module, $functionName) {
                                     $span = $fnHookData->span();
                                     $span->name = 'drupal.hook.' . $hook;
                                     $span->type = Type::WEB_SERVLET;
@@ -178,7 +178,7 @@ class DrupalIntegration extends Integration
                         }
                     );
                 }
-            }, function (HookData $hookData) {
+            }, static function (HookData $hookData) {
                 if (isset($hookData->data)) {
                     remove_hook($hookData->data);
                 }
@@ -215,7 +215,7 @@ class DrupalIntegration extends Integration
         hook_method(
             'Drupal\Core\Theme\ThemeManager',
             'setThemeRegistry',
-            function ($themeManager, $scope, $args) {
+            static function ($themeManager, $scope, $args) {
                 // The theme registry is otherwise protected
                 ObjectKVStore::put($themeManager, 'theme_registry', $args[0]);
             }
@@ -224,7 +224,7 @@ class DrupalIntegration extends Integration
         hook_method(
             'Drupal\Core\Theme\Registry',
             '__construct',
-            function ($registry, $scope, $args) {
+            static function ($registry, $scope, $args) {
                 // The theme is otherwise protected
                 // _construct($root, $cache, $lock, $module_handler, $theme_handler, $theme_initialization, $theme_name, $runtime_cache, $module_list)
                 ObjectKVStore::put($registry, 'theme_name', $args[6]);
@@ -263,7 +263,7 @@ class DrupalIntegration extends Integration
                             // The render function will always be called during the ThemeManager::render call
                             install_hook(
                                 $renderFunction,
-                                function (HookData $hook) use ($span) {
+                                static function (HookData $hook) use ($span) {
                                     $span->meta['drupal.template.file'] = $hook->args[0];
                                     remove_hook($hook->id);
                                 }
@@ -345,7 +345,7 @@ class DrupalIntegration extends Integration
         hook_method(
             'Drupal\Core\EventSubscriber\MainContentViewSubscriber',
             '__construct',
-            function ($mainContViewSubscriber, $scope, $args) {
+            static function ($mainContViewSubscriber, $scope, $args) {
                 // These are otherwise protected
                 $classResolver = $args[0];
                 $mainContentRenderers = $args[2];
@@ -358,7 +358,7 @@ class DrupalIntegration extends Integration
             'Drupal\Core\EventSubscriber\MainContentViewSubscriber',
             'onViewRenderArray',
             null,
-            function ($mainContViewSubscriber, $scope, $args) {
+            static function ($mainContViewSubscriber, $scope, $args) {
                 // Called on the kernel.view event => active span should be symfony.kernel.view
                 $span = active_span();
 
@@ -394,7 +394,7 @@ class DrupalIntegration extends Integration
         trace_method(
             'Symfony\Component\HttpFoundation\Response',
             'send',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 $span->name = 'symfony.response.send';
                 $span->service = \ddtrace_config_app_name('drupal');
                 $span->type = Type::WEB_SERVLET;
@@ -418,7 +418,7 @@ class DrupalIntegration extends Integration
                         'email' => $account->getEmail(),
                     ];
 
-                    $metadata = array_filter($metadata, function ($value) {
+                    $metadata = array_filter($metadata, static function ($value) {
                         return !empty($value);
                     });
 

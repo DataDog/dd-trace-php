@@ -58,7 +58,7 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Foundation\Application',
             'handle',
-            function (SpanData $span, $args, $response) {
+            static function (SpanData $span, $args, $response) {
                 $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = LaravelIntegration::getServiceName();
@@ -82,7 +82,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Contracts\Foundation\Application',
             'bootstrapWith',
-            function ($app) {
+            static function ($app) {
                 LaravelIntegration::$serviceName = ddtrace_config_app_name();
                 if (LaravelIntegration::$serviceName == "" && file_exists($app->environmentPath() . '/' . $app->environmentFile())) {
                     $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
@@ -178,7 +178,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Events\Dispatcher',
             'fire',
             [
-                'prehook' => function (SpanData $span, $args) {
+                'prehook' => static function (SpanData $span, $args) {
                     Integration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
@@ -217,7 +217,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Events\Dispatcher',
             'dispatch',
             [
-                'prehook' => function (SpanData $span, $args) {
+                'prehook' => static function (SpanData $span, $args) {
                     Integration::handleOrphan($span);
 
                     $span->name = 'laravel.event.handle';
@@ -241,7 +241,7 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\View\Engines\CompilerEngine',
             'get',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 $rootSpan = \DDTrace\root_span();
 
                 // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
@@ -261,7 +261,7 @@ class LaravelIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Foundation\ProviderRepository',
             'load',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 $serviceName = LaravelIntegration::getServiceName();
 
                 $span->name = 'laravel.provider.load';
@@ -282,7 +282,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Console\Application',
             '__construct',
-            function () {
+            static function () {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
@@ -328,7 +328,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Debug\ExceptionHandler',
             'report',
             [
-                'prehook' => function ($exceptionHandler, $scope, $args) {
+                'prehook' => static function ($exceptionHandler, $scope, $args) {
                     $rootSpan = \DDTrace\root_span();
                     if ($rootSpan === null) {
                         return;
@@ -515,7 +515,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Laravel\Octane\Worker',
             'handle',
-            function () {
+            static function () {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
@@ -531,7 +531,7 @@ class LaravelIntegration extends Integration
         \DDTrace\install_hook(
             'Illuminate\Exception\PlainDisplayer::display',
              null,
-             function (HookData $hook) {
+             static function (HookData $hook) {
                 if (strpos($hook->args[0]->getMessage(), 'Datadog blocked the request') !== false) {
                      if (!$hook->returned instanceof \Symfony\Component\HttpFoundation\Response) {
                         return;
@@ -547,7 +547,7 @@ class LaravelIntegration extends Integration
          \DDTrace\install_hook(
             'Illuminate\Foundation\Exceptions\Handler::shouldntReport',
              null,
-             function (HookData $hook) {
+             static function (HookData $hook) {
                 if (strpos($hook->args[0]->getMessage(), 'Datadog blocked the request') !== false) {
                      $hook->overrideReturnValue(true);
                 }
@@ -556,7 +556,7 @@ class LaravelIntegration extends Integration
 
          \DDTrace\install_hook(
             'Illuminate\Foundation\Exceptions\Handler::render',
-             function (HookData $hook) {
+             static function (HookData $hook) {
                 if (strpos($hook->args[1]->getMessage(), 'Datadog blocked the request') !== false) {
                     $hook->args[1] = new LaravelIntegrationException();
                     $hook->overrideArguments($hook->args);

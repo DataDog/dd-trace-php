@@ -33,7 +33,7 @@ class SwooleIntegration extends Integration
 
         \DDTrace\install_hook(
             $callback,
-            function (HookData $hook) use ($server, $scheme) {
+            static function (HookData $hook) use ($server, $scheme) {
                 $rootSpan = $hook->span(new SpanStack());
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
@@ -55,7 +55,7 @@ class SwooleIntegration extends Integration
                         $rootSpan->meta["http.request.headers.$normalizedHeader"] = $value;
                     }
                 }
-                consume_distributed_tracing_headers(function ($key) use ($headers) {
+                consume_distributed_tracing_headers(static function ($key) use ($headers) {
                     return $headers[$key] ?? null;
                 });
 
@@ -110,7 +110,7 @@ class SwooleIntegration extends Integration
     {
         \DDTrace\install_hook(
             $callback,
-            function (HookData $hook) use ($server) {
+            static function (HookData $hook) use ($server) {
                 handle_fork();
             }
         );
@@ -129,8 +129,8 @@ class SwooleIntegration extends Integration
             'Swoole\Http\Server',
             '__construct',
             null,
-            function ($server) {
-                $server->on('workerstart', function () { });
+            static function ($server) {
+                $server->on('workerstart', static function () { });
             }
         );
 
@@ -138,7 +138,7 @@ class SwooleIntegration extends Integration
             'Swoole\Http\Server',
             'on',
             null,
-            function ($server, $scope, $args, $retval) {
+            static function ($server, $scope, $args, $retval) {
                 if ($retval === false) {
                     return; // Callback wasn't set
                 }
@@ -161,7 +161,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Response',
             'end',
-            function ($response, $scope, $args) {
+            static function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
@@ -181,7 +181,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Response',
             'header',
-            function ($response, $scope, $args) {
+            static function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null || \count($args) < 2) {
                     return;
@@ -201,7 +201,7 @@ class SwooleIntegration extends Integration
         \DDTrace\hook_method(
             'Swoole\Http\Response',
             'status',
-            function ($response, $scope, $args) {
+            static function ($response, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan && \count($args) > 0) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $args[0];

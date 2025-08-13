@@ -54,7 +54,7 @@ class PDOIntegration extends Integration
 
         if (PHP_VERSION_ID >= 80400) {
             // public PDO::connect ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
-            \DDTrace\trace_method('PDO', 'connect', function (SpanData $span, array $args, $pdo) {
+            \DDTrace\trace_method('PDO', 'connect', static function (SpanData $span, array $args, $pdo) {
                 Integration::handleOrphan($span);
                 $span->name = $span->resource = 'PDO.connect';
                 $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);

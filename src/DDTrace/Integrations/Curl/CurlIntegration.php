@@ -40,7 +40,7 @@ final class CurlIntegration extends Integration
         \DDTrace\trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers
             'instrument_when_limited' => 0,
-            'posthook' => function (SpanData $span, $args, $retval) {
+            'posthook' => static function (SpanData $span, $args, $retval) {
                 CurlIntegration::setup_curl_span($span);
 
                 if (!isset($args[0])) {
@@ -58,7 +58,7 @@ final class CurlIntegration extends Integration
             },
         ]);
 
-        \DDTrace\install_hook('curl_multi_exec', function (HookData $hook) {
+        \DDTrace\install_hook('curl_multi_exec', static function (HookData $hook) {
             if (\count($hook->args) >= 2) {
                 $data = null;
                 if (\PHP_MAJOR_VERSION > 7) {
@@ -90,7 +90,7 @@ final class CurlIntegration extends Integration
             Integration::handleInternalSpanServiceName($span, CurlIntegration::NAME);
             $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
-        }, function (HookData $hook) {
+        }, static function (HookData $hook) {
             if (empty($hook->data) || $hook->exception) {
                 return;
             }
@@ -172,7 +172,7 @@ final class CurlIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook('curl_multi_info_read', null, function (HookData $hook) {
+        \DDTrace\install_hook('curl_multi_info_read', null, static function (HookData $hook) {
             if (count($hook->args) < 1 || !isset($hook->returned["handle"])) {
                 return;
             }

@@ -22,7 +22,7 @@ class Psr18Integration extends Integration
         \DDTrace\trace_method(
             'Psr\Http\Client\ClientInterface',
             'sendRequest',
-            function (SpanData $span, $args, $retval) {
+            static function (SpanData $span, $args, $retval) {
                 $span->resource = 'sendRequest';
                 $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
                 $span->type = Type::HTTP_CLIENT;

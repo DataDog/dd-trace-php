@@ -23,7 +23,7 @@ class GuzzleIntegration extends Integration
             }
         } else {
             /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-            $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
+            $response->then(static function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
                 $statusCode = $response->getStatusCode();
                 $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
                 HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
@@ -40,7 +40,7 @@ class GuzzleIntegration extends Integration
         \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'send',
-            function (SpanData $span, $args, $retval) {
+            static function (SpanData $span, $args, $retval) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
                 Integration::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
@@ -83,7 +83,7 @@ class GuzzleIntegration extends Integration
         \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'transfer',
-            function (SpanData $span, $args, $retval) {
+            static function (SpanData $span, $args, $retval) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
                 Integration::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);

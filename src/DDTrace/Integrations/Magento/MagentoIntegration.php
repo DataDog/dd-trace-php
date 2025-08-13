@@ -53,7 +53,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\Bootstrap',
             '__construct',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.bootstrap');
             }
         );
@@ -61,7 +61,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\Bootstrap',
             'createApplication',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.create.application', $args[0]);
             }
         );
@@ -69,7 +69,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\AreaList',
             'getCodeByFrontName',
-            function (SpanData $span, $args, $area) {
+            static function (SpanData $span, $args, $area) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.area.get');
 
                 $frontName = $args[0];
@@ -89,7 +89,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\StaticResource',
             'parsePath',
             null,
-            function ($staticResource, $scope, $args, $retval) {
+            static function ($staticResource, $scope, $args, $retval) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->meta['magento.static.path'] = $args[0];
@@ -105,7 +105,7 @@ class MagentoIntegration extends Integration
         hook_method(
             'Magento\MediaStorage\App\Media',
             '__construct',
-            function ($media, $scope, $args) {
+            static function ($media, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->meta['magento.media.file'] = $args[6];
@@ -116,7 +116,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\MediaStorage\Service\ImageResize',
             'resizeFromImageName',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 $originalImageName = $args[0];
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.media.resize', $originalImageName);
                 root_span()->meta['magento.media.name'] = $originalImageName;
@@ -127,7 +127,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Symfony\Component\Console\Application', // Magento\Framework\Console\Cli extends this
             'find',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.console.find', $args[0]);
                 $span->meta['magento.console.command'] = root_span()->resource = $args[0];
             }
@@ -136,7 +136,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Cron\Observer\ProcessCronQueueObserver',
             '_runJob',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.cron.run');
 
                 // _runJob($scheduledTime, $currentTime, $jobConfig, $schedule, $groupId)
@@ -182,7 +182,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\Action\Action',
             'dispatch',
-            function (SpanData $span, $args, $retval) {
+            static function (SpanData $span, $args, $retval) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.action.dispatch');
 
                 $request = $args[0];
@@ -214,7 +214,7 @@ class MagentoIntegration extends Integration
         hook_method(
             'Magento\PageCache\Model\Cache\Type',
             'save',
-            function () use (&$fullPageCached) {
+            static function () use (&$fullPageCached) {
                 $fullPageCached = true;
             }
         );
@@ -223,7 +223,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\PageCache\Kernel',
             'load',
             null,
-            function ($kernel, $scope, $args, $retval) {
+            static function ($kernel, $scope, $args, $retval) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->meta['magento.cached'] = $retval instanceof \Magento\Framework\App\Response\Http
@@ -248,14 +248,14 @@ class MagentoIntegration extends Integration
         hook_method(
             'Magento\Webapi\Controller\Rest\InputParamsResolver',
             'resolve',
-            function ($inputParamsResolver) {
+            static function ($inputParamsResolver) {
                 $route = $inputParamsResolver->getRoute();
                 $serviceMethodName = $route->getServiceMethod();
                 $serviceClassName = $route->getServiceClass();
                 if ($serviceClassName && $serviceMethodName) {
                     install_hook(
                         "$serviceClassName::$serviceMethodName",
-                        function (HookData $hook) use ($serviceClassName, $serviceMethodName) {
+                        static function (HookData $hook) use ($serviceClassName, $serviceMethodName) {
                             $span = $hook->span();
                             MagentoIntegration::setCommonSpanInfo($span, 'magento.api.call', "$serviceClassName::$serviceMethodName");
                             remove_hook($hook->id);
@@ -269,7 +269,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\Router\Base',
             'match',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.router.match');
 
                 /** @var \Magento\Framework\App\RequestInterface $request */
@@ -288,7 +288,7 @@ class MagentoIntegration extends Integration
                     'magento.router.route' => $routeName
                 ];
 
-                $meta = array_filter($meta, function ($value) {
+                $meta = array_filter($meta, static function ($value) {
                     return $value !== null;
                 });
                 $span->meta = array_merge($span->meta, $meta);
@@ -332,7 +332,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\UrlRewrite\Controller\Router',
             'match',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.urlrewrite.match');
 
                 $request = $args[0];
@@ -382,7 +382,7 @@ class MagentoIntegration extends Integration
 
                                 install_hook(
                                     "$pluginInstance::$pluginMethod",
-                                    function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
+                                    static function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
                                         $span = $hook->span();
                                         $span->name = 'magento.plugin.before';
                                         $span->type = Type::WEB_SERVLET;
@@ -412,7 +412,7 @@ class MagentoIntegration extends Integration
 
                             install_hook(
                                 "$pluginInstance::$pluginMethod",
-                                function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
+                                static function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
                                     $span = $hook->span();
                                     $span->name = 'magento.plugin.around';
                                     $span->type = Type::WEB_SERVLET;
@@ -431,7 +431,7 @@ class MagentoIntegration extends Integration
                     } else {
                         install_hook(
                             "$type::$method",
-                            function (HookData $hook) use ($type, $method) {
+                            static function (HookData $hook) use ($type, $method) {
                                 $span = $hook->span();
                                 $span->name = 'magento.plugin.original';
                                 $span->type = Type::WEB_SERVLET;
@@ -457,7 +457,7 @@ class MagentoIntegration extends Integration
 
                                 install_hook(
                                     "$pluginInstance::$pluginMethod",
-                                    function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
+                                    static function (HookData $hook) use ($pluginInstance, $pluginMethod, $code) {
                                         $span = $hook->span();
                                         $span->name = 'magento.plugin.after';
                                         $span->type = Type::WEB_SERVLET;
@@ -518,7 +518,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Catalog\Block\Product\AbstractProduct',
             'getImage',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 $product = $args[0];
                 $imageId = $args[1];
 
@@ -589,7 +589,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Framework\App\ResponseInterface',
             'sendResponse',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.response.send');
             }
         );
@@ -599,7 +599,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\AppInterface',
             'catchException',
             null,
-            function ($http, $scope, $args) {
+            static function ($http, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->exception = $args[1];
@@ -613,7 +613,7 @@ class MagentoIntegration extends Integration
             'Magento\Customer\Model\Session',
             'isLoggedIn',
             null,
-            function ($session, $scope, $args, $isLoggedIn) {
+            static function ($session, $scope, $args, $isLoggedIn) {
                 if ($isLoggedIn && root_span() !== null) {
                     /** @var Magento\Customer\Model\Data\Customer $customer */
                     $customer = $session->getCustomer();
@@ -648,7 +648,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Sales\Model\Service\OrderService',
             'place',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.order.place');
 
                 /** @var \Magento\Sales\Api\Data\OrderInterface $order */
@@ -685,7 +685,7 @@ class MagentoIntegration extends Integration
         trace_method(
             'Magento\Sales\Model\Order\Email\Sender\OrderSender',
             'send',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 MagentoIntegration::setCommonSpanInfo($span, 'magento.email.send');
 
                 /** @var Magento\Sales\Model\Order $order */
