@@ -1,7 +1,6 @@
 #include "exec_integration.h"
 
 #include <stdio.h>
-#include <symbols/symbols.h>
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
