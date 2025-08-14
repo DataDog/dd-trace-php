@@ -10,7 +10,7 @@ class FilesystemIntegration extends Integration
 {
     const NAME = "filesystem";
 
-    public function init(): int
+    public static function init(): int
     {
         if (!\dd_trace_env_config("DD_APPSEC_RASP_ENABLED")) {
             return Integration::NOT_LOADED;

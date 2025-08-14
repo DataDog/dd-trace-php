@@ -31,7 +31,6 @@
 #include <vendor/mpack/mpack.h>
 #include <zai_string/string.h>
 #include <sandbox/sandbox.h>
-#include <zend_abstract_interface/symbols/symbols.h>
 #include <ext/standard/url.h>
 
 #include "compat_string.h"

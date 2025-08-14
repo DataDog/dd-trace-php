@@ -36,9 +36,6 @@ class OpenAIIntegration extends Integration
         'file_id' => true
     ];
 
-    /** @var string */
-    public $serviceName;
-
     /**
      * @param string $apiKey The OpenAI API key to format
      * @return string The formatted API key 'XXX...YYYY', where XXX and YYYY are respectively the first three and last
@@ -55,7 +52,7 @@ class OpenAIIntegration extends Integration
         return $random <= $rate;
     }
 
-    public function setServiceName(SpanData $span)
+    public static function setServiceName(SpanData $span)
     {
         if ($service = \dd_trace_env_config('DD_OPENAI_SERVICE')) {
             $span->service = $service;
@@ -65,10 +62,8 @@ class OpenAIIntegration extends Integration
     /**
      * Add instrumentation to OpenAI API Requests
      */
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         $logger = \dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
 
         $targets = [
@@ -138,8 +133,8 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        $handleRequestPrehook = fn ($streamed, $operationID) => function (\DDTrace\SpanData $span, $args) use ($operationID, $integration, $streamed) {
-            $integration->setServiceName($span);
+        $handleRequestPrehook = fn ($streamed, $operationID) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed) {
+            OpenAIIntegration::setServiceName($span);
             $clientData = ObjectKVStore::get($this, 'client_data');
             if (\is_null($clientData)) {
                 $transporter = ObjectKVStore::get($this, 'transporter');
@@ -163,7 +158,7 @@ class OpenAIIntegration extends Integration
                 $method,
                 [
                     'prehook' => $handleRequestPrehook(false, $operationID),
-                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
                         // Files::download - i.e., downloadFile - returns a string instead of a Response instance
                         OpenAIIntegration::handleResponse(
@@ -185,7 +180,7 @@ class OpenAIIntegration extends Integration
                 $method,
                 [
                     'prehook' => $handleRequestPrehook(true, $operationID),
-                    'posthook' => function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var \OpenAI\Responses\StreamResponse $response */
                         OpenAIIntegration::handleStreamedResponse(
                             span: $span,
@@ -1073,7 +1068,7 @@ class OpenAIIntegration extends Integration
         }
 
         // Create a new Generator with the same data
-        $newGenerator = function () use ($responseArray) {
+        $newGenerator = static function () use ($responseArray) {
             foreach ($responseArray as $item) {
                 yield $item;
             }

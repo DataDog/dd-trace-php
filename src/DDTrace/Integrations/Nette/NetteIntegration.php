@@ -14,7 +14,7 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -22,12 +22,11 @@ class NetteIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function init(): int
+    public static function init(): int
     {
         $service = \ddtrace_config_app_name(NetteIntegration::NAME);
 
-        $integration = $this;
-        $setRootSpanFn = function () use ($service, $integration) {
+        $setRootSpanFn = static function () use ($service) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan === null) {
                 return;
@@ -35,7 +34,7 @@ class NetteIntegration extends Integration
 
             $rootSpan->meta[Tag::SPAN_KIND] = 'server';
 
-            $integration->addTraceAnalyticsIfEnabled($rootSpan);
+            NetteIntegration::addTraceAnalyticsIfEnabled($rootSpan);
             $rootSpan->service = $service;
             $rootSpan->meta[Tag::COMPONENT] = NetteIntegration::NAME;
         };
@@ -47,7 +46,7 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Configurator',
             'createRobotLoader',
-            function (SpanData $span) use ($service) {
+            static function (SpanData $span) use ($service) {
                 $span->name = 'nette.configurator.createRobotLoader';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
@@ -58,7 +57,7 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Application\Application',
             'run',
-            function (SpanData $span) use ($service) {
+            static function (SpanData $span) use ($service) {
                 $span->name = 'nette.application.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
@@ -72,7 +71,7 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Nette\Application\UI\Presenter',
             'run',
-            function (SpanData $span, $args) use ($service) {
+            static function (SpanData $span, $args) use ($service) {
                 $span->name = 'nette.presenter.run';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
@@ -97,7 +96,7 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Latte\Engine',
             'createTemplate',
-            function (SpanData $span, $args) use ($service) {
+            static function (SpanData $span, $args) use ($service) {
                 $span->name = 'nette.latte.createTemplate';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
@@ -112,7 +111,7 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Latte\Engine',
             'render',
-            function (SpanData $span, $args) use ($service) {
+            static function (SpanData $span, $args) use ($service) {
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;
@@ -127,7 +126,7 @@ class NetteIntegration extends Integration
         \DDTrace\trace_method(
             'Latte\Engine',
             'renderToString',
-            function (SpanData $span, $args) use ($service) {
+            static function (SpanData $span, $args) use ($service) {
                 $span->name = 'nette.latte.render';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $service;

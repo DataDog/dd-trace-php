@@ -11,23 +11,21 @@ class WordPressIntegration extends Integration
     /**
      * @var string
      */
-    private $serviceName;
+    private static $serviceName;
 
-    public function getServiceName()
+    public static function getServiceName()
     {
-        if (!empty($this->serviceName)) {
-            return $this->serviceName;
+        if (self::$serviceName) {
+            return self::$serviceName;
         }
 
-        $this->serviceName = \ddtrace_config_app_name(WordPressIntegration::NAME);
-
-        return $this->serviceName;
+        return self::$serviceName = \ddtrace_config_app_name(WordPressIntegration::NAME);
     }
 
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -35,19 +33,16 @@ class WordPressIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         // This call happens right in central config initialization
-        \DDTrace\hook_function('wp_check_php_mysql_versions', null, function () use ($integration) {
+        \DDTrace\hook_function('wp_check_php_mysql_versions', null, static function () {
             if (!isset($GLOBALS['wp_version']) || !is_string($GLOBALS['wp_version'])) {
                 return false;
             }
             $majorVersion = substr($GLOBALS['wp_version'], 0, 1);
             if ($majorVersion >= 4) {
-                $loader = new WordPressIntegrationLoader();
-                $loader->load($integration);
+                WordPressIntegrationLoader::load();
             }
 
             return true;
@@ -71,7 +66,7 @@ class WordPressIntegration extends Integration
         \DDTrace\hook_function(
             'wp_authenticate',
             null,
-            function ($args, $retval) {
+            static function ($args, $retval) {
                 $userClass = '\WP_User';
 
                 $username = null;
@@ -126,7 +121,7 @@ class WordPressIntegration extends Integration
         \DDTrace\hook_function(
             'register_new_user',
             null,
-            function ($args, $retval) {
+            static function ($args, $retval) {
                 if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
                     return;
                 }
@@ -154,7 +149,7 @@ class WordPressIntegration extends Integration
         \DDTrace\hook_function(
             'wp_validate_auth_cookie',
             null,
-            function ($args, $retval) {
+            static function ($args, $retval) {
                 if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
                     return;
                 }

@@ -15,9 +15,8 @@ class CodeIgniterIntegration extends Integration
     /**
      * Add instrumentation to CodeIgniter requests
      */
-    public function init($router = null): int
+    public static function init($router = null): int
     {
-        $integration = $this;
         $rootSpan = \DDTrace\root_span();
         if (null === $rootSpan) {
             return Integration::NOT_LOADED;
@@ -32,15 +31,15 @@ class CodeIgniterIntegration extends Integration
             /* After _set_routing has been called the class and method
              * are known, so now we can set up tracing on CodeIgniter.
              */
-            $integration->registerIntegration($router, $rootSpan, $service);
+            self::registerIntegration($router, $rootSpan, $service);
         }
 
         return parent::LOADED;
     }
 
-    public function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
+    public static function registerIntegration(\CI_Router $router, SpanData $rootSpan, $service)
     {
-        $this->addTraceAnalyticsIfEnabled($rootSpan);
+        self::addTraceAnalyticsIfEnabled($rootSpan);
         $rootSpan->name = 'codeigniter.request';
         $rootSpan->service = $service;
         $rootSpan->type = Type::WEB_SERVLET;
@@ -108,7 +107,7 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             'CI_Loader',
             'view',
-            function (SpanData $span, $args, $retval, $ex) use ($service) {
+            static function (SpanData $span, $args, $retval, $ex) use ($service) {
                 $span->name = 'CI_Loader.view';
                 $span->service = $service;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
@@ -145,7 +144,7 @@ class CodeIgniterIntegration extends Integration
         \DDTrace\trace_method(
             'CI_Cache',
             '__get',
-            function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
+            static function (SpanData $span, $args, $retval, $ex) use ($service, &$registered_cache_adapters) {
                 if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {
