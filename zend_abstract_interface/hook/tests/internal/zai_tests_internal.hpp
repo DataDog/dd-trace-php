@@ -5,6 +5,7 @@
 
 extern "C" {
 #include <hook/hook.h>
+#include <zai_string/tests/symbols.h>
 
     static void (*zend_execute_internal_function)(zend_execute_data *ex, zval *rv);
 
