@@ -80,6 +80,7 @@ void service_manager::notify_of_rc_updates(std::string_view shmem_path)
 
 void service_manager::dump_table()
 {
+#if SPDLOG_ACTIVE_LEVEL <= SPDLOG_LEVEL_DEBUG
     // requires lock to be held
     for (auto &[key, service_ptr] : cache_) {
         if (std::shared_ptr<service> const service = service_ptr.lock()) {
@@ -89,6 +90,7 @@ void service_manager::dump_table()
             SPDLOG_DEBUG("RC path {} -> expired service", key.get_shmem_path());
         }
     }
+#endif
 }
 
 void service_manager::cleanup_cache()
