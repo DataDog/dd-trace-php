@@ -244,6 +244,11 @@ inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
     --zai_sandbox_active;
     zend_bailout();
 }
+
+void zai_reset_observed_frame_post_bailout(void);
+#if PHP_VERSION_ID >= 80200
+zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data);
+#endif
 /********************************** </PHP 8> *********************************/
 #else
 /********************************** <PHP 7> **********************************/
@@ -396,5 +401,7 @@ inline void zai_sandbox_bailout(zai_sandbox *sandbox) {
 }
 /********************************** </PHP 7> *********************************/
 #endif
+
+bool zai_sandbox_call(zai_sandbox *sandbox, zend_fcall_info *fci, zend_fcall_info_cache *fcc);
 
 #endif  // ZAI_SANDBOX_H
