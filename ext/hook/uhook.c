@@ -37,8 +37,8 @@ typedef struct {
 } dd_closure_list;
 
 typedef struct {
-    zend_object *begin;
-    zend_object *end;
+    dd_uhook_callback begin;
+    dd_uhook_callback end;
     bool running;
     zend_long id;
 
@@ -74,6 +74,46 @@ typedef struct {
 typedef struct {
     dd_hook_data *hook_data;
 } dd_uhook_dynamic;
+
+#if PHP_VERSION_ID < 70400
+#define ZEND_MAP_PTR(x) x
+#endif
+
+// Only called on first call or scope change
+void dd_uhook_callback_apply_scope(dd_uhook_callback *cb, zend_class_entry *scope) {
+    if (!cb->fcc.function_handler) {
+        zend_function *func = (zend_function *) zend_get_closure_method_def(cb->closure);
+        cb->is_static = !scope || (func->common.fn_flags & ZEND_ACC_STATIC);
+        if (!cb->is_static) {
+            memcpy(&cb->func, func, sizeof(zend_function));
+            int cache_size = func->op_array.cache_size;
+            func = &cb->func;
+            if (cache_size) {
+                func->op_array.fn_flags |= ZEND_ACC_HEAP_RT_CACHE;
+                ZEND_MAP_PTR(cb->func.op_array.run_time_cache) = emalloc(cache_size);
+            }
+        }
+        cb->fcc.function_handler = func;
+#if PHP_VERSION_ID < 70300
+        cb->fcc.initialized = 1;
+#endif
+        if (cb->is_static) {
+            cb->fcc.called_scope = func->common.scope;
+            return;
+        }
+    }
+    int cache_size = cb->func.op_array.cache_size;
+    cb->func.common.scope = scope;
+    cb->fcc.called_scope = scope;
+    if (cache_size) {
+        memset(ZEND_MAP_PTR(cb->func.op_array.run_time_cache), 0, cache_size);
+    }
+}
+
+#if PHP_VERSION_ID < 70400
+#undef ZEND_MAP_PTR
+#endif
+
 
 static zend_object *dd_hook_data_create(zend_class_entry *class_type) {
     dd_hook_data *hook_data = ecalloc(1, sizeof(*hook_data));
@@ -192,20 +232,18 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
     })
 }
 
-static bool dd_uhook_call_hook(zend_execute_data *execute_data, zend_object *closure, dd_hook_data *hook_data) {
-    zval closure_zv, hook_data_zv;
-    ZVAL_OBJ(&closure_zv, closure);
+static bool dd_uhook_call_hook(zend_execute_data *execute_data, dd_uhook_callback *callback, dd_hook_data *hook_data) {
+    zval hook_data_zv;
     ZVAL_OBJ(&hook_data_zv, &hook_data->std);
 
-    bool has_this = getThis() != NULL;
     zval rv;
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
-    bool success = zai_symbol_call(has_this ? ZAI_SYMBOL_SCOPE_OBJECT : ZAI_SYMBOL_SCOPE_GLOBAL, has_this ? &EX(This) : NULL,
-                                   ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
-                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &hook_data_zv);
+    dd_uhook_callback_ensure_scope(callback, execute_data);
+    zend_fcall_info fci = dd_fcall_info(1, &hook_data_zv, &rv);
+    bool success = zai_sandbox_call(&sandbox, &fci, &callback->fcc);
     if (!success || PG(last_error_message)) {
-        dd_uhook_report_sandbox_error(execute_data, closure);
+        dd_uhook_report_sandbox_error(execute_data, callback->closure);
     }
     zai_sandbox_close(&sandbox);
     zval_ptr_dtor(&rv);
@@ -298,7 +336,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
     }
 
-    if (def->begin && !def->running) {
+    if (def->begin.closure && !def->running) {
         dyn->hook_data->execute_data = execute_data;
         // We support it for PHP 8 for now, given we need this for PHP 8.1+ right now.
         // Bringing it to PHP 7.1-7.4 is possible, but not done yet.
@@ -310,10 +348,10 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         }
 #endif
 
-        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin.closure););
 
         def->running = true;
-        dd_uhook_call_hook(execute_data, def->begin, dyn->hook_data);
+        dd_uhook_call_hook(execute_data, &def->begin, dyn->hook_data);
         def->running = false;
         dyn->hook_data->retval_ptr = NULL;
     }
@@ -395,7 +433,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
     bool keep_span = true;
 
-    if (def->end && !def->running && get_DD_TRACE_ENABLED()) {
+    if (def->end.closure && !def->running && get_DD_TRACE_ENABLED()) {
         zval tmp;
 
         /* If the profiler doesn't handle a potential pending interrupt before
@@ -432,11 +470,11 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         }
         zval_ptr_dtor(&tmp);
 
-        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "end", def->end););
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "end", def->end.closure););
 
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
-        keep_span = dd_uhook_call_hook(execute_data, def->end, dyn->hook_data);
+        keep_span = dd_uhook_call_hook(execute_data, &def->end, dyn->hook_data);
         dyn->hook_data->retval_ptr = NULL;
         def->running = false;
     }
@@ -485,12 +523,8 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
 static void dd_uhook_dtor(void *data) {
     dd_uhook_def *def = data;
-    if (def->begin) {
-        OBJ_RELEASE(def->begin);
-    }
-    if (def->end) {
-        OBJ_RELEASE(def->end);
-    }
+    dd_uhook_callback_destroy(&def->begin);
+    dd_uhook_callback_destroy(&def->end);
     if (def->function) {
         zend_string_release(def->function);
         if (def->scope) {
@@ -581,13 +615,15 @@ type_error:
     dd_uhook_def *def = emalloc(sizeof(*def));
     def->closure = NULL;
     def->running = false;
-    def->begin = begin ? Z_OBJ_P(begin) : NULL;
-    if (def->begin) {
-        GC_ADDREF(def->begin);
+    def->begin.fcc.function_handler = NULL;
+    def->begin.closure = begin ? Z_OBJ_P(begin) : NULL;
+    if (def->begin.closure) {
+        GC_ADDREF(def->begin.closure);
     }
-    def->end = end ? Z_OBJ_P(end) : NULL;
-    if (def->end) {
-        GC_ADDREF(def->end);
+    def->end.fcc.function_handler = NULL;
+    def->end.closure = end ? Z_OBJ_P(end) : NULL;
+    if (def->end.closure) {
+        GC_ADDREF(def->end.closure);
     }
     def->id = -1;
 

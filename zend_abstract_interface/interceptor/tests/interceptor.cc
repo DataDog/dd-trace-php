@@ -2,6 +2,8 @@
 
 extern "C" {
 #include <hook/hook.h>
+#include <sandbox/sandbox.h>
+#include <zai_string/tests/symbols.h>
 #include <tea/extension.h>
 #include <ext/standard/basic_functions.h>
 #if PHP_VERSION_ID >= 80000
@@ -137,7 +139,7 @@ static void zai_hook_test_yield_ascending(zend_ulong invocation, zend_execute_da
 #define CALL_FN(fn, ...) do { \
     zval result; \
     zai_str _fn_name = ZAI_STRL(fn);               \
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0)); \
+    REQUIRE(zai_test_call_global_with_0_params(&_fn_name, &result)); \
     __VA_ARGS__               \
     zval_ptr_dtor(&result);                          \
 } while (0)
@@ -239,7 +241,6 @@ INTERCEPTOR_TEST_CASE("internal function throws", {
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
 
-#if PHP_VERSION_ID >= 50500
 INTERCEPTOR_TEST_CASE("generator function intercepting from internal call", {
     INSTALL_HOOK("generator");
     CALL_FN("generator", CHECK(zai_hook_test_end_invocations == 0););
@@ -466,7 +467,6 @@ INTERCEPTOR_TEST_CASE("generator with finally and return intercepting", {
     CHECK(zai_hook_test_end_invocations == 1);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
 });
-#endif
 
 INTERCEPTOR_TEST_CASE("generator with finally and return value intercepting", {
     INSTALL_HOOK("generatorWithFinallyReturnValue");
@@ -479,9 +479,17 @@ INTERCEPTOR_TEST_CASE("generator with finally and return value intercepting", {
 INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     INSTALL_HOOK("bailout");
 
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
+    zval _fn_name;
+    ZVAL_STRING(&_fn_name, "bailout");
+    zend_fcall_info_init(&_fn_name, 0, &fci, &fcc, NULL, NULL);
+
     zval result;
-    zai_str _fn_name = ZAI_STRL("bailout");
-    REQUIRE(zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, ZAI_SYMBOL_FUNCTION_NAMED, &_fn_name, &result, 0) == false);
+    zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
+    REQUIRE(zai_sandbox_call(&sandbox, &fci, &fcc) == false);
+    zai_sandbox_close(&sandbox);
 
     REQUIRE(CG(unclean_shutdown));
 
@@ -495,5 +503,7 @@ INTERCEPTOR_TEST_CASE("bailout in intercepted functions runs end handlers", {
     CHECK(zai_hook_test_begin_invocations == 1);
     CHECK(zai_hook_test_end_invocations == 1);
     CHECK(Z_TYPE(zai_hook_test_last_rv) == IS_NULL);
+
+    zval_ptr_dtor(&_fn_name);
 });
 
