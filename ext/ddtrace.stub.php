@@ -804,6 +804,24 @@ namespace DDTrace {
      * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
+
+    /**
+     * Store data tied to a resource. Behaves like a weakmap, i.e. data is freed when the associated resource is freed.
+     *
+     * @param resource $resource Some resource
+     * @param string $key An arbitrary string key to uniquely match
+     * @param mixed $value The data to be stored
+     */
+    function resource_weak_store(mixed $resource, string $key, mixed $value): void {}
+
+    /**
+     * Get data tied to the resource.
+     *
+     * @param resource $resource Some resource
+     * @param string $key An arbitrary string key to uniquely match
+     * @return mixed|null The stored value, or null if missing.
+     */
+    function resource_weak_get(mixed $resource, string $key): mixed {}
 }
 
 namespace DDTrace\System {

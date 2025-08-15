@@ -180,7 +180,7 @@ class ObjectKVStore
      * @param mixed $instance_destination
      * @param string $key
      */
-    public static function propagate($instance_source, $instance_destination, $key)
+    public static function  propagate($instance_source, $instance_destination, $key)
     {
         self::put($instance_destination, $key, self::get($instance_source, $key));
     }
