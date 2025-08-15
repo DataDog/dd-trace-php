@@ -72,24 +72,20 @@ services:
   '7.4-alpine': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-debug-alpine-3.11' }
   # --- Alpine ---
   '8.0-alpine': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
-  # --- Buster ---
-  '7.0-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_buster' }
-  '7.1-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_buster' }
-  '7.2-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_buster' }
-  '7.3-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_buster' }
-  '7.4-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_buster' }
-  '7.4-buster-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext' }
-  '8.0-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_buster' }
-  '8.0-buster-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext' }
-  '8.1-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_buster' }
-  '8.2-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_buster' }
-  '8.3-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_buster' }
-  '8.4-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_buster' }
-  'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- Bookworm ---
+  '7.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_bookworm-5' }
+  '7.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_bookworm-5' }
+  '7.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_bookworm-5' }
+  '7.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_bookworm-5' }
+  '7.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_bookworm-5' }
+  '7.4-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext-5' }
+  '8.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_bookworm-5' }
+  '8.0-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext-5' }
+  '8.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_bookworm-5' }
   '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-5' }
   '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-5' }
   '8.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_bookworm-5' }
+  'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
   '7.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }
@@ -201,7 +197,7 @@ services:
       - ZOOKEEPER_TICK_TIME=2000
 
   mongodb-integration:
-    image: "circleci/mongo:4.0"
+    image: "mongo:4.2.24"
     ports:
       - "27017:27017"
     environment:
@@ -280,7 +276,7 @@ services:
   test-agent:
     image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
     ports:
-      - "127.0.0.1:9126:8126"
+      - "9126:9126"
     volumes:
       - ./tests/snapshots:/snapshots
     environment:

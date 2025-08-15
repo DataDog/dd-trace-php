@@ -78,4 +78,65 @@ void ddtrace_thread_gshutdown() {
     }
 }
 
+#else
+
+MUTEX_T tsrm_mutex_alloc(void)
+{/*{{{*/
+    MUTEX_T mutexp;
+#ifdef TSRM_WIN32
+    mutexp = malloc(sizeof(CRITICAL_SECTION));
+    InitializeCriticalSection(mutexp);
+#else
+    mutexp = (pthread_mutex_t *)malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(mutexp,NULL);
+#endif
+    return( mutexp );
+}/*}}}*/
+
+
+/* Free a mutex */
+void tsrm_mutex_free(MUTEX_T mutexp)
+{/*{{{*/
+    if (mutexp) {
+#ifdef TSRM_WIN32
+        DeleteCriticalSection(mutexp);
+        free(mutexp);
+#else
+        pthread_mutex_destroy(mutexp);
+        free(mutexp);
+#endif
+    }
+}/*}}}*/
+
+
+/*
+  Lock a mutex.
+  A return value of 0 indicates success
+*/
+int tsrm_mutex_lock(MUTEX_T mutexp)
+{/*{{{*/
+#ifdef TSRM_WIN32
+    EnterCriticalSection(mutexp);
+    return 0;
+#else
+    return pthread_mutex_lock(mutexp);
+#endif
+}/*}}}*/
+
+
+/*
+  Unlock a mutex.
+  A return value of 0 indicates success
+*/
+int tsrm_mutex_unlock(MUTEX_T mutexp)
+{/*{{{*/
+#ifdef TSRM_WIN32
+    LeaveCriticalSection(mutexp);
+	return 0;
+#else
+    return pthread_mutex_unlock(mutexp);
+#endif
+}/*}}}*/
+
+
 #endif

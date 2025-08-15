@@ -4,6 +4,7 @@ Span properties defaults to values if not explicitly set (methods)
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=DateTime::__construct,DateTime::format
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 use DDTrace\SpanData;
@@ -42,9 +43,9 @@ dd_dump_spans();
 06
 spans(\DDTrace\SpanData) (1) {
   Foo.main (default_span_properties_method.php, Foo.main, cli)
-    year => 2020
     _dd.p.dm => -0
     _dd.p.tid => %s
+    year => 2020
     DateTime.__construct (default_span_properties_method.php, DateTime.__construct, cli)
       date => 2020-06-15
     MyDateTimeFormat (default_span_properties_method.php, MyDateTimeFormat, cli)

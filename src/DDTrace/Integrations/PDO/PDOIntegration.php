@@ -204,9 +204,11 @@ class PDOIntegration extends Integration
     {
         $engine = substr($dsn, 0, strpos($dsn, ':'));
         $tags = ['db.engine' => $engine];
-        $tags[Tag::DB_SYSTEM] = isset(self::$DB_DRIVER_TO_SYSTEM[$engine])
-            ? self::$DB_DRIVER_TO_SYSTEM[$engine]
-            : 'other_sql';
+        $dbSystem = isset(self::$DB_DRIVER_TO_SYSTEM[$engine])
+          ? self::$DB_DRIVER_TO_SYSTEM[$engine]
+          : 'other_sql';
+        $tags[Tag::DB_SYSTEM] = $dbSystem;
+        $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
         $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
         foreach ($valStrings as $valString) {
             if (!strpos($valString, '=')) {

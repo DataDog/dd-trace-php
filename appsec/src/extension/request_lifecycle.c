@@ -145,7 +145,8 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
         return false;
     }
 
-    const char *cur_path = dd_trace_remote_config_get_path();
+    struct telemetry_rc_info tel_rc_info = dd_trace_get_telemetry_rc_info();
+    const char *cur_path = tel_rc_info.rc_path;
     if (!cur_path) {
         cur_path = "";
     }
@@ -158,9 +159,13 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
         return false;
     }
 
-    mlog(dd_log_info, "Remote config path changed from %s to %s",
+    mlog(dd_log_info,
+        "Remote config path changed from %s to %s; "
+        "current service_name=%.*s, env_name=%.*s",
         _last_rem_cfg_path[0] ? _last_rem_cfg_path : "(none)",
-        cur_path[0] ? cur_path : "(none)");
+        cur_path[0] ? cur_path : "(none)",
+        ZSTR_PRINTF(tel_rc_info.service_name),
+        ZSTR_PRINTF(tel_rc_info.env_name));
 
     // NOLINTNEXTLINE(clang-analyzer-security.insecureAPI.strcpy)
     strcpy(_last_rem_cfg_path, cur_path);
@@ -205,8 +210,9 @@ static zend_array *nullable _do_request_begin(
     if (_rem_cfg_path_changed(true) ||
         (!DDAPPSEC_G(active) &&
             DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG)) {
-        res = dd_config_sync(conn,
-            &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path});
+        res = dd_config_sync(
+            conn, &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
+                      .telemetry_settings = dd_trace_get_telemetry_rc_info()});
         if (res == dd_success && DDAPPSEC_G(active)) {
             res = dd_request_init(conn, &req_info);
         }
@@ -284,7 +290,8 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
                 "No connection to the helper for rshutdown config sync");
         } else {
             dd_result res = dd_config_sync(conn,
-                &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path});
+                &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
+                    .telemetry_settings = dd_trace_get_telemetry_rc_info()});
             if (res == dd_network) {
                 mlog_g(dd_log_info, "request_init/config_sync failed with "
                                     "dd_network; closing "
@@ -883,8 +890,8 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
     zend_long sampling_priority =
         dd_trace_get_priority_sampling_on_span_zobj(root_span);
     if (get_DD_APM_TRACING_ENABLED() && sampling_priority < 1) {
-        mlog_g(dd_log_debug, "Sampling priority is %ld; not sampling",
-            sampling_priority);
+        mlog_g(dd_log_debug, "Sampling priority is %" PRIi64 "; not sampling",
+            (int64_t)sampling_priority);
         return 0;
     }
 

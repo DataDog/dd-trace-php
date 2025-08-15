@@ -3,6 +3,7 @@ DDTrace\trace_method() can trace with internal spans
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand
 --FILE--
 <?php
@@ -121,38 +122,38 @@ array(3) {
     string(7) "FooType"
     ["meta"]=>
     array(7) {
-      ["runtime-id"]=>
-      string(36) "%s"
+      ["_dd.p.dm"]=>
+      string(2) "-0"
+      ["_dd.p.tid"]=>
+      string(16) "%s"
       ["args.0"]=>
-      string(18) "tracing is awesome"
-      ["retval.thoughts"]=>
       string(18) "tracing is awesome"
       ["retval.first"]=>
       string(5) "first"
       ["retval.rand"]=>
       string(%d) "%d"
-      ["_dd.p.dm"]=>
-      string(2) "-0"
-      ["_dd.p.tid"]=>
-      string(16) "%s"
+      ["retval.thoughts"]=>
+      string(18) "tracing is awesome"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(8) {
-      ["process_id"]=>
-      float(%f)
-      ["foo"]=>
-      float(100)
-      ["bar"]=>
-      float(0)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
+      ["bar"]=>
+      float(0)
+      ["foo"]=>
+      float(100)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }
@@ -178,12 +179,12 @@ array(3) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
+      ["_dd.base_service"]=>
+      string(10) "FooService"
       ["rand.range"]=>
       string(8) "42 - 999"
       ["rand.value"]=>
       string(%d) "%d"
-      ["_dd.base_service"]=>
-      string(10) "FooService"
     }
   }
   [2]=>
@@ -206,26 +207,26 @@ array(3) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
-      ["runtime-id"]=>
-      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%f)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

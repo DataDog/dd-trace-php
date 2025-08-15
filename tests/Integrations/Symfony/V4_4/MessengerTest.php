@@ -43,7 +43,8 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_DEBUG' => 'true',
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
-            'DD_TRACE_PHPREDIS_ENABLED' => 'false' // We are NOT testing the phpredis integration
+            'DD_TRACE_PHPREDIS_ENABLED' => 'false', // We are NOT testing the phpredis integration
+            'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
         ]);
     }
 
@@ -62,6 +63,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_TRACE_DEBUG' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         $this->snapshotFromTraces(
@@ -86,6 +88,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_CODE_ORIGIN_MAX_USER_FRAMES' => '0',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         $this->snapshotFromTraces(

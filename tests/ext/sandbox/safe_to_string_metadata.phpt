@@ -85,49 +85,6 @@ arg.0.1: string(0) ""
 string(16) "already a string"
 arg.1: string(16) "already a string"
 
-int(42)
-arg.2: string(2) "42"
-
-float(4.2)
-arg.3: string(3) "4.2"
-
-bool(true)
-arg.4: string(4) "true"
-
-bool(false)
-arg.5: string(5) "false"
-
-NULL
-arg.6: string(4) "null"
-
-object(Closure)#%d (0) {
-}
-arg.7: string(0) ""
-
-object(DateTime)#%d (3) {
-  ["date"]=>
-  string(26) "2019-09-10 00:00:00.000000"
-  ["timezone_type"]=>
-  int(3)
-  ["timezone"]=>
-  string(3) "UTC"
-}
-arg.8.date: string(26) "2019-09-10 00:00:00.000000"
-arg.8.timezone_type: string(1) "3"
-arg.8.timezone: string(3) "UTC"
-
-object(MyDt)#%d (3) {
-  ["date"]=>
-  string(26) "2019-09-10 00:00:00.000000"
-  ["timezone_type"]=>
-  int(3)
-  ["timezone"]=>
-  string(3) "UTC"
-}
-arg.9.date: string(26) "2019-09-10 00:00:00.000000"
-arg.9.timezone_type: string(1) "3"
-arg.9.timezone: string(3) "UTC"
-
 array(1) {
   ["foo"]=>
   int(0)
@@ -160,3 +117,46 @@ arg.15: string(4) "true"
 
 float(4.2)
 arg.16: string(3) "4.2"
+
+int(42)
+arg.2: string(2) "42"
+
+float(4.2)
+arg.3: string(3) "4.2"
+
+bool(true)
+arg.4: string(4) "true"
+
+bool(false)
+arg.5: string(5) "false"
+
+NULL
+arg.6: string(4) "null"
+
+object(Closure)#%d (0) {
+}
+arg.7: string(0) ""
+
+object(DateTime)#%d (3) {
+  ["date"]=>
+  string(26) "2019-09-10 00:00:00.000000"
+  ["timezone_type"]=>
+  int(3)
+  ["timezone"]=>
+  string(3) "UTC"
+}
+arg.8.date: string(26) "2019-09-10 00:00:00.000000"
+arg.8.timezone: string(3) "UTC"
+arg.8.timezone_type: string(1) "3"
+
+object(MyDt)#%d (3) {
+  ["date"]=>
+  string(26) "2019-09-10 00:00:00.000000"
+  ["timezone_type"]=>
+  int(3)
+  ["timezone"]=>
+  string(3) "UTC"
+}
+arg.9.date: string(26) "2019-09-10 00:00:00.000000"
+arg.9.timezone: string(3) "UTC"
+arg.9.timezone_type: string(1) "3"

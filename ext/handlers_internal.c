@@ -34,6 +34,7 @@ void ddtrace_kafka_handlers_startup(void);
 #ifndef _WIN32
 void ddtrace_signal_block_handlers_startup(void);
 #endif
+void ddtrace_instrument_stream_wrappers(void);
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 #include <hook/hook.h>
@@ -149,6 +150,9 @@ void ddtrace_internal_handlers_startup() {
     ddtrace_pcntl_handlers_startup();
     // exception handlers have to run otherwise wrapping will fail horribly
     ddtrace_exception_handlers_startup();
+
+    // Stream wrapper instrumentation
+    ddtrace_instrument_stream_wrappers();
 
     ddtrace_exec_handlers_startup();
     ddtrace_kafka_handlers_startup();

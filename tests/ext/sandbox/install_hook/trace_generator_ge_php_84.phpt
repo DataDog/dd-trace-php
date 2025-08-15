@@ -8,6 +8,7 @@ if (PHP_VERSION_ID < 80400) {
 ?>
 --INI--
 datadog.trace.generate_root_span=0
+datadog.code_origin_for_spans_enabled=0
 datadog.trace.auto_flush_enabled=0
 --FILE--
 <?php
@@ -38,8 +39,8 @@ include __DIR__ . '/../dd_dumper.inc';
 --EXPECTF--
 spans(\DDTrace\SpanData) (1) {
   {closure:%s.php:%d\{closure} (trace_generator_ge_php_84.php, {closure:%s.php:%d\{closure}, cli)
+    _dd.p.tid => %s
     closure.declaration => %s:%d
     result => 3
-    _dd.p.tid => %s
      (trace_generator_ge_php_84.php, cli)
 }

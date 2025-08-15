@@ -51,6 +51,7 @@ stages:
   - test
   - "integrations test"
   - "web test"
+  - "aggregate versions"
 
 #variables:
 #  CI_DEBUG_SERVICES: "true"
@@ -64,7 +65,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -119,6 +120,7 @@ stages:
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
+    GIT_STRATEGY: clone
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
     # Make sure we actually fail if a command fails
@@ -177,7 +179,7 @@ stages:
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
   timeout: 30m
   variables:
     host_os: linux-gnu
@@ -191,7 +193,7 @@ stages:
     HTTPBIN_PORT: 8080
   before_script:
 <?php before_script_steps() ?>
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
+    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
 
 .asan_test:
   extends: .base_test
@@ -481,23 +483,24 @@ endforeach;
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=30; done
+    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
   script:
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
-    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions.json
+    - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
 
 <?php
 
 // specific service maps:
 $services["elasticsearch1"] = "elasticsearch2";
+$services["elasticsearch8"] = "elasticsearch7";
 $services["elasticsearch_latest"] = "elasticsearch7";
 $services["magento"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["deferred_loadin"] = "redis";
 $services["pdo"] = "mysql";
-$services["kafk"] = "zookeeper";
+$services["kafk"] = ["kafka", "zookeeper"];
 
 $jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
@@ -534,15 +537,25 @@ foreach ($jobs as $type => $type_jobs):
 <?php if ($type == "web"): ?>
     - !reference [.services, mysql]
 <?php endif; ?>
-<?php foreach ($services as $part => $service): if (str_contains($target, $part)): ?>
-    - !reference [.services, <?= $service ?>]
-<?php endif; endforeach; ?>
+<?php
+foreach ($services as $part => $service) {
+    if (str_contains($target, $part)) {
+        foreach ((array)$service as $svc) {
+            echo "    - !reference [.services, $svc]\n";
+        }
+    }
+}
+?>
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     MAKE_TARGET: "<?= $target ?>"
     ARCH: "amd64"
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
+<?php endif; ?>
+<?php if (str_contains($target, "kafk")): ?>
+    WAIT_FOR: zookeeper:2181 kafka-integration:9092
+    CI_DEBUG_SERVICES: "true"
 <?php endif; ?>
 <?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
     COMPOSER_VERSION: 2.2
@@ -657,3 +670,33 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 <?php after_script(has_test_agent: true); ?>
 
 <?php endforeach; ?>
+
+"aggregate tested versions":
+  stage: "aggregate versions"
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  when: always
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+    - git config --global user.name "github-actions[bot]"
+    - dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions
+    - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-aggregate-versions > github_token.txt
+    - export GITHUB_TOKEN=$(cat github_token.txt)
+    - ./tooling/tested_versions/create_or_update_supported_versions_pr.sh
+  after_script:
+    # Revoke the GitHub token after usage
+    - if [[ -f github_token.txt ]]; then dd-octo-sts revoke -t $(cat github_token.txt) || true; fi
+  artifacts:
+    paths:
+      - "aggregated_tested_versions.json"
+      - "integration_versions.md"
+    when: "always"
+  rules:
+    # Run automatically on master even if previous jobs failed (flaky tests may still provide artifacts)
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: always
+    - when: manual

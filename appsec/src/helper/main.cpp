@@ -11,7 +11,10 @@
 #include "runner.hpp"
 #include "subscriber/waf.hpp"
 #include <csignal>
+#include <cstddef>
 #include <cstdlib>
+#include <functional>
+#include <memory>
 #include <spdlog/common.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -31,7 +34,31 @@ constexpr std::chrono::seconds log_flush_interval{5};
 
 std::atomic<bool> interrupted; // NOLINT
 std::atomic<bool> finished;    // NOLINT
-pthread_t thread_id;
+pthread_t thread_handle;
+
+void *pthread_wrapper(void *arg)
+{
+    auto *func = static_cast<std::function<int8_t()> *>(arg);
+    int8_t ret = 0;
+    try {
+        (*func)();
+    } catch (const std::exception &e) {
+        SPDLOG_ERROR("Exception in pthread wrapper: {}", e.what());
+        ret = 1;
+    } catch (...) {
+        SPDLOG_ERROR("Unknown exception in pthread wrapper");
+        ret = 1;
+    }
+
+    try {
+        delete func; // NOLINT(cppcoreguidelines-owning-memory)
+    } catch (...) {
+        SPDLOG_ERROR("Unknown exception in func delete in pthread wrapper");
+    }
+
+    //  NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    return reinterpret_cast<void *>(ret);
+}
 
 bool ensure_unique(const std::string &lock_path)
 {
@@ -117,22 +144,46 @@ int appsec_helper_main_impl()
 
     auto runner = std::make_shared<dds::runner>(config, interrupted);
     SPDLOG_INFO("starting runner on new thread");
-    std::thread thr{[runner = std::move(runner)]() {
+
+    auto thread_function = std::make_unique<std::function<int8_t()>>(
+        [runner = std::move(runner)]() -> int8_t {
 #ifdef __linux__
-        pthread_setname_np(pthread_self(), "appsec_helper runner");
+            pthread_setname_np(pthread_self(), "appsec_helper runner");
 #elif defined(__APPLE__)
-        pthread_setname_np("appsec_helper runner");
+            pthread_setname_np("appsec_helper runner");
 #endif
-        runner->register_for_rc_notifications();
+            runner->register_for_rc_notifications();
 
-        runner->run();
+            runner->run();
 
-        runner->unregister_for_rc_notifications();
+            runner->unregister_for_rc_notifications();
 
-        finished.store(true, std::memory_order_release);
-    }};
-    thread_id = thr.native_handle();
-    thr.detach();
+            finished.store(true, std::memory_order_release);
+            return 0;
+        });
+
+    // Set up pthread attributes with 8 MB stack size
+    pthread_attr_t attr;
+    if (int err = pthread_attr_init(&attr)) {
+        SPDLOG_ERROR(
+            "Failed to initialize pthread attributes: error number {}", err);
+        return 1;
+    }
+
+    const dds::defer defer_attr_destroy{
+        [&attr]() { pthread_attr_destroy(&attr); }};
+    constexpr auto stack_size =
+        static_cast<const size_t>(8 * 1024 * 1024); // 8 MB
+    if (int err = pthread_attr_setstacksize(&attr, stack_size)) {
+        SPDLOG_ERROR("Failed to set pthread stack size: error number {}", err);
+        return 1;
+    }
+
+    if (int err = pthread_create(&thread_handle, &attr, pthread_wrapper,
+            thread_function.release())) {
+        SPDLOG_ERROR("Failed to create pthread: error number {}", err);
+        return 1;
+    }
 
     return 0;
 }
@@ -157,7 +208,7 @@ extern "C" __attribute__((visibility("default"))) int
 appsec_helper_shutdown() noexcept
 {
     interrupted.store(true, std::memory_order_release);
-    pthread_kill(thread_id, SIGUSR1);
+    pthread_kill(thread_handle, SIGUSR1);
 
     // wait up to 1 second for the runner to finish
     auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{1};
@@ -168,26 +219,19 @@ appsec_helper_shutdown() noexcept
             had_finished = true;
         }
 
-        const int res = pthread_kill(thread_id, 0);
-        // finished being true only means that the body of the thread has
-        // finished. After it returns, the thread still needs to perform
-        // cleanup work, including calling the destructors of the captured
-        // variables in the lambda that implments the body thread.
-        // These destructors are code that lives in the helper shared library,
-        // so these cleanups must happen **before** the helper shared library
-        // is unloaded by trampoline.c.
-        //
-        // At least glibc appears to only start returning ESRCH after
-        // the __call_tls_dtors / ___nptl_deallocate_tsd / __libc_thread_freeres
-        // have all been called (pd->exiting is read by thread_kill and set by
-        // start_thread relatively late).
-        if (res == ESRCH) {
+        // after finished is written to, we haven't necessarily  destroyed the
+        // std::function and its captured variables. This needs to happen before
+        // the helper shared library is unloaded by trampoline.c.
+        // Wait for the joinable thread to actually exit (with a timeout).
+        void *thr_exit_status;
+        const int res = pthread_tryjoin_np(thread_handle, &thr_exit_status);
+        if (res == 0) {
             SPDLOG_INFO("AppSec helper thread has exited");
             break;
         }
 
         if (std::chrono::steady_clock::now() >= deadline) {
-            // we need to call exit() to avoid a segfault in the still running
+            // we need to call _exit() to avoid a segfault in the still running
             // helper threads after the helper shared library is unloaded by
             // trampoline.c
             SPDLOG_WARN("Could not finish AppSec helper before deadline. "

@@ -682,13 +682,13 @@ static ddtrace_coms_stack_t *_dd_coms_attempt_acquire_stack(void) {
 
 static struct curl_slist *dd_agent_curl_headers = NULL;
 
-static void dd_append_header(struct curl_slist **list, const char *key, const char *val) {
+static void dd_append_header(struct curl_slist **list, const char *key, const char *val, size_t val_len) {
     /* The longest Agent header should be:
      * Datadog-Container-Id: <64-char-hash>
      * So 256 should give us plenty of wiggle room.
      */
     char header[256];
-    size_t len = snprintf(header, sizeof header, "%s: %s", key, val);
+    size_t len = snprintf(header, sizeof header, "%s: %.*s", key, (int)val_len, val);
     if (len > 0 && len < sizeof header) {
         *list = curl_slist_append(*list, header);
     }
@@ -697,12 +697,12 @@ static void dd_append_header(struct curl_slist **list, const char *key, const ch
 static struct curl_slist *dd_agent_headers_alloc(void) {
     struct curl_slist *list = NULL;
 
-    dd_append_header(&list, "Datadog-Meta-Lang", "php");
-    dd_append_header(&list, "Datadog-Meta-Lang-Interpreter", sapi_module.name);
-    dd_append_header(&list, "Datadog-Meta-Lang-Version", ZSTR_VAL(ddtrace_php_version));
-    dd_append_header(&list, "Datadog-Meta-Tracer-Version", PHP_DDTRACE_VERSION);
+    dd_append_header(&list, "Datadog-Meta-Lang", ZEND_STRL("php"));
+    dd_append_header(&list, "Datadog-Meta-Lang-Interpreter", sapi_module.name, strlen(sapi_module.name));
+    dd_append_header(&list, "Datadog-Meta-Lang-Version", php_version_rt.ptr, php_version_rt.len);
+    dd_append_header(&list, "Datadog-Meta-Tracer-Version", ZEND_STRL(PHP_DDTRACE_VERSION));
     if (!get_global_DD_APM_TRACING_ENABLED()) {
-        dd_append_header(&list, "Datadog-Client-Computed-Stats", "true");
+        dd_append_header(&list, "Datadog-Client-Computed-Stats", ZEND_STRL("true"));
     }
 
     ddog_CharSlice id = ddtrace_get_container_id();
@@ -716,7 +716,7 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
      * wait for *1 second* for 100 Continue response before sending the rest of the data. This wait is
      * configurable, but requires a newer curl than we have on CentOS 6. So instead we send an empty Expect.
      */
-    dd_append_header(&list, "Expect", "");
+    dd_append_header(&list, "Expect", ZEND_STRL(""));
 
     return list;
 }
@@ -1059,7 +1059,7 @@ static void *_dd_writer_loop(void *_) {
         "        \"service_name\": \"%s\",\n"
         "        \"tracer_version\": \"%s\",\n"
         "        \"language_name\": \"php\",\n"
-        "        \"language_version\": \"%s\"\n"
+        "        \"language_version\": \"%.*s\"\n"
         "    },\n"
         "    \"host\": {\n"
         "        \"hostname\": \"%s\"\n"
@@ -1070,7 +1070,8 @@ static void *_dd_writer_loop(void *_) {
             time(NULL),
             ddtrace_coms_globals.initial_service_name,
             PHP_DDTRACE_VERSION,
-            ZSTR_VAL(ddtrace_php_version),
+            (int)php_version_rt.len,
+            php_version_rt.ptr,
             hostname
         );
 

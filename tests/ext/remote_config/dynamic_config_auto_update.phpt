@@ -44,4 +44,4 @@ reset_request_replayer();
 ?>
 --EXPECT--
 string(1) "1"
-string(5) "false"
+string(4) "true"

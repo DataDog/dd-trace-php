@@ -87,6 +87,12 @@ class RemoteConfigTests {
                 Capability.ASM_RASP_LFI,
                 Capability.ASM_RASP_SSRF,
                 Capability.ASM_RASP_SQLI,
+                Capability.ASM_DD_MULTICONFIG,
+                Capability.ASM_TRACE_TAGGING_RULES,
+                Capability.ASM_ENDPOINT_FINGERPRINT,
+                Capability.ASM_SESSION_FINGERPRINT,
+                Capability.ASM_NETWORK_FINGERPRINT,
+                Capability.ASM_HEADER_FINGERPRINT,
         ].each { assert it in capSet }
 
         doReq.call(403)
@@ -422,6 +428,106 @@ class RemoteConfigTests {
 
     private RemoteConfigRequest dropRemoteConfig(Target target) {
         applyRemoteConfig(target, [:])
+    }
+
+    @Test
+    void 'test asm_dd_multiconfig'() {
+        def doReq = { String userAgent, String expectedRuleId = null ->
+            HttpRequest req = CONTAINER.buildReq('/hello.php')
+                    .GET()
+                    .header('User-Agent', userAgent)
+                    .build()
+            def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+            def meta = trace.first().meta
+            if (expectedRuleId) {
+                assert meta.containsKey("_dd.appsec.json")
+                assert meta."_dd.appsec.json".contains("\"rule\":{\"id\":\"${expectedRuleId}\"")
+            } else {
+                assert !meta.containsKey("_dd.appsec.json")
+            }
+        }
+
+        def getConfigWithUserAgent = { String userAgent, String ruleId ->
+                [
+                        version: "2.2",
+                        metadata: [rules_version: "2.71.8182"],
+                        rules: [[
+                                id: ruleId,
+                                name: userAgent,
+                                tags: [type: "attack_tool",category: "attack_attempt",],
+                                conditions: [
+                                        [
+                                                parameters: [
+                                                        inputs: [
+                                                                [
+                                                                        address: "server.request.headers.no_cookies",
+                                                                        key_path: ["user-agent"]
+                                                                ]
+                                                        ],
+                                                        regex: "^${userAgent}\\/v",
+                                                ],
+                                                operator: "match_regex",
+                                        ]
+                                ]
+                        ]]
+                ]
+        }
+
+        //There is no rule in the remote config, so no rule should be matched
+        doReq.call('Arachni/v1')
+        doReq.call('TechnoViking/v1')
+
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ],
+                'datadog/2/ASM_DD/rules_1/config': getConfigWithUserAgent('Arachni', 'str-000-001')
+        ])
+
+        //Only Arachni rule is in the remote config, so only Arachni rule should be matched
+        doReq.call('Arachni/v1', 'str-000-001')
+        doReq.call('TechnoViking/v1')
+
+
+        //Add TechnoViking rule to the remote config alongside Arachni rule
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ],
+                'datadog/2/ASM_DD/rules_1/config': getConfigWithUserAgent('Arachni', 'str-000-001'),
+                'datadog/2/ASM_DD/rules_2/config': getConfigWithUserAgent('TechnoViking', 'str-000-002')
+        ])
+
+        //Both Arachni and TechnoViking rules are in the remote config, so both should be matched
+        doReq.call('Arachni/v1', 'str-000-001')
+        doReq.call('TechnoViking/v1', 'str-000-002')
+
+        //Remove Arachni rule from the remote config
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ],
+                'datadog/2/ASM_DD/rules_2/config': getConfigWithUserAgent('TechnoViking', 'str-000-002')
+        ])
+
+        //Only TechnoViking rule is in the remote config, so only TechnoViking rule should be matched
+        doReq.call('Arachni/v1')
+        doReq.call('TechnoViking/v1', 'str-000-002')
+
+        //Replace TechnoViking rule with Arachni rule
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ],
+                'datadog/2/ASM_DD/rules_2/config': getConfigWithUserAgent('Arachni', 'str-000-002')
+        ])
+
+        doReq.call('Arachni/v1', 'str-000-002')
+        doReq.call('TechnoViking/v1')
+
+        dropRemoteConfig(INITIAL_TARGET)
     }
 
 }

@@ -26,6 +26,9 @@ for ($i = 0; $i < 300; ++$i) {
         foreach (file(__DIR__ . '/metrics-logs-created-telemetry.out') as $l) {
             if ($l) {
                 $json = json_decode($l, true);
+                if (($json["application"]["language_version"] ?? "") == "SIDECAR") {
+                    continue;
+                }
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
                     if ($json["request_type"] == "generate-metrics") {

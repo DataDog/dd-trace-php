@@ -24,15 +24,16 @@ typedef struct _trace_api_metrics {
 } trace_api_metrics;
 
 ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void);
+ddog_ShmCacheMap *ddtrace_telemetry_cache(void);
 const char *ddtrace_telemetry_redact_file(const char *file);
 void ddtrace_telemetry_first_init(void);
 void ddtrace_telemetry_rinit(void);
 void ddtrace_telemetry_rshutdown(void);
-ddog_TelemetryWorkerHandle *ddtrace_build_telemetry_handle(void);
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len);
 void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_len, const char *version, size_t version_len);
-void ddtrace_telemetry_finalize(void);
-void ddtrace_telemetry_register_services(ddog_SidecarTransport *sidecar);
+void ddtrace_telemetry_finalize();
+void ddtrace_telemetry_lifecycle_end(void);
+void ddtrace_telemetry_register_services(ddog_SidecarTransport **sidecar);
 void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span);
 void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics);
 

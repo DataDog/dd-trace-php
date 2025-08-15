@@ -7,6 +7,7 @@ datadog.appsec.log_level=debug
 datadog.appsec.enabled=1
 --ENV--
 DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 HTTPS=on
 SERVER_NAME=localhost:8888
 SCRIPT_NAME=/foo.php
@@ -61,6 +62,7 @@ echo "tags:\n";
 ksort($tags);
 print_r($tags);
 echo "metrics:\n";
+ksort($metrics);
 print_r($metrics);
 
 $helper->finished_with_commands();
@@ -104,12 +106,12 @@ metrics:
 Array
 (
     [%s] => %d
+    [_dd.appsec.enabled] => 1
+    [_sampling_priority_v1] => 1
     [metric_1] => 2
     [metric_2] => 10
-    [_dd.appsec.enabled] => 1
-    [_dd.agent_psr] => 1
-    [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
-    [php.memory.peak_usage_bytes] => %f
     [php.memory.peak_real_usage_bytes] => %f
+    [php.memory.peak_usage_bytes] => %f
+    [process_id] => %d
 )

@@ -51,6 +51,7 @@ ENV RUNTIME_DEPS \
     curl \
     debian-goodies \
     git \
+    jq \
     less \
     lsof \
     netbase \
@@ -112,6 +113,9 @@ RUN set -eux; \
 # persistent / runtime deps
     apt-get update; \
     apt-get install -y --no-install-recommends \
+        gcc-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
+        g++-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo aarch64; else echo x86-64; fi)-linux-gnu \
+        libc6-dev-$(if [ "$TARGETPLATFORM" != "linux/arm64" ]; then echo arm64; else echo amd64; fi)-cross \
         $DEVLIBS \
         $PHPIZE_DEPS \
         $RUNTIME_DEPS; \

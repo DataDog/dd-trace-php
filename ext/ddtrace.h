@@ -6,6 +6,7 @@
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
 #include <components/sapi/sapi.h>
 
@@ -16,6 +17,7 @@
 #include "ext/version.h"
 #include "compatibility.h"
 #include "git.h"
+#include "threads.h"
 
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
@@ -40,6 +42,8 @@ typedef struct ddtrace_exception_span_event ddtrace_exception_span_event;
 typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
 extern datadog_php_sapi ddtrace_active_sapi;
+
+extern ddog_CharSlice php_version_rt;
 
 static inline zend_array *ddtrace_property_array(zval *zv) {
     ZVAL_DEREF(zv);
@@ -124,6 +128,11 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddtrace_span_stack *top_closed_stack;
     HashTable traced_spans; // tie a span to a specific active execute_data
     uint32_t open_spans_count;
+    uint32_t baggage_extract_count;
+    uint32_t baggage_inject_count;
+    uint32_t baggage_malformed_count;
+    uint32_t baggage_max_item_count;
+    uint32_t baggage_max_byte_count;
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;
@@ -134,6 +143,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     char *cgroup_file;
     ddog_QueueId sidecar_queue_id;
+    MUTEX_T sidecar_universal_service_tags_mutex;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     ddog_AgentInfoReader *agent_info_reader;
@@ -142,8 +152,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
     HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
-    zend_string *last_flushed_root_service_name;
-    zend_string *last_flushed_root_env_name;
+    zend_string *last_service_name;
+    zend_string *last_env_name;
     ddog_Vec_Tag active_global_tags;
 
     bool request_initialized;
@@ -164,6 +174,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable git_metadata;
     zend_object *git_object;
 
+    ddog_ShmCacheMap *telemetry_cache;
     bool inferred_span_created;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on

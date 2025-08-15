@@ -48,13 +48,13 @@ $build_platforms = [
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_buster",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-5",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_buster",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-5",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -85,6 +85,7 @@ stages:
   - notify
   - verify
   - shared-pipeline # OCI packaging
+  - pre-release
   - release
 
 variables:
@@ -281,7 +282,7 @@ if ($suffix == "-alpine") {
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-5"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -331,7 +332,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-5"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -487,6 +488,7 @@ foreach ($windows_build_platforms as $platform) {
     IMAGE: "<?= $image ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
+    GIT_STRATEGY: clone
     GIT_CONFIG_COUNT: 1
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
@@ -1069,7 +1071,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-5"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1213,11 +1215,12 @@ endforeach;
 <?php foreach ($arch_targets as $arch): ?>
 "Loader test on <?= $arch ?> libc":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_buster"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${MAJOR_MINOR}_${CONTAINER_SUFFIX}"
   tags: [ "arch:$ARCH" ]
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
+    CONTAINER_SUFFIX: bookworm-5
   needs:
     - job: "package loader: [<?= $arch ?>]"
       artifacts: true
@@ -1226,6 +1229,9 @@ endforeach;
 <?php if ($arch == "amd64"): ?>
       - MAJOR_MINOR:
           - "5.6"
+        PHP_FLAVOUR: nts
+        CONTAINER_SUFFIX: buster
+      - MAJOR_MINOR:
           - "7.0"
           - "7.1"
           - "7.2"
@@ -1403,14 +1409,55 @@ deploy_to_reliability_env:
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
 
-"publish release to github":
-  stage: release
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+"generate github token":
+  stage: pre-release
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
   only:
     refs:
       - /^ddtrace-.*$/
   needs:
+    - job: "datadog-setup.php"
+      artifacts: false
+    - job: "package extension windows"
+      artifacts: false
+<?php foreach ($build_platforms as $platform): ?>
+    - job: "package extension: [<?= $platform['arch'] ?>, <?= $platform['triplet'] ?>]"
+      artifacts: false
+<?php endforeach; ?>
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  script:
+    - echo "Generating GitHub token for release..."
+    - dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-publish-release
+    - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-publish-release > github_token.txt
+    # Verify token works
+    - export GITHUB_TOKEN=$(cat github_token.txt)
+    - 'curl -f -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/repos/DataDog/dd-trace-php | jq -r .name'
+    - echo "Token generated and verified successfully"
+  artifacts:
+    paths:
+      - github_token.txt
+    expire_in: 1 hour
+    when: on_success
+  variables:
+    # Prevent token from appearing in logs
+    GITHUB_TOKEN: "[MASKED]"
+
+"publish release to github":
+  stage: release
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  tags: [ "arch:amd64" ]
+  variables: # enough memory for the individual artifacts
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 5Gi
+  only:
+    refs:
+      - /^ddtrace-.*$/
+  needs:
+    - job: "generate github token"
+      artifacts: true
     - job: "datadog-setup.php"
       artifacts: true
     - job: "package extension windows"
@@ -1420,5 +1467,12 @@ deploy_to_reliability_env:
       artifacts: true
 <?php endforeach; ?>
   script:
-    - if [ -z ${GITHUB_RELEASE_PAT} ]; then export GITHUB_RELEASE_PAT=$(aws ssm get-parameter --region us-east-1 --name ci.$CI_PROJECT_NAME.gh_token --with-decryption --query "Parameter.Value" --out text); fi
-    - php tooling/bin/create_release.php packages
+    - echo "Using pre-generated GitHub token for release..."
+    - export GITHUB_RELEASE_PAT=$(cat github_token.txt)
+    - php -d memory_limit=4G tooling/ci/create_release.php packages
+  after_script:
+    # Clean up token file (token will expire automatically in 1 hour)
+    - rm -f github_token.txt
+  variables:
+    # Prevent token from appearing in logs
+    GITHUB_RELEASE_PAT: "[MASKED]"

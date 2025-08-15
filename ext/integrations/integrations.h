@@ -24,11 +24,12 @@
     INTEGRATION(FRANKENPHP, "frankenphp")                                                                                \
     INTEGRATION(GOOGLESPANNER, "googlespanner")                                                                          \
     INTEGRATION(GUZZLE, "guzzle")                                                                                        \
+    INTEGRATION(HTTPSTREAM, "httpstream")                                                                                \
     INTEGRATION(KAFKA, "kafka")                                                                                          \
     INTEGRATION(LAMINAS, "laminas")                                                                                      \
     INTEGRATION(LARAVEL, "laravel")                                                                                      \
     INTEGRATION(LARAVELQUEUE, "laravelqueue")                                                                            \
-    INTEGRATION(LOGS, "logs", "false", CALIASES("DD_LOGS_INJECTION"), .ini_change = ddtrace_alter_DD_TRACE_LOGS_ENABLED) \
+    INTEGRATION(LOGS, "logs", "true", CALIASES("DD_LOGS_INJECTION"), .ini_change = ddtrace_alter_DD_TRACE_LOGS_ENABLED) \
     INTEGRATION(LUMEN, "lumen")                                                                                          \
     INTEGRATION(MAGENTO, "magento")                                                                                      \
     INTEGRATION(MEMCACHE, "memcache")                                                                                    \
@@ -43,7 +44,7 @@
     INTEGRATION(PHPREDIS, "phpredis")                                                                                    \
     INTEGRATION(PREDIS, "predis")                                                                                        \
     INTEGRATION(PSR18, "psr18")                                                                                          \
-    INTEGRATION(RATCHET, "ratchet")                                                                                       \
+    INTEGRATION(RATCHET, "ratchet")                                                                                      \
     INTEGRATION(ROADRUNNER, "roadrunner")                                                                                \
     INTEGRATION(SQLSRV, "sqlsrv")                                                                                        \
     INTEGRATION(SLIM, "slim")                                                                                            \

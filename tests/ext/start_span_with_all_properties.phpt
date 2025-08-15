@@ -3,6 +3,7 @@ Set DDTrace\start_span() properties
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
@@ -75,26 +76,26 @@ array(2) {
     string(3) "cli"
     ["meta"]=>
     array(3) {
-      ["runtime-id"]=>
-      string(36) "%s"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(6) {
-      ["process_id"]=>
-      float(%f)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
       ["php.compilation.total_time_ms"]=>
       float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
+      float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }
@@ -118,30 +119,30 @@ array(2) {
     string(6) "runner"
     ["meta"]=>
     array(4) {
-      ["runtime-id"]=>
-      string(36) "%s"
-      ["aa"]=>
-      string(2) "bb"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["aa"]=>
+      string(2) "bb"
+      ["runtime-id"]=>
+      string(36) "%s"
     }
     ["metrics"]=>
     array(7) {
-      ["process_id"]=>
-      float(%f)
-      ["cc"]=>
-      float(0)
       ["_dd.agent_psr"]=>
       float(1)
       ["_sampling_priority_v1"]=>
       float(1)
+      ["cc"]=>
+      float(0)
       ["php.compilation.total_time_ms"]=>
+      float(%f)
+      ["php.memory.peak_real_usage_bytes"]=>
       float(%f)
       ["php.memory.peak_usage_bytes"]=>
       float(%f)
-      ["php.memory.peak_real_usage_bytes"]=>
+      ["process_id"]=>
       float(%f)
     }
   }

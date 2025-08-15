@@ -69,9 +69,9 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                     $client->getAsync(self::URL . '/status/201'),
                     $client->getAsync(self::URL . '/status/202'),
                     $client->getAsync('https://google.still.wrong/', ['http_errors' => false]),
-                    $client->getAsync('https://www.google.com'),
-                    $client->getAsync('https://www.google.com'),
-                    $client->getAsync('https://www.google.com'),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
                 ];
                 Utils::unwrap($promises);
             } catch (\Exception $e) {
@@ -89,9 +89,12 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
             'meta.error.stack',
             'meta._dd.p.tid',
             'meta.curl.appconnect_time_us',
+            'meta.curl.cainfo',
+            'meta.curl.capath',
             'meta.curl.connect_time',
             'meta.curl.connect_time_us',
             'meta.curl.download_content_length',
+            'meta.curl.effective_method', // PHP 8.2+ only
             'meta.curl.filetime',
             'meta.curl.header_size',
             'meta.curl.namelookup_time',

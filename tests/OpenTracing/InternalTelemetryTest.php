@@ -11,6 +11,13 @@ final class InternalTelemetryTest extends CLITestCase
         return __DIR__ . '/../Frameworks/Custom/OpenTracing/index.php';
     }
 
+    protected static function getEnvs()
+    {
+        return array_merge(parent::getEnvs(), [
+            'DD_SERVICE' => 'OpenTelemetryService',
+        ]);
+    }
+
     private function readTelemetryPayloads($response)
     {
         $telemetryPayloads = [];
@@ -28,7 +35,7 @@ final class InternalTelemetryTest extends CLITestCase
         }
 
         // Filter the payloads from the trace background sender
-        return array_values(array_filter($telemetryPayloads, function($p) { return ($p["application"]["service_name"] ?? "") == "service_name"; }));
+        return array_values($telemetryPayloads);
     }
 
     public function testInternalMetricWithOpenTracing()

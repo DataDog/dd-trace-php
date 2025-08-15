@@ -437,7 +437,7 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h $(PROJECT_ROOT)/components-rs/library-config.h  \
+		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h $(PROJECT_ROOT)/components-rs/library-config.h \
 	)
 
 cbindgen_binary:
@@ -852,7 +852,6 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
-	test_integrations_googlespanner_latest \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
@@ -943,7 +942,6 @@ TEST_WEB_81 := \
 	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
-	test_web_symfony_52 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1009,7 +1007,6 @@ TEST_WEB_82 := \
 	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
-	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \
@@ -1073,7 +1070,6 @@ TEST_WEB_83 := \
 	test_web_nette_latest \
 	test_web_slim_312 \
 	test_web_slim_latest \
-	test_web_symfony_52 \
 	test_web_symfony_62 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \

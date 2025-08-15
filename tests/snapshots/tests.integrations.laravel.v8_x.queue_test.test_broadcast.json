@@ -5,11 +5,11 @@
     "resource": "App\\Http\\Controllers\\QueueTestController@broadcast broadcast",
     "trace_id": 0,
     "span_id": 1,
-    "parent_id": 16374439238178851893,
+    "parent_id": 10704053847933781742,
     "type": "web",
     "meta": {
       "_dd.p.dm": "-0",
-      "_dd.p.tid": "65ae48e700000000",
+      "_dd.p.tid": "686e4d3e00000000",
       "component": "laravel",
       "http.method": "GET",
       "http.route": "queue/broadcast",
@@ -17,7 +17,7 @@
       "http.url": "http://localhost/queue/broadcast",
       "laravel.route.action": "App\\Http\\Controllers\\QueueTestController@broadcast",
       "laravel.route.name": "broadcast",
-      "runtime-id": "2b8747b7-5a3e-44cb-8545-9c808e7b4e93",
+      "runtime-id": "773d8b3f-2ab5-4155-9564-102e05cee714",
       "span.kind": "server"
     },
     "metrics": {

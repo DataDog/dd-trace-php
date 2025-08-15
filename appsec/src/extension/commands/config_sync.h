@@ -6,9 +6,11 @@
 #pragma once
 
 #include "../network.h"
+#include "../ddtrace.h"
 
 struct config_sync_data {
     char *nullable rem_cfg_path;
+    struct telemetry_rc_info telemetry_settings;
 };
 
 dd_result dd_config_sync(

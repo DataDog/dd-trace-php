@@ -91,7 +91,12 @@ bool dd_trace_user_req_add_listeners(
 
 zend_string *nullable dd_ip_extraction_find(zval *nonnull server);
 
-const char *nullable dd_trace_remote_config_get_path(void);
+struct telemetry_rc_info {
+    const char *nullable rc_path;
+    zend_string *nullable service_name;
+    zend_string *nullable env_name;
+};
+struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
 
 typedef enum {
     DDTRACE_METRIC_TYPE_GAUGE,

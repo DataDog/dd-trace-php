@@ -47,6 +47,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_CODE_ORIGIN_MAX_USER_FRAMES',
         ];
     }
 
@@ -86,6 +87,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testSend()
     {
+        self::putenv('DD_CODE_ORIGIN_MAX_USER_FRAMES=2');
         $traces = $this->isolateTracer(function () {
             $request = new Request('put', 'http://example.com');
             $this->getMockedClient()->send($request);
@@ -98,7 +100,17 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    // Note that the leaf span is guzzle, not the curl inside
+                    '_dd.code_origin.frames.0.file' => '%s/vendor/guzzlehttp/guzzle/src/Client.php',
+                    '_dd.code_origin.frames.0.line' => '%d',
+                    '_dd.code_origin.frames.0.method' => 'send',
+                    '_dd.code_origin.frames.0.type' => 'GuzzleHttp\Client',
+                    '_dd.code_origin.frames.1.file' => '%s/GuzzleIntegrationTest.php',
+                    '_dd.code_origin.frames.1.line' => '%d',
+                    '_dd.code_origin.frames.1.method' => '%s}', // closure format differs on PHP versions
+                    '_dd.code_origin.frames.1.type' => 'DDTrace\Tests\Integrations\Guzzle\%s\GuzzleIntegrationTest',
+                    '_dd.code_origin.type' => 'exit',
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
@@ -501,9 +513,9 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     $client->getAsync(self::URL . '/status/201'),
                     $client->getAsync(self::URL . '/status/202'),
                     $client->getAsync('https://google.still.wrong/', ['http_errors' => false]),
-                    $client->getAsync('https://www.google.com'),
-                    $client->getAsync('https://www.google.com'),
-                    $client->getAsync('https://www.google.com'),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
+                    $client->getAsync('https://www.google.com/'),
                 ];
                 Utils::unwrap($promises);
             } catch (\Exception $e) {

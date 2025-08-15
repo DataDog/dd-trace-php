@@ -3,6 +3,7 @@ Basic Git Metadata Injection from invalid .git files (Repository URL & Commit Sh
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
+DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_GIT_METADATA_ENABLED=0
 --SKIPIF--
 <?php
@@ -54,42 +55,42 @@ rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }
 array(4) {
-  ["runtime-id"]=>
-  string(%d) "%s"
-  ["_dd.p.dm"]=>
-  string(2) "-0"
   ["_dd.git.repository_url"]=>
   string(32) "https://github.com/user/repo_new"
+  ["_dd.p.dm"]=>
+  string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["runtime-id"]=>
+  string(%d) "%s"
 }

@@ -10,6 +10,7 @@
 #include "sampler.hpp"
 #include "service_config.hpp"
 #include "sidecar_settings.hpp"
+#include "telemetry_settings.hpp"
 #include <memory>
 #include <mutex>
 #include <spdlog/spdlog.h>
@@ -113,21 +114,16 @@ protected:
             }
         }
 
-        void drain_logs(const sidecar_settings &sc_settings, uint64_t queue_id)
+        void drain_logs(const sidecar_settings &sc_settings,
+            const telemetry_settings &telemetry_settings)
         {
             std::vector<tel_log> logs;
             {
                 const std::lock_guard<std::mutex> lock(pending_logs_mutex_);
                 logs.swap(pending_logs_);
             }
-            if (queue_id == 0) {
-                SPDLOG_INFO(
-                    "Discarding {} telemetry logs: no queue_id available",
-                    logs.size());
-                return;
-            }
             for (auto &log : logs) {
-                submit_log(sc_settings, queue_id, std::move(log));
+                submit_log(sc_settings, telemetry_settings, std::move(log));
             }
         }
 
@@ -145,7 +141,7 @@ protected:
 
     private:
         static void submit_log(const sidecar_settings &sc_settings,
-            uint64_t queue_id, const tel_log &log);
+            const telemetry_settings &telemetry_settings, const tel_log &log);
 
         std::vector<tel_metric> pending_metrics_;
         std::mutex pending_metrics_mutex_;
@@ -167,6 +163,7 @@ protected:
         std::shared_ptr<service_config> service_config,
         std::unique_ptr<dds::remote_config::client_handler> client_handler,
         std::shared_ptr<metrics_impl> msubmitter, std::string rc_path,
+        telemetry_settings telemetry_settings,
         const schema_extraction_settings &schema_extraction_settings = {});
 
     template <typename... Args>
@@ -183,11 +180,15 @@ public:
     service(service &&) = delete;
     service &operator=(service &&) = delete;
 
-    virtual ~service() = default;
+    virtual ~service()
+    {
+        SPDLOG_TRACE("service {} destroyed", static_cast<void *>(this));
+    }
 
     static std::shared_ptr<service> from_settings(
         const dds::engine_settings &eng_settings,
-        const remote_config::settings &rc_settings);
+        const remote_config::settings &rc_settings,
+        telemetry_settings telemetry_settings);
 
     static void resolve_symbols();
 
@@ -220,7 +221,23 @@ public:
 
     [[nodiscard]] bool is_remote_config_shmem_path(std::string_view path)
     {
-        return rc_path_ == path;
+        if (rc_path_ != path) {
+            SPDLOG_DEBUG(
+                "remote config path changed: {} -> {}", rc_path_, path);
+            return false;
+        }
+        return true;
+    }
+
+    [[nodiscard]] bool is_telemetry_settings(
+        const telemetry_settings &telemetry_settings) const
+    {
+        if (telemetry_settings_ != telemetry_settings) {
+            SPDLOG_DEBUG("telemetry_settings changed: {} -> {}",
+                telemetry_settings_, telemetry_settings);
+            return false;
+        }
+        return true;
     }
 
     void notify_of_rc_updates() { client_handler_->poll(); }
@@ -230,9 +247,9 @@ public:
         msubmitter_->drain_metrics(std::forward<Func>(func));
     }
 
-    void drain_logs(const sidecar_settings &sc_settings, uint64_t queue_id)
+    void drain_logs(const sidecar_settings &sc_settings)
     {
-        msubmitter_->drain_logs(sc_settings, queue_id);
+        msubmitter_->drain_logs(sc_settings, telemetry_settings_);
     }
 
     [[nodiscard]] std::map<std::string_view, double> drain_legacy_metrics()
@@ -262,6 +279,7 @@ protected:
     bool schema_extraction_enabled_;
     std::optional<sampler> schema_sampler_;
     std::string rc_path_;
+    telemetry_settings telemetry_settings_;
     std::shared_ptr<metrics_impl> msubmitter_;
     sidecar_settings sidecar_settings_;
 };

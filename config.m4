@@ -168,6 +168,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/arrays.c \
     ext/auto_flush.c \
     ext/autoload_php_files.c \
+    ext/code_origins.c \
     ext/collect_backtrace.c \
     ext/comms_php.c \
     ext/compat_string.c \
@@ -184,6 +185,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/git.c \
     ext/handlers_api.c \
     ext/handlers_exception.c \
+    ext/handlers_httpstreams.c \
     ext/handlers_internal.c \
     ext/handlers_kafka.c \
     ext/handlers_pcntl.c \
