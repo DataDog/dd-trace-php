@@ -221,9 +221,9 @@ void ddtrace_telemetry_finalize() {
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.extracted"), DDTRACE_G(baggage_extract_count), DDOG_CHARSLICE_C("header_style:baggage"));
     ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.injected"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.injected"), DDTRACE_G(baggage_inject_count), DDOG_CHARSLICE_C("header_style:baggage"));
-    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDTRACE_G(baggage_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_item_exceeded"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.truncated"), DDTRACE_G(baggage_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_count_exceeded"));
+    ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_item_exceeded"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_count_exceeded"));
     ddog_sidecar_telemetry_register_metric_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
 
