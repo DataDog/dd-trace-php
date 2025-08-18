@@ -804,6 +804,13 @@ namespace DDTrace {
      * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
+
+    /**
+     * Check if endpoints are already collected
+     *
+     * @return bool
+     */
+    function are_endpoints_collected(): bool {}
 }
 
 namespace DDTrace\System {
