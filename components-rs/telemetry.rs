@@ -17,7 +17,7 @@ use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
 use ddtelemetry::data;
 use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
-use ddtelemetry::data::{Dependency, Integration, LogLevel};
+use ddtelemetry::data::{Dependency, Endpoint, Integration, LogLevel};
 use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
 use ddtelemetry_ffi::try_c;
@@ -236,6 +236,7 @@ pub struct ShmCache {
     pub config_sent: bool,
     pub integrations: HashSet<String>,
     pub composer_paths: HashSet<PathBuf>,
+    pub endpoints: HashSet<Endpoint>,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
 }
 
@@ -289,8 +290,8 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
                 }
             }
 
-            if let Ok((config_sent, integrations, composer_paths)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
+            if let Ok((config_sent, integrations, composer_paths, endpoints)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, HashSet<Endpoint>)>(buf)
             {
                 cache.config_sent = config_sent;
                 cache.integrations = integrations;
@@ -357,4 +358,15 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
     ));
 
     MaybeError::None
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
+    cache: &mut ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
+) -> bool {
+    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
+
+    cache_entry.map_or(false, |entry| !entry.endpoints.is_empty())
 }

@@ -2329,6 +2329,15 @@ PHP_FUNCTION(datadog_appsec_v2_track_user_login_failure) {
     }
 }
 
+PHP_FUNCTION(DDTrace_are_endpoints_collected) {
+    UNUSED(execute_data);
+
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+
+    RETURN_BOOL(ddog_sidecar_telemetry_are_endpoints_collected(ddtrace_telemetry_cache(), service_name, env_name));
+}
+
 PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     UNUSED(execute_data);
 

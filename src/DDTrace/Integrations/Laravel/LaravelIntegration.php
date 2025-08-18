@@ -566,6 +566,10 @@ class LaravelIntegration extends Integration
              }
         );
 
+        if (!\DDTrace\are_endpoints_collected()) {
+            var_dump("endpoints not collected");
+        }
+
         return Integration::LOADED;
     }
 
