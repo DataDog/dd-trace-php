@@ -822,6 +822,13 @@ namespace DDTrace {
      * @return mixed|null The stored value, or null if missing.
      */
     function resource_weak_get(mixed $resource, string $key): mixed {}
+
+    /**
+     * Check if endpoints are already collected
+     *
+     * @return bool
+     */
+    function are_endpoints_collected(): bool {}
 }
 
 namespace DDTrace\System {

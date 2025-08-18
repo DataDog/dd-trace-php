@@ -12,15 +12,15 @@ use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
     InstanceId, QueueId, SidecarAction,
 };
-use libdd_common::tag::parse_tags;
-use libdd_common_ffi::slice::AsBytes;
-use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
-use libdd_telemetry::data;
-use libdd_telemetry::data::metrics::{MetricNamespace, MetricType};
-use libdd_telemetry::data::{Dependency, Integration, LogLevel};
-use libdd_telemetry::metrics::MetricContext;
-use libdd_telemetry::worker::{LogIdentifier, TelemetryActions};
-use libdd_telemetry_ffi::try_c;
+use ddcommon::tag::parse_tags;
+use ddcommon_ffi::slice::AsBytes;
+use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
+use ddtelemetry::data;
+use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
+use ddtelemetry::data::{Dependency, Endpoint, Integration, LogLevel};
+use ddtelemetry::metrics::MetricContext;
+use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
+use ddtelemetry_ffi::try_c;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -236,11 +236,12 @@ pub struct ShmCache {
     pub config_sent: bool,
     pub integrations: HashSet<String>,
     pub composer_paths: HashSet<PathBuf>,
+    pub endpoints: HashSet<Endpoint>,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
 }
 
 #[derive(Hash, Eq, PartialEq)]
-pub struct ShmCacheKey(String, String);
+struct ShmCacheKey(String, String);
 
 impl Equivalent<ShmCacheKey> for (&str, &str) {
     fn equivalent(&self, key: &ShmCacheKey) -> bool {
@@ -289,8 +290,8 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
                 }
             }
 
-            if let Ok((config_sent, integrations, composer_paths)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
+            if let Ok((config_sent, integrations, composer_paths, endpoints)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, HashSet<Endpoint>)>(buf)
             {
                 cache.config_sent = config_sent;
                 cache.integrations = integrations;
@@ -357,4 +358,15 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
     ));
 
     MaybeError::None
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
+    cache: &mut ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
+) -> bool {
+    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
+
+    cache_entry.map_or(false, |entry| !entry.endpoints.is_empty())
 }
