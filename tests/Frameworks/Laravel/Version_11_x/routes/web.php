@@ -8,3 +8,7 @@ Route::get('simple', [CommonSpecsController::class, 'simple'])->name('simple_rou
 Route::get('simple_view', [CommonSpecsController::class, 'simple_view']);
 Route::get('error', [CommonSpecsController::class, 'error']);
 Route::get('rasp', [RaspTestController::class, 'rasp']);
+Route::get('/telemetry', function () {
+    dd_trace_internal_fn("finalize_telemetry");
+    return response('Done');
+});
