@@ -182,6 +182,10 @@ ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
+bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
+                                                 ddog_CharSlice service,
+                                                 ddog_CharSlice env);
+
 void ddog_init_span_func(void (*free_func)(struct _zend_string*),
                          void (*addref_func)(struct _zend_string*));
 
