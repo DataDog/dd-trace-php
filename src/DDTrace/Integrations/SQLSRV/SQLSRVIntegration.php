@@ -150,7 +150,7 @@ class SQLSRVIntegration extends Integration
         if (is_array($source)) {
             $storedConnectionInfo = $source;
         } else {
-            $storedConnectionInfo = ObjectKVStore::get($source, SQLSRVIntegration::CONNECTION_TAGS_KEY, []);
+            $storedConnectionInfo = ObjectKVStore::get($source, self::CONNECTION_TAGS_KEY, []);
         }
 
         if (!is_array($storedConnectionInfo)) {
@@ -160,10 +160,10 @@ class SQLSRVIntegration extends Integration
         $span->name = $name;
         $span->resource = $query ?? $name;
         $span->type = Type::SQL;
-        Integration::handleInternalSpanServiceName($span, SQLSRVIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
-        $span->meta[Tag::DB_SYSTEM] = SQLSRVIntegration::SYSTEM;
+        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
 
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;

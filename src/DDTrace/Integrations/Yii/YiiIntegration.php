@@ -36,9 +36,9 @@ class YiiIntegration extends Integration
             static function () {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $rootSpan->meta[Tag::COMPONENT] = YiiIntegration::NAME;
+                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    YiiIntegration::addTraceAnalyticsIfEnabled($rootSpan);
+                    self::addTraceAnalyticsIfEnabled($rootSpan);
                 }
             }
         );

@@ -57,9 +57,9 @@ class PDOIntegration extends Integration
             \DDTrace\trace_method('PDO', 'connect', static function (SpanData $span, array $args, $pdo) {
                 Integration::handleOrphan($span);
                 $span->name = $span->resource = 'PDO.connect';
-                $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
-                ObjectKVStore::put($pdo, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
-                PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
+                $connectionMetadata = self::extractConnectionMetadata($args);
+                ObjectKVStore::put($pdo, self::CONNECTION_TAGS_KEY, $connectionMetadata);
+                self::setCommonSpanInfo($connectionMetadata, $span);
             });
         }
 
@@ -244,7 +244,7 @@ class PDOIntegration extends Integration
     {
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         if ($driver === "odbc") {
-            $cached_driver = ObjectKVStore::get($pdo, PDOIntegration::CONNECTION_TAGS_KEY, []);
+            $cached_driver = ObjectKVStore::get($pdo, self::CONNECTION_TAGS_KEY, []);
             // This particular driver is not supported for DBM
             if (isset($cached_driver[Tag::DB_SYSTEM]) && $cached_driver[Tag::DB_SYSTEM] === "ingres") {
                 return;
@@ -271,7 +271,7 @@ class PDOIntegration extends Integration
         if (\is_array($source)) {
             $storedConnectionInfo = $source;
         } else {
-            $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+            $storedConnectionInfo = ObjectKVStore::get($source, self::CONNECTION_TAGS_KEY, []);
         }
         if (!\is_array($storedConnectionInfo)) {
             $storedConnectionInfo = [];
@@ -279,15 +279,15 @@ class PDOIntegration extends Integration
 
         $span->type = Type::SQL;
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = PDOIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
         if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
                 isset($storedConnectionInfo[Tag::TARGET_HOST])
         ) {
-            Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME, true);
+            Integration::handleInternalSpanServiceName($span, self::NAME, true);
             $span->service = $span->service
                 . '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
         } else {
-            Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
         }
 
         foreach ($storedConnectionInfo as $tag => $value) {
@@ -315,7 +315,7 @@ class PDOIntegration extends Integration
             return;
         }
 
-        $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+        $storedConnectionInfo = ObjectKVStore::get($source, self::CONNECTION_TAGS_KEY, []);
         if (!\is_array($storedConnectionInfo) || empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
             return;
         }

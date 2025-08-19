@@ -50,10 +50,10 @@ class MemcacheIntegration extends Integration
         self::traceCommand('replace');
 
         \DDTrace\trace_method('Memcache', 'flush', static function (SpanData $span) {
-            MemcacheIntegration::setCommonData($span, 'flush');
+            self::setCommonData($span, 'flush');
         });
         \DDTrace\trace_function('memcache_flush', static function (SpanData $span) {
-            MemcacheIntegration::setCommonData($span, 'flush');
+            self::setCommonData($span, 'flush');
         });
 
         $memcache_addServer = static function ($memcache, $scope, $args) {
@@ -132,11 +132,11 @@ class MemcacheIntegration extends Integration
     {
         $span->name = "Memcache.$command";
         $span->type = Type::MEMCACHED;
-        Integration::handleInternalSpanServiceName($span, MemcacheIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->resource = $command;
         $span->meta['memcache.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = MemcacheIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
         $span->meta[Tag::DB_SYSTEM] = 'memcached';
     }
 

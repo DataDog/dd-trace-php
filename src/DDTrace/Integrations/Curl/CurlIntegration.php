@@ -40,7 +40,7 @@ final class CurlIntegration extends Integration
             // the ddtrace extension will handle distributed headers
             'instrument_when_limited' => 0,
             'posthook' => static function (SpanData $span, $args, $retval) {
-                CurlIntegration::setup_curl_span($span);
+                self::setup_curl_span($span);
 
                 if (!isset($args[0])) {
                     return;
@@ -53,7 +53,7 @@ final class CurlIntegration extends Integration
                     $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 1);
                 }
 
-                CurlIntegration::set_curl_attributes($span, \curl_getinfo($ch));
+                self::set_curl_attributes($span, \curl_getinfo($ch));
             },
         ]);
 
@@ -62,9 +62,9 @@ final class CurlIntegration extends Integration
                 $data = null;
                 if (\PHP_MAJOR_VERSION > 7) {
                     $data = ObjectKVStore::get($hook->args[0], "span");
-                } elseif (CurlIntegration::$lastMh[0] == (int)$hook->args[0]) {
-                    $data = CurlIntegration::$lastMh[1];
-                    CurlIntegration::$lastMh = [0, null];
+                } elseif (self::$lastMh[0] == (int)$hook->args[0]) {
+                    $data = self::$lastMh[1];
+                    self::$lastMh = [0, null];
                 }
                 if ($data) {
                     $hook->data = $data;
@@ -85,8 +85,8 @@ final class CurlIntegration extends Integration
             $span->resource = 'curl_multi_exec';
             $span->service = "curl";
             $span->type = Type::HTTP_CLIENT;
-            Integration::handleInternalSpanServiceName($span, CurlIntegration::NAME);
-            $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
+            Integration::handleInternalSpanServiceName($span, self::NAME);
+            $span->meta[Tag::COMPONENT] = self::NAME;
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
         }, static function (HookData $hook) {
             if (empty($hook->data) || $hook->exception) {
@@ -107,7 +107,7 @@ final class CurlIntegration extends Integration
             if ($spans && $spans[0][1]->name != "curl_exec") {
                 foreach ($spans as $requestSpan) {
                     list(, $requestSpan) = $requestSpan;
-                    CurlIntegration::setup_curl_span($requestSpan);
+                    self::setup_curl_span($requestSpan);
                 }
             }
 
@@ -137,7 +137,7 @@ final class CurlIntegration extends Integration
                         $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                         $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
                     }
-                    CurlIntegration::set_curl_attributes($requestSpan, $info);
+                    self::set_curl_attributes($requestSpan, $info);
                     if (isset($info["total_time"])) {
                         $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
                         \DDTrace\update_span_duration($requestSpan, $endTime);
@@ -148,7 +148,7 @@ final class CurlIntegration extends Integration
             // If there's an error we retain it for a possible future curl_multi_info_read
             if ($saveSpans) {
                 if (\PHP_MAJOR_VERSION == 7) {
-                    CurlIntegration::$lastMh = [(int)$hook->args[0], [$span, &$spans]];
+                    self::$lastMh = [(int)$hook->args[0], [$span, &$spans]];
                 }
             } elseif (\PHP_MAJOR_VERSION == 8) {
                 ObjectKVStore::put($hook->args[0], "span", null);
@@ -177,8 +177,8 @@ final class CurlIntegration extends Integration
 
             if (\PHP_MAJOR_VERSION > 7) {
                 $data = ObjectKVStore::get($hook->args[0], "span");
-            } elseif (CurlIntegration::$lastMh[0] == (int)$hook->args[0]) {
-                $data = CurlIntegration::$lastMh[1];
+            } elseif (self::$lastMh[0] == (int)$hook->args[0]) {
+                $data = self::$lastMh[1];
             } else {
                 $data = null;
             }
@@ -205,7 +205,7 @@ final class CurlIntegration extends Integration
                             $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                             $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
                         }
-                        CurlIntegration::set_curl_attributes($requestSpan, $info);
+                        self::set_curl_attributes($requestSpan, $info);
                         if (isset($info["total_time"])) {
                             $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
                             \DDTrace\update_span_duration($requestSpan, $endTime);
@@ -227,7 +227,7 @@ final class CurlIntegration extends Integration
                     }
                     $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                     $requestSpan->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
-                    CurlIntegration::set_curl_attributes($requestSpan, $info);
+                    self::set_curl_attributes($requestSpan, $info);
                     if (isset($info["total_time"])) {
                         $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
                         \DDTrace\update_span_duration($requestSpan, $endTime);
@@ -243,9 +243,9 @@ final class CurlIntegration extends Integration
         $span->name = $span->resource = 'curl_exec';
         $span->type = Type::HTTP_CLIENT;
         $span->service = 'curl';
-        Integration::handleInternalSpanServiceName($span, CurlIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, self::NAME);
         self::addTraceAnalyticsIfEnabled($span);
-        $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
     }
 
