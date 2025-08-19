@@ -32,9 +32,9 @@
 | shardj/zf1-future           | 1.21.4                 | 1.21.4                 |
 | slim/slim                   | 3.12.5                 | 4.14.0                 |
 | spiral/roadrunner           | 2.11.4                 | 2.11.4                 |
-| symfony/console             | 5.2.14                 | 7.3.1                  |
-| symfony/framework-bundle    | 2.3.42                 | 7.3.1                  |
-| symfony/messenger           | 4.4.49                 | 7.3.1                  |
+| symfony/console             | 5.2.14                 | 7.3.2                  |
+| symfony/framework-bundle    | 2.3.42                 | 7.3.2                  |
+| symfony/messenger           | 4.4.49                 | 7.3.2                  |
 | wordpress                   | 4.8.10                 | 6.1.1                  |
 | yiisoft/yii2                | 2.0.49                 | 2.0.53                 |
 | zendframework/zf1           | 1.12.20                | 1.12.20                |
