@@ -397,7 +397,7 @@ class SymfonyIntegration extends Integration
             'getHttpKernel',
             null,
             static function($object) {
-                SymfonyIntegration::$kernel = $object;
+                self::$kernel = $object;
             }
         );
 
@@ -406,7 +406,7 @@ class SymfonyIntegration extends Integration
             'getHttpKernel',
             null,
             static function($object) {
-                SymfonyIntegration::$kernel = $object;
+                self::$kernel = $object;
             }
         );
 
@@ -415,19 +415,19 @@ class SymfonyIntegration extends Integration
             '__construct',
             static function() {
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan && strpos($rootSpan->name, DrupalIntegration::NAME) !== false) {
-                    SymfonyIntegration::$frameworkPrefix = DrupalIntegration::NAME;
+                if ($rootSpan && strpos($rootSpan->name, self::NAME) !== false) {
+                    self::$frameworkPrefix = self::NAME;
                 }
             }
         );
 
         if (\dd_trace_env_config('DD_TRACE_SYMFONY_HTTP_ROUTE')) {
             $handle_http_route = static function($route_name, $request, $rootSpan) {
-                if (SymfonyIntegration::$kernel === null) {
+                if (self::$kernel === null) {
                     return;
                 }
                 /** @var ContainerInterface $container */
-                $container = SymfonyIntegration::$kernel->getContainer();
+                $container = self::$kernel->getContainer();
                 try {
                     $cache = $container->get('cache.app');
                 } catch (\Exception $e) {
@@ -470,15 +470,15 @@ class SymfonyIntegration extends Integration
                     list($request) = $args;
 
                     $span->name = 'symfony.kernel.handle';
-                    $span->service = \ddtrace_config_app_name(SymfonyIntegration::$frameworkPrefix);
+                    $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
                     $span->type = Type::WEB_SERVLET;
-                    $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                    $span->meta[Tag::COMPONENT] = self::NAME;
 
                     $rootSpan = \DDTrace\root_span();
                     $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::$frameworkPrefix;
+                    $rootSpan->meta[Tag::COMPONENT] = self::$frameworkPrefix;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    SymfonyIntegration::addTraceAnalyticsIfEnabled($rootSpan);
+                    self::addTraceAnalyticsIfEnabled($rootSpan);
 
                     if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                         $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
@@ -550,8 +550,8 @@ class SymfonyIntegration extends Integration
                                             $span->name = 'symfony.controller';
                                             $span->resource = $controllerName;
                                             $span->type = Type::WEB_SERVLET;
-                                            $span->service = \ddtrace_config_app_name(SymfonyIntegration::$frameworkPrefix);
-                                            $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                                            $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                                            $span->meta[Tag::COMPONENT] = self::NAME;
 
                                             \DDTrace\remove_hook($hook->id);
                                         }
@@ -565,8 +565,8 @@ class SymfonyIntegration extends Integration
                                         $span->name = 'symfony.controller';
                                         $span->resource = $controllerName;
                                         $span->type = Type::WEB_SERVLET;
-                                        $span->service = \ddtrace_config_app_name(SymfonyIntegration::$frameworkPrefix);
-                                        $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                                        $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                                        $span->meta[Tag::COMPONENT] = self::NAME;
 
                                         \DDTrace\remove_hook($hook->id);
                                     }
@@ -577,14 +577,14 @@ class SymfonyIntegration extends Integration
                 }
 
                 $span->name = $span->resource = 'symfony.' . $eventName;
-                $span->service = \ddtrace_config_app_name(SymfonyIntegration::$frameworkPrefix);
-                $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+                $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                $span->meta[Tag::COMPONENT] = self::NAME;
                 if ($event === null) {
                     return;
                 }
                 if (!$injectedActionInfo) {
                     $rootSpan = \DDTrace\root_span();
-                    if (SymfonyIntegration::injectActionInfo($event, $eventName, $rootSpan)) {
+                    if (self::injectActionInfo($event, $eventName, $rootSpan)) {
                         $injectedActionInfo = true;
                     }
                 }
@@ -604,8 +604,8 @@ class SymfonyIntegration extends Integration
         // Handling exceptions
         $exceptionHandlingTracer = static function(SpanData $span, $args, $retval) {
             $span->name = $span->resource = 'symfony.kernel.handleException';
-            $span->service = \ddtrace_config_app_name(SymfonyIntegration::$frameworkPrefix);
-            $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
+            $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+            $span->meta[Tag::COMPONENT] = self::NAME;
             \DDTrace\root_span()->exception = $args[0];
 
 

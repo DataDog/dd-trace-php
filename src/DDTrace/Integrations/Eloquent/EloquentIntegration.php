@@ -66,7 +66,7 @@ class EloquentIntegration extends Integration
         \DDTrace\trace_method(
             'Illuminate\Database\Eloquent\Model',
             'destroy',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 $span->name = 'eloquent.destroy';
                 $span->resource = static::class;
                 EloquentIntegration::setCommonValues($span);
@@ -96,7 +96,7 @@ class EloquentIntegration extends Integration
         $span->type = Type::SQL;
         Integration::handleInternalSpanServiceName($span, self::getAppName());
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = EloquentIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
         $span->meta[Tag::DB_SYSTEM] = 'other_sql';
     }
 
