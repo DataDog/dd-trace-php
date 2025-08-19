@@ -100,7 +100,7 @@ class OpenAIIntegration extends Integration
         \DDTrace\hook_method(
             'OpenAI\Transporters\HttpTransporter',
             '__construct',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 /** @var \OpenAI\ValueObjects\Transporter\BaseUri $baseUri */
                 $baseUri = $args[1];
                 /** @var \OpenAI\ValueObjects\Transporter\Headers $headers */
@@ -115,7 +115,7 @@ class OpenAIIntegration extends Integration
                 if (isset($headers['Authorization'])) {
                     $authorizationHeader = $headers['Authorization'];
                     $apiKey = \substr($authorizationHeader, 7); // Format: "Bearer <api_key>
-                    $clientData['apiKey'] = OpenAIIntegration::formatAPIKey($apiKey);
+                    $clientData['apiKey'] = self::formatAPIKey($apiKey);
                 } else {
                     $clientData['apiKey'] = "";
                 }
@@ -127,7 +127,7 @@ class OpenAIIntegration extends Integration
         \DDTrace\hook_method(
             "OpenAI\Resources\Concerns\Transportable",
             '__construct',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $transporter = $args[0];
                 ObjectKVStore::put($This, 'transporter', $transporter);
             }
@@ -161,7 +161,7 @@ class OpenAIIntegration extends Integration
                     'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
                         // Files::download - i.e., downloadFile - returns a string instead of a Response instance
-                        OpenAIIntegration::handleResponse(
+                        self::handleResponse(
                             span: $span,
                             logger: $logger,
                             headers: $response ? (method_exists($response, 'meta') ? $response->meta()->toArray() : []) : [],
@@ -182,7 +182,7 @@ class OpenAIIntegration extends Integration
                     'prehook' => $handleRequestPrehook(true, $operationID),
                     'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
                         /** @var \OpenAI\Responses\StreamResponse $response */
-                        OpenAIIntegration::handleStreamedResponse(
+                        self::handleStreamedResponse(
                             span: $span,
                             logger: $logger,
                             headers: $response->meta()->toArray(),
@@ -328,10 +328,10 @@ class OpenAIIntegration extends Integration
         if (array_key_exists('prompt', $payload)) {
             $prompt = $payload['prompt'];
             if (\is_string($prompt)) {
-                $span->meta["openai.request.prompt"] = OpenAIIntegration::normalizeStringOrTokenArray($prompt);
+                $span->meta["openai.request.prompt"] = self::normalizeStringOrTokenArray($prompt);
             } elseif (\is_array($prompt)) {
                 foreach ($prompt as $idx => $value) {
-                    $span->meta["openai.request.prompt.$idx"] = OpenAIIntegration::normalizeStringOrTokenArray($value);
+                    $span->meta["openai.request.prompt.$idx"] = self::normalizeStringOrTokenArray($value);
                 }
             }
 

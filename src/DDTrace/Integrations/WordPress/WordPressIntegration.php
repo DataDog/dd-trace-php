@@ -9,20 +9,6 @@ class WordPressIntegration extends Integration
     const NAME = 'wordpress';
 
     /**
-     * @var string
-     */
-    private static $serviceName;
-
-    public static function getServiceName()
-    {
-        if (self::$serviceName) {
-            return self::$serviceName;
-        }
-
-        return self::$serviceName = \ddtrace_config_app_name(WordPressIntegration::NAME);
-    }
-
-    /**
      * {@inheritdoc}
      */
     public static function requiresExplicitTraceAnalyticsEnabling(): bool

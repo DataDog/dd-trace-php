@@ -19,7 +19,7 @@ class GoogleSpannerIntegration extends Integration
     public static function init(): int
     {
         \DDTrace\trace_method('Google\Cloud\Spanner\SpannerClient', 'instance', function (SpanData $span, $args) {
-            $instanceName =$args[0];
+            $instanceName = $args[0];
             $span->meta[Tag::DB_INSTANCE] = $instanceName;
             GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.instance', $args[0]);
             ObjectKVStore::put($this, GoogleSpannerIntegration::KEY_INSTANCE_NAME, $instanceName);
@@ -41,28 +41,28 @@ class GoogleSpannerIntegration extends Integration
         });
 
         \DDTrace\trace_method('Google\Cloud\Spanner\Database', 'runTransaction', static function (SpanData $span, $args) {
-            GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.run_transaction', 'transaction');
-            GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
+            self::setDefaultAttributes($span, 'google_spanner.run_transaction', 'transaction');
+            self::addTraceAnalyticsIfEnabled($span);
         });
 
         \DDTrace\trace_method('Google\Cloud\Spanner\Database', 'transaction', static function (SpanData $span, $args) {
-            GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.transaction', 'transaction');
-            GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
+            self::setDefaultAttributes($span, 'google_spanner.transaction', 'transaction');
+            self::addTraceAnalyticsIfEnabled($span);
         });
 
         \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'commit', static function (SpanData $span) {
-            GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.commit', "commit");
-            GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
+            self::setDefaultAttributes($span, 'google_spanner.commit', "commit");
+            self::addTraceAnalyticsIfEnabled($span);
         });
 
         \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'executeUpdate', static function (SpanData $span, $args) {
-            GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.execute_update', $args[0]);
-            GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
+            self::setDefaultAttributes($span, 'google_spanner.execute_update', $args[0]);
+            self::addTraceAnalyticsIfEnabled($span);
         });
 
         \DDTrace\trace_method('Google\Cloud\Spanner\Transaction', 'executeUpdateBatch', static function (SpanData $span) {
-            GoogleSpannerIntegration::setDefaultAttributes($span, 'google_spanner.execute_update_batch', 'execute_update_batch');
-            GoogleSpannerIntegration::addTraceAnalyticsIfEnabled($span);
+            self::setDefaultAttributes($span, 'google_spanner.execute_update_batch', 'execute_update_batch');
+            self::addTraceAnalyticsIfEnabled($span);
         });
 
         return Integration::LOADED;
@@ -73,10 +73,10 @@ class GoogleSpannerIntegration extends Integration
         $span->name = $name;
         $span->resource = $resource;
         $span->type = Type::SQL;
-        Integration::handleInternalSpanServiceName($span, GoogleSpannerIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = GoogleSpannerIntegration::NAME;
-        $span->meta[Tag::DB_SYSTEM] = GoogleSpannerIntegration::SYSTEM;
+        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
     }
 
 }

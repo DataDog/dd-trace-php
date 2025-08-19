@@ -45,13 +45,13 @@ class DrupalIntegration extends Integration
                     $rootSpan->name = 'drupal.request';
                     $rootSpan->service = $service;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    $rootSpan->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
 
                     $span->name = 'drupal.kernel.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
                     $span->meta[Tag::SPAN_KIND] = 'server';
-                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                    $span->meta[Tag::COMPONENT] = self::NAME;
                 }
             ]
         );
@@ -60,7 +60,7 @@ class DrupalIntegration extends Integration
             $span->name = 'drupal.httpkernel.handle';
             $span->type = Type::WEB_SERVLET;
             $span->service = \ddtrace_config_app_name('drupal');
-            $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
         };
         // See Drupal\Core\DependencyInjection\Compiler\StackedKernelPass
         // If a middleware is tagged with 'responder' => true, then the underlying middleware and the HTTP kernel
@@ -78,7 +78,7 @@ class DrupalIntegration extends Integration
                     $span->name = 'drupal.kernel.boot';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name('drupal');
-                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                    $span->meta[Tag::COMPONENT] = self::NAME;
                 }
             ]
         );
@@ -124,7 +124,7 @@ class DrupalIntegration extends Integration
                                 $span->name = 'drupal.hook.' . $hook;
                                 $span->type = Type::WEB_SERVLET;
                                 $span->service = \ddtrace_config_app_name('drupal');
-                                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                                $span->meta[Tag::COMPONENT] = self::NAME;
 
                                 $span->meta['drupal.hook'] = $hook;
                                 $span->meta['drupal.module'] = $module;
@@ -165,7 +165,7 @@ class DrupalIntegration extends Integration
                                     $span->name = 'drupal.hook.' . $hook;
                                     $span->type = Type::WEB_SERVLET;
                                     $span->service = \ddtrace_config_app_name('drupal');
-                                    $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                                    $span->meta[Tag::COMPONENT] = self::NAME;
                                     $span->resource = $functionName;
 
                                     $span->meta['drupal.hook'] = $hook;
@@ -398,14 +398,14 @@ class DrupalIntegration extends Integration
                 $span->name = 'symfony.response.send';
                 $span->service = \ddtrace_config_app_name('drupal');
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
         hook_method(
             'Drupal\Core\Session\AccountProxy',
             'setAccount',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 if (!\DDTrace\root_span()) {
                     return;
                 }

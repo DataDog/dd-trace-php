@@ -156,7 +156,7 @@ class SQLSRVIntegration extends Integration
         if (is_array($source)) {
             $storedConnectionInfo = $source;
         } elseif (is_resource($source)) {
-            $storedConnectionInfo = resource_weak_get($source, SQLSRVIntegration::CONNECTION_TAGS_KEY) ?? [];
+            $storedConnectionInfo = resource_weak_get($source, self::CONNECTION_TAGS_KEY) ?? [];
         }
 
         if (!isset($storedConnectionInfo) || !is_array($storedConnectionInfo)) {
@@ -166,10 +166,10 @@ class SQLSRVIntegration extends Integration
         $span->name = $name;
         $span->resource = $query ?? $name;
         $span->type = Type::SQL;
-        Integration::handleInternalSpanServiceName($span, SQLSRVIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = SQLSRVIntegration::NAME;
-        $span->meta[Tag::DB_SYSTEM] = SQLSRVIntegration::SYSTEM;
+        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
 
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;

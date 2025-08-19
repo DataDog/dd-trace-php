@@ -41,7 +41,7 @@ class SymfonyMessengerIntegration extends Integration
             'Symfony\Component\Messenger\MessageBusInterface',
             'dispatch',
             static function (SpanData $span, array $args, $retval, $exception) {
-                SymfonyMessengerIntegration::setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, null, true);
+                self::setSpanAttributes($span, 'symfony.messenger.dispatch', null, $retval ?? $args[0], null, null, true);
                 if ($exception) {
                     // Worker::handleMessage() will catch the exception. We need to manually attach it to the root span.
                     \DDTrace\root_span()->exception = $exception;
@@ -70,7 +70,7 @@ class SymfonyMessengerIntegration extends Integration
            'Symfony\Component\Messenger\Transport\TransportInterface',
            'send',
            static function (SpanData $span, array $args, $envelope) {
-               SymfonyMessengerIntegration::setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, 'send', true);
+               self::setSpanAttributes($span, 'symfony.messenger.send', null, $envelope ?? $args[0], null, 'send', true);
            }
         );
 
@@ -87,7 +87,7 @@ class SymfonyMessengerIntegration extends Integration
                         $transportName = \get_class($transportName);
                     }
 
-                    SymfonyMessengerIntegration::setSpanAttributes(
+                    self::setSpanAttributes(
                         $span,
                         'symfony.messenger.consume',
                         null,
@@ -145,7 +145,7 @@ class SymfonyMessengerIntegration extends Integration
             hook_method(
                 'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
                 '__construct',
-                function ($This, $scope, $args) {
+                static function ($This, $scope, $args) {
                     /** @var HandlersLocatorInterface $handlersLocator */
                     $handlersLocator = $args[0];
                     ObjectKVStore::put($This, 'handlersLocator', $handlersLocator);
@@ -155,12 +155,12 @@ class SymfonyMessengerIntegration extends Integration
             hook_method(
                 'Symfony\Component\Messenger\Middleware\HandleMessageMiddleware',
                 'handle',
-                function ($This, $scope, $args) {
+                static function ($This, $scope, $args) {
                     $envelope = $args[0];
                     $handlersLocator = ObjectKVStore::get($This, 'handlersLocator');
                     $message = $envelope->getMessage();
                     foreach ($handlersLocator->getHandlers($envelope) as $handlerDescriptor) {
-                        if (SymfonyMessengerIntegration::messageHasAlreadyBeenHandled($envelope, $handlerDescriptor)) {
+                        if (self::messageHasAlreadyBeenHandled($envelope, $handlerDescriptor)) {
                             continue;
                         }
 
@@ -232,7 +232,7 @@ class SymfonyMessengerIntegration extends Integration
         $span->type = 'queue';
         $span->meta[Tag::MQ_SYSTEM] = 'symfony';
         $span->meta[Tag::MQ_DESTINATION_KIND] = 'queue';
-        $span->meta[Tag::COMPONENT] = SymfonyMessengerIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
     }
 
     public static function resolveMetadataFromEnvelope(

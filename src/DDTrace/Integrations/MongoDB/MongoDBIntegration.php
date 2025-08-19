@@ -264,7 +264,7 @@ class MongoDBIntegration extends Integration
             static function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     $existingDeletes = ObjectKVStore::get($self, 'deletes', []);
-                    \array_push($existingDeletes, MongoDBIntegration::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
+                    \array_push($existingDeletes, self::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
                     ObjectKVStore::put($self, 'deletes', $existingDeletes);
                 }
             }
@@ -277,7 +277,7 @@ class MongoDBIntegration extends Integration
             static function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     $existingUpdates = ObjectKVStore::get($self, 'updates', []);
-                    \array_push($existingUpdates, MongoDBIntegration::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
+                    \array_push($existingUpdates, self::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
                     ObjectKVStore::put($self, 'updates', $existingUpdates);
                 }
             }
@@ -371,9 +371,9 @@ class MongoDBIntegration extends Integration
     public static function traceExecuteQuery($class, $method)
     {
         \DDTrace\trace_method($class, $method, static function ($span, $args) {
-            list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
+            list($database, $collection) = self::parseNamespace(isset($args[0]) ? $args[0] : null);
 
-            MongoDBIntegration::setMetadata(
+            self::setMetadata(
                 $span,
                 'mongodb.driver.cmd',
                 'executeQuery',
@@ -397,9 +397,9 @@ class MongoDBIntegration extends Integration
     public static function traceExecuteBulkWrite($class, $method)
     {
         \DDTrace\trace_method($class, $method, static function ($span, $args) {
-            list($database, $collection) = MongoDBIntegration::parseNamespace(isset($args[0]) ? $args[0] : null);
+            list($database, $collection) = self::parseNamespace(isset($args[0]) ? $args[0] : null);
 
-            MongoDBIntegration::setMetadata(
+            self::setMetadata(
                 $span,
                 'mongodb.driver.cmd',
                 'executeBulkWrite',
@@ -464,7 +464,7 @@ class MongoDBIntegration extends Integration
                 }
             }
 
-            MongoDBIntegration::setMetadata(
+            self::setMetadata(
                 $span,
                 'mongodb.driver.cmd',
                 $method,
@@ -489,7 +489,7 @@ class MongoDBIntegration extends Integration
         if (!$anythingQueryLike) {
             return null;
         }
-        $normalizedQuery = $normalize ? MongoDBIntegration::normalizeQuery($anythingQueryLike) : $anythingQueryLike;
+        $normalizedQuery = $normalize ? self::normalizeQuery($anythingQueryLike) : $anythingQueryLike;
         $jsonFlags = JSON_UNESCAPED_UNICODE;
         if (\PHP_VERSION_ID >= 70200) {
             $jsonFlags = $jsonFlags | JSON_INVALID_UTF8_SUBSTITUTE;
@@ -526,7 +526,7 @@ class MongoDBIntegration extends Integration
             if ('$in' === $key || '$nin' === $key) {
                 $normalized[$key] = "?";
             } elseif (\is_array($value) || \is_object($value)) {
-                $normalized[$key] = MongoDBIntegration::normalizeQuery($value);
+                $normalized[$key] = self::normalizeQuery($value);
             } else {
                 $normalized[$key] = '?';
             }
@@ -591,10 +591,10 @@ class MongoDBIntegration extends Integration
     ) {
         $span->name = $name;
         $span->service = 'mongodb';
-        Integration::handleInternalSpanServiceName($span, MongoDBIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->type = Type::MONGO;
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $serializedQuery = $rawQuery ? MongoDBIntegration::serializeQuery($rawQuery) : null;
+        $serializedQuery = $rawQuery ? self::serializeQuery($rawQuery) : null;
         $span->resource = \implode(' ', array_filter([$method, $database, $collection, $command, $serializedQuery]));
         $span->meta[Tag::COMPONENT] = self::NAME;
         $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;

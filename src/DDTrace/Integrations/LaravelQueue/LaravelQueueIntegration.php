@@ -62,14 +62,14 @@ class LaravelQueueIntegration extends Integration
                 /** @var Job $job */
                 $job = $hook->args[1];
 
-                LaravelQueueIntegration::setSpanAttributes($span, 'laravel.queue.process', 'receive', $job);
+                self::setSpanAttributes($span, 'laravel.queue.process', 'receive', $job);
 
                 $payload = $job->payload();
                 if (isset($payload['dd_headers'])) {
                     if (dd_trace_env_config('DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING')) {
                         $newTrace = start_trace_span();
-                        LaravelQueueIntegration::setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
-                        LaravelQueueIntegration::extractContext($payload);
+                        self::setSpanAttributes($newTrace, 'laravel.queue.process', 'receive', $job);
+                        self::extractContext($payload);
                         $span->links[] = $newTrace->getLink();
                         $newTrace->links[] = $span->getLink();
                         $hook->data = $newTrace;
@@ -100,7 +100,7 @@ class LaravelQueueIntegration extends Integration
                     && $activeSpan !== $span
                     && $activeSpan === $hook->data
                 ) {
-                    LaravelQueueIntegration::setSpanAttributes(
+                    self::setSpanAttributes(
                         $activeSpan,
                         'laravel.queue.process',
                         'receive',
@@ -117,7 +117,7 @@ class LaravelQueueIntegration extends Integration
                     }
                 }
 
-                LaravelQueueIntegration::setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $hook->exception);
+                self::setSpanAttributes($span, 'laravel.queue.process', 'receive', $job, $hook->exception);
             }
         );
 
@@ -207,7 +207,7 @@ class LaravelQueueIntegration extends Integration
             'Illuminate\Queue\Queue',
             'enqueueUsing',
             static function (SpanData $span, $args, $retval, $exception) {
-                LaravelQueueIntegration::setSpanAttributes(
+                self::setSpanAttributes(
                     $span,
                     'laravel.queue.enqueueUsing',
                     null,
@@ -224,7 +224,7 @@ class LaravelQueueIntegration extends Integration
             static function (HookData $hook) {
                 // $hook->returned, a.k.a. the payload, should be a json encoded string
                 // Decode it, add the distributed tracing headers, re-encode it, return this one instead
-                $payload = LaravelQueueIntegration::injectContext(json_decode($hook->returned, true));
+                $payload = self::injectContext(json_decode($hook->returned, true));
                 $hook->overrideReturnValue(json_encode($payload));
             }
         );
@@ -297,7 +297,7 @@ class LaravelQueueIntegration extends Integration
         $span->service = self::getServiceName();
         $span->type = 'queue';
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
 
         if ($operation) {
             $span->meta[Tag::MQ_OPERATION] = $operation;

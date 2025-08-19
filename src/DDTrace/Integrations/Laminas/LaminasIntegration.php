@@ -131,14 +131,14 @@ class LaminasIntegration extends Integration
             'Laminas\EventManager\EventManagerInterface',
             'attach',
             null,
-            function ($This, $score, $args) {
+            static function ($This, $score, $args) {
                 $eventName = $args[0];
                 if (!is_string($eventName)) {
                     return; // If such a case happen, an exception will be thrown by the framework
                 }
 
                 // Only instrument Mvc events triggered by eventmanager, as the other events would add too much noise
-                if (!in_array($eventName, LaminasIntegration::MVC_EVENTS)) {
+                if (!in_array($eventName, self::MVC_EVENTS)) {
                     return;
                 }
 
@@ -179,7 +179,7 @@ class LaminasIntegration extends Integration
                 $rootSpan->name = 'laminas.request';
                 $rootSpan->service = \ddtrace_config_app_name('laminas');
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                $rootSpan->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
+                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
@@ -204,7 +204,7 @@ class LaminasIntegration extends Integration
                     $event = $args[0];
                     $eventName = $event->getName();
 
-                    if (!in_array($eventName, LaminasIntegration::EVENTS)) {
+                    if (!in_array($eventName, self::EVENTS)) {
                         return;  // In other words, skips 'loadModule' and 'loadModule.resolve', which are too noisy
                     }
 
@@ -280,7 +280,7 @@ class LaminasIntegration extends Integration
         hook_method(
             'Laminas\Http\Response',
             'setStatusCode',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $statusCode = $args[0];
@@ -304,7 +304,7 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Controller\AbstractController',
             'onDispatch',
             null,
-            function ($This, $score, $args) {
+            static function ($This, $score, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan === null) {
                     return false;
@@ -440,7 +440,7 @@ class LaminasIntegration extends Integration
 
                 /** @var string $errorType */
                 $errorType = $args[0];
-                if (isset($errorType, LaminasIntegration::$ERROR_TYPES)) {
+                if (isset($errorType, self::$ERROR_TYPES)) {
                     $span->resource = $errorType;
                 }
 
@@ -485,7 +485,7 @@ class LaminasIntegration extends Integration
         hook_method(
             'Laminas\ApiTools\Rest\AbstractResourceListener',
             'dispatch',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan === null) {
                     return false;
@@ -501,7 +501,7 @@ class LaminasIntegration extends Integration
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = $controller . '@' . $eventName;
 
-                if (isset($eventName, LaminasIntegration::$EVENT_TYPES)) {
+                if (isset($eventName, self::$EVENT_TYPES)) {
                     install_hook(
                         "$controller::$eventName",
                         static function (HookData $hook) use ($controller, $eventName) {
@@ -549,7 +549,7 @@ class LaminasIntegration extends Integration
             'Laminas\ApiTools\ApiProblem\Listener\SendApiProblemResponseListener',
             'sendContent',
             null,
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan === null) {
                     return;

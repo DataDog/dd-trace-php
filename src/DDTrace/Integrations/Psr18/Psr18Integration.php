@@ -27,10 +27,10 @@ class Psr18Integration extends Integration
                 $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = Psr18Integration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
 
                 if (isset($args[0])) {
-                    Psr18Integration::addRequestInfo($span, $args[0]);
+                    self::addRequestInfo($span, $args[0]);
                 }
 
                 if (isset($retval)) {

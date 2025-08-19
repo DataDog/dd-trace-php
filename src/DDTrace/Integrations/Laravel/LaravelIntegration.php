@@ -61,21 +61,21 @@ class LaravelIntegration extends Integration
             static function (SpanData $span, $args, $response) {
                 $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = LaravelIntegration::getServiceName();
+                $span->service = self::getServiceName();
                 $span->resource = 'Illuminate\Foundation\Application@handle';
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
 
                 $rootSpan = \DDTrace\root_span();
 
                 // Overwriting the default web integration
                 $rootSpan->name = 'laravel.request';
-                LaravelIntegration::addTraceAnalyticsIfEnabled($rootSpan);
+                self::addTraceAnalyticsIfEnabled($rootSpan);
                 if (\method_exists($response, 'getStatusCode')) {
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
-                $rootSpan->service = LaravelIntegration::getServiceName();
+                $rootSpan->service = self::getServiceName();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
@@ -83,18 +83,18 @@ class LaravelIntegration extends Integration
             'Illuminate\Contracts\Foundation\Application',
             'bootstrapWith',
             static function ($app) {
-                LaravelIntegration::$serviceName = ddtrace_config_app_name();
-                if (LaravelIntegration::$serviceName == "" && file_exists($app->environmentPath() . '/' . $app->environmentFile())) {
+                self::$serviceName = ddtrace_config_app_name();
+                if (self::$serviceName == "" && file_exists($app->environmentPath() . '/' . $app->environmentFile())) {
                     $app->make('Illuminate\Foundation\Bootstrap\LoadEnvironmentVariables')->bootstrap($app);
                     $configPath = realpath($app->configPath());
                     if (file_exists($configPath . '/app.php')) {
                         $config = require $configPath . '/app.php';
                         if (isset($config['name'])) {
-                            LaravelIntegration::$serviceName = $config['name'];
+                            self::$serviceName = $config['name'];
                         }
                     }
-                    if (empty(LaravelIntegration::$serviceName)) {
-                        LaravelIntegration::$serviceName = isset($_ENV['APP_NAME']) ? $_ENV['APP_NAME'] : 'Laravel';
+                    if (empty(self::$serviceName)) {
+                        self::$serviceName = isset($_ENV['APP_NAME']) ? $_ENV['APP_NAME'] : 'Laravel';
                     }
                 }
             }
@@ -104,7 +104,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Routing\Router',
             'findRoute',
             null,
-            function ($This, $scope, $args, $route) {
+            static function ($This, $scope, $args, $route) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan === null) {
                     return;
@@ -118,8 +118,8 @@ class LaravelIntegration extends Integration
                 list($request) = $args;
 
                 // Overwriting the default web integration
-                LaravelIntegration::addTraceAnalyticsIfEnabled($rootSpan);
-                $routeName = LaravelIntegration::normalizeRouteName($route->getName());
+                self::addTraceAnalyticsIfEnabled($rootSpan);
+                $routeName = self::normalizeRouteName($route->getName());
 
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                     $rootSpan->resource = $route->getActionName() . ' ' . $routeName;
@@ -183,9 +183,9 @@ class LaravelIntegration extends Integration
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = LaravelIntegration::getServiceName();
+                    $span->service = self::getServiceName();
                     $span->resource = $args[0];
-                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                    $span->meta[Tag::COMPONENT] = self::NAME;
 
                     //New user created, assume sign up
                     if ($span->resource == 'eloquent.created: User') {
@@ -204,7 +204,7 @@ class LaravelIntegration extends Integration
                             $id = $args[1]['id'];
                         }
 
-                        \datadog\appsec\track_user_signup_event_automated(LaravelIntegration::getLoginFromArgs($args[1]), $id, []);
+                        \datadog\appsec\track_user_signup_event_automated(self::getLoginFromArgs($args[1]), $id, []);
                     }
                 },
                 'recurse' => true,
@@ -222,9 +222,9 @@ class LaravelIntegration extends Integration
 
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = LaravelIntegration::getServiceName();
+                    $span->service = self::getServiceName();
                     $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
-                    $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                    $span->meta[Tag::COMPONENT] = self::NAME;
                 },
                 'recurse' => true,
             ]
@@ -246,12 +246,12 @@ class LaravelIntegration extends Integration
 
                 // This is used by both laravel and lumen. For consistency we rename it for lumen traces as otherwise
                 // users would see a span changing name as they upgrade to the new version.
-                $span->name = LaravelIntegration::isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
+                $span->name = self::isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
                 $span->meta[Tag::COMPONENT] = $span->name === 'laravel.view'
-                    ? LaravelIntegration::NAME
-                    : LumenIntegration::NAME;
+                    ? self::NAME
+                    : self::NAME;
                 $span->type = Type::WEB_SERVLET;
-                $span->service = LaravelIntegration::getServiceName();
+                $span->service = self::getServiceName();
                 if (isset($args[0]) && \is_string($args[0])) {
                     $span->resource = $args[0];
                 }
@@ -262,20 +262,20 @@ class LaravelIntegration extends Integration
             'Illuminate\Foundation\ProviderRepository',
             'load',
             static function (SpanData $span) {
-                $serviceName = LaravelIntegration::getServiceName();
+                $serviceName = self::getServiceName();
 
                 $span->name = 'laravel.provider.load';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $serviceName;
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
-                $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
 
                 Integration::handleOrphan($span);
 
                 $rootSpan = \DDTrace\root_span();
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
-                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
@@ -291,7 +291,7 @@ class LaravelIntegration extends Integration
                 $rootSpan->name = 'laravel.artisan';
                 $rootSpan->resource = !empty($_SERVER['argv'][1]) ? 'artisan ' . $_SERVER['argv'][1] : 'artisan';
                 unset($rootSpan->meta[Tag::SPAN_KIND]);
-                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
@@ -300,7 +300,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderException',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->exception = $args[0];
@@ -313,7 +313,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Symfony\Component\Console\Application',
             'renderThrowable',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
                     $rootSpan->exception = $args[0];
@@ -351,12 +351,12 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\SessionGuard',
             'attempt',
             null,
-            function ($This, $scope, $args, $loginSuccess) {
+            static function ($This, $scope, $args, $loginSuccess) {
                 if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
 
-                \datadog\appsec\track_user_login_failure_event_automated(LaravelIntegration::getLoginFromArgs($args[0]), null, false, []);
+                \datadog\appsec\track_user_login_failure_event_automated(self::getLoginFromArgs($args[0]), null, false, []);
             }
         );
 
@@ -364,7 +364,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Auth\Events\Login',
             '__construct',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
                     !function_exists('\datadog\appsec\track_user_login_success_event_automated') ||
@@ -386,7 +386,7 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_login_success_event_automated(
-                    LaravelIntegration::getLoginFromArgs($args[1]),
+                    self::getLoginFromArgs($args[1]),
                     \method_exists($args[1], 'getAuthIdentifier') ? $args[1]->getAuthIdentifier() : '',
                     $metadata
                 );
@@ -397,7 +397,7 @@ class LaravelIntegration extends Integration
         \DDTrace\hook_method(
             'Illuminate\Auth\Guard',
             'login',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $authClass = 'Illuminate\Auth\UserInterface';
                 if (
                     !function_exists('\datadog\appsec\track_user_login_success_event_automated') ||
@@ -419,7 +419,7 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_login_success_event_automated(
-                    LaravelIntegration::getLoginFromArgs($args[0]),
+                    self::getLoginFromArgs($args[0]),
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
                     $metadata
                 );
@@ -431,12 +431,12 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Guard',
             'attempt',
             null,
-            function ($This, $scope, $args, $loginSuccess) {
+            static function ($This, $scope, $args, $loginSuccess) {
                 if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
 
-                \datadog\appsec\track_user_login_failure_event_automated(LaravelIntegration::getLoginFromArgs($args[0]), null, false, []);
+                \datadog\appsec\track_user_login_failure_event_automated(self::getLoginFromArgs($args[0]), null, false, []);
             }
         );
 
@@ -445,7 +445,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Guard',
             'user',
             null,
-            function ($This, $scope, $args, $user) {
+            static function ($This, $scope, $args, $user) {
                 if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
                     return;
                 }
@@ -469,7 +469,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Events\Authenticated',
             '__construct',
             null,
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
                     return;
                 }
@@ -492,7 +492,7 @@ class LaravelIntegration extends Integration
             'Illuminate\Auth\Events\Registered',
             '__construct',
             null,
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
                     !function_exists('\datadog\appsec\track_user_signup_event_automated') ||
@@ -504,7 +504,7 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_signup_event_automated(
-                    LaravelIntegration::getLoginFromArgs($args[0]),
+                    self::getLoginFromArgs($args[0]),
                     \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
                     []
                 );
@@ -522,8 +522,8 @@ class LaravelIntegration extends Integration
                 }
 
                 $rootSpan->name = 'laravel.request';
-                $rootSpan->service = LaravelIntegration::getServiceName();
-                $rootSpan->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
+                $rootSpan->service = self::getServiceName();
+                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
@@ -616,12 +616,12 @@ class LaravelIntegration extends Integration
     public static function normalizeRouteName($routeName)
     {
         if (!\is_string($routeName)) {
-            return LaravelIntegration::UNNAMED_ROUTE;
+            return self::UNNAMED_ROUTE;
         }
 
         $routeName = \trim($routeName);
         if ($routeName === '') {
-            return LaravelIntegration::UNNAMED_ROUTE;
+            return self::UNNAMED_ROUTE;
         }
 
         // Starting with PHP 7, unnamed routes have been given a randomly generated name that we need to
@@ -630,7 +630,7 @@ class LaravelIntegration extends Integration
         //
         // It can also be prefixed with domain name when caching is specified as Route::domain()->group(...);
         if (\strpos($routeName, 'generated::') !== false) {
-            return LaravelIntegration::UNNAMED_ROUTE;
+            return self::UNNAMED_ROUTE;
         }
 
         return $routeName;
