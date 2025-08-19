@@ -54,7 +54,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\Bootstrap',
             '__construct',
             static function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.bootstrap');
+                self::setCommonSpanInfo($span, 'magento.bootstrap');
             }
         );
 
@@ -62,7 +62,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\Bootstrap',
             'createApplication',
             static function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.create.application', $args[0]);
+                self::setCommonSpanInfo($span, 'magento.create.application', $args[0]);
             }
         );
 
@@ -70,7 +70,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\AreaList',
             'getCodeByFrontName',
             static function (SpanData $span, $args, $area) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.area.get');
+                self::setCommonSpanInfo($span, 'magento.area.get');
 
                 $frontName = $args[0];
                 $span->meta['magento.area'] = root_span()->meta['magento.area'] = $area;
@@ -118,7 +118,7 @@ class MagentoIntegration extends Integration
             'resizeFromImageName',
             static function (SpanData $span, $args) {
                 $originalImageName = $args[0];
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.media.resize', $originalImageName);
+                self::setCommonSpanInfo($span, 'magento.media.resize', $originalImageName);
                 root_span()->meta['magento.media.name'] = $originalImageName;
             }
         );
@@ -128,7 +128,7 @@ class MagentoIntegration extends Integration
             'Symfony\Component\Console\Application', // Magento\Framework\Console\Cli extends this
             'find',
             static function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.console.find', $args[0]);
+                self::setCommonSpanInfo($span, 'magento.console.find', $args[0]);
                 $span->meta['magento.console.command'] = root_span()->resource = $args[0];
             }
         );
@@ -137,7 +137,7 @@ class MagentoIntegration extends Integration
             'Magento\Cron\Observer\ProcessCronQueueObserver',
             '_runJob',
             static function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.cron.run');
+                self::setCommonSpanInfo($span, 'magento.cron.run');
 
                 // _runJob($scheduledTime, $currentTime, $jobConfig, $schedule, $groupId)
                 $span->meta['magento.cron.scheduled_time'] = $args[0];
@@ -183,7 +183,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\Action\Action',
             'dispatch',
             static function (SpanData $span, $args, $retval) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.action.dispatch');
+                self::setCommonSpanInfo($span, 'magento.action.dispatch');
 
                 $request = $args[0];
 
@@ -196,7 +196,7 @@ class MagentoIntegration extends Integration
                 $span->resource = $rootSpan->meta['magento.pathinfo'] = $fullActionName;
 
                 $isViewRequest = $retval // If an exception is thrown, retval will be null and get_class will fail
-                    ? MagentoIntegration::getRealClass($retval) === 'Magento\Framework\View\Result\Page'
+                    ? self::getRealClass($retval) === 'Magento\Framework\View\Result\Page'
                     : null;
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING") && !$isViewRequest) {
                     $rootSpan->resource = $fullActionName;
@@ -257,7 +257,7 @@ class MagentoIntegration extends Integration
                         "$serviceClassName::$serviceMethodName",
                         static function (HookData $hook) use ($serviceClassName, $serviceMethodName) {
                             $span = $hook->span();
-                            MagentoIntegration::setCommonSpanInfo($span, 'magento.api.call', "$serviceClassName::$serviceMethodName");
+                            self::setCommonSpanInfo($span, 'magento.api.call', "$serviceClassName::$serviceMethodName");
                             remove_hook($hook->id);
                         }
                     );
@@ -270,7 +270,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\Router\Base',
             'match',
             static function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.router.match');
+                self::setCommonSpanInfo($span, 'magento.router.match');
 
                 /** @var \Magento\Framework\App\RequestInterface $request */
                 $request = $args[0];
@@ -333,7 +333,7 @@ class MagentoIntegration extends Integration
             'Magento\UrlRewrite\Controller\Router',
             'match',
             static function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.urlrewrite.match');
+                self::setCommonSpanInfo($span, 'magento.urlrewrite.match');
 
                 $request = $args[0];
                 $alias = $request->getAlias(\Magento\Framework\UrlInterface::REWRITE_REQUEST_PATH_ALIAS);
@@ -522,7 +522,7 @@ class MagentoIntegration extends Integration
                 $product = $args[0];
                 $imageId = $args[1];
 
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.image.get', $product->getName());
+                self::setCommonSpanInfo($span, 'magento.image.get', $product->getName());
                 $span->meta['magento.image.id'] = $imageId;
             }
         );
@@ -590,7 +590,7 @@ class MagentoIntegration extends Integration
             'Magento\Framework\App\ResponseInterface',
             'sendResponse',
             static function (SpanData $span) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.response.send');
+                self::setCommonSpanInfo($span, 'magento.response.send');
             }
         );
 
@@ -649,7 +649,7 @@ class MagentoIntegration extends Integration
             'Magento\Sales\Model\Service\OrderService',
             'place',
             static function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.order.place');
+                self::setCommonSpanInfo($span, 'magento.order.place');
 
                 /** @var \Magento\Sales\Api\Data\OrderInterface $order */
                 $order = $args[0];
@@ -686,7 +686,7 @@ class MagentoIntegration extends Integration
             'Magento\Sales\Model\Order\Email\Sender\OrderSender',
             'send',
             static function (SpanData $span, $args) {
-                MagentoIntegration::setCommonSpanInfo($span, 'magento.email.send');
+                self::setCommonSpanInfo($span, 'magento.email.send');
 
                 /** @var Magento\Sales\Model\Order $order */
                 $order = $args[0];

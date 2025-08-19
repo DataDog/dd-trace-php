@@ -24,14 +24,14 @@ class ElasticSearchIntegration extends Integration
         // Dynamically generate namespace traces to ensure forward compatibility with future ES versions
         \DDTrace\trace_method('Elastic\Elasticsearch\Client', '__construct', [
             "posthook" => static function (SpanData $span) {
-                if (!ElasticSearchIntegration::$constructorCalled) {
+                if (!self::$constructorCalled) {
                     foreach (get_class_methods('Elastic\Elasticsearch\Traits\NamespaceTrait') as $method) {
                         $hook = static function (HookData $hook) use ($method) {
                             $ret = $hook->returned;
                             \DDTrace\remove_hook($hook->id);
                             $class = get_class($ret);
                             foreach (get_class_methods($ret) as $method) {
-                                ElasticSearchIntegration::traceNamespaceMethod($class, $method);
+                                self::traceNamespaceMethod($class, $method);
                             }
                         };
 
@@ -51,16 +51,16 @@ class ElasticSearchIntegration extends Integration
                             "scriptsPainlessExecute"
                         ];
                         $traceAnalytics = stripos($method, "search") !== false || in_array($method, $analyticsMethods);
-                        ElasticSearchIntegration::traceClientMethod($method, $traceAnalytics);
+                        self::traceClientMethod($method, $traceAnalytics);
                     }
-                    ElasticSearchIntegration::$constructorCalled = true;
+                    self::$constructorCalled = true;
                 }
 
                 $span->name = "Elasticsearch.Client.__construct";
-                Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::ELASTICSEARCH;
                 $span->resource = "__construct";
-                $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
             }
         ]);
 
@@ -80,9 +80,9 @@ class ElasticSearchIntegration extends Integration
         $hook = static function ($span, $args) {
             $span->name = "Elasticsearch.Endpoint.performRequest";
             $span->resource = 'performRequest';
-            Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
 
             /** @var Psr\Http\Message\RequestInterface $request */
             $request = $args[0];
@@ -97,7 +97,7 @@ class ElasticSearchIntegration extends Integration
                     parse_str($query, $queryParts);
                     $span->meta[Tag::ELASTICSEARCH_PARAMS] = json_encode($queryParts);
                 }
-                if (ElasticSearchIntegration::$logNextBody && ($body = $request->getBody()) && $body->isSeekable()) {
+                if (self::$logNextBody && ($body = $request->getBody()) && $body->isSeekable()) {
                     $pos = $body->tell();
                     $body->seek(0);
                     $span->meta[Tag::ELASTICSEARCH_BODY] = $body->getContents();
@@ -132,18 +132,18 @@ class ElasticSearchIntegration extends Integration
                     $span->name = "Elasticsearch.Client.$name";
 
                     if ($isTraceAnalyticsCandidate) {
-                        ElasticSearchIntegration::addTraceAnalyticsIfEnabled($span);
-                        ElasticSearchIntegration::$logNextBody = true;
+                        self::addTraceAnalyticsIfEnabled($span);
+                        self::$logNextBody = true;
                     }
 
                     $span->meta[Tag::SPAN_KIND] = 'client';
-                    Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+                    Integration::handleInternalSpanServiceName($span, self::NAME);
                     $span->type = Type::ELASTICSEARCH;
                     $span->resource = ElasticSearchCommon::buildResourceName($name, isset($args[0]) ? $args[0] : []);
-                    $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
+                    $span->meta[Tag::COMPONENT] = self::NAME;
                 },
                 'posthook' => static function () {
-                    ElasticSearchIntegration::$logNextBody = false;
+                    self::$logNextBody = false;
                 }
             ]
         );
@@ -159,9 +159,9 @@ class ElasticSearchIntegration extends Integration
             $operationName = str_replace('\\', '.', "$class.$name");
             $span->name = $operationName;
             $span->resource = $operationName;
-            Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
         });
     }
 
@@ -181,9 +181,9 @@ class ElasticSearchIntegration extends Integration
 
             $span->name = "Elasticsearch.$namespace.$name";
             $span->resource = ElasticSearchCommon::buildResourceName($name, $params);
-            Integration::handleInternalSpanServiceName($span, ElasticSearchIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->type = Type::ELASTICSEARCH;
-            $span->meta[Tag::COMPONENT] = ElasticSearchIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
         });
     }
 }

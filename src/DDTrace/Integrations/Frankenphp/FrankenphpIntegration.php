@@ -52,10 +52,10 @@ class FrankenphpIntegration extends Integration
                     $rootSpan->name = "web.request";
                     $rootSpan->service = \ddtrace_config_app_name('frankenphp');
                     $rootSpan->type = Type::WEB_SERVLET;
-                    $rootSpan->meta[Tag::COMPONENT] = FrankenphpIntegration::NAME;
+                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
                     unset($rootSpan->meta["closure.declaration"]);
-                    FrankenphpIntegration::addTraceAnalyticsIfEnabled($rootSpan);
+                    self::addTraceAnalyticsIfEnabled($rootSpan);
 
                     consume_distributed_tracing_headers(null);
 
@@ -93,7 +93,7 @@ class FrankenphpIntegration extends Integration
                         set_blocking_function(
                             $rootSpan,
                             static function ($spec) use ($hook) {
-                                FrankenphpIntegration::commitBlockingResponse($spec);
+                                self::commitBlockingResponse($spec);
                                 $hook->data = new FrankenphpAppSecException();
                                 throw $hook->data;
                             }
@@ -106,14 +106,14 @@ class FrankenphpIntegration extends Integration
                     $res = notify_commit(
                         $rootSpan,
                         \http_response_code(),
-                        FrankenphpIntegration::convertHeaders(\headers_list()),
+                        self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );
 
                     // we did not block before and were now told to block
                     if (!$hookData->data && $res) {
                         $hookData->data = new FrankenphpAppSecException();
-                        FrankenphpIntegration::commitBlockingResponse($res);
+                        self::commitBlockingResponse($res);
                     }
 
                     if ($hookData->data && !$rootSpan->exception) {

@@ -38,9 +38,9 @@ class SwooleIntegration extends Integration
                 $rootSpan->name = "web.request";
                 $rootSpan->service = \ddtrace_config_app_name('swoole');
                 $rootSpan->type = Type::WEB_SERVLET;
-                $rootSpan->meta[Tag::COMPONENT] = SwooleIntegration::NAME;
+                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
-                SwooleIntegration::addTraceAnalyticsIfEnabled($rootSpan);
+                self::addTraceAnalyticsIfEnabled($rootSpan);
 
                 $args = $hook->args;
                 /** @var Request $request */
@@ -148,10 +148,10 @@ class SwooleIntegration extends Integration
                 $eventName = strtolower($eventName);
                 switch ($eventName) {
                     case 'request':
-                        SwooleIntegration::instrumentRequestStart($callback, $server);
+                        self::instrumentRequestStart($callback, $server);
                         break;
                     case 'workerstart':
-                        SwooleIntegration::instrumentWorkerStart($callback, $server);
+                        self::instrumentWorkerStart($callback, $server);
                         break;
                 }
 

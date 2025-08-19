@@ -49,14 +49,14 @@ class CakePHPIntegration extends Integration
             $rootSpan->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
         };
 
-        self::$handleExceptionFn = function ($This, $scope, $args) {
+        self::$handleExceptionFn = static function ($This, $scope, $args) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan !== null) {
                 $rootSpan->exception = $args[0];
             }
         };
 
-        self::$setStatusCodeFn =  function ($This, $scope, $args, $retval) {
+        self::$setStatusCodeFn =  static function ($This, $scope, $args, $retval) {
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
                 $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $retval;
