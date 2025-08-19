@@ -68,10 +68,10 @@ class RatchetIntegration extends Integration
             $span->name = 'Ratchet\Client\Connector.__invoke';
             $span->resource = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($url);
             $span->type = Type::HTTP_CLIENT;
-            Integration::handleInternalSpanServiceName($span, RatchetIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
             $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-            $span->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
             $span->meta[Tag::HTTP_METHOD] = "GET";
             $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
             $span->meta[Tag::NETWORK_DESTINATION_NAME] = Urls::hostname($url);
@@ -119,7 +119,7 @@ class RatchetIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook(HttpServerInterface::class . "::onOpen", function (HookData $hook) {
+        \DDTrace\install_hook(HttpServerInterface::class . "::onOpen", static function (HookData $hook) {
             if (!\dd_trace_env_config("DD_TRACE_WEBSOCKET_MESSAGES_ENABLED")) {
                 return;
             }
@@ -179,7 +179,7 @@ class RatchetIntegration extends Integration
             $activeSpan->service = \ddtrace_config_app_name('ratchet');
             $activeSpan->name = "web.request";
             $activeSpan->type = Type::WEB_SERVLET;
-            $activeSpan->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
+            $activeSpan->meta[Tag::COMPONENT] = self::NAME;
             $activeSpan->meta[Tag::SPAN_KIND] = 'server';
             RatchetIntegration::addTraceAnalyticsIfEnabled($activeSpan);
 

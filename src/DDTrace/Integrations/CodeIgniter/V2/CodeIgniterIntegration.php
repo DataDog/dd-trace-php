@@ -44,7 +44,7 @@ class CodeIgniterIntegration extends Integration
         $rootSpan->service = $service;
         $rootSpan->type = Type::WEB_SERVLET;
         $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-        $rootSpan->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+        $rootSpan->meta[Tag::COMPONENT] = self::NAME;
 
         $controller = $router->fetch_class();
         $method = $router->fetch_method();
@@ -112,7 +112,7 @@ class CodeIgniterIntegration extends Integration
                 $span->service = $service;
                 $span->resource = !$ex && isset($args[0]) ? $args[0] : $span->name;
                 $span->type = Type::WEB_SERVLET;
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
@@ -148,11 +148,11 @@ class CodeIgniterIntegration extends Integration
                 if (!$ex && \is_object($retval)) {
                     $class = \get_class($retval);
                     if (!isset($registered_cache_adapters[$class])) {
-                        CodeIgniterIntegration::registerCacheAdapter($class, $service);
+                        self::registerCacheAdapter($class, $service);
                         $registered_cache_adapters[$class] = true;
                     }
                 }
-                $span->meta[Tag::COMPONENT] = CodeIgniterIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
                 return false;
             }
         );

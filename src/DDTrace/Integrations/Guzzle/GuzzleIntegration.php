@@ -43,10 +43,10 @@ class GuzzleIntegration extends Integration
             static function (SpanData $span, $args, $retval) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
-                Integration::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-                $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
 
                 if (
                     \defined('GuzzleHttp\ClientInterface::VERSION')
@@ -58,7 +58,7 @@ class GuzzleIntegration extends Integration
                 }
 
                 if (isset($args[0])) {
-                    GuzzleIntegration::addRequestInfo($span, $args[0]);
+                    self::addRequestInfo($span, $args[0]);
                 }
 
                 if (isset($retval)) {
@@ -74,7 +74,7 @@ class GuzzleIntegration extends Integration
                         $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
                         HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        GuzzleIntegration::handlePromiseResponse($response, $span);
+                        self::handlePromiseResponse($response, $span);
                     }
                 }
             }
@@ -86,19 +86,19 @@ class GuzzleIntegration extends Integration
             static function (SpanData $span, $args, $retval) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
-                Integration::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-                $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
                 $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
 
                 if (isset($args[0])) {
-                    GuzzleIntegration::addRequestInfo($span, $args[0]);
+                    self::addRequestInfo($span, $args[0]);
                 }
                 if (isset($retval)) {
                     $response = $retval;
                     if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        GuzzleIntegration::handlePromiseResponse($response, $span);
+                        self::handlePromiseResponse($response, $span);
                     }
                 }
             }
