@@ -56,7 +56,7 @@ zend_execute_data *zai_set_observed_frame(zend_execute_data *execute_data) {
     ALLOCA_FLAG(use_heap);
     void **rt_cache = do_alloca(cache_size, use_heap);
     memset(rt_cache, 0, cache_size);
-    // Set the begin handler to not observed and the end handler (where ever it is) to NULL (implicitly due to ecalloc)
+    // Set the begin handler to not observed and the end handler (where ever it is) to NULL via memset
 #if PHP_VERSION_ID >= 80400
     rt_cache[zend_observer_fcall_internal_function_extension] = ZEND_OBSERVER_NOT_OBSERVED;
 #else
