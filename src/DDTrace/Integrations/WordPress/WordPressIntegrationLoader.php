@@ -206,7 +206,7 @@ class WordPressIntegrationLoader
             if ($rootSpan) {
                 WordPressIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'wordpress.request';
-                $rootSpan->service = WordPressIntegration::getServiceName();
+                $rootSpan->service = \ddtrace_config_app_name(WordPressIntegration::NAME);;
                 $rootSpan->meta[Tag::COMPONENT] = WordPressIntegration::NAME;
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 if ('cli' !== PHP_SAPI) {
