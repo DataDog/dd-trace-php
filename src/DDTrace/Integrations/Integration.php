@@ -11,7 +11,7 @@ abstract class Integration implements \DDTrace\Integration
     /**
      * @return string The integration name.
      */
-    public function getName(): string
+    public static function getName(): string
     {
         return static::NAME;
     }
