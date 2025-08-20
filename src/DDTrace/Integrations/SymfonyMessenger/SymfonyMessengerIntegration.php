@@ -135,8 +135,8 @@ class SymfonyMessengerIntegration extends Integration
                 'callHandler',
                 function ($This, $scope, $args) {
                     $message = $args[1];
-                    install_hook($args[0], function (HookData $hook) use ($message) {
-                        SymfonyMessengerIntegration::setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
+                    install_hook($args[0], static function (HookData $hook) use ($message) {
+                        SymfonyMessengerIntegration::setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($hook->instance), $message, false, 'process');
                         remove_hook($hook->id);
                     });
                 }
@@ -165,8 +165,8 @@ class SymfonyMessengerIntegration extends Integration
                         }
 
                         $handler = $handlerDescriptor->getHandler();
-                        install_hook($handler, function (HookData $hook) use ($message) {
-                            SymfonyMessengerIntegration::setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($this), $message, false, 'process');
+                        install_hook($handler, static function (HookData $hook) use ($message) {
+                            SymfonyMessengerIntegration::setSpanAttributes($hook->span(), 'symfony.messenger.handle', \get_class($hook->instance), $message, false, 'process');
                             remove_hook($hook->id);
                         });
                     }
