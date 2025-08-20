@@ -88,6 +88,7 @@ void dd_uhook_callback_apply_scope(dd_uhook_callback *cb, zend_class_entry *scop
             memcpy(&cb->func, func, sizeof(zend_function));
             int cache_size = func->op_array.cache_size;
             func = &cb->func;
+            func->op_array.fn_flags &= ~ZEND_ACC_CLOSURE; // Otherwise we run into ZEND_CLOSURE_OBJECT() out-of-bounds reads
             if (cache_size) {
                 func->op_array.fn_flags |= ZEND_ACC_HEAP_RT_CACHE;
                 ZEND_MAP_PTR(cb->func.op_array.run_time_cache) = emalloc(cache_size);

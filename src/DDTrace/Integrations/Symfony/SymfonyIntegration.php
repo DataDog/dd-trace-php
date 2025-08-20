@@ -415,8 +415,8 @@ class SymfonyIntegration extends Integration
             '__construct',
             static function() {
                 $rootSpan = \DDTrace\root_span();
-                if ($rootSpan && strpos($rootSpan->name, self::NAME) !== false) {
-                    self::$frameworkPrefix = self::NAME;
+                if ($rootSpan && strpos($rootSpan->name, DrupalIntegration::NAME) !== false) {
+                    self::$frameworkPrefix = DrupalIntegration::NAME;
                 }
             }
         );
