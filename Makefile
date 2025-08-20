@@ -37,7 +37,8 @@ ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TR
 
 VERSION := $(shell cat VERSION)
 
-INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
+INI_DIR := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')
+INI_FILE := $(INI_DIR)/ddtrace.ini
 TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
@@ -377,6 +378,13 @@ prod:
 
 strict:
 	$(eval CFLAGS=-Wall -Werror -Wextra)
+
+compile_profiler:
+	(cd profiling; CARGO_TARGET_DIR=$(PROJECT_ROOT)/tmp/build_profiler cargo build --release --features trigger_time_sample)
+
+install_profiler: compile_profiler
+	cp $(PROJECT_ROOT)/tmp/build_profiler/release/libdatadog_php_profiling.so $(PHP_EXTENSION_DIR)/datadog-profiling.so
+	$(Q) echo "extension=datadog-profiling.so" | $(SUDO) tee $(INI_DIR)/datadog-profiling.ini
 
 clang_find_files_to_lint:
 	@find . \( \
