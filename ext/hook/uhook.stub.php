@@ -34,6 +34,12 @@ namespace DDTrace {
         public ?\Throwable $exception;
 
         /**
+         * The object instance, if called on an object.
+         * Uninitialized if there is no object.
+         */
+        public object $instance;
+
+        /**
          * Creates a span if none exists yet, otherwise returns the span attached to the current function call.
          * If called outside the pre-hook and no span is attached yet, it will return an empty span object.
          *

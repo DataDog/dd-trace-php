@@ -56,6 +56,7 @@ typedef struct {
     zval property_args;
     zval property_returned;
     zval property_exception;
+    zval property_object;
     zend_ulong invocation;
     zend_execute_data *execute_data;
     zval *vm_stack_top;
@@ -335,6 +336,9 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         ZVAL_ARR(&dyn->hook_data->property_args, filearg);
     } else {
         ZVAL_ARR(&dyn->hook_data->property_args, dd_uhook_collect_args(execute_data));
+    }
+    if (hasThis()) {
+        ZVAL_OBJ_COPY(&dyn->hook_data->property_object, Z_OBJ(EX(This)));
     }
 
     if (def->begin.closure && !def->running) {

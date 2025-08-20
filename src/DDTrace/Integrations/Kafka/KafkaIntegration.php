@@ -36,9 +36,9 @@ class KafkaIntegration extends Integration
     {
         \DDTrace\install_hook(
             'RdKafka\ProducerTopic::producev',
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 /** @var \RdKafka\ProducerTopic $this */
-                KafkaIntegration::setupKafkaProduceSpan($hook, $this);
+                KafkaIntegration::setupKafkaProduceSpan($hook, $hook->instance);
             }
         );
     }
@@ -107,7 +107,7 @@ class KafkaIntegration extends Integration
                 static function (HookData $hook) {
                     $hook->data['start'] = microtime(true);
                 },
-                function (HookData $hook) {
+                static function (HookData $hook) {
                     /** @var \RdKafka\Message $message */
                     $message = $hook->returned;
 
@@ -138,7 +138,7 @@ class KafkaIntegration extends Integration
                     }
 
                     $hook->data['span'] = $span;
-                    KafkaIntegration::setupKafkaConsumeSpan($hook, $this);
+                    KafkaIntegration::setupKafkaConsumeSpan($hook, $hook->instance);
                     \DDTrace\collect_code_origins(1);
                     \DDTrace\close_span();
                 }
