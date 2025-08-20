@@ -519,7 +519,7 @@ class LaminasIntegration extends Integration
         // ApiProblem
         install_hook(
             'Laminas\ApiTools\ApiProblem\ApiProblem::__construct',
-            function (HookData $hook) {
+            static function (HookData $hook) {
                 $args = $hook->args;
                 $detail = $args[1] ?? null;
                 $activeSpan = active_span();
@@ -534,7 +534,7 @@ class LaminasIntegration extends Integration
                     array_shift($stack);
                     $backtrace = LaminasIntegration::debugBacktraceToString($stack);
 
-                    ObjectKVStore::put($this, 'backtrace', $backtrace);
+                    ObjectKVStore::put($hook->instance, 'backtrace', $backtrace);
 
                     if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
                         $activeSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
