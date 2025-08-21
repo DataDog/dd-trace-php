@@ -28,20 +28,19 @@ function addSpanDataTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
 final class CurlIntegration extends Integration
 {
     const NAME = 'curl';
+    public static $lastMh = [0, null];
 
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('curl')) {
             return Integration::NOT_AVAILABLE;
         }
 
-        $integration = $this;
-
         \DDTrace\trace_function('curl_exec', [
             // the ddtrace extension will handle distributed headers
             'instrument_when_limited' => 0,
-            'posthook' => function (SpanData $span, $args, $retval) use ($integration) {
-                $integration->setup_curl_span($span);
+            'posthook' => static function (SpanData $span, $args, $retval) {
+                self::setup_curl_span($span);
 
                 if (!isset($args[0])) {
                     return;
@@ -54,19 +53,18 @@ final class CurlIntegration extends Integration
                     $span->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception, 1);
                 }
 
-                CurlIntegration::set_curl_attributes($span, \curl_getinfo($ch));
+                self::set_curl_attributes($span, \curl_getinfo($ch));
             },
         ]);
 
-        $lastMh = [0, null];
-        \DDTrace\install_hook('curl_multi_exec', function (HookData $hook) use ($integration, &$lastMh) {
+        \DDTrace\install_hook('curl_multi_exec', static function (HookData $hook) {
             if (\count($hook->args) >= 2) {
                 $data = null;
                 if (\PHP_MAJOR_VERSION > 7) {
                     $data = ObjectKVStore::get($hook->args[0], "span");
-                } elseif ($lastMh[0] == (int)$hook->args[0]) {
-                    $data = $lastMh[1];
-                    $lastMh = [0, null];
+                } elseif (self::$lastMh[0] == (int)$hook->args[0]) {
+                    $data = self::$lastMh[1];
+                    self::$lastMh = [0, null];
                 }
                 if ($data) {
                     $hook->data = $data;
@@ -87,10 +85,10 @@ final class CurlIntegration extends Integration
             $span->resource = 'curl_multi_exec';
             $span->service = "curl";
             $span->type = Type::HTTP_CLIENT;
-            Integration::handleInternalSpanServiceName($span, CurlIntegration::NAME);
-            $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
+            Integration::handleInternalSpanServiceName($span, self::NAME);
+            $span->meta[Tag::COMPONENT] = self::NAME;
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
-        }, function (HookData $hook) use ($integration, &$lastMh) {
+        }, static function (HookData $hook) {
             if (empty($hook->data) || $hook->exception) {
                 return;
             }
@@ -109,7 +107,7 @@ final class CurlIntegration extends Integration
             if ($spans && $spans[0][1]->name != "curl_exec") {
                 foreach ($spans as $requestSpan) {
                     list(, $requestSpan) = $requestSpan;
-                    $integration->setup_curl_span($requestSpan);
+                    self::setup_curl_span($requestSpan);
                 }
             }
 
@@ -139,7 +137,7 @@ final class CurlIntegration extends Integration
                         $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                         $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
                     }
-                    CurlIntegration::set_curl_attributes($requestSpan, $info);
+                    self::set_curl_attributes($requestSpan, $info);
                     if (isset($info["total_time"])) {
                         $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
                         \DDTrace\update_span_duration($requestSpan, $endTime);
@@ -150,7 +148,7 @@ final class CurlIntegration extends Integration
             // If there's an error we retain it for a possible future curl_multi_info_read
             if ($saveSpans) {
                 if (\PHP_MAJOR_VERSION == 7) {
-                    $lastMh = [(int)$hook->args[0], [$span, &$spans]];
+                    self::$lastMh = [(int)$hook->args[0], [$span, &$spans]];
                 }
             } elseif (\PHP_MAJOR_VERSION == 8) {
                 ObjectKVStore::put($hook->args[0], "span", null);
@@ -170,7 +168,7 @@ final class CurlIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook('curl_multi_info_read', null, function (HookData $hook) use (&$lastMh) {
+        \DDTrace\install_hook('curl_multi_info_read', null, static function (HookData $hook) {
             if (count($hook->args) < 1 || !isset($hook->returned["handle"])) {
                 return;
             }
@@ -179,8 +177,8 @@ final class CurlIntegration extends Integration
 
             if (\PHP_MAJOR_VERSION > 7) {
                 $data = ObjectKVStore::get($hook->args[0], "span");
-            } elseif ($lastMh[0] == (int)$hook->args[0]) {
-                $data = $lastMh[1];
+            } elseif (self::$lastMh[0] == (int)$hook->args[0]) {
+                $data = self::$lastMh[1];
             } else {
                 $data = null;
             }
@@ -207,7 +205,7 @@ final class CurlIntegration extends Integration
                             $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                             $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
                         }
-                        CurlIntegration::set_curl_attributes($requestSpan, $info);
+                        self::set_curl_attributes($requestSpan, $info);
                         if (isset($info["total_time"])) {
                             $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
                             \DDTrace\update_span_duration($requestSpan, $endTime);
@@ -229,7 +227,7 @@ final class CurlIntegration extends Integration
                     }
                     $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
                     $requestSpan->meta[Tag::ERROR_STACK] = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
-                    CurlIntegration::set_curl_attributes($requestSpan, $info);
+                    self::set_curl_attributes($requestSpan, $info);
                     if (isset($info["total_time"])) {
                         $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
                         \DDTrace\update_span_duration($requestSpan, $endTime);
@@ -241,13 +239,13 @@ final class CurlIntegration extends Integration
         return Integration::LOADED;
     }
 
-    public function setup_curl_span($span) {
+    public static function setup_curl_span($span) {
         $span->name = $span->resource = 'curl_exec';
         $span->type = Type::HTTP_CLIENT;
         $span->service = 'curl';
-        Integration::handleInternalSpanServiceName($span, CurlIntegration::NAME);
-        $this->addTraceAnalyticsIfEnabled($span);
-        $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
+        Integration::handleInternalSpanServiceName($span, self::NAME);
+        self::addTraceAnalyticsIfEnabled($span);
+        $span->meta[Tag::COMPONENT] = self::NAME;
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
     }
 

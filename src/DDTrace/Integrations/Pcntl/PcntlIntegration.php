@@ -13,16 +13,16 @@ class PcntlIntegration extends Integration
     /**
      * Add instrumentation to forking
      */
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('pcntl')) {
             // pcntl is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
 
-        $trace_fork = function (SpanData $span, $args, $retval) {
+        $trace_fork = static function (SpanData $span, $args, $retval) {
             $span->name = $span->resource = 'pcntl_fork';
-            $span->meta[Tag::COMPONENT] = PcntlIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
             if ($retval > 0) {
                 $span->meta["fork.pid"] = $retval;
             } else {

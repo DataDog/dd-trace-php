@@ -11,16 +11,16 @@ abstract class Integration implements \DDTrace\Integration
     /**
      * @return string The integration name.
      */
-    public function getName(): string
+    public static function getName(): string
     {
         return static::NAME;
     }
 
-    public function addTraceAnalyticsIfEnabled(SpanData $span)
+    public static function addTraceAnalyticsIfEnabled(SpanData $span)
     {
-        $name = $this->getName();
+        $name = static::NAME;
         if (\DDTrace\Config\integration_analytics_enabled($name)
-            || (!$this->requiresExplicitTraceAnalyticsEnabling() && \dd_trace_env_config("DD_TRACE_ANALYTICS_ENABLED"))) {
+            || (!static::requiresExplicitTraceAnalyticsEnabling() && \dd_trace_env_config("DD_TRACE_ANALYTICS_ENABLED"))) {
             $span->metrics[Tag::ANALYTICS_KEY] = \DDTrace\Config\integration_analytics_sample_rate($name);
         }
     }
@@ -30,7 +30,7 @@ abstract class Integration implements \DDTrace\Integration
      *
      * Trace Analytics are generally enabled by default for top-level integrations, i.e. frameworks and webservers.
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return true;
     }
