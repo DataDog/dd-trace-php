@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2fa8c7fb33e71ec0fb70c54ba57a8c5281e6e8d8 */
+ * Stub hash: 7035eb953845d61cc00c46d8a8044a88e8aafbe7 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -154,6 +154,16 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_dogstatsd_set arginfo_DDTrace_dogstatsd_count
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_are_endpoints_collected, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_add_endpoint, 0, 4, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, type, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, operation_name, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, resource_name, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
 
@@ -165,8 +175,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Config_integration_analy
 	ZEND_ARG_TYPE_INFO(0, integrationName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_has_listeners, 0, 0, _IS_BOOL, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_DDTrace_UserRequest_has_listeners arginfo_DDTrace_are_endpoints_collected
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_UserRequest_notify_start, 0, 2, IS_ARRAY, 1)
 	ZEND_ARG_OBJ_INFO(0, span, DDTrace\\RootSpanData, 0)
@@ -216,9 +225,9 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_env_config, 0, 1, IS_MI
 	ZEND_ARG_TYPE_INFO(0, envName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_disable_in_request arginfo_DDTrace_UserRequest_has_listeners
+#define arginfo_dd_trace_disable_in_request arginfo_DDTrace_are_endpoints_collected
 
-#define arginfo_dd_trace_reset arginfo_DDTrace_UserRequest_has_listeners
+#define arginfo_dd_trace_reset arginfo_DDTrace_are_endpoints_collected
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_dd_trace_serialize_msgpack, 0, 1, MAY_BE_BOOL|MAY_BE_STRING)
 	ZEND_ARG_TYPE_INFO(0, traceArray, IS_ARRAY, 0)
@@ -231,15 +240,15 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_dd_trace_dd_get_memory_limit, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_dd_trace_check_memory_under_limit arginfo_DDTrace_UserRequest_has_listeners
+#define arginfo_dd_trace_check_memory_under_limit arginfo_DDTrace_are_endpoints_collected
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_ddtrace_config_app_name, 0, 0, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, fallbackName, IS_STRING, 1, "null")
 ZEND_END_ARG_INFO()
 
-#define arginfo_ddtrace_config_distributed_tracing_enabled arginfo_DDTrace_UserRequest_has_listeners
+#define arginfo_ddtrace_config_distributed_tracing_enabled arginfo_DDTrace_are_endpoints_collected
 
-#define arginfo_ddtrace_config_trace_enabled arginfo_DDTrace_UserRequest_has_listeners
+#define arginfo_ddtrace_config_trace_enabled arginfo_DDTrace_are_endpoints_collected
 
 #define arginfo_ddtrace_config_integration_enabled arginfo_DDTrace_Config_integration_analytics_enabled
 
@@ -266,7 +275,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_dd_trace_closed_spans_count arginfo_dd_trace_dd_get_memory_limit
 
-#define arginfo_dd_trace_tracer_is_limited arginfo_DDTrace_UserRequest_has_listeners
+#define arginfo_dd_trace_tracer_is_limited arginfo_DDTrace_are_endpoints_collected
 
 #define arginfo_dd_trace_compile_time_microseconds arginfo_dd_trace_dd_get_memory_limit
 
@@ -362,6 +371,8 @@ ZEND_FUNCTION(DDTrace_dogstatsd_distribution);
 ZEND_FUNCTION(DDTrace_dogstatsd_gauge);
 ZEND_FUNCTION(DDTrace_dogstatsd_histogram);
 ZEND_FUNCTION(DDTrace_dogstatsd_set);
+ZEND_FUNCTION(DDTrace_are_endpoints_collected);
+ZEND_FUNCTION(DDTrace_add_endpoint);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
@@ -450,6 +461,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_gauge"), zif_DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_histogram"), zif_DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_set"), zif_DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "are_endpoints_collected"), zif_DDTrace_are_endpoints_collected, arginfo_DDTrace_are_endpoints_collected, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_endpoint"), zif_DDTrace_add_endpoint, arginfo_DDTrace_add_endpoint, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_sample_rate"), zif_DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate, 0, NULL, NULL)

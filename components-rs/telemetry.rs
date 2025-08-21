@@ -18,7 +18,7 @@ use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
 use ddtelemetry::data;
 use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
-use ddtelemetry::data::{Dependency, Integration, LogLevel};
+use ddtelemetry::data::{Dependency, Endpoint, Integration, LogLevel};
 use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
 use ddtelemetry_ffi::try_c;
@@ -238,6 +238,7 @@ pub struct ShmCache {
     pub config_sent: bool,
     pub integrations: HashSet<String>,
     pub composer_paths: HashSet<PathBuf>,
+    pub endpoints: HashSet<Endpoint>,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
 }
 
@@ -293,13 +294,14 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
             let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(Some(mapped), shm_path);
             let (_, buf) = reader.read();
 
-            if let Ok((config_sent, integrations, composer_paths)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
+            if let Ok((config_sent, integrations, composer_paths, endpoints)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, HashSet<Endpoint>)>(buf)
             {
                 let entry = ShmCache {
                     config_sent,
                     integrations,
                     composer_paths,
+                    endpoints,
                     last_updated: Instant::now(),
                     reader,
                 };
@@ -355,4 +357,33 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
     ));
 
     MaybeError::None
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
+    buffer: &SidecarActionsBuffer,
+) -> bool {
+    buffer.buffer.iter().any(|action| match action {
+        SidecarAction::AddEndpoint(_) => true,
+        _ => false,
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_add_endpoint(
+    buffer: &mut SidecarActionsBuffer,
+    r#type: CharSlice,
+    method: ddtelemetry::data::Method,
+    path: CharSlice,
+    operation_name: CharSlice,
+    resource_name: CharSlice,
+) {
+    let endpoint = Endpoint {
+        r#type: Some(r#type.to_utf8_lossy().into_owned()),
+        method: Some(method),
+        path: Some(path.to_utf8_lossy().into_owned()),
+        operation_name: operation_name.to_utf8_lossy().into_owned(),
+        resource_name: resource_name.to_utf8_lossy().into_owned(),
+    };
+    buffer.buffer.push(SidecarAction::AddEndpoint(endpoint));
 }
