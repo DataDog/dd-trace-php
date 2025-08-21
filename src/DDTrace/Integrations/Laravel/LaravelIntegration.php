@@ -567,9 +567,11 @@ class LaravelIntegration extends Integration
         );
 
         if (!\DDTrace\are_endpoints_collected()) {
-            var_dump("endpoints not collected");
+            \DDTrace\add_endpoint("type", "/api/v1/traces", "operation_name", "resource_name");
+            file_put_contents('/tmp/alex.log', "Adding endpoints" . PHP_EOL, FILE_APPEND);
+        } else {
+            file_put_contents('/tmp/alex.log', "Endpoints already added" . PHP_EOL, FILE_APPEND);
         }
-
         return Integration::LOADED;
     }
 
