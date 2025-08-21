@@ -362,11 +362,29 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
 
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
-    cache: &mut ShmCacheMap,
-    service: CharSlice,
-    env: CharSlice,
+    buffer: &SidecarActionsBuffer,
 ) -> bool {
-    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
+    buffer.buffer.iter().any(|action| match action {
+        SidecarAction::AddEndpoint(_) => true,
+        _ => false,
+    })
+}
 
-    cache_entry.map_or(false, |entry| !entry.endpoints.is_empty())
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_add_endpoint(
+    buffer: &mut SidecarActionsBuffer,
+    r#type: CharSlice,
+    method: ddtelemetry::data::Method,
+    path: CharSlice,
+    operation_name: CharSlice,
+    resource_name: CharSlice,
+) {
+    let endpoint = Endpoint {
+        r#type: Some(r#type.to_utf8_lossy().into_owned()),
+        method: Some(method),
+        path: Some(path.to_utf8_lossy().into_owned()),
+        operation_name: operation_name.to_utf8_lossy().into_owned(),
+        resource_name: resource_name.to_utf8_lossy().into_owned(),
+    };
+    buffer.buffer.push(SidecarAction::AddEndpoint(endpoint));
 }

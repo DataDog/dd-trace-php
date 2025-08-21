@@ -829,6 +829,13 @@ namespace DDTrace {
      * @return bool
      */
     function are_endpoints_collected(): bool {}
+
+    /**
+     * Add an endpoint
+     *
+     * @param string $endpoint The endpoint to add
+     */
+    function add_endpoint(string $type, string $path, string $operation_name, string $resource_name): void {}
 }
 
 namespace DDTrace\System {
