@@ -556,11 +556,11 @@ void ddtrace_sidecar_rinit(void) {
         if (Z_TYPE(git_object) == IS_OBJECT) {
             ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ(git_object);
             if (Z_TYPE(git_metadata->property_commit) == IS_STRING) {
-                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("DD_GIT_COMMIT_SHA"),
+                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.commit.sha"),
                                          dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_commit))));
             }
             if (Z_TYPE(git_metadata->property_repository) == IS_STRING) {
-                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("DD_GIT_REPOSITORY_URL"),
+                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.repository_url"),
                                          dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_repository))));
             }
             OBJ_RELEASE(&git_metadata->std);
