@@ -59,6 +59,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " trace_source.c";
 	DDTRACE_EXT_SOURCES += " threads.c";
 	DDTRACE_EXT_SOURCES += " user_request.c";
+	DDTRACE_EXT_SOURCES += " weak_resources.c";
 	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
 	if (version >= 800 && version < 802) {
 		DDTRACE_EXT_SOURCES += " weakrefs.c";

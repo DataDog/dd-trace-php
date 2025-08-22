@@ -84,8 +84,9 @@
 #include "threads.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "user_request.h"
+#include "weak_resources.h"
 #include "zend_hrtime.h"
-#include "ext/standard/file.h"
+#include <ext/standard/file.h>
 
 #include "hook/uhook.h"
 #include "handlers_fiber.h"
@@ -1718,6 +1719,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_interceptor_rinit();
 #endif
 
+    ddtrace_weak_resources_rinit();
+
     if (!ddtrace_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
@@ -1868,6 +1871,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_clean_git_object();
+    ddtrace_weak_resources_rshutdown();
 
     return SUCCESS;
 }
@@ -3710,6 +3714,36 @@ PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
     }
 
     RETURN_NULL();
+}
+
+PHP_FUNCTION(DDTrace_resource_weak_store) {
+    zval *rsrc, *value;
+    zend_string *key;
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_RESOURCE(rsrc)
+        Z_PARAM_STR(key)
+        Z_PARAM_ZVAL(value)
+    ZEND_PARSE_PARAMETERS_END();
+
+    Z_TRY_ADDREF_P(value);
+    ddtrace_weak_resource_update(Z_RES_P(rsrc), key, value);
+}
+
+PHP_FUNCTION(DDTrace_resource_weak_get) {
+    zval *rsrc;
+    zend_string *key;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_RESOURCE(rsrc)
+        Z_PARAM_STR(key)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zval *ret = ddtrace_weak_resource_get(Z_RES_P(rsrc), key);
+    if (!ret) {
+        RETURN_NULL();
+    }
+    RETURN_COPY(ret);
 }
 
 static const zend_module_dep ddtrace_module_deps[] = {

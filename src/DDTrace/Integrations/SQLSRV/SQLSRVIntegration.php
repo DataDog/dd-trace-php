@@ -8,9 +8,9 @@ use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
-use DDTrace\Util\ObjectKVStore;
 
-use function DDTrace\install_hook;
+use function DDTrace\resource_weak_get;
+use function DDTrace\resource_weak_store;
 
 class SQLSRVIntegration extends Integration
 {
@@ -33,7 +33,9 @@ class SQLSRVIntegration extends Integration
         // sqlsrv_connect ( string $serverName [, array $connectionInfo] ) : resource
         \DDTrace\trace_function('sqlsrv_connect', function (SpanData $span, $args, $retval) use ($integration) {
             $connectionMetadata = $integration->extractConnectionMetadata($args);
-            ObjectKVStore::put($this, SQLSRVIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+            if ($retval) {
+                resource_weak_store($retval, SQLSRVIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+            }
             self::setDefaultAttributes($connectionMetadata, $span, 'sqlsrv_connect');
 
             $integration->detectError($retval, $span);
@@ -41,41 +43,47 @@ class SQLSRVIntegration extends Integration
 
         // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
         \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) use ($integration) {
-            list(, $query) = $hook->args;
+            list($conn, $query) = $hook->args;
 
             $span = $hook->span();
-            self::setDefaultAttributes($this, $span, 'sqlsrv_query', $query);
+            self::setDefaultAttributes($conn, $span, 'sqlsrv_query', $query);
             $integration->addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-            ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            if (is_resource($conn)) {
+                resource_weak_store($conn, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            }
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
         }, function (HookData $hook) use ($integration) {
+            list($conn) = $hook->args;
             $span = $hook->span();
-            if (is_object($hook->returned)) {
-                ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
+            if (is_resource($hook->returned)) {
+                resource_weak_store($hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::CONNECTION_TAGS_KEY));
             }
 
             $result = $hook->returned;
-            $this->setMetrics($span, $result);
+            $integration->setMetrics($span, $result);
             $integration->detectError($result, $span);
         });
 
         // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
         \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) use ($integration) {
-            list(, $query) = $hook->args;
+            list($conn, $query) = $hook->args;
 
-            ObjectKVStore::put($this, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            if (is_resource($conn)) {
+                resource_weak_store($conn, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            }
 
             $span = $hook->span();
-            self::setDefaultAttributes($this, $span, 'sqlsrv_prepare', $query);
+            self::setDefaultAttributes($conn, $span, 'sqlsrv_prepare', $query);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
         }, function (HookData $hook) use ($integration) {
+            list($conn) = $hook->args;
             $span = $hook->span();
-            if (is_object($hook->returned)) {
-                ObjectKVStore::propagate($this, $hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY);
+            if (is_resource($hook->returned)) {
+                resource_weak_store($hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::CONNECTION_TAGS_KEY));
             }
 
             $integration->detectError($hook->returned, $span);
@@ -83,19 +91,23 @@ class SQLSRVIntegration extends Integration
 
         // sqlsrv_commit ( resource $conn ) : bool
         \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) use ($integration) {
-            self::setDefaultAttributes($this, $span, 'sqlsrv_commit', null, $retval);
+            list($conn) = $args;
+            self::setDefaultAttributes($conn, $span, 'sqlsrv_commit', null, $retval);
 
             $integration->detectError($retval, $span);
         });
 
         // sqlsrv_execute ( resource $stmt ) : bool
         \DDTrace\trace_function('sqlsrv_execute', function (SpanData $span, $args, $retval) use ($integration) {
-            $query = ObjectKVStore::get($this, SQLSRVIntegration::QUERY_TAGS_KEY);
-            self::setDefaultAttributes($this, $span, 'sqlsrv_execute', $query, $retval);
+            list($stmt) = $args;
+            if (is_resource($stmt)) {
+                $query = resource_weak_get($stmt, SQLSRVIntegration::QUERY_TAGS_KEY);
+            }
+            self::setDefaultAttributes($stmt, $span, 'sqlsrv_execute', $query ?? "", $retval);
             $integration->addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             if ($retval) {
-                $this->setMetrics($span, $args[0]);
+                $integration->setMetrics($span, $args[0]);
             }
 
             $integration->detectError($retval, $span);
@@ -151,11 +163,11 @@ class SQLSRVIntegration extends Integration
     {
         if (is_array($source)) {
             $storedConnectionInfo = $source;
-        } else {
-            $storedConnectionInfo = ObjectKVStore::get($source, SQLSRVIntegration::CONNECTION_TAGS_KEY, []);
+        } elseif (is_resource($source)) {
+            $storedConnectionInfo = resource_weak_get($source, SQLSRVIntegration::CONNECTION_TAGS_KEY) ?? [];
         }
 
-        if (!is_array($storedConnectionInfo)) {
+        if (!isset($storedConnectionInfo) || !is_array($storedConnectionInfo)) {
             $storedConnectionInfo = [];
         }
 
