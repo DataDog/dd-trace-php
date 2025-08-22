@@ -1719,7 +1719,7 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_interceptor_rinit();
 #endif
 
-    ddtrace_weak_resouces_rinit();
+    ddtrace_weak_resources_rinit();
 
     if (!ddtrace_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
@@ -1871,7 +1871,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_clean_git_object();
-    ddtrace_weak_resouces_rshutdown();
+    ddtrace_weak_resources_rshutdown();
 
     return SUCCESS;
 }

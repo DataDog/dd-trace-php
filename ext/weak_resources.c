@@ -9,13 +9,13 @@ void dd_resource_destroy(zval *zv) {
     DDTRACE_G(resource_dtor_func)(zv);
 }
 
-void ddtrace_weak_resouces_rinit() {
+void ddtrace_weak_resources_rinit() {
     zend_hash_init(&DDTRACE_G(resource_weak_storage), 8, NULL, ZVAL_PTR_DTOR, 0);
     DDTRACE_G(resource_dtor_func) = EG(regular_list).pDestructor;
     EG(regular_list).pDestructor = dd_resource_destroy;
 }
 
-void ddtrace_weak_resouces_rshutdown() {
+void ddtrace_weak_resources_rshutdown() {
     zend_hash_destroy(&DDTRACE_G(resource_weak_storage));
     EG(regular_list).pDestructor = DDTRACE_G(resource_dtor_func);
 }
