@@ -25,6 +25,8 @@ use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use zwohash::ZwoHasher;
+use std::fs::OpenOptions;
+use std::io::Write;
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
@@ -362,17 +364,29 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
 
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
-    buffer: &SidecarActionsBuffer,
+    cache: &mut ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
 ) -> bool {
-    buffer.buffer.iter().any(|action| match action {
-        SidecarAction::AddEndpoint(_) => true,
-        _ => false,
-    })
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+        let _ = writeln!(file, "Checking if endpoints are collected");
+    }
+
+    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
+    if let Some(entry) = cache_entry {
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+            let _ = writeln!(file, "Cache entry found");
+        }
+        return !entry.endpoints.is_empty();
+    }
+    false
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_add_endpoint(
-    buffer: &mut SidecarActionsBuffer,
+    cache: &mut ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
     r#type: CharSlice,
     method: ddtelemetry::data::Method,
     path: CharSlice,
@@ -386,5 +400,23 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_endpoint(
         operation_name: operation_name.to_utf8_lossy().into_owned(),
         resource_name: resource_name.to_utf8_lossy().into_owned(),
     };
-    buffer.buffer.push(SidecarAction::AddEndpoint(endpoint));
+            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+                let _ = writeln!(file, "Starting adding endpoint");
+            }
+    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
+    if let Some(entry) = cache_entry {
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+            let _ = writeln!(file, "Getting cache entry");
+        }
+        if let Some(endpoints) = (&entry.endpoints as *const _ as *mut std::collections::HashSet<Endpoint>).as_mut() {
+            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+                let _ = writeln!(file, "Adding endpoint");
+            }
+            endpoints.insert(endpoint);
+        }
+
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+            let _ = writeln!(file, "Ending adding endpoint");
+        }
+    }
 }
