@@ -12,6 +12,14 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 */
 class WordPressBench extends FrameworkBenchmarksCase
 {
+    public function doRun()
+    {
+        $this->call(GetSpec::create(
+            'A simple GET request with a view',
+            '/simple_view?key=value&pwd=should_redact'
+        ));
+    }
+
     /**
      * @BeforeMethods({"enableDatadog", "createDatabase"})
      * @AfterMethods("afterMethod")
@@ -23,10 +31,21 @@ class WordPressBench extends FrameworkBenchmarksCase
      */
     public function benchWordPressOverhead()
     {
-        $this->call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
+        $this->doRun();
+    }
+
+    /**
+     * @BeforeMethods({"enableDatadogWithDdprof", "createDatabase"})
+     * @AfterMethods("afterMethod")
+     * @Revs(1)
+     * @Iterations(50)
+     * @OutputTimeUnit("microseconds")
+     * @Groups({"ddprof"})
+     * @Warmup(1)
+     */
+    public function benchWordPressDdprof()
+    {
+        $this->doRun();
     }
 
     public static function getAppIndexScript()
@@ -57,9 +76,6 @@ class WordPressBench extends FrameworkBenchmarksCase
      */
     public function benchWordPressBaseline()
     {
-        $this->call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
+        $this->doRun();
     }
 }

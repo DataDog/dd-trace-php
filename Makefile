@@ -1128,6 +1128,7 @@ TEST_WEB_84 := \
 
 FILTER ?= .
 MAX_RETRIES := 3
+RUN_WEB_BENCHES_WITH_DDPROF ?=
 
 # Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
 define run_composer_with_retry
@@ -1165,11 +1166,11 @@ endef
 
 
 define run_benchmarks
-	$(ENV_OVERRIDE) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
+	$(ENV_OVERRIDE) $(2) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(TRACER_SOURCES_INI) $(PHPBENCH) --config=$(1) "--filter=$(if $(RUN_WEB_BENCHES_WITH_DDPROF),$(FILTER),Ddprof(*SKIP)(*F)|^.*?$(FILTER))" --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_benchmarks_with_ddprof
-	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) --filter=$(FILTER) --report=all --output=file --output=console $(BENCHMARK_EXTRA)
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) "--filter=Ddprof(*SKIP)(*F)|^.*?$(FILTER)" --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_composer_with_lock

@@ -10,6 +10,14 @@ use Benchmarks\Integrations\FrameworkBenchmarksCase;
 
 class EmptyFileBench extends FrameworkBenchmarksCase
 {
+    public function doRun()
+    {
+        $this->call(GetSpec::create(
+            'A web request to a framework not using auto loaders',
+            '/'
+        ));
+    }
+
     /**
      * @BeforeMethods("disableDatadog")
      * @AfterMethods("afterMethod")
@@ -21,10 +29,7 @@ class EmptyFileBench extends FrameworkBenchmarksCase
      */
     public function benchEmptyFileBaseline()
     {
-        $this->call(GetSpec::create(
-            'A web request to a framework not using auto loaders',
-            '/'
-        ));
+        $this->doRun();
     }
 
     /**
@@ -38,10 +43,21 @@ class EmptyFileBench extends FrameworkBenchmarksCase
      */
     public function benchEmptyFileOverhead()
     {
-        $this->call(GetSpec::create(
-            'A web request to a framework not using auto loaders',
-            '/'
-        ));
+        $this->doRun();
+    }
+
+    /**
+     * @BeforeMethods({"enableDatadogWithDdprof"})
+     * @AfterMethods("afterMethod")
+     * @Revs(1)
+     * @Iterations(50)
+     * @OutputTimeUnit("microseconds")
+     * @Groups({"ddprof"})
+     * @Warmup(1)
+     */
+    public function benchEmptyFileDdprof()
+    {
+        $this->doRun();
     }
 
     public static function getAppIndexScript()
