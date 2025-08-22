@@ -570,6 +570,11 @@ class LaravelIntegration extends Integration
         } else {
             file_put_contents('/tmp/alex.log', "Endpoints already added" . PHP_EOL, FILE_APPEND);
         }
+
+        if (\DDTrace\are_endpoints_collected()) {
+            file_put_contents('/tmp/alex.log', "2Endpoints already added" . PHP_EOL, FILE_APPEND);
+        }
+
         return Integration::LOADED;
     }
 
