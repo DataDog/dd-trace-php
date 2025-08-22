@@ -281,7 +281,58 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     service: CharSlice,
     env: CharSlice,
 ) -> Option<&'a ShmCache> {
-    return None;
+    let cache = &mut *cache;
+
+    let service_str = service.to_utf8_lossy();
+    let env_str = env.to_utf8_lossy();
+
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+        let _ = writeln!(file, "Getting cache entry {} {}", service_str, env_str);
+    }
+
+    let needs_refresh = cache.get(&(service_str.as_ref(), env_str.as_ref())).map_or(true, |entry| {
+        entry.last_updated.elapsed() > Duration::from_secs(1800)
+    });
+
+    if needs_refresh {
+        let shm_path = path_for_telemetry(&service_str, &env_str);
+        if let Ok(mapped) = open_named_shm(&shm_path) {
+            let mut reader = OneWayShmReader::<NamedShmHandle, _>::new(Some(mapped), shm_path);
+            let (_, buf) = reader.read();
+
+            if let Ok((config_sent, integrations, composer_paths, endpoints)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, HashSet<Endpoint>)>(buf)
+            {
+                let entry = ShmCache {
+                    config_sent,
+                    integrations,
+                    composer_paths,
+                    endpoints,
+                    last_updated: Instant::now(),
+                    reader,
+                };
+                if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+                    let _ = writeln!(file, "Cache entry found");
+                }
+                return Some(
+                    cache
+                        .entry(ShmCacheKey(service_str.into(), env_str.into()))
+                        .or_insert(entry),
+                );
+            }
+        }
+
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+            let _ = writeln!(file, "Cache entry not found");
+        }
+        return None;
+    }
+
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+        let _ = writeln!(file, "Cache entry not found 2");
+    }
+
+    cache.get(&(service_str.as_ref(), env_str.as_ref()))
 }
 
 #[no_mangle]
