@@ -11,7 +11,7 @@
 | ext-pcntl                   | 7.0.33                 | 8.4.6                  |
 | ext-rdkafka                 | 6.0.5                  | 6.0.5                  |
 | ext-redis                   | 3.1.6                  | 5.3.7                  |
-| ext-sqlsrv                  | 5.6.1                  | 5.8.0                  |
+| ext-sqlsrv                  | 5.3.0                  | 5.12.0                 |
 | ext-swoole                  | 5.1.6                  | 6.0.0                  |
 | google/cloud-spanner        | 1.103.0                | 1.103.0                |
 | guzzlehttp/guzzle           | 5.3.4                  | 7.9.3                  |
