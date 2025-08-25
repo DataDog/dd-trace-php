@@ -29,80 +29,80 @@ class SQLSRVIntegration extends Integration
         }
 
         // sqlsrv_connect ( string $serverName [, array $connectionInfo] ) : resource
-        \DDTrace\trace_function('sqlsrv_connect', function (SpanData $span, $args, $retval) {
-            $connectionMetadata = SQLSRVIntegration::extractConnectionMetadata($args);
+        \DDTrace\trace_function('sqlsrv_connect', static function (SpanData $span, $args, $retval) {
+            $connectionMetadata = self::extractConnectionMetadata($args);
             if ($retval) {
-                resource_weak_store($retval, SQLSRVIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+                resource_weak_store($retval, self::CONNECTION_TAGS_KEY, $connectionMetadata);
             }
             self::setDefaultAttributes($connectionMetadata, $span, 'sqlsrv_connect');
 
-            SQLSRVIntegration::detectError($retval, $span);
+            self::detectError($retval, $span);
         });
 
         // sqlsrv_query ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-        \DDTrace\install_hook('sqlsrv_query', function (HookData $hook) {
+        \DDTrace\install_hook('sqlsrv_query', static function (HookData $hook) {
             list($conn, $query) = $hook->args;
 
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_query', $query);
-            SQLSRVIntegration::addTraceAnalyticsIfEnabled($span);
+            self::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
-        }, function (HookData $hook) {
+        }, static function (HookData $hook) {
             list($conn, $query) = $hook->args;
             $span = $hook->span();
-            if (is_resource($hook->returned)) {
-                resource_weak_store($hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::CONNECTION_TAGS_KEY));
-                resource_weak_store($conn, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            if (\is_resource($hook->returned)) {
+                resource_weak_store($hook->returned, self::CONNECTION_TAGS_KEY, resource_weak_get($conn, self::CONNECTION_TAGS_KEY));
+                resource_weak_store($conn, self::QUERY_TAGS_KEY, $query);
             }
 
             $result = $hook->returned;
-            SQLSRVIntegration::setMetrics($span, $result);
-            SQLSRVIntegration::detectError($result, $span);
+            self::setMetrics($span, $result);
+            self::detectError($result, $span);
         });
 
         // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
-        \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) {
+        \DDTrace\install_hook('sqlsrv_prepare', static function (HookData $hook) {
             list($conn, $query) = $hook->args;
 
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_prepare', $query);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
-        }, function (HookData $hook) {
+        }, static function (HookData $hook) {
             list($conn, $query) = $hook->args;
             $span = $hook->span();
-            if (is_resource($hook->returned)) {
-                resource_weak_store($hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::CONNECTION_TAGS_KEY));
-                resource_weak_store($hook->returned, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
+            if (\is_resource($hook->returned)) {
+                resource_weak_store($hook->returned, self::CONNECTION_TAGS_KEY, resource_weak_get($conn, self::CONNECTION_TAGS_KEY));
+                resource_weak_store($hook->returned, self::QUERY_TAGS_KEY, $query);
             }
 
-            SQLSRVIntegration::detectError($hook->returned, $span);
+            self::detectError($hook->returned, $span);
         });
 
         // sqlsrv_commit ( resource $conn ) : bool
-        \DDTrace\trace_function('sqlsrv_commit', function (SpanData $span, $args, $retval) {
+        \DDTrace\trace_function('sqlsrv_commit', static function (SpanData $span, $args, $retval) {
             list($conn) = $args;
             self::setDefaultAttributes($conn, $span, 'sqlsrv_commit', null, $retval);
 
-            SQLSRVIntegration::detectError($retval, $span);
+            self::detectError($retval, $span);
         });
 
         // sqlsrv_execute ( resource $stmt ) : bool
-        \DDTrace\trace_function('sqlsrv_execute', function (SpanData $span, $args, $retval) {
+        \DDTrace\trace_function('sqlsrv_execute', static function (SpanData $span, $args, $retval) {
             list($stmt) = $args;
-            if (is_resource($stmt)) {
-                $query = resource_weak_get($stmt, SQLSRVIntegration::QUERY_TAGS_KEY);
+            if (\is_resource($stmt)) {
+                $query = resource_weak_get($stmt, self::QUERY_TAGS_KEY);
             }
             self::setDefaultAttributes($stmt, $span, 'sqlsrv_execute', $query ?? "", $retval);
-            SQLSRVIntegration::addTraceAnalyticsIfEnabled($span);
+            self::addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
             if ($retval) {
-                SQLSRVIntegration::setMetrics($span, $args[0]);
+                self::setMetrics($span, $args[0]);
             }
 
-            SQLSRVIntegration::detectError($retval, $span);
+            self::detectError($retval, $span);
         });
 
         return Integration::LOADED;
@@ -189,7 +189,7 @@ class SQLSRVIntegration extends Integration
             return;
         }
 
-        $errors = sqlsrv_errors();
+        $errors = \sqlsrv_errors();
         if (empty($errors)) {
             return;
         }
@@ -213,7 +213,7 @@ class SQLSRVIntegration extends Integration
     protected static function setMetrics(SpanData $span, $stmt)
     {
         if ($stmt) {
-            $numRows = sqlsrv_num_rows($stmt);
+            $numRows = \sqlsrv_num_rows($stmt);
             if ($numRows) {
                 // If the default cursor type (SQLSRC_CURSOR_FORWARD) is used, the number of rows
                 // in a result set can be retrieved only after all rows in the result set
@@ -229,7 +229,7 @@ class SQLSRVIntegration extends Integration
     protected static function setMetricRowsAffected(SpanData $span, $stmt)
     {
         if ($stmt) {
-            $rowsAffected = sqlsrv_rows_affected($stmt);
+            $rowsAffected = \sqlsrv_rows_affected($stmt);
             if ($rowsAffected !== false && $rowsAffected !== -1) {
                 // If the function returns -1, the number of rows cannot be determined.
                 $span->metrics[Tag::DB_ROW_COUNT] = $rowsAffected;
