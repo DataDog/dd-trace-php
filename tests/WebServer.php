@@ -49,6 +49,11 @@ final class WebServer
     private $port;
 
     /**
+     * @var string|null
+     */
+    private $ddprofServiceName;
+
+    /**
      * @var string
      */
     private $indexFile;
@@ -96,7 +101,7 @@ final class WebServer
      * @param string $host
      * @param int $port
      */
-    public function __construct($indexFile, $host = '0.0.0.0', $port = 80)
+    public function __construct($indexFile, $host = '0.0.0.0', $port = 80, $ddprofServiceName = null)
     {
         $this->indexFile = realpath($indexFile);
         $this->defaultInis['error_log'] = dirname($this->indexFile) .  '/' . self::ERROR_LOG_NAME;
@@ -104,6 +109,7 @@ final class WebServer
         $this->defaultInis['datadog.trace.sources_path'] = realpath(__DIR__ .  '/../src');
         $this->host = $host;
         $this->port = $port;
+        $this->ddprofServiceName = $ddprofServiceName;
     }
 
     public function setRoadrunner($version)
@@ -176,7 +182,8 @@ final class WebServer
                         self::FCGI_HOST,
                         self::FCGI_PORT,
                         $this->envs,
-                        $this->inis
+                        $this->inis,
+                        $this->ddprofServiceName
                     );
                     break;
                 case 'fpm-fcgi':

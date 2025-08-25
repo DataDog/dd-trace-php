@@ -148,11 +148,11 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     /**
      * Sets up a web server.
      */
-    protected static function setUpWebServer(array $additionalEnvs = [], array $additionalInis = [])
+    protected static function setUpWebServer(array $additionalEnvs = [], array $additionalInis = [], $ddprofServiceName = null)
     {
         $rootPath = static::getAppIndexScript();
         if ($rootPath) {
-            self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT);
+            self::$appServer = new WebServer($rootPath, '0.0.0.0', self::PORT, $ddprofServiceName);
 
             $envs = static::getEnvs();
             if (!empty($additionalEnvs)) {

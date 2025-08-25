@@ -35,17 +35,23 @@ final class PhpCgi implements Sapi
     private $inis;
 
     /**
+     * @var string|null
+     */
+    private $ddprofServiceName;
+
+    /**
      * @param string $host
      * @param int $port
      * @param array $envs
      * @param array $inis
      */
-    public function __construct($host, $port, array $envs = [], array $inis = [])
+    public function __construct($host, $port, array $envs = [], array $inis = [], $ddprofServiceName = null)
     {
         $this->host = $host;
         $this->port = $port;
         $this->envs = $envs;
         $this->inis = $inis;
+        $this->ddprofServiceName = $ddprofServiceName;
     }
 
     public function start()
@@ -56,11 +62,15 @@ final class PhpCgi implements Sapi
             $this->host,
             $this->port
         );
+        if ($this->ddprofServiceName !== null) {
+            $url = file_exists("/var/run/datadog/apm.socket") ? "unix:///var/run/datadog/apm.socket" : "http://localhost:8126";
+            $cmd = "ddprof -l debug -U $url -S {$this->ddprofServiceName} $cmd";
+        }
         $envs = new EnvSerializer($this->envs);
         $processCmd = "$envs exec $cmd";
 
         // See phpunit_error.log in CircleCI artifacts
-        error_log("[php-cgi] Starting: '$envs $processCmd'");
+        error_log("[php-cgi] Starting: '$processCmd'");
         if (isset($this->inis['error_log'])) {
             error_log("[php-cgi] Error log: '" . realpath($this->inis['error_log']) . "'");
         }
@@ -72,7 +82,11 @@ final class PhpCgi implements Sapi
     public function stop()
     {
         error_log("[php-cgi] Stopping...");
-        $this->process->stop(0);
+        if ($this->ddprofServiceName !== null) {
+            $this->process->stop(1); # give time for ddprof to submit
+        } else {
+            $this->process->stop(0);
+        }
     }
 
     public function isFastCgi()
