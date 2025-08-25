@@ -1,6 +1,6 @@
 {
     "require": {
         "guzzlehttp/guzzle": "7.10.0",
-        "guzzlehttp/promises": "2.0.4"
+        "guzzlehttp/promises": "^2.0"
     }
 }
