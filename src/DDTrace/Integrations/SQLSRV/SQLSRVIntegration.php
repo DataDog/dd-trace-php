@@ -84,6 +84,7 @@ class SQLSRVIntegration extends Integration
             $span = $hook->span();
             if (is_resource($hook->returned)) {
                 resource_weak_store($hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::CONNECTION_TAGS_KEY));
+                resource_weak_store($hook->returned, SQLSRVIntegration::QUERY_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::QUERY_TAGS_KEY));
             }
 
             $integration->detectError($hook->returned, $span);

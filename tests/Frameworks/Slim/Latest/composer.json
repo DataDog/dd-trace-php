@@ -27,7 +27,7 @@
         "monolog/monolog": "^2.0",
         "php-di/php-di": "^6.1",
         "slim/psr7": "^1.1",
-        "slim/slim": "4.14.0",
+        "slim/slim": "4.15.0",
         "slim/twig-view": "^3.0"
     },
     "config": {
