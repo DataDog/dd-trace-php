@@ -70,27 +70,6 @@ for ($i = 0; $i < 100; ++$i) {
     }
 }
 
-
-if (!file_exists(__DIR__ . '/fleet-config-telemetry.out')) {
-    echo "Telemetry file not found\n";
-
-    $logFile = '/tmp/log-fleet-config.txt';
-    if (file_exists($logFile)) {
-        echo "Dumping log preview:\n";
-        $handle = fopen($logFile, 'r');
-        if ($handle) {
-            $lineCount = 0;
-            while (!feof($handle) && $lineCount < 10000) {
-                echo fgets($handle);
-                $lineCount++;
-            }
-            fclose($handle);
-        }
-    } else {
-        echo "Log file does not exist\n";
-    }
-}
-
 ?>
 --EXPECT--
 DD_SERVICE: service_from_fleet_config
