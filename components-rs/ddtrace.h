@@ -182,18 +182,18 @@ ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
-bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
-                                                    ddog_CharSlice service,
-                                                    ddog_CharSlice env);
-
-void ddog_sidecar_telemetry_add_endpoint(ddog_ShmCacheMap *cache,
-                                         ddog_CharSlice service,
-                                         ddog_CharSlice env,
+void ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport **transport,
+                                        const struct ddog_InstanceId *instance_id,
+                                        const ddog_QueueId *queue_id,
                                          ddog_CharSlice type,
-                                         ddog_EndpointMethod method,
+                                         enum ddog_EndpointMethod method,
                                          ddog_CharSlice path,
                                          ddog_CharSlice operation_name,
                                          ddog_CharSlice resource_name);
+
+bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
+                                                    ddog_CharSlice service,
+                                                    ddog_CharSlice env);
 
 void ddog_init_span_func(void (*free_func)(struct _zend_string*),
                          void (*addref_func)(struct _zend_string*));

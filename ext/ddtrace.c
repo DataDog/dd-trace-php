@@ -2759,19 +2759,21 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
 PHP_FUNCTION(DDTrace_are_endpoints_collected) {
     UNUSED(execute_data);
 
-    zend_string *service_string;
-    service_string = zend_string_init(ZEND_STRL("service"), 0);
-    ddog_CharSlice service_slice = dd_zend_string_to_CharSlice(service_string);
+    if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
+        RETURN_FALSE;
+    }
 
-    zend_string *env_string = NULL;
-    env_string = zend_string_init(ZEND_STRL("env"), 0);
-    ddog_CharSlice env_slice = dd_zend_string_to_CharSlice(env_string);
-    bool result = ddog_sidecar_telemetry_are_endpoints_collected(ddtrace_telemetry_cache(), service_slice, env_slice);
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
 
-    zend_string_release(service_string);
-    zend_string_release(env_string);
+    RETURN_BOOL(ddog_sidecar_telemetry_are_endpoints_collected(ddtrace_telemetry_cache(), service_name, env_name));
+}
 
-    RETURN_BOOL(result);
+zend_string *get_env() {
+    if (get_DD_ENV() == NULL) {
+        return zend_string_init(ZEND_STRL("env"), 0);
+    }
+    return get_DD_ENV();
 }
 
 PHP_FUNCTION(DDTrace_add_endpoint) {
@@ -2791,18 +2793,13 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     ddog_CharSlice operation_name_slice = dd_zend_string_to_CharSlice(operation_name);
     ddog_CharSlice resource_name_slice = dd_zend_string_to_CharSlice(resource_name);
 
-    zend_string *service_string;
-    service_string = zend_string_init(ZEND_STRL("service"), 0);
-    ddog_CharSlice service_slice = dd_zend_string_to_CharSlice(service_string);
+    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        RETURN_FALSE;
+    }
 
-    zend_string *env_string = NULL;
-    env_string = zend_string_init(ZEND_STRL("env"), 0);
-    ddog_CharSlice env_slice = dd_zend_string_to_CharSlice(env_string);
+    ddog_sidecar_telemetry_addEndpoint(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice, resource_name_slice);
 
-    ddog_sidecar_telemetry_add_endpoint(ddtrace_telemetry_cache(), service_slice, env_slice, type_slice, method_enum, path_slice, operation_name_slice, resource_name_slice);
-    zend_string_release(service_string);
-    zend_string_release(env_string);
-    RETURN_NULL();
+    RETURN_TRUE;
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
