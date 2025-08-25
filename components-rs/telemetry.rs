@@ -368,55 +368,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
     service: CharSlice,
     env: CharSlice,
 ) -> bool {
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
-        let _ = writeln!(file, "Checking if endpoints are collected");
-    }
-
     let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
     if let Some(entry) = cache_entry {
-        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
-            let _ = writeln!(file, "Cache entry found");
-        }
         return !entry.endpoints.is_empty();
     }
     false
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ddog_sidecar_telemetry_add_endpoint(
-    cache: &mut ShmCacheMap,
-    service: CharSlice,
-    env: CharSlice,
-    r#type: CharSlice,
-    method: ddtelemetry::data::Method,
-    path: CharSlice,
-    operation_name: CharSlice,
-    resource_name: CharSlice,
-) {
-    let endpoint = Endpoint {
-        r#type: Some(r#type.to_utf8_lossy().into_owned()),
-        method: Some(method),
-        path: Some(path.to_utf8_lossy().into_owned()),
-        operation_name: operation_name.to_utf8_lossy().into_owned(),
-        resource_name: resource_name.to_utf8_lossy().into_owned(),
-    };
-            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
-                let _ = writeln!(file, "Starting adding endpoint");
-            }
-    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
-    if let Some(entry) = cache_entry {
-        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
-            let _ = writeln!(file, "Getting cache entry");
-        }
-        if let Some(endpoints) = (&entry.endpoints as *const _ as *mut std::collections::HashSet<Endpoint>).as_mut() {
-            if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
-                let _ = writeln!(file, "Adding endpoint");
-            }
-            endpoints.insert(endpoint);
-        }
-
-        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
-            let _ = writeln!(file, "Ending adding endpoint");
-        }
-    }
 }
