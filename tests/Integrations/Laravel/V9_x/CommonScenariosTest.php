@@ -19,6 +19,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\Laravel\V5_7\Commo
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'laravel_test_app',
             'DD_SERVICE' => 'my_service',
+            'DD_ENV' => 'my_env',
         ]);
     }
 }
