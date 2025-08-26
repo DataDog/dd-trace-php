@@ -50,16 +50,13 @@ class SQLSRVIntegration extends Integration
             $integration->addTraceAnalyticsIfEnabled($span);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-            if (is_resource($conn)) {
-                resource_weak_store($conn, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
-            }
-
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
         }, function (HookData $hook) use ($integration) {
-            list($conn) = $hook->args;
+            list($conn, $query) = $hook->args;
             $span = $hook->span();
             if (is_resource($hook->returned)) {
                 resource_weak_store($hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::CONNECTION_TAGS_KEY));
+                resource_weak_store($conn, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
             }
 
             $result = $hook->returned;
@@ -71,19 +68,16 @@ class SQLSRVIntegration extends Integration
         \DDTrace\install_hook('sqlsrv_prepare', function (HookData $hook) use ($integration) {
             list($conn, $query) = $hook->args;
 
-            if (is_resource($conn)) {
-                resource_weak_store($conn, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
-            }
-
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_prepare', $query);
 
             DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
         }, function (HookData $hook) use ($integration) {
-            list($conn) = $hook->args;
+            list($conn, $query) = $hook->args;
             $span = $hook->span();
             if (is_resource($hook->returned)) {
                 resource_weak_store($hook->returned, SQLSRVIntegration::CONNECTION_TAGS_KEY, resource_weak_get($conn, SQLSRVIntegration::CONNECTION_TAGS_KEY));
+                resource_weak_store($hook->returned, SQLSRVIntegration::QUERY_TAGS_KEY, $query);
             }
 
             $integration->detectError($hook->returned, $span);

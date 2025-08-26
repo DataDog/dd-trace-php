@@ -17,7 +17,7 @@ variables:
   image:
     name: $BASE_CI_IMAGE
   interruptible: true
-  timeout: 1h
+  timeout: 90m
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - |

@@ -10,6 +10,8 @@ use DDTrace\SpanData;
 use DDTrace\Tag;
 use DDTrace\Type;
 use DDTrace\Util\ObjectKVStore;
+use function DDTrace\resource_weak_get;
+use function DDTrace\resource_weak_store;
 
 /**
  * @param \DDTrace\SpanData $span
@@ -58,15 +60,13 @@ final class CurlIntegration extends Integration
             },
         ]);
 
-        $lastMh = [0, null];
-        \DDTrace\install_hook('curl_multi_exec', function (HookData $hook) use ($integration, &$lastMh) {
+        \DDTrace\install_hook('curl_multi_exec', function (HookData $hook) use ($integration) {
             if (\count($hook->args) >= 2) {
                 $data = null;
                 if (\PHP_MAJOR_VERSION > 7) {
                     $data = ObjectKVStore::get($hook->args[0], "span");
-                } elseif ($lastMh[0] == (int)$hook->args[0]) {
-                    $data = $lastMh[1];
-                    $lastMh = [0, null];
+                } else {
+                    $data = resource_weak_get($hook->args[0], "span");
                 }
                 if ($data) {
                     $hook->data = $data;
@@ -80,6 +80,8 @@ final class CurlIntegration extends Integration
                 $hook->data = [$span, &$spans, true];
                 if (\PHP_MAJOR_VERSION > 7) {
                     ObjectKVStore::put($hook->args[0], "span", [$span, &$spans]);
+                } else {
+                    resource_weak_store($hook->args[0], "span", [$span, &$spans]);
                 }
             }
 
@@ -90,7 +92,7 @@ final class CurlIntegration extends Integration
             Integration::handleInternalSpanServiceName($span, CurlIntegration::NAME);
             $span->meta[Tag::COMPONENT] = CurlIntegration::NAME;
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
-        }, function (HookData $hook) use ($integration, &$lastMh) {
+        }, function (HookData $hook) use ($integration) {
             if (empty($hook->data) || $hook->exception) {
                 return;
             }
@@ -102,6 +104,8 @@ final class CurlIntegration extends Integration
                 // Drop the span if nothing was handled here
                 if (\PHP_MAJOR_VERSION == 8) {
                     ObjectKVStore::put($hook->args[0], "span", null);
+                } else {
+                    resource_weak_store($hook->args[0], "span", null);
                 }
                 return false;
             }
@@ -148,12 +152,12 @@ final class CurlIntegration extends Integration
             }
 
             // If there's an error we retain it for a possible future curl_multi_info_read
-            if ($saveSpans) {
-                if (\PHP_MAJOR_VERSION == 7) {
-                    $lastMh = [(int)$hook->args[0], [$span, &$spans]];
+            if (!$saveSpans) {
+                if (\PHP_MAJOR_VERSION == 8) {
+                    ObjectKVStore::put($hook->args[0], "span", null);
+                } else {
+                    resource_weak_store($hook->args[0], "span", null);
                 }
-            } elseif (\PHP_MAJOR_VERSION == 8) {
-                ObjectKVStore::put($hook->args[0], "span", null);
             }
 
             if (!isset($hook->data[2])) {
@@ -170,7 +174,7 @@ final class CurlIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook('curl_multi_info_read', null, function (HookData $hook) use (&$lastMh) {
+        \DDTrace\install_hook('curl_multi_info_read', null, function (HookData $hook) {
             if (count($hook->args) < 1 || !isset($hook->returned["handle"])) {
                 return;
             }
@@ -179,10 +183,8 @@ final class CurlIntegration extends Integration
 
             if (\PHP_MAJOR_VERSION > 7) {
                 $data = ObjectKVStore::get($hook->args[0], "span");
-            } elseif ($lastMh[0] == (int)$hook->args[0]) {
-                $data = $lastMh[1];
             } else {
-                $data = null;
+                $data = resource_weak_get($hook->args[0], "span");
             }
 
             list(, $spans) = $data;
