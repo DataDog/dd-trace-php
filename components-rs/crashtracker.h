@@ -19,40 +19,6 @@
 
 
 
-typedef enum  ddog_crasht_CrashInfoBuilder_NewResult_Tag {
-  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_OK,
-  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_ERR,
-}  ddog_crasht_CrashInfoBuilder_NewResult_Tag;
-
-typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
-   ddog_crasht_CrashInfoBuilder_NewResult_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_Handle_CrashInfoBuilder ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-}  ddog_crasht_CrashInfoBuilder_NewResult;
-
-typedef enum  ddog_crasht_StackTrace_NewResult_Tag {
-  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_OK,
-  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_ERR,
-}  ddog_crasht_StackTrace_NewResult_Tag;
-
-typedef struct  ddog_crasht_StackTrace_NewResult {
-   ddog_crasht_StackTrace_NewResult_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_Handle_StackTrace ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-}  ddog_crasht_StackTrace_NewResult;
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
