@@ -76,7 +76,7 @@ final class CurlIntegration extends Integration
 
             $span = $hook->span();
             if (\count($hook->args) >= 2) {
-                \DDTrace\curl_multi_exec_get_request_spans($spans);
+                $spans = &\DDTrace\curl_multi_exec_get_request_spans();
                 $hook->data = [$span, &$spans, true];
                 if (\PHP_MAJOR_VERSION > 7) {
                     ObjectKVStore::put($hook->args[0], "span", [$span, &$spans]);

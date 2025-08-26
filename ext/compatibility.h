@@ -280,6 +280,12 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
         ZVAL_COPY(z, _z3); \
     } while (0)
 
+#define ZEND_PARSE_PARAMETERS_NONE() do { \
+        if (zend_parse_parameters_none() == FAILURE) { \
+            RETURN_THROWS(); \
+        } \
+    } while (0);
+
 #endif
 
 #if PHP_VERSION_ID < 70400
