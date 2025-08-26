@@ -1,4 +1,4 @@
-add_library(zai_sandbox "${PHP_VERSION_DIRECTORY}/sandbox.c")
+add_library(zai_sandbox "${PHP_VERSION_DIRECTORY}/sandbox.c" "call.c")
 
 target_include_directories(zai_sandbox PUBLIC
                                        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>

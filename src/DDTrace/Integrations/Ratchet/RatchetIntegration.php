@@ -47,7 +47,7 @@ class RatchetIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -55,26 +55,23 @@ class RatchetIntegration extends Integration
     /**
      * @return int
      */
-    public function init(): int
+    public static function init(): int
     {
         if (!self::shouldLoad(self::NAME)) {
             return Integration::NOT_LOADED;
         }
 
-        $integration = $this;
-        $service = \ddtrace_config_app_name('ratchet');
-
-        \DDTrace\install_hook(Connector::class . "::__invoke", function (HookData $hook) {
+        \DDTrace\install_hook(Connector::class . "::__invoke", static function (HookData $hook) {
             $url = $hook->args[0];
             create_stack();
             $hook->data = $span = start_span();
             $span->name = 'Ratchet\Client\Connector.__invoke';
             $span->resource = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($url);
             $span->type = Type::HTTP_CLIENT;
-            Integration::handleInternalSpanServiceName($span, RatchetIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
             $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
             $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-            $span->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
             $span->meta[Tag::HTTP_METHOD] = "GET";
             $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($url);
             $span->meta[Tag::NETWORK_DESTINATION_NAME] = Urls::hostname($url);
@@ -82,14 +79,14 @@ class RatchetIntegration extends Integration
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
             }
-        }, function (HookData $hook) {
+        }, static function (HookData $hook) {
             $span = $hook->data;
             $rootSpan = \DDTrace\root_span();
             if ($hook->exception) {
                 $span->exception = $hook->exception;
                 close_span();
             } else {
-                $hook->returned->then(function ($websocket) use ($span, $rootSpan) {
+                $hook->returned->then(static function ($websocket) use ($span, $rootSpan) {
                     ObjectKVStore::put($websocket, "handshake", $span);
                     ObjectKVStore::put($websocket, "handshake_root", $rootSpan);
 
@@ -101,7 +98,7 @@ class RatchetIntegration extends Integration
                     get_priority_sampling(); // force a sampling decision
                     close_span();
                     switch_stack($stackBefore);
-                }, function ($exception) use ($span) {
+                }, static function ($exception) use ($span) {
                     if ($exception instanceof \DomainException) {
                         // has the http status line as message
                         $parts = explode(" ", $exception->getMessage());
@@ -122,7 +119,7 @@ class RatchetIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook(HttpServerInterface::class . "::onOpen", function (HookData $hook) use ($service, $integration) {
+        \DDTrace\install_hook(HttpServerInterface::class . "::onOpen", static function (HookData $hook) {
             if (!\dd_trace_env_config("DD_TRACE_WEBSOCKET_MESSAGES_ENABLED")) {
                 return;
             }
@@ -179,16 +176,16 @@ class RatchetIntegration extends Integration
             $pseudoglobals['_FILES'] = [];
 
             $activeSpan = $hook->span(new SpanStack);
-            $activeSpan->service = $service;
+            $activeSpan->service = \ddtrace_config_app_name('ratchet');
             $activeSpan->name = "web.request";
             $activeSpan->type = Type::WEB_SERVLET;
-            $activeSpan->meta[Tag::COMPONENT] = RatchetIntegration::NAME;
+            $activeSpan->meta[Tag::COMPONENT] = self::NAME;
             $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-            $integration->addTraceAnalyticsIfEnabled($activeSpan);
+            RatchetIntegration::addTraceAnalyticsIfEnabled($activeSpan);
 
             ObjectKVStore::put($parentConn, "handshake", $activeSpan);
 
-            \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($req) {
+            \DDTrace\consume_distributed_tracing_headers(static function ($headername) use ($req) {
                 return $req->getHeaderLine($headername);
             });
 
@@ -200,14 +197,14 @@ class RatchetIntegration extends Integration
             }
         });
 
-        \DDTrace\install_hook(CloseResponseTrait::class . "::close", function (HookData $hook) {
+        \DDTrace\install_hook(CloseResponseTrait::class . "::close", static function (HookData $hook) {
             if ($rootSpan = \DDTrace\root_span()) {
                 $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $hook->args[1] ?? 400;
                 notify_commit($rootSpan, 400, []);
             }
         });
 
-        \DDTrace\install_hook(ServerNegotiator::class . "::handshake", null, function (HookData $hook) {
+        \DDTrace\install_hook(ServerNegotiator::class . "::handshake", null, static function (HookData $hook) {
             if ($span = \DDTrace\root_span()) {
                 /** @var ResponseInterface $response */
                 $response = $hook->returned;
@@ -241,8 +238,8 @@ class RatchetIntegration extends Integration
             }
 
             $frameNum = 0;
-            $hookFn = function ($isControl) use ($handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
-                return function (HookData $hook) use ($isControl, $handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
+            $hookFn = static function ($isControl) use ($handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
+                return static function (HookData $hook) use ($isControl, $handler, &$handshake, &$rootSpan, $isServer, &$frameNum) {
                     // In the Websocket client case we only get hold of the websocket instance after it was constructed
                     // I.e. we need to fetch the handshake from the Client\WebSocket class ($handler).
                     if (!$handshake) {
@@ -307,7 +304,7 @@ class RatchetIntegration extends Integration
                 };
             };
 
-            \DDTrace\install_hook($onMessage, $hookFn(false), function (HookData $hook) {
+            \DDTrace\install_hook($onMessage, $hookFn(false), static function (HookData $hook) {
                 $span = $hook->span();
                 $message = $hook->args[0];
                 $span->metrics["websocket.message.length"] = $message->getPayloadLength();

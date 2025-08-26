@@ -16,7 +16,7 @@ class LumenIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -24,34 +24,31 @@ class LumenIntegration extends Integration
     /**
      * @return int
      */
-    public function init(): int
+    public static function init(): int
     {
         \DDTrace\hook_method(
             'Laravel\Lumen\Application',
             '__construct',
-            function () {
+            static function () {
                 $rootSpan = \DDTrace\root_span();
                 if ($rootSpan !== null) {
-                    $rootSpan->meta[Tag::COMPONENT] = LumenIntegration::NAME;
+                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 }
             }
         );
 
-        $integration = $this;
-        $appName = \ddtrace_config_app_name(self::NAME);
-
         \DDTrace\trace_method(
             'Laravel\Lumen\Application',
             'prepareRequest',
-            function (SpanData $span, $args) use ($integration, $appName) {
-                $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
+            static function (SpanData $span, $args) {
+                $span->meta[Tag::COMPONENT] = self::NAME;
 
                 $rootSpan = \DDTrace\root_span();
                 $request = $args[0];
                 $rootSpan->name = 'lumen.request';
-                $rootSpan->service = $appName;
-                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                $rootSpan->service = \ddtrace_config_app_name(self::NAME);
+                self::addTraceAnalyticsIfEnabled($rootSpan);
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
                 }
@@ -68,17 +65,17 @@ class LumenIntegration extends Integration
             'Laravel\Lumen\Application',
             'handleFoundRoute',
             [
-                $hook => function (SpanData $span, $args) use ($appName) {
+                $hook => static function (SpanData $span, $args) {
                     $rootSpan = \DDTrace\root_span();
 
-                    $span->service = $appName;
+                    $span->service = \ddtrace_config_app_name(self::NAME);
                     $span->type = 'web';
                     if (count($args) < 1 || !\is_array($args[0])) {
                         return;
                     }
                     $routeInfo = $args[0];
                     $resourceName = null;
-                    $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
+                    $span->meta[Tag::COMPONENT] = self::NAME;
                     if (isset($routeInfo[1]['uses'])) {
                         $action = $routeInfo[1]['uses'];
                         $rootSpan->meta['lumen.route.action'] = $action;
@@ -101,14 +98,14 @@ class LumenIntegration extends Integration
             ]
         );
 
-        $exceptionRender = function (SpanData $span, $args) use ($appName, $integration) {
-            $span->service = $appName;
+        $exceptionRender = static function (SpanData $span, $args) {
+            $span->service = \ddtrace_config_app_name(self::NAME);
             $span->type = 'web';
             if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
                 return;
             }
 
-            $span->meta[Tag::COMPONENT] = LumenIntegration::NAME;
+            $span->meta[Tag::COMPONENT] = self::NAME;
 
             $rootSpan = \DDTrace\root_span();
             $exception = $args[0];

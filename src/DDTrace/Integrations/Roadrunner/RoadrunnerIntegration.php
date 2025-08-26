@@ -20,7 +20,7 @@ class RoadrunnerIntegration extends Integration
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
@@ -95,7 +95,7 @@ class RoadrunnerIntegration extends Integration
 
         // _FILES
         $ret['_FILES'] = array_map(
-            function ($upload) {
+            static function ($upload) {
                 return [
                     'name' => $upload['name'],
                     'type' => $upload['mime'],
@@ -123,10 +123,8 @@ class RoadrunnerIntegration extends Integration
         }
     }
 
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
@@ -136,7 +134,7 @@ class RoadrunnerIntegration extends Integration
         $recCall = 0;
 
         \DDTrace\install_hook('Spiral\RoadRunner\Http\HttpWorker::waitRequest',
-            function () use (&$activeSpan, &$suppressResponse) {
+            static function () use (&$activeSpan, &$suppressResponse) {
                 if ($activeSpan) {
                     \DDTrace\close_spans_until($activeSpan);
                     \DDTrace\close_span();
@@ -144,7 +142,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan = null;
                 $suppressResponse = null;
             },
-            function (HookData $hook) use (&$activeSpan, &$suppressResponse, $integration, $service, &$recCall) {
+            function (HookData $hook) use (&$activeSpan, &$suppressResponse, $service, &$recCall) {
                 /** @var ?\Spiral\RoadRunner\Http\Request $retval */
                 $retval = $hook->returned;
                 if (!$retval && !$hook->exception) {
@@ -161,7 +159,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;
                 $activeSpan->meta[Tag::SPAN_KIND] = 'server';
-                $integration->addTraceAnalyticsIfEnabled($activeSpan);
+                RoadrunnerIntegration::addTraceAnalyticsIfEnabled($activeSpan);
                 if ($hook->exception) {
                     $activeSpan->exception = $hook->exception;
                     \DDTrace\close_span();
@@ -172,7 +170,7 @@ class RoadrunnerIntegration extends Integration
                         $header = implode(", ", $header);
                         $headers[strtolower($headername)] = $header;
                     }
-                    \DDTrace\consume_distributed_tracing_headers(function ($headername) use ($headers) {
+                    \DDTrace\consume_distributed_tracing_headers(static function ($headername) use ($headers) {
                         return $headers[$headername] ?? null;
                     });
 
@@ -209,7 +207,7 @@ class RoadrunnerIntegration extends Integration
                 }
             });
 
-        $respondBefore = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+        $respondBefore = static function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
             $hook->disableJitInlining();
             if (!$activeSpan || count($hook->args) < 3) {
                 return;
@@ -245,7 +243,7 @@ class RoadrunnerIntegration extends Integration
             }
         };
 
-        $respondAfter = function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
+        $respondAfter = static function (HookData $hook) use (&$activeSpan, &$suppressResponse) {
             if (!$activeSpan || count($hook->args) < 3) {
                 return;
             }

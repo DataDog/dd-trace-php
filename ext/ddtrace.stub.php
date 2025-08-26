@@ -363,7 +363,7 @@ namespace DDTrace {
         const NOT_AVAILABLE = UNKNOWN;
 
         /** Load the integration */
-        public function init(): int;
+        public static function init(): int;
     }
 
     // phpcs:disable Generic.Files.LineLength.TooLong
