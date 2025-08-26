@@ -5,6 +5,10 @@ use hashbrown::{Equivalent, HashMap};
 use std::collections::HashSet;
 use std::ffi::CString;
 use std::path::PathBuf;
+<<<<<<< HEAD
+=======
+use std::time::{Duration, Instant, SystemTime};
+>>>>>>> 76779fb28 (Used last push endpoints)
 
 use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
@@ -17,7 +21,7 @@ use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
 use ddtelemetry::data;
 use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
-use ddtelemetry::data::{Dependency, Endpoint, Integration, LogLevel};
+use ddtelemetry::data::{Dependency, Integration, LogLevel};
 use ddtelemetry::metrics::MetricContext;
 use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
 use ddtelemetry_ffi::try_c;
@@ -238,7 +242,7 @@ pub struct ShmCache {
     pub config_sent: bool,
     pub integrations: HashSet<String>,
     pub composer_paths: HashSet<PathBuf>,
-    pub endpoints: HashSet<Endpoint>,
+    pub last_endpoints_push: SystemTime,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
 }
 
@@ -292,8 +296,8 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
                 }
             }
 
-            if let Ok((config_sent, integrations, composer_paths, endpoints)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, HashSet<Endpoint>)>(buf)
+            if let Ok((config_sent, integrations, composer_paths)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
             {
                 cache.config_sent = config_sent;
                 cache.integrations = integrations;
@@ -370,7 +374,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
 ) -> bool {
     let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
     if let Some(entry) = cache_entry {
-        return !entry.endpoints.is_empty();
+        return entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)); // 30 minutes
     }
     false
 }
