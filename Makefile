@@ -38,6 +38,7 @@ ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TR
 VERSION := $(shell cat VERSION)
 
 INI_FILE := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')/ddtrace.ini
+TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
 
 RUN_TESTS_IS_PARALLEL ?= $(shell test $(PHP_MAJOR_MINOR) -ge 74 && echo 1)
 
@@ -187,11 +188,11 @@ test_c2php: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
 	export USE_ZEND_ALLOC=0; \
 	export ZEND_DONT_UNLOAD_MODULES=1; \
 	export USE_TRACKED_ALLOC=1; \
-	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access bash -c '$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) -d pcre.jit=0 $(INIT_HOOK_TEST_FILES)'; \
+	$(shell grep -Pzo '(?<=--ENV--)(?s).+?(?=--)' $(INIT_HOOK_TEST_FILES)) valgrind -q --tool=memcheck --trace-children=yes --vex-iropt-register-updates=allregs-at-mem-access bash -c '$(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TRACER_SOURCES_INI) -d pcre.jit=0 $(INIT_HOOK_TEST_FILES)'; \
 	)
 
 test_with_init_hook: $(SO_FILE) $(INIT_HOOK_TEST_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR) $(INIT_HOOK_TEST_FILES);
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(TRACER_SOURCES_INI) $(INIT_HOOK_TEST_FILES);
 
 test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	( \
@@ -532,8 +533,7 @@ cores:
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
-TRACER_SOURCES_INI := -d datadog.trace.sources_path=$(TRACER_SOURCE_DIR)
-ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE)
+ENV_OVERRIDE := $(shell ([ -n "${DD_TRACE_DOCKER_DEBUG}" ] && [ -z "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ]) || ([ -n "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ] && [ "${DD_TRACE_AUTOLOAD_NO_COMPILE}" != "0" ]) && [ -z "${DD_TRACE_SOURCES_PATH}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE)
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
@@ -1170,7 +1170,7 @@ define run_benchmarks
 endef
 
 define run_benchmarks_with_ddprof
-	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TEST_EXTRA_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) "--filter=Ddprof(*SKIP)(*F)|^.*?$(FILTER)" --report=all --output=file --output=console $(BENCHMARK_EXTRA)
+	$(ENV_OVERRIDE) ddprof -S $(DDPROF_IDENTIFIER) php -d extension=redis-5.3.7.so $(TRACER_SOURCES_INI) $(REQUEST_INIT_HOOK) $(PHPBENCH) --config=$(1) "--filter=Ddprof(*SKIP)(*F)|^.*?$(FILTER)" --report=all --output=file --output=console $(BENCHMARK_EXTRA)
 endef
 
 define run_composer_with_lock
