@@ -1,0 +1,24 @@
+name: Prune
+on:
+  schedule:
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+jobs:
+  prune:
+    name: Prune
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - name: Prune
+      uses: actions/stale@5bef64f19d7facfb25b37b414482c7164d639639 # v9.1.0
+      with:
+        days-before-stale: 180
+        stale-pr-message: 'This pull request has been marked as stale because it has not had activity in the past half year. It will be closed in 7 days if no further activity occurs. Feel free to reopen it if you are still working on it.'
+        close-pr-message: 'This pull request has been closed because it has not had activity over the past half year. Feel free to reopen it if you are still working on it.'
+        stale-issue-message: 'This issue has been marked as stale because it has not had activity in the past half year. It will be closed in 7 days if no further activity occurs. Feel free to reopen it if you are still working on it.'
+        close-issue-message: 'This issue has been closed because it has not had activity over the past half year. Feel free to reopen it if you are still working on it.'
+        stale-pr-label: 'tag: stale'
+        operations-per-run: 50
