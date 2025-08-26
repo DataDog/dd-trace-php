@@ -24,7 +24,7 @@ void ddtrace_weak_resource_update(zend_resource *rsrc, zend_string *key, zval *d
     zval *array = zend_hash_index_find(&DDTRACE_G(resource_weak_storage), rsrc->handle);
     if (!array) {
         zval zv;
-        array_init(&zv);
+        ZVAL_EMPTY_ARRAY(&zv);
         array = zend_hash_index_add(&DDTRACE_G(resource_weak_storage), rsrc->handle, &zv);
     }
 
