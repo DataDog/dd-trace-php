@@ -133,6 +133,15 @@ ddog_MaybeError ddog_sidecar_telemetry_addDependency(struct ddog_SidecarTranspor
                                                      ddog_CharSlice dependency_name,
                                                      ddog_CharSlice dependency_version);
 
+ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport **transport,
+                                                    const struct ddog_InstanceId *instance_id,
+                                                    const ddog_QueueId *queue_id,
+                                                    ddog_CharSlice type,
+                                                    enum ddog_EndpointMethod method,
+                                                    ddog_CharSlice path,
+                                                    ddog_CharSlice operation_name,
+                                                    ddog_CharSlice resource_name);
+
 /**
  * Reports an integration to the telemetry.
  */
