@@ -143,6 +143,9 @@ class PDOIntegration extends Integration
         \DDTrace\install_hook(
             'PDOStatement::execute',
             static function (HookData $hook) {
+                $hook->span();
+            },
+            static function (HookData $hook) {
                 $span = $hook->span();
                 $instance = $hook->instance;
                 Integration::handleOrphan($span);
