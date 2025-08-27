@@ -157,7 +157,7 @@ static zend_always_inline zend_string *zend_string_init_interned(const char *str
 
 #define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
     static const zend_internal_arg_info name[] = { \
-        { (const char*)(zend_uintptr_t)(required_num_args), NULL, (type) == IS_FALSE ? _IS_BOOL : (type), return_reference, allow_null, 0 },
+        { (const char*)(zend_uintptr_t)(required_num_args), NULL, PHP_VERSION_ID >= 70100 || !(return_reference) ? (type) == IS_FALSE ? _IS_BOOL : (type) : 0, return_reference, allow_null, 0 },
 #define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
     static const zend_internal_arg_info name[] = { \
         { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
@@ -279,6 +279,12 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
         ZVAL_DEREF(_z3); \
         ZVAL_COPY(z, _z3); \
     } while (0)
+
+#define ZEND_PARSE_PARAMETERS_NONE() do { \
+        if (zend_parse_parameters_none() == FAILURE) { \
+            RETURN_THROWS(); \
+        } \
+    } while (0);
 
 #endif
 

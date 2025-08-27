@@ -753,12 +753,12 @@ namespace DDTrace {
     function flush(): void {}
 
     /**
-     * Registers an array to be populated with spans for each request during the next curl_multi_exec() call.
+     * Returns the array to be populated with spans for each request during the next curl_multi_exec() call.
+     * That array will be dropped internally after the curl_multi_exec() call completed.
      *
-     * @internal
-     * @param list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
+     * @return list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
      */
-    function curl_multi_exec_get_request_spans(&$array): void {}
+    function &curl_multi_exec_get_request_spans(): array {}
 
     /**
      * Update a DogStatsD counter
