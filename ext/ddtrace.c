@@ -2732,6 +2732,52 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
     RETURN_NULL();
 }
 
+PHP_FUNCTION(DDTrace_are_endpoints_collected) {
+    UNUSED(execute_data);
+
+    if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
+        RETURN_FALSE;
+    }
+
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+
+    RETURN_BOOL(ddog_sidecar_telemetry_are_endpoints_collected(ddtrace_telemetry_cache(), service_name, env_name));
+}
+
+zend_string *get_env() {
+    if (get_DD_ENV() == NULL) {
+        return zend_string_init(ZEND_STRL("env"), 0);
+    }
+    return get_DD_ENV();
+}
+
+PHP_FUNCTION(DDTrace_add_endpoint) {
+    UNUSED(execute_data);
+    zend_string *type = NULL;
+    zend_string *path = NULL;
+    zend_string *operation_name = NULL;
+    zend_string *resource_name = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSS", &type, &path, &operation_name, &resource_name) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    ddog_CharSlice type_slice = dd_zend_string_to_CharSlice(type);
+    ddog_EndpointMethod method_enum = DDOG_ENDPOINT_METHOD_GET;
+    ddog_CharSlice path_slice = dd_zend_string_to_CharSlice(path);
+    ddog_CharSlice operation_name_slice = dd_zend_string_to_CharSlice(operation_name);
+    ddog_CharSlice resource_name_slice = dd_zend_string_to_CharSlice(resource_name);
+
+    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        RETURN_FALSE;
+    }
+
+    ddog_sidecar_telemetry_addEndpoint(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice, resource_name_slice);
+
+    RETURN_TRUE;
+}
+
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;
