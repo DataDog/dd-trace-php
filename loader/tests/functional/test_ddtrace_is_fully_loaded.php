@@ -36,6 +36,9 @@ Array
             [type] => system
             [meta] => Array
                 (
+                    [_dd.code_origin.frames.0.file] => %s/fixtures/ddtrace.php
+                    [_dd.code_origin.frames.0.line] => 1
+                    [_dd.code_origin.type] => exit
                     [cmd.exit_code] => 0
                     [cmd.shell] => echo using passthru
                     [component] => subprocess
