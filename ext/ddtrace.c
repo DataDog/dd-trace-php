@@ -2784,7 +2784,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     zend_string *resource_name = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSS", &type, &path, &operation_name, &resource_name) == FAILURE) {
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     ddog_CharSlice type_slice = dd_zend_string_to_CharSlice(type);
