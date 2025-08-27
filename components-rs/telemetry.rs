@@ -5,10 +5,7 @@ use hashbrown::{Equivalent, HashMap};
 use std::collections::HashSet;
 use std::ffi::CString;
 use std::path::PathBuf;
-<<<<<<< HEAD
-=======
 use std::time::{Duration, Instant, SystemTime};
->>>>>>> 76779fb28 (Used last push endpoints)
 
 use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
@@ -292,16 +289,18 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
                     cache.config_sent = false;
                     cache.integrations.clear();
                     cache.composer_paths.clear();
+                    cache.last_endpoints_push = SystemTime::UNIX_EPOCH;
                     return;
                 }
             }
 
-            if let Ok((config_sent, integrations, composer_paths)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
+            if let Ok((config_sent, integrations, composer_paths, last_endpoints_push)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, SystemTime)>(buf)
             {
                 cache.config_sent = config_sent;
                 cache.integrations = integrations;
                 cache.composer_paths = composer_paths;
+                cache.last_endpoints_push = last_endpoints_push;
             }
         }
     }
@@ -322,6 +321,7 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
         config_sent: false,
         integrations: HashSet::new(),
         composer_paths: HashSet::new(),
+        last_endpoints_push: SystemTime::UNIX_EPOCH,
     }).into_mut();
 
     refresh_cache(cached_entry);
@@ -373,8 +373,9 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
     env: CharSlice,
 ) -> bool {
     let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
-    if let Some(entry) = cache_entry {
-        return entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)); // 30 minutes
+    let result = cache_entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)); // 30 minutes
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
+        let _ = writeln!(file, "Result: {} - {} - {}", result, cache_entry.last_endpoints_push.elapsed().unwrap().as_secs(), SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs());
     }
-    false
+    result
 }
