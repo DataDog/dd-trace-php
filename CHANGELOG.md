@@ -22,6 +22,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 - Fix names of global git tags for debugger #3377
 - Fix SQLSRVIntegration resource handling #3379
 - Set DD_APPSEC_RASP_ENABLED default to true as on the tracer #3374
+- Fix top Code Origin frame for ExecIntegration and KafkaIntegration #3392
 
 ### Internal
 - Update baggage telemetry typo #3382
