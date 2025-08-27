@@ -17,6 +17,15 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
             if (skip_frames > 0) {
                 --skip_frames;
             } else {
+                if (current_frame == 0) {
+                    zval type, *kind = zend_hash_str_find_deref(meta, ZEND_STRL("span.kind"));
+                    ZVAL_STRING(&type, (kind && Z_TYPE_P(kind) == IS_STRING ? zend_string_equals_literal(Z_STR_P(kind), "server") || zend_string_equals_literal(Z_STR_P(kind), "producer") : &span->root->span == span) ? "entry" : "exit");
+                    if (!zend_hash_str_add(meta, ZEND_STRL("_dd.code_origin.type"), &type)) {
+                        zend_string_release(Z_STR(type));
+                        return; // skip if already present
+                    }
+                }
+
                 zval zv;
                 zend_string *key;
 
@@ -47,17 +56,6 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
             }
         }
         execute_data = EX(prev_execute_data);
-    }
-
-    // current_frame is typically 0 when a file is the entrypoint.
-    if (current_frame != 0) {
-        zval *kind = zend_hash_str_find_deref(meta, ZEND_STRL("span.kind"));
-
-        zval type;
-        ZVAL_STRING(&type, (kind && Z_TYPE_P(kind) == IS_STRING ? zend_string_equals_literal(Z_STR_P(kind), "server") || zend_string_equals_literal(Z_STR_P(kind), "producer") : &span->root->span == span) ? "entry" : "exit");
-        if (!zend_hash_str_add(meta, ZEND_STRL("_dd.code_origin.type"), &type)) {
-            zend_string_release(Z_STR(type));
-        }
     }
 }
 
