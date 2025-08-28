@@ -753,12 +753,12 @@ namespace DDTrace {
     function flush(): void {}
 
     /**
-     * Registers an array to be populated with spans for each request during the next curl_multi_exec() call.
+     * Returns the array to be populated with spans for each request during the next curl_multi_exec() call.
+     * That array will be dropped internally after the curl_multi_exec() call completed.
      *
-     * @internal
-     * @param list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
+     * @return list{\CurlHandle, SpanData}[] $array An array which will be populated with curl handles and spans.
      */
-    function curl_multi_exec_get_request_spans(&$array): void {}
+    function &curl_multi_exec_get_request_spans(): array {}
 
     /**
      * Update a DogStatsD counter
@@ -804,6 +804,24 @@ namespace DDTrace {
      * @param array $tags A list of tags associated to the metric
      */
     function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
+
+    /**
+     * Store data tied to a resource. Behaves like a weakmap, i.e. data is freed when the associated resource is freed.
+     *
+     * @param resource $resource Some resource
+     * @param string $key An arbitrary string key to uniquely match
+     * @param mixed $value The data to be stored
+     */
+    function resource_weak_store(mixed $resource, string $key, mixed $value): void {}
+
+    /**
+     * Get data tied to the resource.
+     *
+     * @param resource $resource Some resource
+     * @param string $key An arbitrary string key to uniquely match
+     * @return mixed|null The stored value, or null if missing.
+     */
+    function resource_weak_get(mixed $resource, string $key): mixed {}
 }
 
 namespace DDTrace\System {

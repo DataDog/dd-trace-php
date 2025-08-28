@@ -214,6 +214,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/trace_source.c \
     ext/tracer_tag_propagation/tracer_tag_propagation.c \
     ext/user_request.c \
+    ext/weak_resources.c \
     ext/hook/uhook.c \
     ext/hook/uhook_legacy.c \
   "

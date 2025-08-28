@@ -33,4 +33,13 @@ abstract class FrameworkBenchmarksCase extends WebFrameworkTestCase
             'DD_APPSEC_ENABLED' => 1,
         ], ['error_log' => "/tmp/logs/$name.log"]);
     }
+
+    public function enableDatadogWithDdprof()
+    {
+        $name = $this->getClassName();
+        $this->setUpWebServer([
+            'DD_TRACE_ENABLED' => 1,
+            'DD_APPSEC_ENABLED' => 1,
+        ], ['error_log' => "/tmp/logs/$name.log"], "dd-trace-php-" . strtolower($name) . (\extension_loaded("Zend OpCache") ? "-opcache" : ""));
+    }
 }

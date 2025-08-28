@@ -264,7 +264,7 @@ class MongoDBIntegration extends Integration
             function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     $existingDeletes = ObjectKVStore::get($self, 'deletes', []);
-                    \array_push($existingDeletes, MongoDBIntegration::serializeQuery($args[0]));
+                    \array_push($existingDeletes, MongoDBIntegration::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
                     ObjectKVStore::put($self, 'deletes', $existingDeletes);
                 }
             }
@@ -277,7 +277,7 @@ class MongoDBIntegration extends Integration
             function ($self, $_2, $args, $_4) {
                 if (isset($args[0])) {
                     $existingUpdates = ObjectKVStore::get($self, 'updates', []);
-                    \array_push($existingUpdates, MongoDBIntegration::serializeQuery($args[0]));
+                    \array_push($existingUpdates, MongoDBIntegration::serializeQuery($args[0], \dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")));
                     ObjectKVStore::put($self, 'updates', $existingUpdates);
                 }
             }
@@ -489,12 +489,12 @@ class MongoDBIntegration extends Integration
      * @param mixed $anythingQueryLike
      * @return null|string
      */
-    public static function serializeQuery($anythingQueryLike)
+    public static function serializeQuery($anythingQueryLike, $normalize = true)
     {
         if (!$anythingQueryLike) {
             return null;
         }
-        $normalizedQuery = MongoDBIntegration::normalizeQuery($anythingQueryLike);
+        $normalizedQuery = $normalize ? MongoDBIntegration::normalizeQuery($anythingQueryLike) : $anythingQueryLike;
         $jsonFlags = JSON_UNESCAPED_UNICODE;
         if (\PHP_VERSION_ID >= 70200) {
             $jsonFlags = $jsonFlags | JSON_INVALID_UTF8_SUBSTITUTE;
@@ -615,7 +615,9 @@ class MongoDBIntegration extends Integration
         if ($port) {
             $span->meta[Tag::TARGET_PORT] = $port;
         }
-        if ($serializedQuery) {
+        if ($rawQuery && !\dd_trace_env_config("DD_TRACE_MONGODB_OBFUSCATION")) {
+            $span->meta[Tag::MONGODB_QUERY] = MongoDBIntegration::serializeQuery($rawQuery, false);
+        } elseif ($serializedQuery) {
             $span->meta[Tag::MONGODB_QUERY] = $serializedQuery;
         }
         $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;

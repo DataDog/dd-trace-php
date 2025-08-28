@@ -17,7 +17,7 @@ variables:
   image:
     name: $BASE_CI_IMAGE
   interruptible: true
-  timeout: 1h
+  timeout: 90m
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
     - |
@@ -34,7 +34,7 @@ variables:
       fi
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
     - ./steps/capture-hardware-software-info.sh
-    - ./steps/run-benchmarks.sh
+    - BP_SCENARIO=$SCENARIO bp-runner bp-runner.yml --debug -t
     - ./steps/analyze-results.sh
     - "./steps/upload-results-to-s3.sh || :"
     - "./steps/post-pr-comment.sh || :"

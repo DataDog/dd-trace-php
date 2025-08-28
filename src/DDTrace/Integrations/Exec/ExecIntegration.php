@@ -278,6 +278,7 @@ class ExecIntegration extends Integration
         $span->meta = $tags;
         $span->type = Type::SYSTEM;
         $span->resource = $resource;
+        \DDTrace\collect_code_origins(2); // manually collect origin, otherwise the top frame will be this integration
         switch_stack();
 
         return $span;

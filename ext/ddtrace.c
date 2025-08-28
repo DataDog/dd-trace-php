@@ -84,8 +84,9 @@
 #include "threads.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "user_request.h"
+#include "weak_resources.h"
 #include "zend_hrtime.h"
-#include "ext/standard/file.h"
+#include <ext/standard/file.h>
 
 #include "hook/uhook.h"
 #include "handlers_fiber.h"
@@ -1718,6 +1719,8 @@ static PHP_RINIT_FUNCTION(ddtrace) {
     zai_interceptor_rinit();
 #endif
 
+    ddtrace_weak_resources_rinit();
+
     if (!ddtrace_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
@@ -1868,6 +1871,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     ddtrace_clean_git_object();
+    ddtrace_weak_resources_rshutdown();
 
     return SUCCESS;
 }
@@ -3679,37 +3683,60 @@ PHP_FUNCTION(DDTrace_extract_ip_from_headers) {
 }
 
 PHP_FUNCTION(DDTrace_curl_multi_exec_get_request_spans) {
-    zval *array;
+    ZEND_PARSE_PARAMETERS_NONE();
 
-    ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ZVAL(array)
-    ZEND_PARSE_PARAMETERS_END();
-
-    if (Z_TYPE_P(array) == IS_REFERENCE) {
-        zend_reference *ref = Z_REF_P(array);
-
-#if PHP_VERSION_ID < 70400
-        array = &ref->val;
-        zval_ptr_dtor(array);
-        array_init(array);
-#else
-        array = zend_try_array_init(array);
-        if (!array) {
-            RETURN_THROWS();
-        }
-#endif
-
-        if (get_DD_TRACE_ENABLED()) {
-            if (DDTRACE_G(curl_multi_injecting_spans) && GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
+    if (get_DD_TRACE_ENABLED()) {
+        // Reset it, if it got corrupted
+        if (DDTRACE_G(curl_multi_injecting_spans) && Z_TYPE(DDTRACE_G(curl_multi_injecting_spans)->val) != IS_ARRAY) {
+            if (GC_DELREF(DDTRACE_G(curl_multi_injecting_spans)) == 0) {
                 rc_dtor_func((zend_refcounted *) DDTRACE_G(curl_multi_injecting_spans));
             }
-
-            GC_ADDREF(ref);
-            DDTRACE_G(curl_multi_injecting_spans) = ref;
+            DDTRACE_G(curl_multi_injecting_spans) = NULL;
         }
-    }
 
-    RETURN_NULL();
+        if (!DDTRACE_G(curl_multi_injecting_spans)) {
+            ZVAL_NEW_EMPTY_REF(return_value);
+            ZVAL_EMPTY_ARRAY(Z_REFVAL_P(return_value));
+            DDTRACE_G(curl_multi_injecting_spans) = Z_REF_P(return_value);
+        } else {
+            ZVAL_REF(return_value, DDTRACE_G(curl_multi_injecting_spans));
+        }
+
+        Z_ADDREF_P(return_value);
+    } else {
+        ZVAL_NEW_EMPTY_REF(return_value);
+        ZVAL_EMPTY_ARRAY(Z_REFVAL_P(return_value));
+    }
+}
+
+PHP_FUNCTION(DDTrace_resource_weak_store) {
+    zval *rsrc, *value;
+    zend_string *key;
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_RESOURCE(rsrc)
+        Z_PARAM_STR(key)
+        Z_PARAM_ZVAL(value)
+    ZEND_PARSE_PARAMETERS_END();
+
+    Z_TRY_ADDREF_P(value);
+    ddtrace_weak_resource_update(Z_RES_P(rsrc), key, value);
+}
+
+PHP_FUNCTION(DDTrace_resource_weak_get) {
+    zval *rsrc;
+    zend_string *key;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_RESOURCE(rsrc)
+        Z_PARAM_STR(key)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zval *ret = ddtrace_weak_resource_get(Z_RES_P(rsrc), key);
+    if (!ret) {
+        RETURN_NULL();
+    }
+    RETURN_COPY(ret);
 }
 
 static const zend_module_dep ddtrace_module_deps[] = {

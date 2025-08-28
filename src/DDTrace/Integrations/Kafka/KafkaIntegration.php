@@ -143,6 +143,7 @@ class KafkaIntegration extends Integration
 
                     $hook->data['span'] = $span;
                     $integration->setupKafkaConsumeSpan($hook, $this);
+                    \DDTrace\collect_code_origins(1);
                     \DDTrace\close_span();
                 }
             );

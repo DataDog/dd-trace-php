@@ -12,6 +12,14 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 */
 class LaravelBench extends FrameworkBenchmarksCase
 {
+    public function doRun()
+    {
+        $this->call(GetSpec::create(
+            'A simple GET request with a view',
+            '/simple_view?key=value&pwd=should_redact'
+        ));
+    }
+
     /**
      * @BeforeMethods("disableDatadog")
      * @AfterMethods("afterMethod")
@@ -23,10 +31,7 @@ class LaravelBench extends FrameworkBenchmarksCase
      */
     public function benchLaravelBaseline()
     {
-        $this->call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
+        $this->doRun();
     }
 
     /**
@@ -40,10 +45,21 @@ class LaravelBench extends FrameworkBenchmarksCase
      */
     public function benchLaravelOverhead()
     {
-        $this->call(GetSpec::create(
-            'A simple GET request with a view',
-            '/simple_view?key=value&pwd=should_redact'
-        ));
+        $this->doRun();
+    }
+
+    /**
+     * @BeforeMethods({"enableDatadogWithDdprof"})
+     * @AfterMethods("afterMethod")
+     * @Revs(1)
+     * @Iterations(50)
+     * @OutputTimeUnit("microseconds")
+     * @Groups({"ddprof"})
+     * @Warmup(1)
+     */
+    public function benchLaravelDdprof()
+    {
+        $this->doRun();
     }
 
     public static function getAppIndexScript()
