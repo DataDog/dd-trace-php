@@ -73,18 +73,19 @@ services:
   # --- Alpine ---
   '8.0-alpine': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   # --- Bookworm ---
-  '7.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_bookworm-5' }
-  '7.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_bookworm-5' }
-  '7.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_bookworm-5' }
-  '7.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_bookworm-5' }
-  '7.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_bookworm-5' }
-  '7.4-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext-5' }
-  '8.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_bookworm-5' }
-  '8.0-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext-5' }
-  '8.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_bookworm-5' }
-  '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-5' }
-  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-5' }
-  '8.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_bookworm-5' }
+  '7.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_bookworm-6' }
+  '7.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_bookworm-6' }
+  '7.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_bookworm-6' }
+  '7.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_bookworm-6' }
+  '7.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_bookworm-6' }
+  '7.4-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext-6' }
+  '8.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_bookworm-6' }
+  '8.0-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext-6' }
+  '8.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_bookworm-6' }
+  '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-6' }
+  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-6' }
+  '8.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_bookworm-6' }
+  '8.5-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.5_bookworm-6' }
   'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
@@ -97,6 +98,7 @@ services:
   '8.2-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_centos-7' }
   '8.3-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_centos-7' }
   '8.4-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_centos-7' }
+  '8.5-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.5_centos-7' }
   # --- Windows ---
   '7.0-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.0_windows' }
   '7.1-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-7.1_windows' }
@@ -108,6 +110,7 @@ services:
   '8.2-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.2_windows' }
   '8.3-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.3_windows' }
   '8.4-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.4_windows' }
+  '8.5-windows': { <<: *windows_php_service, image: 'datadog/dd-trace-ci:php-8.5_windows' }
 
   rabbitmq-integration:
     image: rabbitmq:3.8.9-alpine # 3.8.9 is the latest version that supports Erlang 20
