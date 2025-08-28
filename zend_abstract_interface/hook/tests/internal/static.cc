@@ -82,7 +82,7 @@ HOOK_TEST_CASE("continue", {
 }, {
     zval result;
 
-    CHECK(zai_test_call_global_with_0_params(&zai_hook_test_target, &result));
+    CHECK(zai_test_call_global_with_0_params(zai_hook_test_target, &result));
 
     CHECK(zai_hook_test_begin_check == 1);
     CHECK(zai_hook_test_end_check == 1);
@@ -108,7 +108,7 @@ HOOK_TEST_CASE("stop", {
 }, {
     zval result;
 
-    CHECK(!zai_test_call_global_with_0_params(&zai_hook_test_target, &result));
+    CHECK(!zai_test_call_global_with_0_params(zai_hook_test_target, &result));
 
     CHECK(zai_hook_test_begin_check == 1);
     CHECK(zai_hook_test_end_check == 1);
@@ -142,7 +142,7 @@ HOOK_TEST_CASE("multiple continue", {
 }, {
     zval result;
 
-    CHECK(zai_test_call_global_with_0_params(&zai_hook_test_target, &result));
+    CHECK(zai_test_call_global_with_0_params(zai_hook_test_target, &result));
 
     CHECK(zai_hook_test_begin_check == 2);
     CHECK(zai_hook_test_end_check == 2);
@@ -176,7 +176,7 @@ HOOK_TEST_CASE("multiple stop", {
 }, {
     zval result;
 
-    CHECK(!zai_test_call_global_with_0_params(&zai_hook_test_target, &result));
+    CHECK(!zai_test_call_global_with_0_params(zai_hook_test_target, &result));
 
     CHECK(zai_hook_test_begin_check == 1);
     CHECK(zai_hook_test_end_check == 1);

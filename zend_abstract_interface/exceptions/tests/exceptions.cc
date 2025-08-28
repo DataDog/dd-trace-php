@@ -1,8 +1,8 @@
 extern "C" {
-#include <zai_string/tests/symbols.h>
 #include "exceptions/exceptions.h"
 }
 
+#include <sandbox/tests/zai_tests_common.hpp>
 #include "tea/testing/catch2.hpp"
 #include <cstring>
 

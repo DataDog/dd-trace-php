@@ -1012,7 +1012,8 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
         }
 
         if (check_scope) {
-            if (!(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
+            // explicitly check for resolved_scope, as that might be NULL due to Closure scope rebinding
+            if (hook->resolved_scope && !(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
                 continue;
             }
         }

@@ -69,8 +69,13 @@ static zend_always_inline zend_fcall_info dd_fcall_info(int argc, zval *args, zv
             .params = args,
             .retval = rv,
             .size = sizeof(zend_fcall_info),
+#if PHP_VERSION_ID < 70100
+            .symbol_table = NULL,
+#endif
 #if PHP_VERSION_ID >= 80000
             .named_params = NULL,
+#else
+            .no_separation = 1,
 #endif
     };
 }

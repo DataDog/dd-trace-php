@@ -2,10 +2,10 @@
 #define HAVE_HOOK_TESTS_INTERNAL_HPP
 
 #include <tea/testing/catch2.hpp>
+#include <sandbox/tests/zai_tests_common.hpp>
 
 extern "C" {
 #include <hook/hook.h>
-#include <zai_string/tests/symbols.h>
 
     static void (*zend_execute_internal_function)(zend_execute_data *ex, zval *rv);
 
