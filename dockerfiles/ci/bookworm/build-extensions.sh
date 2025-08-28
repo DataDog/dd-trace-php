@@ -124,7 +124,22 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
 else
   pecl channel-update pecl.php.net;
 
-  pecl install amqp$AMQP_VERSION; echo "extension=amqp.so" >> ${iniDir}/amqp.ini;
+  if [[ $PHP_VERSION_ID -ge 85 ]]; then
+    echo "Building php-amqp from upstream for PHP ${PHP_VERSION_ID}..."
+    pushd /tmp
+    curl -L -o php-amqp.tar.gz https://github.com/php-amqp/php-amqp/archive/refs/heads/master.tar.gz
+    tar xzf php-amqp.tar.gz
+    cd php-amqp-*
+    phpize
+    ./configure --host=$HOST_ARCH-linux-gnu
+    make -j "$(nproc)"
+    sudo make install
+    popd
+    echo "extension=amqp.so" >> "${iniDir}/amqp.ini"
+  else
+    pecl install amqp$AMQP_VERSION
+    echo "extension=amqp.so" >> "${iniDir}/amqp.ini"
+  fi
   yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
   pecl install ast$AST_VERSION; echo "extension=ast.so" >> ${iniDir}/ast.ini;
   if [[ $PHP_VERSION_ID -ge 71 && $PHP_VERSION_ID -le 80 ]]; then
