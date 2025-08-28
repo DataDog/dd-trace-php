@@ -249,7 +249,7 @@ class LaravelIntegration extends Integration
                 $span->name = self::isLumen($rootSpan) ? 'lumen.view' : 'laravel.view';
                 $span->meta[Tag::COMPONENT] = $span->name === 'laravel.view'
                     ? self::NAME
-                    : self::NAME;
+                    : LumenIntegration::NAME;
                 $span->type = Type::WEB_SERVLET;
                 $span->service = self::getServiceName();
                 if (isset($args[0]) && \is_string($args[0])) {
