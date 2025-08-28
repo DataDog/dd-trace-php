@@ -6,7 +6,7 @@ target_include_directories(
 
 target_compile_features(zai_hook PUBLIC c_std_99)
 
-target_link_libraries(zai_hook PUBLIC Tea::Php)
+target_link_libraries(zai_hook PUBLIC Tea::Php Zai::String)
 if(PhpConfig_VERNUM GREATER_EQUAL "80000")
   target_link_libraries(zai_hook PUBLIC Zai::JitUtils)
 endif()

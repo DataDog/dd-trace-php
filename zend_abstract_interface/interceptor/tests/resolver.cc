@@ -1,9 +1,9 @@
 #include <tea/testing/catch2.hpp>
+#include <sandbox/tests/zai_tests_common.hpp>
 
 extern "C" {
 #include <hook/hook.h>
 #include <hook/table.h>
-#include <zai_string/tests/symbols.h>
 #include <tea/extension.h>
 #if PHP_VERSION_ID < 80000
 #include <interceptor/php7/interceptor.h>
@@ -104,7 +104,7 @@ static bool hook_is_installed(zend_op_array *op_array) {
 #define CALL_FN(fn, ...) do { \
     zval result; \
     zai_str _fn_name = ZAI_STRL(fn);               \
-    REQUIRE(zai_test_call_global_with_0_params(&_fn_name, &result)); \
+    REQUIRE(zai_test_call_global_with_0_params(_fn_name, &result)); \
     __VA_ARGS__               \
     zval_ptr_dtor(&result);                          \
 } while (0)
