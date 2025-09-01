@@ -140,6 +140,9 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
+    CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN, "false") /* true if pid == 1 || ppid == 1 */                \
+    CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SIGTERM, "false") /* true if pid == 1 || ppid == 1 */                 \
+    CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SIGINT, "false") /* true if pid == 1 || ppid == 1 */                  \
     CONFIG(BOOL, DD_TRACE_KAFKA_DISTRIBUTED_TRACING, "true")                                                   \
     CONFIG(BOOL, DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING, "true")                                           \
     CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING, "true")                                       \
