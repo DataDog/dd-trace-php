@@ -189,9 +189,17 @@ check-slo-breaches:
   when: on_success
   tags: ["arch:amd64"]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  before_script:
+    - dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-slo-change-tracking > check-slo-breaches.github-token
   script:
+    - export GITHUB_TOKEN=$(cat check-slo-breaches.github-token)
     - cd platform && (git init && git remote add origin https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform && git pull origin php/laravel-realworld)
     - bp-runner bp-runner.fail-on-breach.yml --debug
+  after_script:
+    - dd-octo-sts revoke -t $(cat check-slo-breaches.github-token)
   artifacts:
     name: "artifacts"
     when: always
