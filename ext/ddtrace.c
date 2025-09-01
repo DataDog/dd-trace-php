@@ -1546,6 +1546,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_minit_remote_config();
     ddtrace_trace_source_minit();
 
+#ifndef _WIN32
+    ddtrace_signals_minit();
+#endif
+
     return SUCCESS;
 }
 
@@ -1580,8 +1584,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
         }
-    }
+    } else /* ! part of the if outside the ifdef */
 #endif
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && ddtrace_sidecar) {
+        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+    }
 
     ddtrace_log_mshutdown();
 
