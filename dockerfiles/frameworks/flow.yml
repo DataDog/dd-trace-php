@@ -4,6 +4,8 @@ services:
   flow:
     depends_on: ['mysql', 'nginx_file_server']
     image: 'datadog/dd-trace-ci:php-framework-flow'
+    environment:
+      DD_LOGS_INJECTION: "false"
     build:
       context: contrib
       target: flow
@@ -17,7 +19,6 @@ services:
       MYSQL_ROOT_PASSWORD: ""
       MYSQL_ALLOW_EMPTY_PASSWORD: 1
       MYSQL_ROOT_HOST: "%"
-      DD_LOGS_INJECTION: "false"
     expose: ["3306"]
     healthcheck:
       test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]

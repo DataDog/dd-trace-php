@@ -15,7 +15,7 @@ x-aliases:
 services:
   # --- Alpine ---
   '8.0-alpine': { <<: *linux_php_service }
-  # --- Buster ---
+  # --- Bookworm ---
   '7.0-bookworm': { <<: *linux_php_service }
   '7.1-bookworm': { <<: *linux_php_service }
   '7.2-bookworm': { <<: *linux_php_service }
