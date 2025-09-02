@@ -128,6 +128,7 @@ ext/phar/tests/phar_metadata_write4.phpt
 ext/phar/tests/phar_oo_002.phpt
 ext/phar/tests/phar_oo_005.phpt
 ext/phar/tests/phar_oo_007.phpt
+ext/posix/tests/posix_getgrnam_basic.phpt
 ext/readline/tests/libedit_callback_handler_install_001.phpt
 ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
