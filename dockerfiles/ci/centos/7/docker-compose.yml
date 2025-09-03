@@ -127,7 +127,7 @@ services:
       dockerfile: php.Dockerfile
       x-bake: *bake
       args:
-        phpVersion: "8.5.0"
+        phpVersion: "8.5"
         phpTarGzUrl: https://downloads.php.net/~edorian/php-8.5.0beta1.tar.gz
         phpSha256Hash: "d28f6de0744fa733db898ddcdeaa784a5e87ec1b4b4822e83529d9a76229ea61"
     image: 'datadog/dd-trace-ci:php-8.5_centos-7'

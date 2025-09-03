@@ -29,6 +29,10 @@ COPY php-${PHP_VERSION}/configure.sh /root/
 
 FROM base AS php-zts
 RUN bash -c 'set -eux; \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+      export CFLAGS="${CFLAGS:-} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"; \
+      export CPPFLAGS="${CPPFLAGS:-} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"; \
+    fi; \
     mkdir -p /tmp/build-php && cd /tmp/build-php \
     && /root/configure.sh \
         --enable-$(if [ $(expr substr ${PHP_VERSION} 1 1) = 7 ]; then echo maintainer-; fi)zts \
@@ -39,11 +43,15 @@ RUN bash -c 'set -eux; \
     && make install \
     && cp .libs/libphp*.so ${PHP_INSTALL_DIR_ZTS}/lib/apache2handler-libphp.so \
     && mkdir -p ${PHP_INSTALL_DIR_ZTS}/conf.d' \
-    && [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || ${PHP_INSTALL_DIR_ZTS}/bin/pecl install parallel \
-    && [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || echo "extension=parallel" >> ${PHP_INSTALL_DIR_ZTS}/conf.d/parallel.ini
+    && [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || ${PHP_INSTALL_DIR_ZTS}/bin/pecl install parallel || true \
+    && [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || echo "extension=parallel" >> ${PHP_INSTALL_DIR_ZTS}/conf.d/parallel.ini || true
 
 FROM base AS php-debug
 RUN bash -c 'set -eux; \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+      export CFLAGS="${CFLAGS:-} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"; \
+      export CPPFLAGS="${CPPFLAGS:-} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"; \
+    fi; \
     mkdir -p /tmp/build-php && cd /tmp/build-php \
     && /root/configure.sh \
         --enable-debug \
@@ -57,6 +65,10 @@ RUN bash -c 'set -eux; \
 
 FROM base AS php-nts
 RUN bash -c 'set -eux; \
+    if [ "$(uname -m)" = "aarch64" ]; then \
+      export CFLAGS="${CFLAGS:-} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"; \
+      export CPPFLAGS="${CPPFLAGS:-} -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0"; \
+    fi; \
     mkdir -p /tmp/build-php && cd /tmp/build-php \
     && /root/configure.sh \
         --prefix=${PHP_INSTALL_DIR_NTS} \
