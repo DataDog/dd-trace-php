@@ -237,7 +237,7 @@ PHP_FUNCTION(DDTrace_Integrations_Exec_proc_get_span) {
     }
 
     zend_resource *span_res = proc_h->pipes[proc_h->npipes - 1];
-    if (span_res->type != le_proc_span) {
+    if (span_res->type != le_proc_span || !span_res->ptr) {
         RETURN_NULL();
     }
 
