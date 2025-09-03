@@ -148,7 +148,7 @@ RUN source scl_source enable devtoolset-7; set -ex; \
     /root/download-src.sh curl https://curl.se/download/curl-7.61.1.tar.gz; \
     cd "${SRC_DIR}/curl"; \
     mkdir -v 'build' && cd 'build'; \
-    ../configure --prefix=/usr/local/curl; \
+    ../configure --prefix=/usr/local/curl --with-ssl=/usr/local/openssl; \
     make -j $(nproc) && make install; \
     cd - && rm -fr build
 
