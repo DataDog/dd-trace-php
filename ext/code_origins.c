@@ -15,25 +15,33 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     zend_long max_frames = get_DD_CODE_ORIGIN_MAX_USER_FRAMES();
-    int current_frame = 0;
-    for (zend_execute_data *execute_data = EG(current_execute_data); execute_data && current_frame < max_frames; execute_data = EX(prev_execute_data)) {
+    int current_frame = 0, collected_frames = 0;
+    for (zend_execute_data *execute_data = EG(current_execute_data); execute_data && collected_frames < max_frames; execute_data = EX(prev_execute_data)) {
         if (UNEXPECTED(!EX(func))) {
             execute_data = zend_generator_check_placeholder_frame(execute_data);
         }
-        if (!EX(func) || !ZEND_USER_CODE(EX(func)->type) || !EX(func)->op_array.filename) {
+        if (!EX(func)) {
             continue;
         }
+
         if (skip_frames > 0) {
             --skip_frames;
             continue;
         }
-        // Heuristically exclude code outside of the git repository, essentially
-        const char *vendor = zend_memnstr(ZSTR_VAL(EX(func)->op_array.filename), ZEND_STRL("vendor"), ZSTR_VAL(EX(func)->op_array.filename) + ZSTR_LEN(EX(func)->op_array.filename));
-        if (vendor && dd_is_dir_sep(vendor[-1]) && dd_is_dir_sep(vendor[6])) {
+
+        if (!ZEND_USER_CODE(EX(func)->type) || !EX(func)->op_array.filename) {
+            ++current_frame;
             continue;
         }
 
-        if (current_frame == 0) {
+        // Heuristically exclude code outside of the git repository, essentially
+        const char *vendor = zend_memnstr(ZSTR_VAL(EX(func)->op_array.filename), ZEND_STRL("vendor"), ZSTR_VAL(EX(func)->op_array.filename) + ZSTR_LEN(EX(func)->op_array.filename));
+        if (vendor && dd_is_dir_sep(vendor[-1]) && dd_is_dir_sep(vendor[6])) {
+            ++current_frame;
+            continue;
+        }
+
+        if (collected_frames == 0) {
             zval type, *kind = zend_hash_str_find_deref(meta, ZEND_STRL("span.kind"));
             ZVAL_STRING(&type, (kind && Z_TYPE_P(kind) == IS_STRING ? zend_string_equals_literal(Z_STR_P(kind), "server") || zend_string_equals_literal(Z_STR_P(kind), "producer") : &span->root->span == span) ? "entry" : "exit");
             if (!zend_hash_str_add(meta, ZEND_STRL("_dd.code_origin.type"), &type)) {
@@ -68,11 +76,13 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
             zend_hash_update(meta, key, &zv);
             zend_string_release(key);
         }
+
+        ++collected_frames;
         ++current_frame;
     }
 }
 
-void ddtrace_maybe_add_code_origin_information(ddtrace_span_data *span) {
+void ddtrace_maybe_add_code_origin_information(ddtrace_span_data *span, int skip_frames) {
     if (get_DD_CODE_ORIGIN_FOR_SPANS_ENABLED()) {
         zval *type = &span->property_type;
         ZVAL_DEREF(type);
@@ -93,7 +103,7 @@ void ddtrace_maybe_add_code_origin_information(ddtrace_span_data *span) {
                 }
             }
 
-            ddtrace_add_code_origin_information(span, 0);
+            ddtrace_add_code_origin_information(span, skip_frames);
         }
     }
 }

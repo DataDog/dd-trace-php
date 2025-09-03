@@ -555,7 +555,7 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
         if (!ddtrace_span_is_dropped(span)) {
             if (keep) {
                 if (&span->root->span != span) {
-                    ddtrace_maybe_add_code_origin_information(span);
+                    ddtrace_maybe_add_code_origin_information(span, 0);
                 }
                 ddtrace_close_span(span);
             } else {
@@ -859,7 +859,8 @@ void ddtrace_close_span(ddtrace_span_data *span) {
             inferred_span->type = DDTRACE_SPAN_CLOSED;
         }
 
-        ddtrace_maybe_add_code_origin_information(span);
+        zend_execute_data *execute_data = EG(current_execute_data);
+        ddtrace_maybe_add_code_origin_information(span, execute_data && EX(func) && !ZEND_USER_CODE(EX(func)->type));
     }
 
     if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
