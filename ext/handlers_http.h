@@ -232,6 +232,11 @@ static inline void ddtrace_init_header_keys_set(zend_array *array, header_format
 
     uint32_t idx = 0;
     ZEND_HASH_FOREACH_VAL(array, zval *entry) {
+        if (Z_TYPE_P(entry) != IS_STRING) {
+            idx++;
+            continue;
+        }
+
         zend_string *header_key = ddtrace_extract_header_key(Z_STRVAL_P(entry));
         if (!header_key) {
             idx++;
