@@ -33,7 +33,7 @@
       "_dd.code_origin.frames.5.method": "doRunCommand",
       "_dd.code_origin.frames.5.type": "Symfony\\Bundle\\FrameworkBundle\\Console\\Application",
       "_dd.code_origin.frames.6.file": "{path}/tests/Frameworks/Symfony/Latest/vendor/symfony/console/Application.php",
-      "_dd.code_origin.frames.6.line": "341",
+      "_dd.code_origin.frames.6.line": "359",
       "_dd.code_origin.frames.6.method": "doRun",
       "_dd.code_origin.frames.6.type": "Symfony\\Component\\Console\\Application",
       "_dd.code_origin.frames.7.file": "{path}/tests/Frameworks/Symfony/Latest/vendor/symfony/framework-bundle/Console/Application.php",

@@ -110,7 +110,7 @@
        "type": "system",
        "meta": {
          "_dd.code_origin.frames.0.file": "{path}/tests/Frameworks/Symfony/Latest/vendor/symfony/console/Application.php",
-         "_dd.code_origin.frames.0.line": "999",
+         "_dd.code_origin.frames.0.line": "1017",
          "_dd.code_origin.frames.0.method": "doRunCommand",
          "_dd.code_origin.frames.0.type": "Symfony\\Component\\Console\\Application",
          "_dd.code_origin.frames.1.file": "{path}/tests/Frameworks/Symfony/Latest/vendor/symfony/framework-bundle/Console/Application.php",
