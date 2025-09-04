@@ -118,7 +118,7 @@
          "_dd.code_origin.frames.1.method": "doRunCommand",
          "_dd.code_origin.frames.1.type": "Symfony\\Bundle\\FrameworkBundle\\Console\\Application",
          "_dd.code_origin.frames.2.file": "{path}/tests/Frameworks/Symfony/Latest/vendor/symfony/console/Application.php",
-         "_dd.code_origin.frames.2.line": "341",
+         "_dd.code_origin.frames.2.line": "359",
          "_dd.code_origin.frames.2.method": "doRun",
          "_dd.code_origin.frames.2.type": "Symfony\\Component\\Console\\Application",
          "_dd.code_origin.frames.3.file": "{path}/tests/Frameworks/Symfony/Latest/vendor/symfony/framework-bundle/Console/Application.php",
