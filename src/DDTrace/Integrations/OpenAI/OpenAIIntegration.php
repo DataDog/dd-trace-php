@@ -645,6 +645,8 @@ class OpenAIIntegration extends Integration
         $errorType = null;
         if ($span->exception instanceof \OpenAI\Exceptions\ErrorException) {
             $errorType = $span->exception->getErrorType() ?? $span->exception->getErrorCode() ?? null;
+        } elseif ($span->exception instanceof \OpenAI\Exceptions\RateLimitException) {
+            $errorType = 'rate_limit_exceeded';
         } elseif ($span->exception) {
             $errorType = \get_class($span->exception);
         }

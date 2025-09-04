@@ -84,6 +84,8 @@ class OpenAITest extends IntegrationTestCase
                 }
             } catch (\OpenAI\Exceptions\ErrorException $e) {
                 // Ignore exceptions, they're "expected"
+            } catch (\OpenAI\Exceptions\RateLimitException $e) {
+                // Ignore exceptions, they're "expected"
             }
         }, snapshotMetrics: true, logsFile: __DIR__ . "/openai.log");
     }
