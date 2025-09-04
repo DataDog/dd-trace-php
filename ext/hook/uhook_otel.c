@@ -63,7 +63,7 @@ void dd_otel_call(zend_execute_data *execute_data, zval *retval, zend_object *cl
 
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
-    if (zend_call_function(&fci, &fcc) == SUCCESS || PG(last_error_message)) {
+    if (!zai_sandbox_call(&sandbox, &fci, &fcc) || PG(last_error_message)) {
         dd_uhook_report_sandbox_error(execute_data, closure);
     }
     zai_sandbox_close(&sandbox);

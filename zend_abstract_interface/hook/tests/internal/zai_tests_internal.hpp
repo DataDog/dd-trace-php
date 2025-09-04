@@ -2,6 +2,7 @@
 #define HAVE_HOOK_TESTS_INTERNAL_HPP
 
 #include <tea/testing/catch2.hpp>
+#include <sandbox/tests/zai_tests_common.hpp>
 
 extern "C" {
 #include <hook/hook.h>

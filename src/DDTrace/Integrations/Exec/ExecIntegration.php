@@ -24,7 +24,7 @@ class ExecIntegration extends Integration
     const REDACTED_BINARIES = array('md5' => null);
     const UNREDACTED_ENV_VARS = array('LD_PRELOAD' => null, 'LD_LIBRARY_PATH' => null, 'PATH' => null);
 
-    public function init(): int
+    public static function init(): int
     {
         \DDTrace\install_hook(
             'exec',
@@ -381,7 +381,7 @@ class ExecIntegration extends Integration
         $redacted = $cmd;
         $offset = 0;
         $prevEnd = 0;
-        self::each_shell_word($cmd, function ($text, $start, $end) use ($cmd, &$redacted, &$offset, &$prevEnd) {
+        self::each_shell_word($cmd, static function ($text, $start, $end) use ($cmd, &$redacted, &$offset, &$prevEnd) {
             $commandBegin = ($prevEnd === 0 || self::intersticeHasCommandSeparator($cmd, $prevEnd, $start));
 
             if (!$commandBegin) {
@@ -431,7 +431,7 @@ class ExecIntegration extends Integration
         $prevEnd = 0;
         $redactAll = false;
         $redactNext = false;
-        self::each_shell_word($cmd, function ($text, $start, $end) use ($cmd, &$redacted, &$offset, &$prevEnd, &$redactAll, &$redactNext) {
+        self::each_shell_word($cmd, static function ($text, $start, $end) use ($cmd, &$redacted, &$offset, &$prevEnd, &$redactAll, &$redactNext) {
             // start of command
             if ($prevEnd === 0 || self::intersticeHasCommandSeparator($cmd, $prevEnd, $start)) {
                 // simplified way to handle fors and ifs
@@ -587,7 +587,7 @@ class ExecIntegration extends Integration
     private static function encodeArray(array $arr)
     {
         return '[' . implode(',', array_map(
-            function ($str) {
+            static function ($str) {
                 return '"' . str_replace('"', '\"', $str) . '"';
             },
             $arr

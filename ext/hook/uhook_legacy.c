@@ -11,8 +11,8 @@
 extern void (*profiling_interrupt_function)(zend_execute_data *);
 
 typedef struct {
-    zend_object *begin;
-    zend_object *end;
+    dd_uhook_callback begin;
+    dd_uhook_callback end;
     bool tracing;
     bool run_if_limited;
     bool active;
@@ -27,61 +27,64 @@ typedef struct {
     bool was_primed;
 } dd_uhook_dynamic;
 
-static bool dd_uhook_call(zend_object *closure, bool tracing, dd_uhook_dynamic *dyn, zend_execute_data *execute_data, zval *retval) {
-    zval rv, closure_zv, args_zv, exception_zv;
-    ZVAL_OBJ(&closure_zv, closure);
-    ZVAL_ARR(&args_zv, dyn->args);
-    if (EG(exception)) {
-        ZVAL_OBJ(&exception_zv, EG(exception));
-    } else {
-        ZVAL_NULL(&exception_zv);
-    }
+static bool dd_uhook_call(dd_uhook_callback *callback, bool tracing, dd_uhook_dynamic *dyn, zend_execute_data *execute_data, zval *retval) {
+    int args;
+    zval params[6], rv;
 
-    bool success;
-    zai_sandbox sandbox;
-    zai_sandbox_open(&sandbox);
-
+#define ZVAL_EXCEPTION(zv) do { if (EG(exception)) ZVAL_OBJ(zv, EG(exception)); else ZVAL_NULL(zv); } while (0)
     if (tracing) {
-        zval span_zv;
-        ZVAL_OBJ(&span_zv, &dyn->span->std);
-        zai_symbol_scope_t scope_type = ZAI_SYMBOL_SCOPE_GLOBAL;
-        void *scope = NULL;
-        if (getThis()) {
-            scope_type = ZAI_SYMBOL_SCOPE_OBJECT;
-            scope = &EX(This);
-        } else if (EX(func)->common.scope) {
-            scope = zend_get_called_scope(execute_data);
-            if (scope) {
-                scope_type = ZAI_SYMBOL_SCOPE_CLASS;
-            }
-        }
-        success = zai_symbol_call(scope_type, scope,
-                        ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
-                        &rv, 4 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv, &args_zv, retval, &exception_zv);
+        dd_uhook_callback_ensure_scope(callback, execute_data);
+
+        ZVAL_OBJ(&params[0], &dyn->span->std);
+        ZVAL_ARR(&params[1], dyn->args);
+        ZVAL_COPY_VALUE(&params[2], retval);
+        ZVAL_EXCEPTION(&params[3]);
+        args = 4;
     } else {
+        if (!callback->fcc.function_handler) {
+            zend_function *func = (zend_function *)zend_get_closure_method_def(callback->closure);
+            callback->is_static = true;
+            callback->fcc.function_handler = func;
+            callback->fcc.called_scope = func->common.scope;
+#if PHP_VERSION_ID < 70300
+            callback->fcc.initialized = 1;
+#endif
+        }
+
         if (EX(func)->common.scope) {
             zval *This = getThis();
             if (!This) {
-                This = &EG(uninitialized_zval);
+                ZVAL_NULL(&params[0]);
+                callback->fcc.object = NULL;
+            } else {
+                ZVAL_COPY_VALUE(&params[0], This);
+                callback->fcc.object = Z_OBJ_P(This);
             }
-            zval scope;
-            ZVAL_NULL(&scope);
             zend_class_entry *scope_ce = zend_get_called_scope(execute_data);
             if (scope_ce) {
-                ZVAL_STR(&scope, scope_ce->name);
+                ZVAL_STR(&params[1], scope_ce->name);
+            } else {
+                ZVAL_NULL(&params[1]);
             }
-            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                      ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
-                                      &rv, 5 | ZAI_SYMBOL_SANDBOX, &sandbox, This, &scope, &args_zv, retval, &exception_zv);
+            ZVAL_ARR(&params[2], dyn->args);
+            ZVAL_COPY_VALUE(&params[3], retval);
+            ZVAL_EXCEPTION(&params[4]);
+            args = 5;
         } else {
-            success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                      ZAI_SYMBOL_FUNCTION_CLOSURE, &closure_zv,
-                                      &rv, 3 | ZAI_SYMBOL_SANDBOX, &sandbox, &args_zv, retval, &exception_zv);
+            callback->fcc.object = NULL;
+            ZVAL_ARR(&params[0], dyn->args);
+            ZVAL_COPY_VALUE(&params[1], retval);
+            ZVAL_EXCEPTION(&params[2]);
+            args = 3;
         }
     }
+    zai_sandbox sandbox;
+    zai_sandbox_open(&sandbox);
+    zend_fcall_info fci = dd_fcall_info(args, params, &rv);
+    bool success = zai_sandbox_call(&sandbox, &fci, &callback->fcc);
 
     if (!success || PG(last_error_message)) {
-        dd_uhook_report_sandbox_error(execute_data, closure);
+        dd_uhook_report_sandbox_error(execute_data, callback->closure);
     }
     zai_sandbox_close(&sandbox);
 
@@ -109,10 +112,10 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
     }
 
-    if (def->begin) {
-        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin););
+    if (def->begin.closure) {
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin.closure););
 
-        dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, &EG(uninitialized_zval));
+        dyn->dropped_span = !dd_uhook_call(&def->begin, def->tracing, dyn, execute_data, &EG(uninitialized_zval));
         if (def->tracing && dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, false);
         }
@@ -143,9 +146,9 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
         dyn->dropped_span = false;
     }
 
-    if (def->begin) {
-        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "generator resume", def->begin););
-        dyn->dropped_span = !dd_uhook_call(def->begin, def->tracing, dyn, execute_data, value);
+    if (def->begin.closure) {
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "generator resume", def->begin.closure););
+        dyn->dropped_span = !dd_uhook_call(&def->begin, def->tracing, dyn, execute_data, value);
         if (def->tracing && dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, false);
         }
@@ -180,9 +183,9 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         }
     }
 
-    if (def->end && (!def->tracing || !dyn->dropped_span)) {
-        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "generator yield", def->end););
-        bool keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, value);
+    if (def->end.closure && (!def->tracing || !dyn->dropped_span)) {
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "generator yield", def->end.closure););
+        bool keep_span = dd_uhook_call(&def->end, def->tracing, dyn, execute_data, value);
         if (def->tracing && !dyn->dropped_span) {
             ddtrace_clear_execute_data_span(invocation, keep_span);
         }
@@ -217,7 +220,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         }
     }
 
-    if (def->end && !dyn->dropped_span) {
+    if (def->end.closure && !dyn->dropped_span) {
         /* If the profiler doesn't handle a potential pending interrupt before
          * the observer's end function, then the callback will be at the top of
          * the stack even though it's not responsible.
@@ -229,8 +232,8 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
             profiling_interrupt_function(execute_data);
         }
 
-        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "end", def->end););
-        keep_span = dd_uhook_call(def->end, def->tracing, dyn, execute_data, retval);
+        LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "end", def->end.closure););
+        keep_span = dd_uhook_call(&def->end, def->tracing, dyn, execute_data, retval);
     }
 
     if (!GC_DELREF(dyn->args)) {
@@ -246,12 +249,8 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
 static void dd_uhook_dtor(void *data) {
     dd_uhook_def *def = data;
-    if (def->begin) {
-        OBJ_RELEASE(def->begin);
-    }
-    if (def->end) {
-        OBJ_RELEASE(def->end);
-    }
+    dd_uhook_callback_destroy(&def->begin);
+    dd_uhook_callback_destroy(&def->end);
     efree(def);
 }
 
@@ -347,13 +346,15 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     }
 
     dd_uhook_def *def = emalloc(sizeof(*def));
-    def->begin = prehook ? Z_OBJ_P(prehook) : NULL;
-    if (def->begin) {
-        GC_ADDREF(def->begin);
+    def->begin.fcc.function_handler = NULL;
+    def->begin.closure = prehook ? Z_OBJ_P(prehook) : NULL;
+    if (def->begin.closure) {
+        GC_ADDREF(def->begin.closure);
     }
-    def->end = posthook ? Z_OBJ_P(posthook) : NULL;
-    if (def->end) {
-        GC_ADDREF(def->end);
+    def->end.fcc.function_handler = NULL;
+    def->end.closure = posthook ? Z_OBJ_P(posthook) : NULL;
+    if (def->end.closure) {
+        GC_ADDREF(def->end.closure);
     }
     def->tracing = tracing;
     def->run_if_limited = !tracing || run_when_limited;
@@ -420,9 +421,9 @@ PHP_FUNCTION(dd_untrace) {
     for (it = zai_hook_iterate_installed(class_str, func_str); it.active; zai_hook_iterator_advance(&it)) {
         if (*it.begin == dd_uhook_begin) {
             dd_uhook_def *def = it.aux->data;
-            if (def->end) {
-                OBJ_RELEASE(def->end);
-                def->end = NULL;
+            if (def->end.closure) {
+                OBJ_RELEASE(def->end.closure);
+                def->end.closure = NULL;
             }
             it.aux->data = def;
             zai_hook_remove(class_str, func_str, it.index);

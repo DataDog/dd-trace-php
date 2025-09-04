@@ -3,7 +3,7 @@ add_executable(hooks
     internal/request.cc
 )
 
-target_link_libraries(hooks PUBLIC catch2_main Tea::Tea Zai::Symbols Zai::Hook)
+target_link_libraries(hooks PUBLIC catch2_main Tea::Tea Zai::Sandbox Zai::Hook)
 if(PhpConfig_VERNUM GREATER_EQUAL "80000")
   target_link_libraries(hooks PUBLIC Zai::JitUtils)
 endif()
