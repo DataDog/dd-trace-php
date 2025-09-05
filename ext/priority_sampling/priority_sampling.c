@@ -278,7 +278,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
                     }
                 } else {
                     LOG(DEBUG, "Evaluated agent sampling rules for root span for trace %s (service: %s, env: %s) and found a sample_rate of %f",
-                        Z_STRVAL(span->property_trace_id), Z_STR_P(service), Z_STR_P(env), zval_get_double(sample_rate_zv));
+                        Z_STRVAL(span->property_trace_id), Z_STRVAL_P(service), Z_STRVAL_P(env), zval_get_double(sample_rate_zv));
                 }
                 if (sample_rate_zv) {
                     sample_rate = zval_get_double(sample_rate_zv);

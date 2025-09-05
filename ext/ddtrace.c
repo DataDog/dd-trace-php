@@ -3645,7 +3645,7 @@ PHP_FUNCTION(DDTrace_collect_code_origins) {
         return;
     }
 
-    ddtrace_add_code_origin_information(span, skip);
+    ddtrace_add_code_origin_information(span, skip + 1 /* skip the collect call */);
 }
 
 PHP_FUNCTION(DDTrace_startup_logs) {
