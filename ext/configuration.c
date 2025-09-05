@@ -243,6 +243,18 @@ bool ddtrace_config_minit(int module_number) {
     }
 
 #ifndef _WIN32
+    // PID 1 *obviously* needs to ensure the sidecar gets flushed. (As PID 1 terminating will just SIGKILL it.)
+    // As to PPID 1, common scenarios where PHP is a direct child of PID 1:
+    // - apache / fpm running in a container as PID 1 each
+    // - PHP CLI processes running in a container as part of a bash script
+    // - root processes of supervisord/systemd services - if these terminate, it's likely because the service or container shuts down.
+    //   -> If the sidecar is part of a cgroup, it will terminate the sidecar as well.
+    if (getpid() == 1 || getppid() == 1) {
+        config_entries[DDTRACE_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
+        config_entries[DDTRACE_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGTERM].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
+        config_entries[DDTRACE_CONFIG_DD_TRACE_FORCE_FLUSH_ON_SIGINT].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
+    }
+
     // Background sender does not send a Content-Length header, but sidecar does. Force-enable it thus, as the background sender does not work at all.
     if (getenv("AWS_LAMBDA_FUNCTION_NAME")) {
         config_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].default_encoded_value = (zai_str) ZAI_STR_FROM_CSTR("true");
