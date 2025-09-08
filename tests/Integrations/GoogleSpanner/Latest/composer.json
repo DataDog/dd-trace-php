@@ -1,6 +1,6 @@
 {
     "require": {
-        "google/cloud-spanner": "1.104.0"
+        "google/cloud-spanner": "1.104.1"
     },
     "provide": {
         "ext-grpc": "*"
