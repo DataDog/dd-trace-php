@@ -165,7 +165,10 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
 
     ddog_SidecarTransport *sidecar_transport;
     if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect))) {
-        ddog_endpoint_drop(dogstatsd_endpoint);
+        if (dogstatsd_endpoint) {
+            ddog_endpoint_drop(dogstatsd_endpoint);
+            dogstatsd_endpoint = NULL;
+        }
         return NULL;
     }
 
@@ -209,10 +212,15 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
 
     ddtrace_sidecar = dd_sidecar_connection_factory();
-    if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong
-        ddog_endpoint_drop(ddtrace_endpoint);
-        ddog_endpoint_drop(dogstatsd_endpoint);
-        ddtrace_endpoint = NULL;
+    if (!ddtrace_sidecar) { // Something went wrong
+        if (ddtrace_endpoint) {
+            ddog_endpoint_drop(ddtrace_endpoint);
+            ddtrace_endpoint = NULL;
+        }
+        if (dogstatsd_endpoint) {
+            ddog_endpoint_drop(dogstatsd_endpoint);
+            dogstatsd_endpoint = NULL;
+        }
     }
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -250,10 +258,16 @@ void ddtrace_sidecar_shutdown(void) {
     if (ddtrace_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
     }
+
     if (ddtrace_endpoint) {
         ddog_endpoint_drop(ddtrace_endpoint);
-        ddog_endpoint_drop(dogstatsd_endpoint);
     }
+
+    if (dogstatsd_endpoint) {
+        ddog_endpoint_drop(dogstatsd_endpoint);
+        dogstatsd_endpoint = NULL;
+    }
+
     if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
     }
@@ -272,10 +286,15 @@ void ddtrace_reset_sidecar(void) {
     if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
         ddtrace_sidecar = dd_sidecar_connection_factory_ex(true);
-        if (!ddtrace_sidecar && ddtrace_endpoint) { // Something went wrong
-            ddog_endpoint_drop(ddtrace_endpoint);
-            ddog_endpoint_drop(dogstatsd_endpoint);
-            ddtrace_endpoint = NULL;
+        if (!ddtrace_sidecar) { // Something went wrong
+            if (ddtrace_endpoint) {
+                ddog_endpoint_drop(ddtrace_endpoint);
+                ddtrace_endpoint = NULL;
+            }
+            if (dogstatsd_endpoint) {
+                ddog_endpoint_drop(dogstatsd_endpoint);
+                dogstatsd_endpoint = NULL;
+            }
         } else {
             ddtrace_sidecar_submit_root_span_data();
         }
