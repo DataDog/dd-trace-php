@@ -39,6 +39,10 @@ if (empty($files)) {
 }
 
 function makeGithubRequest($url, $method, $data, $github_pat) {
+    if (empty($github_pat)) {
+        fprintf(STDERR, "Warning: GitHub token is empty!\n");
+    }
+
     $context = stream_context_create([
         'http' => [
             'method' => $method,
@@ -56,6 +60,14 @@ function makeGithubRequest($url, $method, $data, $github_pat) {
     $response = file_get_contents($url, false, $context);
     if ($response === false) {
         exit(1);
+    }
+
+    // Debug: dump response headers
+    if (isset($http_response_header)) {
+        fprintf(STDERR, "Debug: Response headers:\n");
+        foreach ($http_response_header as $header) {
+            fprintf(STDERR, "  %s\n", $header);
+        }
     }
 
     $json = json_decode($response, true);
