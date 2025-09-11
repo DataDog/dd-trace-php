@@ -71,7 +71,7 @@ function makeGithubRequest($url, $method, $data, $github_pat) {
     }
 
     $json = json_decode($response, true);
-    if (!$json) {
+    if (!json_validate($json)) {
         if (str_contains($http_response_header[0], 204)) {
             return null;
         }
