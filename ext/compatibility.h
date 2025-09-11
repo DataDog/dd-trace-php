@@ -722,4 +722,8 @@ extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
 
 #endif
 
+#if PHP_VERSION_ID < 80200
+const char *zend_memnistr(const char *haystack, const char *needle, size_t needle_len, const char *end);
+#endif
+
 #endif  // DD_COMPATIBILITY_H

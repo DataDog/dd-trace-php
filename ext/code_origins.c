@@ -35,7 +35,7 @@ void ddtrace_add_code_origin_information(ddtrace_span_data *span, int skip_frame
         }
 
         // Heuristically exclude code outside of the git repository, essentially
-        const char *vendor = zend_memnstr(ZSTR_VAL(EX(func)->op_array.filename), ZEND_STRL("vendor"), ZSTR_VAL(EX(func)->op_array.filename) + ZSTR_LEN(EX(func)->op_array.filename));
+        const char *vendor = zend_memnistr(ZSTR_VAL(EX(func)->op_array.filename), ZEND_STRL("vendor"), ZSTR_VAL(EX(func)->op_array.filename) + ZSTR_LEN(EX(func)->op_array.filename));
         if (vendor && dd_is_dir_sep(vendor[-1]) && dd_is_dir_sep(vendor[6])) {
             ++current_frame;
             continue;
