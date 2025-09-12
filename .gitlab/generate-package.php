@@ -1447,7 +1447,7 @@ deploy_to_reliability_env:
 
 "publish release to github":
   stage: release
-  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  image: registry.ddbuild.io/images/mirror/php:8.3-cli
   tags: [ "arch:amd64" ]
   variables: # enough memory for the individual artifacts
     KUBERNETES_MEMORY_REQUEST: 4Gi
