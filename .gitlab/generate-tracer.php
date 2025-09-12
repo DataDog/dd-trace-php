@@ -129,41 +129,15 @@ stages:
 
     mkdir dumps
 
-    # ---- Pre-clean leftovers (idempotent) ----
     $names = @('httpbin-integration','request-replayer', $env:CONTAINER_NAME)
     foreach ($n in $names) { try { docker rm -f $n | Out-Null } catch {} }
-
     try { docker network rm net | Out-Null } catch {}
-    try { docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net | Out-Null } catch {}
 
-    # ---- Start services ----
+    # Start the container network and services
+    docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name request-replayer registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0-windows
-
-    # ---- Probe request-replayer from within the network (try 8080 then 80) ----
-    docker run --network net --rm ${IMAGE} powershell -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; $urls=@("http://request-replayer:8080/","http://request-replayer/"); $ok=$false; for ($i=0; $i -lt 90 -and -not $ok; $i++) { foreach ($u in $urls) { try { $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 $u; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { $ok = $true; break } } catch {} } Start-Sleep -Seconds 1 }; if (-not $ok) { exit 1 }'
-    if ($LASTEXITCODE -ne 0) {
-      Write-Host '=== request-replayer inspect ==='
-      try { docker inspect request-replayer --format '{{json .State}}' } catch {}
-      Write-Host '=== request-replayer logs (tail) ==='
-      try { docker logs --tail 200 request-replayer } catch {}
-      Write-Error 'request-replayer did not become reachable from within the network'
-      exit 1
-    }
-
-    # ---- Probe httpbin (known /status/200) ----
-    docker run --network net --rm ${IMAGE} powershell -NoProfile -Command '$ErrorActionPreference="SilentlyContinue"; for ($i=0; $i -lt 90; $i++) { try { $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 "http://httpbin-integration:8080/status/200"; if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) { exit 0 } } catch {} ; Start-Sleep -Seconds 1 }; exit 1'
-    if ($LASTEXITCODE -ne 0) {
-      Write-Host '=== httpbin-integration inspect ==='
-      try { docker inspect httpbin-integration --format '{{json .State}}' } catch {}
-      Write-Host '=== httpbin-integration logs (tail) ==='
-      try { docker logs --tail 200 httpbin-integration } catch {}
-      Write-Error 'httpbin-integration did not become reachable from within the network'
-      exit 1
-    }
-
-    # ---- Start the main test container ----
-    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
+    docker run -v ${pwd}:C:\Users\ContainerAdministrator\app  --network net -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
     # Build nts
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
@@ -194,6 +168,7 @@ stages:
       - x64/Release/php_ddtrace.pdb
       - dumps
 
+
 "Prepare code":
   stage: compile
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
@@ -216,7 +191,7 @@ stages:
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
-  timeout: 30m
+  timeout: 60m
   variables:
     host_os: linux-gnu
     COMPOSER_MEMORY_LIMIT: "-1"
@@ -230,8 +205,6 @@ stages:
   before_script:
 <?php before_script_steps() ?>
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
-    - if getent hosts request-replayer >/dev/null 2>&1; then wait-for request-replayer:8080 --timeout=180; fi
-    - if getent hosts httpbin-integration >/dev/null 2>&1; then wait-for httpbin-integration:8080 --timeout=180; fi
 
 .asan_test:
   extends: .base_test
@@ -522,8 +495,6 @@ endforeach;
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
     - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
-    - if getent hosts request-replayer >/dev/null 2>&1; then wait-for request-replayer:8080 --timeout=180; fi
-    - if getent hosts httpbin-integration >/dev/null 2>&1; then wait-for httpbin-integration:8080 --timeout=180; fi
   script:
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
