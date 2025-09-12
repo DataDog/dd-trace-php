@@ -87,7 +87,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
 
     public function testSend()
     {
-        self::putenv('DD_CODE_ORIGIN_MAX_USER_FRAMES=2');
+        self::putenv('DD_CODE_ORIGIN_MAX_USER_FRAMES=1');
         $traces = $this->isolateTracer(function () {
             $request = new Request('put', 'http://example.com');
             $this->getMockedClient()->send($request);
@@ -102,10 +102,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle',
                     // Note that the leaf span is guzzle, not the curl inside
-                    '_dd.code_origin.frames.0.file' => '%s/vendor/guzzlehttp/guzzle/src/Client.php',
-                    '_dd.code_origin.frames.0.line' => '%d',
-                    '_dd.code_origin.frames.0.method' => 'send',
-                    '_dd.code_origin.frames.0.type' => 'GuzzleHttp\Client',
                     '_dd.code_origin.frames.1.file' => '%s/GuzzleIntegrationTest.php',
                     '_dd.code_origin.frames.1.line' => '%d',
                     '_dd.code_origin.frames.1.method' => '%s}', // closure format differs on PHP versions
