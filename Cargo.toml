@@ -1,5 +1,7 @@
 [workspace]
-members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling"]
+# Temporarily restrict workspace to profiling to avoid dual libdatadog copies during migration.
+# TODO: restore other members after all crates point to the same libdatadog.
+members = ["profiling"]
 resolver = "2"
 
 [workspace.package]

@@ -1,11 +1,12 @@
+pub mod dictionary;
 mod interrupts;
-mod sample_type_filter;
+mod samples;
 pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-pub use sample_type_filter::*;
+pub use samples::*;
 pub use stack_walking::*;
 use thread_utils::get_current_thread_name;
 use uploader::*;
@@ -21,26 +22,25 @@ use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use datadog_profiling::api::{
-    Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
-};
 use datadog_profiling::exporter::Tag;
-use datadog_profiling::internal::Profile as InternalProfile;
+use datadog_profiling::profiles::collections::{Arc as DdArc, StringId};
+use datadog_profiling::profiles::datatypes::{
+    Function, FunctionId, Line, Link, Location, Profile, ProfilesDictionary, SampleBuilder,
+    ScratchPad, StackId, ValueType as ApiValueType, MAX_SAMPLE_TYPES,
+};
+use datadog_profiling::profiles::pprof_builder::{PprofBuilder, PprofOptions};
+use datadog_profiling::profiles::{
+    GroupByLabel, PoissonUpscalingRule, ProfileError, ProportionalUpscalingRule, UpscalingRule,
+};
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant, SystemTime};
-
-#[cfg(feature = "timeline")]
-use core::{ptr, str};
-#[cfg(feature = "timeline")]
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, SystemTime};
 
 #[cfg(feature = "allocation_profiling")]
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
@@ -53,12 +53,18 @@ use crate::io::{
     SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
 };
 
-#[cfg(any(
-    feature = "allocation_profiling",
-    feature = "exception_profiling",
-    feature = "io_profiling"
-))]
-use datadog_profiling::api::UpscalingInfo;
+use arrayvec::ArrayVec;
+use std::collections::hash_map::Entry;
+use std::ptr::{null_mut, NonNull};
+#[cfg(feature = "timeline")]
+use std::{ptr, str, time::UNIX_EPOCH};
+// TODO(api-migration): Upscaling is not yet available in the new API.
+// #[cfg(any(
+//     feature = "allocation_profiling",
+//     feature = "exception_profiling",
+//     feature = "io_profiling"
+// ))]
+// use datadog_profiling::profiles::datatypes::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
@@ -107,21 +113,18 @@ pub struct SampleValues {
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
-const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
-    r#type: "wall-time",
-    unit: "nanoseconds",
-};
 
 #[derive(Debug, Clone)]
 struct WallTime {
-    instant: Instant,
+    // todo: should we use Instant for duration like we used to?
+    // instant: Instant,
     systemtime: SystemTime,
 }
 
 impl WallTime {
     fn now() -> Self {
         Self {
-            instant: Instant::now(),
+            // instant: Instant::now(),
             systemtime: SystemTime::now(),
         }
     }
@@ -139,25 +142,7 @@ pub struct Label {
     pub value: LabelValue,
 }
 
-impl<'a> From<&'a Label> for ApiLabel<'a> {
-    fn from(label: &'a Label) -> Self {
-        let key = label.key;
-        match label.value {
-            LabelValue::Str(ref str) => Self {
-                key,
-                str,
-                num: 0,
-                num_unit: "",
-            },
-            LabelValue::Num(num, num_unit) => Self {
-                key,
-                str: "",
-                num,
-                num_unit,
-            },
-        }
-    }
-}
+// TODO(api-migration): map labels to new attribute model when wiring SampleBuilder.
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct ValueType {
@@ -180,19 +165,31 @@ impl ValueType {
 /// Apache per-dir settings use different service name, etc.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ProfileIndex {
-    pub sample_types: Vec<ValueType>,
     pub tags: Arc<Vec<Tag>>,
 }
 
-#[derive(Debug)]
+/// Represents a sample that's going to be sent over the queue/channel for
+/// processing. Technically, it can add multiple samples with the same call
+/// stack, timestamp, labels, and link.
 pub struct SampleData {
-    pub frames: Vec<ZendFrame>,
-    pub labels: Vec<Label>,
-    pub sample_values: Vec<i64>,
+    pub samples: Vec<SampleValue>,
+    pub call_stack: CallStack,
     pub timestamp: i64,
+    pub labels: Vec<Label>,
+    pub link: Link,
 }
 
-#[derive(Debug)]
+/// Holds a vec of call frames with the leaf at offset 0, and the dictionary
+/// that the function ids and their associated strings belong to.
+pub struct CallStack {
+    pub frames: Vec<ZendFrame>,
+    pub dictionary: DdArc<ProfilesDictionary>,
+}
+
+/// SAFETY: the function_ids refer to data in the dictionary, which keeps it
+/// alive.
+unsafe impl Send for CallStack {}
+
 pub struct SampleMessage {
     pub key: ProfileIndex,
     pub value: SampleData,
@@ -204,7 +201,6 @@ pub struct LocalRootSpanResourceMessage {
     pub resource: String,
 }
 
-#[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
     Sample(SampleMessage),
@@ -253,10 +249,24 @@ struct TimeCollector {
     upload_period: Duration,
 }
 
+pub enum PhpUpscalingRule {
+    // PHP doesn't use grouping by labels.
+    Proportional { scale: f64 },
+    Poisson(PoissonUpscalingRule),
+}
+
+struct AggregatedProfile {
+    dict: DdArc<ProfilesDictionary>,
+    scratch: ScratchPad,
+
+    // PHP only uses at most one upscaling rule per profile type.
+    profiles: Vec<Option<(Profile, Option<PhpUpscalingRule>)>>, // one per profile-group; all share dict + scratch
+}
+
 impl TimeCollector {
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
@@ -265,18 +275,44 @@ impl TimeCollector {
             return wall_export;
         }
 
-        let duration = wall_export
-            .instant
-            .checked_duration_since(last_export.instant);
+        // todo: do we need this for the wall-time profile?
+        // let duration = wall_export
+        //     .instant
+        //     .checked_duration_since(last_export.instant);
 
         let end_time = wall_export.systemtime;
 
-        for (index, profile) in profiles.drain() {
+        for (index, mut aggregated) in profiles.drain() {
+            // Set the interval timestamps on the scratchpad so all profiles in this
+            // interval share the same timing information.
+            if let Err(err) = aggregated.scratch.set_end_time(end_time) {
+                warn!("Invalid interval for profile: {err}");
+            }
+
+            let mut builder = PprofBuilder::new(&*aggregated.dict, &aggregated.scratch);
+            builder
+                .with_options(PprofOptions::default())
+                .expect("todo fix this expect");
+
+            let mut buffer = Vec::new();
+            if let Err(err) = builder.build(&mut buffer) {
+                warn!("Failed to build pprof: {err}");
+                continue;
+            }
+            let encoded = datadog_profiling::exporter::EncodedProfile {
+                start: last_export.systemtime,
+                end: end_time,
+                buffer,
+                endpoints_stats: Default::default(),
+            };
+            // Use tags-only key: sample_types will be unified by the builder on the fly
+            let key = ProfileIndex {
+                sample_types: Vec::new(),
+                tags: index.tags,
+            };
             let message = UploadMessage::Upload(Box::new(UploadRequest {
-                index,
-                profile,
-                end_time,
-                duration,
+                index: key,
+                profile: encoded,
             }));
             if let Err(err) = self.upload_sender.try_send(message) {
                 warn!("Failed to upload profile: {err}");
@@ -285,235 +321,45 @@ impl TimeCollector {
         wall_export
     }
 
-    /// Create a profile based on the message and start time. Note that it
-    /// makes sense to use an older time than now because if the profiler was
-    /// running 4 seconds ago and we're only creating a profile now, that means
-    /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
-        let sample_types: Vec<ApiValueType> = message
-            .key
-            .sample_types
-            .iter()
-            .map(|sample_type| ApiValueType {
-                r#type: sample_type.r#type,
-                unit: sample_type.unit,
-            })
-            .collect();
+    fn create_profile(
+        index: &ProfileIndex,
+        sample_data: SampleData,
+        started_at: &WallTime,
+    ) -> AggregatedProfile {
+        let sample_types = index.sample_types.as_slice();
+        // todo: create a lookup map from sample types so that we can group
+        //       indices of sample_data.sample_values (which element-wise match
+        //       sample_types), into the new Profiles, which only have 1-2
+        //       sample types per profile.
 
-        let get_offset = |sample_type| sample_types.iter().position(|&x| x.r#type == sample_type);
-
-        // check if we have the `alloc-size` and `alloc-samples` sample types
-        #[cfg(feature = "allocation_profiling")]
-        let (alloc_samples_offset, alloc_size_offset) =
-            (get_offset("alloc-samples"), get_offset("alloc-size"));
-
-        // check if we have the IO sample types
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        let (
-            socket_read_time_offset,
-            socket_read_time_samples_offset,
-            socket_write_time_offset,
-            socket_write_time_samples_offset,
-            file_read_time_offset,
-            file_read_time_samples_offset,
-            file_write_time_offset,
-            file_write_time_samples_offset,
-            socket_read_size_offset,
-            socket_read_size_samples_offset,
-            socket_write_size_offset,
-            socket_write_size_samples_offset,
-            file_read_size_offset,
-            file_read_size_samples_offset,
-            file_write_size_offset,
-            file_write_size_samples_offset,
-        ) = (
-            get_offset("socket-read-time"),
-            get_offset("socket-read-time-samples"),
-            get_offset("socket-write-time"),
-            get_offset("socket-write-time-samples"),
-            get_offset("file-read-time"),
-            get_offset("file-read-time-samples"),
-            get_offset("file-write-time"),
-            get_offset("file-write-time-samples"),
-            get_offset("socket-read-size"),
-            get_offset("socket-read-size-samples"),
-            get_offset("socket-write-size"),
-            get_offset("socket-write-size-samples"),
-            get_offset("file-read-size"),
-            get_offset("file-read-size-samples"),
-            get_offset("file-write-size"),
-            get_offset("file-write-size-samples"),
-        );
-
-        // check if we have the `exception-samples` sample types
-        #[cfg(feature = "exception_profiling")]
-        let exception_samples_offset = get_offset("exception-samples");
-
-        let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = InternalProfile::new(
-            &sample_types,
-            Some(Period {
-                r#type: ApiValueType {
-                    r#type: WALL_TIME_PERIOD_TYPE.r#type,
-                    unit: WALL_TIME_PERIOD_TYPE.unit,
-                },
-                value: period.min(i64::MAX as u128) as i64,
-            }),
-        );
-        let _ = profile.set_start_time(started_at);
-
-        #[cfg(feature = "allocation_profiling")]
-        if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
-            (alloc_size_offset, alloc_samples_offset)
-        {
-            let upscaling_info = UpscalingInfo::Poisson {
-                sum_value_offset: alloc_size_offset,
-                count_value_offset: alloc_samples_offset,
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst),
-            };
-            let values_offset = [alloc_size_offset, alloc_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
-                }
-            }
-        }
-
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
-        {
-            let add_io_upscaling_rule =
-                |profile: &mut InternalProfile,
-                 sum_value_offset: Option<usize>,
-                 count_value_offset: Option<usize>,
-                 sampling_distance: u64,
-                 metric_name: &str| {
-                    if let (Some(sum_value_offset), Some(count_value_offset)) =
-                        (sum_value_offset, count_value_offset)
-                    {
-                        let upscaling_info = UpscalingInfo::Poisson {
-                            sum_value_offset,
-                            count_value_offset,
-                            sampling_distance,
-                        };
-                        let values_offset = [sum_value_offset, count_value_offset];
-                        if let Err(err) =
-                            profile.add_upscaling_rule(&values_offset, "", "", upscaling_info)
-                        {
-                            warn!("Failed to add upscaling rule for {metric_name}, {metric_name} reported will be wrong: {err}")
-                        }
-                    }
-                };
-
-            add_io_upscaling_rule(
-                &mut profile,
-                socket_read_time_offset,
-                socket_read_time_samples_offset,
-                SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "socket read time samples",
-            );
-
-            add_io_upscaling_rule(
-                &mut profile,
-                socket_write_time_offset,
-                socket_write_time_samples_offset,
-                SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "socket write time samples",
-            );
-
-            add_io_upscaling_rule(
-                &mut profile,
-                file_read_time_offset,
-                file_read_time_samples_offset,
-                FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "file read time samples",
-            );
-
-            add_io_upscaling_rule(
-                &mut profile,
-                file_write_time_offset,
-                file_write_time_samples_offset,
-                FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "file write time samples",
-            );
-
-            add_io_upscaling_rule(
-                &mut profile,
-                socket_read_size_offset,
-                socket_read_size_samples_offset,
-                SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "socket read size samples",
-            );
-
-            add_io_upscaling_rule(
-                &mut profile,
-                socket_write_size_offset,
-                socket_write_size_samples_offset,
-                SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "socket write size samples",
-            );
-
-            add_io_upscaling_rule(
-                &mut profile,
-                file_read_size_offset,
-                file_read_size_samples_offset,
-                FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "file read size samples",
-            );
-
-            add_io_upscaling_rule(
-                &mut profile,
-                file_write_size_offset,
-                file_write_size_samples_offset,
-                FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
-                "file write size samples",
-            );
-        }
-        #[cfg(feature = "exception_profiling")]
-        if let Some(exception_samples_offset) = exception_samples_offset {
-            let upscaling_info = UpscalingInfo::Proportional {
-                scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
-            };
-            let values_offset = [exception_samples_offset];
-            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
-                Ok(_id) => {}
-                Err(err) => {
-                    warn!("Failed to add upscaling rule for exception samples, exception samples reported will be wrong: {err}")
-                }
-            }
-        }
-
-        profile
+        AggregatedProfile::from()
     }
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
             message.local_root_span_id
         );
 
-        let local_root_span_id = message.local_root_span_id;
+        let local_root_span_id = message.local_root_span_id as i64;
+        let resource = message.resource;
         for (_, profile) in profiles.iter_mut() {
-            let endpoint = Cow::Borrowed(message.resource.as_str());
-            // In libdatadog v9, these endpoint operations won't fail. It may
-            // in newer versions, which is why it's fallible now.
-            if let Err(err) = profile.add_endpoint(local_root_span_id, endpoint.clone()) {
-                warn!("failed to add endpoint info to local root span {local_root_span_id}: {err}");
-            }
-            if let Err(err) = profile.add_endpoint_count(endpoint, 1) {
-                warn!(
-                    "failed to add endpoint count to local root span {local_root_span_id}: {err}"
-                );
+            if let Err(err) = profile
+                .scratch
+                .endpoint_tracker()
+                .add_trace_endpoint_with_count(local_root_span_id, &resource, 1)
+            {
+                warn!("Failed to add endpoint for LRS {local_root_span_id}: {err}");
             }
         }
     }
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
         started_at: &WallTime,
     ) {
         if message.key.sample_types.is_empty() {
@@ -522,56 +368,114 @@ impl TimeCollector {
             return;
         }
 
-        let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
-            value
-        } else {
-            profiles.insert(
-                message.key.clone(),
-                Self::create_profile(&message, started_at.systemtime),
-            );
-            profiles
-                .get_mut(&message.key)
-                .expect("entry to exist; just inserted it")
+        let aggregated_profile = match profiles.entry(message.key) {
+            Entry::Occupied(mut o) => o.get_mut(),
+            Entry::Vacant(mut v) => {
+                let agg = Self::create_profile(v.key(), message.value, started_at);
+                v.insert_entry(agg).get_mut()
+            }
         };
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
+        // Fan-out: split the incoming message into grouped profiles by sample type offsets,
+        // but keep a single AggregatedProfile per tags that owns shared dict+scratch and
+        // a vector of per-group internal profiles.
+        let dict = message
+            .value
+            .call_stack
+            .dictionary
+            .try_clone()
+            .expect("dict try_clone");
 
-        let values = message.value.sample_values;
-        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
-
-        for frame in &message.value.frames {
-            let location = Location {
-                function: Function {
-                    name: frame.function.as_ref(),
-                    system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
-                },
-                line: frame.line as i64,
-                ..Location::default()
-            };
-
-            locations.push(location);
-        }
-
-        let sample = Sample {
-            locations,
-            values: &values,
-            labels,
+        // Helper: ensure stack_id is built for an entry
+        let mut ensure_stack = |entry: &mut AggregatedProfile| -> Option<StackId> {
+            let mut loc_ids = Vec::with_capacity(message.value.call_stack.frames.len());
+            for frame in &message.value.call_stack.frames {
+                let loc = Location {
+                    address: 0,
+                    mapping_id: null_mut(),
+                    line: Line {
+                        line_number: frame.line as i64,
+                        function_id: frame.function_id.map(NonNull::as_ptr).unwrap_or(null_mut()),
+                    },
+                };
+                match entry.scratch.locations().try_insert(loc) {
+                    Ok(id) => loc_ids.push(id),
+                    Err(err) => {
+                        warn!("Failed to insert location: {err}");
+                        return None;
+                    }
+                }
+            }
+            match entry.scratch.stacks().try_insert(&loc_ids) {
+                Ok(id) => Some(id),
+                Err(err) => {
+                    warn!("Failed to insert stack: {err}");
+                    None
+                }
+            }
         };
 
-        let timestamp = NonZeroI64::new(message.value.timestamp);
-
-        match profile.add_sample(sample, timestamp) {
-            Ok(_id) => {}
-            Err(err) => {
-                warn!("Failed to add sample to the profile: {err}")
+        // Common build: single stack, loop per group
+        if let Some(stack_id) = ensure_stack(entry) {
+            for (group, offs) in groups_to_emit.into_iter() {
+                let idx = ensure_group(entry, group);
+                let attrs = entry
+                    .scratch
+                    .attributes()
+                    .try_clone()
+                    .expect("attributes set try_clone");
+                let links = entry
+                    .scratch
+                    .links()
+                    .try_clone()
+                    .expect("links set try_clone");
+                let mut sb = SampleBuilder::new(attrs, links);
+                sb.set_stack_id(stack_id);
+                let _ = sb.set_link(message.value.link);
+                for o in offs.iter().copied() {
+                    let _ = sb.push_value(message.value.sample_values[o]);
+                }
+                for label in &message.value.sample_labels {
+                    let key_id = entry
+                        .dict
+                        .strings()
+                        .try_insert(label.key)
+                        .unwrap_or(StringId::EMPTY);
+                    match &label.value {
+                        LabelValue::Str(s) => {
+                            let _ = sb.push_attribute_str(key_id, s.as_ref());
+                        }
+                        LabelValue::Num(n, _) => {
+                            let _ = sb.push_attribute_int(key_id, *n);
+                        }
+                    }
+                }
+                if message.value.timestamp != NO_TIMESTAMP {
+                    let nanos_u128 = if message.value.timestamp < 0 {
+                        0
+                    } else {
+                        message.value.timestamp as u128
+                    };
+                    let nanos_u64 = if nanos_u128 > u64::MAX as u128 {
+                        u64::MAX
+                    } else {
+                        nanos_u128 as u64
+                    };
+                    let ts = std::time::UNIX_EPOCH + std::time::Duration::from_nanos(nanos_u64);
+                    sb.set_timestamp(ts);
+                }
+                if let Ok(sample) = sb.build() {
+                    if let Some(profile) = entry.profiles[idx].as_mut() {
+                        let _ = profile.add_sample(sample);
+                    }
+                }
             }
         }
     }
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(1);
+        let mut profiles: HashMap<ProfileIndex, AggregatedProfile> = HashMap::with_capacity(1);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -655,18 +559,14 @@ impl TimeCollector {
 
 pub struct UploadRequest {
     index: ProfileIndex,
-    profile: InternalProfile,
-    end_time: SystemTime,
-    duration: Option<Duration>,
+    // TODO(api-migration): switch to real encoding from profiles + pprof builder
+    profile: datadog_profiling::exporter::EncodedProfile,
 }
 
 pub enum UploadMessage {
     Pause,
     Upload(Box<UploadRequest>),
 }
-
-#[cfg(feature = "timeline")]
-const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
@@ -698,6 +598,7 @@ impl Profiler {
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
+            plan: sample_types_filter.plan().to_vec(),
         };
 
         let uploader = Uploader::new(
@@ -914,8 +815,8 @@ impl Profiler {
         let interrupt_count = interrupt_count as i64;
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
                 let labels = Profiler::common_labels(0);
@@ -935,13 +836,13 @@ impl Profiler {
                 }
 
                 match self.prepare_and_send_message(
-                    frames,
-                    SampleValues {
-                        interrupt_count,
-                        wall_time,
-                        cpu_time,
-                        ..Default::default()
-                    },
+                    call_stack,
+                    vec![SampleValue::WallTime {
+                        nanoseconds: wall_time,
+                        count: interrupt_count,
+                    }, SampleValue::CpuTime {
+                        nanoseconds: cpu_time,
+                    }],
                     labels,
                     timestamp,
                 ) {
@@ -970,18 +871,17 @@ impl Profiler {
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
                 match self.prepare_and_send_message(
-                    frames,
-                    SampleValues {
-                        alloc_size,
-                        alloc_samples,
-                        ..Default::default()
-                    },
+                    call_stack,
+                    vec![SampleValue::Alloc {
+                        bytes: alloc_size,
+                        count: alloc_samples,
+                    }],
                     labels,
                     NO_TIMESTAMP,
                 ) {
@@ -1010,8 +910,8 @@ impl Profiler {
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let mut labels = Profiler::common_labels(2);
 
                 labels.push(Label {
@@ -1042,11 +942,8 @@ impl Profiler {
                 }
 
                 match self.prepare_and_send_message(
-                    frames,
-                    SampleValues {
-                        exception: 1,
-                        ..Default::default()
-                    },
+                    call_stack,
+                    vec![SampleValue::Exception { count: 1 }],
                     labels,
                     timestamp,
                 ) {
@@ -1077,16 +974,32 @@ impl Profiler {
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
+        // todo: put back [eval] with its file name.
+        let dict = match dictionary::try_clone_tls_or_global() {
+            Ok(d) => d,
+            Err(err) => {
+                warn!("Failed to clone dictionary: {err}");
+                return;
+            }
+        };
+        let eval_fid = match synth_function_id(&*dict, "[eval]", Some(filename.as_str())) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to build [eval] frame: {err}");
+                None
+            }
+        };
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(Cow::Owned(filename)),
-                line,
-            }],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: eval_fid,
+                    line,
+                }],
+                dictionary: dict,
             },
+            vec![SampleValue::Timeline {
+                nanoseconds: duration,
+            }],
             labels,
             now,
         ) {
@@ -1119,16 +1032,33 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        // todo: format!("[{include_type}]").into()
+        let dict = match dictionary::try_clone_tls_or_global() {
+            Ok(d) => d,
+            Err(err) => {
+                warn!("Failed to clone dictionary: {err}");
+                return;
+            }
+        };
+        let name = format!("[{}]", include_type);
+        let include_fid = match synth_function_id(&*dict, &name, None) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to build [{}] frame: {err}", include_type);
+                None
+            }
+        };
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
-                line: 0,
-            }],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: include_fid,
+                    line: 0,
+                }],
+                dictionary: dict,
             },
+            vec![SampleValue::Timeline {
+                nanoseconds: duration,
+            }],
             labels,
             now,
         ) {
@@ -1156,16 +1086,30 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let dict = match dictionary::try_clone_tls_or_global() {
+            Ok(d) => d,
+            Err(err) => {
+                warn!("Failed to clone dictionary: {err}");
+                return;
+            }
+        };
+        let thread_name = format!("[{}]", event);
+        let thread_fid = match synth_function_id(&*dict, &thread_name, None) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to build [{}] frame: {err}", event);
+                None
+            }
+        };
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: format!("[{event}]").into(),
-                file: None,
-                line: 0,
-            }],
-            SampleValues {
-                timeline: 1,
-                ..Default::default()
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: thread_fid,
+                    line: 0,
+                }],
+                dictionary: dict,
             },
+            vec![SampleValue::Timeline { nanoseconds: 1 }],
             labels,
             now,
         ) {
@@ -1195,16 +1139,30 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        // todo:  "[fatal]".into(),
+        let dict = match dictionary::try_clone_tls_or_global() {
+            Ok(d) => d,
+            Err(err) => {
+                warn!("Failed to clone dictionary: {err}");
+                return;
+            }
+        };
+        let fatal_fid = match synth_function_id(&*dict, "[fatal]", Some(file.as_str())) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to build [fatal] frame: {err}");
+                None
+            }
+        };
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[fatal]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }],
-            SampleValues {
-                timeline: 1,
-                ..Default::default()
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: fatal_fid,
+                    line,
+                }],
+                dictionary: dict,
             },
+            vec![SampleValue::Timeline { nanoseconds: 1 }],
             labels,
             now,
         ) {
@@ -1242,16 +1200,31 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        // todo: "[opcache restart]".into() with file
+        let dict = match dictionary::try_clone_tls_or_global() {
+            Ok(d) => d,
+            Err(err) => {
+                warn!("Failed to clone dictionary: {err}");
+                return;
+            }
+        };
+        let opcache_fid = match synth_function_id(&*dict, "[opcache restart]", Some(file.as_str()))
+        {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to build [opcache restart] frame: {err}");
+                None
+            }
+        };
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[opcache restart]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }],
-            SampleValues {
-                timeline: 1,
-                ..Default::default()
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: opcache_fid,
+                    line,
+                }],
+                dictionary: dict,
             },
+            vec![SampleValue::Timeline { nanoseconds: 1 }],
             labels,
             now,
         ) {
@@ -1277,16 +1250,32 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        // todo: "[idle]".into(),
+        let dict = match dictionary::try_clone_tls_or_global() {
+            Ok(d) => d,
+            Err(err) => {
+                warn!("Failed to clone dictionary: {err}");
+                return;
+            }
+        };
+        let idle_fid = match synth_function_id(&*dict, "[idle]", None) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to build [idle] frame: {err}");
+                None
+            }
+        };
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[idle]".into(),
-                file: None,
-                line: 0,
-            }],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: idle_fid,
+                    line: 0,
+                }],
+                dictionary: dict,
             },
+            vec![SampleValue::Timeline {
+                nanoseconds: duration,
+            }],
             labels,
             now,
         ) {
@@ -1311,6 +1300,14 @@ impl Profiler {
         collected: i64,
         #[cfg(php_gc_status)] runs: i64,
     ) {
+        // todo: "[gc]".into()
+        let dict = match dictionary::try_clone_tls_or_global() {
+            Ok(d) => d,
+            Err(err) => {
+                warn!("Failed to clone dictionary: {err}");
+                return;
+            }
+        };
         let mut labels = Profiler::common_labels(4);
 
         labels.push(Label {
@@ -1333,17 +1330,24 @@ impl Profiler {
             value: LabelValue::Num(collected, "count"),
         });
         let n_labels = labels.len();
-
+        let gc_fid = match synth_function_id(&*dict, "[gc]", None) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to build [gc] frame: {err}");
+                None
+            }
+        };
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
-                line: 0,
-            }],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: gc_fid,
+                    line: 0,
+                }],
+                dictionary: dict,
             },
+            vec![SampleValue::Timeline {
+                nanoseconds: duration,
+            }],
             labels,
             now,
         ) {
@@ -1357,87 +1361,88 @@ impl Profiler {
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_read_time = socket_io_read_time;
-            vals.socket_read_time_samples = 1;
-        })
+    pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, nanoseconds: i64) {
+        self.collect_io(
+            ed,
+            SampleValue::SocketReadTime {
+                nanoseconds,
+                count: 1,
+            },
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_write_time = socket_io_write_time;
-            vals.socket_write_time_samples = 1;
-        })
+    pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, nanoseconds: i64) {
+        self.collect_io(
+            ed,
+            SampleValue::SocketWriteTime {
+                nanoseconds,
+                count: 1,
+            },
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_read_time = file_io_read_time;
-            vals.file_read_time_samples = 1;
-        })
+    pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, nanoseconds: i64) {
+        self.collect_io(
+            ed,
+            SampleValue::FileIoReadTime {
+                nanoseconds,
+                count: 1,
+            },
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_write_time = file_io_write_time;
-            vals.file_write_time_samples = 1;
-        })
+    pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, nanoseconds: i64) {
+        self.collect_io(
+            ed,
+            SampleValue::FileIoWriteTime {
+                nanoseconds,
+                count: 1,
+            },
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_read_size = socket_io_read_size;
-            vals.socket_read_size_samples = 1;
-        })
+    pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, bytes: i64) {
+        self.collect_io(ed, SampleValue::SocketReadSize { bytes, count: 1 })
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_write_size = socket_io_write_size;
-            vals.socket_write_size_samples = 1;
-        })
+    pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, nanoseconds: i64) {
+        self.collect_io(
+            ed,
+            SampleValue::SocketWriteTime {
+                nanoseconds,
+                count: 1,
+            },
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_read_size = file_io_read_size;
-            vals.file_read_size_samples = 1;
-        })
+    pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, bytes: i64) {
+        self.collect_io(ed, SampleValue::FileIoReadSize { bytes, count: 1 })
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_write_size = file_io_write_size;
-            vals.file_write_size_samples = 1;
-        })
+    pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, bytes: i64) {
+        self.collect_io(ed, SampleValue::FileIoWriteSize { bytes, count: 1 })
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
-    where
-        F: FnOnce(&mut SampleValues),
-    {
+    pub fn collect_io(&self, execute_data: *mut zend_execute_data, value: SampleValue) {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let labels = Profiler::common_labels(0);
 
                 let n_labels = labels.len();
-
-                let mut values = SampleValues::default();
-                set_value(&mut values);
+                let values = vec![value];
 
                 match self.prepare_and_send_message(
-                    frames,
+                    call_stack,
                     values,
                     labels,
                     NO_TIMESTAMP,
@@ -1472,25 +1477,7 @@ impl Profiler {
             value: LabelValue::Str(get_current_thread_name().into()),
         });
 
-        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
-        // we're getting the profiling context on a PHP thread.
-        let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-        if context.local_root_span_id != 0 {
-            // Casting between two integers of the same size is a no-op, and
-            // Rust uses 2's complement for negative numbers.
-            let local_root_span_id = context.local_root_span_id as i64;
-            let span_id = context.span_id as i64;
-
-            labels.push(Label {
-                key: "local root span id",
-                value: LabelValue::Num(local_root_span_id, ""),
-            });
-
-            labels.push(Label {
-                key: "span id",
-                value: LabelValue::Num(span_id, ""),
-            });
-        }
+        // No link labels here; link is carried separately.
 
         #[cfg(php_has_fibers)]
         if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
@@ -1511,12 +1498,12 @@ impl Profiler {
 
     fn prepare_and_send_message(
         &self,
-        frames: Vec<ZendFrame>,
-        samples: SampleValues,
+        call_stack: CallStack,
+        samples: Vec<SampleValue>,
         labels: Vec<Label>,
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        let message = self.prepare_sample_message(frames, samples, labels, timestamp);
+        let message = self.prepare_sample_message(call_stack, samples, labels, timestamp);
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
             .map_err(Box::new)
@@ -1524,8 +1511,8 @@ impl Profiler {
 
     fn prepare_sample_message(
         &self,
-        frames: Vec<ZendFrame>,
-        samples: SampleValues,
+        call_stack: CallStack,
+        samples: Vec<SampleValue>,
         labels: Vec<Label>,
         timestamp: i64,
     ) -> SampleMessage {
@@ -1534,19 +1521,26 @@ impl Profiler {
         //  1. Nobody should be calling this when it's disabled anyway.
         //  2. It would require tracking more state and/or spending CPU on
         //     something that shouldn't be done anyway (see #1).
-        let sample_types = self.sample_types_filter.sample_types();
-        let sample_values = self.sample_types_filter.filter(samples);
-
         let tags = TAGS.with_borrow(Arc::clone);
-
         SampleMessage {
-            key: ProfileIndex { sample_types, tags },
+            key: ProfileIndex { tags },
             value: SampleData {
-                frames,
+                samples: self.sample_types_filter.filter(samples),
+                call_stack,
                 labels,
-                sample_values,
                 timestamp,
+                link: Self::current_link(),
             },
+        }
+    }
+
+    fn current_link() -> Link {
+        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
+        // we're getting the profiling context on a PHP thread.
+        let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+        Link {
+            local_root_span_id: context.local_root_span_id as u64,
+            span_id: context.span_id as u64,
         }
     }
 }
@@ -1560,14 +1554,32 @@ mod tests {
     use super::*;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use datadog_profiling::exporter::Uri;
+    use datadog_profiling::profiles::datatypes::Function;
     use log::LevelFilter;
+    use StringId;
 
-    fn get_frames() -> Vec<ZendFrame> {
-        vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }]
+    fn get_frames() -> CallStack {
+        let dictionary = {
+            let dict = ProfilesDictionary::try_new().unwrap();
+            DdArc::try_new(dict).unwrap()
+        };
+        let foobar = dictionary.strings().try_insert("foobar").unwrap();
+        let foobar_php = dictionary.strings().try_insert("foobar.php").unwrap();
+
+        let function = Function {
+            name: foobar,
+            system_name: StringId::EMPTY,
+            file_name: foobar_php,
+        };
+        let function_id = dictionary.functions().try_insert(function).unwrap();
+
+        CallStack {
+            frames: vec![ZendFrame {
+                function_id: Some(function_id.into_raw()),
+                line: 42,
+            }],
+            dictionary,
+        }
     }
 
     pub fn get_system_settings() -> SystemSettings {
@@ -1590,32 +1602,60 @@ mod tests {
         }
     }
 
-    pub fn get_samples() -> SampleValues {
-        SampleValues {
-            interrupt_count: 10,
-            wall_time: 20,
-            cpu_time: 30,
-            alloc_samples: 40,
-            alloc_size: 50,
-            timeline: 60,
-            exception: 70,
-            socket_read_time: 80,
-            socket_read_time_samples: 81,
-            socket_write_time: 90,
-            socket_write_time_samples: 91,
-            file_read_time: 100,
-            file_read_time_samples: 101,
-            file_write_time: 110,
-            file_write_time_samples: 111,
-            socket_read_size: 120,
-            socket_read_size_samples: 121,
-            socket_write_size: 130,
-            socket_write_size_samples: 131,
-            file_read_size: 140,
-            file_read_size_samples: 141,
-            file_write_size: 150,
-            file_write_size_samples: 151,
-        }
+    pub fn get_samples() -> Vec<SampleValue> {
+        use SampleValue::*;
+        // These don't need to come in any specific order.
+        vec![
+            WallTime {
+                nanoseconds: 20,
+                count: 10,
+            },
+            CpuTime {
+                nanoseconds: 30,
+            },
+            Alloc {
+                bytes: 50,
+                count: 40,
+            },
+            Timeline {
+                nanoseconds: 60,
+            },
+            Exception {
+                count: 70,
+            },
+            SocketReadTime {
+                nanoseconds: 80,
+                count: 81,
+            },
+            SocketWriteTime {
+                nanoseconds: 90,
+                count: 91,
+            },
+            FileIoReadTime {
+                nanoseconds: 100,
+                count: 101,
+            },
+            FileWriteTime {
+                nanoseconds: 110,
+                count: 111,
+            },
+            SocketReadSize {
+                bytes: 120,
+                count: 121,
+            },
+            SocketWriteSize {
+                bytes: 130,
+                count: 131,
+            }
+            FileReadSize {
+                bytes: 140,
+                count: 141,
+            },
+            FileWriteSize {
+                bytes: 150,
+                count: 151,
+            }
+        ]
     }
 
     #[test]
@@ -1634,7 +1674,7 @@ mod tests {
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
         assert_eq!(
-            message.key.sample_types,
+            message.value.samples.iter().flat_map(|sample_value| sample_value.sample_types()),
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -1645,4 +1685,23 @@ mod tests {
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
         assert_eq!(message.value.timestamp, 900);
     }
+}
+
+#[inline]
+fn synth_function_id(
+    dict: &ProfilesDictionary,
+    fname: &str,
+    file: Option<&str>,
+) -> Result<FunctionId, ProfileError> {
+    let strings = dict.strings();
+    let function = Function {
+        name: strings.try_insert(fname)?,
+        system_name: StringId::EMPTY,
+        file_name: match file {
+            Some(f) if !f.is_empty() => strings.try_insert(f)?,
+            _ => StringId::EMPTY,
+        },
+    };
+    let id = dict.functions().try_insert(function)?;
+    Ok(id.into_raw())
 }

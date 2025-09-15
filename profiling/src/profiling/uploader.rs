@@ -1,12 +1,9 @@
-#[cfg(feature = "allocation_profiling")]
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 use crate::config::AgentEndpoint;
-#[cfg(feature = "exception_profiling")]
-use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
+use datadog_profiling::exporter::EncodedProfile;
 use ddcommon::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
@@ -20,6 +17,12 @@ use std::sync::{Arc, Barrier};
     feature = "io_profiling"
 ))]
 use std::sync::atomic::Ordering;
+
+#[cfg(feature = "allocation_profiling")]
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+
+#[cfg(feature = "exception_profiling")]
+use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -82,7 +85,7 @@ impl Uploader {
 
     fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
         let index = message.index;
-        let profile = message.profile;
+        let profile: EncodedProfile = message.profile;
 
         let profiling_library_name: &str = &PROFILER_NAME_STR;
         let profiling_library_version: &str = &PROFILER_VERSION_STR;
@@ -98,11 +101,9 @@ impl Uploader {
             endpoint,
         )?;
 
-        let serialized =
-            profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
         exporter.set_timeout(10000); // 10 seconds in milliseconds
         let request = exporter.build(
-            serialized,
+            profile,
             &[],
             &[],
             None,
@@ -140,7 +141,7 @@ impl Uploader {
                         match pprof_filename {
                             Some(filename) => {
                                 let filename_prefix = filename.as_ref();
-                                let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
+                                let r: EncodedProfile = request.profile;
                                 i += 1;
                                 let name = format!("{filename_prefix}.{i}.lz4");
                                 std::fs::write(&name, r.buffer).expect("write to succeed");

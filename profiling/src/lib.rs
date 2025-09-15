@@ -6,11 +6,7 @@ mod logging;
 pub mod profiling;
 mod pthread;
 mod sapi;
-mod thin_str;
 mod wall_time;
-
-#[cfg(php_run_time_cache)]
-mod string_set;
 
 #[cfg(feature = "allocation_profiling")]
 mod allocation;
@@ -21,6 +17,7 @@ mod io;
 #[cfg(feature = "exception_profiling")]
 mod exception;
 
+mod inlinevec;
 #[cfg(feature = "timeline")]
 mod timeline;
 mod vec_ext;
@@ -196,6 +193,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_ginit();
+    // Initialize thread-local dictionary reference from the global dictionary.
+    profiling::dictionary::ginit();
 
     #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_ginit();
@@ -204,6 +203,7 @@ unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(all(feature = "timeline", php_zts))]
     timeline::timeline_gshutdown();
+    profiling::dictionary::gshutdown();
 
     #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_gshutdown();

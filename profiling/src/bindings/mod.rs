@@ -4,6 +4,7 @@ pub use ffi::*;
 
 pub use datadog_library_config_ffi::*;
 
+use datadog_profiling::profiles::datatypes::FunctionId;
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -357,13 +358,15 @@ extern "C" {
     /// none-the-less has been seen in the wild. It may also return None if
     /// the run_time_cache is not available on this function type.
     #[cfg(not(feature = "stack_walking_tests"))]
-    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
+    pub fn ddog_php_prof_function_run_time_cache(
+        func: &zend_function,
+    ) -> Option<&mut Option<FunctionId>>;
 
     /// mock for testing
     #[cfg(feature = "stack_walking_tests")]
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
+    ) -> Option<&mut Option<FunctionId>>;
 
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
