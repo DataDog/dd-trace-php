@@ -1,5 +1,6 @@
 mod interrupts;
 mod sample_type_filter;
+mod samples;
 pub mod stack_walking;
 mod thread_utils;
 mod uploader;
@@ -53,15 +54,16 @@ use crate::io::{
     SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
 };
 
+#[cfg(feature = "exception_profiling")]
+use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::profiling::samples::EnabledProfiles;
 #[cfg(any(
     feature = "allocation_profiling",
     feature = "exception_profiling",
     feature = "io_profiling"
 ))]
 use datadog_profiling::api::UpscalingInfo;
-
-#[cfg(feature = "exception_profiling")]
-use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use samples::SampleValues;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -74,37 +76,6 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
 static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
-
-/// Order this array this way:
-///  1. Always enabled types.
-///  2. On by default types.
-///  3. Off by default types.
-#[derive(Default, Debug)]
-pub struct SampleValues {
-    interrupt_count: i64,
-    wall_time: i64,
-    cpu_time: i64,
-    alloc_samples: i64,
-    alloc_size: i64,
-    timeline: i64,
-    exception: i64,
-    socket_read_time: i64,
-    socket_read_time_samples: i64,
-    socket_write_time: i64,
-    socket_write_time_samples: i64,
-    file_read_time: i64,
-    file_read_time_samples: i64,
-    file_write_time: i64,
-    file_write_time_samples: i64,
-    socket_read_size: i64,
-    socket_read_size_samples: i64,
-    socket_write_size: i64,
-    socket_write_size_samples: i64,
-    file_read_size: i64,
-    file_read_size_samples: i64,
-    file_write_size: i64,
-    file_write_size_samples: i64,
-}
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
 const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
@@ -159,6 +130,8 @@ impl<'a> From<&'a Label> for ApiLabel<'a> {
     }
 }
 
+// todo: use this alias when libdatadog 21 is released.
+// pub type ValueType = datadog_profiling::api::ValueType<'static>;
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct ValueType {
     pub r#type: &'static str,
@@ -180,7 +153,7 @@ impl ValueType {
 /// Apache per-dir settings use different service name, etc.
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct ProfileIndex {
-    pub sample_types: Vec<ValueType>,
+    pub enabled_profiles: EnabledProfiles,
     pub tags: Arc<Vec<Tag>>,
 }
 
@@ -188,7 +161,7 @@ pub struct ProfileIndex {
 pub struct SampleData {
     pub frames: Vec<ZendFrame>,
     pub labels: Vec<Label>,
-    pub sample_values: Vec<i64>,
+    pub sample_values: SampleValues,
     pub timestamp: i64,
 }
 
@@ -241,7 +214,7 @@ pub struct Profiler {
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
-    sample_types_filter: SampleTypeFilter,
+    enabled_profiles: EnabledProfiles,
     system_settings: AtomicPtr<SystemSettings>,
 }
 
@@ -292,8 +265,8 @@ impl TimeCollector {
     fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
         let sample_types: Vec<ApiValueType> = message
             .key
-            .sample_types
-            .iter()
+            .enabled_profiles
+            .enabled_sample_types()
             .map(|sample_type| ApiValueType {
                 r#type: sample_type.r#type,
                 unit: sample_type.unit,
@@ -516,27 +489,34 @@ impl TimeCollector {
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
-        if message.key.sample_types.is_empty() {
+        if message.key.enabled_profiles.num_enabled_profiles() == 0 {
             // profiling disabled, this should not happen!
             warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
             return;
         }
 
-        let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
-            value
-        } else {
-            profiles.insert(
-                message.key.clone(),
-                Self::create_profile(&message, started_at.systemtime),
-            );
-            profiles
-                .get_mut(&message.key)
-                .expect("entry to exist; just inserted it")
-        };
+        if profiles.try_reserve(1).is_err() {
+            debug!("out of memory: couldn't create a new profile");
+        }
+        let profile = profiles
+            .entry(message.key.clone())
+            .or_insert_with(|| Self::create_profile(&message, started_at.systemtime));
 
         let mut locations = Vec::with_capacity(message.value.frames.len());
 
-        let values = message.value.sample_values;
+        let values = {
+            let iter = message
+                .key
+                .enabled_profiles
+                .filter(&message.value.sample_values);
+            let mut values = Vec::new();
+            if values.try_reserve_exact(iter.len()).is_err() {
+                debug!("out of memory: sample dropped");
+                return;
+            }
+            values.extend(iter);
+            values
+        };
         let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
         for frame in &message.value.frames {
@@ -708,7 +688,7 @@ impl Profiler {
             Utc::now(),
         );
 
-        let sample_types_filter = SampleTypeFilter::new(system_settings);
+        let enabled_profiles = EnabledProfiles::new(system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
@@ -723,7 +703,7 @@ impl Profiler {
                 trace!("thread {DDPROF_UPLOAD} complete, shutting down");
             }),
             should_join: AtomicBool::new(true),
-            sample_types_filter,
+            enabled_profiles,
             system_settings: AtomicPtr::new(system_settings),
         }
     }
@@ -1525,7 +1505,7 @@ impl Profiler {
     fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
-        samples: SampleValues,
+        sample_values: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
     ) -> SampleMessage {
@@ -1534,13 +1514,15 @@ impl Profiler {
         //  1. Nobody should be calling this when it's disabled anyway.
         //  2. It would require tracking more state and/or spending CPU on
         //     something that shouldn't be done anyway (see #1).
-        let sample_types = self.sample_types_filter.sample_types();
-        let sample_values = self.sample_types_filter.filter(samples);
+        let enabled_profiles = self.enabled_profiles.clone();
 
         let tags = TAGS.with_borrow(Arc::clone);
 
         SampleMessage {
-            key: ProfileIndex { sample_types, tags },
+            key: ProfileIndex {
+                enabled_profiles,
+                tags,
+            },
             value: SampleData {
                 frames,
                 labels,
@@ -1633,8 +1615,9 @@ mod tests {
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
+        let enabled_profiles = profiler.enabled_profiles;
         assert_eq!(
-            message.key.sample_types,
+            enabled_profiles.enabled_sample_types().collect::<Vec<_>>(),
             vec![
                 ValueType::new("sample", "count"),
                 ValueType::new("wall-time", "nanoseconds"),
@@ -1642,7 +1625,10 @@ mod tests {
                 ValueType::new("timeline", "nanoseconds"),
             ]
         );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
+        let sample_values = enabled_profiles
+            .filter(&message.value.sample_values)
+            .collect::<Vec<_>>();
+        assert_eq!(sample_values, vec![10, 20, 30, 60]);
         assert_eq!(message.value.timestamp, 900);
     }
 }

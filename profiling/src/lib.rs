@@ -2,6 +2,7 @@ pub mod bindings;
 pub mod capi;
 mod clocks;
 mod config;
+mod inlinevec;
 mod logging;
 pub mod profiling;
 mod pthread;
@@ -21,6 +22,7 @@ mod io;
 #[cfg(feature = "exception_profiling")]
 mod exception;
 
+mod bitset;
 #[cfg(feature = "timeline")]
 mod timeline;
 mod vec_ext;

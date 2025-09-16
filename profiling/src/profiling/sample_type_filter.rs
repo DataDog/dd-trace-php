@@ -1,17 +1,16 @@
 use crate::config::SystemSettings;
-use crate::profiling::{SampleValues, ValueType};
-
-const MAX_SAMPLE_TYPES: usize = 23;
+use crate::profiling::samples::{SampleValues, MAX_SAMPLE_VALUES};
+use crate::profiling::ValueType;
 
 pub struct SampleTypeFilter {
     sample_types: Vec<ValueType>,
-    sample_types_mask: [bool; MAX_SAMPLE_TYPES],
+    sample_types_mask: [bool; MAX_SAMPLE_VALUES],
 }
 
 impl SampleTypeFilter {
     pub fn new(system_settings: &SystemSettings) -> Self {
         // Lay this out in the same order as SampleValues.
-        static SAMPLE_TYPES: &[ValueType; MAX_SAMPLE_TYPES] = &[
+        static SAMPLE_TYPES: &[ValueType; MAX_SAMPLE_VALUES] = &[
             ValueType::new("sample", "count"),
             ValueType::new("wall-time", "nanoseconds"),
             ValueType::new("cpu-time", "nanoseconds"),
@@ -38,7 +37,7 @@ impl SampleTypeFilter {
         ];
 
         let mut sample_types = Vec::with_capacity(SAMPLE_TYPES.len());
-        let mut sample_types_mask = [false; MAX_SAMPLE_TYPES];
+        let mut sample_types_mask = [false; MAX_SAMPLE_VALUES];
 
         if system_settings.profiling_enabled {
             // sample, wall-time, cpu-time
@@ -120,7 +119,7 @@ impl SampleTypeFilter {
 
         // Lay this out in the same order as SampleValues.
         // Allows us to slice the SampleValues as if they were an array.
-        let values: [i64; MAX_SAMPLE_TYPES] = [
+        let values: [i64; MAX_SAMPLE_VALUES] = [
             sample_values.interrupt_count,
             sample_values.wall_time,
             sample_values.cpu_time,
