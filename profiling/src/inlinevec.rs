@@ -38,7 +38,7 @@ impl<T, const N: usize> InlineVec<T, N> {
 
     /// # Safety
     /// There must be unused capacity when called.
-    const unsafe fn push_unchecked(&mut self, value: T) {
+    pub const unsafe fn push_unchecked(&mut self, value: T) {
         self.as_mut_ptr().add(self.len()).write(value);
         self.len += 1;
     }

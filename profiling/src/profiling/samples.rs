@@ -5,7 +5,9 @@ use crate::bitset::BitSet;
 use crate::config::SystemSettings;
 use crate::inlinevec::InlineVec;
 use crate::profiling::ValueType;
+use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
+use std::mem::MaybeUninit;
 
 pub const MAX_SAMPLE_TYPES_PER_PROFILE: usize = 2;
 pub const MAX_SAMPLE_VALUES: usize = 23;
@@ -74,6 +76,7 @@ pub struct SampleValues {
 ///
 /// If the order of the enum is changed, or if variants are added or removed,
 /// then [`PROFILE_TYPES`] needs to be changed (or vice versa).
+#[derive(Clone, Copy, Debug)]
 #[repr(u8)]
 pub enum SampleValue {
     WallTime { nanoseconds: i64, count: i64 },
@@ -102,6 +105,22 @@ pub struct EnabledProfiles {
     /// information as the other bitset, just formatted for a different use
     /// case. This means this field isn't used in Eq + Hash.
     samples: BitSet,
+}
+
+/// Represents the samples taken, e.g. WallTime + CpuTime or Alloc. It does
+/// some space optimization to store discriminants separately from values.
+#[derive(Clone, Copy)]
+pub struct TakenSamples {
+    types: InlineVec<u8, 3>,
+    values: [(i64, MaybeUninit<i64>); 3],
+}
+
+/// IMPORTANT: must be transmutable to/from SampleValue! See:
+/// https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields
+#[repr(C)]
+struct RestructuredSample {
+    discriminant: u8,
+    value: (i64, MaybeUninit<i64>),
 }
 
 impl SampleValues {
@@ -436,6 +455,67 @@ impl<I: Iterator> ExactSizeIterator for SampleIter<I> {
     }
 }
 
+impl RestructuredSample {
+    const fn from(sample: SampleValue) -> RestructuredSample {
+        // SAFETY: same layout/repr and meaning.
+        unsafe { core::mem::transmute(sample) }
+    }
+
+    const fn to(self) -> SampleValue {
+        // SAFETY: same layout/repr and meaning.
+        unsafe { core::mem::transmute(self) }
+    }
+}
+
+impl TakenSamples {
+    pub const fn from_inlinevec(vec: InlineVec<SampleValue, 3>) -> TakenSamples {
+        let mut taken_samples = TakenSamples {
+            types: InlineVec::new(),
+            values: [(0, MaybeUninit::uninit()); 3],
+        };
+        let mut i = 0;
+        let n = vec.len();
+
+        while i != n {
+            let src = vec.as_slice()[i];
+            let restructured = RestructuredSample::from(src);
+            // SAFETY: sizes are bounded correctly
+            unsafe {
+                taken_samples
+                    .types
+                    .push_unchecked(restructured.discriminant)
+            };
+            taken_samples.values[i] = restructured.value;
+            i += 1;
+        }
+        taken_samples
+    }
+
+    pub const fn to_inlinevec(&self) -> InlineVec<SampleValue, 3> {
+        let mut vec = InlineVec::new();
+
+        let mut i = 0;
+        let n = self.types.len();
+
+        while i != n {
+            let src = RestructuredSample {
+                discriminant: self.types.as_slice()[i],
+                value: self.values[i],
+            };
+            // SAFETY: sizes are bounded correctly
+            unsafe { vec.push_unchecked(src.to()) };
+            i += 1;
+        }
+        vec
+    }
+}
+
+impl Debug for TakenSamples {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.to_inlinevec().fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -569,5 +649,147 @@ mod test {
             ]
         );
         assert_eq!(values, vec![10, 20, 30, 70]);
+    }
+
+    // "soa": structure of arrays e.g. struct { ts: [T; N], us: [U; N] }
+    // "soa" array of structures e.g. [struct { t: T, u: U}; N]
+    #[test]
+    fn unsafe_aos_to_soa() {
+        for i in 0..PROFILE_TYPES.len() {
+            let src = RestructuredSample {
+                discriminant: i as u8,
+                // Using different values distinguishes between fields.
+                // Avoid 0 because the impl initializes to 0.
+                value: (1, MaybeUninit::new(2)),
+            };
+            match src.to() {
+                SampleValue::WallTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::CpuTime { nanoseconds } => {
+                    assert_eq!(nanoseconds, 1);
+                }
+                SampleValue::Alloc { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::Timeline { nanoseconds } => {
+                    assert_eq!(nanoseconds, 1);
+                }
+                SampleValue::Exception { count } => {
+                    assert_eq!(count, 1);
+                }
+                SampleValue::FileIoReadTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::FileIoWriteTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::FileIoReadSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::FileIoWriteSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketReadTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketWriteTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketReadSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketWriteSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+            }
+        }
+    }
+
+    // "soa": structure of arrays e.g. struct { ts: [T; N], us: [U; N] }
+    // "soa" array of structures e.g. [struct { t: T, u: U}; N]
+    #[test]
+    fn unsafe_soa_to_soa() {
+        /// Since not every variant has both values, this trait says whether
+        /// the variant has the second or not.
+        trait HasU {
+            fn has_u(&self) -> bool;
+        }
+        impl HasU for SampleValue {
+            fn has_u(&self) -> bool {
+                match self {
+                    SampleValue::WallTime { .. } => true,
+                    SampleValue::CpuTime { .. } => false,
+                    SampleValue::Alloc { .. } => true,
+                    SampleValue::Timeline { .. } => false,
+                    SampleValue::Exception { .. } => false,
+                    SampleValue::FileIoReadTime { .. } => true,
+                    SampleValue::FileIoWriteTime { .. } => true,
+                    SampleValue::FileIoReadSize { .. } => true,
+                    SampleValue::FileIoWriteSize { .. } => true,
+                    SampleValue::SocketReadTime { .. } => true,
+                    SampleValue::SocketWriteTime { .. } => true,
+                    SampleValue::SocketReadSize { .. } => true,
+                    SampleValue::SocketWriteSize { .. } => true,
+                }
+            }
+        }
+
+        const T: i64 = 1;
+        const U: i64 = 2;
+        let cases = [
+            SampleValue::WallTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::CpuTime { nanoseconds: T },
+            SampleValue::Alloc { bytes: T, count: U },
+            SampleValue::Timeline { nanoseconds: T },
+            SampleValue::Exception { count: T },
+            SampleValue::FileIoReadTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::FileIoWriteTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::FileIoReadSize { bytes: T, count: U },
+            SampleValue::FileIoWriteSize { bytes: T, count: U },
+            SampleValue::SocketReadTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::SocketWriteTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::SocketReadSize { bytes: T, count: U },
+            SampleValue::SocketWriteSize { bytes: T, count: U },
+        ];
+
+        for src in cases {
+            let dst = RestructuredSample::from(src);
+            assert_eq!(dst.discriminant, src.discriminant() as u8);
+            assert_eq!(dst.value.0, T);
+
+            if src.has_u() {
+                let u = unsafe { dst.value.1.assume_init() };
+                assert_eq!(
+                    u, U,
+                    "Matching {src:?}'s aos form failed: expected {U}, saw {u:?}"
+                );
+            }
+        }
     }
 }

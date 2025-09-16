@@ -557,7 +557,7 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(1);
+        let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(2);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
