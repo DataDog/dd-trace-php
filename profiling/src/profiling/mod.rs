@@ -1,20 +1,15 @@
 mod interrupts;
-mod sample_type_filter;
 mod samples;
 pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
 pub use interrupts::*;
-pub use sample_type_filter::*;
+pub use samples::*;
 pub use stack_walking::*;
+
 use thread_utils::get_current_thread_name;
 use uploader::*;
-
-#[cfg(all(php_has_fibers, not(test)))]
-use crate::bindings::ddog_php_prof_get_active_fiber;
-#[cfg(all(php_has_fibers, test))]
-use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
@@ -38,6 +33,11 @@ use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime};
 
+#[cfg(all(php_has_fibers, not(test)))]
+use crate::bindings::ddog_php_prof_get_active_fiber;
+#[cfg(all(php_has_fibers, test))]
+use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
+
 #[cfg(feature = "timeline")]
 use core::{ptr, str};
 #[cfg(feature = "timeline")]
@@ -56,14 +56,13 @@ use crate::io::{
 
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
-use crate::profiling::samples::EnabledProfiles;
+
 #[cfg(any(
     feature = "allocation_profiling",
     feature = "exception_profiling",
     feature = "io_profiling"
 ))]
 use datadog_profiling::api::UpscalingInfo;
-use samples::SampleValues;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -162,6 +161,9 @@ pub struct SampleData {
     pub frames: Vec<ZendFrame>,
     pub labels: Vec<Label>,
     pub sample_values: SampleValues,
+    // It's 3 because there's one "main" profile type plus optionally the
+    // CPU and Wall samples
+    // pub sample_values: InlineVec<SampleValue, 3>,
     pub timestamp: i64,
 }
 

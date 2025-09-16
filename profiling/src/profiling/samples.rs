@@ -66,30 +66,30 @@ pub struct SampleValues {
     pub file_write_size_samples: i64,
 }
 
-// /// The sample values for a given profile type.
-// ///
-// /// The repr(u8) is valid even though this holds data larger than u8; see the
-// /// documentation on primitive representations:
-// /// https://doc.rust-lang.org/reference/type-layout.html#primitive-representations
-// ///
-// /// If the order of the enum is changed, or if variants are added or removed,
-// /// then [`PROFILE_TYPES`] needs to be changed (or vice versa)
-// #[repr(u8)]
-// pub enum SampleValue {
-//     WallTime { nanoseconds: i64, count: i64 },
-//     CpuTime { nanoseconds: i64 },
-//     Alloc { bytes: i64, count: i64 },
-//     Timeline { nanoseconds: i64 },
-//     Exception { count: i64 },
-//     FileIoReadTime { nanoseconds: i64, count: i64 },
-//     FileIoWriteTime { nanoseconds: i64, count: i64 },
-//     FileIoReadSize { bytes: i64, count: i64 },
-//     FileIoWriteSize { bytes: i64, count: i64 },
-//     SocketReadTime { nanoseconds: i64, count: i64 },
-//     SocketWriteTime { nanoseconds: i64, count: i64 },
-//     SocketReadSize { bytes: i64, count: i64 },
-//     SocketWriteSize { bytes: i64, count: i64 },
-// }
+/// The sample values for a given profile type.
+///
+/// The repr(u8) is valid even though this holds data larger than u8; see the
+/// documentation on primitive representations:
+/// https://doc.rust-lang.org/reference/type-layout.html#primitive-representations
+///
+/// If the order of the enum is changed, or if variants are added or removed,
+/// then [`PROFILE_TYPES`] needs to be changed (or vice versa).
+#[repr(u8)]
+pub enum SampleValue {
+    WallTime { nanoseconds: i64, count: i64 },
+    CpuTime { nanoseconds: i64 },
+    Alloc { bytes: i64, count: i64 },
+    Timeline { nanoseconds: i64 },
+    Exception { count: i64 },
+    FileIoReadTime { nanoseconds: i64, count: i64 },
+    FileIoWriteTime { nanoseconds: i64, count: i64 },
+    FileIoReadSize { bytes: i64, count: i64 },
+    FileIoWriteSize { bytes: i64, count: i64 },
+    SocketReadTime { nanoseconds: i64, count: i64 },
+    SocketWriteTime { nanoseconds: i64, count: i64 },
+    SocketReadSize { bytes: i64, count: i64 },
+    SocketWriteSize { bytes: i64, count: i64 },
+}
 
 /// Tracks which profile types are enabled. Since there are 1 or 2 sample
 /// types per profile, it also keeps a bitset for which sample types and
@@ -396,18 +396,18 @@ const SAMPLE_TYPE_FILE_IO_WRITE_SIZE: ProfileType = ProfileType::from([
     },
 ]);
 
-// impl SampleValue {
-//     pub fn discriminant(&self) -> usize {
-//         // SAFETY: SampleValue uses a primitive representation.
-//         let r#repr = unsafe { *(self as *const Self as *const u8) };
-//         r#repr as usize
-//     }
-//
-//     pub fn sample_types(&self) -> ProfileType {
-//         let discriminant = self.discriminant();
-//         PROFILE_TYPES[discriminant]
-//     }
-// }
+impl SampleValue {
+    pub fn discriminant(&self) -> usize {
+        // SAFETY: SampleValue uses a primitive representation.
+        let r#repr = unsafe { *(self as *const Self as *const u8) };
+        r#repr as usize
+    }
+
+    pub fn sample_types(&self) -> ProfileType {
+        let discriminant = self.discriminant();
+        PROFILE_TYPES[discriminant]
+    }
+}
 
 pub struct SampleIter<I: Iterator> {
     len: usize,
