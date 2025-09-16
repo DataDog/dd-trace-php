@@ -177,6 +177,10 @@ pub struct LocalRootSpanResourceMessage {
     pub resource: String,
 }
 
+// Allow large enum variant for now, because we're avoiding an allocation on
+// a hot path. The correct fix is probably to take some kind of
+// `InlineVec<SampleValue>` where `SampleValue` is an enum per profile type.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,

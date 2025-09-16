@@ -18,6 +18,13 @@ const fn assert_capacity(n: usize) {
         panic!("InlineVec only supports up to u8::MAX capacities");
     }
 }
+
+impl<T, const N: usize> Default for InlineVec<T, N> {
+    fn default() -> Self {
+        InlineVec::new()
+    }
+}
+
 impl<T, const N: usize> InlineVec<T, N> {
     pub const fn new() -> Self {
         assert_capacity(N);
@@ -146,7 +153,7 @@ impl<T, const N: usize> InlineVecIter<T, N> {
 impl<T, const N: usize> Drop for InlineVecIter<T, N> {
     fn drop(&mut self) {
         if core::mem::needs_drop::<T>() {
-            let base = unsafe { self.vec.as_mut_ptr() };
+            let base = self.vec.as_mut_ptr();
             for i in self.live_range() {
                 unsafe { base.add(i).drop_in_place() }
             }
@@ -232,7 +239,7 @@ mod tests {
 
     const TEST_INLINE_VEC: InlineVec<bool, 2> = {
         let mut vec = InlineVec::from([false]);
-        if let Err(e) = vec.try_push(true) {
+        if vec.try_push(true).is_err() {
             panic!("expected to be able push another item into the vec")
         }
         vec

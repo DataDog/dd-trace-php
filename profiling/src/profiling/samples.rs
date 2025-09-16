@@ -35,8 +35,9 @@ pub const PROFILE_TYPES: [ProfileType; NUM_PROFILE_TYPES] = [
 ///  1. Always enabled types.
 ///  2. On by default types.
 ///  3. Off by default types.
+///
 /// But this doesn't really matter anymore, because the number of sample types
-/// has grown.
+/// has grown and the optimizations used don't work well anymore.
 #[derive(Default, Debug)]
 #[repr(C)]
 pub struct SampleValues {
@@ -65,30 +66,30 @@ pub struct SampleValues {
     pub file_write_size_samples: i64,
 }
 
-/// The sample values for a given profile type.
-///
-/// The repr(u8) is valid even though this holds data larger than u8; see the
-/// documentation on primitive representations:
-/// https://doc.rust-lang.org/reference/type-layout.html#primitive-representations
-///
-/// If the order of the enum is changed, or if variants are added or removed,
-/// then [`PROFILE_TYPES`] needs to be changed.
-#[repr(u8)]
-pub enum SampleValue {
-    WallTime { nanoseconds: i64, count: i64 },
-    CpuTime { nanoseconds: i64 },
-    Alloc { bytes: i64, count: i64 },
-    Timeline { nanoseconds: i64 },
-    Exception { count: i64 },
-    FileIoReadTime { nanoseconds: i64, count: i64 },
-    FileIoWriteTime { nanoseconds: i64, count: i64 },
-    FileIoReadSize { bytes: i64, count: i64 },
-    FileIoWriteSize { bytes: i64, count: i64 },
-    SocketReadTime { nanoseconds: i64, count: i64 },
-    SocketWriteTime { nanoseconds: i64, count: i64 },
-    SocketReadSize { bytes: i64, count: i64 },
-    SocketWriteSize { bytes: i64, count: i64 },
-}
+// /// The sample values for a given profile type.
+// ///
+// /// The repr(u8) is valid even though this holds data larger than u8; see the
+// /// documentation on primitive representations:
+// /// https://doc.rust-lang.org/reference/type-layout.html#primitive-representations
+// ///
+// /// If the order of the enum is changed, or if variants are added or removed,
+// /// then [`PROFILE_TYPES`] needs to be changed (or vice versa)
+// #[repr(u8)]
+// pub enum SampleValue {
+//     WallTime { nanoseconds: i64, count: i64 },
+//     CpuTime { nanoseconds: i64 },
+//     Alloc { bytes: i64, count: i64 },
+//     Timeline { nanoseconds: i64 },
+//     Exception { count: i64 },
+//     FileIoReadTime { nanoseconds: i64, count: i64 },
+//     FileIoWriteTime { nanoseconds: i64, count: i64 },
+//     FileIoReadSize { bytes: i64, count: i64 },
+//     FileIoWriteSize { bytes: i64, count: i64 },
+//     SocketReadTime { nanoseconds: i64, count: i64 },
+//     SocketWriteTime { nanoseconds: i64, count: i64 },
+//     SocketReadSize { bytes: i64, count: i64 },
+//     SocketWriteSize { bytes: i64, count: i64 },
+// }
 
 /// Tracks which profile types are enabled. Since there are 1 or 2 sample
 /// types per profile, it also keeps a bitset for which sample types and
@@ -234,8 +235,8 @@ impl EnabledProfiles {
     pub fn filter<'a>(
         &self,
         sample_values: &'a SampleValues,
-    ) -> SampleIter<i64, impl Iterator<Item = i64> + 'a> {
-        let bitset = self.samples.clone();
+    ) -> SampleIter<impl Iterator<Item = i64> + 'a> {
+        let bitset = self.samples;
         let len = bitset.len();
         let iter =
             sample_values
@@ -252,9 +253,7 @@ impl EnabledProfiles {
         SampleIter { len, iter }
     }
 
-    pub fn enabled_profile_types<'a>(
-        &'a self,
-    ) -> SampleIter<ProfileType, impl Iterator<Item = ProfileType> + 'a> {
+    pub fn enabled_profile_types(&self) -> SampleIter<impl Iterator<Item = ProfileType> + '_> {
         let len = self.num_enabled_profiles();
         let iter = PROFILE_TYPES
             .iter()
@@ -265,9 +264,7 @@ impl EnabledProfiles {
         SampleIter { len, iter }
     }
 
-    pub fn enabled_sample_types<'a>(
-        &'a self,
-    ) -> SampleIter<ValueType, impl Iterator<Item = ValueType> + 'a> {
+    pub fn enabled_sample_types(&self) -> SampleIter<impl Iterator<Item = ValueType> + '_> {
         let len = self.num_enabled_sample_types();
         let iter = self.enabled_profile_types().flatten();
         SampleIter { len, iter }
@@ -399,28 +396,26 @@ const SAMPLE_TYPE_FILE_IO_WRITE_SIZE: ProfileType = ProfileType::from([
     },
 ]);
 
-impl SampleValue {
-    fn discriminant(&self) -> usize {
-        // SAFETY: SampleValue uses a primitive representation.
-        let r#repr = unsafe { *(self as *const Self as *const u8) };
-        r#repr as usize
-    }
-}
+// impl SampleValue {
+//     pub fn discriminant(&self) -> usize {
+//         // SAFETY: SampleValue uses a primitive representation.
+//         let r#repr = unsafe { *(self as *const Self as *const u8) };
+//         r#repr as usize
+//     }
+//
+//     pub fn sample_types(&self) -> ProfileType {
+//         let discriminant = self.discriminant();
+//         PROFILE_TYPES[discriminant]
+//     }
+// }
 
-impl SampleValue {
-    pub fn sample_types(&self) -> ProfileType {
-        let discriminant = self.discriminant();
-        PROFILE_TYPES[discriminant]
-    }
-}
-
-pub struct SampleIter<T, I: Iterator<Item = T>> {
+pub struct SampleIter<I: Iterator> {
     len: usize,
     iter: I,
 }
 
-impl<T, I: Iterator<Item = T>> Iterator for SampleIter<T, I> {
-    type Item = T;
+impl<I: Iterator> Iterator for SampleIter<I> {
+    type Item = I::Item;
     fn next(&mut self) -> Option<Self::Item> {
         let next = self.iter.next();
         if next.is_some() {
@@ -435,7 +430,7 @@ impl<T, I: Iterator<Item = T>> Iterator for SampleIter<T, I> {
     }
 }
 
-impl<T, I: Iterator<Item = T>> ExactSizeIterator for SampleIter<T, I> {
+impl<I: Iterator> ExactSizeIterator for SampleIter<I> {
     fn len(&self) -> usize {
         self.len
     }

@@ -1,20 +1,19 @@
 // Copyright 2025-Present Datadog, Inc. https://www.datadoghq.com/
 // SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
-use std::cell::Cell;
 use std::hash::{Hash, Hasher};
 
 /// Very simple bitset which doesn't allocate, and doesn't change after it has
 /// been created.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct BitSet {
-    bits: Cell<u32>,
+    bits: u32,
 }
 
 impl Hash for BitSet {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let bits = self.bits.get();
+        let bits = self.bits;
         bits.count_ones().hash(state);
         bits.hash(state);
     }
@@ -24,47 +23,25 @@ impl BitSet {
     pub const MAX: usize = u32::BITS as usize;
 
     /// Creates a new bitset from the provided number.
-    pub const fn new(bitset: u32) -> Self {
-        Self {
-            bits: Cell::new(bitset),
-        }
-    }
-
-    /// Creates a new bitset from the iterator.
-    ///
-    /// # Panics
-    ///
-    /// Panics if an item is out of the range of the bitset e.g. [`u32::MAX`].
-    pub fn from_iter<I: Iterator<Item = usize>>(iter: I) -> BitSet {
-        let mut bits = 0;
-        let mut insert = |bit| {
-            // todo: add non-panic API
-            assert!(bit < BitSet::MAX);
-            bits |= 1u32 << bit;
-        };
-        for bit in iter {
-            insert(bit);
-        }
-        BitSet {
-            bits: Cell::new(bits),
-        }
+    pub const fn new(bits: u32) -> Self {
+        Self { bits }
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.bits.get().count_ones() as usize
+        self.bits.count_ones() as usize
     }
 
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.bits.get() == 0
+        self.bits == 0
     }
 
     #[inline]
     pub fn contains(&self, bit: usize) -> bool {
         if bit < 32 {
             let mask = 1u32 << bit;
-            let masked = self.bits.get() & mask;
+            let masked = self.bits & mask;
             masked != 0
         } else {
             false
@@ -76,6 +53,26 @@ impl BitSet {
     }
 }
 
+impl FromIterator<usize> for BitSet {
+    /// Creates a new bitset from the iterator.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an item is out of the range of the bitset e.g. [`u32::MAX`].
+    fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> BitSet {
+        let mut bits = 0;
+        let mut insert = |bit| {
+            // todo: add non-panic API
+            assert!(bit < BitSet::MAX);
+            bits |= 1u32 << bit;
+        };
+        for bit in iter {
+            insert(bit);
+        }
+        BitSet { bits }
+    }
+}
+
 pub struct BitSetIter {
     bitset: u32,
     offset: u32,
@@ -84,7 +81,7 @@ pub struct BitSetIter {
 
 impl BitSetIter {
     pub fn new(bitset: &BitSet) -> BitSetIter {
-        let bitset = bitset.bits.get();
+        let bitset = bitset.bits;
         let offset = 0;
         let end = {
             let num_bits = u32::BITS;
@@ -233,9 +230,9 @@ mod tests {
             let bitset2 = BitSet::from_iter(shuffled.iter().cloned());
 
             prop_assert_eq!(
-                bitset1.clone(), bitset2.clone(),
+                bitset1, bitset2,
                 "Insertion order unexpectedly mattered, diff in binary: {:b} vs {:b}",
-                bitset1.bits.get(), bitset2.bits.get()
+                bitset1.bits, bitset2.bits
             );
         }
     }
