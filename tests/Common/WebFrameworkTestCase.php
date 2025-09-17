@@ -262,7 +262,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
             }
             $response = curl_exec($ch);
             if ($response === false && $i < 9) {
-                \curl_close($ch);
+                if (PHP_VERSION_ID < 80000) { curl_close($ch); }
                 // sleep for 100 milliseconds before trying again
                 \usleep(100 * 1000);
             } else {
@@ -281,12 +281,12 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
                 curl_error($ch),
                 curl_errno($ch)
             );
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
             $this->fail($message);
             return null;
         }
 
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
         return $response;
     }
