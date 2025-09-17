@@ -1161,12 +1161,13 @@ mod tests {
     }
 
     fn build_locals(service: &str, env: &str, version: &str, tags: Vec<Tag>) -> RequestLocals {
-        let mut locals = RequestLocals::default();
-        locals.service = Some(service.into());
-        locals.env = Some(env.into());
-        locals.version = Some(version.into());
-        locals.tags = tags;
-        locals
+        RequestLocals {
+            service: Some(service.into()),
+            env: Some(env.into()),
+            version: Some(version.into()),
+            tags,
+            ..Default::default()
+        }
     }
 
     fn expected_tags(globals: &[Tag], locals: &RequestLocals) -> Vec<Tag> {
@@ -1191,11 +1192,13 @@ mod tests {
     fn replace_tags_uses_new_when_old_empty() {
         let globals = vec![make_tag("global", "g1")];
 
-        let mut locals = RequestLocals::default();
-        locals.service = Some("svc".into());
-        locals.env = Some("prod".into());
-        locals.version = Some("1.2.3".into());
-        locals.tags = vec![make_tag("alpha", "beta")];
+        let locals = RequestLocals {
+            service: Some("svc".into()),
+            env: Some("prod".into()),
+            version: Some("1.2.3".into()),
+            tags: vec![make_tag("alpha", "beta")],
+            ..Default::default()
+        };
 
         let mut arc_tags: Arc<Vec<Tag>> = Arc::new(Vec::new());
 
@@ -1209,11 +1212,13 @@ mod tests {
     fn replace_tags_reuses_when_identical() {
         let globals = vec![make_tag("global", "g1")];
 
-        let mut locals = RequestLocals::default();
-        locals.service = Some("svc".into());
-        locals.env = Some("prod".into());
-        locals.version = Some("1.2.3".into());
-        locals.tags = vec![make_tag("alpha", "beta"), make_tag("foo", "bar")];
+        let locals = RequestLocals {
+            service: Some("svc".into()),
+            env: Some("prod".into()),
+            version: Some("1.2.3".into()),
+            tags: vec![make_tag("alpha", "beta"), make_tag("foo", "bar")],
+            ..Default::default()
+        };
 
         let initial = Arc::new(expected_tags(&globals, &locals));
         // Use a distinct Arc with identical contents; replace_tags should detect
@@ -1321,18 +1326,22 @@ mod tests {
         let globals = vec![make_tag("global", "g1")];
 
         // Old locals
-        let mut locals_old = RequestLocals::default();
-        locals_old.service = Some("svc".into());
-        locals_old.env = Some("prod".into());
-        locals_old.version = Some("1.2.3".into());
-        locals_old.tags = vec![make_tag("alpha", "beta")];
+        let locals_old = RequestLocals {
+            service: Some("svc".into()),
+            env: Some("prod".into()),
+            version: Some("1.2.3".into()),
+            tags: vec![make_tag("alpha", "beta")],
+            ..Default::default()
+        };
 
         // New locals with changed DD_TAGS and different length
-        let mut locals_new = RequestLocals::default();
-        locals_new.service = Some("svc".into());
-        locals_new.env = Some("prod".into());
-        locals_new.version = Some("1.2.3".into());
-        locals_new.tags = vec![make_tag("gamma", "delta"), make_tag("foo", "bar")];
+        let locals_new = RequestLocals {
+            service: Some("svc".into()),
+            env: Some("prod".into()),
+            version: Some("1.2.3".into()),
+            tags: vec![make_tag("gamma", "delta"), make_tag("foo", "bar")],
+            ..Default::default()
+        };
 
         let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
 
@@ -1407,21 +1416,23 @@ mod tests {
         version: Option<&str>,
         tags: Vec<(String, String)>,
     ) -> RequestLocals {
-        let mut locals = RequestLocals::default();
-        locals.service = service.map(|s| s.to_string());
-        locals.env = env.map(|s| s.to_string());
-        locals.version = version.map(|s| s.to_string());
-        locals.tags = tags_from_pairs(&tags);
-        locals
+        RequestLocals {
+            service: service.map(|s| s.to_string()),
+            env: env.map(|s| s.to_string()),
+            version: version.map(|s| s.to_string()),
+            tags: tags_from_pairs(&tags),
+            ..Default::default()
+        }
     }
 
     fn clone_locals_for_test(locals: &RequestLocals) -> RequestLocals {
-        let mut copy = RequestLocals::default();
-        copy.env = locals.env.clone();
-        copy.service = locals.service.clone();
-        copy.version = locals.version.clone();
-        copy.tags = locals.tags.clone();
-        copy
+        RequestLocals {
+            env: locals.env.clone(),
+            service: locals.service.clone(),
+            version: locals.version.clone(),
+            tags: locals.tags.clone(),
+            ..Default::default()
+        }
     }
 
     proptest! {
@@ -1499,21 +1510,24 @@ mod tests {
             // Keep counts the same, but change either unified value or one tag value
             let mut locals_new = clone_locals_for_test(&locals_old);
             if change_unified {
-                if s { locals_new.service = Some("svc_changed".into()); }
-                else if e { locals_new.env = Some("prod_changed".into()); }
-                else if v { locals_new.version = Some("1.2.4".into()); }
-                else {
+                if s {
+                    locals_new.service = Some("svc_changed".into());
+                } else if e {
+                    locals_new.env = Some("prod_changed".into());
+                } else if v {
+                    locals_new.version = Some("1.2.4".into());
                     // If none present, flip a tag value to ensure diff
-                    if let Some(first) = locals_new.tags.get_mut(0) {
-                        *first = make_tag("k0", "v0_changed");
-                    }
-                }
-            } else {
-                if let Some(first) = locals_new.tags.get_mut(0) {
+                } else if let Some(first) = locals_new.tags.get_mut(0) {
                     *first = make_tag("k0", "v0_changed");
-                } else if s { locals_new.service = Some("svc_changed".into()); }
-                else if e { locals_new.env = Some("prod_changed".into()); }
-                else if v { locals_new.version = Some("1.2.4".into()); }
+                }
+            } else if let Some(first) = locals_new.tags.get_mut(0) {
+                *first = make_tag("k0", "v0_changed");
+            } else if s {
+                locals_new.service = Some("svc_changed".into());
+            } else if e {
+                locals_new.env = Some("prod_changed".into());
+            } else if v {
+                locals_new.version = Some("1.2.4".into());
             }
 
             // Sanity: counts same
