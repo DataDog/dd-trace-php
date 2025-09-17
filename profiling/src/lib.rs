@@ -34,6 +34,7 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, c_void, CStr};
 use core::ptr;
+use std::env;
 use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace, warn};
@@ -77,14 +78,24 @@ static mut RUNTIME_PHP_VERSION: &str = {
 
 lazy_static! {
     static ref LAZY_STATICS_TAGS: Vec<Tag> = {
-        vec![
+        let mut tags = vec![
             tag!("language", "php"),
             tag!("profiler_version", env!("PROFILER_VERSION")),
             // SAFETY: calling getpid() is safe.
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        ]
+        ];
+        match env::var("DD_GIT_COMMIT_SHA") {
+            Ok(val) => tags.push(Tag::new("git.commit.sha", val).expect("DD_GIT_COMMIT_SHA to be valid")),
+            Err(_) => (),
+        }
+        // TODO filter username and password which could be in the url
+        match env::var("DD_GIT_REPOSITORY_URL") {
+            Ok(val) => tags.push(Tag::new("git.repository_url", val).expect("DD_GIT_REPOSITORY_URL to be valid")),
+            Err(_) => (),
+        }
+        tags
     };
 
     /// The Server API the profiler is running under.
