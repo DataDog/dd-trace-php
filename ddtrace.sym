@@ -1,3 +1,4 @@
+ddtrace_add_git_metadata_tags
 ddtrace_close_all_spans_and_flush
 ddtrace_get_formatted_session_id
 ddtrace_get_profiling_context

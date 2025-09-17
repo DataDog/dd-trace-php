@@ -567,7 +567,7 @@ void ddtrace_sidecar_activate(void) {
     } ZEND_HASH_FOREACH_END();
 }
 
-void ddtrace_sidecar_rinit(void) {
+DDTRACE_PUBLIC void ddtrace_add_git_metadata_tags(ddog_Vec_Tag *vec) {
     if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
         zval git_object;
         ZVAL_UNDEF(&git_object);
@@ -575,17 +575,20 @@ void ddtrace_sidecar_rinit(void) {
         if (Z_TYPE(git_object) == IS_OBJECT) {
             ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ(git_object);
             if (Z_TYPE(git_metadata->property_commit) == IS_STRING) {
-                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.commit.sha"),
+                UNUSED(ddog_Vec_Tag_push(vec, DDOG_CHARSLICE_C("git.commit.sha"),
                                          dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_commit))));
             }
             if (Z_TYPE(git_metadata->property_repository) == IS_STRING) {
-                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.repository_url"),
+                UNUSED(ddog_Vec_Tag_push(vec, DDOG_CHARSLICE_C("git.repository_url"),
                                          dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_repository))));
             }
             OBJ_RELEASE(&git_metadata->std);
         }
     }
+}
 
+void ddtrace_sidecar_rinit(void) {
+    ddtrace_add_git_metadata_tags(&DDTRACE_G(active_global_tags));
     ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, NULL);
 }
 

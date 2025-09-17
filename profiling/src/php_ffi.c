@@ -28,6 +28,14 @@ static void locate_ddtrace_get_profiling_context(const zend_extension *extension
     }
 }
 
+static void locate_ddtrace_add_git_metadata_tags(const zend_extension *extension) {
+    void (*add_git_metadata)(void *) =
+        DL_FETCH_SYMBOL(extension->handle, "ddtrace_add_git_metadata_tags");
+    if (EXPECTED(add_git_metadata)) {
+        ddtrace_add_git_metadata_tags = add_git_metadata;
+    }
+}
+
 static bool is_ddtrace_extension(const zend_extension *ext) {
     return ext && ext->name && strcmp(ext->name, "ddtrace") == 0;
 }
@@ -150,6 +158,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
+            locate_ddtrace_add_git_metadata_tags(maybe_ddtrace);
             locate_ddtrace_runtime_id(maybe_ddtrace);
             break;
         }
@@ -171,6 +180,8 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
 
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
     noop_get_profiling_context;
+
+void (*ddtrace_add_git_metadata_tags)(void *tags) = NULL;
 
 void datadog_php_profiling_install_internal_function_handler(
     datadog_php_profiling_internal_function_handler handler) {

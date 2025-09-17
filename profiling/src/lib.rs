@@ -28,8 +28,8 @@ mod vec_ext;
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
-    self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
-    ZendResult,
+    self as zend, ddog_php_add_git_metadata_tags, ddog_php_prof_php_version,
+    ddog_php_prof_php_version_id, ZendExtension, ZendResult
 };
 use clocks::*;
 use core::ffi::{c_char, c_int, c_void, CStr};
@@ -78,24 +78,26 @@ static mut RUNTIME_PHP_VERSION: &str = {
 
 lazy_static! {
     static ref LAZY_STATICS_TAGS: Vec<Tag> = {
-        let mut tags = vec![
+        vec![
             tag!("language", "php"),
             tag!("profiler_version", env!("PROFILER_VERSION")),
             // SAFETY: calling getpid() is safe.
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        ];
-        match env::var("DD_GIT_COMMIT_SHA") {
-            Ok(val) => tags.push(Tag::new("git.commit.sha", val).expect("DD_GIT_COMMIT_SHA to be valid")),
-            Err(_) => (),
-        }
-        // TODO filter username and password which could be in the url
-        match env::var("DD_GIT_REPOSITORY_URL") {
-            Ok(val) => tags.push(Tag::new("git.repository_url", val).expect("DD_GIT_REPOSITORY_URL to be valid")),
-            Err(_) => (),
-        }
-        tags
+        ]
+    };
+
+    static ref DD_GIT_COMMIT_SHA_TAG: Option<Tag> = {
+        env::var("DD_GIT_COMMIT_SHA").ok().map(|val| {
+            Tag::new("git.commit.sha", val).expect("DD_GIT_COMMIT_SHA to be valid")
+        })
+    };
+
+    static ref DD_GIT_REPOSITORY_URL_TAG: Option<Tag> = {
+        env::var("DD_GIT_REPOSITORY_URL").ok().map(|val| {
+            Tag::new("git.repository_url", val).expect("DD_GIT_REPOSITORY_URL to be valid")
+        })
     };
 
     /// The Server API the profiler is running under.
@@ -675,6 +677,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
+                if !ddog_php_add_git_metadata_tags(&mut tags) {
+                    if let Some(tag) = DD_GIT_COMMIT_SHA_TAG.as_ref() {
+                        tags.push(tag.clone());
+                    }
+                    if let Some(tag) = DD_GIT_REPOSITORY_URL_TAG.as_ref() {
+                        tags.push(tag.clone());
+                    }
+                }
                 // This should probably be "language_version", but this is the
                 // standardized tag name.
                 // SAFETY: PHP_VERSION is safe to access in rinit (only

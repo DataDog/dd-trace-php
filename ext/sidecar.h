@@ -20,6 +20,8 @@ struct telemetry_rc_info {
 };
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 
+DDTRACE_PUBLIC void ddtrace_add_git_metadata_tags(ddog_Vec_Tag *vec);
+
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);

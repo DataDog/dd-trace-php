@@ -10,6 +10,7 @@ use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::sync::atomic::AtomicBool;
 use std::{ptr, str};
+use ddcommon::tag::Tag;
 
 extern "C" {
     pub static ddog_php_prof_functions: *const zend_function_entry;
@@ -702,6 +703,17 @@ pub struct ZaiConfigMemoizedEntry {
             stage: c_int,
         ) -> c_int,
     >,
+}
+
+pub fn ddog_php_add_git_metadata_tags(tags: &mut Vec<Tag>) -> bool {
+    unsafe {
+        if let Some(add_metadata) = ddtrace_add_git_metadata_tags {
+            add_metadata(tags.as_ptr() as *mut c_void);
+            true
+        } else {
+            false
+        }
+    }
 }
 
 #[cfg(test)]

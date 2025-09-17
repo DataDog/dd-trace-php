@@ -89,6 +89,12 @@ typedef struct ddtrace_profiling_context_s {
 extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void);
 
 /**
+ * A pointer to the tracer's ddtrace_add_git_metadata_tags function if it was
+ * found, otherwise is NULL. This actually takes a &mut Vec<Tag> as argument.
+ */
+extern void (*ddtrace_add_git_metadata_tags)(void *tags);
+
+/**
  * Called by this zend_extension's .startup handler. Does things that are
  * burdensome in Rust, like locating the ddtrace extension in the module
  * registry and finding the ddtrace_get_profiling_context function.
