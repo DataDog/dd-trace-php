@@ -1,7 +1,6 @@
 #include "span.h"
 
 #include <SAPI.h>
-#include <Zend/zend_portability.h>
 #include "components-rs/sidecar.h"
 #include "priority_sampling/priority_sampling.h"
 #include <time.h>
@@ -864,11 +863,8 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         zend_execute_data *execute_data = EG(current_execute_data);
         ddtrace_maybe_add_code_origin_information(span, execute_data && EX(func) && !ZEND_USER_CODE(EX(func)->type));
 
-        if (get_DD_TRACE_RESOURCE_RENAMING_ENABLED() && get_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-            // the purpose is client-computed stats for /v0.6/stats, so sidecar is required
-            uintptr_t offset = XtOffsetOf(ddtrace_root_span_data, span);
-            ddtrace_root_span_data *root_span = (ddtrace_root_span_data *)((char *)span - offset);
-            ddtrace_maybe_add_guessed_endpoint_tag(root_span);
+        if (get_DD_TRACE_RESOURCE_RENAMING_ENABLED()) {
+            ddtrace_maybe_add_guessed_endpoint_tag(ROOTSPANDATA(&span->std));
         }
     }
 

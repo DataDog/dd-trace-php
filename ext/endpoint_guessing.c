@@ -67,6 +67,9 @@ static inline uint8_t bool_to_mask(bool x) {
 }
 
 static component_type_t component_replacement(const char* path, size_t len) {
+    // should not be called with an empty path
+    ZEND_ASSERT(len > 0);
+
     uint8_t viable_components = 0x1F;  // (COMPONENT_IS_STR << 1) - 1
     bool found_special_char = false;
     bool found_digit = false;
@@ -79,26 +82,9 @@ static component_type_t component_replacement(const char* path, size_t len) {
         viable_components &= ~(COMPONENT_IS_HEX | COMPONENT_IS_HEX_ID);
     }
 
-    // handle the first char: is_int does not allow a leading 0
-    if (len > 0) {
-        char c = path[0];
-        found_special_char = found_special_char || is_str_special(c);
-        found_digit = found_digit || is_digit(c);
-
-        uint8_t digit_mask = bool_to_mask(is_digit(c)) & (COMPONENT_IS_INT_ID | COMPONENT_IS_HEX | COMPONENT_IS_HEX_ID);
-
-        // first char for is_int must be 1–9
-        uint8_t is_int_mask = bool_to_mask(is_nonzero_digit(c)) & COMPONENT_IS_INT;
-
-        uint8_t hex_alpha_mask = bool_to_mask(is_hex_alpha(c)) & (COMPONENT_IS_HEX | COMPONENT_IS_HEX_ID);
-
-        uint8_t delimiter_mask = bool_to_mask(is_delim(c)) & (COMPONENT_IS_INT_ID | COMPONENT_IS_HEX_ID);
-
-        viable_components &= (digit_mask | is_int_mask | hex_alpha_mask | delimiter_mask | COMPONENT_IS_STR);
-    }
-
-    // Process remaining characters
-    for (size_t i = 1; i < len; ++i) {
+    // is_int does not allow a leading 0
+    viable_components &= ~((path[0] == '0') & COMPONENT_IS_INT);
+    for (size_t i = 0; i < len; ++i) {
         char c = path[i];
         found_special_char = found_special_char || is_str_special(c);
         found_digit = found_digit || is_digit(c);
@@ -219,19 +205,14 @@ void ddtrace_maybe_add_guessed_endpoint_tag(ddtrace_root_span_data *span)
         }
     }
 
-    zval endpoint_zv;
-
-    zval *url = zend_hash_str_find(meta, ZEND_STRL("http.url"));
-    if (!url || Z_TYPE_P(url) != IS_STRING) {
-        // "In case the url is not available, a default value of / should be used for the endpoint tag."
-        ZVAL_STRING(&endpoint_zv, "/");
-    } else {
-        zend_string* endpoint = guess_endpoint(Z_STRVAL_P(url), Z_STRLEN_P(url));
-        ZVAL_STR(&endpoint_zv, endpoint);
-    }
-
-    if (zend_hash_str_add(meta, ZEND_STRL("http.endpoint"), &endpoint_zv) == NULL) {
-        zval_dtor(&endpoint_zv);
-        return;
+    zval* endpoint;
+    if ((endpoint = zend_hash_str_add(meta, ZEND_STRL("http.endpoint"), &(zval){0}))) {
+        zval* url = zend_hash_str_find_deref(meta, ZEND_STRL("http.url"));
+        if (!url || Z_TYPE_P(url) != IS_STRING) {
+            // "In case the url is not available, a default value of / should be used for the endpoint tag."
+            ZVAL_STRING(endpoint, "/");
+        } else {
+            ZVAL_STR(endpoint, guess_endpoint(Z_STRVAL_P(url), Z_STRLEN_P(url)));
+        }
     }
 }
