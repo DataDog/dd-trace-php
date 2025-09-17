@@ -21,7 +21,7 @@ class PrivateCallbackRequest
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HEADERFUNCTION, __CLASS__ . '::parseResponseHeaders');
         $response = curl_exec($ch);
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         return $response;
     }
 }
@@ -79,7 +79,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertSame('', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -104,7 +104,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertSame('', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -129,7 +129,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertStringContains('my_user', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -155,7 +155,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertStringContains('my_user', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -234,7 +234,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertSame('', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -258,7 +258,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_URL, "http://10.255.255.1/");
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, 100);
             curl_exec($ch);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -285,7 +285,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_URL, "http://10.255.255.1/");
             curl_setopt($ch, CURLOPT_TIMEOUT_MS, 100);
             curl_exec($ch);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -312,7 +312,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertFalse($response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -456,7 +456,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertSame('', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -487,7 +487,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertSame('', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -696,7 +696,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertSame('', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
@@ -728,7 +728,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $response = curl_exec($ch);
             $this->assertSame('', $response);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         });
 
         $this->assertSpans($traces, [
