@@ -132,6 +132,8 @@ stages:
           - test8.3-release-zts
           - test8.4-release
           - test8.4-release-zts
+          - test8.5-release
+          - test8.5-release-zts
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
   script:
