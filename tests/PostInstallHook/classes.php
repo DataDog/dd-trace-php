@@ -111,7 +111,7 @@ class Response
         if (!$response) {
             $errorCode = curl_errno($ch);
             $error = curl_error($ch);
-            curl_close($ch);
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
             rewind($verbose);
             printf(
@@ -126,7 +126,7 @@ class Response
             );
             exit(1);
         }
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         $this->status = json_decode($response, true);
         if (
             !$this->status
