@@ -210,6 +210,18 @@ will compare the tracer's output with the generated snapshot file.
 Always ensure that the generated snapshot file contains the expected output before committing it. It is important to
 review the snapshot file to maintain the accuracy of the tests.
 
+## Creating a New Integration
+
+1. ``cp -r src/DDTrace/Integrations/Kafka src/DDTrace/Integrations/<IntegrationName>``
+2. ``mv src/DDTrace/Integrations/<IntegrationName>/KafkaIntegration.php src/DDTrace/Integrations/<IntegrationName>/<IntegrationName>Integration.php``
+3. Edit ``<IntegrationName>Integration.php`` as appropriate for the integrated library
+4. ``cp -r tests/Integrations/Kafka tests/Integrations/<IntegrationName>``
+5. ``mv tests/Integrations/<IntegrationName>/KafkaTest.php tests/Integrations/<IntegrationName>/<IntegrationName>Test.php``
+6. Edit ``<IntegrationName>Test.php`` as appropriate for the integrated library
+7. Add an entry to ``Makefile`` copying the definition of ``test_integrations_kafka``
+8. Copypaste and update lines related to ``INTEGRATIONS_KAFKA`` in ``ext/integrations/integrations.c`` and ``ext/integrations/integrations.h``.
+9. Update the test suites defined in the ``Makefile`` to include your new tests. This will cause the new tests to run in CI.
+
 ## Sending a pull request (PR)
 
 There are a number of checks that are run automatically with [CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master) when a PR is submitted. To ensure your PHP code changes pass the CircleCI checks, make sure to run all the same checks before submitting a PR.
