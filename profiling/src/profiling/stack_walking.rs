@@ -118,7 +118,8 @@ fn opline_in_bounds(op_array: &zend_op_array, opline: *const zend_op) -> bool {
     }
 
     let begin = opcodes_start as usize;
-    let end = begin + (op_array.last as usize);
+    // `op_array.last` is a count of `zend_op` sized elements to be found in `op_array.opcodes`
+    let end = begin + (op_array.last as usize) * core::mem::size_of::<zend_op>();
     (begin..end).contains(&(opline as usize))
 }
 
