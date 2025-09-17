@@ -13,7 +13,6 @@ use uploader::*;
 
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
-use crate::inlinevec::InlineVec;
 use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
@@ -101,7 +100,7 @@ impl WallTime {
 #[derive(Debug, Clone)]
 pub enum LabelValue {
     Str(Cow<'static, str>),
-    Num(i64, &'static str),
+    Num(i64),
 }
 
 #[derive(Debug, Clone)]
@@ -120,11 +119,11 @@ impl<'a> From<&'a Label> for ApiLabel<'a> {
                 num: 0,
                 num_unit: "",
             },
-            LabelValue::Num(num, num_unit) => Self {
+            LabelValue::Num(num) => Self {
                 key,
                 str: "",
                 num,
-                num_unit,
+                num_unit: "",
             },
         }
     }
@@ -1313,11 +1312,11 @@ impl Profiler {
         #[cfg(php_gc_status)]
         labels.push(Label {
             key: "gc runs",
-            value: LabelValue::Num(runs, "count"),
+            value: LabelValue::Num(runs),
         });
         labels.push(Label {
             key: "gc collected",
-            value: LabelValue::Num(collected, "count"),
+            value: LabelValue::Num(collected),
         });
         let n_labels = labels.len();
 
@@ -1451,7 +1450,7 @@ impl Profiler {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
             key: "thread id",
-            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id"),
+            value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }),
         });
 
         labels.push(Label {
@@ -1470,12 +1469,12 @@ impl Profiler {
 
             labels.push(Label {
                 key: "local root span id",
-                value: LabelValue::Num(local_root_span_id, ""),
+                value: LabelValue::Num(local_root_span_id),
             });
 
             labels.push(Label {
                 key: "span id",
-                value: LabelValue::Num(span_id, ""),
+                value: LabelValue::Num(span_id),
             });
         }
 

@@ -29,6 +29,7 @@ mod exception;
 mod timeline;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
+use crate::inlinevec::InlineVec;
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
@@ -79,16 +80,32 @@ static mut RUNTIME_PHP_VERSION: &str = {
 };
 
 lazy_static! {
-    static ref LAZY_STATICS_TAGS: Vec<Tag> = {
-        vec![
-            tag!("language", "php"),
-            tag!("profiler_version", env!("PROFILER_VERSION")),
-            // SAFETY: calling getpid() is safe.
-            Tag::new("process_id", unsafe { libc::getpid() }.to_string())
-                .expect("process_id tag to be valid"),
-            Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        ]
-    };
+    // Do not call until RINIT!
+    static ref GLOBAL_TAGS: [Tag; 7] = [
+        tag!("language", "php"),
+        // This should probably be "language_version", but this is the
+        // standardized tag name.
+        // SAFETY: safe to access in rinit (mutated only in minit).
+        Tag::new("runtime_version", unsafe { RUNTIME_PHP_VERSION }).expect("runtime-version tag to be valid"),
+        tag!("profiler_version", env!("PROFILER_VERSION")),
+        // In case we ever add PHP debug build support, we should add
+        // `zend-zts-debug` and `zend-nts-debug`. For the time being we only
+        // support `zend-zts-ndebug` and `zend-nts-ndebug`.
+        tag!(
+            "runtime_engine",
+            if cfg!(php_zts) {
+                "zend-zts-ndebug"
+            } else {
+                "zend-nts-ndebug"
+            }
+        ),
+        Tag::new("php.sapi", SAPI.as_ref()).expect("php.sapi tag to be valid"),
+        // SAFETY: calling getpid() is safe.
+        Tag::new("process_id", unsafe { libc::getpid() }.to_string())
+            .expect("process_id tag to be valid"),
+        Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
+
+    ];
 
     /// The Server API the profiler is running under.
     static ref SAPI: Sapi = {
@@ -662,28 +679,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             let wall_time_enabled = system_settings.profiling_wall_time_enabled;
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
-            TAGS.set({
-                let mut tags = LAZY_STATICS_TAGS.clone();
-                add_optional_tag(&mut tags, "service", &locals.service);
-                add_optional_tag(&mut tags, "env", &locals.env);
-                add_optional_tag(&mut tags, "version", &locals.version);
-                // This should probably be "language_version", but this is the
-                // standardized tag name.
-                // SAFETY: PHP_VERSION is safe to access in rinit (only
-                // mutated during minit).
-                add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-                add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-                // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
-                // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-                // `zend-nts-ndebug`
-                let runtime_engine = if cfg!(php_zts) {
-                    "zend-zts-ndebug"
-                } else {
-                    "zend-nts-ndebug"
-                };
-                add_tag(&mut tags, "runtime_engine", runtime_engine);
-                tags.extend_from_slice(&locals.tags);
-                Arc::new(tags)
+            // If the tags can't be borrowed, they'll just stay the same.
+            _ = TAGS.try_with_borrow_mut(|old_tags| {
+                replace_tags(old_tags, GLOBAL_TAGS.as_slice(), locals)
             });
 
             // Only add interrupt if cpu- or wall-time is enabled.
@@ -715,20 +713,65 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Option<T>) {
-    if let Some(value) = value {
-        add_tag(tags, key, value.as_ref());
+/// Replaces the current tags if the unified service tags or DD_TAGS have
+/// changed from the last request on this thread. Always replaces on the first
+/// request per thread.
+fn replace_tags(old_tags: &mut Arc<Vec<Tag>>, globals: &[Tag], locals: &RequestLocals) {
+    // Try and be smart and only recreate tags if locals.tags (aka DD_TAGS) or
+    // unified service tags have changed. This relies on the implementation
+    // always adding tags in the same order:
+    //  1. Globals e.g. process id, runtime id, language, lang version, etc.
+    //  2. Unified service tags e.g. DD_SERIVCE, DD_ENV, DD_VERSION.
+    //  3. Locals e.g. DD_TAGS.
+    // Note that I'd prefer a different order (globals, locals, unified) but
+    // this might change the precedence of DD_TAGS and DD_SERVICE if someone
+    // sets both e.g. DD_TAGS="service:foo" DD_SERVICE="bar". I haven't done
+    // the homework to see if that's okay to change, so I'm not changing it.
+    let mut unified: InlineVec<Tag, 3> = InlineVec::new();
+    add_optional_tag(&mut unified, "service", &locals.service);
+    add_optional_tag(&mut unified, "env", &locals.env);
+    add_optional_tag(&mut unified, "version", &locals.version);
+
+    let n_tags = globals.len() + unified.len() + locals.tags.len();
+    // Do more eq checks only if the tag lengths aren't the same. On the first
+    // request, old_tags.len() will be 0, for instance, but if service, env,
+    // version, or DD_TAGS change between requests, then we will do more
+    // advanced detection.
+    if old_tags.len() == n_tags {
+        // We can skip globals, those don't change. Start with unified service
+        // tags instead.
+        let slice = &old_tags[globals.len()..];
+        let (middle, end) = slice.split_at(unified.len());
+        if middle == unified.as_slice() && end == locals.tags.as_slice() {
+            return;
+        }
+    }
+
+    let mut new_tags = Vec::new();
+    new_tags.reserve_exact(n_tags);
+    new_tags.extend_from_slice(globals);
+    new_tags.extend_from_slice(unified.as_slice());
+    new_tags.extend_from_slice(locals.tags.as_slice());
+
+    if let Some(tags) = Arc::get_mut(old_tags) {
+        *tags = new_tags;
+    } else {
+        *old_tags = Arc::new(new_tags);
     }
 }
 
-fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
-    assert!(!value.is_empty());
-    match Tag::new(key, value) {
-        Ok(tag) => {
-            tags.push(tag);
-        }
-        Err(err) => {
-            warn!("invalid tag: {err}");
+fn add_optional_tag(tags: &mut InlineVec<Tag, 3>, key: &str, value: &Option<String>) {
+    if let Some(value) = value {
+        assert!(!value.is_empty());
+        match Tag::new(key, value) {
+            Ok(tag) => {
+                if tags.try_push(tag).is_err() {
+                    warn!("storage full: couldn't add tag \"{key}:{value}\"");
+                }
+            }
+            Err(err) => {
+                warn!("invalid tag: {err}");
+            }
         }
     }
 }
@@ -1100,5 +1143,509 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
 
     if let Err(err) = result {
         debug!("tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+    use std::sync::Arc;
+
+    fn make_tag(key: &str, value: &str) -> Tag {
+        Tag::new(key, value).expect("tag must be valid")
+    }
+
+    fn globals_g1() -> Vec<Tag> {
+        vec![make_tag("global", "g1")]
+    }
+
+    fn build_locals(service: &str, env: &str, version: &str, tags: Vec<Tag>) -> RequestLocals {
+        let mut locals = RequestLocals::default();
+        locals.service = Some(service.into());
+        locals.env = Some(env.into());
+        locals.version = Some(version.into());
+        locals.tags = tags;
+        locals
+    }
+
+    fn expected_tags(globals: &[Tag], locals: &RequestLocals) -> Vec<Tag> {
+        let mut expected: Vec<Tag> = Vec::with_capacity(locals.tags.len() + 3);
+        expected.extend(globals.iter().cloned());
+
+        if let Some(service) = &locals.service {
+            expected.push(make_tag("service", service));
+        }
+        if let Some(env) = &locals.env {
+            expected.push(make_tag("env", env));
+        }
+        if let Some(version) = &locals.version {
+            expected.push(make_tag("version", version));
+        }
+
+        expected.extend(locals.tags.iter().cloned());
+        expected
+    }
+
+    #[test]
+    fn replace_tags_uses_new_when_old_empty() {
+        let globals = vec![make_tag("global", "g1")];
+
+        let mut locals = RequestLocals::default();
+        locals.service = Some("svc".into());
+        locals.env = Some("prod".into());
+        locals.version = Some("1.2.3".into());
+        locals.tags = vec![make_tag("alpha", "beta")];
+
+        let mut arc_tags: Arc<Vec<Tag>> = Arc::new(Vec::new());
+
+        replace_tags(&mut arc_tags, &globals, &locals);
+
+        let expected = expected_tags(&globals, &locals);
+        assert_eq!(arc_tags.as_slice(), expected.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_reuses_when_identical() {
+        let globals = vec![make_tag("global", "g1")];
+
+        let mut locals = RequestLocals::default();
+        locals.service = Some("svc".into());
+        locals.env = Some("prod".into());
+        locals.version = Some("1.2.3".into());
+        locals.tags = vec![make_tag("alpha", "beta"), make_tag("foo", "bar")];
+
+        let initial = Arc::new(expected_tags(&globals, &locals));
+        // Use a distinct Arc with identical contents; replace_tags should detect
+        // equality and leave the Arc allocation untouched.
+        let mut arc_tags = Arc::new(initial.as_ref().clone());
+        let before_ptr = Arc::as_ptr(&arc_tags);
+        replace_tags(&mut arc_tags, &globals, &locals);
+
+        // Should be unchanged and reuse the same Arc allocation
+        assert_eq!(Arc::as_ptr(&arc_tags), before_ptr);
+        assert_eq!(arc_tags.as_slice(), initial.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_updates_when_only_service_changes() {
+        let globals = globals_g1();
+
+        let env = "prod";
+        let version = "1.2.3";
+        let tags = vec![make_tag("alpha", "beta")];
+
+        let locals_old = build_locals("svc-a", env, version, tags.clone());
+        let locals_new = build_locals("svc-b", env, version, tags);
+
+        let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+
+        replace_tags(&mut arc_tags, &globals, &locals_new);
+
+        let expected_new = expected_tags(&globals, &locals_new);
+        assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_updates_when_only_env_changes() {
+        let globals = globals_g1();
+
+        let service = "svc";
+        let version = "1.2.3";
+        let tags = vec![make_tag("alpha", "beta")];
+
+        let locals_old = build_locals(service, "prod-a", version, tags.clone());
+        let locals_new = build_locals(service, "prod-b", version, tags);
+
+        let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+
+        replace_tags(&mut arc_tags, &globals, &locals_new);
+
+        let expected_new = expected_tags(&globals, &locals_new);
+        assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_updates_when_only_version_changes() {
+        let globals = globals_g1();
+
+        let service = "svc";
+        let env = "prod";
+        let tags = vec![make_tag("alpha", "beta")];
+
+        let locals_old = build_locals(service, env, "1.2.3", tags.clone());
+        let locals_new = build_locals(service, env, "2.0.0", tags);
+
+        let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+
+        replace_tags(&mut arc_tags, &globals, &locals_new);
+
+        let expected_new = expected_tags(&globals, &locals_new);
+        assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_updates_when_dd_tags_change_same_len() {
+        let globals = globals_g1();
+
+        let service = "svc";
+        let env = "prod";
+        let version = "1.2.3";
+
+        // Old locals with two DD_TAGS
+        let locals_old = build_locals(
+            service,
+            env,
+            version,
+            vec![make_tag("alpha", "beta"), make_tag("foo", "bar")],
+        );
+
+        // New locals with same number of DD_TAGS but different values
+        let locals_new = build_locals(
+            service,
+            env,
+            version,
+            vec![make_tag("alpha", "BETA"), make_tag("foo", "BAR")],
+        );
+
+        let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+
+        replace_tags(&mut arc_tags, &globals, &locals_new);
+
+        let expected_new = expected_tags(&globals, &locals_new);
+        assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_updates_when_dd_tags_change_diff_len() {
+        let globals = vec![make_tag("global", "g1")];
+
+        // Old locals
+        let mut locals_old = RequestLocals::default();
+        locals_old.service = Some("svc".into());
+        locals_old.env = Some("prod".into());
+        locals_old.version = Some("1.2.3".into());
+        locals_old.tags = vec![make_tag("alpha", "beta")];
+
+        // New locals with changed DD_TAGS and different length
+        let mut locals_new = RequestLocals::default();
+        locals_new.service = Some("svc".into());
+        locals_new.env = Some("prod".into());
+        locals_new.version = Some("1.2.3".into());
+        locals_new.tags = vec![make_tag("gamma", "delta"), make_tag("foo", "bar")];
+
+        let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+
+        replace_tags(&mut arc_tags, &globals, &locals_new);
+
+        let expected_new = expected_tags(&globals, &locals_new);
+        assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_updates_when_unified_len_increases() {
+        let globals = globals_g1();
+
+        let service = "svc";
+        let tags = vec![make_tag("alpha", "beta")];
+
+        // Old locals have only service (unified len = 1)
+        let locals_old = build_locals(service, "", "", tags.clone());
+        // But build_locals always sets Options to Some; emulate None by editing directly
+        let mut locals_old = locals_old;
+        locals_old.env = None;
+        locals_old.version = None;
+
+        // New locals add env (unified len = 2)
+        let mut locals_new = build_locals(service, "prod", "", tags);
+        locals_new.version = None;
+
+        let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+
+        replace_tags(&mut arc_tags, &globals, &locals_new);
+
+        let expected_new = expected_tags(&globals, &locals_new);
+        assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+    }
+
+    #[test]
+    fn replace_tags_updates_when_unified_len_decreases() {
+        let globals = globals_g1();
+
+        let service = "svc";
+        let tags = vec![make_tag("alpha", "beta")];
+
+        // Old locals have service + env + version (unified len = 3)
+        let locals_old = build_locals(service, "prod", "1.2.3", tags.clone());
+
+        // New locals drop env (unified len = 2)
+        let mut locals_new = build_locals(service, "", "1.2.3", tags);
+        locals_new.env = None;
+
+        let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+
+        replace_tags(&mut arc_tags, &globals, &locals_new);
+
+        let expected_new = expected_tags(&globals, &locals_new);
+        assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+    }
+
+    // Property-based tests
+    fn make_kv_pairs(len: usize) -> Vec<(String, String)> {
+        (0..len)
+            .map(|i| (format!("k{i}"), format!("v{i}")))
+            .collect()
+    }
+
+    fn tags_from_pairs(pairs: &[(String, String)]) -> Vec<Tag> {
+        pairs.iter().map(|(k, v)| make_tag(k, v)).collect()
+    }
+
+    fn build_locals_opt(
+        service: Option<&str>,
+        env: Option<&str>,
+        version: Option<&str>,
+        tags: Vec<(String, String)>,
+    ) -> RequestLocals {
+        let mut locals = RequestLocals::default();
+        locals.service = service.map(|s| s.to_string());
+        locals.env = env.map(|s| s.to_string());
+        locals.version = version.map(|s| s.to_string());
+        locals.tags = tags_from_pairs(&tags);
+        locals
+    }
+
+    fn clone_locals_for_test(locals: &RequestLocals) -> RequestLocals {
+        let mut copy = RequestLocals::default();
+        copy.env = locals.env.clone();
+        copy.service = locals.service.clone();
+        copy.version = locals.version.clone();
+        copy.tags = locals.tags.clone();
+        copy
+    }
+
+    proptest! {
+        #[test]
+        fn prop_rebuild_when_item_count_diff(
+            // unified presence for old and new
+            s_old in proptest::bool::ANY,
+            e_old in proptest::bool::ANY,
+            v_old in proptest::bool::ANY,
+            s_new in proptest::bool::ANY,
+            e_new in proptest::bool::ANY,
+            v_new in proptest::bool::ANY,
+            // dd_tags lengths
+            len_old in 0usize..4,
+            len_new in 0usize..4,
+        ) {
+            let globals = globals_g1();
+
+            let svc = "svc"; let env = "prod"; let ver = "1.2.3";
+            let tags_old = make_kv_pairs(len_old);
+            let tags_new = make_kv_pairs(len_new);
+
+            // Build locals based on presence
+            let locals_old = build_locals_opt(
+                if s_old { Some(svc) } else { None },
+                if e_old { Some(env) } else { None },
+                if v_old { Some(ver) } else { None },
+                tags_old,
+            );
+            let locals_new = build_locals_opt(
+                if s_new { Some(svc) } else { None },
+                if e_new { Some(env) } else { None },
+                if v_new { Some(ver) } else { None },
+                tags_new,
+            );
+
+            let unified_len_old = s_old as usize + e_old as usize + v_old as usize;
+            let unified_len_new = s_new as usize + e_new as usize + v_new as usize;
+
+            // Ensure the condition (total item count differs). If not, force it by toggling env.
+            let (locals_new, _unified_len_new) = if unified_len_old + len_old == unified_len_new + len_new {
+                let mut ln = locals_new;
+                if e_new { ln.env = None; } else { ln.env = Some(env.to_string()); }
+                let new_unified_len = s_new as usize + (!e_new) as usize + v_new as usize;
+                (ln, new_unified_len)
+            } else {
+                (locals_new, unified_len_new)
+            };
+
+            let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+            replace_tags(&mut arc_tags, &globals, &locals_new);
+            let expected_new = expected_tags(&globals, &locals_new);
+            prop_assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+        }
+
+        #[test]
+        fn prop_rebuild_when_same_count_but_content_diff(
+            s in proptest::bool::ANY,
+            e in proptest::bool::ANY,
+            v in proptest::bool::ANY,
+            len in 0usize..4,
+            change_unified in proptest::bool::ANY,
+        ) {
+            let globals = globals_g1();
+
+            let svc = "svc"; let env = "prod"; let ver = "1.2.3";
+            let tags_pairs = make_kv_pairs(len);
+            let locals_old = build_locals_opt(
+                if s { Some(svc) } else { None },
+                if e { Some(env) } else { None },
+                if v { Some(ver) } else { None },
+                tags_pairs.clone(),
+            );
+
+            // Keep counts the same, but change either unified value or one tag value
+            let mut locals_new = clone_locals_for_test(&locals_old);
+            if change_unified {
+                if s { locals_new.service = Some("svc_changed".into()); }
+                else if e { locals_new.env = Some("prod_changed".into()); }
+                else if v { locals_new.version = Some("1.2.4".into()); }
+                else {
+                    // If none present, flip a tag value to ensure diff
+                    if let Some(first) = locals_new.tags.get_mut(0) {
+                        *first = make_tag("k0", "v0_changed");
+                    }
+                }
+            } else {
+                if let Some(first) = locals_new.tags.get_mut(0) {
+                    *first = make_tag("k0", "v0_changed");
+                } else if s { locals_new.service = Some("svc_changed".into()); }
+                else if e { locals_new.env = Some("prod_changed".into()); }
+                else if v { locals_new.version = Some("1.2.4".into()); }
+            }
+
+            // Sanity: counts same
+            let old_len = locals_old.tags.len() + (s as usize + e as usize + v as usize);
+            let new_len = locals_new.tags.len()
+                + (locals_new.service.is_some() as usize
+                + locals_new.env.is_some() as usize
+                + locals_new.version.is_some() as usize);
+            prop_assume!(old_len == new_len);
+
+            let mut arc_tags = Arc::new(expected_tags(&globals, &locals_old));
+            replace_tags(&mut arc_tags, &globals, &locals_new);
+            let expected_new = expected_tags(&globals, &locals_new);
+            prop_assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+        }
+
+        #[test]
+        fn prop_reuse_when_same_count_and_content_equal(
+            s in proptest::bool::ANY,
+            e in proptest::bool::ANY,
+            v in proptest::bool::ANY,
+            len in 0usize..4,
+        ) {
+            let globals = globals_g1();
+            let svc = "svc"; let env = "prod"; let ver = "1.2.3";
+            let tags_pairs = make_kv_pairs(len);
+            let locals = build_locals_opt(
+                if s { Some(svc) } else { None },
+                if e { Some(env) } else { None },
+                if v { Some(ver) } else { None },
+                tags_pairs,
+            );
+
+            let mut arc_tags = Arc::new(expected_tags(&globals, &locals));
+            let before = arc_tags.clone();
+            replace_tags(&mut arc_tags, &globals, &locals);
+            prop_assert!(Arc::ptr_eq(&arc_tags, &before));
+        }
+
+        #[test]
+        fn prop_replace_tags_mutations(
+            s in proptest::bool::ANY,
+            e in proptest::bool::ANY,
+            v in proptest::bool::ANY,
+            base_len in 0usize..6,
+            kind in 0u8..6,
+            idx in 0usize..6,
+        ) {
+            let globals = globals_g1();
+
+            // Build a base locals with total items >= 2
+            let unified_count = (s as usize) + (e as usize) + (v as usize);
+            let min_needed = if unified_count >= 2 { 0 } else { 2 - unified_count };
+            let len = core::cmp::max(base_len, min_needed);
+
+            let svc = "svc"; let env = "prod"; let ver = "1.2.3";
+            let tags_pairs = make_kv_pairs(len);
+            let base = build_locals_opt(
+                if s { Some(svc) } else { None },
+                if e { Some(env) } else { None },
+                if v { Some(ver) } else { None },
+                tags_pairs.clone(),
+            );
+
+            let mut mutated = clone_locals_for_test(&base);
+
+            match kind {
+                // Toggle unified presence (length change in unified tags)
+                0 => {
+                    match idx % 3 {
+                        0 => { mutated.service = mutated.service.as_ref().map(|_| None).unwrap_or_else(|| Some("svcX".into())); }
+                        1 => { mutated.env = mutated.env.as_ref().map(|_| None).unwrap_or_else(|| Some("prodX".into())); }
+                        _ => { mutated.version = mutated.version.as_ref().map(|_| None).unwrap_or_else(|| Some("2.0.0".into())); }
+                    }
+                }
+                // Change unified value (same length, different content)
+                1 => {
+                    match idx % 3 {
+                        0 => if mutated.service.is_some() { mutated.service = Some("svc_changed".into()); },
+                        1 => if mutated.env.is_some() { mutated.env = Some("prod_changed".into()); },
+                        _ => if mutated.version.is_some() { mutated.version = Some("1.2.4".into()); },
+                    }
+                }
+                // Add a tag (length change in DD_TAGS)
+                2 => {
+                    let idx_new = mutated.tags.len();
+                    let key = format!("k{}_new", idx_new);
+                    let val = format!("v{}_new", idx_new);
+                    mutated.tags.push(make_tag(&key, &val));
+                }
+                // Remove a tag (length change in DD_TAGS)
+                3 => {
+                    if !mutated.tags.is_empty() {
+                        let i = core::cmp::min(idx, mutated.tags.len() - 1);
+                        mutated.tags.remove(i);
+                    }
+                }
+                // Change a tag's key (content change, same length)
+                4 => {
+                    if !mutated.tags.is_empty() {
+                        let i = core::cmp::min(idx, mutated.tags.len() - 1);
+                        let val = format!("v{}", i);
+                        let key = format!("k{}_changed", i);
+                        mutated.tags[i] = make_tag(&key, &val);
+                    }
+                }
+                // Change a tag's value (content change, same length)
+                _ => {
+                        if !mutated.tags.is_empty() {
+                        let i = core::cmp::min(idx, mutated.tags.len() - 1);
+                        let key = format!("k{}", i);
+                        let val = format!("v{}_changed", i);
+                        mutated.tags[i] = make_tag(&key, &val);
+                    }
+                }
+            }
+
+            let expected_old = expected_tags(&globals, &base);
+            let expected_new = expected_tags(&globals, &mutated);
+
+            let mut arc_tags = Arc::new(expected_old.clone());
+            let before_ptr = Arc::as_ptr(&arc_tags);
+            replace_tags(&mut arc_tags, &globals, &mutated);
+
+            if expected_old == expected_new {
+                // No change: must reuse the same Arc without modification
+                prop_assert!(Arc::as_ptr(&arc_tags) == before_ptr);
+                prop_assert_eq!(arc_tags.as_slice(), expected_old.as_slice());
+            } else {
+                // Changed: content must match new expected; pointer may or may not change
+                prop_assert_eq!(arc_tags.as_slice(), expected_new.as_slice());
+            }
+        }
     }
 }
