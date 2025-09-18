@@ -17,6 +17,8 @@ typedef struct {
     bool run_if_limited;
     bool active;
     bool allow_recursion;
+    bool begin_hook_active;
+    bool end_hook_active;
 } dd_uhook_def;
 
 typedef struct {
@@ -112,7 +114,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         dyn->span = ddtrace_alloc_execute_data_span(invocation, execute_data);
     }
 
-    if (def->begin.closure) {
+    if (def->begin_hook_active) {
         LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin.closure););
 
         dyn->dropped_span = !dd_uhook_call(&def->begin, def->tracing, dyn, execute_data, &EG(uninitialized_zval));
@@ -146,7 +148,7 @@ static void dd_uhook_generator_resumption(zend_ulong invocation, zend_execute_da
         dyn->dropped_span = false;
     }
 
-    if (def->begin.closure) {
+    if (def->begin_hook_active) {
         LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "generator resume", def->begin.closure););
         dyn->dropped_span = !dd_uhook_call(&def->begin, def->tracing, dyn, execute_data, value);
         if (def->tracing && dyn->dropped_span) {
@@ -183,7 +185,7 @@ static void dd_uhook_generator_yield(zend_ulong invocation, zend_execute_data *e
         }
     }
 
-    if (def->end.closure && (!def->tracing || !dyn->dropped_span)) {
+    if (def->end_hook_active && (!def->tracing || !dyn->dropped_span)) {
         LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "generator yield", def->end.closure););
         bool keep_span = dd_uhook_call(&def->end, def->tracing, dyn, execute_data, value);
         if (def->tracing && !dyn->dropped_span) {
@@ -220,7 +222,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         }
     }
 
-    if (def->end.closure && !dyn->dropped_span) {
+    if (def->end_hook_active && !dyn->dropped_span) {
         /* If the profiler doesn't handle a potential pending interrupt before
          * the observer's end function, then the callback will be at the top of
          * the stack even though it's not responsible.
@@ -348,12 +350,14 @@ static void dd_uhook(INTERNAL_FUNCTION_PARAMETERS, bool tracing, bool method) {
     dd_uhook_def *def = emalloc(sizeof(*def));
     def->begin.fcc.function_handler = NULL;
     def->begin.closure = prehook ? Z_OBJ_P(prehook) : NULL;
-    if (def->begin.closure) {
+    def->begin_hook_active = def->begin.closure;
+    if (def->begin_hook_active) {
         GC_ADDREF(def->begin.closure);
     }
     def->end.fcc.function_handler = NULL;
     def->end.closure = posthook ? Z_OBJ_P(posthook) : NULL;
-    if (def->end.closure) {
+    def->end_hook_active = def->end.closure;
+    if (def->end_hook_active) {
         GC_ADDREF(def->end.closure);
     }
     def->tracing = tracing;
@@ -421,10 +425,8 @@ PHP_FUNCTION(dd_untrace) {
     for (it = zai_hook_iterate_installed(class_str, func_str); it.active; zai_hook_iterator_advance(&it)) {
         if (*it.begin == dd_uhook_begin) {
             dd_uhook_def *def = it.aux->data;
-            if (def->end.closure) {
-                OBJ_RELEASE(def->end.closure);
-                def->end.closure = NULL;
-            }
+            def->begin_hook_active = false;
+            def->end_hook_active = false;
             it.aux->data = def;
             zai_hook_remove(class_str, func_str, it.index);
         }
