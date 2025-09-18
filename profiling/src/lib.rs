@@ -1,12 +1,16 @@
 pub mod bindings;
+pub mod bitset;
 pub mod capi;
+pub mod inlinevec;
+pub mod profiling;
+
 mod clocks;
 mod config;
 mod logging;
-pub mod profiling;
 mod pthread;
 mod sapi;
 mod thin_str;
+mod vec_ext;
 mod wall_time;
 
 #[cfg(php_run_time_cache)]
@@ -23,7 +27,6 @@ mod exception;
 
 #[cfg(feature = "timeline")]
 mod timeline;
-mod vec_ext;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use crate::zend::datadog_sapi_globals_request_info;
