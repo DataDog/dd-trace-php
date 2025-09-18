@@ -579,9 +579,9 @@ checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 
 [[package]]
 name = "blazesym"
-version = "0.2.0-rc.4"
+version = "0.2.0-rc.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29a810b7e5f883ad3c711208237841f051061bf59b6ee698ac4dc1fe12a3a5db"
+checksum = "95824d1dd4f20b4a4dfa63b72954e81914a718357231468180b30314e85057fa"
 dependencies = [
  "cpp_demangle",
  "gimli 0.32.0",
@@ -1403,6 +1403,7 @@ dependencies = [
  "cc",
  "cc_utils",
  "chrono",
+ "criterion",
  "ddcommon 0.0.1",
  "ddtelemetry",
  "goblin",
@@ -1957,6 +1958,7 @@ dependencies = [
  "ddcommon 0.0.1",
  "ddcommon-ffi 0.0.1",
  "ddtelemetry",
+ "function_name",
  "libc 0.2.173",
  "paste",
  "tempfile",
