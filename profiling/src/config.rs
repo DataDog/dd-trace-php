@@ -1261,6 +1261,8 @@ mod tests {
             (b"DD_SERVICE\0", "datadog.service"),
             (b"DD_ENV\0", "datadog.env"),
             (b"DD_VERSION\0", "datadog.version"),
+            (b"DD_GIT_COMMIT_SHA\0", "datadog.git_commit_sha"),
+            (b"DD_GIT_REPOSITORY_URL\0", "datadog.git_repository_url"),
             (b"DD_TRACE_AGENT_URL\0", "datadog.trace.agent_url"),
             (b"DD_TRACE_AGENT_PORT\0", "datadog.trace.agent_port"),
             (b"DD_AGENT_HOST\0", "datadog.agent_host"),
