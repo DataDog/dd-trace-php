@@ -42,6 +42,7 @@ use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
+use std::env;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Once};
@@ -88,6 +89,24 @@ lazy_static! {
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
         ];
+
+        let git_commit_sha = env::var("DD_GIT_COMMIT_SHA").ok().filter(|s| !s.is_empty());
+        let git_repository_url = env::var("DD_GIT_REPOSITORY_URL").ok().filter(|s| !s.is_empty());
+        add_optional_tag(&mut tags, "git.commit.sha", &git_commit_sha);
+        if let Some(val) = git_repository_url {
+            // Remove potential credentials and protocol, customers are
+            // encouraged to not send these anyway. In case there are
+            // credentials, removing everything before @ also removes the
+            // protocol.
+            let val = if let Some(at_pos) = val.find("@") {
+                &val[at_pos + 1..]
+            } else if let Some(proto_pos) = val.find("://") {
+                &val[proto_pos + 3..]
+            } else {
+                &val
+            };
+            add_tag(&mut tags, "git.repository_url", val);
+        }
 
         // This should probably be "language_version", but this is the
         // standardized tag name.
