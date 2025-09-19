@@ -41,17 +41,24 @@
 #include <execinfo.h>
 #endif
 
-// true globals; only modify in MINIT/MSHUTDOWN
-static stack_t ddtrace_altstack;
-static struct sigaction ddtrace_sigaction;
-static char crashtracker_socket_path[100] = {0};
+#if __linux
+#include <sched.h>
+#include <unistd.h>
+#endif
 
 #define MAX_STACK_SIZE 1024
 #define MIN_STACKSZ 16384  // enough to hold void *array[MAX_STACK_SIZE] plus a couple kilobytes
 
+// true globals; only modify in MINIT/MSHUTDOWN
+static stack_t dd_altstack;
+static struct sigaction dd_sigsegv_sigaction;
+static char crashtracker_socket_path[100] = {0};
+static char *dd_signal_async_stack;
+static size_t dd_signal_async_stack_size;
+
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static void ddtrace_sigsegv_handler(int sig) {
+static void dd_sigsegv_handler(int sig) {
     if (!DDTRACE_G(backtrace_handler_already_run)) {
         DDTRACE_G(backtrace_handler_already_run) = true;
         ddtrace_bgs_logf("[crash] Segmentation fault encountered");
@@ -96,7 +103,7 @@ static void ddtrace_sigsegv_handler(int sig) {
     _Exit(128 + sig);
 }
 
-static bool ddtrace_crashtracker_check_result(ddog_VoidResult result, const char *msg) {
+static bool dd_crashtracker_check_result(ddog_VoidResult result, const char *msg) {
     if (result.tag != DDOG_VOID_RESULT_OK) {
         ddog_CharSlice error_msg = ddog_Error_message(&result.err);
         LOG(ERROR, "%s : %.*s", msg, (int) error_msg.len, error_msg.ptr);
@@ -108,7 +115,7 @@ static bool ddtrace_crashtracker_check_result(ddog_VoidResult result, const char
 }
 
 #if PHP_VERSION_ID >= 80000
-static zend_never_inline ZEND_COLD void ddtrace_crasht_failed_tag_push(
+static zend_never_inline ZEND_COLD void dd_crasht_failed_tag_push(
     ddog_Error *err,
     ddog_CharSlice key
 ) {
@@ -121,18 +128,18 @@ static zend_never_inline ZEND_COLD void ddtrace_crasht_failed_tag_push(
 }
 
 // Pushes a tag and logs a failure.
-static zend_always_inline void ddtrace_crasht_push_tag(
+static zend_always_inline void dd_crasht_push_tag(
     ddog_Vec_Tag *tags,
     ddog_CharSlice key,
     ddog_CharSlice val
 ) {
     ddog_Vec_Tag_PushResult result = ddog_Vec_Tag_push(tags, key, val);
     if (UNEXPECTED(result.tag != DDOG_VEC_TAG_PUSH_RESULT_OK)) {
-        ddtrace_crasht_failed_tag_push(&result.err, key);
+        dd_crasht_failed_tag_push(&result.err, key);
     }
 }
 
-static zend_always_inline zend_string *ddtrace_crasht_find_ini_by_tag(ddog_CharSlice tag) {
+static zend_always_inline zend_string *dd_crasht_find_ini_by_tag(ddog_CharSlice tag) {
     const ddog_CharSlice PREFIX = DDOG_CHARSLICE_C("php.");
     ZEND_ASSERT(tag.len > PREFIX.len && memcmp(tag.ptr, PREFIX.ptr, PREFIX.len) == 0);
 
@@ -150,10 +157,10 @@ static zend_always_inline zend_string *ddtrace_crasht_find_ini_by_tag(ddog_CharS
 
 // Pass in a key like "php.opcache.enable" and "php." will get stripped off,
 // and that's what the INI setting will be.
-static void ddtrace_crasht_add_ini_by_tag(ddog_Vec_Tag *tags, ddog_CharSlice key) {
-    zend_string *value = ddtrace_crasht_find_ini_by_tag(key);
+static void dd_crasht_add_ini_by_tag(ddog_Vec_Tag *tags, ddog_CharSlice key) {
+    zend_string *value = dd_crasht_find_ini_by_tag(key);
     if (EXPECTED(value)) {
-        ddtrace_crasht_push_tag(tags, key, dd_zend_string_to_CharSlice(value));
+        dd_crasht_push_tag(tags, key, dd_zend_string_to_CharSlice(value));
     }
 }
 #endif
@@ -163,7 +170,7 @@ const ddog_CharSlice ONE = DDOG_CHARSLICE_C("1");
 const ddog_CharSlice PHP_OPCACHE_ENABLE = DDOG_CHARSLICE_C("php.opcache.enable");
 
 // Fetches certain opcache tags and adds them with the pattern of php.opcache.*.
-static void ddtrace_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
+static void dd_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
 #if PHP_VERSION_ID >= 80000
     // We'll push php.opcache.enabled:0 whenever we detect we're disabled.
 
@@ -176,7 +183,7 @@ static void ddtrace_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
     // zero, then JIT won't operate.
     {
         ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.jit_buffer_size");
-        zend_string *value = ddtrace_crasht_find_ini_by_tag(tag);
+        zend_string *value = dd_crasht_find_ini_by_tag(tag);
         if (EXPECTED(value)) {
             // Parse the quantity similarly to OnUpdateLong.
 #if PHP_VERSION_ID >= 80200
@@ -190,7 +197,7 @@ static void ddtrace_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
             ddog_CharSlice val = is_positive
                 ? dd_zend_string_to_CharSlice(value)
                 : ZERO;
-            ddtrace_crasht_push_tag(tags, tag, val);
+            dd_crasht_push_tag(tags, tag, val);
             if (UNEXPECTED(!is_positive)) {
                 goto opcache_disabled;
             }
@@ -202,11 +209,11 @@ static void ddtrace_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
     bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
     if (is_cli_sapi) {
         ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.enable_cli");
-        zend_string *value = ddtrace_crasht_find_ini_by_tag(tag);
+        zend_string *value = dd_crasht_find_ini_by_tag(tag);
         if (EXPECTED(value)) {
             bool is_enabled = zend_ini_parse_bool(value);
             ddog_CharSlice val = is_enabled ? ONE : ZERO;
-            ddtrace_crasht_push_tag(tags, tag, val);
+            dd_crasht_push_tag(tags, tag, val);
             if (UNEXPECTED(!is_enabled)) {
                 goto opcache_disabled;
             }
@@ -214,18 +221,18 @@ static void ddtrace_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
     }
 
     // The others are INI_ALL, so it's possible that they change at runtime.
-    ddtrace_crasht_add_ini_by_tag(tags, PHP_OPCACHE_ENABLE);
-    ddtrace_crasht_add_ini_by_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit"));
+    dd_crasht_add_ini_by_tag(tags, PHP_OPCACHE_ENABLE);
+    dd_crasht_add_ini_by_tag(tags, DDOG_CHARSLICE_C("php.opcache.jit"));
     return;
 
 opcache_disabled:
-    ddtrace_crasht_push_tag(tags, PHP_OPCACHE_ENABLE, ZERO);
+    dd_crasht_push_tag(tags, PHP_OPCACHE_ENABLE, ZERO);
 #else
     (void)tags;
 #endif
 }
 
-static void ddtrace_init_crashtracker() {
+static void dd_init_crashtracker() {
     ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
     if (socket_path.len > sizeof(crashtracker_socket_path) - 1) {
         LOG(ERROR, "Cannot initialize CrashTracker : the socket path is too long.");
@@ -253,20 +260,27 @@ static void ddtrace_init_crashtracker() {
     };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
-    ddtrace_crasht_add_opcache_inis(&tags);
+    dd_crasht_add_opcache_inis(&tags);
 
     const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
 
-    ddtrace_crashtracker_check_result(
-        ddog_crasht_init_without_receiver(
-            config,
-            metadata
-        ),
-        "Cannot initialize CrashTracker"
+    dd_crashtracker_check_result(
+            ddog_crasht_init_without_receiver(
+                    config,
+                    metadata
+            ),
+            "Cannot initialize CrashTracker"
     );
 
     ddog_endpoint_drop(agent_endpoint);
     ddog_Vec_Tag_drop(tags);
+}
+
+static void dd_signals_init_async_stack() {
+    if (!dd_signal_async_stack) {
+        dd_signal_async_stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
+        dd_signal_async_stack = malloc(dd_signal_async_stack_size);
+    }
 }
 
 void ddtrace_signals_first_rinit(void) {
@@ -285,7 +299,7 @@ void ddtrace_signals_first_rinit(void) {
 #endif
 
     if (install_crashtracker) {
-        ddtrace_init_crashtracker();
+        dd_init_crashtracker();
     }
 
     /* Install a signal handler for SIGSEGV and run it on an alternate stack.
@@ -298,22 +312,108 @@ void ddtrace_signals_first_rinit(void) {
             return;
         }
 
-        size_t stack_size = SIGSTKSZ < MIN_STACKSZ ? MIN_STACKSZ : SIGSTKSZ;
-        if ((ddtrace_altstack.ss_sp = malloc(stack_size))) {
-            ddtrace_altstack.ss_size = stack_size;
-            ddtrace_altstack.ss_flags = 0;
-            if (sigaltstack(&ddtrace_altstack, NULL) == 0) {
-                ddtrace_sigaction.sa_flags = SA_ONSTACK;
-                ddtrace_sigaction.sa_handler = ddtrace_sigsegv_handler;
-                sigemptyset(&ddtrace_sigaction.sa_mask);
-                sigaction(SIGSEGV, &ddtrace_sigaction, NULL);
-            }
+        dd_signals_init_async_stack();
+
+        dd_altstack.ss_sp = dd_signal_async_stack;
+        dd_altstack.ss_size = dd_signal_async_stack_size;
+        dd_altstack.ss_flags = 0;
+        if (sigaltstack(&dd_altstack, NULL) == 0) {
+            dd_sigsegv_sigaction.sa_flags = SA_ONSTACK;
+            dd_sigsegv_sigaction.sa_handler = dd_sigsegv_handler;
+            sigemptyset(&dd_sigsegv_sigaction.sa_mask);
+            sigaction(SIGSEGV, &dd_sigsegv_sigaction, NULL);
         }
     }
 }
 
+#if __linux
+static struct sigaction dd_sigint_sigterm_sigaction;
+static struct sigaction dd_sigterm_prev_sigaction;
+static struct sigaction dd_sigint_prev_sigaction;
+
+struct {
+    int sig;
+    siginfo_t si;
+    void *uc;
+} dd_signal_data;
+
+static int dd_call_prev_handler(bool flush) {
+    struct sigaction prev_sigaction = dd_signal_data.sig == SIGINT ? dd_sigint_prev_sigaction : dd_sigterm_prev_sigaction;
+    void *prev_handler = (prev_sigaction.sa_flags & SA_SIGINFO) ? (void *)prev_sigaction.sa_sigaction : (void *)prev_sigaction.sa_handler;
+    if (prev_handler == SIG_IGN) {
+        return 0;
+    }
+
+    if (flush) {
+        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+    }
+
+    if (prev_handler == SIG_DFL) {
+        _exit(0);
+    }
+
+    if (prev_sigaction.sa_flags & SA_SIGINFO) {
+        (*prev_sigaction.sa_sigaction)(dd_signal_data.sig, &dd_signal_data.si, dd_signal_data.uc);
+    } else {
+        (*prev_sigaction.sa_handler)(dd_signal_data.sig);
+    }
+
+    return 0;
+
+}
+
+static int dd_sigterm_cleanup_thread(void *arg) {
+    return dd_call_prev_handler(true);
+}
+
+static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
+    dd_signal_data.sig = sig;
+    memcpy(&dd_signal_data.si, si, sizeof(*si));
+    dd_signal_data.uc = uc;
+
+    if (ddtrace_sidecar) {
+        // Spawn a thread using clone() to perform sidecar cleanup asynchronously to avoid async unsafeness in the signal handler
+        void *stack_top = dd_signal_async_stack + dd_signal_async_stack_size;
+        int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;
+        clone(dd_sigterm_cleanup_thread, stack_top, flags, NULL);
+    } else {
+        dd_call_prev_handler(false);
+    }
+}
+#endif
+
+void ddtrace_signals_minit(void) {
+#if __linux
+    dd_sigint_sigterm_sigaction.sa_sigaction = dd_sigint_sigterm_handler;
+    dd_sigint_sigterm_sigaction.sa_flags = SA_SIGINFO;
+    sigemptyset(&dd_sigint_sigterm_sigaction.sa_mask);
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM()) {
+        dd_signals_init_async_stack();
+        sigaction(SIGTERM, &dd_sigint_sigterm_sigaction, &dd_sigterm_prev_sigaction);
+    }
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT()) {
+        dd_signals_init_async_stack();
+        sigaction(SIGINT, &dd_sigint_sigterm_sigaction, &dd_sigint_prev_sigaction);
+    }
+#endif
+}
+
 void ddtrace_signals_mshutdown(void) {
-    free(ddtrace_altstack.ss_sp);
+#if __linux
+    if (dd_sigint_sigterm_sigaction.sa_sigaction) {
+        if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGTERM()) {
+            sigaction(SIGTERM, &dd_sigterm_prev_sigaction, NULL);
+        }
+        if (get_global_DD_TRACE_FORCE_FLUSH_ON_SIGINT()) {
+            sigaction(SIGINT, &dd_sigint_prev_sigaction, NULL);
+        }
+    }
+#endif
+
+    if (dd_signal_async_stack) {
+        free(dd_signal_async_stack);
+        dd_signal_async_stack = NULL;
+    }
 }
 
 #else
