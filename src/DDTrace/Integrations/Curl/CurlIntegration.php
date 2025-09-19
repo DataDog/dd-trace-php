@@ -29,14 +29,18 @@ function addSpanDataTagFromCurlInfo($span, &$info, $tagName, $curlInfoOpt)
 }
 
 class CurlSpanInfo {
+    /** @var \DDTrace\SpanData */
     public $span;
     public $spans;
 
     public function __destruct() {
-        $stack = \DDTrace\active_stack();
-        \DDTrace\switch_stack($this->span);
-        \DDTrace\close_span();
-        \DDTrace\switch_stack($stack);
+        // Explicitly check for duration to avoid closing already destroyed spans in garbage collection
+        if (isset($this->span) && $this->span->getDuration() === 0) {
+            $stack = \DDTrace\active_stack();
+            \DDTrace\switch_stack($this->span);
+            \DDTrace\close_span();
+            \DDTrace\switch_stack($stack);
+        }
     }
 }
 
@@ -123,6 +127,7 @@ final class CurlIntegration extends Integration
             if (!$spans) {
                 // Drop the span if nothing was handled here
                 \DDTrace\try_drop_span($spanInfo->span);
+                unset($spanInfo->span);
                 if (\PHP_MAJOR_VERSION > 7) {
                     ObjectKVStore::put($hook->args[0], "span", null);
                 } else {

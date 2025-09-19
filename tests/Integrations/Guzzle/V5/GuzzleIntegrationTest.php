@@ -225,6 +225,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             },
             __DIR__ . '/guzzle_in_distributed_web_request.php'
         );
+        print_r($traces);
 
         $this->assertOneSpan(
             $traces,
@@ -251,7 +252,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
          * @see https://github.com/guzzle/guzzle/issues/1439
          */
         self::assertDistributedTracingSpan($traces[0][6], $headers1['headers']);
-        self::assertDistributedTracingSpan($traces[0][3], $headers2['headers']);
+        self::assertDistributedTracingSpan($traces[0][4], $headers2['headers']);
     }
 
     private static function assertDistributedTracingSpan($span, $headers)
