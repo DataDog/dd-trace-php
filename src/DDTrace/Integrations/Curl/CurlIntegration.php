@@ -33,10 +33,12 @@ class CurlSpanInfo {
     public $spans;
 
     public function __destruct() {
-        $stack = \DDTrace\active_stack();
-        \DDTrace\switch_stack($this->span);
-        \DDTrace\close_span();
-        \DDTrace\switch_stack($stack);
+        if (isset($this->span)) {
+            $stack = \DDTrace\active_stack();
+            \DDTrace\switch_stack($this->span);
+            \DDTrace\close_span();
+            \DDTrace\switch_stack($stack);
+        }
     }
 }
 
@@ -123,6 +125,7 @@ final class CurlIntegration extends Integration
             if (!$spans) {
                 // Drop the span if nothing was handled here
                 \DDTrace\try_drop_span($spanInfo->span);
+                unset($spanInfo->span);
                 if (\PHP_MAJOR_VERSION > 7) {
                     ObjectKVStore::put($hook->args[0], "span", null);
                 } else {
