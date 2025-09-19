@@ -128,6 +128,6 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.5"
-        phpTarGzUrl: https://downloads.php.net/~edorian/php-8.5.0beta1.tar.gz
-        phpSha256Hash: "d28f6de0744fa733db898ddcdeaa784a5e87ec1b4b4822e83529d9a76229ea61"
+        phpTarGzUrl: https://downloads.php.net/~edorian/php-8.5.0beta3.tar.gz
+        phpSha256Hash: "ff3f5a8c73c4b84883ef0e3870543c078d324c46ccef2eb85c66cb88124e7a55"
     image: 'datadog/dd-trace-ci:php-8.5_centos-7'
