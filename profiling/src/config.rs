@@ -374,6 +374,8 @@ pub(crate) enum ConfigId {
     // todo: do these need to be kept in sync with the tracer?
     AgentHost,
     Env,
+    GitCommitSha,
+    GitRepositoryUrl,
     Service,
     Tags,
     TraceAgentPort,
@@ -384,34 +386,47 @@ pub(crate) enum ConfigId {
 use ConfigId::*;
 
 impl ConfigId {
-    const fn env_var_name(&self) -> ZaiStr {
-        let bytes: &'static [u8] = match self {
-            ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
-            ProfilingExperimentalFeaturesEnabled => b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
-            ProfilingEndpointCollectionEnabled => b"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED\0",
-            ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
-            ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
-            ProfilingAllocationSamplingDistance => b"DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\0",
-            ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
-            ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
-            ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
-            ProfilingExceptionSamplingDistance => b"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE\0",
-            ProfilingExperimentalIOEnabled => b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0",
-            ProfilingLogLevel => b"DD_PROFILING_LOG_LEVEL\0",
+    /// Returns the CStr name of the env var, which is also valid UTF-8.
+    pub const fn env_var_name_cstr(self) -> &'static std::ffi::CStr {
+        // Only use cstr literals that are valid UTF-8.
+        match self {
+            ProfilingEnabled => c"DD_PROFILING_ENABLED",
+            ProfilingExperimentalFeaturesEnabled => c"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED",
+            ProfilingEndpointCollectionEnabled => c"DD_PROFILING_ENDPOINT_COLLECTION_ENABLED",
+            ProfilingExperimentalCpuTimeEnabled => c"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED",
+            ProfilingAllocationEnabled => c"DD_PROFILING_ALLOCATION_ENABLED",
+            ProfilingAllocationSamplingDistance => c"DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE",
+            ProfilingTimelineEnabled => c"DD_PROFILING_TIMELINE_ENABLED",
+            ProfilingExceptionEnabled => c"DD_PROFILING_EXCEPTION_ENABLED",
+            ProfilingExceptionMessageEnabled => c"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED",
+            ProfilingExceptionSamplingDistance => c"DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE",
+            ProfilingExperimentalIOEnabled => c"DD_PROFILING_EXPERIMENTAL_IO_ENABLED",
+            ProfilingLogLevel => c"DD_PROFILING_LOG_LEVEL",
 
             // Note: this group is meant only for debugging and testing. Please
             // don't advertise this group of settings in the docs.
-            ProfilingOutputPprof => b"DD_PROFILING_OUTPUT_PPROF\0",
-            ProfilingWallTimeEnabled => b"DD_PROFILING_WALLTIME_ENABLED\0",
+            ProfilingOutputPprof => c"DD_PROFILING_OUTPUT_PPROF",
+            ProfilingWallTimeEnabled => c"DD_PROFILING_WALLTIME_ENABLED",
 
-            AgentHost => b"DD_AGENT_HOST\0",
-            Env => b"DD_ENV\0",
-            Service => b"DD_SERVICE\0",
-            Tags => b"DD_TAGS\0",
-            TraceAgentPort => b"DD_TRACE_AGENT_PORT\0",
-            TraceAgentUrl => b"DD_TRACE_AGENT_URL\0",
-            Version => b"DD_VERSION\0",
-        };
+            AgentHost => c"DD_AGENT_HOST",
+            Env => c"DD_ENV",
+            GitCommitSha => c"DD_GIT_COMMIT_SHA",
+            GitRepositoryUrl => c"DD_GIT_REPOSITORY_URL",
+            Service => c"DD_SERVICE",
+            Tags => c"DD_TAGS",
+            TraceAgentPort => c"DD_TRACE_AGENT_PORT",
+            TraceAgentUrl => c"DD_TRACE_AGENT_URL",
+            Version => c"DD_VERSION",
+        }
+    }
+
+    pub const fn env_var_name_str(self) -> &'static str {
+        // SAFETY: env_var_name_cstr returns valid UTF-8.
+        unsafe { std::str::from_utf8_unchecked(self.env_var_name_cstr().to_bytes()) }
+    }
+
+    pub const fn env_var_name(&self) -> ZaiStr<'_> {
+        let bytes: &'static [u8] = self.env_var_name_cstr().to_bytes_with_nul();
 
         // Safety: all these byte strings are [CStr::from_bytes_with_nul_unchecked] compatible.
         unsafe { ZaiStr::literal(bytes) }
@@ -656,6 +671,20 @@ unsafe fn agent_host() -> Option<Cow<'static, str>> {
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn env() -> Option<String> {
+    get_str(Env)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn git_commit_sha() -> Option<String> {
+    get_str(Env)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn git_repository_url() -> Option<String> {
     get_str(Env)
 }
 

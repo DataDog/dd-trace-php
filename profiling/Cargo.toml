@@ -15,6 +15,7 @@ bench = false # disables cargo build in libtest bench
 # Avoid ahash 0.8.7 we run into https://github.com/tkaitchuck/aHash/issues/195.
 ahash = { version = "0.8.11" }
 anyhow = { version = "1.0" }
+arrayvec = "0.7"
 cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }

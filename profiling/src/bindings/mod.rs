@@ -629,8 +629,9 @@ impl<'a> ZaiStr<'a> {
 
     #[inline]
     pub fn as_bytes(&self) -> &'a [u8] {
-        debug_assert!(!self.ptr.is_null());
         let len = self.len;
+        debug_assert!(!self.ptr.is_null());
+        debug_assert!(!self.len <= isize::MAX as usize);
         // Safety: the ZaiStr is supposed to uphold all the invariants, and
         // the pointer has been debug_asserted to not be null, so 🤞🏻.
         unsafe { std::slice::from_raw_parts(self.ptr as *const u8, len) }

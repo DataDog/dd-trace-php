@@ -27,6 +27,7 @@ mod vec_ext;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use crate::zend::datadog_sapi_globals_request_info;
+use arrayvec::ArrayVec;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
     ZendResult,
@@ -34,7 +35,6 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, c_void, CStr};
 use core::ptr;
-use std::env;
 use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace, warn};
@@ -43,6 +43,7 @@ use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
+use std::env;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Once};
@@ -76,8 +77,32 @@ static mut RUNTIME_PHP_VERSION: &str = {
     }
 };
 
+/// Removes potential credentials and protocol. Customers are encouraged to not
+/// send these anyway. In case there are credentials, removing everything
+/// before @ also removes the protocol.
+fn clean_git_repository_url(repo_url: &str) -> &str {
+    if let Some(at_pos) = repo_url.find("@") {
+        &repo_url[at_pos + 1..]
+    } else if let Some(proto_pos) = repo_url.find("://") {
+        &repo_url[proto_pos + 3..]
+    } else {
+        repo_url
+    }
+}
+
 lazy_static! {
-    static ref LAZY_STATICS_TAGS: Vec<Tag> = {
+    /// # Safety
+    /// The first time this is accessed must be after config is initialized in
+    /// the first RINIT and before mshutdown!
+    static ref LAZY_STATIC_TAGS: Vec<Tag> = {
+        // In case we ever add PHP debug build support, we should add
+        // `zend-zts-debug` and `zend-nts-debug`. For the time being we only
+        // support `zend-zts-ndebug` and `zend-nts-ndebug`.
+        let runtime_engine = if cfg!(php_zts) {
+            "zend-zts-ndebug"
+        } else {
+            "zend-nts-ndebug"
+        };
         let mut tags = vec![
             tag!("language", "php"),
             tag!("profiler_version", env!("PROFILER_VERSION")),
@@ -85,20 +110,24 @@ lazy_static! {
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
+
+            // This should probably be "language_version", but this is the
+            // standardized tag name.
+            // SAFETY: derived from safety comment on LAZY_STATIC_TAGS.
+            Tag::new("runtime_version", unsafe { RUNTIME_PHP_VERSION }).expect("runtime_version tag to be valid"),
+            Tag::new("php.sapi", SAPI.as_ref()).expect("php.sapi tag to be valid"),
+            Tag::new("runtime_engine", runtime_engine).expect("runtime_engine tag to be valid"),
         ];
-        if let Ok(val) = env::var("DD_GIT_COMMIT_SHA") {
-            tags.push(Tag::new("git.commit.sha", val).expect("DD_GIT_COMMIT_SHA to be a valid commit hash"));
+
+        // SAFETY: derived from safety comment on LAZY_STATIC_TAGS.
+        if let Some(commit_sha) = unsafe { config::git_commit_sha() } {
+            add_git_tag(&mut tags, "git.commit.sha", commit_sha.as_str(), config::ConfigId::GitCommitSha);
         }
-        if let Ok(mut val) = env::var("DD_GIT_REPOSITORY_URL") {
-            // Remove potential credentials and protocol, customers are encouraged to not send
-            // these anyways. In case there are credentials, removing everything before @ also
-            // removes the protocol.
-            if let Some(at_pos) = val.find("@") {
-                val = val[at_pos + 1..].to_string();
-            } else if let Some(proto_pos) = val.find("://") {
-                val = val[proto_pos + 3..].to_string();
-            }
-            tags.push(Tag::new("git.repository_url", val).expect("DD_GIT_REPOSITORY_URL to be a valid URL"));
+
+        // SAFETY: derived from safety comment on LAZY_STATIC_TAGS.
+        if let Some(repo_url) = unsafe { config::git_repository_url() } {
+            let cleaned = clean_git_repository_url(repo_url.as_str());
+            add_git_tag(&mut tags, "git.repository_url", cleaned, config::ConfigId::GitRepositoryUrl);
         }
         tags
     };
@@ -676,26 +705,18 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
             TAGS.set({
-                let mut tags = LAZY_STATICS_TAGS.clone();
-                add_optional_tag(&mut tags, "service", &locals.service);
-                add_optional_tag(&mut tags, "env", &locals.env);
-                add_optional_tag(&mut tags, "version", &locals.version);
-                // This should probably be "language_version", but this is the
-                // standardized tag name.
-                // SAFETY: PHP_VERSION is safe to access in rinit (only
-                // mutated during minit).
-                add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-                add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-                // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
-                // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-                // `zend-nts-ndebug`
-                let runtime_engine = if cfg!(php_zts) {
-                    "zend-zts-ndebug"
-                } else {
-                    "zend-nts-ndebug"
-                };
-                add_tag(&mut tags, "runtime_engine", runtime_engine);
-                tags.extend_from_slice(&locals.tags);
+                // SAFETY: accessing in rinit after config is initialized.
+                let globals = LAZY_STATIC_TAGS.deref();
+                let mut unified_service_tags = ArrayVec::<Tag, 3>::new();
+                add_unified_tag(&mut unified_service_tags, "service", &locals.service);
+                add_unified_tag(&mut unified_service_tags, "env", &locals.env);
+                add_unified_tag(&mut unified_service_tags, "version", &locals.version);
+
+                let mut tags = Vec::new();
+                tags.reserve_exact(globals.len() + unified_service_tags.len() + locals.tags.len());
+                tags.extend_from_slice(globals.as_slice());
+                tags.extend_from_slice(unified_service_tags.as_slice());
+                tags.extend_from_slice(locals.tags.as_slice());
                 Arc::new(tags)
             });
 
@@ -728,21 +749,33 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     ZendResult::Success
 }
 
-fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Option<T>) {
-    if let Some(value) = value {
-        add_tag(tags, key, value.as_ref());
+fn new_tag_with_warnings(key: &str, value: &str) -> Option<Tag> {
+    match Tag::new(key, value) {
+        Ok(tag) => Some(tag),
+        Err(err) => {
+            warn!("invalid {key} tag: {err}");
+            None
+        }
     }
 }
 
-fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
-    assert!(!value.is_empty());
-    match Tag::new(key, value) {
-        Ok(tag) => {
+fn add_unified_tag<const N: usize>(tags: &mut ArrayVec<Tag, N>, key: &str, value: &Option<String>) {
+    if let Some(value) = value {
+        let val = value.as_ref();
+        if let Some(tag) = new_tag_with_warnings(key, val) {
             tags.push(tag);
         }
-        Err(err) => {
-            warn!("invalid tag: {err}");
+    }
+}
+
+fn add_git_tag(tags: &mut Vec<Tag>, tag_name: &str, value: &str, config_id: config::ConfigId) {
+    if !value.is_empty() {
+        if let Some(tag) = new_tag_with_warnings(tag_name, value) {
+            tags.push(tag);
         }
+    } else {
+        let env = config_id.env_var_name_str();
+        warn!("{env} or its INI equivalent was set but empty, not setting the {tag_name} tag");
     }
 }
 
@@ -1113,5 +1146,112 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
 
     if let Err(err) = result {
         debug!("tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_clean_git_repository_url() {
+        let test_cases = [
+            // (input, expected_output, description)
+
+            // HTTPS URLs with credentials
+            (
+                "https://user:pass@github.com/owner/repo.git",
+                "github.com/owner/repo.git",
+                "HTTPS with credentials",
+            ),
+            (
+                "https://oauth2:token@github.com/DataDog/dd-trace-php.git",
+                "github.com/DataDog/dd-trace-php.git",
+                "HTTPS with OAuth token",
+            ),
+            (
+                "https://user%40domain.com:p%40ssw0rd@gitlab.com/group/project.git",
+                "gitlab.com/group/project.git",
+                "HTTPS with URL-encoded credentials",
+            ),
+            // HTTPS URLs without credentials
+            (
+                "https://github.com/owner/repo.git",
+                "github.com/owner/repo.git",
+                "HTTPS without credentials",
+            ),
+            (
+                "https://bitbucket.org/atlassian/project.git",
+                "bitbucket.org/atlassian/project.git",
+                "HTTPS Bitbucket",
+            ),
+            // SSH URLs with credentials
+            (
+                "ssh://user@github.com/owner/repo.git",
+                "github.com/owner/repo.git",
+                "SSH with credentials",
+            ),
+            (
+                "ssh://git@github.com:22/owner/repo.git",
+                "github.com:22/owner/repo.git",
+                "SSH with port",
+            ),
+            // SCP-style SSH URLs
+            (
+                "user@github.com:owner/repo.git",
+                "github.com:owner/repo.git",
+                "SCP-style with credentials",
+            ),
+            (
+                "git@gitlab.com:group/subgroup/project.git",
+                "gitlab.com:group/subgroup/project.git",
+                "SCP-style GitLab",
+            ),
+            (
+                "github.com:owner/repo.git",
+                "github.com:owner/repo.git",
+                "SCP-style without credentials",
+            ),
+            // Other protocols
+            (
+                "git://github.com/owner/repo.git",
+                "github.com/owner/repo.git",
+                "Git protocol",
+            ),
+            // URLs with port numbers
+            (
+                "https://user:pass@github.com:443/owner/repo.git",
+                "github.com:443/owner/repo.git",
+                "HTTPS with port and credentials",
+            ),
+            // Multiple @ signs (uses first one)
+            (
+                "https://user@domain:pass@github.com/owner/repo@main.git",
+                "domain:pass@github.com/owner/repo@main.git",
+                "Multiple @ signs",
+            ),
+            // Local paths
+            ("/path/to/repo", "/path/to/repo", "Absolute local path"),
+            (
+                "../relative/path",
+                "../relative/path",
+                "Relative local path",
+            ),
+            // Edge cases
+            ("", "", "Empty string"),
+            ("https://", "", "Just protocol"),
+            ("@", "", "Just @ sign"),
+            ("https://@", "", "Protocol with @ but no domain"),
+        ];
+
+        for (input, expected, description) in test_cases {
+            assert_eq!(
+                clean_git_repository_url(input),
+                expected,
+                "Failed for case: {} (input: '{}')",
+                description,
+                input
+            );
+        }
     }
 }
