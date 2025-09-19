@@ -76,15 +76,35 @@ static mut RUNTIME_PHP_VERSION: &str = {
 };
 
 lazy_static! {
-    static ref LAZY_STATICS_TAGS: Vec<Tag> = {
-        vec![
+    /// # Safety
+    /// The first time this is accessed must be after config is initialized in
+    /// the first RINIT and before mshutdown!
+    static ref GLOBAL_TAGS: Vec<Tag> = {
+        let mut tags = vec![
             tag!("language", "php"),
             tag!("profiler_version", env!("PROFILER_VERSION")),
             // SAFETY: calling getpid() is safe.
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        ]
+        ];
+
+        // This should probably be "language_version", but this is the
+        // standardized tag name.
+        // SAFETY: PHP_VERSION is safe to access in rinit (only
+        // mutated during minit).
+        add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
+        add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+        // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
+        // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
+        // `zend-nts-ndebug`
+        let runtime_engine = if cfg!(php_zts) {
+            "zend-zts-ndebug"
+        } else {
+            "zend-nts-ndebug"
+        };
+        add_tag(&mut tags, "runtime_engine", runtime_engine);
+        tags
     };
 
     /// The Server API the profiler is running under.
@@ -660,26 +680,19 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
             TAGS.set({
-                let mut tags = LAZY_STATICS_TAGS.clone();
+                // SAFETY: accessing in RINIT after config is initialized.
+                let globals = GLOBAL_TAGS.deref();
+                let unified_service_tags_len = locals.service.is_some() as usize
+                    + locals.env.is_some() as usize
+                    + locals.version.is_some() as usize;
+
+                let mut tags = Vec::new();
+                tags.reserve_exact(globals.len() + unified_service_tags_len + locals.tags.len());
+                tags.extend_from_slice(globals.as_slice());
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
-                // This should probably be "language_version", but this is the
-                // standardized tag name.
-                // SAFETY: PHP_VERSION is safe to access in rinit (only
-                // mutated during minit).
-                add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-                add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-                // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
-                // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-                // `zend-nts-ndebug`
-                let runtime_engine = if cfg!(php_zts) {
-                    "zend-zts-ndebug"
-                } else {
-                    "zend-nts-ndebug"
-                };
-                add_tag(&mut tags, "runtime_engine", runtime_engine);
-                tags.extend_from_slice(&locals.tags);
+                tags.extend_from_slice(locals.tags.as_slice());
                 Arc::new(tags)
             });
 
@@ -721,12 +734,8 @@ fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Optio
 fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
     assert!(!value.is_empty());
     match Tag::new(key, value) {
-        Ok(tag) => {
-            tags.push(tag);
-        }
-        Err(err) => {
-            warn!("invalid tag: {err}");
-        }
+        Ok(tag) => tags.push(tag),
+        Err(err) => warn!("invalid {key} tag: {err}"),
     }
 }
 
