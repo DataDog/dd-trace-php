@@ -111,7 +111,7 @@ trait TracerTestTrait
         $response = self::curlWithoutSpan($curl);
 
         // Close the cURL session
-        curl_close($curl);
+        if (PHP_VERSION_ID < 80000) { curl_close($curl); }
 
         // Output the response for debugging purposes
         //echo $response;
@@ -201,7 +201,7 @@ trait TracerTestTrait
                     if (\is_array($curlInfo)) {
                         $curlInfo = \array_merge($curlInfo, \curl_getinfo($curl));
                     }
-                    \curl_close($curl);
+                    if (PHP_VERSION_ID < 80000) { curl_close($curl); }
                     $webServer->stop();
                     return $response;
                 }

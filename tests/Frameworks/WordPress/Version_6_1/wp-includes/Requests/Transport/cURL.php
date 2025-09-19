@@ -114,7 +114,7 @@ class Requests_Transport_cURL implements Requests_Transport {
 	 */
 	public function __destruct() {
 		if (is_resource($this->handle)) {
-			curl_close($this->handle);
+			if (PHP_VERSION_ID < 80000) { curl_close($this->handle); }
 		}
 	}
 
@@ -257,7 +257,7 @@ class Requests_Transport_cURL implements Requests_Transport {
 				}
 
 				curl_multi_remove_handle($multihandle, $done['handle']);
-				curl_close($done['handle']);
+				if (PHP_VERSION_ID < 80000) { curl_close($done['handle']); }
 
 				if (!is_string($responses[$key])) {
 					$options['hooks']->dispatch('multiple.request.complete', array(&$responses[$key], $key));

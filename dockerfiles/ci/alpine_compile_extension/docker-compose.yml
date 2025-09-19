@@ -133,3 +133,16 @@ services:
         phpApi: 20240924
     volumes:
       - ../../:/app
+
+  8.5-alpine:
+    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.5
+    build:
+      context: .
+      x-bake: *bake
+      args:
+        phpVersion: 8.5.0
+        phpTarGzUrl: https://downloads.php.net/~edorian/php-8.5.0beta3.tar.gz
+        phpSha256Hash: "ff3f5a8c73c4b84883ef0e3870543c078d324c46ccef2eb85c66cb88124e7a55"
+        phpApi: 20240925
+    volumes:
+      - ../../:/app
