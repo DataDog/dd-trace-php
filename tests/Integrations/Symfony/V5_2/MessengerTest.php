@@ -13,7 +13,7 @@ class MessengerTest extends WebFrameworkTestCase
         'metrics.php.memory.peak_usage_bytes',
         'metrics.php.memory.peak_real_usage_bytes',
         'meta.error.stack',
-        'meta._dd..tid',
+        'meta._dd.p.tid',
         'meta.messaging.message_id',
         'meta.messaging.symfony.redelivered_at',
         'metrics.messaging.symfony.delay',

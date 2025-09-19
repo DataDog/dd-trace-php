@@ -26,173 +26,152 @@ class MemcachedIntegration extends Integration
 {
     const NAME = 'memcached';
 
-    /**
-     * @var self
-     */
-    private static $instance;
-
-    /**
-     * @return self
-     */
-    public static function getInstance()
-    {
-        if (null === self::$instance) {
-            self::$instance = new self();
-        }
-        return self::$instance;
-    }
-
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('memcached')) {
             return Integration::NOT_AVAILABLE;
         }
-        $integration = $this;
 
-        $this->traceCommand('add');
-        $this->traceCommandByKey('addByKey');
+        self::traceCommand('add');
+        self::traceCommandByKey('addByKey');
 
-        $this->traceCommand('append');
-        $this->traceCommandByKey('appendByKey');
+        self::traceCommand('append');
+        self::traceCommandByKey('appendByKey');
 
-        $this->traceCommand('decrement');
-        $this->traceCommandByKey('decrementByKey');
+        self::traceCommand('decrement');
+        self::traceCommandByKey('decrementByKey');
 
-        $this->traceCommand('delete');
-        $this->traceMulti('deleteMulti');
-        $this->traceCommandByKey('deleteByKey');
-        $this->traceMultiByKey('deleteMultiByKey');
+        self::traceCommand('delete');
+        self::traceMulti('deleteMulti');
+        self::traceCommandByKey('deleteByKey');
+        self::traceMultiByKey('deleteMultiByKey');
 
-        $this->traceCommand('get');
-        $this->traceMulti('getMulti');
-        $this->traceCommandByKey('getByKey');
-        $this->traceMultiByKey('getMultiByKey');
+        self::traceCommand('get');
+        self::traceMulti('getMulti');
+        self::traceCommandByKey('getByKey');
+        self::traceMultiByKey('getMultiByKey');
 
-        $this->traceCommand('set');
-        $this->traceMulti('setMulti');
-        $this->traceCommandByKey('setByKey');
-        $this->traceMultiByKey('setMultiByKey');
+        self::traceCommand('set');
+        self::traceMulti('setMulti');
+        self::traceCommandByKey('setByKey');
+        self::traceMultiByKey('setMultiByKey');
 
-        $this->traceCommand('increment');
-        $this->traceCommandByKey('incrementByKey');
+        self::traceCommand('increment');
+        self::traceCommandByKey('incrementByKey');
 
-        $this->traceCommand('prepend');
-        $this->traceCommandByKey('prependByKey');
+        self::traceCommand('prepend');
+        self::traceCommandByKey('prependByKey');
 
-        $this->traceCommand('replace');
-        $this->traceCommandByKey('replaceByKey');
+        self::traceCommand('replace');
+        self::traceCommandByKey('replaceByKey');
 
-        $this->traceCommand('touch');
-        $this->traceCommandByKey('touchByKey');
+        self::traceCommand('touch');
+        self::traceCommandByKey('touchByKey');
 
-        \DDTrace\trace_method('Memcached', 'flush', function (SpanData $span) use ($integration) {
-            $integration->setCommonData($span, 'flush');
+        \DDTrace\trace_method('Memcached', 'flush', function (SpanData $span) {
+            MemcachedIntegration::setCommonData($span, 'flush');
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            $integration->setServerTags($span, $this);
+            MemcachedIntegration::setServerTags($span, $this);
         });
 
-        \DDTrace\trace_method('Memcached', 'cas', function (SpanData $span, $args) use ($integration) {
-            $integration->setCommonData($span, 'cas');
+        \DDTrace\trace_method('Memcached', 'cas', function (SpanData $span, $args) {
+            MemcachedIntegration::setCommonData($span, 'cas');
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'cas ?';
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            $integration->setServerTags($span, $this);
+            MemcachedIntegration::setServerTags($span, $this);
         });
 
-        \DDTrace\trace_method('Memcached', 'casByKey', function (SpanData $span, $args) use ($integration) {
-            $integration->setCommonData($span, 'casByKey');
+        \DDTrace\trace_method('Memcached', 'casByKey', function (SpanData $span, $args) {
+            MemcachedIntegration::setCommonData($span, 'casByKey');
             $span->meta['memcached.cas_token'] = $args[0];
             $span->meta['memcached.query'] = 'casByKey ?';
             $span->meta['memcached.server_key'] = $args[1];
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-            $integration->setServerTags($span, $this);
+            MemcachedIntegration::setServerTags($span, $this);
         });
 
         return Integration::LOADED;
     }
 
-    public function traceCommand($command)
+    public static function traceCommand($command)
     {
-        $integration = $this;
         \DDTrace\trace_method(
             'Memcached',
             $command,
-            function (SpanData $span, $args, $retval) use ($integration, $command) {
-                $integration->setCommonData($span, $command);
+            function (SpanData $span, $args, $retval) use ($command) {
+                MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'get') {
                     $span->metrics[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
                 }
                 if (!is_array($args[0])) {
-                    $integration->setServerTags($span, $this);
-                    $span->meta['memcached.query'] = $command . ' ' . $integration->obfuscateIfNeeded($args[0]);
+                    MemcachedIntegration::setServerTags($span, $this);
+                    $span->meta['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0]);
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-                $integration->markForTraceAnalytics($span, $command);
+                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
 
-    public function traceCommandByKey($command)
+    public static function traceCommandByKey($command)
     {
-        $integration = $this;
         \DDTrace\trace_method(
             'Memcached',
             $command,
-            function (SpanData $span, $args, $retval) use ($integration, $command) {
-                $integration->setCommonData($span, $command);
+            function (SpanData $span, $args, $retval) use ($command) {
+                MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'getByKey') {
                     $span->metrics[Tag::DB_ROW_COUNT] = empty($retval) ? 0 : 1;
                 }
                 if (!is_array($args[0])) {
-                    $integration->setServerTags($span, $this);
-                    $span->meta['memcached.query'] = $command . ' ' . $integration->obfuscateIfNeeded($args[0]);
+                    MemcachedIntegration::setServerTags($span, $this);
+                    $span->meta['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0]);
                     $span->meta['memcached.server_key'] = $args[0];
                 }
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
 
-                $integration->markForTraceAnalytics($span, $command);
+                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
 
-    public function traceMulti($command)
+    public static function traceMulti($command)
     {
-        $integration = $this;
         \DDTrace\trace_method(
             'Memcached',
             $command,
-            function (SpanData $span, $args, $retval) use ($integration, $command) {
-                $integration->setCommonData($span, $command);
+            function (SpanData $span, $args, $retval) use ($command) {
+                MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'getMulti') {
                     $span->metrics[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
-                $integration->setServerTags($span, $this);
-                $span->meta['memcached.query'] = $command . ' ' . $integration->obfuscateIfNeeded($args[0], ',');
+                MemcachedIntegration::setServerTags($span, $this);
+                $span->meta['memcached.query'] = $command . ' ' . MemcachedIntegration::obfuscateIfNeeded($args[0], ',');
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                $integration->markForTraceAnalytics($span, $command);
+                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
 
-    public function traceMultiByKey($command)
+    public static function traceMultiByKey($command)
     {
-        $integration = $this;
         \DDTrace\trace_method(
             'Memcached',
             $command,
-            function (SpanData $span, $args, $retval) use ($integration, $command) {
-                $integration->setCommonData($span, $command);
+            function (SpanData $span, $args, $retval) use ($command) {
+                MemcachedIntegration::setCommonData($span, $command);
                 if ($command === 'getMultiByKey') {
                     $span->metrics[Tag::DB_ROW_COUNT] = isset($retval) ? (is_array($retval) ? count($retval) : 1) : 0;
                 }
                 $span->meta['memcached.server_key'] = $args[0];
-                $integration->setServerTags($span, $this);
-                $query = "$command " . $integration->obfuscateIfNeeded($args[1], ',');
+                MemcachedIntegration::setServerTags($span, $this);
+                $query = "$command " . MemcachedIntegration::obfuscateIfNeeded($args[1], ',');
                 $span->meta['memcached.query'] = $query;
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                $integration->markForTraceAnalytics($span, $command);
+                MemcachedIntegration::markForTraceAnalytics($span, $command);
             }
         );
     }
@@ -203,17 +182,17 @@ class MemcachedIntegration extends Integration
      * @param SpanData $span
      * @param string $command
      */
-    public function setCommonData(SpanData $span, $command)
+    public static function setCommonData(SpanData $span, $command)
     {
         $span->name = "Memcached.$command";
         $span->type = Type::MEMCACHED;
         $span->service = 'memcached';
-        Integration::handleInternalSpanServiceName($span, MemcachedIntegration::NAME);
+        Integration::handleInternalSpanServiceName($span, self::NAME);
         $span->resource = $command;
         $span->meta['memcached.command'] = $command;
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = MemcachedIntegration::NAME;
-        $span->meta[Tag::DB_SYSTEM] = MemcachedIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->meta[Tag::DB_SYSTEM] = self::NAME;
     }
 
     /**
@@ -229,7 +208,7 @@ class MemcachedIntegration extends Integration
      * @param SpanData $span
      * @param \Memcached $memcached
      */
-    public function setServerTags(SpanData $span, \Memcached $memcached)
+    public static function setServerTags(SpanData $span, \Memcached $memcached)
     {
         $servers = $memcached->getServerList();
         /*
@@ -246,7 +225,7 @@ class MemcachedIntegration extends Integration
      * @param SpanData $span
      * @param string $command
      */
-    public function markForTraceAnalytics(SpanData $span, $command)
+    public static function markForTraceAnalytics(SpanData $span, $command)
     {
         $commandsForAnalytics = [
             'add',
@@ -260,14 +239,14 @@ class MemcachedIntegration extends Integration
         ];
 
         if (in_array($command, $commandsForAnalytics)) {
-            $this->addTraceAnalyticsIfEnabled($span);
+            self::addTraceAnalyticsIfEnabled($span);
         }
     }
 
     /*
      * Return either the obfuscated params or the params themselves, depending on the env var.
      */
-    public function obfuscateIfNeeded($params, $glue = ' ')
+    public static function obfuscateIfNeeded($params, $glue = ' ')
     {
         if (dd_trace_env_config("DD_TRACE_MEMCACHED_OBFUSCATION")) {
             return Obfuscation::toObfuscatedString($params, $glue);

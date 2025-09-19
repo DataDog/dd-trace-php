@@ -123,7 +123,7 @@ class ObjectKVStore
             return;
         }
 
-        if (\class_exists("WeakMap", $autoload = false)) {
+        if (\class_exists("WeakMap", /* autoload: */ false)) {
             if (!self::$weakmap) {
                 self::$weakmap = new \WeakMap();
             }

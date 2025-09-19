@@ -34,7 +34,6 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, c_void, CStr};
 use core::ptr;
-use std::env;
 use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
 use log::{debug, error, info, trace, warn};
@@ -43,6 +42,7 @@ use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
+use std::env;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Once};
@@ -77,7 +77,10 @@ static mut RUNTIME_PHP_VERSION: &str = {
 };
 
 lazy_static! {
-    static ref LAZY_STATICS_TAGS: Vec<Tag> = {
+    /// # Safety
+    /// The first time this is accessed must be after config is initialized in
+    /// the first RINIT and before mshutdown!
+    static ref GLOBAL_TAGS: Vec<Tag> = {
         let mut tags = vec![
             tag!("language", "php"),
             tag!("profiler_version", env!("PROFILER_VERSION")),
@@ -86,20 +89,40 @@ lazy_static! {
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
         ];
-        if let Ok(val) = env::var("DD_GIT_COMMIT_SHA") {
-            tags.push(Tag::new("git.commit.sha", val).expect("DD_GIT_COMMIT_SHA to be a valid commit hash"));
-        }
-        if let Ok(mut val) = env::var("DD_GIT_REPOSITORY_URL") {
-            // Remove potential credentials and protocol, customers are encouraged to not send
-            // these anyways. In case there are credentials, removing everything before @ also
-            // removes the protocol.
-            if let Some(at_pos) = val.find("@") {
-                val = val[at_pos + 1..].to_string();
+
+        let git_commit_sha = env::var("DD_GIT_COMMIT_SHA").ok().filter(|s| !s.is_empty());
+        let git_repository_url = env::var("DD_GIT_REPOSITORY_URL").ok().filter(|s| !s.is_empty());
+        add_optional_tag(&mut tags, "git.commit.sha", &git_commit_sha);
+        if let Some(val) = git_repository_url {
+            // Remove potential credentials and protocol, customers are
+            // encouraged to not send these anyway. In case there are
+            // credentials, removing everything before @ also removes the
+            // protocol.
+            let val = if let Some(at_pos) = val.find("@") {
+                &val[at_pos + 1..]
             } else if let Some(proto_pos) = val.find("://") {
-                val = val[proto_pos + 3..].to_string();
-            }
-            tags.push(Tag::new("git.repository_url", val).expect("DD_GIT_REPOSITORY_URL to be a valid URL"));
+                &val[proto_pos + 3..]
+            } else {
+                &val
+            };
+            add_tag(&mut tags, "git.repository_url", val);
         }
+
+        // This should probably be "language_version", but this is the
+        // standardized tag name.
+        // SAFETY: PHP_VERSION is safe to access in rinit (only
+        // mutated during minit).
+        add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
+        add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+        // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
+        // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
+        // `zend-nts-ndebug`
+        let runtime_engine = if cfg!(php_zts) {
+            "zend-zts-ndebug"
+        } else {
+            "zend-nts-ndebug"
+        };
+        add_tag(&mut tags, "runtime_engine", runtime_engine);
         tags
     };
 
@@ -676,26 +699,19 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
             TAGS.set({
-                let mut tags = LAZY_STATICS_TAGS.clone();
+                // SAFETY: accessing in RINIT after config is initialized.
+                let globals = GLOBAL_TAGS.deref();
+                let unified_service_tags_len = locals.service.is_some() as usize
+                    + locals.env.is_some() as usize
+                    + locals.version.is_some() as usize;
+
+                let mut tags = Vec::new();
+                tags.reserve_exact(globals.len() + unified_service_tags_len + locals.tags.len());
+                tags.extend_from_slice(globals.as_slice());
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
-                // This should probably be "language_version", but this is the
-                // standardized tag name.
-                // SAFETY: PHP_VERSION is safe to access in rinit (only
-                // mutated during minit).
-                add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-                add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-                // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
-                // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-                // `zend-nts-ndebug`
-                let runtime_engine = if cfg!(php_zts) {
-                    "zend-zts-ndebug"
-                } else {
-                    "zend-nts-ndebug"
-                };
-                add_tag(&mut tags, "runtime_engine", runtime_engine);
-                tags.extend_from_slice(&locals.tags);
+                tags.extend_from_slice(locals.tags.as_slice());
                 Arc::new(tags)
             });
 
@@ -737,12 +753,8 @@ fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Optio
 fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
     assert!(!value.is_empty());
     match Tag::new(key, value) {
-        Ok(tag) => {
-            tags.push(tag);
-        }
-        Err(err) => {
-            warn!("invalid tag: {err}");
-        }
+        Ok(tag) => tags.push(tag),
+        Err(err) => warn!("invalid {key} tag: {err}"),
     }
 }
 
