@@ -3,7 +3,7 @@
 namespace DDTrace\Integrations\Filesystem {
     class FilesystemIntegration implements \DDTrace\Integration
     {
-        function init(): int
+        static function init(): int
         {
             return self::LOADED;
         }

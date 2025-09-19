@@ -71,7 +71,7 @@ class LogsIntegration extends Integration
 
     public static function messageContainsPlaceholders(string $message): bool
     {
-        $placeholders = LogsIntegration::getPlaceholders();
+        $placeholders = self::getPlaceholders();
 
         foreach ($placeholders as $placeholder => $value) {
             if (strpos($message, $placeholder) !== false) {
@@ -87,8 +87,8 @@ class LogsIntegration extends Integration
         $traceIdSubstitute = null,
         $spanIdSubstitute = null
     ): string {
-        $placeholders = LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute);
-        LogsIntegration::replacePlaceholders($message, $placeholders);
+        $placeholders = self::getPlaceholders($traceIdSubstitute, $spanIdSubstitute);
+        self::replacePlaceholders($message, $placeholders);
 
         $additional = "";
         foreach ($placeholders as $placeholder => $value) {
@@ -114,7 +114,7 @@ class LogsIntegration extends Integration
     ): string {
         return strtr(
             $message,
-            $placeholders ?: LogsIntegration::getPlaceholders($traceIdSubstitute, $spanIdSubstitute)
+            $placeholders ?: self::getPlaceholders($traceIdSubstitute, $spanIdSubstitute)
         );
     }
 
@@ -154,7 +154,7 @@ class LogsIntegration extends Integration
         int $contextIndex,
         $levelIndex = null
     ): callable {
-        return function (HookData $hook) use ($levelName, $messageIndex, $contextIndex, $levelIndex) {
+        return static function (HookData $hook) use ($levelName, $messageIndex, $contextIndex, $levelIndex) {
             /** @var string $message */
             $message = $hook->args[$messageIndex];
             /** @var array $context */
@@ -164,7 +164,7 @@ class LogsIntegration extends Integration
                 if (is_string($hook->args[$levelIndex])) {
                     $levelName = $hook->args[$levelIndex];
                 } elseif (is_int($hook->args[$levelIndex])) {
-                    $levelName = LogsIntegration::laminasLogLevelToString($hook->args[$levelIndex], $levelName);
+                    $levelName = self::laminasLogLevelToString($hook->args[$levelIndex], $levelName);
                 }
             }
 
@@ -180,14 +180,14 @@ class LogsIntegration extends Integration
 
             if (dd_trace_env_config("DD_TRACE_APPEND_TRACE_IDS_TO_LOGS")) {
                 // Append the trace identifiers at the END of the message, prioritizing placeholders, if any
-                $message = LogsIntegration::appendTraceIdentifiersToMessage(
+                $message = self::appendTraceIdentifiersToMessage(
                     $message,
                     $traceIdSubstitute,
                     $spanIdSubstitute
                 );
-            } elseif (LogsIntegration::messageContainsPlaceholders($message)) {
+            } elseif (self::messageContainsPlaceholders($message)) {
                 // Replace the placeholders, if any, with their actual values
-                $message = LogsIntegration::replacePlaceholders(
+                $message = self::replacePlaceholders(
                     $message,
                     null,
                     $traceIdSubstitute,
@@ -196,7 +196,7 @@ class LogsIntegration extends Integration
             } elseif (strpos($message, 'dd.trace_id=') === false) {
                 // Add the trace identifiers to the context
                 // They may or may not be used by the formatter
-                $context = LogsIntegration::addTraceIdentifiersToContext(
+                $context = self::addTraceIdentifiersToContext(
                     $context,
                     $traceIdSubstitute,
                     $spanIdSubstitute
@@ -210,7 +210,7 @@ class LogsIntegration extends Integration
         };
     }
 
-    public function init(): int
+    public static function init(): int
     {
         $levelNames = [
             'debug',

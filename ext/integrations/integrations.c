@@ -111,20 +111,18 @@ static void dd_invoke_integration_loader_and_unhook_posthook(zend_ulong invocati
                     break;
                 }
 
-                zval obj;
-                if (!zai_symbol_new(&obj, ce, 0)) {
-                    break;
-                }
-
                 zval rv;
                 zval *thisp = getThis();
-                if (thisp) {
-                    success = zai_symbol_call_named(ZAI_SYMBOL_SCOPE_OBJECT, &obj, &(zai_str) ZAI_STRL("init"), &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, thisp);
-                } else {
-                    success = zai_symbol_call_named(ZAI_SYMBOL_SCOPE_OBJECT, &obj, &(zai_str) ZAI_STRL("init"), &rv, 0 | ZAI_SYMBOL_SANDBOX, &sandbox);
-                }
-
-                zval_ptr_dtor(&obj);
+                zend_fcall_info fci = dd_fcall_info(thisp != NULL, thisp, &rv);
+                zend_fcall_info_cache fcc = {
+                    .function_handler = zend_hash_str_find_ptr(&ce->function_table, ZEND_STRL("init")),
+                    .called_scope = ce,
+                    .object = NULL,
+#if PHP_VERSION_ID < 70300
+                    .initialized = 1,
+#endif
+                };
+                success = zai_sandbox_call(&sandbox, &fci, &fcc);
 
                 if (success && get_DD_TRACE_ENABLED()) {
                     switch (Z_LVAL(rv)) {

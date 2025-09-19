@@ -387,11 +387,12 @@ void ddtrace_observe_opened_span(ddtrace_span_data *span) {
                     }
 
                     zval rv;
+                    zend_fcall_info_cache fcc;
+                    dd_get_closure_to_fcc(closure_zv, &fcc);
+                    zend_fcall_info fci = dd_fcall_info(1, &span_zv, &rv);
                     zai_sandbox sandbox;
                     zai_sandbox_open(&sandbox);
-                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    bool success = zai_sandbox_call(&sandbox, &fci, &fcc);
                     if (!success || PG(last_error_message)) {
                         dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
                     }
@@ -876,11 +877,12 @@ void ddtrace_close_span(ddtrace_span_data *span) {
                 ZVAL_DEREF(closure_zv);
                 if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
                     zval rv;
+                    zend_fcall_info_cache fcc;
+                    dd_get_closure_to_fcc(closure_zv, &fcc);
+                    zend_fcall_info fci = dd_fcall_info(1, &span_zv, &rv);
                     zai_sandbox sandbox;
                     zai_sandbox_open(&sandbox);
-                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    bool success = zai_sandbox_call(&sandbox, &fci, &fcc);
                     if (!success || PG(last_error_message)) {
                         dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
                     }

@@ -266,21 +266,18 @@ static inline bool zai_hook_is_excluded(zai_hook_t *hook, zend_class_entry *ce) 
 
 /* {{{ */
 static inline zend_function *zai_hook_lookup_function(zai_str scope, zai_str func, zend_class_entry **ce) {
-    zend_function *function = NULL;
-
     if (scope.len) {
-        *ce = zai_symbol_lookup_class(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &scope);
+        *ce = zend_hash_str_find_ptr_lc(EG(class_table), scope.ptr, scope.len);
 
         if (!*ce) {
             /* class not available */
             return NULL;
         }
-        function = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_CLASS, *ce, &func);
+        return zend_hash_str_find_ptr_lc(&(*ce)->function_table, func.ptr, func.len);
     } else {
         *ce = NULL;
-        function = zai_symbol_lookup_function(ZAI_SYMBOL_SCOPE_GLOBAL, NULL, &func);
+        return zend_hash_str_find_ptr_lc(EG(function_table), func.ptr, func.len);
     }
-    return function;
 }
 
 static void zai_hook_sort_newest(zai_hooks_entry *hooks) {
@@ -1015,7 +1012,8 @@ zai_hook_continued zai_hook_continue(zend_execute_data *ex, zai_hook_memory_t *m
         }
 
         if (check_scope) {
-            if (!(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
+            // explicitly check for resolved_scope, as that might be NULL due to Closure scope rebinding
+            if (hook->resolved_scope && !(hook->resolved_scope->ce_flags & ZEND_ACC_TRAIT) && !instanceof_function(zend_get_called_scope(ex), hook->resolved_scope)) {
                 continue;
             }
         }
