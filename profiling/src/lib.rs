@@ -1,11 +1,15 @@
 pub mod bindings;
+mod bitset;
 pub mod capi;
 mod clocks;
 mod config;
+mod inlinevec;
 mod logging;
 pub mod profiling;
 mod pthread;
 mod sapi;
+mod timeline;
+mod vec_ext;
 mod wall_time;
 
 #[cfg(feature = "allocation_profiling")]
@@ -17,11 +21,7 @@ mod io;
 #[cfg(feature = "exception_profiling")]
 mod exception;
 
-mod inlinevec;
 #[cfg(feature = "timeline")]
-mod timeline;
-mod vec_ext;
-
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{

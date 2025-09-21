@@ -21,6 +21,7 @@ use crate::bindings::{
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[large string]");
 
+#[derive(Clone, Debug)]
 pub struct ZendFrame {
     pub function_id: Option<FunctionId>,
     pub line: u32, // use 0 for no line info

@@ -1,7 +1,6 @@
 // Copyright 2025-Present Datadog, Inc. https://www.datadoghq.com/
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
 
-use arrayvec::ArrayVec;
 use core::slice::Iter;
 use std::hash::{Hash, Hasher};
 use std::mem::{ManuallyDrop, MaybeUninit};
@@ -19,6 +18,13 @@ const fn assert_capacity(n: usize) {
         panic!("InlineVec only supports up to u8::MAX capacities");
     }
 }
+
+impl<T, const N: usize> Default for InlineVec<T, N> {
+    fn default() -> Self {
+        InlineVec::new()
+    }
+}
+
 impl<T, const N: usize> InlineVec<T, N> {
     pub const fn new() -> Self {
         assert_capacity(N);
@@ -32,7 +38,7 @@ impl<T, const N: usize> InlineVec<T, N> {
 
     /// # Safety
     /// There must be unused capacity when called.
-    const unsafe fn push_unchecked(&mut self, value: T) {
+    pub const unsafe fn push_unchecked(&mut self, value: T) {
         self.as_mut_ptr().add(self.len()).write(value);
         self.len += 1;
     }
@@ -147,7 +153,7 @@ impl<T, const N: usize> InlineVecIter<T, N> {
 impl<T, const N: usize> Drop for InlineVecIter<T, N> {
     fn drop(&mut self) {
         if core::mem::needs_drop::<T>() {
-            let base = unsafe { self.vec.as_mut_ptr() };
+            let base = self.vec.as_mut_ptr();
             for i in self.live_range() {
                 unsafe { base.add(i).drop_in_place() }
             }
@@ -164,7 +170,6 @@ impl<T, const N: usize> From<InlineVec<T, N>> for InlineVecIter<T, N> {
     }
 }
 
-
 impl<T, const N: usize> Iterator for InlineVecIter<T, N> {
     type Item = T;
 
@@ -178,12 +183,12 @@ impl<T, const N: usize> Iterator for InlineVecIter<T, N> {
             None
         }
     }
-    
+
     fn size_hint(&self) -> (usize, Option<usize>) {
         let len = self.live_range().len();
         (len, Some(len))
     }
-    
+
     fn count(self) -> usize {
         self.live_range().len()
     }
@@ -201,12 +206,6 @@ impl<T, const N: usize> IntoIterator for InlineVec<T, N> {
 
     fn into_iter(self) -> Self::IntoIter {
         InlineVecIter::from(self)
-    }
-}
-
-impl<T, const N: usize> From<InlineVec<T, N>> for ArrayVec<T, N> {
-    fn from(vec: InlineVec<T, N>) -> Self {
-        ArrayVec::from_iter(InlineVecIter::from(vec))
     }
 }
 
@@ -233,7 +232,7 @@ mod tests {
 
     const TEST_INLINE_VEC: InlineVec<bool, 2> = {
         let mut vec = InlineVec::from([false]);
-        if let Err(e) = vec.try_push(true) {
+        if vec.try_push(true).is_err() {
             panic!("expected to be able push another item into the vec")
         }
         vec

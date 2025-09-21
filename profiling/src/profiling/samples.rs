@@ -1,48 +1,24 @@
+// Copyright 2025-Present Datadog, Inc. https://www.datadoghq.com/
+// SPDX-License-Identifier: Apache-2.0 OR BSD-3-Clause
+
+use crate::bitset::BitSet;
 use crate::config::SystemSettings;
 use crate::inlinevec::InlineVec;
-use crate::profiling::{SampleValues, ValueType};
-use datadog_profiling::profiles::datatypes::MAX_SAMPLE_TYPES;
-use std::collections::HashMap;
-use std::hash::BuildHasherDefault;
-use std::mem::Discriminant;
+use crate::profiling::ValueType;
+use std::fmt::Debug;
+use std::hash::{Hash, Hasher};
+use std::mem::MaybeUninit;
+use std::slice;
 
-/// The sample values for a given profile type.
-///
-/// The repr(u8) is valid even though this holds data larger than u8; see the
-/// documentation on primitive representations:
-/// https://doc.rust-lang.org/reference/type-layout.html#primitive-representations
-///
-/// If the order of the enum is changed, or if variants are added or removed,
-/// then other code below will need to be changed to match.
-#[repr(u8)]
-pub enum SampleValue {
-    WallTime { nanoseconds: i64, count: i64 },
-    CpuTime { nanoseconds: i64 },
-    Alloc { bytes: i64, count: i64 },
-    Timeline { nanoseconds: i64 },
-    Exception { count: i64 },
-    FileIoReadTime { nanoseconds: i64, count: i64 },
-    FileIoWriteTime { nanoseconds: i64, count: i64 },
-    FileIoReadSize { bytes: i64, count: i64 },
-    FileIoWriteSize { bytes: i64, count: i64 },
-    SocketReadTime { nanoseconds: i64, count: i64 },
-    SocketWriteTime { nanoseconds: i64, count: i64 },
-    SocketReadSize { bytes: i64, count: i64 },
-    SocketWriteSize { bytes: i64, count: i64 },
-}
+pub const MAX_SAMPLE_TYPES_PER_PROFILE: usize = 2;
+pub const MAX_SAMPLE_VALUES: usize = 23;
+pub const NUM_PROFILE_TYPES: usize = 13;
 
-impl SampleValue {
-    fn discriminant(&self) -> usize {
-        // SAFETY: SampleValue uses a primitive representation.
-        let r#repr = unsafe { *(self as *const Self as *const u8) };
-        r#repr as usize
-    }
-}
+pub type ProfileType = InlineVec<ValueType, MAX_SAMPLE_TYPES_PER_PROFILE>;
 
-pub type ProfileType = InlineVec<ValueType, MAX_SAMPLE_TYPES>;
-
-/// This must have the same order that the SampleValue enum has these items.
-const PROFILE_TYPES: [ProfileType; 13] = [
+/// The profile types in PHP. The [`SampleValue`] enum must have its variants
+/// in the same order as they come in this list.
+pub const PROFILE_TYPES: [ProfileType; NUM_PROFILE_TYPES] = [
     SAMPLE_TYPE_WALL_TIME,
     SAMPLE_TYPE_CPU_TIME,
     SAMPLE_TYPE_ALLOC,
@@ -58,32 +34,283 @@ const PROFILE_TYPES: [ProfileType; 13] = [
     SAMPLE_TYPE_FILE_IO_WRITE_SIZE,
 ];
 
+/// Historically, this was ordered this way:
+///  1. Always enabled types.
+///  2. On by default types.
+///  3. Off by default types.
+///
+/// But this doesn't really matter anymore, because the number of sample types
+/// has grown and the optimizations used don't work well anymore.
+#[derive(Default, Debug)]
+#[repr(C)]
+pub struct SampleValues {
+    pub interrupt_count: i64,
+    pub wall_time: i64,
+    pub cpu_time: i64,
+    pub alloc_samples: i64,
+    pub alloc_size: i64,
+    pub timeline: i64,
+    pub exception: i64,
+    pub socket_read_time: i64,
+    pub socket_read_time_samples: i64,
+    pub socket_write_time: i64,
+    pub socket_write_time_samples: i64,
+    pub file_read_time: i64,
+    pub file_read_time_samples: i64,
+    pub file_write_time: i64,
+    pub file_write_time_samples: i64,
+    pub socket_read_size: i64,
+    pub socket_read_size_samples: i64,
+    pub socket_write_size: i64,
+    pub socket_write_size_samples: i64,
+    pub file_read_size: i64,
+    pub file_read_size_samples: i64,
+    pub file_write_size: i64,
+    pub file_write_size_samples: i64,
+}
+
+/// The sample values for a given profile type.
+///
+/// The repr(u8) is valid even though this holds data larger than u8; see the
+/// documentation on primitive representations:
+/// https://doc.rust-lang.org/reference/type-layout.html#primitive-representations
+///
+/// If the order of the enum is changed, or if variants are added or removed,
+/// then [`PROFILE_TYPES`] needs to be changed (or vice versa).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum SampleValue {
+    WallTime { count: i64, nanoseconds: i64 },
+    CpuTime { nanoseconds: i64 },
+    Alloc { count: i64, bytes: i64 },
+    Timeline { nanoseconds: i64 },
+    Exception { count: i64 },
+    FileIoReadTime { nanoseconds: i64, count: i64 },
+    FileIoWriteTime { nanoseconds: i64, count: i64 },
+    FileIoReadSize { bytes: i64, count: i64 },
+    FileIoWriteSize { bytes: i64, count: i64 },
+    SocketReadTime { nanoseconds: i64, count: i64 },
+    SocketWriteTime { nanoseconds: i64, count: i64 },
+    SocketReadSize { bytes: i64, count: i64 },
+    SocketWriteSize { bytes: i64, count: i64 },
+}
+
+/// Tracks which profile types are enabled. Since there are 1 or 2 sample
+/// types per profile, it also keeps a bitset for which sample types and
+/// values are in-use. So for 13 profiles, there may be 13-26 sample types.
+#[derive(Clone, Debug)]
+pub struct EnabledProfiles {
+    /// Tracks which profile types are enabled.
+    profiles: BitSet,
+    /// Tracks which sample types/values are enabled. This is the same
+    /// information as the other bitset, just formatted for a different use
+    /// case. This means this field isn't used in Eq + Hash.
+    samples: BitSet,
+}
+
+/// IMPORTANT: must be transmutable to/from SampleValue! See:
+/// https://doc.rust-lang.org/reference/type-layout.html#primitive-representation-of-enums-with-fields
+#[repr(C)]
+struct RestructuredSample {
+    discriminant: u8,
+    value: (i64, MaybeUninit<i64>),
+}
+
+impl SampleValues {
+    pub fn as_array(&self) -> [&i64; MAX_SAMPLE_VALUES] {
+        // Use the same order as the members.
+        [
+            &self.interrupt_count,
+            &self.wall_time,
+            &self.cpu_time,
+            &self.alloc_samples,
+            &self.alloc_size,
+            &self.timeline,
+            &self.exception,
+            &self.socket_read_time,
+            &self.socket_read_time_samples,
+            &self.socket_write_time,
+            &self.socket_write_time_samples,
+            &self.file_read_time,
+            &self.file_read_time_samples,
+            &self.file_write_time,
+            &self.file_write_time_samples,
+            &self.socket_read_size,
+            &self.socket_read_size_samples,
+            &self.socket_write_size,
+            &self.socket_write_size_samples,
+            &self.file_read_size,
+            &self.file_read_size_samples,
+            &self.file_write_size,
+            &self.file_write_size_samples,
+        ]
+    }
+}
+
+impl Eq for EnabledProfiles {}
+impl PartialEq for EnabledProfiles {
+    fn eq(&self, other: &Self) -> bool {
+        self.profiles == other.profiles
+    }
+}
+impl Hash for EnabledProfiles {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.profiles.hash(state);
+    }
+}
+
+impl EnabledProfiles {
+    pub fn new(config: &SystemSettings) -> EnabledProfiles {
+        let wall_time = config.profiling_enabled;
+        let cpu_time = config.profiling_experimental_cpu_time_enabled;
+        let alloc = config.profiling_allocation_enabled;
+        let timeline = config.profiling_timeline_enabled;
+        let exception = config.profiling_exception_enabled;
+        let io_profiling = cfg!(feature = "io_profiling") && config.profiling_io_enabled;
+
+        // This implementation is tied to the order PROFILE_TYPES is defined.
+        let profiles_mask = [
+            wall_time,
+            cpu_time,
+            alloc,
+            timeline,
+            exception,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+        ];
+
+        let profiles = BitSet::from_iter(
+            profiles_mask
+                .into_iter()
+                .enumerate()
+                .filter_map(|(offset, enabled)| enabled.then_some(offset)),
+        );
+
+        // This implementation is tied to the order of SampleValues.
+        let samples_mask: [bool; MAX_SAMPLE_VALUES] = [
+            wall_time,
+            wall_time,
+            cpu_time,
+            alloc,
+            alloc,
+            timeline,
+            exception,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+            io_profiling,
+        ];
+
+        let samples = BitSet::from_iter(
+            samples_mask
+                .into_iter()
+                .enumerate()
+                .filter_map(|(offset, enabled)| enabled.then_some(offset)),
+        );
+
+        EnabledProfiles { profiles, samples }
+    }
+}
+
+impl EnabledProfiles {
+    /// Returns the number of profiles that are enabled.
+    #[inline]
+    pub fn num_enabled_profiles(&self) -> usize {
+        self.profiles.len()
+    }
+
+    /// Returns the number of sample types that are enabled. This could be
+    /// used to reserve space in a container before using [`Self::filter`].
+    #[inline]
+    pub fn num_enabled_sample_types(&self) -> usize {
+        self.samples.len()
+    }
+
+    pub fn contains_profile(&self, discriminant: usize) -> bool {
+        self.profiles.contains(discriminant)
+    }
+
+    pub fn filter<'a>(
+        &self,
+        sample_values: &'a SampleValues,
+    ) -> SampleIter<impl Iterator<Item = i64> + 'a> {
+        let bitset = self.samples;
+        let len = bitset.len();
+        let iter =
+            sample_values
+                .as_array()
+                .into_iter()
+                .enumerate()
+                .filter_map(move |(index, value)| {
+                    if bitset.contains(index) {
+                        Some(*value)
+                    } else {
+                        None
+                    }
+                });
+        SampleIter { len, iter }
+    }
+
+    pub fn enabled_profile_types(&self) -> SampleIter<impl Iterator<Item = ProfileType> + '_> {
+        let len = self.num_enabled_profiles();
+        let iter = PROFILE_TYPES
+            .iter()
+            .enumerate()
+            .filter_map(|(offset, profile_type)| {
+                self.profiles.contains(offset).then_some(*profile_type)
+            });
+        SampleIter { len, iter }
+    }
+
+    pub fn enabled_sample_types(&self) -> SampleIter<impl Iterator<Item = ValueType> + '_> {
+        let len = self.num_enabled_sample_types();
+        let iter = self.enabled_profile_types().flatten();
+        SampleIter { len, iter }
+    }
+}
+
 const SAMPLE_TYPE_WALL_TIME: ProfileType = ProfileType::from([
+    ValueType {
+        r#type: "sample", // todo: rename "wall-time-sample"
+        unit: "count",
+    },
     ValueType {
         r#type: "wall-time",
         unit: "nanoseconds",
     },
-    ValueType {
-        r#type: "wall-time-sample", // called "sample" on legacy
-        unit: "count",
-    },
 ]);
 
-const SAMPLE_TYPE_CPU_TIME: ProfileType = ProfileType::from([
-    ValueType {
-        r#type: "cpu-time",
-        unit: "nanoseconds",
-    },
-]);
+const SAMPLE_TYPE_CPU_TIME: ProfileType = ProfileType::from([ValueType {
+    r#type: "cpu-time",
+    unit: "nanoseconds",
+}]);
 
 const SAMPLE_TYPE_ALLOC: ProfileType = ProfileType::from([
     ValueType {
-        r#type: "alloc-size",
-        unit: "bytes",
-    },
-    ValueType {
         r#type: "alloc-samples",
         unit: "count",
+    },
+    ValueType {
+        r#type: "alloc-size",
+        unit: "bytes",
     },
 ]);
 
@@ -186,216 +413,318 @@ const SAMPLE_TYPE_FILE_IO_WRITE_SIZE: ProfileType = ProfileType::from([
 ]);
 
 impl SampleValue {
+    pub fn discriminant(&self) -> usize {
+        // SAFETY: SampleValue uses a primitive representation.
+        let rep = unsafe { *(self as *const Self as *const u8) };
+        rep as usize
+    }
+
     pub fn sample_types(&self) -> ProfileType {
-        let discriminant = core::mem::discriminant(self);
-        PROFILE_TYPES[discriminant]
+        let discriminant = self.discriminant();
+        debug_assert!(discriminant < PROFILE_TYPES.len());
+        // SAFETY: this cannot go out of bounds, also debug checked.
+        unsafe { *PROFILE_TYPES.get_unchecked(discriminant) }
+    }
+
+    pub fn as_slice(&self) -> &[i64] {
+        // Convert the &(i64, MaybeUninit<i64>) into &[i64].
+        let tuple = RestructuredSample::from(self).value;
+        let ptr = &tuple as *const (_, _) as *const i64;
+        let n = self.sample_types().len();
+        // SAFETY: todo
+        unsafe { slice::from_raw_parts(ptr, n) }
     }
 }
 
-pub struct SampleTypeFilter {
-    enabled: [bool; PROFILE_TYPES.len()],
-    enabled_types: Vec<ProfileType>,
+pub struct SampleIter<I: Iterator> {
+    len: usize,
+    iter: I,
 }
 
-impl SampleTypeFilter {
-    pub fn new(config: &SystemSettings) -> Self {
-        // This implementation is tied to the order SampleValue is defined.
-        // We create an array of booleans that are element-wise associated to
-        // the PROFILE_TYPES array.
-        let mut enabled = [false; PROFILE_TYPES.len()];
-
-        let wall_time = config.profiling_enabled;
-        let cpu_time = config.profiling_experimental_cpu_time_enabled;
-        let alloc = config.profiling_allocation_enabled;
-        let timeline = config.profiling_timeline_enabled;
-        let exception = config.profiling_exception_enabled;
-        let io_profiling = cfg!(io_profiling) && config.profiling_io_enabled;
-
-        let mask = [
-            wall_time,
-            cpu_time,
-            alloc,
-            timeline,
-            exception,
-            io_profiling,
-            io_profiling,
-            io_profiling,
-            io_profiling,
-            io_profiling,
-            io_profiling,
-            io_profiling,
-            io_profiling,
-        ];
-
-        // Everything is disabled if profiling isn't disabled.
-        if config.profiling_enabled {
-            for (profile_type, is_enabled) in enabled.iter_mut().zip(mask) {
-                *profile_type = is_enabled;
-            }
+impl<I: Iterator> Iterator for SampleIter<I> {
+    type Item = I::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.iter.next();
+        if next.is_some() {
+            self.len -= 1;
         }
-
-        let n_enabled = enabled.iter().map(|b| *b as usize).sum();
-        let mut enabled_types = Vec::with_capacity(n_enabled);
-
-        // Iterate element-wise over PROFILE_TYPES and enabled, and if
-        // `enabled[i]` is true, then add `PROFILE_TYPES[i]`.
-        enabled_types.extend(
-            PROFILE_TYPES
-                .iter()
-                .zip(enabled)
-                .filter(|(_, b)| *b)
-                .map(|(p, _)| *p),
-        );
-        Self {
-            enabled,
-            enabled_types,
-        }
+        next
     }
 
-    pub fn enabled_types(&self) -> Vec<ProfileType> {
-        self.enabled_types.clone()
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let len = self.len();
+        (len, Some(len))
+    }
+}
+
+impl<I: Iterator> ExactSizeIterator for SampleIter<I> {
+    fn len(&self) -> usize {
+        self.len
+    }
+}
+
+impl RestructuredSample {
+    const fn from(sample: &SampleValue) -> &RestructuredSample {
+        // SAFETY: same layout/repr and meaning.
+        unsafe { core::mem::transmute(sample) }
     }
 
-    pub fn filter(&self, mut sample_values: Vec<SampleValue>) -> Vec<SampleValue> {
-        // This is a defensive programming measure. These _shouldn't_ ever
-        // filter anything out--if so we've got a bug in our profiler.
-        sample_values.retain(|sample_value| self.enabled[sample_value.discriminant()]);
-        sample_values
+    #[cfg(test)]
+    const fn to(&self) -> &SampleValue {
+        // SAFETY: same layout/repr and meaning.
+        unsafe { core::mem::transmute(self) }
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
-    use crate::profiling::tests::{get_samples, get_system_settings};
+    // use crate::profiling::tests::{get_samples, get_system_settings};
+    //
+    // #[test]
+    // fn with_profiling_disabled() {
+    //     let mut settings = get_system_settings();
+    //
+    //     settings.profiling_enabled = false;
+    //     settings.profiling_allocation_enabled = false;
+    //     settings.profiling_experimental_cpu_time_enabled = false;
+    //
+    //     let enabled_profiles = EnabledProfiles::new(&settings);
+    //     let values = enabled_profiles.filter(&get_samples()).collect::<Vec<_>>();
+    //     let types = enabled_profiles.enabled_sample_types().collect::<Vec<_>>();
+    //
+    //     assert_eq!(types, Vec::<ValueType>::new());
+    //     assert_eq!(values, Vec::<i64>::new());
+    // }
+    //
+    // #[test]
+    // fn with_profiling_enabled() {
+    //     let mut settings = get_system_settings();
+    //
+    //     settings.profiling_enabled = true;
+    //     settings.profiling_allocation_enabled = false;
+    //     settings.profiling_experimental_cpu_time_enabled = false;
+    //
+    //     let enabled_profiles = EnabledProfiles::new(&settings);
+    //     let values = enabled_profiles.filter(&get_samples()).collect::<Vec<_>>();
+    //     let types = enabled_profiles.enabled_sample_types().collect::<Vec<_>>();
+    //
+    //     assert_eq!(
+    //         types,
+    //         vec![
+    //             ValueType::new("sample", "count"),
+    //             ValueType::new("wall-time", "nanoseconds"),
+    //         ]
+    //     );
+    //     assert_eq!(values, vec![10, 20]);
+    // }
+    //
+    // #[test]
+    // fn with_cpu_time() {
+    //     let mut settings = get_system_settings();
+    //     settings.profiling_enabled = true;
+    //     settings.profiling_allocation_enabled = false;
+    //     settings.profiling_experimental_cpu_time_enabled = true;
+    //
+    //     let enabled_profiles = EnabledProfiles::new(&settings);
+    //     let values = enabled_profiles.filter(&get_samples()).collect::<Vec<_>>();
+    //     let types = enabled_profiles.enabled_sample_types().collect::<Vec<_>>();
+    //
+    //     assert_eq!(
+    //         types,
+    //         vec![
+    //             ValueType::new("sample", "count"),
+    //             ValueType::new("wall-time", "nanoseconds"),
+    //             ValueType::new("cpu-time", "nanoseconds"),
+    //         ]
+    //     );
+    //     assert_eq!(values, vec![10, 20, 30]);
+    // }
+    //
+    // #[test]
+    // fn filter_with_allocations() {
+    //     let mut settings = get_system_settings();
+    //     settings.profiling_enabled = true;
+    //     settings.profiling_allocation_enabled = true;
+    //     settings.profiling_experimental_cpu_time_enabled = false;
+    //
+    //     let enabled_profiles = EnabledProfiles::new(&settings);
+    //     let values = enabled_profiles.filter(&get_samples()).collect::<Vec<_>>();
+    //     let types = enabled_profiles.enabled_sample_types().collect::<Vec<_>>();
+    //
+    //     assert_eq!(
+    //         types,
+    //         vec![
+    //             ValueType::new("sample", "count"),
+    //             ValueType::new("wall-time", "nanoseconds"),
+    //             ValueType::new("alloc-samples", "count"),
+    //             ValueType::new("alloc-size", "bytes"),
+    //         ]
+    //     );
+    //     assert_eq!(values, vec![10, 20, 40, 50]);
+    // }
+    //
+    // #[test]
+    // fn with_allocations_and_cpu_time() {
+    //     let mut settings = get_system_settings();
+    //     settings.profiling_enabled = true;
+    //     settings.profiling_allocation_enabled = true;
+    //     settings.profiling_experimental_cpu_time_enabled = true;
+    //
+    //     let enabled_profiles = EnabledProfiles::new(&settings);
+    //     let values = enabled_profiles.filter(&get_samples()).collect::<Vec<_>>();
+    //     let types = enabled_profiles.enabled_sample_types().collect::<Vec<_>>();
+    //
+    //     assert_eq!(
+    //         types,
+    //         vec![
+    //             ValueType::new("sample", "count"),
+    //             ValueType::new("wall-time", "nanoseconds"),
+    //             ValueType::new("cpu-time", "nanoseconds"),
+    //             ValueType::new("alloc-samples", "count"),
+    //             ValueType::new("alloc-size", "bytes"),
+    //         ]
+    //     );
+    //     assert_eq!(values, vec![10, 20, 30, 40, 50]);
+    // }
+    //
+    // #[test]
+    // fn with_cpu_time_and_exceptions() {
+    //     let mut settings = get_system_settings();
+    //     settings.profiling_enabled = true;
+    //     settings.profiling_experimental_cpu_time_enabled = true;
+    //     settings.profiling_exception_enabled = true;
+    //
+    //     let enabled_profiles = EnabledProfiles::new(&settings);
+    //     let values = enabled_profiles.filter(&get_samples()).collect::<Vec<_>>();
+    //     let types = enabled_profiles.enabled_sample_types().collect::<Vec<_>>();
+    //
+    //     assert_eq!(
+    //         types,
+    //         vec![
+    //             ValueType::new("sample", "count"),
+    //             ValueType::new("wall-time", "nanoseconds"),
+    //             ValueType::new("cpu-time", "nanoseconds"),
+    //             ValueType::new("exception-samples", "count"),
+    //         ]
+    //     );
+    //     assert_eq!(values, vec![10, 20, 30, 70]);
+    // }
 
+    // "soa": structure of arrays e.g. struct { ts: [T; N], us: [U; N] }
+    // "soa" array of structures e.g. [struct { t: T, u: U}; N]
     #[test]
-    fn filter_with_profiling_disabled() {
-        let mut settings = get_system_settings();
-
-        settings.profiling_enabled = false;
-        settings.profiling_allocation_enabled = false;
-        settings.profiling_experimental_cpu_time_enabled = false;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let sample_types = sample_type_filter.filter(get_samples()).next();
-        assert_eq!(sample_types.next(), None);
-        assert_eq!(sample_type_filter.enabled_types(), Vec::new());
+    fn unsafe_aos_to_soa() {
+        for i in 0..PROFILE_TYPES.len() {
+            let src = RestructuredSample {
+                discriminant: i as u8,
+                // Using different values distinguishes between fields.
+                // Avoid 0 because the impl initializes to 0.
+                value: (1, MaybeUninit::new(2)),
+            };
+            match *src.to() {
+                SampleValue::WallTime { count, nanoseconds } => {
+                    assert_eq!(count, 1);
+                    assert_eq!(nanoseconds, 2);
+                }
+                SampleValue::CpuTime { nanoseconds } => {
+                    assert_eq!(nanoseconds, 1);
+                }
+                SampleValue::Alloc { count, bytes } => {
+                    assert_eq!(count, 1);
+                    assert_eq!(bytes, 2);
+                }
+                SampleValue::Timeline { nanoseconds } => {
+                    assert_eq!(nanoseconds, 1);
+                }
+                SampleValue::Exception { count } => {
+                    assert_eq!(count, 1);
+                }
+                SampleValue::FileIoReadTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::FileIoWriteTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::FileIoReadSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::FileIoWriteSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketReadTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketWriteTime { nanoseconds, count } => {
+                    assert_eq!(nanoseconds, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketReadSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+                SampleValue::SocketWriteSize { bytes, count } => {
+                    assert_eq!(bytes, 1);
+                    assert_eq!(count, 2);
+                }
+            }
+        }
     }
 
+    // "soa": structure of arrays e.g. struct { ts: [T; N], us: [U; N] }
+    // "soa" array of structures e.g. [struct { t: T, u: U}; N]
     #[test]
-    fn filter_with_profiling_enabled() {
-        let mut settings = get_system_settings();
+    fn unsafe_soa_to_soa() {
+        const T: i64 = 1;
+        const U: i64 = 2;
+        let cases = [
+            SampleValue::WallTime {
+                count: T,
+                nanoseconds: U,
+            },
+            SampleValue::CpuTime { nanoseconds: T },
+            SampleValue::Alloc { count: T, bytes: U },
+            SampleValue::Timeline { nanoseconds: T },
+            SampleValue::Exception { count: T },
+            SampleValue::FileIoReadTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::FileIoWriteTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::FileIoReadSize { bytes: T, count: U },
+            SampleValue::FileIoWriteSize { bytes: T, count: U },
+            SampleValue::SocketReadTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::SocketWriteTime {
+                nanoseconds: T,
+                count: U,
+            },
+            SampleValue::SocketReadSize { bytes: T, count: U },
+            SampleValue::SocketWriteSize { bytes: T, count: U },
+        ];
 
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = false;
-        settings.profiling_experimental_cpu_time_enabled = false;
+        for src in cases {
+            let dst = RestructuredSample::from(&src);
+            assert_eq!(dst.discriminant, src.discriminant() as u8);
+            assert_eq!(dst.value.0, T);
 
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let mut values = sample_type_filter.filter(get_samples()).collect::<Vec<_>>();
-        let types = sample_type_filter.enabled_types();
-
-        values.sort_by(|a, b| a.discriminant().cmp(&b.discriminant()));
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20]);
-    }
-
-    #[test]
-    fn filter_with_cpu_time() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = false;
-        settings.profiling_experimental_cpu_time_enabled = true;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.enabled_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 30]);
-    }
-
-    #[test]
-    fn filter_with_allocations() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = true;
-        settings.profiling_experimental_cpu_time_enabled = false;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.enabled_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("alloc-samples", "count"),
-                ValueType::new("alloc-size", "bytes"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 40, 50]);
-    }
-
-    #[test]
-    fn filter_with_allocations_and_cpu_time() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_allocation_enabled = true;
-        settings.profiling_experimental_cpu_time_enabled = true;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.enabled_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("alloc-samples", "count"),
-                ValueType::new("alloc-size", "bytes"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 30, 40, 50]);
-    }
-
-    #[test]
-    #[cfg(feature = "exception_profiling")]
-    fn filter_with_cpu_time_and_exceptions() {
-        let mut settings = get_system_settings();
-        settings.profiling_enabled = true;
-        settings.profiling_experimental_cpu_time_enabled = true;
-        settings.profiling_exception_enabled = true;
-
-        let sample_type_filter = SampleTypeFilter::new(&settings);
-        let values = sample_type_filter.filter(get_samples());
-        let types = sample_type_filter.enabled_types();
-
-        assert_eq!(
-            types,
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("exception-samples", "count"),
-            ]
-        );
-        assert_eq!(values, vec![10, 20, 30, 70]);
+            if src.sample_types().len() > 1 {
+                let u = unsafe { dst.value.1.assume_init() };
+                assert_eq!(
+                    u, U,
+                    "Matching {src:?}'s aos form failed: expected {U}, saw {u:?}"
+                );
+            }
+        }
     }
 }

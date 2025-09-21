@@ -342,7 +342,7 @@ extern "C" {
     /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
-    pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str;
+    pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str<'_>;
 
     /// Returns the configuration item for the given config id. Note that the
     /// lifetime is roughly static, but technically it is from first rinit
@@ -656,7 +656,7 @@ impl<'a> ZaiStr<'a> {
     }
 
     #[inline]
-    pub fn to_string_lossy(&self) -> Cow<str> {
+    pub fn to_string_lossy(&self) -> Cow<'a, str> {
         String::from_utf8_lossy(self.as_bytes())
     }
 

@@ -19,6 +19,7 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
 use crate::{Clocks, CLOCKS, TAGS};
+use arrayvec::ArrayVec;
 use chrono::Utc;
 use core::mem::forget;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
@@ -35,8 +36,10 @@ use datadog_profiling::profiles::{
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::ptr::{null_mut, NonNull};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
@@ -53,18 +56,8 @@ use crate::io::{
     SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
 };
 
-use arrayvec::ArrayVec;
-use std::collections::hash_map::Entry;
-use std::ptr::{null_mut, NonNull};
 #[cfg(feature = "timeline")]
 use std::{ptr, str, time::UNIX_EPOCH};
-// TODO(api-migration): Upscaling is not yet available in the new API.
-// #[cfg(any(
-//     feature = "allocation_profiling",
-//     feature = "exception_profiling",
-//     feature = "io_profiling"
-// ))]
-// use datadog_profiling::profiles::datatypes::UpscalingInfo;
 
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
@@ -81,40 +74,9 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 /// minit, and is destroyed on mshutdown.
 static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
 
-/// Order this array this way:
-///  1. Always enabled types.
-///  2. On by default types.
-///  3. Off by default types.
-#[derive(Default, Debug)]
-pub struct SampleValues {
-    interrupt_count: i64,
-    wall_time: i64,
-    cpu_time: i64,
-    alloc_samples: i64,
-    alloc_size: i64,
-    timeline: i64,
-    exception: i64,
-    socket_read_time: i64,
-    socket_read_time_samples: i64,
-    socket_write_time: i64,
-    socket_write_time_samples: i64,
-    file_read_time: i64,
-    file_read_time_samples: i64,
-    file_write_time: i64,
-    file_write_time_samples: i64,
-    socket_read_size: i64,
-    socket_read_size_samples: i64,
-    socket_write_size: i64,
-    socket_write_size_samples: i64,
-    file_read_size: i64,
-    file_read_size_samples: i64,
-    file_write_size: i64,
-    file_write_size_samples: i64,
-}
-
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug)]
 struct WallTime {
     // todo: should we use Instant for duration like we used to?
     // instant: Instant,
@@ -169,10 +131,9 @@ pub struct ProfileIndex {
 }
 
 /// Represents a sample that's going to be sent over the queue/channel for
-/// processing. Technically, it can add multiple samples with the same call
-/// stack, timestamp, labels, and link.
+/// processing.
 pub struct SampleData {
-    pub samples: Vec<SampleValue>,
+    pub sample: SampleValue,
     pub call_stack: CallStack,
     pub timestamp: i64,
     pub labels: Vec<Label>,
@@ -184,6 +145,16 @@ pub struct SampleData {
 pub struct CallStack {
     pub frames: Vec<ZendFrame>,
     pub dictionary: DdArc<ProfilesDictionary>,
+}
+
+impl CallStack {
+    pub fn try_clone(&self) -> Result<CallStack, ProfileError> {
+        let mut frames = Vec::new();
+        frames.try_reserve(self.frames.len())?;
+        frames.extend_from_slice(self.frames.as_slice());
+        let dictionary = self.dictionary.try_clone()?;
+        Ok(CallStack { frames, dictionary })
+    }
 }
 
 /// SAFETY: the function_ids refer to data in the dictionary, which keeps it
@@ -237,7 +208,7 @@ pub struct Profiler {
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
-    sample_types_filter: SampleTypeFilter,
+    enabled_profiles: EnabledProfiles,
     system_settings: AtomicPtr<SystemSettings>,
 }
 
@@ -258,9 +229,13 @@ pub enum PhpUpscalingRule {
 struct AggregatedProfile {
     dict: DdArc<ProfilesDictionary>,
     scratch: ScratchPad,
+    started_at: WallTime,
 
-    // PHP only uses at most one upscaling rule per profile type.
-    profiles: Vec<Option<(Profile, Option<PhpUpscalingRule>)>>, // one per profile-group; all share dict + scratch
+    // The length of the array corresponds to the profile types, enabled or
+    // not. Each element corresponds to an offset of a profile. Disabled
+    // profiles use None. This strategy allows us to use the discriminant of
+    // the SampleValue enum as the index.
+    profiles: Vec<Option<Profile>>,
 }
 
 impl TimeCollector {
@@ -305,11 +280,8 @@ impl TimeCollector {
                 buffer,
                 endpoints_stats: Default::default(),
             };
-            // Use tags-only key: sample_types will be unified by the builder on the fly
-            let key = ProfileIndex {
-                sample_types: Vec::new(),
-                tags: index.tags,
-            };
+
+            let key = ProfileIndex { tags: index.tags };
             let message = UploadMessage::Upload(Box::new(UploadRequest {
                 index: key,
                 profile: encoded,
@@ -322,17 +294,54 @@ impl TimeCollector {
     }
 
     fn create_profile(
-        index: &ProfileIndex,
-        sample_data: SampleData,
-        started_at: &WallTime,
-    ) -> AggregatedProfile {
-        let sample_types = index.sample_types.as_slice();
-        // todo: create a lookup map from sample types so that we can group
-        //       indices of sample_data.sample_values (which element-wise match
-        //       sample_types), into the new Profiles, which only have 1-2
-        //       sample types per profile.
+        dict: &DdArc<ProfilesDictionary>,
+        started_at: WallTime,
+    ) -> Result<AggregatedProfile, ProfileError> {
+        Ok(AggregatedProfile {
+            dict: dict.try_clone()?,
+            scratch: ScratchPad::try_new()?,
+            started_at,
+            profiles: {
+                let mut profiles = Vec::new();
+                profiles.try_reserve_exact(PROFILE_TYPES.len())?;
+                for _ in 0..PROFILE_TYPES.len() {
+                    profiles.push(None);
+                }
+                profiles
+            },
+        })
+    }
 
-        AggregatedProfile::from()
+    fn insert_stack(scratch_pad: &ScratchPad, frames: &[ZendFrame]) -> Option<StackId> {
+        let mut loc_ids = Vec::new();
+        if let Err(err) = loc_ids.try_reserve(frames.len()) {
+            warn!("failed to reserve memory for a stack: {err}");
+            return None;
+        }
+        for frame in frames {
+            let loc = Location {
+                address: 0,
+                mapping_id: null_mut(),
+                line: Line {
+                    line_number: frame.line as i64,
+                    function_id: frame.function_id.map(NonNull::as_ptr).unwrap_or(null_mut()),
+                },
+            };
+            match scratch_pad.locations().try_insert(loc) {
+                Ok(id) => loc_ids.push(id),
+                Err(err) => {
+                    warn!("Failed to insert location: {err}");
+                    return None;
+                }
+            }
+        }
+        match scratch_pad.stacks().try_insert(&loc_ids) {
+            Ok(id) => Some(id),
+            Err(err) => {
+                warn!("Failed to insert stack: {err}");
+                None
+            }
+        }
     }
 
     fn handle_resource_message(
@@ -357,118 +366,114 @@ impl TimeCollector {
         }
     }
 
+    // todo: clean up expects
     fn handle_sample_message(
         message: SampleMessage,
         profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
         started_at: &WallTime,
     ) {
-        if message.key.sample_types.is_empty() {
-            // profiling disabled, this should not happen!
-            warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
-            return;
-        }
+        let SampleMessage {
+            key,
+            value:
+                SampleData {
+                    sample: sample_value,
+                    call_stack,
+                    timestamp,
+                    labels,
+                    link,
+                },
+        } = message;
 
-        let aggregated_profile = match profiles.entry(message.key) {
-            Entry::Occupied(mut o) => o.get_mut(),
-            Entry::Vacant(mut v) => {
-                let agg = Self::create_profile(v.key(), message.value, started_at);
-                v.insert_entry(agg).get_mut()
-            }
-        };
-
-        // Fan-out: split the incoming message into grouped profiles by sample type offsets,
-        // but keep a single AggregatedProfile per tags that owns shared dict+scratch and
-        // a vector of per-group internal profiles.
-        let dict = message
-            .value
-            .call_stack
-            .dictionary
-            .try_clone()
-            .expect("dict try_clone");
-
-        // Helper: ensure stack_id is built for an entry
-        let mut ensure_stack = |entry: &mut AggregatedProfile| -> Option<StackId> {
-            let mut loc_ids = Vec::with_capacity(message.value.call_stack.frames.len());
-            for frame in &message.value.call_stack.frames {
-                let loc = Location {
-                    address: 0,
-                    mapping_id: null_mut(),
-                    line: Line {
-                        line_number: frame.line as i64,
-                        function_id: frame.function_id.map(NonNull::as_ptr).unwrap_or(null_mut()),
-                    },
-                };
-                match entry.scratch.locations().try_insert(loc) {
-                    Ok(id) => loc_ids.push(id),
+        // Fetch the aggregated profile associated to the index, creating it
+        // as needed.
+        let aggregated_profile = match profiles.entry(key) {
+            Entry::Occupied(o) => o.into_mut(),
+            Entry::Vacant(v) => {
+                let agg = match Self::create_profile(&call_stack.dictionary, *started_at) {
+                    Ok(a) => a,
                     Err(err) => {
-                        warn!("Failed to insert location: {err}");
-                        return None;
+                        // If this fails, and the process doesn't die, we're
+                        // likely to get this over and over, so using debug.
+                        debug!("Failed to create a new profile: {err}");
+                        return;
                     }
-                }
-            }
-            match entry.scratch.stacks().try_insert(&loc_ids) {
-                Ok(id) => Some(id),
-                Err(err) => {
-                    warn!("Failed to insert stack: {err}");
-                    None
-                }
+                };
+                v.insert_entry(agg).into_mut()
             }
         };
 
-        // Common build: single stack, loop per group
-        if let Some(stack_id) = ensure_stack(entry) {
-            for (group, offs) in groups_to_emit.into_iter() {
-                let idx = ensure_group(entry, group);
-                let attrs = entry
-                    .scratch
-                    .attributes()
-                    .try_clone()
-                    .expect("attributes set try_clone");
-                let links = entry
-                    .scratch
-                    .links()
-                    .try_clone()
-                    .expect("links set try_clone");
-                let mut sb = SampleBuilder::new(attrs, links);
-                sb.set_stack_id(stack_id);
-                let _ = sb.set_link(message.value.link);
-                for o in offs.iter().copied() {
-                    let _ = sb.push_value(message.value.sample_values[o]);
+        // Fetch the profile associated to the sample_value provided, creating
+        // an empty profile as needed.
+        let profile = if let Some(maybe_profile) = aggregated_profile
+            .profiles
+            .get_mut(sample_value.discriminant())
+        {
+            maybe_profile.get_or_insert_with(|| {
+                let mut profile = Profile::default();
+                let src = sample_value.sample_types();
+                let mut dst = ArrayVec::new();
+                for value_type in src {
+                    let strings = aggregated_profile.dict.strings();
+                    let vt = datadog_profiling::profiles::datatypes::ValueType {
+                        type_id: strings.try_insert(value_type.r#type).unwrap(),
+                        unit_id: strings.try_insert(value_type.unit).unwrap(),
+                    };
+                    dst.try_push(vt)
+                        .expect("too many sample types passed to profile");
                 }
-                for label in &message.value.sample_labels {
-                    let key_id = entry
-                        .dict
-                        .strings()
-                        .try_insert(label.key)
-                        .unwrap_or(StringId::EMPTY);
-                    match &label.value {
-                        LabelValue::Str(s) => {
-                            let _ = sb.push_attribute_str(key_id, s.as_ref());
-                        }
-                        LabelValue::Num(n, _) => {
-                            let _ = sb.push_attribute_int(key_id, *n);
-                        }
+                profile.sample_types = dst;
+                profile
+            })
+        } else {
+            warn!("tried to insert {sample_value:?} but it wasn't found in the aggregated profile list");
+            return;
+        };
+
+        // Insert the sample into the profile. Map from ZendFrame to what
+        // libdatadog expects.
+        if let Some(stack_id) = Self::insert_stack(&aggregated_profile.scratch, &call_stack.frames)
+        {
+            let attrs = aggregated_profile
+                .scratch
+                .attributes()
+                .try_clone()
+                .expect("attributes set try_clone");
+            let links = aggregated_profile
+                .scratch
+                .links()
+                .try_clone()
+                .expect("links set try_clone");
+            let mut sb = SampleBuilder::new(attrs, links);
+            sb.set_stack_id(stack_id);
+            sb.set_link(link).expect("set_link failed");
+
+            for val in sample_value.as_slice() {
+                sb.push_value(*val).expect("push_value failed");
+            }
+            for label in labels {
+                let key_id = aggregated_profile
+                    .dict
+                    .strings()
+                    .try_insert(label.key)
+                    .expect("label key deduplication failed");
+                match &label.value {
+                    LabelValue::Str(s) => {
+                        sb.push_attribute_str(key_id, s.as_ref())
+                            .expect("push_attribute_str failed");
+                    }
+                    LabelValue::Num(n, ..) => {
+                        sb.push_attribute_int(key_id, *n)
+                            .expect("push_attribute_num failed");
                     }
                 }
-                if message.value.timestamp != NO_TIMESTAMP {
-                    let nanos_u128 = if message.value.timestamp < 0 {
-                        0
-                    } else {
-                        message.value.timestamp as u128
-                    };
-                    let nanos_u64 = if nanos_u128 > u64::MAX as u128 {
-                        u64::MAX
-                    } else {
-                        nanos_u128 as u64
-                    };
-                    let ts = std::time::UNIX_EPOCH + std::time::Duration::from_nanos(nanos_u64);
-                    sb.set_timestamp(ts);
-                }
-                if let Ok(sample) = sb.build() {
-                    if let Some(profile) = entry.profiles[idx].as_mut() {
-                        let _ = profile.add_sample(sample);
-                    }
-                }
+            }
+            if timestamp != NO_TIMESTAMP {
+                let nanos = if timestamp < 0 { 0 } else { timestamp as u64 };
+                let ts = UNIX_EPOCH + Duration::from_nanos(nanos);
+                sb.set_timestamp(ts);
+            }
+            if let Ok(sample) = sb.build() {
+                profile.add_sample(sample).expect("add_sample failed");
             }
         }
     }
@@ -598,7 +603,6 @@ impl Profiler {
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
-            plan: sample_types_filter.plan().to_vec(),
         };
 
         let uploader = Uploader::new(
@@ -609,7 +613,7 @@ impl Profiler {
             Utc::now(),
         );
 
-        let sample_types_filter = SampleTypeFilter::new(system_settings);
+        let enabled_profiles = EnabledProfiles::new(system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
@@ -624,7 +628,7 @@ impl Profiler {
                 trace!("thread {DDPROF_UPLOAD} complete, shutting down");
             }),
             should_join: AtomicBool::new(true),
-            sample_types_filter,
+            enabled_profiles,
             system_settings: AtomicPtr::new(system_settings),
         }
     }
@@ -835,22 +839,63 @@ impl Profiler {
                     }
                 }
 
+                if cpu_time != 0 {
+                    let call_stack = match call_stack.try_clone() {
+                        Ok(call_stack) => call_stack,
+                        Err(err) => {
+                            warn!("failed to clone call stack: {err}");
+                            return;
+                        }
+                    };
+                    let labels = {
+                        let mut l = Vec::new();
+                        if let Err(err) = l.try_reserve(labels.len()) {
+                            warn!("failed to clone labels: {err}");
+                            return;
+                        }
+                        l.extend_from_slice(labels.as_slice());
+                        l
+                    };
+                    let copied_call_stack = match call_stack.try_clone() {
+                        Ok(cs) => cs,
+                        Err(err) => {
+                            warn!("failed to clone copy call stack: {err}");
+                            return;
+                        }
+                    };
+                    let sample = SampleValue::CpuTime {
+                        nanoseconds: cpu_time,
+                    };
+                    match self.prepare_and_send_message(
+                        copied_call_stack,
+                        sample,
+                        labels,
+                        timestamp,
+                    ) {
+                        Ok(_) => trace!(
+                            "Sent {sample:?} of {depth} frames and {n_labels} labels to profiler."
+                        ),
+                        Err(err) => warn!(
+                            "Failed to send {sample:?} of {depth} frames and {n_labels} labels to profiler: {err}"
+                        ),
+                    }
+                }
+
+                let sample = SampleValue::WallTime {
+                    count: interrupt_count,
+                    nanoseconds: wall_time,
+                };
                 match self.prepare_and_send_message(
                     call_stack,
-                    vec![SampleValue::WallTime {
-                        nanoseconds: wall_time,
-                        count: interrupt_count,
-                    }, SampleValue::CpuTime {
-                        nanoseconds: cpu_time,
-                    }],
+                    sample,
                     labels,
                     timestamp,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames and {n_labels} labels to profiler."
+                        "Sent {sample:?} of {depth} frames and {n_labels} labels to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of {depth} frames and {n_labels} labels to profiler: {err}"
+                        "Failed to send {sample:?} of {depth} frames and {n_labels} labels to profiler: {err}"
                     ),
                 }
             }
@@ -876,20 +921,21 @@ impl Profiler {
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
+                let sample = SampleValue::Alloc {
+                    bytes: alloc_size,
+                    count: alloc_samples,
+                };
                 match self.prepare_and_send_message(
                     call_stack,
-                    vec![SampleValue::Alloc {
-                        bytes: alloc_size,
-                        count: alloc_samples,
-                    }],
+                    sample,
                     labels,
                     NO_TIMESTAMP,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
+                        "Sent {sample:?} of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
+                        "Failed to send {sample:?} of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
                     ),
                 }
             }
@@ -941,17 +987,18 @@ impl Profiler {
                     }
                 }
 
+                let sample = SampleValue::Exception { count: 1 };
                 match self.prepare_and_send_message(
                     call_stack,
-                    vec![SampleValue::Exception { count: 1 }],
+                    sample,
                     labels,
                     timestamp,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler."
+                        "Sent {sample:?} of {depth} frames, {n_labels} labels with Exception {exception} to profiler."
                     ),
                     Err(err) => warn!(
-                        "Failed to send stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler: {err}"
+                        "Failed to send {sample:?} of {depth} frames, {n_labels} labels with Exception {exception} to profiler: {err}"
                     ),
                 }
             }
@@ -989,6 +1036,9 @@ impl Profiler {
                 None
             }
         };
+        let sample = SampleValue::Timeline {
+            nanoseconds: duration,
+        };
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
@@ -997,18 +1047,16 @@ impl Profiler {
                 }],
                 dictionary: dict,
             },
-            vec![SampleValue::Timeline {
-                nanoseconds: duration,
-            }],
+            sample,
             labels,
             now,
         ) {
             Ok(_) => {
-                trace!("Sent event 'compile eval' with {n_labels} labels to profiler.")
+                trace!("Sent {sample:?} event 'compile eval' with {n_labels} labels to profiler.")
             }
             Err(err) => {
                 warn!(
-                    "Failed to send event 'compile eval' with {n_labels} labels to profiler: {err}"
+                    "Failed to send {sample:?} event 'compile eval' with {n_labels} labels to profiler: {err}"
                 )
             }
         }
@@ -1048,6 +1096,9 @@ impl Profiler {
                 None
             }
         };
+        let sample = SampleValue::Timeline {
+            nanoseconds: duration,
+        };
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
@@ -1056,18 +1107,16 @@ impl Profiler {
                 }],
                 dictionary: dict,
             },
-            vec![SampleValue::Timeline {
-                nanoseconds: duration,
-            }],
+            sample,
             labels,
             now,
         ) {
             Ok(_) => {
-                trace!("Sent event 'compile file' with {n_labels} labels to profiler.")
+                trace!("Sent {sample:?} event 'compile file' with {n_labels} labels to profiler.")
             }
             Err(err) => {
                 warn!(
-                    "Failed to send event 'compile file' with {n_labels} labels to profiler: {err}"
+                    "Failed to send {sample:?} event 'compile file' with {n_labels} labels to profiler: {err}"
                 )
             }
         }
@@ -1154,6 +1203,7 @@ impl Profiler {
                 None
             }
         };
+        let sample = SampleValue::Timeline { nanoseconds: 1 };
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
@@ -1162,16 +1212,16 @@ impl Profiler {
                 }],
                 dictionary: dict,
             },
-            vec![SampleValue::Timeline { nanoseconds: 1 }],
+            sample,
             labels,
             now,
         ) {
             Ok(_) => {
-                trace!("Sent event 'fatal error' with {n_labels} labels to profiler.")
+                trace!("Sent {sample:?} event 'fatal error' with {n_labels} labels to profiler.")
             }
             Err(err) => {
                 warn!(
-                    "Failed to send event 'fatal error' with {n_labels} labels to profiler: {err}"
+                    "Failed to send {sample:?} event 'fatal error' with {n_labels} labels to profiler: {err}"
                 )
             }
         }
@@ -1216,6 +1266,7 @@ impl Profiler {
                 None
             }
         };
+        let sample = SampleValue::Timeline { nanoseconds: 1 };
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
@@ -1224,15 +1275,17 @@ impl Profiler {
                 }],
                 dictionary: dict,
             },
-            vec![SampleValue::Timeline { nanoseconds: 1 }],
+            sample,
             labels,
             now,
         ) {
             Ok(_) => {
-                trace!("Sent event 'opcache_restart' with {n_labels} labels to profiler.")
+                trace!(
+                    "Sent {sample:?} event 'opcache_restart' with {n_labels} labels to profiler."
+                )
             }
             Err(err) => {
-                warn!("Failed to send event 'opcache_restart' with {n_labels} labels to profiler: {err}")
+                warn!("Failed to send {sample:?} event 'opcache_restart' with {n_labels} labels to profiler: {err}")
             }
         }
     }
@@ -1265,6 +1318,9 @@ impl Profiler {
                 None
             }
         };
+        let sample = SampleValue::Timeline {
+            nanoseconds: duration,
+        };
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
@@ -1273,17 +1329,15 @@ impl Profiler {
                 }],
                 dictionary: dict,
             },
-            vec![SampleValue::Timeline {
-                nanoseconds: duration,
-            }],
+            sample,
             labels,
             now,
         ) {
             Ok(_) => {
-                trace!("Sent event 'idle' with {n_labels} labels to profiler.")
+                trace!("Sent {sample:?} event 'idle' with {n_labels} labels to profiler.")
             }
             Err(err) => {
-                warn!("Failed to send event 'idle' with {n_labels} labels to profiler: {err}")
+                warn!("Failed to send {sample:?} event 'idle' with {n_labels} labels to profiler: {err}")
             }
         }
     }
@@ -1337,6 +1391,9 @@ impl Profiler {
                 None
             }
         };
+        let sample = SampleValue::Timeline {
+            nanoseconds: duration,
+        };
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
@@ -1345,17 +1402,15 @@ impl Profiler {
                 }],
                 dictionary: dict,
             },
-            vec![SampleValue::Timeline {
-                nanoseconds: duration,
-            }],
+            sample,
             labels,
             now,
         ) {
             Ok(_) => {
-                trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
+                trace!("Sent {sample:?} event 'gc' with {n_labels} labels and reason {reason} to profiler.")
             }
             Err(err) => {
-                warn!("Failed to send event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
+                warn!("Failed to send {sample:?} event 'gc' with {n_labels} and reason {reason} labels to profiler: {err}")
             }
         }
     }
@@ -1499,38 +1554,44 @@ impl Profiler {
     fn prepare_and_send_message(
         &self,
         call_stack: CallStack,
-        samples: Vec<SampleValue>,
+        sample: SampleValue,
         labels: Vec<Label>,
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        let message = self.prepare_sample_message(call_stack, samples, labels, timestamp);
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+        if let Some(message) = self.prepare_sample_message(call_stack, sample, labels, timestamp) {
+            self.message_sender
+                .try_send(ProfilerMessage::Sample(message))
+                .map_err(Box::new)
+        } else {
+            debug!("tried to send {sample:?} but that profile type isn't enabled");
+            Ok(())
+        }
     }
 
     fn prepare_sample_message(
         &self,
         call_stack: CallStack,
-        samples: Vec<SampleValue>,
+        sample: SampleValue,
         labels: Vec<Label>,
         timestamp: i64,
-    ) -> SampleMessage {
-        // If profiling is disabled, these will naturally return empty Vec.
-        // There's no short-cutting here because:
-        //  1. Nobody should be calling this when it's disabled anyway.
-        //  2. It would require tracking more state and/or spending CPU on
-        //     something that shouldn't be done anyway (see #1).
-        let tags = TAGS.with_borrow(Arc::clone);
-        SampleMessage {
-            key: ProfileIndex { tags },
-            value: SampleData {
-                samples: self.sample_types_filter.filter(samples),
-                call_stack,
-                labels,
-                timestamp,
-                link: Self::current_link(),
-            },
+    ) -> Option<SampleMessage> {
+        if self
+            .enabled_profiles
+            .contains_profile(sample.discriminant())
+        {
+            let tags = TAGS.with_borrow(Arc::clone);
+            Some(SampleMessage {
+                key: ProfileIndex { tags },
+                value: SampleData {
+                    sample,
+                    call_stack,
+                    labels,
+                    timestamp,
+                    link: Self::current_link(),
+                },
+            })
+        } else {
+            None
         }
     }
 
@@ -1610,19 +1671,13 @@ mod tests {
                 nanoseconds: 20,
                 count: 10,
             },
-            CpuTime {
-                nanoseconds: 30,
-            },
+            CpuTime { nanoseconds: 30 },
             Alloc {
                 bytes: 50,
                 count: 40,
             },
-            Timeline {
-                nanoseconds: 60,
-            },
-            Exception {
-                count: 70,
-            },
+            Timeline { nanoseconds: 60 },
+            Exception { count: 70 },
             SocketReadTime {
                 nanoseconds: 80,
                 count: 81,
@@ -1635,7 +1690,7 @@ mod tests {
                 nanoseconds: 100,
                 count: 101,
             },
-            FileWriteTime {
+            FileIoWriteTime {
                 nanoseconds: 110,
                 count: 111,
             },
@@ -1646,23 +1701,23 @@ mod tests {
             SocketWriteSize {
                 bytes: 130,
                 count: 131,
-            }
-            FileReadSize {
+            },
+            FileIoReadSize {
                 bytes: 140,
                 count: 141,
             },
-            FileWriteSize {
+            FileIoWriteSize {
                 bytes: 150,
                 count: 151,
-            }
+            },
         ]
     }
 
     #[test]
     #[cfg(all(feature = "timeline", not(miri)))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
-        let frames = get_frames();
         let samples = get_samples();
+        let frames = get_frames();
         let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
@@ -1671,19 +1726,24 @@ mod tests {
 
         let profiler = Profiler::new(&mut settings);
 
-        let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
-
-        assert_eq!(
-            message.value.samples.iter().flat_map(|sample_value| sample_value.sample_types()),
-            vec![
-                ValueType::new("sample", "count"),
-                ValueType::new("wall-time", "nanoseconds"),
-                ValueType::new("cpu-time", "nanoseconds"),
-                ValueType::new("timeline", "nanoseconds"),
-            ]
-        );
-        assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
-        assert_eq!(message.value.timestamp, 900);
+        for sample in samples {
+            if let Some(message) = profiler.prepare_sample_message(
+                frames.try_clone().unwrap(),
+                sample,
+                labels.clone(),
+                900,
+            ) {
+                assert_eq!(sample, message.value.sample);
+                assert!(profiler
+                    .enabled_profiles
+                    .contains_profile(sample.discriminant()));
+                assert_eq!(message.value.timestamp, 900);
+            } else {
+                assert!(!profiler
+                    .enabled_profiles
+                    .contains_profile(sample.discriminant()));
+            }
+        }
     }
 }
 
