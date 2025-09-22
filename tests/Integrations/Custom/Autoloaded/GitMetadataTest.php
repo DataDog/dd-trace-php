@@ -39,6 +39,10 @@ final class GitMetadataTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_GIT_METADATA_ENABLED' => 'true',
             'DD_TRACE_DEBUG' => 'true',
+            // Ensure env does not inject commit sha or tags in tests
+            'DD_GIT_COMMIT_SHA' => '',
+            'DD_TAGS' => '',
+            'DD_GIT_REPOSITORY_URL' => '',
         ]);
     }
 
@@ -129,10 +133,10 @@ CONFIG
         $trace2Meta = $trace2[0][0]['meta'];
 
         $this->assertArrayNotHasKey('_dd.git.commit.sha', $trace1Meta);
-        $this->assertEquals('https://github.com/user/repo_new', $trace1Meta['_dd.git.repository_url']);
+        $this->assertEquals('github.com/user/repo_new', $trace1Meta['_dd.git.repository_url']);
 
         $this->assertEquals('123456', $trace2Meta['_dd.git.commit.sha']);
-        $this->assertEquals('https://github.com/user/repo_new', $trace2Meta['_dd.git.repository_url']);
+        $this->assertEquals('github.com/user/repo_new', $trace2Meta['_dd.git.repository_url']);
     }
 
     public function testSourceCodeIntegration()
@@ -145,7 +149,16 @@ CONFIG
         $rootSpanMeta = $traces[0][0]['meta'];
 
         $gitCommitSha = trim(`git rev-parse HEAD`);
-        $gitRepositoryURL = preg_replace('((?<=//)[^@]+@)', '', trim(`git config --get remote.origin.url`));
+        $gitRepositoryURL = trim(`git config --get remote.origin.url`);
+        $atPos = strpos($gitRepositoryURL, '@');
+        if ($atPos !== false) {
+            $gitRepositoryURL = substr($gitRepositoryURL, $atPos + 1);
+        } else {
+            $schemePos = strpos($gitRepositoryURL, '://');
+            if ($schemePos !== false) {
+                $gitRepositoryURL = substr($gitRepositoryURL, $schemePos + 3);
+            }
+        }
 
         $this->assertEquals($gitCommitSha, $rootSpanMeta['_dd.git.commit.sha']);
         $this->assertEquals($gitRepositoryURL, $rootSpanMeta['_dd.git.repository_url']);
