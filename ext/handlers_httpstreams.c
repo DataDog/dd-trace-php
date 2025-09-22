@@ -100,7 +100,7 @@ static php_stream *dd_stream_opener(
     php_stream *stream = original_wrapper->wops->stream_opener(DD_STREAM_OPENER_CALL_ARGS);
 
     if (temporary_context) {
-        php_stream_context_free(context);
+        zend_list_delete(context->res);
     }
 
     if (span) {
