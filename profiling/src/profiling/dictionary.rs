@@ -34,7 +34,7 @@ fn init_global_if_needed() -> Result<(), ProfileError> {
         let guard = lock
             .read()
             .expect("global profiles dictionary lock poisoned");
-        truncated_function(&*guard)?;
+        truncated_function(&guard)?;
     }
     Ok(())
 }
@@ -95,12 +95,10 @@ pub fn gshutdown() {
 
 /// Returns a try-cloned Arc to the TLS dictionary if present; otherwise tries the global.
 pub fn try_clone_tls_or_global() -> Result<DdArc<ProfilesDictionary>, ProfileError> {
-    if let Ok(result) =
+    if let Ok(Some(arc)) =
         TLS_DICTIONARY.try_with_borrow(|slot| slot.as_ref().and_then(|arc| arc.try_clone().ok()))
     {
-        if let Some(arc) = result {
-            return Ok(arc);
-        }
+        return Ok(arc);
     }
     try_clone_global()
 }
@@ -108,17 +106,15 @@ pub fn try_clone_tls_or_global() -> Result<DdArc<ProfilesDictionary>, ProfileErr
 /// Executes `f` with a shared reference to the active profiles dictionary.
 /// Prefers TLS dictionary, falling back to global without cloning.
 pub fn with_tls_or_global<R>(f: impl Fn(&ProfilesDictionary) -> R) -> Result<R, InitError> {
-    if let Ok(result) = TLS_DICTIONARY.try_with_borrow(|slot| slot.as_ref().map(|arc| f(&**arc))) {
-        if let Some(r) = result {
-            return Ok(r);
-        }
+    if let Ok(Some(r)) = TLS_DICTIONARY.try_with_borrow(|slot| slot.as_ref().map(|arc| f(arc))) {
+        return Ok(r);
     }
     init_global_if_needed()?;
     let lock = GLOBAL_DICTIONARY
         .get()
         .expect("global profiles dictionary not initialized");
     let guard = lock.read().map_err(|_| InitError::Poisoned)?;
-    Ok(f(&*guard))
+    Ok(f(&guard))
 }
 
 #[derive(Debug, thiserror::Error)]

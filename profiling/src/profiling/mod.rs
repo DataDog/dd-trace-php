@@ -27,20 +27,20 @@ use datadog_profiling::exporter::Tag;
 use datadog_profiling::profiles::collections::{Arc as DdArc, StringId};
 use datadog_profiling::profiles::datatypes::{
     Function, FunctionId, Line, Link, Location, Profile, ProfilesDictionary, SampleBuilder,
-    ScratchPad, StackId, ValueType as ApiValueType, MAX_SAMPLE_TYPES,
+    ScratchPad, StackId,
 };
 use datadog_profiling::profiles::pprof_builder::{PprofBuilder, PprofOptions};
-use datadog_profiling::profiles::{
-    GroupByLabel, PoissonUpscalingRule, ProfileError, ProportionalUpscalingRule, UpscalingRule,
-};
+use datadog_profiling::profiles::{PoissonUpscalingRule, ProfileError};
+use ddcommon::error::FfiSafeErrorMessage;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::ffi::CStr;
 use std::hash::Hash;
 use std::ptr::{null_mut, NonNull};
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime};
@@ -56,11 +56,11 @@ use crate::io::{
     SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
 };
 
-#[cfg(feature = "timeline")]
-use std::{ptr, str, time::UNIX_EPOCH};
-
 #[cfg(feature = "exception_profiling")]
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+
+#[cfg(feature = "timeline")]
+use std::{ptr, str, time::UNIX_EPOCH};
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -213,6 +213,7 @@ pub struct Profiler {
 }
 
 struct TimeCollector {
+    upscaling_intervals: ProfileUpscalingIntervals<'static>,
     fork_barrier: Arc<Barrier>,
     interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
@@ -236,6 +237,14 @@ struct AggregatedProfile {
     // profiles use None. This strategy allows us to use the discriminant of
     // the SampleValue enum as the index.
     profiles: Vec<Option<Profile>>,
+}
+
+struct Unreachable;
+
+unsafe impl FfiSafeErrorMessage for Unreachable {
+    fn as_ffi_str(&self) -> &'static CStr {
+        c"this is supposed to be unreachable"
+    }
 }
 
 impl TimeCollector {
@@ -264,10 +273,43 @@ impl TimeCollector {
                 warn!("Invalid interval for profile: {err}");
             }
 
-            let mut builder = PprofBuilder::new(&*aggregated.dict, &aggregated.scratch);
+            let mut builder = PprofBuilder::new(&aggregated.dict, &aggregated.scratch);
             builder
                 .with_options(PprofOptions::default())
                 .expect("todo fix this expect");
+
+            let upscalings: [Option<PhpUpscalingRule>; PROFILE_TYPES.len()] = [
+                SampleDiscriminant::WallTime.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::CpuTime.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::Alloc.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::Timeline.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::Exception.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::FileIoReadTime.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::FileIoWriteTime.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::FileIoReadSize.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::FileIoWriteSize.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::SocketReadTime.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::SocketWriteTime.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::SocketReadSize.upscaling(&self.upscaling_intervals),
+                SampleDiscriminant::SocketWriteSize.upscaling(&self.upscaling_intervals),
+            ];
+            for (profile, upscaling) in aggregated.profiles.iter().zip(upscalings) {
+                if let Some(profile) = profile {
+                    match upscaling {
+                        Some(PhpUpscalingRule::Proportional { scale }) => builder
+                            .try_add_profile_with_proportional_upscaling::<_, Unreachable>(
+                                profile,
+                                std::iter::once(scale)
+                                    .map(|scale| Ok(((StringId::EMPTY, Cow::Borrowed("")), scale))),
+                            )
+                            .unwrap(),
+                        Some(PhpUpscalingRule::Poisson(poisson)) => builder
+                            .try_add_profile_with_poisson_upscaling(profile, poisson)
+                            .unwrap(),
+                        None => builder.try_add_profile(profile).unwrap(),
+                    }
+                }
+            }
 
             let mut buffer = Vec::new();
             if let Err(err) = builder.build(&mut buffer) {
@@ -282,10 +324,10 @@ impl TimeCollector {
             };
 
             let key = ProfileIndex { tags: index.tags };
-            let message = UploadMessage::Upload(Box::new(UploadRequest {
+            let message = UploadMessage::Upload(UploadRequest {
                 index: key,
                 profile: encoded,
-            }));
+            });
             if let Err(err) = self.upload_sender.try_send(message) {
                 warn!("Failed to upload profile: {err}");
             }
@@ -406,7 +448,7 @@ impl TimeCollector {
         // an empty profile as needed.
         let profile = if let Some(maybe_profile) = aggregated_profile
             .profiles
-            .get_mut(sample_value.discriminant())
+            .get_mut(sample_value.discriminant().index())
         {
             maybe_profile.get_or_insert_with(|| {
                 let mut profile = Profile::default();
@@ -570,11 +612,13 @@ pub struct UploadRequest {
 
 pub enum UploadMessage {
     Pause,
-    Upload(Box<UploadRequest>),
+    Upload(UploadRequest),
 }
 
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
+
+static NO_IO_UPSCALING_INTERVAL: AtomicU64 = AtomicU64::new(0);
 
 impl Profiler {
     /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
@@ -593,11 +637,38 @@ impl Profiler {
     }
 
     pub fn new(system_settings: &mut SystemSettings) -> Self {
+        #[allow(unused_mut)] // because of conditional mutation
+        let mut upscaling_intervals = ProfileUpscalingIntervals {
+            alloc: &ALLOCATION_PROFILING_INTERVAL,
+            exception: &EXCEPTION_PROFILING_INTERVAL,
+            file_io_read_time: &NO_IO_UPSCALING_INTERVAL,
+            file_io_write_time: &NO_IO_UPSCALING_INTERVAL,
+            file_io_read_size: &NO_IO_UPSCALING_INTERVAL,
+            file_io_write_size: &NO_IO_UPSCALING_INTERVAL,
+            socket_read_time: &NO_IO_UPSCALING_INTERVAL,
+            socket_write_time: &NO_IO_UPSCALING_INTERVAL,
+            socket_read_size: &NO_IO_UPSCALING_INTERVAL,
+            socket_write_size: &NO_IO_UPSCALING_INTERVAL,
+        };
+        #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+        if system_settings.profiling_io_enabled {
+            use crate::io;
+            upscaling_intervals.file_io_read_time = &io::FILE_READ_TIME_PROFILING_INTERVAL;
+            upscaling_intervals.file_io_write_time = &io::FILE_WRITE_TIME_PROFILING_INTERVAL;
+            upscaling_intervals.file_io_read_size = &io::FILE_READ_SIZE_PROFILING_INTERVAL;
+            upscaling_intervals.file_io_write_size = &io::FILE_WRITE_SIZE_PROFILING_INTERVAL;
+            upscaling_intervals.socket_read_time = &io::SOCKET_READ_TIME_PROFILING_INTERVAL;
+            upscaling_intervals.socket_write_time = &io::SOCKET_WRITE_TIME_PROFILING_INTERVAL;
+            upscaling_intervals.socket_read_size = &io::SOCKET_READ_SIZE_PROFILING_INTERVAL;
+            upscaling_intervals.socket_write_size = &io::SOCKET_WRITE_SIZE_PROFILING_INTERVAL;
+        }
+
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let time_collector = TimeCollector {
+            upscaling_intervals,
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
             message_receiver,
@@ -614,6 +685,7 @@ impl Profiler {
         );
 
         let enabled_profiles = EnabledProfiles::new(system_settings);
+
         Profiler {
             fork_barrier,
             interrupt_manager,
@@ -1029,7 +1101,7 @@ impl Profiler {
                 return;
             }
         };
-        let eval_fid = match synth_function_id(&*dict, "[eval]", Some(filename.as_str())) {
+        let eval_fid = match synth_function_id(&dict, "[eval]", Some(filename.as_str())) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [eval] frame: {err}");
@@ -1089,7 +1161,7 @@ impl Profiler {
             }
         };
         let name = format!("[{}]", include_type);
-        let include_fid = match synth_function_id(&*dict, &name, None) {
+        let include_fid = match synth_function_id(&dict, &name, None) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [{}] frame: {err}", include_type);
@@ -1196,7 +1268,7 @@ impl Profiler {
                 return;
             }
         };
-        let fatal_fid = match synth_function_id(&*dict, "[fatal]", Some(file.as_str())) {
+        let fatal_fid = match synth_function_id(&dict, "[fatal]", Some(file.as_str())) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [fatal] frame: {err}");
@@ -1258,8 +1330,7 @@ impl Profiler {
                 return;
             }
         };
-        let opcache_fid = match synth_function_id(&*dict, "[opcache restart]", Some(file.as_str()))
-        {
+        let opcache_fid = match synth_function_id(&dict, "[opcache restart]", Some(file.as_str())) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [opcache restart] frame: {err}");
@@ -1311,7 +1382,7 @@ impl Profiler {
                 return;
             }
         };
-        let idle_fid = match synth_function_id(&*dict, "[idle]", None) {
+        let idle_fid = match synth_function_id(&dict, "[idle]", None) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [idle] frame: {err}");
@@ -1384,7 +1455,7 @@ impl Profiler {
             value: LabelValue::Num(collected, "count"),
         });
         let n_labels = labels.len();
-        let gc_fid = match synth_function_id(&*dict, "[gc]", None) {
+        let gc_fid = match synth_function_id(&dict, "[gc]", None) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [gc] frame: {err}");
@@ -1600,8 +1671,8 @@ impl Profiler {
         // we're getting the profiling context on a PHP thread.
         let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
         Link {
-            local_root_span_id: context.local_root_span_id as u64,
-            span_id: context.span_id as u64,
+            local_root_span_id: context.local_root_span_id,
+            span_id: context.span_id,
         }
     }
 }

@@ -4,14 +4,20 @@
 use crate::bitset::BitSet;
 use crate::config::SystemSettings;
 use crate::inlinevec::InlineVec;
-use crate::profiling::ValueType;
+use crate::profiling::{PhpUpscalingRule, ValueType};
+use datadog_profiling::profiles::PoissonUpscalingRule;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::mem::MaybeUninit;
+use std::mem::{self, MaybeUninit};
+use std::num::NonZeroU64;
 use std::slice;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 pub const MAX_SAMPLE_TYPES_PER_PROFILE: usize = 2;
 pub const MAX_SAMPLE_VALUES: usize = 23;
+
+// todo: use core::mem::variant_count when it stabilizes, structure things
+//       around SampleDiscriminant.
 pub const NUM_PROFILE_TYPES: usize = 13;
 
 pub type ProfileType = InlineVec<ValueType, MAX_SAMPLE_TYPES_PER_PROFILE>;
@@ -33,41 +39,6 @@ pub const PROFILE_TYPES: [ProfileType; NUM_PROFILE_TYPES] = [
     SAMPLE_TYPE_FILE_IO_READ_SIZE,
     SAMPLE_TYPE_FILE_IO_WRITE_SIZE,
 ];
-
-/// Historically, this was ordered this way:
-///  1. Always enabled types.
-///  2. On by default types.
-///  3. Off by default types.
-///
-/// But this doesn't really matter anymore, because the number of sample types
-/// has grown and the optimizations used don't work well anymore.
-#[derive(Default, Debug)]
-#[repr(C)]
-pub struct SampleValues {
-    pub interrupt_count: i64,
-    pub wall_time: i64,
-    pub cpu_time: i64,
-    pub alloc_samples: i64,
-    pub alloc_size: i64,
-    pub timeline: i64,
-    pub exception: i64,
-    pub socket_read_time: i64,
-    pub socket_read_time_samples: i64,
-    pub socket_write_time: i64,
-    pub socket_write_time_samples: i64,
-    pub file_read_time: i64,
-    pub file_read_time_samples: i64,
-    pub file_write_time: i64,
-    pub file_write_time_samples: i64,
-    pub socket_read_size: i64,
-    pub socket_read_size_samples: i64,
-    pub socket_write_size: i64,
-    pub socket_write_size_samples: i64,
-    pub file_read_size: i64,
-    pub file_read_size_samples: i64,
-    pub file_write_size: i64,
-    pub file_write_size_samples: i64,
-}
 
 /// The sample values for a given profile type.
 ///
@@ -95,6 +66,26 @@ pub enum SampleValue {
     SocketWriteSize { bytes: i64, count: i64 },
 }
 
+// Must have same order as SampleValue (there's a test for this, update it
+// if you add/remove members).
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(u8)]
+pub enum SampleDiscriminant {
+    WallTime,
+    CpuTime,
+    Alloc,
+    Timeline,
+    Exception,
+    FileIoReadTime,
+    FileIoWriteTime,
+    FileIoReadSize,
+    FileIoWriteSize,
+    SocketReadTime,
+    SocketWriteTime,
+    SocketReadSize,
+    SocketWriteSize,
+}
+
 /// Tracks which profile types are enabled. Since there are 1 or 2 sample
 /// types per profile, it also keeps a bitset for which sample types and
 /// values are in-use. So for 13 profiles, there may be 13-26 sample types.
@@ -114,37 +105,6 @@ pub struct EnabledProfiles {
 struct RestructuredSample {
     discriminant: u8,
     value: (i64, MaybeUninit<i64>),
-}
-
-impl SampleValues {
-    pub fn as_array(&self) -> [&i64; MAX_SAMPLE_VALUES] {
-        // Use the same order as the members.
-        [
-            &self.interrupt_count,
-            &self.wall_time,
-            &self.cpu_time,
-            &self.alloc_samples,
-            &self.alloc_size,
-            &self.timeline,
-            &self.exception,
-            &self.socket_read_time,
-            &self.socket_read_time_samples,
-            &self.socket_write_time,
-            &self.socket_write_time_samples,
-            &self.file_read_time,
-            &self.file_read_time_samples,
-            &self.file_write_time,
-            &self.file_write_time_samples,
-            &self.socket_read_size,
-            &self.socket_read_size_samples,
-            &self.socket_write_size,
-            &self.socket_write_size_samples,
-            &self.file_read_size,
-            &self.file_read_size_samples,
-            &self.file_write_size,
-            &self.file_write_size_samples,
-        ]
-    }
 }
 
 impl Eq for EnabledProfiles {}
@@ -244,29 +204,8 @@ impl EnabledProfiles {
         self.samples.len()
     }
 
-    pub fn contains_profile(&self, discriminant: usize) -> bool {
-        self.profiles.contains(discriminant)
-    }
-
-    pub fn filter<'a>(
-        &self,
-        sample_values: &'a SampleValues,
-    ) -> SampleIter<impl Iterator<Item = i64> + 'a> {
-        let bitset = self.samples;
-        let len = bitset.len();
-        let iter =
-            sample_values
-                .as_array()
-                .into_iter()
-                .enumerate()
-                .filter_map(move |(index, value)| {
-                    if bitset.contains(index) {
-                        Some(*value)
-                    } else {
-                        None
-                    }
-                });
-        SampleIter { len, iter }
+    pub fn contains_profile(&self, discriminant: SampleDiscriminant) -> bool {
+        self.profiles.contains(discriminant.index())
     }
 
     pub fn enabled_profile_types(&self) -> SampleIter<impl Iterator<Item = ProfileType> + '_> {
@@ -413,17 +352,18 @@ const SAMPLE_TYPE_FILE_IO_WRITE_SIZE: ProfileType = ProfileType::from([
 ]);
 
 impl SampleValue {
-    pub fn discriminant(&self) -> usize {
+    pub fn discriminant(&self) -> SampleDiscriminant {
         // SAFETY: SampleValue uses a primitive representation.
-        let rep = unsafe { *(self as *const Self as *const u8) };
-        rep as usize
+        let tag = unsafe { *(self as *const Self as *const u8) };
+        unsafe { core::mem::transmute(tag) }
     }
 
     pub fn sample_types(&self) -> ProfileType {
         let discriminant = self.discriminant();
-        debug_assert!(discriminant < PROFILE_TYPES.len());
+        let index = discriminant.index();
+        debug_assert!(index < PROFILE_TYPES.len());
         // SAFETY: this cannot go out of bounds, also debug checked.
-        unsafe { *PROFILE_TYPES.get_unchecked(discriminant) }
+        unsafe { *PROFILE_TYPES.get_unchecked(index) }
     }
 
     pub fn as_slice(&self) -> &[i64] {
@@ -433,6 +373,171 @@ impl SampleValue {
         let n = self.sample_types().len();
         // SAFETY: todo
         unsafe { slice::from_raw_parts(ptr, n) }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[repr(C)]
+pub enum SampleDiscriminantTryValueOfError {
+    EmptyValues, // special case of MismatchedValueCount for better message
+    MismatchedValueCount,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ProfileUpscalingIntervals<'a> {
+    pub alloc: &'a AtomicU64,
+    pub exception: &'a AtomicU32,
+    pub file_io_read_time: &'a AtomicU64,
+    pub file_io_write_time: &'a AtomicU64,
+    pub file_io_read_size: &'a AtomicU64,
+    pub file_io_write_size: &'a AtomicU64,
+    pub socket_read_time: &'a AtomicU64,
+    pub socket_write_time: &'a AtomicU64,
+    pub socket_read_size: &'a AtomicU64,
+    pub socket_write_size: &'a AtomicU64,
+}
+
+impl SampleDiscriminant {
+    pub fn index(self) -> usize {
+        self as u8 as usize
+    }
+
+    pub fn try_value_of(
+        self,
+        values: &[i64],
+    ) -> Result<SampleValue, SampleDiscriminantTryValueOfError> {
+        if values.is_empty() {
+            return Err(SampleDiscriminantTryValueOfError::EmptyValues);
+        }
+        // SAFETY: len of PROFILE_TYPES matches variant_count of
+        // SampleDiscriminant, so it must be in bounds.
+        let n_vals = unsafe { PROFILE_TYPES.get_unchecked(self.index()).len() };
+        if n_vals != values.len() {
+            return Err(SampleDiscriminantTryValueOfError::MismatchedValueCount);
+        }
+
+        // The strategy here is to always create a valid two-element array.
+        // If the user only provides 1 value, then the 2nd will be 0, which is
+        // a fine value for a MaybeUninit.
+        let mut vals = [0i64; MAX_SAMPLE_TYPES_PER_PROFILE];
+        for (src, dst) in values.iter().zip(vals.iter_mut()) {
+            *dst = *src;
+        }
+
+        let sample = RestructuredSample {
+            discriminant: self as u8,
+            value: (vals[0], MaybeUninit::new(vals[1])),
+        };
+        Ok(unsafe { mem::transmute(sample) })
+    }
+
+    pub fn upscaling(self, intervals: &ProfileUpscalingIntervals<'_>) -> Option<PhpUpscalingRule> {
+        match self {
+            SampleDiscriminant::WallTime => None,
+            SampleDiscriminant::CpuTime => None,
+            SampleDiscriminant::Alloc => {
+                let sampling_distance = NonZeroU64::new(intervals.alloc.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::Timeline => None,
+            SampleDiscriminant::Exception => Some(PhpUpscalingRule::Proportional {
+                scale: intervals.exception.load(Ordering::SeqCst) as f64,
+            }),
+            SampleDiscriminant::FileIoReadTime => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.file_io_read_time.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::FileIoWriteTime => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.file_io_write_time.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::FileIoReadSize => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.file_io_read_size.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::FileIoWriteSize => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.file_io_write_size.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::SocketReadTime => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.socket_read_time.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::SocketWriteTime => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.socket_write_time.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::SocketReadSize => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.socket_read_size.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+            SampleDiscriminant::SocketWriteSize => {
+                let sampling_distance =
+                    NonZeroU64::new(intervals.socket_write_size.load(Ordering::SeqCst));
+                sampling_distance.map(|sampling_distance| {
+                    PhpUpscalingRule::Poisson(PoissonUpscalingRule {
+                        sum_offset: 0,
+                        count_offset: 1,
+                        sampling_distance,
+                    })
+                })
+            }
+        }
     }
 }
 
@@ -610,6 +715,83 @@ mod test {
     //     );
     //     assert_eq!(values, vec![10, 20, 30, 70]);
     // }
+
+    #[test]
+    fn discriminants_match_for_all_variants() {
+        let cases = [
+            (
+                SampleValue::WallTime {
+                    count: 0,
+                    nanoseconds: 0,
+                },
+                SampleDiscriminant::WallTime,
+            ),
+            (
+                SampleValue::CpuTime { nanoseconds: 0 },
+                SampleDiscriminant::CpuTime,
+            ),
+            (
+                SampleValue::Alloc { count: 0, bytes: 0 },
+                SampleDiscriminant::Alloc,
+            ),
+            (
+                SampleValue::Timeline { nanoseconds: 0 },
+                SampleDiscriminant::Timeline,
+            ),
+            (
+                SampleValue::Exception { count: 0 },
+                SampleDiscriminant::Exception,
+            ),
+            (
+                SampleValue::FileIoReadTime {
+                    nanoseconds: 0,
+                    count: 0,
+                },
+                SampleDiscriminant::FileIoReadTime,
+            ),
+            (
+                SampleValue::FileIoWriteTime {
+                    nanoseconds: 0,
+                    count: 0,
+                },
+                SampleDiscriminant::FileIoWriteTime,
+            ),
+            (
+                SampleValue::FileIoReadSize { bytes: 0, count: 0 },
+                SampleDiscriminant::FileIoReadSize,
+            ),
+            (
+                SampleValue::FileIoWriteSize { bytes: 0, count: 0 },
+                SampleDiscriminant::FileIoWriteSize,
+            ),
+            (
+                SampleValue::SocketReadTime {
+                    nanoseconds: 0,
+                    count: 0,
+                },
+                SampleDiscriminant::SocketReadTime,
+            ),
+            (
+                SampleValue::SocketWriteTime {
+                    nanoseconds: 0,
+                    count: 0,
+                },
+                SampleDiscriminant::SocketWriteTime,
+            ),
+            (
+                SampleValue::SocketReadSize { bytes: 0, count: 0 },
+                SampleDiscriminant::SocketReadSize,
+            ),
+            (
+                SampleValue::SocketWriteSize { bytes: 0, count: 0 },
+                SampleDiscriminant::SocketWriteSize,
+            ),
+        ];
+
+        for (value, disc) in cases {
+            assert_eq!(disc, value.discriminant(), "Mismatch for {:?}", value);
+        }
+    }
 
     // "soa": structure of arrays e.g. struct { ts: [T; N], us: [U; N] }
     // "soa" array of structures e.g. [struct { t: T, u: U}; N]
