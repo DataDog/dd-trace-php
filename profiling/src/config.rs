@@ -379,6 +379,8 @@ pub(crate) enum ConfigId {
     TraceAgentPort,
     TraceAgentUrl,
     Version,
+    GitCommitSha,
+    GitRepositoryUrl,
 }
 
 use ConfigId::*;
@@ -411,6 +413,8 @@ impl ConfigId {
             TraceAgentPort => b"DD_TRACE_AGENT_PORT\0",
             TraceAgentUrl => b"DD_TRACE_AGENT_URL\0",
             Version => b"DD_VERSION\0",
+            GitCommitSha => b"DD_GIT_COMMIT_SHA\0",
+            GitRepositoryUrl => b"DD_GIT_REPOSITORY_URL\0",
         };
 
         // Safety: all these byte strings are [CStr::from_bytes_with_nul_unchecked] compatible.
@@ -671,6 +675,20 @@ pub(crate) unsafe fn service() -> Option<String> {
 /// rinit, and before it is uninitialized in mshutdown.
 pub(crate) unsafe fn version() -> Option<String> {
     get_str(Version)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn git_commit_sha() -> Option<String> {
+    get_str(GitCommitSha)
+}
+
+/// # Safety
+/// This function must only be called after config has been initialized in
+/// rinit, and before it is uninitialized in mshutdown.
+pub(crate) unsafe fn git_repository_url() -> Option<String> {
+    get_str(GitRepositoryUrl)
 }
 
 /// # Safety
@@ -1164,6 +1182,30 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     displayer: None,
                     env_config_fallback: None,
                 },
+                zai_config_entry {
+                    id: transmute::<ConfigId, u16>(GitCommitSha),
+                    name: GitCommitSha.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
+                    default_encoded_value: ZaiStr::new(),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: None,
+                    parser: Some(parse_utf8_string),
+                    displayer: None,
+                    env_config_fallback: None,
+                },
+                zai_config_entry {
+                    id: transmute::<ConfigId, u16>(GitRepositoryUrl),
+                    name: GitRepositoryUrl.env_var_name(),
+                    type_: ZAI_CONFIG_TYPE_STRING,
+                    default_encoded_value: ZaiStr::new(),
+                    aliases: ptr::null_mut(),
+                    aliases_count: 0,
+                    ini_change: None,
+                    parser: Some(parse_utf8_string),
+                    displayer: None,
+                    env_config_fallback: None,
+                },
             ]
         };
 
@@ -1208,6 +1250,8 @@ mod tests {
             (b"DD_SERVICE\0", "datadog.service"),
             (b"DD_ENV\0", "datadog.env"),
             (b"DD_VERSION\0", "datadog.version"),
+            (b"DD_GIT_COMMIT_SHA\0", "datadog.git_commit_sha"),
+            (b"DD_GIT_REPOSITORY_URL\0", "datadog.git_repository_url"),
             (b"DD_TRACE_AGENT_URL\0", "datadog.trace.agent_url"),
             (b"DD_TRACE_AGENT_PORT\0", "datadog.trace.agent_port"),
             (b"DD_AGENT_HOST\0", "datadog.agent_host"),

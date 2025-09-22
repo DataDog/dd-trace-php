@@ -42,7 +42,6 @@ use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
-use std::env;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Once};
@@ -89,24 +88,6 @@ lazy_static! {
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
         ];
-
-        let git_commit_sha = env::var("DD_GIT_COMMIT_SHA").ok().filter(|s| !s.is_empty());
-        let git_repository_url = env::var("DD_GIT_REPOSITORY_URL").ok().filter(|s| !s.is_empty());
-        add_optional_tag(&mut tags, "git.commit.sha", &git_commit_sha);
-        if let Some(val) = git_repository_url {
-            // Remove potential credentials and protocol, customers are
-            // encouraged to not send these anyway. In case there are
-            // credentials, removing everything before @ also removes the
-            // protocol.
-            let val = if let Some(at_pos) = val.find("@") {
-                &val[at_pos + 1..]
-            } else if let Some(proto_pos) = val.find("://") {
-                &val[proto_pos + 3..]
-            } else {
-                &val
-            };
-            add_tag(&mut tags, "git.repository_url", val);
-        }
 
         // This should probably be "language_version", but this is the
         // standardized tag name.
@@ -432,6 +413,8 @@ pub struct RequestLocals {
     pub env: Option<String>,
     pub service: Option<String>,
     pub version: Option<String>,
+    pub git_commit_sha: Option<String>,
+    pub git_repository_url: Option<String>,
     pub tags: Vec<Tag>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
@@ -461,6 +444,8 @@ impl Default for RequestLocals {
             env: None,
             service: None,
             version: None,
+            git_commit_sha: None,
+            git_repository_url: None,
             tags: vec![],
             system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
             interrupt_count: AtomicU32::new(0),
@@ -609,6 +594,20 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 }
             });
             locals.version = config::version();
+            locals.git_commit_sha = config::git_commit_sha();
+            locals.git_repository_url = config::git_repository_url().map(|val| {
+                // Remove potential credentials and protocol, customers are
+                // encouraged to not send these anyway. In case there are
+                // credentials, removing everything before @ also removes the
+                // protocol.
+                if let Some(at_pos) = val.find("@") {
+                    val[(at_pos + 1)..].to_string()
+                } else if let Some(proto_pos) = val.find("://") {
+                    val[(proto_pos + 3)..].to_string()
+                } else {
+                    val
+                }
+            });
 
             let (tags, maybe_err) = config::tags();
             if let Some(err) = maybe_err {
@@ -703,7 +702,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 let globals = GLOBAL_TAGS.deref();
                 let unified_service_tags_len = locals.service.is_some() as usize
                     + locals.env.is_some() as usize
-                    + locals.version.is_some() as usize;
+                    + locals.version.is_some() as usize
+                    + locals.git_commit_sha.is_some() as usize
+                    + locals.git_repository_url.is_some() as usize;
 
                 let mut tags = Vec::new();
                 tags.reserve_exact(globals.len() + unified_service_tags_len + locals.tags.len());
@@ -711,6 +712,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
+                add_optional_tag(&mut tags, "git.commit.sha", &locals.git_commit_sha);
+                add_optional_tag(&mut tags, "git.repository_url", &locals.git_repository_url);
                 tags.extend_from_slice(locals.tags.as_slice());
                 Arc::new(tags)
             });
