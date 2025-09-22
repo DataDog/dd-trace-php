@@ -1132,8 +1132,10 @@ void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces) {
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
         ddtrace_serialize_closed_spans(traces);
-        // Also flush possible cycles here
-        gc_collect_cycles();
+        if (DDTRACE_G(open_spans_count)) {
+            // Also flush possible cycles here, if there are remaining open spans
+            gc_collect_cycles();
+        }
     }
 }
 
