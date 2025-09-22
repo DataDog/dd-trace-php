@@ -1,8 +1,8 @@
 --TEST--
-Remove credentials from repository URL
+SCP-like repository URL sanitization from env var
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
-DD_GIT_REPOSITORY_URL=https://u:t@github.com/user/repo_new
+DD_GIT_REPOSITORY_URL=git@github.com:DataDog/dd-trace-php.git
 DD_GIT_COMMIT_SHA=123456
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
@@ -33,11 +33,11 @@ array(2) {
     ["duration"]=>
     int(%d)
     ["name"]=>
-    string(54) "git_metadata_injection_remove_credentials_from_env.php"
+    string(58) "git_metadata_injection_remove_credentials_from_env_scp.php"
     ["resource"]=>
-    string(54) "git_metadata_injection_remove_credentials_from_env.php"
+    string(58) "git_metadata_injection_remove_credentials_from_env_scp.php"
     ["service"]=>
-    string(54) "git_metadata_injection_remove_credentials_from_env.php"
+    string(58) "git_metadata_injection_remove_credentials_from_env_scp.php"
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
@@ -45,7 +45,7 @@ array(2) {
       ["_dd.git.commit.sha"]=>
       string(6) "123456"
       ["_dd.git.repository_url"]=>
-      string(24) "github.com/user/repo_new"
+      string(35) "github.com:DataDog/dd-trace-php.git"
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
@@ -86,8 +86,10 @@ array(2) {
     ["resource"]=>
     string(0) ""
     ["service"]=>
-    string(54) "git_metadata_injection_remove_credentials_from_env.php"
+    string(58) "git_metadata_injection_remove_credentials_from_env_scp.php"
     ["type"]=>
     string(3) "cli"
   }
 }
+
+

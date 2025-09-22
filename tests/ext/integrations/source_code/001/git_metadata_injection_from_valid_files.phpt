@@ -57,11 +57,11 @@ function rm_rf($dir) {
 rm_rf(__DIR__ . '/.git');
 ?>
 --EXPECTF--
-https://github.com/user/repo_new
+github.com/user/repo_new
 123456
-https://github.com/user/repo_new
+github.com/user/repo_new
 123456
-https://github.com/user/repo_new
+github.com/user/repo_new
 123456
-https://github.com/user/repo_new
+github.com/user/repo_new
 123456

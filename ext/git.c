@@ -140,26 +140,25 @@ zend_string *find_git_dir(const char *start_dir) {
 }
 
 zend_string* remove_credentials(zend_string *repo_url) {
-    char *url = ZSTR_VAL(repo_url);
-    char *at = strchr(url, '@');
-    if (at != NULL) {
-        char *start = strstr(url, "://");
-        if (start != NULL) {
-            start += 3; // Move pointer past "://"
-            size_t remaining_length = strlen(at + 1);
-            size_t new_length = (start - url) + remaining_length;
+    const char *url = ZSTR_VAL(repo_url);
 
-            zend_string *new_url = zend_string_alloc(new_length, 0);
-            char *new_url_val = ZSTR_VAL(new_url);
+    const char *at = strchr(url, '@');
+    if (at) {
+        size_t tail_len = strlen(at + 1);
+        zend_string *out_str = zend_string_alloc(tail_len, 0);
+        memcpy(ZSTR_VAL(out_str), at + 1, tail_len + 1);
+        ZSTR_LEN(out_str) = tail_len;
+        return out_str;
+    }
 
-            // Copy the part before "://" and after "@"
-            memcpy(new_url_val, url, start - url);
-            memcpy(new_url_val + (start - url), at + 1, remaining_length + 1);
-
-            ZSTR_LEN(new_url) = new_length;
-
-            return new_url;
-        }
+    const char *scheme_sep = strstr(url, "://");
+    if (scheme_sep) {
+        const char *after = scheme_sep + 3;
+        size_t tail_len = strlen(after);
+        zend_string *out_str = zend_string_alloc(tail_len, 0);
+        memcpy(ZSTR_VAL(out_str), after, tail_len + 1);
+        ZSTR_LEN(out_str) = tail_len;
+        return out_str;
     }
 
     return zend_string_copy(repo_url);

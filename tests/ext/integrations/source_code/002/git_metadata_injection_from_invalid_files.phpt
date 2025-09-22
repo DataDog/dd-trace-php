@@ -56,7 +56,7 @@ rm_rf(__DIR__ . '/.git');
 --EXPECTF--
 array(4) {
   ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
+  string(24) "github.com/user/repo_new"
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
@@ -66,7 +66,7 @@ array(4) {
 }
 array(4) {
   ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
+  string(24) "github.com/user/repo_new"
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
@@ -76,7 +76,7 @@ array(4) {
 }
 array(4) {
   ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
+  string(24) "github.com/user/repo_new"
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
@@ -86,7 +86,7 @@ array(4) {
 }
 array(4) {
   ["_dd.git.repository_url"]=>
-  string(32) "https://github.com/user/repo_new"
+  string(24) "github.com/user/repo_new"
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
