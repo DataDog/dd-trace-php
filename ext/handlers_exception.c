@@ -380,7 +380,7 @@ void dd_exception_handler_freed(zend_object *object) {
         // Here we are at the very last chance before objects are unconditionally freed.
         // Let's force-disable the tracing in case it wasn't yet
         // Typically RSHUTDOWN would handle that, but since 8.1.0 opcache will free our objects before module_shutdown during preloading
-        dd_force_shutdown_tracing();
+        dd_force_shutdown_tracing(false);
     }
 }
 #endif
