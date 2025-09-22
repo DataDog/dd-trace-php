@@ -596,14 +596,15 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             locals.version = config::version();
             locals.git_commit_sha = config::git_commit_sha();
             locals.git_repository_url = config::git_repository_url().map(|val| {
-                // Remove potential credentials and protocol, customers are
-                // encouraged to not send these anyway. In case there are
-                // credentials, removing everything before @ also removes the
-                // protocol.
+                // Remove potential credentials, customers are encouraged to not send those anyway.
                 if let Some(at_pos) = val.find("@") {
-                    val[(at_pos + 1)..].to_string()
-                } else if let Some(proto_pos) = val.find("://") {
-                    val[(proto_pos + 3)..].to_string()
+                    if let Some(proto_pos) = val.find("://") {
+                        // Keep protocol, but remove credentials
+                        format!("{}{}", &val[..(proto_pos + 3)], &val[(at_pos + 1)..])
+                    } else {
+                        // No protocol, just remove everything before @
+                        val[(at_pos + 1)..].to_string()
+                    }
                 } else {
                     val
                 }
