@@ -413,6 +413,8 @@ pub struct RequestLocals {
     pub env: Option<String>,
     pub service: Option<String>,
     pub version: Option<String>,
+    pub git_commit_sha: Option<String>,
+    pub git_repository_url: Option<String>,
     pub tags: Vec<Tag>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
@@ -442,6 +444,8 @@ impl Default for RequestLocals {
             env: None,
             service: None,
             version: None,
+            git_commit_sha: None,
+            git_repository_url: None,
             tags: vec![],
             system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
             interrupt_count: AtomicU32::new(0),
@@ -590,6 +594,21 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 }
             });
             locals.version = config::version();
+            locals.git_commit_sha = config::git_commit_sha();
+            locals.git_repository_url = config::git_repository_url().map(|val| {
+                // Remove potential credentials, customers are encouraged to not send those anyway.
+                if let Some(at_pos) = val.find("@") {
+                    if let Some(proto_pos) = val.find("://") {
+                        // Keep protocol, but remove credentials
+                        format!("{}{}", &val[..(proto_pos + 3)], &val[(at_pos + 1)..])
+                    } else {
+                        // No protocol, just remove everything before @
+                        val[(at_pos + 1)..].to_string()
+                    }
+                } else {
+                    val
+                }
+            });
 
             let (tags, maybe_err) = config::tags();
             if let Some(err) = maybe_err {
@@ -682,16 +701,20 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             TAGS.set({
                 // SAFETY: accessing in RINIT after config is initialized.
                 let globals = GLOBAL_TAGS.deref();
-                let unified_service_tags_len = locals.service.is_some() as usize
+                let extra_tags_len = locals.service.is_some() as usize
                     + locals.env.is_some() as usize
-                    + locals.version.is_some() as usize;
+                    + locals.version.is_some() as usize
+                    + locals.git_commit_sha.is_some() as usize
+                    + locals.git_repository_url.is_some() as usize;
 
                 let mut tags = Vec::new();
-                tags.reserve_exact(globals.len() + unified_service_tags_len + locals.tags.len());
+                tags.reserve_exact(globals.len() + extra_tags_len + locals.tags.len());
                 tags.extend_from_slice(globals.as_slice());
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
+                add_optional_tag(&mut tags, "git.commit.sha", &locals.git_commit_sha);
+                add_optional_tag(&mut tags, "git.repository_url", &locals.git_repository_url);
                 tags.extend_from_slice(locals.tags.as_slice());
                 Arc::new(tags)
             });
