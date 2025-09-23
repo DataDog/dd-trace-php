@@ -701,14 +701,14 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             TAGS.set({
                 // SAFETY: accessing in RINIT after config is initialized.
                 let globals = GLOBAL_TAGS.deref();
-                let unified_service_tags_len = locals.service.is_some() as usize
+                let extra_tags_len = locals.service.is_some() as usize
                     + locals.env.is_some() as usize
                     + locals.version.is_some() as usize
                     + locals.git_commit_sha.is_some() as usize
                     + locals.git_repository_url.is_some() as usize;
 
                 let mut tags = Vec::new();
-                tags.reserve_exact(globals.len() + unified_service_tags_len + locals.tags.len());
+                tags.reserve_exact(globals.len() + extra_tags_len + locals.tags.len());
                 tags.extend_from_slice(globals.as_slice());
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
