@@ -386,7 +386,7 @@ pub(crate) enum ConfigId {
 use ConfigId::*;
 
 impl ConfigId {
-    const fn env_var_name(&self) -> ZaiStr {
+    const fn env_var_name(&self) -> ZaiStr<'_> {
         let bytes: &'static [u8] = match self {
             ProfilingEnabled => b"DD_PROFILING_ENABLED\0",
             ProfilingExperimentalFeaturesEnabled => b"DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED\0",
