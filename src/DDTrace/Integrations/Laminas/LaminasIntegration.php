@@ -51,7 +51,39 @@ class LaminasIntegration extends Integration
         'update'
     ];
 
-    public function init(): int
+    const MVC_EVENTS = [
+        'bootstrap',
+        'dispatch',
+        'dispatch.error',
+        'finish',
+        'render',
+        'render.error',
+        'route'
+    ];
+
+    const EVENTS = [
+        'bootstrap',
+        'dispatch',
+        'dispatch.error',
+        'finish',
+        'render',
+        'render.error',
+        'route',
+
+        'mergeConfig',
+        'loadModules',
+        //'loadModule.resolve',
+        //'loadModule',
+        'loadModules.post',
+
+        'renderer',
+        'renderer.post',
+        'response',
+
+        'sendResponse'
+    ];
+
+    public static function init(): int
     {
         if (self::shouldLoad(LogsIntegration::NAME)) {
             // Logs Correlation
@@ -63,7 +95,7 @@ class LaminasIntegration extends Integration
             install_hook(
                 "Laminas\Log\Formatter\Json::format",
                 null,
-                function (HookData $hook) {
+                static function (HookData $hook) {
                     $logArray = json_decode($hook->returned, true);
 
                     $traceId = logs_correlation_trace_id();
@@ -94,53 +126,19 @@ class LaminasIntegration extends Integration
             );
         }
 
-        $MVCEvents = [
-            'bootstrap',
-            'dispatch',
-            'dispatch.error',
-            'finish',
-            'render',
-            'render.error',
-            'route'
-        ];
-
-        $events = [
-            'bootstrap',
-            'dispatch',
-            'dispatch.error',
-            'finish',
-            'render',
-            'render.error',
-            'route',
-
-            'mergeConfig',
-            'loadModules',
-            //'loadModule.resolve',
-            //'loadModule',
-            'loadModules.post',
-
-            'renderer',
-            'renderer.post',
-            'response',
-
-            'sendResponse'
-        ];
-
-        $integration = $this;
-
         // @see https://github.com/laminas/laminas-eventmanager/blob/3.11.x/src/EventManagerInterface.php#L94
         hook_method(
             'Laminas\EventManager\EventManagerInterface',
             'attach',
             null,
-            function ($This, $score, $args) use ($MVCEvents) {
+            static function ($This, $score, $args) {
                 $eventName = $args[0];
                 if (!is_string($eventName)) {
                     return; // If such a case happen, an exception will be thrown by the framework
                 }
 
                 // Only instrument Mvc events triggered by eventmanager, as the other events would add too much noise
-                if (!in_array($eventName, $MVCEvents)) {
+                if (!in_array($eventName, self::MVC_EVENTS)) {
                     return;
                 }
 
@@ -153,7 +151,7 @@ class LaminasIntegration extends Integration
                 trace_method(
                     $className,
                     $methodName,
-                    function (SpanData $span) use ($className, $methodName) {
+                    static function (SpanData $span) use ($className, $methodName) {
                         $span->name = 'laminas.mvcEventListener';
                         $span->resource = $className . '@' . $methodName;
                         $span->type = Type::WEB_SERVLET;
@@ -170,7 +168,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\Application',
             'init',
-            function (SpanData $span) use ($integration) {
+            static function (SpanData $span) {
                 $span->name = 'laminas.application.init';
                 $span->resource = 'laminas.application.init';
                 $span->type = Type::WEB_SERVLET;
@@ -181,14 +179,14 @@ class LaminasIntegration extends Integration
                 $rootSpan->name = 'laminas.request';
                 $rootSpan->service = \ddtrace_config_app_name('laminas');
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                $rootSpan->meta[Tag::COMPONENT] = LaminasIntegration::NAME;
+                $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
 
         trace_method(
             'Laminas\Mvc\Application',
             'bootstrap',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 $span->name = 'laminas.application.bootstrap';
                 $span->resource = 'laminas.application.bootstrap';
                 $span->type = Type::WEB_SERVLET;
@@ -201,12 +199,12 @@ class LaminasIntegration extends Integration
             'Laminas\EventManager\EventManager',
             'triggerListeners',
             [
-                'prehook' => function (SpanData $span, $args) use ($events) {
+                'prehook' => static function (SpanData $span, $args) {
                     /** @var EventInterface $event */
                     $event = $args[0];
                     $eventName = $event->getName();
 
-                    if (!in_array($eventName, $events)) {
+                    if (!in_array($eventName, self::EVENTS)) {
                         return;  // In other words, skips 'loadModule' and 'loadModule.resolve', which are too noisy
                     }
 
@@ -221,7 +219,7 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Application',
             'run',
             [
-                'prehook' => function (SpanData $span) {
+                'prehook' => static function (SpanData $span) {
                     $service = \ddtrace_config_app_name('laminas');
                     $span->name = 'laminas.application.run';
                     $span->type = Type::WEB_SERVLET;
@@ -263,7 +261,7 @@ class LaminasIntegration extends Integration
                     trace_method(
                         $controller,
                         $action . "Action",
-                        function (SpanData $span) use ($controller, $action) {
+                        static function (SpanData $span) use ($controller, $action) {
                             $span->name = 'laminas.controller.action';
                             $span->resource = "$controller@{$action}Action";
                             $span->meta[Tag::COMPONENT] = 'laminas';
@@ -282,7 +280,7 @@ class LaminasIntegration extends Integration
         hook_method(
             'Laminas\Http\Response',
             'setStatusCode',
-            function ($This, $scope, $args) {
+            static function ($This, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan !== null) {
                     $statusCode = $args[0];
@@ -306,7 +304,7 @@ class LaminasIntegration extends Integration
             'Laminas\Mvc\Controller\AbstractController',
             'onDispatch',
             null,
-            function ($This, $score, $args) use ($integration) {
+            static function ($This, $score, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan === null) {
                     return false;
@@ -326,7 +324,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\Application',
             'completeRequest',
-            function (SpanData $span, $args) use ($integration) {
+            static function (SpanData $span, $args) {
                 $span->name = 'laminas.application.completeRequest';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -348,7 +346,7 @@ class LaminasIntegration extends Integration
             'Laminas\View\Renderer\RendererInterface',
             'render',
             [
-                'prehook' => function (SpanData $span, $args) {
+                'prehook' => static function (SpanData $span, $args) {
                     $span->name = 'laminas.templating.render';
                     $span->service = \ddtrace_config_app_name('laminas');
                     $span->type = Type::WEB_SERVLET;
@@ -368,7 +366,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\View\View',
             'render',
-            function (SpanData $span) {
+            static function (SpanData $span) {
                 $span->name = 'laminas.view.render';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -390,7 +388,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\View\Http\DefaultRenderingStrategy',
             'render',
-            function (SpanData $span, $args) use ($integration) {
+            function (SpanData $span, $args) {
                 $span->name = 'laminas.view.http.renderer';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -410,7 +408,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\View\Console\DefaultRenderingStrategy',
             'render',
-            function (SpanData $span, $args) use ($integration) {
+            function (SpanData $span, $args) {
                 $span->name = 'laminas.view.console.renderer';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -431,7 +429,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\MvcEvent',
             'setError',
-            function (SpanData $span, $args, $retval) use ($integration) {
+            static function (SpanData $span, $args, $retval) {
                 $span->name = 'laminas.mvcEvent.setError';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->type = Type::WEB_SERVLET;
@@ -442,7 +440,7 @@ class LaminasIntegration extends Integration
 
                 /** @var string $errorType */
                 $errorType = $args[0];
-                if (isset($errorType, LaminasIntegration::$ERROR_TYPES)) {
+                if (isset($errorType, self::$ERROR_TYPES)) {
                     $span->resource = $errorType;
                 }
 
@@ -457,7 +455,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\Controller\PluginManager',
             'get',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 $span->name = 'laminas.controller.pluginManager.get';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->resource = $args[0];
@@ -468,7 +466,7 @@ class LaminasIntegration extends Integration
         trace_method(
             'Laminas\Mvc\Controller\AbstractController',
             'forward',
-            function (SpanData $span, $args) {
+            static function (SpanData $span, $args) {
                 $span->name = 'laminas.controller.forward';
                 $span->service = \ddtrace_config_app_name('laminas');
                 $span->meta[Tag::COMPONENT] = 'laminas';
@@ -487,7 +485,7 @@ class LaminasIntegration extends Integration
         hook_method(
             'Laminas\ApiTools\Rest\AbstractResourceListener',
             'dispatch',
-            function ($This, $scope, $args) use ($integration) {
+            static function ($This, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan === null) {
                     return false;
@@ -503,10 +501,10 @@ class LaminasIntegration extends Integration
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = $controller . '@' . $eventName;
 
-                if (isset($eventName, LaminasIntegration::$EVENT_TYPES)) {
+                if (isset($eventName, self::$EVENT_TYPES)) {
                     install_hook(
                         "$controller::$eventName",
-                        function (HookData $hook) use ($controller, $eventName) {
+                        static function (HookData $hook) use ($controller, $eventName) {
                             $span = $hook->span();
                             $span->name = 'laminas.controller.action';
                             $span->resource = "$controller@$eventName";
@@ -521,7 +519,7 @@ class LaminasIntegration extends Integration
         // ApiProblem
         install_hook(
             'Laminas\ApiTools\ApiProblem\ApiProblem::__construct',
-            function (HookData $hook) use ($integration) {
+            static function (HookData $hook) {
                 $args = $hook->args;
                 $detail = $args[1] ?? null;
                 $activeSpan = active_span();
@@ -536,7 +534,7 @@ class LaminasIntegration extends Integration
                     array_shift($stack);
                     $backtrace = LaminasIntegration::debugBacktraceToString($stack);
 
-                    ObjectKVStore::put($this, 'backtrace', $backtrace);
+                    ObjectKVStore::put($hook->instance, 'backtrace', $backtrace);
 
                     if ($activeSpan !== null && !isset($activeSpan->meta[Tag::ERROR_TYPE])) {
                         $activeSpan->meta[Tag::ERROR_TYPE] = 'ApiProblem';
@@ -551,7 +549,7 @@ class LaminasIntegration extends Integration
             'Laminas\ApiTools\ApiProblem\Listener\SendApiProblemResponseListener',
             'sendContent',
             null,
-            function ($This, $scope, $args) use ($integration) {
+            static function ($This, $scope, $args) {
                 $rootSpan = root_span();
                 if ($rootSpan === null) {
                     return;

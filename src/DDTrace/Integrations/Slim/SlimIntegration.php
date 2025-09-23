@@ -16,16 +16,13 @@ class SlimIntegration extends Integration
     /**
      * Add instrumentation to Slim requests
      */
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-        $appName = \ddtrace_config_app_name(self::NAME);
-
         \DDTrace\hook_method(
             'Slim\App',
             '__construct',
             null,
-            function ($app) use ($integration, $appName) {
+            function ($app) {
                 $majorVersion = substr($app::VERSION, 0, 1);
                 if ('3' !== $majorVersion && '4' !== $majorVersion) {
                     return;
@@ -33,9 +30,9 @@ class SlimIntegration extends Integration
 
                 // Overwrite root span info
                 $rootSpan = \DDTrace\root_span();
-                $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                SlimIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'slim.request';
-                $rootSpan->service = $appName;
+                $rootSpan->service = \ddtrace_config_app_name(SlimIntegration::NAME);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = SlimIntegration::NAME;
 
@@ -58,7 +55,7 @@ class SlimIntegration extends Integration
                     \DDTrace\hook_method(
                         'Slim\\Middleware\\ErrorMiddleware',
                         'handleException',
-                        function ($errorMiddleware, $self, $args) use ($rootSpan, $integration) {
+                        static function ($errorMiddleware, $self, $args) use ($rootSpan, $integration) {
                             if (isset($args[1])) {
                                 $throwable = $args[1];
                                 if ($throwable instanceof \Throwable) {
@@ -76,7 +73,7 @@ class SlimIntegration extends Integration
                         'Slim\\Router',
                         'lookupRoute',
                         null,
-                        function ($router, $scope, $args, $return) use ($rootSpan) {
+                        static function ($router, $scope, $args, $return) use ($rootSpan) {
                             /** @var \Slim\Interfaces\RouteInterface $return */
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $return->getPattern();
 
@@ -92,7 +89,7 @@ class SlimIntegration extends Integration
                         'Slim\\Routing\\RouteCollector',
                         'lookupRoute',
                         null,
-                        function ($router, $scope, $args, $return) use ($rootSpan) {
+                        static function ($router, $scope, $args, $return) use ($rootSpan) {
                             /** @var \Slim\Interfaces\RouteInterface $route */
                             $route = $return;
                             $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPattern();
@@ -101,14 +98,14 @@ class SlimIntegration extends Integration
                 }
 
                 // Providing info about the controller
-                $traceControllers = function (SpanData $span, $args) use ($rootSpan, $appName, $majorVersion) {
+                $traceControllers = static function (SpanData $span, $args) use ($rootSpan, $majorVersion) {
                     $callable = $args[0];
                     $callableName = '{unknown callable}';
                     \is_callable($callable, false, $callableName);
 
                     $span->resource = $callableName ?: 'controller';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = $appName;
+                    $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
                     $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
 
                     /** @var ServerRequestInterface $request */
@@ -147,9 +144,9 @@ class SlimIntegration extends Integration
                 ]);
 
                 // Handling Twig views
-                \DDTrace\trace_method('Slim\Views\Twig', 'render', function (SpanData $span, $args) use ($appName) {
+                \DDTrace\trace_method('Slim\Views\Twig', 'render', static function (SpanData $span, $args) {
                     $span->name = 'slim.view';
-                    $span->service = $appName;
+                    $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
                     $span->type = Type::WEB_SERVLET;
                     $template = $args[1];
                     $span->resource = $template;

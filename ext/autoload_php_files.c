@@ -14,7 +14,6 @@
 #include "telemetry.h"
 #include <components/log/log.h>
 #include <sandbox/sandbox.h>
-#include <symbols/symbols.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 

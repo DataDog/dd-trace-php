@@ -29,7 +29,8 @@ static php_stream *dd_stream_opener(
     php_stream_wrapper *original_wrapper,
     DD_STREAM_OPENER_ARGS
 ) {
-    if (!context) {
+    bool temporary_context = !context;
+    if (temporary_context) {
         context = php_stream_context_alloc();
     }
 
@@ -97,6 +98,10 @@ static php_stream *dd_stream_opener(
     }
 
     php_stream *stream = original_wrapper->wops->stream_opener(DD_STREAM_OPENER_CALL_ARGS);
+
+    if (temporary_context) {
+        zend_list_delete(context->res);
+    }
 
     if (span) {
         ddtrace_clear_execute_data_span((zend_ulong)-2, true);

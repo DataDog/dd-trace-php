@@ -31,7 +31,6 @@
 #include <vendor/mpack/mpack.h>
 #include <zai_string/string.h>
 #include <sandbox/sandbox.h>
-#include <zend_abstract_interface/symbols/symbols.h>
 #include <ext/standard/url.h>
 
 #include "compat_string.h"
@@ -1358,8 +1357,7 @@ static void _serialize_meta(ddog_SpanBytes *rust_span, ddtrace_span_data *span, 
             dd_set_mapped_peer_service(rust_span, Z_STR_P(peer_service));
         } else if (zend_hash_num_elements(peer_service_sources) > 0) {
             zval *tag;
-            ZEND_HASH_FOREACH_VAL(peer_service_sources, tag)
-            {
+            ZEND_HASH_FOREACH_VAL(peer_service_sources, tag) {
                 if (Z_TYPE_P(tag) == IS_STRING) { // Use the first tag that is found in the span, if any
                     zval *peer_service = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
                     if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) {
@@ -1369,12 +1367,11 @@ static void _serialize_meta(ddog_SpanBytes *rust_span, ddtrace_span_data *span, 
                         if (!dd_set_mapped_peer_service(rust_span, peer)) {
                             ddog_add_str_span_meta_zstr(rust_span, "peer.service", peer);
                         }
-
+                        zend_string_release(peer);
                         break;
                     }
                 }
-            }
-            ZEND_HASH_FOREACH_END();
+            } ZEND_HASH_FOREACH_END();
         }
     }
 

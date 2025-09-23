@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b0742868ab85e06a351d0f07de1ae52917b51235 */
+ * Stub hash: ce1dae7089d7feaf54d05157905aa9605b5f9d85 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -532,7 +532,7 @@ static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 };
 
 static const zend_function_entry class_DDTrace_Integration_methods[] = {
-	ZEND_RAW_FENTRY("init", NULL, arginfo_class_DDTrace_Integration_init, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
+	ZEND_RAW_FENTRY("init", NULL, arginfo_class_DDTrace_Integration_init, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_FE_END
 };
 

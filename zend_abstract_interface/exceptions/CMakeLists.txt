@@ -6,7 +6,7 @@ target_include_directories(zai_exceptions PUBLIC
 
 target_compile_features(zai_exceptions PUBLIC c_std_99)
 
-target_link_libraries(zai_exceptions PUBLIC Tea::Php Zai::Symbols)
+target_link_libraries(zai_exceptions PUBLIC Tea::Php)
 
 set_target_properties(zai_exceptions PROPERTIES
                                      EXPORT_NAME exceptions

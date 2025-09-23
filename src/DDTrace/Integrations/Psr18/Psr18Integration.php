@@ -14,26 +14,23 @@ class Psr18Integration extends Integration
 {
     const NAME = 'psr18';
 
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
-        /* Until we support both pre- and post- hooks on the same function, do
-         * not send distributed tracing headers; curl will almost guarantee do
-         * it for us anyway. Just do a post-hook to get the response.
+        /* We rely on the specific integrations to send distributed tracing headers;
+         * curl will almost guarantee do it for us anyway. Just do a post-hook to get the response.
          */
         \DDTrace\trace_method(
             'Psr\Http\Client\ClientInterface',
             'sendRequest',
-            function (SpanData $span, $args, $retval) use ($integration) {
+            static function (SpanData $span, $args, $retval) {
                 $span->resource = 'sendRequest';
                 $span->name = 'Psr\Http\Client\ClientInterface.sendRequest';
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = 'client';
-                $span->meta[Tag::COMPONENT] = Psr18Integration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
 
                 if (isset($args[0])) {
-                    $integration->addRequestInfo($span, $args[0]);
+                    self::addRequestInfo($span, $args[0]);
                 }
 
                 if (isset($retval)) {
@@ -48,7 +45,7 @@ class Psr18Integration extends Integration
         return Integration::LOADED;
     }
 
-    public function addRequestInfo(SpanData $span, $request)
+    public static function addRequestInfo(SpanData $span, $request)
     {
         /** @var \Psr\Http\Message\RequestInterface $request */
         $url = $request->getUri();
