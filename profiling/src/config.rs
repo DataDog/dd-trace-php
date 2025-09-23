@@ -1276,17 +1276,14 @@ mod tests {
                 b"DD_PROFILING_ALLOCATION_ENABLED\0",
                 "datadog.profiling.allocation_enabled",
             ),
-            #[cfg(feature = "timeline")]
             (
                 b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
                 "datadog.profiling.experimental_timeline_enabled",
             ),
-            #[cfg(feature = "timeline")]
             (
                 b"DD_PROFILING_TIMELINE_ENABLED\0",
                 "datadog.profiling.timeline_enabled",
             ),
-            #[cfg(feature = "io_profiling")]
             (
                 b"DD_PROFILING_EXPERIMENTAL_IO_ENABLED\0",
                 "datadog.profiling.experimental_io_enabled",
