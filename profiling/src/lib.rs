@@ -318,6 +318,14 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     config::minit(module_number);
 
+    // Force early initialization of the HTTPS connector while we're still
+    // single-threaded. This ensures rustls-native-certs reads SSL_CERT_FILE
+    // and SSL_CERT_DIR environment variables safely before any threads are
+    // spawned, avoiding potential getenv/setenv race conditions.
+    {
+        let _connector = ddcommon::connector::Connector::default();
+    }
+
     // Use a hybrid extension hack to load as a module but have the
     // zend_extension hooks available:
     // https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
