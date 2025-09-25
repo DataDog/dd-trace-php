@@ -71,7 +71,7 @@ bool ddtrace_alter_default_propagation_style(zval *old_value, zval *new_value, z
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str);
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str);
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str);
-void dd_force_shutdown_tracing(void);
+void dd_force_shutdown_tracing(bool fast_shutdown);
 void dd_internal_handle_fork(void);
 #ifdef CXA_THREAD_ATEXIT_WRAPPER
 void dd_run_rust_thread_destructors(void *unused);

@@ -19,14 +19,14 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles) {
+ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, bool fast_shutdown) {
     bool success = true;
 
     ddog_TracesBytes *traces = ddog_get_traces();
     if (collect_cycles) {
-        ddtrace_serialize_closed_spans_with_cycle(traces);
+        ddtrace_serialize_closed_spans_with_cycle(traces, fast_shutdown);
     } else {
-        ddtrace_serialize_closed_spans(traces);
+        ddtrace_serialize_closed_spans(traces, fast_shutdown);
     }
 
     // Prevent traces from requests not executing any PHP code:
@@ -113,7 +113,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
 DDTRACE_PUBLIC void ddtrace_close_all_spans_and_flush()
 {
     ddtrace_close_all_open_spans(true);
-    ddtrace_flush_tracer(true, true);
+    ddtrace_flush_tracer(true, true, false);
 }
 
 #define DEFAULT_UDS_PATH "/var/run/datadog/apm.socket"
