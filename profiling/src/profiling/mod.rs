@@ -224,7 +224,6 @@ pub enum PhpUpscalingRule {
 struct AggregatedProfile {
     dict: DdArc<ProfilesDictionary>,
     scratch: ScratchPad,
-    started_at: WallTime,
 
     // The length of the array corresponds to the profile types, enabled or
     // not. Each element corresponds to an offset of a profile. Disabled
@@ -329,14 +328,10 @@ impl TimeCollector {
         wall_export
     }
 
-    fn create_profile(
-        dict: &DdArc<ProfilesDictionary>,
-        started_at: WallTime,
-    ) -> Result<AggregatedProfile, ProfileError> {
+    fn create_profile(dict: &DdArc<ProfilesDictionary>) -> Result<AggregatedProfile, ProfileError> {
         Ok(AggregatedProfile {
             dict: dict.try_clone()?,
             scratch: ScratchPad::try_new()?,
-            started_at,
             profiles: {
                 let mut profiles = Vec::new();
                 profiles.try_reserve_exact(PROFILE_TYPES.len())?;
@@ -406,7 +401,6 @@ impl TimeCollector {
     fn handle_sample_message(
         message: SampleMessage,
         profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
-        started_at: &WallTime,
     ) {
         let SampleMessage {
             key,
@@ -425,7 +419,7 @@ impl TimeCollector {
         let aggregated_profile = match profiles.entry(key) {
             Entry::Occupied(o) => o.into_mut(),
             Entry::Vacant(v) => {
-                let agg = match Self::create_profile(&call_stack.dictionary, *started_at) {
+                let agg = match Self::create_profile(&call_stack.dictionary) {
                     Ok(a) => a,
                     Err(err) => {
                         // If this fails, and the process doesn't die, we're
@@ -547,7 +541,7 @@ impl TimeCollector {
                     match result {
                         Ok(message) => match message {
                             ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
+                                Self::handle_sample_message(sample, &mut profiles),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
@@ -1672,6 +1666,7 @@ mod tests {
     use log::LevelFilter;
     use StringId;
 
+    #[allow(dead_code)] // todo: fix tests
     fn get_frames() -> CallStack {
         let dictionary = {
             let dict = ProfilesDictionary::try_new().unwrap();
@@ -1696,6 +1691,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)] // todo: fix tests
     pub fn get_system_settings() -> SystemSettings {
         SystemSettings {
             profiling_enabled: true,
@@ -1716,6 +1712,7 @@ mod tests {
         }
     }
 
+    #[allow(dead_code)] // todo: fix tests
     pub fn get_samples() -> Vec<SampleValue> {
         use SampleValue::*;
         // These don't need to come in any specific order.

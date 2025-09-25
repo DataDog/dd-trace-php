@@ -8,7 +8,7 @@ use crate::profiling::{PhpUpscalingRule, ValueType};
 use datadog_profiling::profiles::PoissonUpscalingRule;
 use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
-use std::mem::{self, MaybeUninit};
+use std::mem::MaybeUninit;
 use std::num::NonZeroU64;
 use std::slice;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
@@ -402,34 +402,34 @@ impl SampleDiscriminant {
         self as u8 as usize
     }
 
-    pub fn try_value_of(
-        self,
-        values: &[i64],
-    ) -> Result<SampleValue, SampleDiscriminantTryValueOfError> {
-        if values.is_empty() {
-            return Err(SampleDiscriminantTryValueOfError::EmptyValues);
-        }
-        // SAFETY: len of PROFILE_TYPES matches variant_count of
-        // SampleDiscriminant, so it must be in bounds.
-        let n_vals = unsafe { PROFILE_TYPES.get_unchecked(self.index()).len() };
-        if n_vals != values.len() {
-            return Err(SampleDiscriminantTryValueOfError::MismatchedValueCount);
-        }
-
-        // The strategy here is to always create a valid two-element array.
-        // If the user only provides 1 value, then the 2nd will be 0, which is
-        // a fine value for a MaybeUninit.
-        let mut vals = [0i64; MAX_SAMPLE_TYPES_PER_PROFILE];
-        for (src, dst) in values.iter().zip(vals.iter_mut()) {
-            *dst = *src;
-        }
-
-        let sample = RestructuredSample {
-            discriminant: self as u8,
-            value: (vals[0], MaybeUninit::new(vals[1])),
-        };
-        Ok(unsafe { mem::transmute(sample) })
-    }
+    // pub fn try_value_of(
+    //     self,
+    //     values: &[i64],
+    // ) -> Result<SampleValue, SampleDiscriminantTryValueOfError> {
+    //     if values.is_empty() {
+    //         return Err(SampleDiscriminantTryValueOfError::EmptyValues);
+    //     }
+    //     // SAFETY: len of PROFILE_TYPES matches variant_count of
+    //     // SampleDiscriminant, so it must be in bounds.
+    //     let n_vals = unsafe { PROFILE_TYPES.get_unchecked(self.index()).len() };
+    //     if n_vals != values.len() {
+    //         return Err(SampleDiscriminantTryValueOfError::MismatchedValueCount);
+    //     }
+    //
+    //     // The strategy here is to always create a valid two-element array.
+    //     // If the user only provides 1 value, then the 2nd will be 0, which is
+    //     // a fine value for a MaybeUninit.
+    //     let mut vals = [0i64; MAX_SAMPLE_TYPES_PER_PROFILE];
+    //     for (src, dst) in values.iter().zip(vals.iter_mut()) {
+    //         *dst = *src;
+    //     }
+    //
+    //     let sample = RestructuredSample {
+    //         discriminant: self as u8,
+    //         value: (vals[0], MaybeUninit::new(vals[1])),
+    //     };
+    //     Ok(unsafe { mem::transmute(sample) })
+    // }
 
     pub fn upscaling(self, intervals: &ProfileUpscalingIntervals<'_>) -> Option<PhpUpscalingRule> {
         match self {

@@ -23,6 +23,7 @@ impl BitSet {
     pub const MAX: usize = u32::BITS as usize;
 
     /// Creates a new bitset from the provided number.
+    #[allow(dead_code)]
     pub const fn new(bits: u32) -> Self {
         Self { bits }
     }
@@ -32,6 +33,7 @@ impl BitSet {
         self.bits.count_ones() as usize
     }
 
+    #[allow(dead_code)]
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.bits == 0
@@ -48,6 +50,7 @@ impl BitSet {
         }
     }
 
+    #[allow(dead_code)]
     pub fn iter(&self) -> BitSetIter {
         BitSetIter::new(self)
     }
