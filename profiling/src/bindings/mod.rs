@@ -17,40 +17,35 @@ extern "C" {
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
-#[cfg(feature = "timeline")]
 pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
-#[cfg(feature = "timeline")]
 pub type VmZendCompileFile =
     unsafe extern "C" fn(*mut zend_file_handle, i32) -> *mut _zend_op_array;
-#[cfg(all(feature = "timeline", php_opcache_restart_hook))]
+#[cfg(php_opcache_restart_hook)]
 pub type VmZendAccelScheduleRestartHook = unsafe extern "C" fn(i32);
-#[cfg(all(feature = "timeline", php_zend_compile_string_has_position))]
+#[cfg(php_zend_compile_string_has_position)]
 pub type VmZendCompileString = unsafe extern "C" fn(
     *mut zend_string,
     *const c_char,
     zend_compile_position,
 ) -> *mut _zend_op_array;
-#[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position), php8))]
+#[cfg(all(not(php_zend_compile_string_has_position), php8))]
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut zend_string, *const c_char) -> *mut _zend_op_array;
-#[cfg(all(feature = "timeline", not(php_zend_compile_string_has_position), php7))]
+#[cfg(all(not(php_zend_compile_string_has_position), php7))]
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut _zval_struct, *mut c_char) -> *mut _zend_op_array;
 
-#[cfg(all(feature = "exception_profiling", php7))]
+#[cfg(php7)]
 pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zval);
-#[cfg(all(feature = "exception_profiling", php8))]
+#[cfg(php8)]
 pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zend_object);
 
-#[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
-#[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
-#[cfg(feature = "allocation_profiling")]
 pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
-#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub type VmMmCustomGcFn = unsafe extern "C" fn() -> size_t;
-#[cfg(all(feature = "allocation_profiling", php_zend_mm_set_custom_handlers_ex))]
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub type VmMmCustomShutdownFn = unsafe extern "C" fn(bool, bool);
 
 // todo: this a lie on some PHP versions; is it a problem even though zend_bool
@@ -341,7 +336,7 @@ extern "C" {
     /// Converts the `zstr` into a `zai_str`. A None as well as empty
     /// strings will be converted into a string view to a static empty string
     /// (single byte of null, len of 0).
-    pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str;
+    pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str<'_>;
 
     /// Returns the configuration item for the given config id. Note that the
     /// lifetime is roughly static, but technically it is from first rinit
@@ -653,7 +648,7 @@ impl<'a> ZaiStr<'a> {
     }
 
     #[inline]
-    pub fn to_string_lossy(&self) -> Cow<str> {
+    pub fn to_string_lossy(&self) -> Cow<'a, str> {
         String::from_utf8_lossy(self.as_bytes())
     }
 

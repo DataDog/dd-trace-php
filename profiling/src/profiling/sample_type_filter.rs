@@ -55,13 +55,11 @@ impl SampleTypeFilter {
                 sample_types_mask[4] = true;
             }
 
-            #[cfg(feature = "timeline")]
             if system_settings.profiling_timeline_enabled {
                 sample_types.push(SAMPLE_TYPES[5]);
                 sample_types_mask[5] = true;
             }
 
-            #[cfg(feature = "exception_profiling")]
             if system_settings.profiling_exception_enabled {
                 sample_types.push(SAMPLE_TYPES[6]);
                 sample_types_mask[6] = true;
@@ -269,7 +267,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "exception_profiling")]
     fn filter_with_cpu_time_and_exceptions() {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;

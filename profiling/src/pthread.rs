@@ -1,4 +1,3 @@
-#[cfg(feature = "allocation_profiling")]
 use crate::allocation::alloc_prof_rshutdown;
 use crate::{config, Profiler};
 use log::trace;
@@ -38,7 +37,6 @@ unsafe extern "C" fn child() {
     // And then leak the old profiler. Its drop method is not safe to run in these situations.
     Profiler::kill();
 
-    #[cfg(feature = "allocation_profiling")]
     alloc_prof_rshutdown();
 
     // Reset some global state to prevent further profiling and to not handle

@@ -69,7 +69,7 @@ impl StringSet {
     /// This panics if the allocator fails to allocate. This could happen for
     /// a few reasons:
     ///  - It failed to acquire a chunk.
-    pub fn insert(&mut self, str: &str) -> ThinStr {
+    pub fn insert(&mut self, str: &str) -> ThinStr<'_> {
         let set = &mut self.strings;
         match set.get(str) {
             Some(interned_str) => *interned_str,
