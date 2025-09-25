@@ -1152,7 +1152,6 @@ dependencies = [
  "backtrace",
  "blazesym",
  "cc",
- "cc_utils",
  "chrono",
  "criterion",
  "ddcommon 0.0.1",
