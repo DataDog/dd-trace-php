@@ -81,7 +81,7 @@ chmod +x /tmp/apxs_wrapper
 }
 
 function run_dsymutil {
-  if [[ $(uname) != Darwin ]] then
+  if [[ $(uname) != Darwin ]]; then
     return
   fi
   local readonly dir=$1 exe=
