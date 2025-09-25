@@ -27,7 +27,7 @@ curl_setopt($ch, CURLOPT_URL, $url);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $response = curl_exec($ch);
 show_curl_error_on_fail($ch);
-curl_close($ch);
+if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
 include 'distributed_tracing.inc';
 $headers = dt_decode_headers_from_httpbin($response);

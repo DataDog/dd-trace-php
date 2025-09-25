@@ -187,7 +187,7 @@ class Snippets
         curl_setopt($ch, CURLOPT_URL, $this->getCurlUrl());
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         $output = curl_exec($ch);
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
     }
 
     public function curlVariant2()

@@ -28,7 +28,7 @@ if (empty($response['headers']['X-Datadog-Origin']) || $response['headers']['X-D
     throw new Exception('Unexpected origin header. ' . var_export($response, true));
 }
 
-curl_close($ch);
+if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
 var_dump($context->origin);
 echo "OK\n";
