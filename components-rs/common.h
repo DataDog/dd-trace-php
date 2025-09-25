@@ -896,16 +896,6 @@ typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
 
-/**
- * Holds the raw parts of a Rust Vec; it should only be created from Rust,
- * never from C.
- */
-typedef struct ddog_Vec_CharSlice {
-  const ddog_CharSlice *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-} ddog_Vec_CharSlice;
-
 typedef struct ddog_TracerHeaderTags {
   ddog_CharSlice lang;
   ddog_CharSlice lang_version;

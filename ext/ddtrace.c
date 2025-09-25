@@ -2762,10 +2762,8 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     zend_string *response_body_type = NULL;
     zend_long response_code = 0;
     int32_t authentication = 0;
-    php_printf("Here Alex 0\n");
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSSSSll", &type, &path, &operation_name, &resource_name, &request_body_type, &response_body_type, &response_code, &authentication) == FAILURE) {
-        php_printf("Here Alex 1\n");
         RETURN_FALSE;
     }
 
@@ -2783,15 +2781,11 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
 
 
     if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
-        php_printf("Here Alex 2\n");
         RETURN_FALSE;
     }
 
-    php_printf("Here Alex \n");
     ddog_sidecar_telemetry_addEndpoint(
         &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice, resource_name_slice, request_body_type_vec, response_body_type_vec);
-
-    php_printf("Here Alex 3\n");
 
     RETURN_TRUE;
 }
