@@ -1,6 +1,6 @@
 {
     "require": {
-        "openai-php/client": "0.15.0",
+        "openai-php/client": "0.16.1",
         "guzzlehttp/guzzle": "^7.8.1",
         "guzzlehttp/psr7": "^2.6.2"
     }

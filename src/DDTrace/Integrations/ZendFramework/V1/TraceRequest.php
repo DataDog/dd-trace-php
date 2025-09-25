@@ -20,9 +20,8 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         if (null === $span) {
             return;
         }
-        $integration = new ZendFrameworkIntegration();
         // Overwriting the default web integration
-        $integration->addTraceAnalyticsIfEnabled($span);
+        ZendFrameworkIntegration::addTraceAnalyticsIfEnabled($span);
         $controller = $request->getControllerName();
         $action = $request->getActionName();
         $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();
@@ -34,7 +33,7 @@ class TraceRequest extends Zend_Controller_Plugin_Abstract
         }
         $span->meta[Tag::HTTP_METHOD] = $request->getMethod();
         $span->meta[Tag::SPAN_KIND] = 'server';
-        $span->meta[Tag::COMPONENT] = $integration::NAME;
+        $span->meta[Tag::COMPONENT] = ZendFrameworkIntegration::NAME;
 
         if (!array_key_exists(Tag::HTTP_URL, $span->meta)) {
             $span->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize(

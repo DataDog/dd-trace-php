@@ -4,7 +4,6 @@
 #include <main/php.h>
 // dummy comment here to prevent clang format fixer from reordering includes here
 #include <Zend/zend_exceptions.h>
-#include <symbols/symbols.h>
 #include <zai_string/string.h>
 
 static inline zend_class_entry *zai_get_exception_base(zend_object *object) {
@@ -12,32 +11,16 @@ static inline zend_class_entry *zai_get_exception_base(zend_object *object) {
     return instanceof_function(object->ce, zend_ce_exception) ? zend_ce_exception : zend_ce_error;
 }
 
-static inline zval *zai_exception_read_property_str(zend_object *object, const char *pn, size_t pnl) {
-    zval zv;
-
-    ZVAL_OBJ(&zv, object);
-
-    zval *property = zai_symbol_lookup_property(ZAI_SYMBOL_SCOPE_OBJECT, &zv, (zai_str)ZAI_STR_NEW(pn, pnl));
-
-    if (!property) {
-        return &EG(uninitialized_zval);
-    }
-
-    return property;
+static inline zval *zai_exception_read_property_ex(zend_object *object, zend_property_info *info) {
+    return OBJ_PROP(object, info->offset);
 }
 
-static inline zval *zai_exception_read_property(zend_object *object, zend_string *name) {
-    zval zv;
+static inline zval *zai_exception_read_property_str(zend_object *object, const char *prop_name, size_t prop_name_len) {
+    return zai_exception_read_property_ex(object, (zend_property_info *)zend_hash_str_find_ptr(&object->ce->properties_info, prop_name, prop_name_len));
+}
 
-    ZVAL_OBJ(&zv, object);
-
-    zval *property = zai_symbol_lookup_property(ZAI_SYMBOL_SCOPE_OBJECT, &zv, (zai_str)ZAI_STR_FROM_ZSTR(name));
-
-    if (!property) {
-        return &EG(uninitialized_zval);
-    }
-
-    return property;
+static inline zval *zai_exception_read_property(zend_object *object, zend_string *prop_name) {
+    return zai_exception_read_property_ex(object, (zend_property_info *)zend_hash_find_ptr(&object->ce->properties_info, prop_name));
 }
 
 #if PHP_VERSION_ID < 70100

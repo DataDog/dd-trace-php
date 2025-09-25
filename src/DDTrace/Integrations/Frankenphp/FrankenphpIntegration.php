@@ -17,43 +17,45 @@ class FrankenphpIntegration extends Integration
 {
     const NAME = 'frankenphp';
 
+    public static $is_hooked;
+
     /**
      * {@inheritdoc}
      */
-    public function requiresExplicitTraceAnalyticsEnabling(): bool
+    public static function requiresExplicitTraceAnalyticsEnabling(): bool
     {
         return false;
     }
 
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         ini_set("datadog.trace.auto_flush_enabled", 1);
         ini_set("datadog.trace.generate_root_span", 0);
 
-        $is_hooked = new \WeakMap();
-        \DDTrace\install_hook('frankenphp_handle_request', function (HookData $hook) use ($integration, $is_hooked) {
+        self::$is_hooked = new \WeakMap();
+
+        \DDTrace\install_hook('frankenphp_handle_request', static function (HookData $hook) {
             $handler = $hook->args[0];
-            if (isset($is_hooked[$handler])) {
+            if (isset(self::$is_hooked[$handler])) {
                 return;
             }
-            $is_hooked[$handler] = true;
+            self::$is_hooked[$handler] = true;
 
             $blockingException = null;
 
+            // $hook->data: whether to block
             \DDTrace\install_hook(
                 $handler,
-                function (HookData $hook) use ($integration, &$blockingException, &$rootSpan) {
+                static function (HookData $hook) use (&$blockingException, &$rootSpan) {
                     $blockingException = null;
                     $rootSpan = $hook->span(new SpanStack());
                     $rootSpan->name = "web.request";
                     $rootSpan->service = \ddtrace_config_app_name('frankenphp');
                     $rootSpan->type = Type::WEB_SERVLET;
-                    $rootSpan->meta[Tag::COMPONENT] = FrankenphpIntegration::NAME;
+                    $rootSpan->meta[Tag::COMPONENT] = self::NAME;
                     $rootSpan->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_SERVER;
                     unset($rootSpan->meta["closure.declaration"]);
-                    $integration->addTraceAnalyticsIfEnabled($rootSpan);
+                    self::addTraceAnalyticsIfEnabled($rootSpan);
 
                     consume_distributed_tracing_headers(null);
 
@@ -85,37 +87,37 @@ class FrankenphpIntegration extends Integration
                         if (\key_exists('body', $res)) {
                             echo $res['body'];
                         }
-                        $blockingException = new FrankenphpAppSecException();
+                        $hook->data = new FrankenphpAppSecException();
                         $hook->suppressCall();
                     } else {
                         set_blocking_function(
                             $rootSpan,
-                            static function ($spec) use (&$blockingException) {
-                                FrankenphpIntegration::commitBlockingResponse($spec);
-                                $blockingException = new FrankenphpAppSecException();
-                                throw $blockingException;
+                            static function ($spec) use ($hook) {
+                                self::commitBlockingResponse($spec);
+                                $hook->data = new FrankenphpAppSecException();
+                                throw $hook->data;
                             }
                         );
                     }
                 },
-                function (HookData $hookData) use (&$blockingException) {
+                static function (HookData $hookData) {
                     $rootSpan = $hookData->span();
 
                     $res = notify_commit(
                         $rootSpan,
                         \http_response_code(),
-                        FrankenphpIntegration::convertHeaders(\headers_list()),
+                        self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );
 
                     // we did not block before and were now told to block
-                    if (!$blockingException && $res) {
-                        $blockingException = new FrankenphpAppSecException();
-                        FrankenphpIntegration::commitBlockingResponse($res);
+                    if (!$hookData->data && $res) {
+                        $hookData->data = new FrankenphpAppSecException();
+                        self::commitBlockingResponse($res);
                     }
 
-                    if ($blockingException && !$rootSpan->exception) {
-                        $rootSpan->exception = $blockingException;
+                    if ($hookData->data && !$rootSpan->exception) {
+                        $rootSpan->exception = $hookData->data;
                     }
                 },
                 \DDTrace\HOOK_INSTANCE

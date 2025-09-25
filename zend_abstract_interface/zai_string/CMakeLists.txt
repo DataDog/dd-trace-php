@@ -15,7 +15,7 @@ if (${BUILD_ZAI_TESTING})
 endif()
 
 # This copies the include files when `install` is ran
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/string.h
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/string.h ${CMAKE_CURRENT_SOURCE_DIR}/tests/symbols.h
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/zai_string/)
 
 target_link_libraries(zai_zend_abstract_interface INTERFACE zai_string)

@@ -33,7 +33,7 @@ class PHPRedisIntegration extends Integration
     const INTERNAL_ONLY_TAG_CLUSTER_NAME = '_dd.cluster.name';
     const INTERNAL_ONLY_TAG_FIRST_HOST = '_dd.first.configured.host';
 
-    public function init(): int
+    public static function init(): int
     {
         $traceConnectOpen = function (SpanData $span, $args) {
             Integration::handleOrphan($span);
@@ -321,9 +321,9 @@ class PHPRedisIntegration extends Integration
     {
         if (\dd_trace_env_config("DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST")) {
             // For PHP 5 compatibility, keep the results of ObjectKVStore::get() extracted as variables
-            $clusterName = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_CLUSTER_NAME);
-            $firstHostOrUDS = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS);
-            $host = ObjectKVStore::get($instance, PHPRedisIntegration::KEY_HOST);
+            $clusterName = ObjectKVStore::get($instance, self::KEY_CLUSTER_NAME);
+            $firstHostOrUDS = ObjectKVStore::get($instance, self::KEY_FIRST_HOST_OR_UDS);
+            $host = ObjectKVStore::get($instance, self::KEY_HOST);
 
             $serviceNamePrefix = 'redis-';
             if (!empty($clusterName)) {
@@ -336,16 +336,16 @@ class PHPRedisIntegration extends Integration
                 $normalizedHost = \DDTrace\Util\Normalizer::normalizeHostUdsAsService($host);
                 $span->service = $serviceNamePrefix . $normalizedHost;
             } else {
-                Integration::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, self::NAME);
             }
         } else {
-            Integration::handleInternalSpanServiceName($span, PHPRedisIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
         }
 
         $span->type = Type::REDIS;
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = PHPRedisIntegration::NAME;
-        $span->meta[Tag::DB_SYSTEM] = PHPRedisIntegration::SYSTEM;
+        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
         if (null !== $method) {
             // method names for internal functions are lowered so we need to explitly set them if we want to have the
             // proper case.

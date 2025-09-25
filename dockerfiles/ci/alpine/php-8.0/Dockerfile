@@ -90,7 +90,7 @@ RUN set -eux; \
     switch-php ${PHP_VERSION}-debug;
 
 # Install Composer
-COPY --from=composer:1 /usr/bin/composer /usr/local/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
 
 COPY welcome /etc/motd
 

@@ -387,11 +387,12 @@ void ddtrace_observe_opened_span(ddtrace_span_data *span) {
                     }
 
                     zval rv;
+                    zend_fcall_info_cache fcc;
+                    dd_get_closure_to_fcc(closure_zv, &fcc);
+                    zend_fcall_info fci = dd_fcall_info(1, &span_zv, &rv);
                     zai_sandbox sandbox;
                     zai_sandbox_open(&sandbox);
-                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    bool success = zai_sandbox_call(&sandbox, &fci, &fcc);
                     if (!success || PG(last_error_message)) {
                         dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
                     }
@@ -555,7 +556,7 @@ void ddtrace_clear_execute_data_span(zend_ulong index, bool keep) {
         if (!ddtrace_span_is_dropped(span)) {
             if (keep) {
                 if (&span->root->span != span) {
-                    ddtrace_maybe_add_code_origin_information(span);
+                    ddtrace_maybe_add_code_origin_information(span, 0);
                 }
                 ddtrace_close_span(span);
             } else {
@@ -859,7 +860,8 @@ void ddtrace_close_span(ddtrace_span_data *span) {
             inferred_span->type = DDTRACE_SPAN_CLOSED;
         }
 
-        ddtrace_maybe_add_code_origin_information(span);
+        zend_execute_data *execute_data = EG(current_execute_data);
+        ddtrace_maybe_add_code_origin_information(span, execute_data && EX(func) && !ZEND_USER_CODE(EX(func)->type));
     }
 
     if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
@@ -875,11 +877,12 @@ void ddtrace_close_span(ddtrace_span_data *span) {
                 ZVAL_DEREF(closure_zv);
                 if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
                     zval rv;
+                    zend_fcall_info_cache fcc;
+                    dd_get_closure_to_fcc(closure_zv, &fcc);
+                    zend_fcall_info fci = dd_fcall_info(1, &span_zv, &rv);
                     zai_sandbox sandbox;
                     zai_sandbox_open(&sandbox);
-                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    bool success = zai_sandbox_call(&sandbox, &fci, &fcc);
                     if (!success || PG(last_error_message)) {
                         dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
                     }
@@ -1129,8 +1132,10 @@ void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces) {
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
         ddtrace_serialize_closed_spans(traces);
-        // Also flush possible cycles here
-        gc_collect_cycles();
+        if (DDTRACE_G(open_spans_count)) {
+            // Also flush possible cycles here, if there are remaining open spans
+            gc_collect_cycles();
+        }
     }
 }
 

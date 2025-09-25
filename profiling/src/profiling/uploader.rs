@@ -1,4 +1,6 @@
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 use crate::config::AgentEndpoint;
+use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
@@ -9,20 +11,8 @@ use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
-use std::sync::{Arc, Barrier};
-
-#[cfg(any(
-    feature = "exception_profiling",
-    feature = "allocation_profiling",
-    feature = "io_profiling"
-))]
 use std::sync::atomic::Ordering;
-
-#[cfg(feature = "allocation_profiling")]
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
-
-#[cfg(feature = "exception_profiling")]
-use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
+use std::sync::{Arc, Barrier};
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -52,26 +42,11 @@ impl Uploader {
     /// This function will not only create the internal metadata JSON representation, but is also
     /// in charge to reset all those counters back to 0.
     fn create_internal_metadata() -> Option<serde_json::Value> {
-        cfg_if::cfg_if! {
-            if #[cfg(all(feature = "exception_profiling", feature = "allocation_profiling"))] {
-                Some(json!({
-                    "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
-                    "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
-                    "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
-                }))
-            } else if #[cfg(feature = "allocation_profiling")] {
-                Some(json!({
-                    "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
-                    "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
-                }))
-            } else if #[cfg(feature = "exception_profiling")] {
-                Some(json!({
-                    "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
-                }))
-            } else {
-                None
-            }
-        }
+        Some(json!({
+            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
+            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
+            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
+        }))
     }
 
     fn create_profiler_info(&self) -> Option<serde_json::Value> {
@@ -192,22 +167,15 @@ mod tests {
         let metadata = Uploader::create_internal_metadata();
 
         // Verify the result
-        #[cfg(not(any(feature = "exception_profiling", feature = "allocation_profiling")))]
-        {
-            assert!(metadata.is_none());
-            return;
-        }
         assert!(metadata.is_some());
         let metadata = metadata.unwrap();
 
         // The metadata should contain all counts
 
-        #[cfg(feature = "exception_profiling")]
         assert_eq!(
             metadata.get("exceptions_count").and_then(|v| v.as_u64()),
             Some(42)
         );
-        #[cfg(feature = "allocation_profiling")]
         {
             assert_eq!(
                 metadata.get("allocations_count").and_then(|v| v.as_u64()),
