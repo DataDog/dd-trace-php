@@ -10,6 +10,12 @@
 #include <stdio.h>
 #include "common.h"
 
+/**
+ * `QueueId` is a struct that represents a unique identifier for a queue.
+ * It contains a single field, `inner`, which is a 64-bit unsigned integer.
+ */
+typedef uint64_t ddog_QueueId;
+
 #if defined(_WIN32)
 bool ddog_setup_crashtracking(const struct ddog_Endpoint *endpoint, ddog_crasht_Metadata metadata);
 #endif
@@ -125,6 +131,20 @@ ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(struct ddog_SidecarTranspor
                                                      ddog_CharSlice config_id);
 
 /**
+ * Reports an endpoint to the telemetry.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport **transport,
+                                                   const struct ddog_InstanceId *instance_id,
+                                                   const ddog_QueueId *queue_id,
+                                                   ddog_CharSlice type,
+                                                   enum ddog_Method method,
+                                                   ddog_CharSlice path,
+                                                   ddog_CharSlice operation_name,
+                                                   ddog_CharSlice resource_name,
+                                                   struct ddog_Vec_CharSlice request_body_type,
+                                                   struct ddog_Vec_CharSlice response_body_type);
+
+/**
  * Reports a dependency to the telemetry.
  */
 ddog_MaybeError ddog_sidecar_telemetry_addDependency(struct ddog_SidecarTransport **transport,
@@ -133,26 +153,15 @@ ddog_MaybeError ddog_sidecar_telemetry_addDependency(struct ddog_SidecarTranspor
                                                      ddog_CharSlice dependency_name,
                                                      ddog_CharSlice dependency_version);
 
-ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport **transport,
-                                                    const struct ddog_InstanceId *instance_id,
-                                                    const ddog_QueueId *queue_id,
-                                                    ddog_CharSlice type,
-                                                    enum ddog_EndpointMethod method,
-                                                    ddog_CharSlice path,
-                                                    ddog_CharSlice operation_name,
-                                                    ddog_CharSlice resource_name);
-
 /**
  * Reports an integration to the telemetry.
  */
- ddog_MaybeError ddog_sidecar_telemetry_addIntegration(struct ddog_SidecarTransport **transport,
-    const struct ddog_InstanceId *instance_id,
-    const ddog_QueueId *queue_id,
-    ddog_CharSlice type,
-    enum ddog_EndpointMethod method,
-    ddog_CharSlice path,
-    ddog_CharSlice operation_name,
-    ddog_CharSlice resource_name);
+ddog_MaybeError ddog_sidecar_telemetry_addIntegration(struct ddog_SidecarTransport **transport,
+                                                      const struct ddog_InstanceId *instance_id,
+                                                      const ddog_QueueId *queue_id,
+                                                      ddog_CharSlice integration_name,
+                                                      ddog_CharSlice integration_version,
+                                                      bool integration_enabled);
 
 /**
  * Enqueues a list of actions to be performed.
