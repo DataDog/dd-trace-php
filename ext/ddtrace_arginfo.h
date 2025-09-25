@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2e20ff786d3d6b49f409648a8d98ce9b7d5f9850 */
+ * Stub hash: 7bd6ecc16babe0a130e1c41bbfe24af9dc623931 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -168,11 +168,15 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_are_endpoints_collected, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_add_endpoint, 0, 4, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_add_endpoint, 0, 8, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, type, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, operation_name, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, resource_name, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, body_type, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, response_type, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, response_code, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO(0, authentication, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
