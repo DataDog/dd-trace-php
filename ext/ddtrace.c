@@ -2758,22 +2758,40 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     zend_string *path = NULL;
     zend_string *operation_name = NULL;
     zend_string *resource_name = NULL;
+    zend_string *request_body_type = NULL;
+    zend_string *response_body_type = NULL;
+    zend_long response_code = 0;
+    int32_t authentication = 0;
+    php_printf("Here Alex 0\n");
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSS", &type, &path, &operation_name, &resource_name) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSSSSll", &type, &path, &operation_name, &resource_name, &request_body_type, &response_body_type, &response_code, &authentication) == FAILURE) {
+        php_printf("Here Alex 1\n");
         RETURN_FALSE;
     }
 
     ddog_CharSlice type_slice = dd_zend_string_to_CharSlice(type);
-    ddog_EndpointMethod method_enum = DDOG_ENDPOINT_METHOD_GET;
+    ddog_Method method_enum = DDOG_METHOD_GET;
     ddog_CharSlice path_slice = dd_zend_string_to_CharSlice(path);
     ddog_CharSlice operation_name_slice = dd_zend_string_to_CharSlice(operation_name);
     ddog_CharSlice resource_name_slice = dd_zend_string_to_CharSlice(resource_name);
+    zend_string *request_body_type_copy = zend_string_copy(request_body_type);
+    zend_string *response_body_type_copy = zend_string_copy(response_body_type);
+    struct ddog_Vec_CChar *request_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(request_body_type_copy));
+    struct ddog_Vec_CChar *response_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(response_body_type_copy));
+    // struct ddog_Vec_i32 *response_code_vec = ddog_number_to_owned_i32(response_code);
+    // // struct ddog_Vec_EndpointAuthentication authentication_vec = *ddog_number_to_owned_i32(authentication);
+
 
     if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        php_printf("Here Alex 2\n");
         RETURN_FALSE;
     }
 
-    ddog_sidecar_telemetry_addEndpoint(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice, resource_name_slice);
+    php_printf("Here Alex \n");
+    ddog_sidecar_telemetry_addEndpoint(
+        &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice, resource_name_slice, request_body_type_vec, response_body_type_vec);
+
+    php_printf("Here Alex 3\n");
 
     RETURN_TRUE;
 }

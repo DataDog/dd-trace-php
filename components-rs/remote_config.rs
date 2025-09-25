@@ -423,8 +423,14 @@ pub extern "C" fn ddog_global_log_probe_limiter_inc(remote_config: &RemoteConfig
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_CharSlice_to_owned(str: CharSlice) -> *mut Vec<c_char> {
-    Box::into_raw(Box::new(str.as_slice().into()))
+pub unsafe extern "C" fn ddog_CharSlice_to_owned(str: CharSlice) -> *mut ddcommon_ffi::Vec<c_char> {
+    let std_vec: Vec<c_char> = str.as_slice().into();
+    Box::into_raw(Box::new(std_vec.into()))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_Vec_CChar_drop(ptr: *mut ddcommon_ffi::Vec<c_char>) {
+    Box::from_raw(ptr);
 }
 
 #[no_mangle]
