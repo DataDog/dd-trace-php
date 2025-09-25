@@ -208,41 +208,34 @@ class PDOIntegration extends Integration
 
     private static function parseDsn($dsn)
     {
-        $engine = substr($dsn, 0, strpos($dsn, ':'));
-        $tags = ['db.engine' => $engine];
+        \preg_match('(\A(?<engine>[^:]++)(?::(?:(?:charset=(?<charset>[^;]++)|(?:database|dbname)=(?<db>[^;]++)|(?:server|unix_socket|host(?:name)?)=(?<host>[^;]++)|port=(?<port>[^;]++)|driver=(?<driver>[^;]++)|[^;]*+)(?:;|\Z))++)?)i', $dsn, $m);
+        $engine = $m['engine'];
+        $db = $m['db'] ?? "";
+        $charset = $m['charset'] ?? "";
+        $host = $m['host'] ?? "";
+        $port = $m['port'] ?? "";
+        $driver = $m['driver'] ?? "";
+
         $dbSystem = self::DB_DRIVER_TO_SYSTEM[$engine] ?? 'other_sql';
+        $tags = ['db.engine' => $engine];
         $tags[Tag::DB_SYSTEM] = $dbSystem;
         $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
-        $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
-        foreach ($valStrings as $valString) {
-            if (!strpos($valString, '=')) {
-                continue;
-            }
-            list($key, $value) = explode('=', $valString);
-            switch (strtolower($key)) {
-                case 'charset':
-                    $tags[Tag::DB_CHARSET] = $value;
-                    break;
-                case 'database':
-                case 'dbname':
-                    $tags[Tag::DB_NAME] = $value;
-                    break;
-                case 'server':
-                case 'unix_socket':
-                case 'hostname':
-                case 'host':
-                    $tags[Tag::TARGET_HOST] = $value;
-                    break;
-                case 'port':
-                    $tags[Tag::TARGET_PORT] = $value;
-                    break;
-                case 'driver':
-                    // This is more specific than just "odbc"
-                    $tags[Tag::DB_SYSTEM] = strtolower($value);
-                    break;
-            }
-        }
 
+        if ($db !== "") {
+            $tags[Tag::DB_NAME] = $db;
+        }
+        if ($charset !== "") {
+            $tags[Tag::DB_CHARSET] = $charset;
+        }
+        if ($host !== "") {
+            $tags[Tag::TARGET_HOST] = $host;
+        }
+        if ($port !== "") {
+            $tags[Tag::TARGET_PORT] = $port;
+        }
+        if ($driver !== "") {
+            $tags[Tag::DB_SYSTEM] = strtolower($driver);
+        }
         return $tags;
     }
 
@@ -298,10 +291,6 @@ class PDOIntegration extends Integration
 
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;
-        }
-
-        if (\dd_trace_env_config("DD_APPSEC_RASP_ENABLED") && function_exists('datadog\appsec\push_addresses')
-            && !empty($span->resource) && !empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
         }
     }
 
