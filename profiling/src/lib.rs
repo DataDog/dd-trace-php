@@ -12,16 +12,13 @@ mod wall_time;
 #[cfg(php_run_time_cache)]
 mod string_set;
 
-#[cfg(feature = "allocation_profiling")]
 mod allocation;
 
 #[cfg(all(feature = "io_profiling", target_os = "linux"))]
 mod io;
 
-#[cfg(feature = "exception_profiling")]
 mod exception;
 
-#[cfg(feature = "timeline")]
 mod timeline;
 mod vec_ext;
 
@@ -214,18 +211,16 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 }
 
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
-    #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg(php_zts)]
     timeline::timeline_ginit();
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_ginit();
 }
 
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
-    #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg(php_zts)]
     timeline::timeline_gshutdown();
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_gshutdown();
 }
 
@@ -383,10 +378,8 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // Note that on PHP 7 this never fails, and on PHP 8 it returns void.
     unsafe { zend::zend_register_extension(&extension, handle) };
 
-    #[cfg(feature = "timeline")]
     timeline::timeline_minit();
 
-    #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_minit();
 
     // There are a few things which need to do something on the first rinit of
@@ -411,7 +404,6 @@ extern "C" fn prshutdown() -> ZendResult {
     // delay this until the last possible time.
     unsafe { bindings::zai_config_rshutdown() };
 
-    #[cfg(feature = "timeline")]
     timeline::timeline_prshutdown();
 
     ZendResult::Success
@@ -687,13 +679,11 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             }
         }
 
-        #[cfg(feature = "exception_profiling")]
         exception::exception_profiling_first_rinit();
 
         #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         io::io_prof_first_rinit();
 
-        #[cfg(feature = "allocation_profiling")]
         allocation::alloc_prof_first_rinit();
     });
 
@@ -744,14 +734,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         TAGS.set(Arc::default());
     }
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_rinit();
 
     // SAFETY: called after config is initialized.
-    #[cfg(feature = "timeline")]
-    unsafe {
-        timeline::timeline_rinit()
-    };
+    unsafe { timeline::timeline_rinit() };
 
     ZendResult::Success
 }
@@ -803,7 +789,6 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         }
     });
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_rshutdown();
 
     #[cfg(feature = "tracing")]
@@ -864,8 +849,6 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             },
         );
 
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "allocation_profiling")] {
                 zend::php_info_print_table_row(
                     2,
                     c"Allocation Profiling Enabled".as_ptr(),
@@ -884,17 +867,6 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         no_all
                     }
                 );
-            } else {
-                zend::php_info_print_table_row(
-                    2,
-                    b"Allocation Profiling Enabled\0".as_ptr(),
-                    b"Not available. The profiler was built without allocation profiling.\0"
-                );
-            }
-        }
-
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "timeline")] {
                 zend::php_info_print_table_row(
                     2,
                     c"Timeline Enabled".as_ptr(),
@@ -906,17 +878,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         no_all
                     },
                 );
-            } else {
-                zend::php_info_print_table_row(
-                    2,
-                    c"Timeline Enabled".as_ptr(),
-                    c"Not available. The profiler was build without timeline support.".as_ptr()
-                );
-            }
-        }
 
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "exception_profiling")] {
                 zend::php_info_print_table_row(
                     2,
                     c"Exception Profiling Enabled".as_ptr(),
@@ -928,14 +890,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         no_all
                     },
                 );
-            } else {
-                zend::php_info_print_table_row(
-                    2,
-                    c"Exception Profiling Enabled".as_ptr(),
-                    c"Not available. The profiler was built without exception profiling support.".as_ptr()
-                );
-            }
-        }
+
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "io_profiling")] {
@@ -1030,10 +985,8 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     trace!("MSHUTDOWN({_type}, {_module_number})");
 
     // SAFETY: being called before [config::shutdown].
-    #[cfg(feature = "timeline")]
     timeline::timeline_mshutdown();
 
-    #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
 
     // SAFETY: calling in mshutdown as required.
@@ -1059,14 +1012,10 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // SAFETY: calling this in zend_extension startup.
     unsafe {
         pthread::startup();
-        #[cfg(feature = "timeline")]
         timeline::timeline_startup();
     }
 
-    #[cfg(all(
-        feature = "allocation_profiling",
-        not(php_zend_mm_set_custom_handlers_ex)
-    ))]
+    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation::alloc_prof_startup();
 
     ZendResult::Success
