@@ -2785,7 +2785,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     zend_string *request_body_type = NULL;
     zend_string *response_body_type = NULL;
     zend_long response_code = 0;
-    int32_t authentication = 0;
+    zend_long authentication = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSSSSll", &type, &path, &operation_name, &resource_name, &request_body_type, &response_body_type, &response_code, &authentication) == FAILURE) {
         RETURN_FALSE;
