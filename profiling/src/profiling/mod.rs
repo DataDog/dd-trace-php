@@ -1200,7 +1200,7 @@ impl Profiler {
                 }],
                 dictionary: dict,
             },
-            vec![SampleValue::Timeline { nanoseconds: 1 }],
+            SampleValue::Timeline { nanoseconds: 1 },
             labels,
             now,
         ) {
