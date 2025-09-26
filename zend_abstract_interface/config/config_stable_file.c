@@ -16,9 +16,9 @@ static struct ddog_Configurator *(*_ddog_library_configurator_new)(bool debug_lo
 static void (*_ddog_library_configurator_with_local_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
 static void (*_ddog_library_configurator_with_fleet_path)(struct ddog_Configurator *c, struct ddog_CStr local_path);
 static void (*_ddog_library_configurator_with_detect_process_info)(struct ddog_Configurator *c);
-static struct ddog_Result_VecLibraryConfig (*_ddog_library_configurator_get)(const struct ddog_Configurator *configurator);
+static struct ddog_LibraryConfigLoggedResult (*_ddog_library_configurator_get)(const struct ddog_Configurator *configurator);
 static struct ddog_CStr (*_ddog_library_config_source_to_string)(enum ddog_LibraryConfigSource name);
-static void (*_ddog_library_config_drop)(struct ddog_Vec_LibraryConfig);
+static void (*_ddog_library_config_drop)(struct ddog_LibraryConfigLoggedResult);
 static void (*_ddog_Error_drop)(struct ddog_Error *error);
 static void (*_ddog_library_configurator_drop)(struct ddog_Configurator*);
 
@@ -78,12 +78,12 @@ void zai_config_stable_file_minit(void) {
 
     _ddog_library_configurator_with_detect_process_info(configurator);
 
-    ddog_Result_VecLibraryConfig config_result = _ddog_library_configurator_get(configurator);
-    if (config_result.tag == DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG) {
+    ddog_LibraryConfigLoggedResult config_result = _ddog_library_configurator_get(configurator);
+    if (config_result.tag == DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK) {
         stable_config = pemalloc(sizeof(HashTable), 1);
         zend_hash_init(stable_config, 8, NULL, stable_config_entry_dtor, 1);
 
-        ddog_Vec_LibraryConfig configs = config_result.ok;
+        ddog_Vec_LibraryConfig configs = config_result.ok.value;
         for (uintptr_t i = 0; i < configs.len; i++) {
             const ddog_LibraryConfig *cfg = &configs.ptr[i];
 
@@ -94,12 +94,9 @@ void zai_config_stable_file_minit(void) {
 
             zend_hash_str_add_ptr(stable_config, cfg->name.ptr, cfg->name.length, entry);
         }
-        _ddog_library_config_drop(configs);
-    } else {
-        ddog_Error err = config_result.err;
-        _ddog_Error_drop(&err);
     }
 
+    _ddog_library_config_drop(config_result);
     _ddog_library_configurator_drop(configurator);
 }
 

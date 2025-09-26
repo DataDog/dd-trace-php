@@ -9,6 +9,31 @@
 
 #include "common.h"
 
+/**
+ * A result type that includes debug/log messages along with the data
+ */
+typedef struct ddog_OkResult {
+  struct ddog_Vec_LibraryConfig value;
+  struct ddog_CString logs;
+} ddog_OkResult;
+
+typedef enum ddog_LibraryConfigLoggedResult_Tag {
+  DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK,
+  DDOG_LIBRARY_CONFIG_LOGGED_RESULT_ERR,
+} ddog_LibraryConfigLoggedResult_Tag;
+
+typedef struct ddog_LibraryConfigLoggedResult {
+  ddog_LibraryConfigLoggedResult_Tag tag;
+  union {
+    struct {
+      struct ddog_OkResult ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+} ddog_LibraryConfigLoggedResult;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -28,7 +53,7 @@ void ddog_library_configurator_with_detect_process_info(struct ddog_Configurator
 
 void ddog_library_configurator_drop(struct ddog_Configurator*);
 
-struct ddog_Result_VecLibraryConfig ddog_library_configurator_get(const struct ddog_Configurator *configurator);
+struct ddog_LibraryConfigLoggedResult ddog_library_configurator_get(const struct ddog_Configurator *configurator);
 
 /**
  * Returns a static null-terminated string, containing the name of the environment variable
@@ -48,7 +73,7 @@ struct ddog_CStr ddog_library_config_fleet_stable_config_path(void);
  */
 struct ddog_CStr ddog_library_config_local_stable_config_path(void);
 
-void ddog_library_config_drop(struct ddog_Vec_LibraryConfig);
+void ddog_library_config_drop(struct ddog_LibraryConfigLoggedResult config_result);
 
 /**
  * Store tracer metadata to a file handle

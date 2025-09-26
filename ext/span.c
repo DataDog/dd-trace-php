@@ -24,6 +24,7 @@
 #include "trace_source.h"
 #include "standalone_limiter.h"
 #include "code_origins.h"
+#include "endpoint_guessing.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -862,6 +863,10 @@ void ddtrace_close_span(ddtrace_span_data *span) {
 
         zend_execute_data *execute_data = EG(current_execute_data);
         ddtrace_maybe_add_code_origin_information(span, execute_data && EX(func) && !ZEND_USER_CODE(EX(func)->type));
+
+        if (get_DD_TRACE_RESOURCE_RENAMING_ENABLED()) {
+            ddtrace_maybe_add_guessed_endpoint_tag(ROOTSPANDATA(&span->std));
+        }
     }
 
     if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
