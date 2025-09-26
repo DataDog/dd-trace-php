@@ -1123,7 +1123,6 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        // todo: format!("[{include_type}]").into()
         let dict = match dictionary::try_clone_tls_or_global() {
             Ok(d) => d,
             Err(err) => {
@@ -1131,11 +1130,11 @@ impl Profiler {
                 return;
             }
         };
-        let name = format!("[{}]", include_type);
+        let name = format!("[{include_type}]");
         let include_fid = match synth_function_id(&dict, &name, None) {
             Ok(id) => Some(id),
             Err(err) => {
-                warn!("Failed to build [{}] frame: {err}", include_type);
+                warn!("Failed to build [{include_type}] frame: {err}");
                 None
             }
         };
@@ -1185,11 +1184,11 @@ impl Profiler {
                 return;
             }
         };
-        let thread_name = format!("[{}]", event);
+        let thread_name = format!("[{event}]");
         let thread_fid = match synth_function_id(&*dict, &thread_name, None) {
             Ok(id) => Some(id),
             Err(err) => {
-                warn!("Failed to build [{}] frame: {err}", event);
+                warn!("Failed to build [{event}] frame: {err}");
                 None
             }
         };
@@ -1648,6 +1647,25 @@ pub struct JoinError {
     pub num_failures: usize,
 }
 
+#[inline]
+fn synth_function_id(
+    dict: &ProfilesDictionary,
+    fname: &str,
+    file: Option<&str>,
+) -> Result<FunctionId, ProfileError> {
+    let strings = dict.strings();
+    let function = Function {
+        name: strings.try_insert(fname)?,
+        system_name: StringId::EMPTY,
+        file_name: match file {
+            Some(f) if !f.is_empty() => strings.try_insert(f)?,
+            _ => StringId::EMPTY,
+        },
+    };
+    let id = dict.functions().try_insert(function)?;
+    Ok(id.into_raw())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1786,23 +1804,4 @@ mod tests {
             }
         }
     }
-}
-
-#[inline]
-fn synth_function_id(
-    dict: &ProfilesDictionary,
-    fname: &str,
-    file: Option<&str>,
-) -> Result<FunctionId, ProfileError> {
-    let strings = dict.strings();
-    let function = Function {
-        name: strings.try_insert(fname)?,
-        system_name: StringId::EMPTY,
-        file_name: match file {
-            Some(f) if !f.is_empty() => strings.try_insert(f)?,
-            _ => StringId::EMPTY,
-        },
-    };
-    let id = dict.functions().try_insert(function)?;
-    Ok(id.into_raw())
 }

@@ -404,7 +404,7 @@ mod detail {
         let mut execute_data_ptr = top_execute_data;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            let maybe_frame = unsafe { collect_call_frame(execute_data, &*dict) }?;
+            let maybe_frame = unsafe { collect_call_frame(execute_data, &dict) }?;
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;
 
@@ -413,7 +413,7 @@ mod detail {
                  * then ironically the [truncated] message would be truncated.
                  */
                 if samples.len() == max_depth - 1 {
-                    let trunc = dictionary::truncated_function(&*dict)?;
+                    let trunc = dictionary::truncated_function(&dict)?;
                     samples.try_push(ZendFrame {
                         function_id: Some(trunc),
                         line: 0,
