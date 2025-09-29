@@ -1263,9 +1263,7 @@ endforeach;
   before_script:
 <?php unset_dd_runner_env_vars() ?>
     - |
-     if [[ "$MINOR_MAJOR" == "8.5" ]]; then
-       export XDEBUG_SO_NAME=xdebug-3.4.5.so
-     elif [[ "$MINOR_MAJOR" == "8.4" ]]; then
+     if [[ "$MINOR_MAJOR" == "8.4" ]]; then
        export XDEBUG_SO_NAME=xdebug-3.4.0.so
      elif [[ "$MINOR_MAJOR" == "8.3" ]]; then
        export XDEBUG_SO_NAME=xdebug-3.3.2.so

@@ -5,6 +5,8 @@ Verify ddappsec is always in the module registry after ddtrace when opcache is p
 if (!extension_loaded('Zend OPcache')) {
     die('skip requires opcache');
 }
+if (!version_compare(PHP_VERSION, '8.5.0', '>='))
+    die('skip: opcache is loaded by default in PHP 8.5+');
 ?>
 --INI--
 extension=ddtrace.so
