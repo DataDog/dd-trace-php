@@ -225,7 +225,6 @@ class GuzzleIntegrationTest extends IntegrationTestCase
             },
             __DIR__ . '/guzzle_in_distributed_web_request.php'
         );
-        print_r($traces);
 
         $this->assertOneSpan(
             $traces,
