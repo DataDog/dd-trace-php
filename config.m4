@@ -231,8 +231,7 @@ if test "$PHP_DDTRACE" != "no"; then
     zend_abstract_interface/headers/headers.c \
     zend_abstract_interface/hook/hook.c \
     zend_abstract_interface/json/json.c \
-    zend_abstract_interface/symbols/lookup.c \
-    zend_abstract_interface/symbols/call.c \
+    zend_abstract_interface/sandbox/call.c \
     zend_abstract_interface/uri_normalization/uri_normalization.c \
     zend_abstract_interface/zai_string/string.c \
   "
@@ -296,7 +295,6 @@ EOT
 
   PHP_ADD_INCLUDE([$ext_srcdir/zend_abstract_interface])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface])
-  PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/symbols])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/config])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/env])
   PHP_ADD_BUILD_DIR([$ext_builddir/zend_abstract_interface/exceptions])

@@ -20,11 +20,12 @@ if (PHP_VERSION_ID < 70400)
     echo "skip: need preloading and therefore PHP >= 7.4.0", PHP_EOL;
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires datadog-profiling", PHP_EOL;
+if (!extension_loaded('Zend OPcache'))
+    echo "skip: test requires opcache", PHP_EOL;
 ?>
 --INI--
 datadog.profiling.enabled=yes
 datadog.profiling.log_level=debug
-zend_extension=opcache
 opcache.enable_cli=1
 opcache.preload={PWD}/preload_01_preload.php
 opcache.preload_user=root

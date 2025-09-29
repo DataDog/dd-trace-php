@@ -1,6 +1,6 @@
 #ifndef ZAI_HOOK_H
 #define ZAI_HOOK_H
-#include "../symbols/symbols.h"
+#include "../zai_string/string.h"
 #if PHP_VERSION_ID >= 80000
 #include <zend_observer.h>
 #endif

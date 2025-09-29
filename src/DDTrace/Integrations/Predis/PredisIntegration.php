@@ -25,10 +25,8 @@ class PredisIntegration extends Integration
     /**
      * Add instrumentation to PDO requests
      */
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
             Integration::handleOrphan($span);
 
@@ -48,13 +46,13 @@ class PredisIntegration extends Integration
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
         });
 
-        \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) {
             Integration::handleOrphan($span);
 
             $span->name = 'Predis.Client.executeCommand';
             $span->type = Type::REDIS;
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            PredisIntegration::addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeCommand', but if we are able below to extract the query
             // then we replace it with the query
@@ -73,13 +71,13 @@ class PredisIntegration extends Integration
             $span->meta['redis.raw_command'] = $query;
         });
 
-        \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) use ($integration) {
+        \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) {
             Integration::handleOrphan($span);
 
             $span->name = 'Predis.Client.executeRaw';
             $span->type = Type::REDIS;
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            PredisIntegration::addTraceAnalyticsIfEnabled($span);
 
             // We default resource name to 'Predis.Client.executeRaw', but if we are able below to extract the query
             // then we replace it with the query
@@ -178,11 +176,11 @@ class PredisIntegration extends Integration
         if ($service) {
             $span->meta[Tag::SERVICE_NAME] = $service;
         } else {
-            Integration::handleInternalSpanServiceName($span, PredisIntegration::DEFAULT_SERVICE_NAME);
+            Integration::handleInternalSpanServiceName($span, self::DEFAULT_SERVICE_NAME);
         }
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = PredisIntegration::NAME;
-        $span->meta[Tag::DB_SYSTEM] = PredisIntegration::SYSTEM;
+        $span->meta[Tag::COMPONENT] = self::NAME;
+        $span->meta[Tag::DB_SYSTEM] = self::SYSTEM;
 
         foreach (ObjectKVStore::get($predis->getConnection(), 'connection_meta', []) as $tag => $value) {
             $span->meta[$tag] = $value;

@@ -11,7 +11,7 @@ namespace DDTrace\Test
 {
     class TestSandboxedIntegration implements \DDTrace\Integration
     {
-        function init(): int
+        static function init(): int
         {
             \trigger_error("Fatal!", E_USER_ERROR);
         }

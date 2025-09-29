@@ -9,31 +9,6 @@
 
 #include "common.h"
 
-/**
- * A result type that includes debug/log messages along with the data
- */
-typedef struct ddog_OkResult {
-  struct ddog_Vec_LibraryConfig value;
-  struct ddog_CString logs;
-} ddog_OkResult;
-
-typedef enum ddog_LibraryConfigLoggedResult_Tag {
-  DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK,
-  DDOG_LIBRARY_CONFIG_LOGGED_RESULT_ERR,
-} ddog_LibraryConfigLoggedResult_Tag;
-
-typedef struct ddog_LibraryConfigLoggedResult {
-  ddog_LibraryConfigLoggedResult_Tag tag;
-  union {
-    struct {
-      struct ddog_OkResult ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-} ddog_LibraryConfigLoggedResult;
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -76,20 +51,60 @@ struct ddog_CStr ddog_library_config_local_stable_config_path(void);
 void ddog_library_config_drop(struct ddog_LibraryConfigLoggedResult config_result);
 
 /**
- * Store tracer metadata to a file handle
+ * Allocates and returns a pointer to a new `TracerMetadata` object on the heap.
  *
  * # Safety
+ * This function returns a raw pointer. The caller is responsible for calling
+ * `ddog_tracer_metadata_free` to deallocate the memory.
  *
- * Accepts raw C-compatible strings
+ * # Returns
+ * A non-null pointer to a newly allocated `TracerMetadata` instance.
  */
-struct ddog_Result_TracerMemfdHandle ddog_store_tracer_metadata(uint8_t schema_version,
-                                                                ddog_CharSlice runtime_id,
-                                                                ddog_CharSlice tracer_language,
-                                                                ddog_CharSlice tracer_version,
-                                                                ddog_CharSlice hostname,
-                                                                ddog_CharSlice service_name,
-                                                                ddog_CharSlice service_env,
-                                                                ddog_CharSlice service_version);
+struct ddog_TracerMetadata *ddog_tracer_metadata_new(void);
+
+/**
+ * Frees a `TracerMetadata` instance previously allocated with `ddog_tracer_metadata_new`.
+ *
+ * # Safety
+ * - `ptr` must be a pointer previously returned by `ddog_tracer_metadata_new`.
+ * - Double-freeing or passing an invalid pointer results in undefined behavior.
+ * - Passing a null pointer is safe and does nothing.
+ */
+void ddog_tracer_metadata_free(struct ddog_TracerMetadata *ptr);
+
+/**
+ * Sets a field of the `TracerMetadata` object pointed to by `ptr`.
+ *
+ * # Arguments
+ * - `ptr`: Pointer to a `TracerMetadata` instance.
+ * - `kind`: The metadata field to set (as defined in `MetadataKind`).
+ * - `value`: A null-terminated C string representing the value to set.
+ *
+ * # Safety
+ * - Both `ptr` and `value` must be non-null.
+ * - `value` must point to a valid UTF-8 null-terminated string.
+ * - If the string is not valid UTF-8, the function does nothing.
+ */
+void ddog_tracer_metadata_set(struct ddog_TracerMetadata *ptr,
+                              enum ddog_MetadataKind kind,
+                              const char *value);
+
+/**
+ * Serializes the `TracerMetadata` into a platform-specific memory handle (e.g., memfd on Linux).
+ *
+ * # Safety
+ * - `ptr` must be a valid, non-null pointer to a `TracerMetadata`.
+ *
+ * # Returns
+ * - On Linux: a `TracerMemfdHandle` containing a raw file descriptor to a memory file.
+ * - On unsupported platforms: an error.
+ * - On failure: propagates any internal errors from the metadata storage process.
+ *
+ * # Platform Support
+ * This function currently only supports Linux via `memfd`. On other platforms,
+ * it will return an error.
+ */
+struct ddog_Result_TracerMemfdHandle ddog_tracer_metadata_store(struct ddog_TracerMetadata *ptr);
 
 #ifdef __cplusplus
 }  // extern "C"

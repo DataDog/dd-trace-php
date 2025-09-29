@@ -61,13 +61,10 @@ name = "stack_walking"
 harness = false
 
 [features]
-default = ["allocation_profiling", "exception_profiling", "io_profiling", "timeline"]
-allocation_profiling = []
-exception_profiling = []
-timeline = []
+default = ["io_profiling"]
+io_profiling = []
 stack_walking_tests = []
 test = []
-io_profiling = []
 
 # Not for prod:
 tracing = ["dep:tracing"]

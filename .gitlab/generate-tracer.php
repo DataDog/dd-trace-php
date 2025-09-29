@@ -129,7 +129,11 @@ stages:
 
     mkdir dumps
 
-    # Start the container
+    $names = @('httpbin-integration','request-replayer', $env:CONTAINER_NAME)
+    foreach ($n in $names) { try { docker rm -f $n | Out-Null } catch {} }
+    try { docker network rm net | Out-Null } catch {}
+
+    # Start the container network and services
     docker network create -d "nat" -o com.docker.network.windowsshim.dnsservers="1.1.1.1" net
     docker run --network net -d --name httpbin-integration registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:httpbin-windows
     docker run --network net -d --name request-replayer registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0-windows
@@ -150,6 +154,13 @@ stages:
     - |
         docker exec php cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
         exit 0
+    - 'powershell -NoProfile -Command "try { docker logs request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker logs httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 5 request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker rm -f request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 5 httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker rm -f httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker network rm net } catch {}"'
   artifacts:
     paths:
       - sidecar.log
