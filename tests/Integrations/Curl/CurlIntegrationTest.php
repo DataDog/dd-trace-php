@@ -48,6 +48,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
             'DD_TRACE_SPANS_LIMIT',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_TRACE_PROPAGATION_STYLE_INJECT',
+            'DD_TRACE_GENERATE_ROOT_SPAN',
         ];
     }
 
@@ -528,8 +529,13 @@ final class CurlIntegrationTest extends IntegrationTestCase
         });
     }
 
-    public function testMulti()
+    /**
+     * @dataProvider dataProviderWithAndWithoutRootSpan
+     */
+    public function testMulti($withRootSpan)
     {
+        self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=" . ($withRootSpan ? 1 : 0));
+
         $traces = $this->isolateTracer(function () {
             $ch1 = curl_init(self::URL . '/status/200');
             curl_setopt($ch1, CURLOPT_RETURNTRANSFER, true);
@@ -568,7 +574,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             Tag::COMPONENT => 'curl',
                         ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->withExistingTagsNames(($withRootSpan ? [-1 => "_dd.base_service"] : []) + self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/'),
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://__i_am_not_real__.invalid/')
                         ->withExactTags([
@@ -578,11 +584,18 @@ final class CurlIntegrationTest extends IntegrationTestCase
                             'network.destination.name' => '__i_am_not_real__.invalid',
                             Tag::COMPONENT => 'curl',
                         ])
-                        ->withExistingTagsNames(self::commonCurlInfoTags())
+                        ->withExistingTagsNames(($withRootSpan ? [-1 => "_dd.base_service"] : []) + self::commonCurlInfoTags())
                         ->skipTagsLike('/^curl\..*/')
                         ->setError('curl error', "Couldn't resolve host name", true),
-                ]),
+                ])->withExistingTagsNames($withRootSpan ? ["_dd.base_service"] : []),
         ]);
+    }
+
+    public function dataProviderWithAndWithoutRootSpan() {
+        return [
+            [false],
+            [true],
+        ];
     }
 
     /**
