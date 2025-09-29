@@ -189,13 +189,13 @@ bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_c
 
 bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remote_config);
 
-struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
+struct ddog_Vec_CharSlice *ddog_CharSlice_to_owned(ddog_CharSlice str);
 
 struct ddog_Vec_I32 *ddog_number_to_owned_i32(int32_t number);
 
-struct ddog_Vec_Authentication *ddog_number_to_owned_Authentication(ddog_Authentication auth);
+struct ddog_Vec_Authentication *ddog_number_to_owned_Authentication(enum ddog_Authentication auth);
 
-void ddog_Vec_CChar_drop(struct ddog_Vec_CChar *ptr);
+void ddog_Vec_CChar_drop(struct ddog_Vec_CharSlice *ptr);
 
 bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
                                             ddog_CharSlice service,

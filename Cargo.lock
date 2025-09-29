@@ -1933,6 +1933,7 @@ dependencies = [
  "base64 0.22.1",
  "datadog-ddsketch",
  "ddcommon 0.0.1",
+ "ddcommon-ffi 0.0.1",
  "futures",
  "hashbrown 0.15.2",
  "http 1.2.0",
