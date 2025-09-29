@@ -835,7 +835,7 @@ namespace DDTrace {
      *
      * @param string $endpoint The endpoint to add
      */
-    function add_endpoint(string $type, string $path, string $operation_name, string $resource_name, string $body_type, string $response_type, int $response_code, int $authentication  ): bool {}
+    function add_endpoint(string $type, string $path, string $operation_name, string $resource_name, string $body_type, string $response_type, int $response_code, int $authentication, string $metadata): bool {}
 }
 
 namespace DDTrace\System {
