@@ -371,9 +371,5 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
     env: CharSlice,
 ) -> bool {
     let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
-    let result = cache_entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)); // 30 minutes
-    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open("/tmp/rust.log") {
-        let _ = writeln!(file, "are_endpoints_collected?: {} - {} - {}", result, cache_entry.last_endpoints_push.elapsed().unwrap().as_secs(), SystemTime::UNIX_EPOCH.elapsed().unwrap().as_secs());
-    }
-    result
+    cache_entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(60)); // 1 minute
 }
