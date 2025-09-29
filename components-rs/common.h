@@ -859,6 +859,20 @@ typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
 
+typedef enum ddog_Authentication {
+  DDOG_AUTHENTICATION_JWT = 0,
+  DDOG_AUTHENTICATION_BASIC = 1,
+  DDOG_AUTHENTICATION_OAUTH = 2,
+  DDOG_AUTHENTICATION_OIDC = 3,
+  DDOG_AUTHENTICATION_API_KEY = 4,
+  DDOG_AUTHENTICATION_SESSION = 5,
+  DDOG_AUTHENTICATION_MTLS = 6,
+  DDOG_AUTHENTICATION_SAML = 7,
+  DDOG_AUTHENTICATION_LDAP = 8,
+  DDOG_AUTHENTICATION_FORM = 9,
+  DDOG_AUTHENTICATION_OTHER = 10,
+} ddog_Authentication;
+
 typedef enum ddog_Method {
   DDOG_METHOD_GET = 0,
   DDOG_METHOD_POST = 1,
@@ -905,6 +919,16 @@ typedef struct ddog_ShmHandle ddog_ShmHandle;
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
+
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_Authentication {
+  const enum ddog_Authentication *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_Authentication;
 
 typedef struct ddog_TracerHeaderTags {
   ddog_CharSlice lang;
