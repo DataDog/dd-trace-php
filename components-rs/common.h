@@ -436,6 +436,16 @@ typedef struct ddog_Vec_CChar {
   uintptr_t capacity;
 } ddog_Vec_CChar;
 
+/**
+ * Holds the raw parts of a Rust Vec; it should only be created from Rust,
+ * never from C.
+ */
+typedef struct ddog_Vec_I32 {
+  const int32_t *ptr;
+  uintptr_t len;
+  uintptr_t capacity;
+} ddog_Vec_I32;
+
 typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
