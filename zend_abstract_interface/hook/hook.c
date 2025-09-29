@@ -1178,12 +1178,16 @@ bool zai_hook_ginit(void) {
     return true;
 }
 
-bool zai_hook_rinit(void) {
+static void zai_hook_init_hashtables() {
     zend_hash_init(&zai_hook_tls->inheritors, 8, NULL, zai_hook_inheritors_destroy, 0);
     zend_hash_init(&zai_hook_tls->request_files.hooks, 8, NULL, zai_hook_destroy, 0);
     zend_hash_init(&zai_hook_tls->request_functions, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_tls->request_classes, 8, NULL, zai_hook_hash_destroy, 0);
     zend_hash_init(&zai_hook_resolved, 8, NULL, NULL, 0);
+}
+
+bool zai_hook_rinit(void) {
+    zai_hook_init_hashtables();
     zend_hash_init(&zai_function_location_map, 8, NULL, zai_function_location_destroy, 0);
 
     // reserve low hook ids for static hooks
@@ -1488,17 +1492,21 @@ bool zai_hook_remove(zai_str scope, zai_str function, zend_long index) {
     return false;
 }
 
-void zai_hook_clean(void) {
-    // graceful clean: ensure that destructors executing during cleanup may still access zai_hook_resolved
-    zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
-    zend_hash_clean(&zai_hook_tls->request_functions);
-    zend_hash_clean(&zai_hook_tls->request_classes);
+void zai_hook_clean(bool fast_shutdown) {
+    if (fast_shutdown) {
+        // We just reinitialize the hashtables to empty, so that no other hooks are executed.
+        // In the possible case where more code gets executed after - that's fine; the actual destroy comes later.
+        zai_hook_init_hashtables();
+    } else {
+        // graceful clean: ensure that destructors executing during cleanup may still access zai_hook_resolved
+        zend_hash_apply(&zai_hook_resolved, zai_hook_clean_graceful_del);
+        zend_hash_clean(&zai_hook_tls->request_functions);
+        zend_hash_clean(&zai_hook_tls->request_classes);
 
-    zend_hash_iterators_remove(&zai_hook_tls->request_files.hooks);
-    zend_hash_clean(&zai_hook_tls->request_files.hooks);
+        zend_hash_iterators_remove(&zai_hook_tls->request_files.hooks);
+        zend_hash_clean(&zai_hook_tls->request_files.hooks);
+    }
     zai_hook_tls->request_files.dynamic = 0;
-
-    zend_hash_clean(&zai_function_location_map);
 }
 
 static void zai_hook_iterator_set_current_and_advance(zai_hook_iterator *it) {
