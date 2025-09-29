@@ -208,33 +208,42 @@ class PDOIntegration extends Integration
 
     private static function parseDsn($dsn)
     {
-        \preg_match('(\A(?<engine>[^:]++)(?::(?:(?:charset=(?<charset>[^;]++)|(?:database|dbname)=(?<db>[^;]++)|(?:server|unix_socket|host(?:name)?)=(?<host>[^;]++)|port=(?<port>[^;]++)|driver=(?<driver>[^;]++)|[^;]*+)(?:;|\Z))++)?)i', $dsn, $m);
-        $engine = $m['engine'];
-        $db = $m['db'] ?? "";
-        $charset = $m['charset'] ?? "";
-        $host = $m['host'] ?? "";
-        $port = $m['port'] ?? "";
-        $driver = $m['driver'] ?? "";
+        if (\preg_match('(\A(?<engine>[^:]++)(?::(?:(?:(?:server|unix_socket|host(?:name)?)=(?<host>(?:[^;]*+(?:;;)?)++)|port=(?<port>(?&host))|charset=(?<charset>(?&host))|(?:database|dbname)=(?<db>(?&host))|driver=(?<driver>(?&host))|(?&host))(?:;|\Z))++)?)i', $dsn, $m)) {
+            $engine = $m['engine'];
+            $db = $m['db'] ?? "";
+            $charset = $m['charset'] ?? "";
+            $host = $m['host'] ?? "";
+            $port = $m['port'] ?? "";
+            $driver = $m['driver'] ?? "";
 
-        $dbSystem = self::DB_DRIVER_TO_SYSTEM[$engine] ?? 'other_sql';
-        $tags = ['db.engine' => $engine];
-        $tags[Tag::DB_SYSTEM] = $dbSystem;
-        $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
+            $dbSystem = self::DB_DRIVER_TO_SYSTEM[$engine] ?? 'other_sql';
+            $tags = ['db.engine' => $engine];
+            $tags[Tag::DB_SYSTEM] = $dbSystem;
+            $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
 
-        if ($db !== "") {
-            $tags[Tag::DB_NAME] = $db;
-        }
-        if ($charset !== "") {
-            $tags[Tag::DB_CHARSET] = $charset;
-        }
-        if ($host !== "") {
-            $tags[Tag::TARGET_HOST] = $host;
-        }
-        if ($port !== "") {
-            $tags[Tag::TARGET_PORT] = $port;
-        }
-        if ($driver !== "") {
-            $tags[Tag::DB_SYSTEM] = strtolower($driver);
+            if ($db !== "") {
+                $tags[Tag::DB_NAME] = $db;
+            }
+            if ($charset !== "") {
+                $tags[Tag::DB_CHARSET] = $charset;
+            }
+            if ($host !== "") {
+                $tags[Tag::TARGET_HOST] = $host;
+            }
+            if ($port !== "") {
+                $tags[Tag::TARGET_PORT] = $port;
+            }
+            if ($driver !== "") {
+                $tags[Tag::DB_SYSTEM] = strtolower($driver);
+            }
+        } elseif ($iniDsn = ini_get("pdo.dsn.$dsn")) {
+            $tags = self::parseDsn($iniDsn);
+        } else {
+            // There's technically also uri: but we don't support it and it's anyway deprecated
+            $tags = [
+                Tag::DB_SYSTEM => 'other_sql',
+                Tag::DB_TYPE => 'other_sql',
+            ];
         }
         return $tags;
     }
