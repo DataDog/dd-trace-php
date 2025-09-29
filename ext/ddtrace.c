@@ -2787,7 +2787,8 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     zend_long response_code = 0;
     zend_long authentication = 0;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSSSSll", &type, &path, &operation_name, &resource_name, &request_body_type, &response_body_type, &response_code, &authentication) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSSSSll", &type, &path, &operation_name, &resource_name, &request_body_type, &response_body_type,
+                              &response_code, &authentication) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -2801,15 +2802,15 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     struct ddog_Vec_CChar *request_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(request_body_type_copy));
     struct ddog_Vec_CChar *response_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(response_body_type_copy));
     struct ddog_Vec_I32 *response_code_vec = ddog_number_to_owned_i32(response_code);
-    // struct ddog_Vec_EndpointAuthentication authentication_vec = ddog_number_to_owned_i32(authentication);
-
+    struct ddog_Vec_Authentication *authentication_vec = ddog_number_to_owned_Authentication(authentication);
 
     if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
         RETURN_FALSE;
     }
 
-    ddog_sidecar_telemetry_addEndpoint(
-        &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice, resource_name_slice, request_body_type_vec, response_body_type_vec, response_code_vec);
+    ddog_sidecar_telemetry_addEndpoint(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum,
+                                       path_slice, operation_name_slice, resource_name_slice, request_body_type_vec, response_body_type_vec,
+                                       response_code_vec, authentication_vec);
 
     RETURN_TRUE;
 }
