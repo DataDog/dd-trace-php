@@ -1515,6 +1515,7 @@ dependencies = [
  "libc 0.2.173",
  "paste",
  "rmp-serde",
+ "serde_json",
  "tempfile",
  "tinybytes",
  "tracing",

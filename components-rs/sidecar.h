@@ -144,7 +144,8 @@ ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport 
                                                    struct ddog_Vec_CChar *request_body_type,
                                                    struct ddog_Vec_CChar *response_body_type,
                                                    struct ddog_Vec_I32 *response_code,
-                                                   struct ddog_Vec_Authentication *authentication);
+                                                   struct ddog_Vec_Authentication *authentication,
+                                                   ddog_CharSlice metadata);
 
 /**
  * Reports a dependency to the telemetry.

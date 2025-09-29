@@ -26,8 +26,6 @@ use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use zwohash::ZwoHasher;
-use std::fs::OpenOptions;
-use std::io::Write;
 
 #[cfg(windows)]
 macro_rules! windowsify_path {
