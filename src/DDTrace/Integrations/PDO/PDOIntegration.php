@@ -206,10 +206,27 @@ class PDOIntegration extends Integration
         $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
     }
 
+    const DSN_REGEX = <<<'REGEX'
+(\A
+    (?<engine>[^:]++):
+    (?:
+        (?:
+             (?:server|unix_socket|host(?:name)?)=(?<host>(?:[^;]*+(?:;;)?)++)
+            |port=(?<port>(?&host))
+            |charset=(?<charset>(?&host))
+            |(?:database|dbname)=(?<db>(?&host))
+            |driver=(?<driver>(?&host))
+            |(?&host) # host can actually be empty, supporting repeated or trailing semicolons
+        )
+        (?:;|\Z)
+    )++
+)xi
+REGEX;
+
     private static function parseDsn($dsn)
     {
-        if (\preg_match('(\A(?<engine>[^:]++)(?::(?:(?:(?:server|unix_socket|host(?:name)?)=(?<host>(?:[^;]*+(?:;;)?)++)|port=(?<port>(?&host))|charset=(?<charset>(?&host))|(?:database|dbname)=(?<db>(?&host))|driver=(?<driver>(?&host))|(?&host))(?:;|\Z))++)?)i', $dsn, $m)) {
-            $engine = $m['engine'];
+        if (\preg_match(self::DSN_REGEX, $dsn, $m)) {
+            $engine = $m['engine']; // If uri: is used we'll also land here, but it's deprecated and we don't support it
             $db = $m['db'] ?? "";
             $charset = $m['charset'] ?? "";
             $host = $m['host'] ?? "";
@@ -239,7 +256,7 @@ class PDOIntegration extends Integration
         } elseif ($iniDsn = ini_get("pdo.dsn.$dsn")) {
             $tags = self::parseDsn($iniDsn);
         } else {
-            // There's technically also uri: but we don't support it and it's anyway deprecated
+            // If we cannot find the ini
             $tags = [
                 Tag::DB_SYSTEM => 'other_sql',
                 Tag::DB_TYPE => 'other_sql',
