@@ -1,6 +1,6 @@
 | Library                     | Min. Supported Version | Max. Supported Version |
 |-----------------------------|------------------------|------------------------|
-| cakephp/cakephp             | 3.10.5                 | 5.2.7                  |
+| cakephp/cakephp             | 3.10.5                 | 5.2.8                  |
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
 | elasticsearch/elasticsearch | 1.2.2                  | 9.1.0                  |
 | ext-PDO                     | 7.0.33                 | 8.4.6                  |
@@ -18,9 +18,9 @@
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.6.0                  | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
-| laravel/framework           | 4.2.22                 | 12.30.1                |
+| laravel/framework           | 4.2.22                 | 12.31.1                |
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
-| laravel/octane              | 2.12.2                 | 2.12.2                 |
+| laravel/octane              | 2.12.3                 | 2.12.3                 |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
 | mongodb/mongodb             | 1.8.0                  | 2.1.1                  |
 | monolog/monolog             | 1.27.1                 | 3.9.0                  |
@@ -32,8 +32,8 @@
 | shardj/zf1-future           | 1.21.4                 | 1.21.4                 |
 | slim/slim                   | 3.12.5                 | 4.15.0                 |
 | spiral/roadrunner           | 2.11.4                 | 2.11.4                 |
-| symfony/console             | 5.2.14                 | 7.3.3                  |
-| symfony/framework-bundle    | 2.3.42                 | 7.3.3                  |
+| symfony/console             | 5.2.14                 | 7.3.4                  |
+| symfony/framework-bundle    | 2.3.42                 | 7.3.4                  |
 | symfony/messenger           | 4.4.49                 | 7.3.3                  |
 | wordpress                   | 4.8.10                 | 6.1.1                  |
 | yiisoft/yii2                | 2.0.49                 | 2.0.53                 |
