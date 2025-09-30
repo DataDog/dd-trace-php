@@ -12,7 +12,7 @@ target_link_libraries(zai PRIVATE PhpConfig)
 target_include_directories(zai PUBLIC ../zend_abstract_interface ..)
 set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
-file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)
+file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
 add_library(extension SHARED ${EXT_SOURCE})
 set_target_properties(extension PROPERTIES
     C_VISIBILITY_PRESET hidden
@@ -30,7 +30,7 @@ if(ZAI_INCLUDE_DIRS)
 endif()
 target_link_libraries(extension PRIVATE zai)
 
-target_link_libraries(extension PRIVATE mpack PhpConfig zai)
+target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec)
 target_include_directories(extension PRIVATE ..)
 
 # we don't have any C++ now, but just so we don't forget in the future...
@@ -38,7 +38,7 @@ check_cxx_compiler_flag("-fno-gnu-unique" COMPILER_HAS_NO_GNU_UNIQUE)
 if(COMPILER_HAS_NO_GNU_UNIQUE)
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)
 endif()
-target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti -fno-exceptions>)
+target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++17 -fno-rtti -fno-exceptions>)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
   target_compile_options(extension PRIVATE -Wall)
 else()
