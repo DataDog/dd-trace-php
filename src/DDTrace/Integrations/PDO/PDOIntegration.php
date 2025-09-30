@@ -206,43 +206,62 @@ class PDOIntegration extends Integration
         $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
     }
 
+    const DSN_REGEX = <<<'REGEX'
+(\A
+    (?<engine>[^:]++):
+    (?:
+        (?:
+             (?:server|unix_socket|host(?:name)?)=(?<host>(?:[^;]*+(?:;;)?)++)
+            |port=(?<port>(?&host))
+            |charset=(?<charset>(?&host))
+            |(?:database|dbname)=(?<db>(?&host))
+            |driver=(?<driver>(?&host))
+            |(?&host) # host can actually be empty, supporting repeated or trailing semicolons
+        )
+        (?:;|\Z)
+    )++
+)xi
+REGEX;
+
     private static function parseDsn($dsn)
     {
-        $engine = substr($dsn, 0, strpos($dsn, ':'));
-        $tags = ['db.engine' => $engine];
-        $dbSystem = self::DB_DRIVER_TO_SYSTEM[$engine] ?? 'other_sql';
-        $tags[Tag::DB_SYSTEM] = $dbSystem;
-        $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
-        $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
-        foreach ($valStrings as $valString) {
-            if (!strpos($valString, '=')) {
-                continue;
-            }
-            list($key, $value) = explode('=', $valString);
-            switch (strtolower($key)) {
-                case 'charset':
-                    $tags[Tag::DB_CHARSET] = $value;
-                    break;
-                case 'database':
-                case 'dbname':
-                    $tags[Tag::DB_NAME] = $value;
-                    break;
-                case 'server':
-                case 'unix_socket':
-                case 'hostname':
-                case 'host':
-                    $tags[Tag::TARGET_HOST] = $value;
-                    break;
-                case 'port':
-                    $tags[Tag::TARGET_PORT] = $value;
-                    break;
-                case 'driver':
-                    // This is more specific than just "odbc"
-                    $tags[Tag::DB_SYSTEM] = strtolower($value);
-                    break;
-            }
-        }
+        if (\preg_match(self::DSN_REGEX, $dsn, $m)) {
+            $engine = $m['engine']; // If uri: is used we'll also land here, but it's deprecated and we don't support it
+            $db = $m['db'] ?? "";
+            $charset = $m['charset'] ?? "";
+            $host = $m['host'] ?? "";
+            $port = $m['port'] ?? "";
+            $driver = $m['driver'] ?? "";
 
+            $dbSystem = self::DB_DRIVER_TO_SYSTEM[$engine] ?? 'other_sql';
+            $tags = ['db.engine' => $engine];
+            $tags[Tag::DB_SYSTEM] = $dbSystem;
+            $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
+
+            if ($db !== "") {
+                $tags[Tag::DB_NAME] = $db;
+            }
+            if ($charset !== "") {
+                $tags[Tag::DB_CHARSET] = $charset;
+            }
+            if ($host !== "") {
+                $tags[Tag::TARGET_HOST] = $host;
+            }
+            if ($port !== "") {
+                $tags[Tag::TARGET_PORT] = $port;
+            }
+            if ($driver !== "") {
+                $tags[Tag::DB_SYSTEM] = strtolower($driver);
+            }
+        } elseif ($iniDsn = ini_get("pdo.dsn.$dsn")) {
+            $tags = self::parseDsn($iniDsn);
+        } else {
+            // If we cannot find the ini
+            $tags = [
+                Tag::DB_SYSTEM => 'other_sql',
+                Tag::DB_TYPE => 'other_sql',
+            ];
+        }
         return $tags;
     }
 
@@ -298,10 +317,6 @@ class PDOIntegration extends Integration
 
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;
-        }
-
-        if (\dd_trace_env_config("DD_APPSEC_RASP_ENABLED") && function_exists('datadog\appsec\push_addresses')
-            && !empty($span->resource) && !empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
         }
     }
 
