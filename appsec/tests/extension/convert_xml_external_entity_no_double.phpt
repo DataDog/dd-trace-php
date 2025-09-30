@@ -15,7 +15,7 @@ $xml1 = <<<XML
 <root>&ext;</root>
 XML;
 
-$result1 = datadog\appsec\testing\convert_xml($xml1, "application/xml");
+$result1 = datadog\appsec\convert_xml($xml1, "application/xml");
 echo "Test 1 - SYSTEM entity:\n";
 echo json_encode($result1, JSON_PRETTY_PRINT) . "\n\n";
 
@@ -39,7 +39,7 @@ $xml2 = <<<XML
 <root>&e1;&e2;</root>
 XML;
 
-$result2 = datadog\appsec\testing\convert_xml($xml2, "application/xml");
+$result2 = datadog\appsec\convert_xml($xml2, "application/xml");
 echo "Test 2 - Multiple SYSTEM entities:\n";
 echo json_encode($result2, JSON_PRETTY_PRINT) . "\n\n";
 
@@ -63,7 +63,7 @@ $xml3 = <<<XML
 <root>before&external;after</root>
 XML;
 
-$result3 = datadog\appsec\testing\convert_xml($xml3, "application/xml");
+$result3 = datadog\appsec\convert_xml($xml3, "application/xml");
 echo "Test 3 - External entity with surrounding text:\n";
 echo json_encode($result3, JSON_PRETTY_PRINT) . "\n\n";
 
@@ -86,7 +86,7 @@ $xml4 = <<<XML
 <root>&ext;</root>
 XML;
 
-$result4 = datadog\appsec\testing\convert_xml($xml4, "application/xml");
+$result4 = datadog\appsec\convert_xml($xml4, "application/xml");
 echo "Test 4 - With parameter entity declaration:\n";
 echo json_encode($result4, JSON_PRETTY_PRINT) . "\n\n";
 

@@ -87,10 +87,12 @@ stages:
   script:
     - switch-php $SWITCH_PHP_VERSION
     - cd appsec/build
+    - if [[ "$SWITCH_PHP_VERSION" == *"asan"* ]]; then ASAN_FLAG=ON; else ASAN_FLAG=OFF; fi
     - "cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF
       -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
-      -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache"
-    - make -j 4 xtest
+	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
+      -DENABLE_ASAN=$ASAN_FLAG"
+    - ASAN_OPTIONS=malloc_context_size=0 make -j 4 xtest
 
 "appsec integration tests":
   stage: test

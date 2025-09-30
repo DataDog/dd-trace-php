@@ -5,13 +5,13 @@ _convert_json function
 $j = '{"a":[],"b":{"0": 1},"c":{"d":"e"}}';
 
 
-$result = datadog\appsec\testing\convert_json($j);
+$result = datadog\appsec\convert_json($j);
 echo(json_encode($result, JSON_PRETTY_PRINT)), "\n";
 
-$result = datadog\appsec\testing\convert_json('[1,2]');
+$result = datadog\appsec\convert_json('[1,2]');
 echo(json_encode($result, JSON_PRETTY_PRINT)), "\n";
 
-var_dump(\datadog\appsec\testing\convert_json('{'));
+var_dump(\datadog\appsec\convert_json('{'));
 --EXPECT--
 {
     "a": [],
@@ -26,4 +26,5 @@ var_dump(\datadog\appsec\testing\convert_json('{'));
     1,
     2
 ]
-NULL
+array(0) {
+}
