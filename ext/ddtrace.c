@@ -2777,7 +2777,15 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     struct ddog_Vec_CharSlice *request_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(request_body_type));
     struct ddog_Vec_CharSlice *response_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(response_body_type));
     struct ddog_Vec_Authentication *authentication_vec = ddog_number_to_owned_Authentication(authentication);
-    ddog_CharSlice metadata_slice = dd_zend_string_to_CharSlice(metadata);
+
+    size_t len = ZSTR_LEN(metadata);
+    zend_string *metadata_utf8  = NULL;
+    ddog_CharSlice metadata_slice = {0};
+    char *stripped_utf8 = ddtrace_strip_invalid_utf8(ZSTR_VAL(metadata), &len);
+    if (stripped_utf8 != NULL && len > 0) {
+        metadata_utf8 = zend_string_init(stripped_utf8, len, 0);
+        metadata_slice = dd_zend_string_to_CharSlice(metadata_utf8);
+    }
 
     if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
         RETURN_FALSE;
