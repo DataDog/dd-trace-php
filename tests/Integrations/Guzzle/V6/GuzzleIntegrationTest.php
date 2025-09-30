@@ -249,28 +249,12 @@ class GuzzleIntegrationTest extends IntegrationTestCase
         );
 
         foreach ($found as $data) {
-            /*
-             * Ideally the distributed traces for curl multi would be children
-             * of the GuzzleHttp\Client.transfer span, but we do not currently
-             * support this concurrency model so the parent span of curl multi
-             * distributed traces will be whichever span resolves the promise.
-             * In this particular case it is the root span that is active when
-             * $curl->tick() is called.
-             */
             $rootSpan = $traces[0][0];
-            try {
-                $parentSpan = $traces[0][3];
-                self::assertSame(
-                    $parentSpan['span_id'],
-                    $data['headers']['X-Datadog-Parent-Id']
-                );
-            } catch (\Throwable $t) {
-                $parentSpan = $traces[0][2];
-                self::assertSame(
-                    $parentSpan['span_id'],
-                    $data['headers']['X-Datadog-Parent-Id']
-                );
-            }
+            self::assertContains($data['headers']['X-Datadog-Parent-Id'], array_map(function($span) {
+                return $span['span_id'];
+            }, array_filter($traces[0], function($span) {
+                return $span['name'] === 'curl_exec';
+            })));
             self::assertSame(
                 $rootSpan['trace_id'],
                 $data['headers']['X-Datadog-Trace-Id']

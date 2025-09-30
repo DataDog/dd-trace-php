@@ -837,7 +837,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             ddtrace_switch_span_stack(stack->parent_stack);
         }
 
-        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
             LOG(WARN, "Unable to auto flush the tracer");
         }
@@ -1085,7 +1085,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     dd_drop_span(span, false);
 }
 
-void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces) {
+void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown) {
     if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
@@ -1113,7 +1113,9 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces) {
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
 #endif
-                    OBJ_RELEASE(&tmp->std);
+                    if (!fast_shutdown) {
+                        OBJ_RELEASE(&tmp->std);
+                    }
                 } while (span != end);
                 // We hold a reference to stacks with flushable spans
                 OBJ_RELEASE(&stack->std);
@@ -1133,10 +1135,10 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces) {
     DDTRACE_G(dropped_spans_count) = 0;
 }
 
-void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces) {
+void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown) {
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
-        ddtrace_serialize_closed_spans(traces);
+        ddtrace_serialize_closed_spans(traces, fast_shutdown);
         if (DDTRACE_G(open_spans_count)) {
             // Also flush possible cycles here, if there are remaining open spans
             gc_collect_cycles();

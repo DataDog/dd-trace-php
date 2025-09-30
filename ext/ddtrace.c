@@ -1546,6 +1546,10 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_minit_remote_config();
     ddtrace_trace_source_minit();
 
+#ifndef _WIN32
+    ddtrace_signals_minit();
+#endif
+
     return SUCCESS;
 }
 
@@ -1580,8 +1584,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
         }
-    }
+    } else /* ! part of the if outside the ifdef */
 #endif
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && ddtrace_sidecar) {
+        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+    }
 
     ddtrace_log_mshutdown();
 
@@ -1775,8 +1782,8 @@ static void dd_clean_globals(void) {
 #endif
 }
 
-static void dd_shutdown_hooks_and_observer(void) {
-    zai_hook_clean();
+static void dd_shutdown_hooks_and_observer(bool fast_shutdown) {
+    zai_hook_clean(fast_shutdown);
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80200
 #if PHP_VERSION_ID < 80100
@@ -1797,7 +1804,7 @@ static void dd_shutdown_hooks_and_observer(void) {
 #endif
 }
 
-void dd_force_shutdown_tracing(void) {
+void dd_force_shutdown_tracing(bool fast_shutdown) {
     DDTRACE_G(in_shutdown) = true;
 
     zend_try {
@@ -1807,7 +1814,7 @@ void dd_force_shutdown_tracing(void) {
     } zend_end_try();
 
     zend_try {
-        if (ddtrace_flush_tracer(false, true) == FAILURE) {
+        if (ddtrace_flush_tracer(false, true, fast_shutdown) == FAILURE) {
             LOG(WARN, "Unable to flush the tracer");
         }
     } zend_catch {
@@ -1818,7 +1825,7 @@ void dd_force_shutdown_tracing(void) {
     ddtrace_disable_tracing_in_current_request();  // implicitly calling dd_clean_globals
 
     // The hooks shall not be reset, just disabled at runtime.
-    dd_shutdown_hooks_and_observer();
+    dd_shutdown_hooks_and_observer(fast_shutdown);
 
     DDTRACE_G(in_shutdown) = false;
 }
@@ -1832,6 +1839,21 @@ static void dd_finalize_sidecar_lifecycle(bool clear_id) {
 static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     UNUSED(module_number, type);
 
+    // We deliberately select to not free some data structures, as to avoid the overhead of freeing them.
+    // Just proper destruction can have significant and easily measurable overhead on applications.
+    // Prior to PHP 7.2 fast shutdown was an opcache only feature
+#if ZEND_DEBUG || PHP_VERSION_ID < 70200
+    bool fast_shutdown = 0;
+#elif defined(__SANITIZE_ADDRESS__)
+    char *force_fast_shutdown = getenv("ZEND_ASAN_FORCE_FAST_SHUTDOWN");
+    bool fast_shutdown = (
+        is_zend_mm()
+        || (force_fast_shutdown && ZEND_ATOL(force_fast_shutdown))
+    ) && !EG(full_tables_cleanup);
+#else
+    bool fast_shutdown = is_zend_mm() && !EG(full_tables_cleanup);
+#endif
+
     zend_hash_destroy(&DDTRACE_G(traced_spans));
 
     // this needs to be done before dropping the spans
@@ -1839,9 +1861,9 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_exec_handlers_rshutdown();
 
     if (get_DD_TRACE_ENABLED()) {
-        dd_force_shutdown_tracing();
+        dd_force_shutdown_tracing(fast_shutdown);
     } else if (!ddtrace_disable) {
-        dd_shutdown_hooks_and_observer();
+        dd_shutdown_hooks_and_observer(fast_shutdown);
     }
 
     if (DDTRACE_G(remote_config_state)) {
@@ -1851,7 +1873,9 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (!ddtrace_disable) {
         ddtrace_autoload_rshutdown();
 
-        OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
+        if (!fast_shutdown) {
+            OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
+        }
         DDTRACE_G(active_stack) = NULL;
     }
 
@@ -2344,7 +2368,7 @@ PHP_FUNCTION(dd_trace_serialize_closed_spans) {
     ddtrace_mark_all_span_stacks_flushable();
 
     ddog_TracesBytes *traces = ddog_get_traces();
-    ddtrace_serialize_closed_spans_with_cycle(traces);
+    ddtrace_serialize_closed_spans_with_cycle(traces, false);
 
     zval traces_zv = dd_serialize_rust_traces_to_zval(traces);
 
@@ -3221,7 +3245,7 @@ PHP_FUNCTION(DDTrace_flush) {
     if (get_DD_AUTOFINISH_SPANS()) {
         ddtrace_close_userland_spans_until(NULL);
     }
-    if (ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
+    if (ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
         LOG_LINE(WARN, "Unable to flush the tracer");
     }
     RETURN_NULL();
