@@ -245,6 +245,14 @@ PHP_FUNCTION(datadog_appsec_is_enabled)
     RETURN_BOOL(DDAPPSEC_G(active));
 }
 
+PHP_FUNCTION(datadog_appsec_is_fully_disabled)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED);
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_rinit)
 {
     if (zend_parse_parameters_none() == FAILURE) {
