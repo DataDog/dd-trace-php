@@ -1,7 +1,8 @@
-configure_file(src/helper/version.hpp.in ${CMAKE_CURRENT_SOURCE_DIR}/src/helper/version.hpp)
+configure_file(src/helper/version.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/src/helper/version.hpp)
 
 set(HELPER_SOURCE_DIR src/helper)
 set(HELPER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/helper)
+set(HELPER_BUILD_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/helper)
 
 file(GLOB_RECURSE HELPER_SOURCE CONFIGURE_DEPENDS
     ${HELPER_SOURCE_DIR}/*.cpp ${HELPER_SOURCE_DIR}/*.c)
@@ -15,6 +16,7 @@ set_target_properties(helper_objects PROPERTIES
     POSITION_INDEPENDENT_CODE 1)
 target_include_directories(helper_objects
     INTERFACE ${HELPER_INCLUDE_DIR}
+    PUBLIC ${HELPER_BUILD_INCLUDE_DIR}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../components-rs
 )
 target_compile_definitions(helper_objects PUBLIC SPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)

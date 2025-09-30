@@ -11,7 +11,7 @@ $content_type = "application/xml";
 
 // unfortunately, this fails (entity not resolved)
 // PHP does not provide a way around it
-$result = datadog\appsec\testing\convert_xml($entity, $content_type);
+$result = datadog\appsec\convert_xml($entity, $content_type);
 
 echo(json_encode($result, JSON_PRETTY_PRINT));
 --EXPECT--
