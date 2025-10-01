@@ -29,6 +29,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " distributed_tracing_headers.c";
 	DDTRACE_EXT_SOURCES += " ddshared.c";
 	DDTRACE_EXT_SOURCES += " dogstatsd.c";
+	DDTRACE_EXT_SOURCES += " endpoint_guessing.c";
 	DDTRACE_EXT_SOURCES += " engine_api.c";
 	DDTRACE_EXT_SOURCES += " engine_hooks.c";
 	DDTRACE_EXT_SOURCES += " exception_serialize.c";

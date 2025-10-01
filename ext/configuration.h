@@ -140,6 +140,9 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
+    CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN, "false") /* true if pid == 1 || ppid == 1 */                \
+    CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SIGTERM, "false") /* true if pid == 1 || ppid == 1 */                 \
+    CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SIGINT, "false") /* true if pid == 1 || ppid == 1 */                  \
     CONFIG(BOOL, DD_TRACE_KAFKA_DISTRIBUTED_TRACING, "true")                                                   \
     CONFIG(BOOL, DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING, "true")                                           \
     CONFIG(BOOL, DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING, "true")                                       \
@@ -255,6 +258,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
     CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true")                                                     \
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
+    CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
+    CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

@@ -1511,7 +1511,27 @@ typedef enum ddog_LibraryConfigSource {
   DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG = 1,
 } ddog_LibraryConfigSource;
 
+/**
+ * Represents the types of metadata that can be set on a `TracerMetadata` object.
+ */
+typedef enum ddog_MetadataKind {
+  DDOG_METADATA_KIND_RUNTIME_ID = 0,
+  DDOG_METADATA_KIND_TRACER_LANGUAGE = 1,
+  DDOG_METADATA_KIND_TRACER_VERSION = 2,
+  DDOG_METADATA_KIND_HOSTNAME = 3,
+  DDOG_METADATA_KIND_SERVICE_NAME = 4,
+  DDOG_METADATA_KIND_SERVICE_ENV = 5,
+  DDOG_METADATA_KIND_SERVICE_VERSION = 6,
+  DDOG_METADATA_KIND_PROCESS_TAGS = 7,
+  DDOG_METADATA_KIND_CONTAINER_ID = 8,
+} ddog_MetadataKind;
+
 typedef struct ddog_Configurator ddog_Configurator;
+
+/**
+ * This struct MUST be backward compatible.
+ */
+typedef struct ddog_TracerMetadata ddog_TracerMetadata;
 
 /**
  * Ffi safe type representing a borrowed null-terminated C array
@@ -1581,25 +1601,29 @@ typedef struct ddog_Vec_LibraryConfig {
 } ddog_Vec_LibraryConfig;
 
 /**
- * A generic result type for when an operation may fail,
- * or may return <T> in case of success.
+ * A result type that includes debug/log messages along with the data
  */
-typedef enum ddog_Result_VecLibraryConfig_Tag {
-  DDOG_RESULT_VEC_LIBRARY_CONFIG_OK_VEC_LIBRARY_CONFIG,
-  DDOG_RESULT_VEC_LIBRARY_CONFIG_ERR_VEC_LIBRARY_CONFIG,
-} ddog_Result_VecLibraryConfig_Tag;
+typedef struct ddog_OkResult {
+  struct ddog_Vec_LibraryConfig value;
+  struct ddog_CString logs;
+} ddog_OkResult;
 
-typedef struct ddog_Result_VecLibraryConfig {
-  ddog_Result_VecLibraryConfig_Tag tag;
+typedef enum ddog_LibraryConfigLoggedResult_Tag {
+  DDOG_LIBRARY_CONFIG_LOGGED_RESULT_OK,
+  DDOG_LIBRARY_CONFIG_LOGGED_RESULT_ERR,
+} ddog_LibraryConfigLoggedResult_Tag;
+
+typedef struct ddog_LibraryConfigLoggedResult {
+  ddog_LibraryConfigLoggedResult_Tag tag;
   union {
     struct {
-      struct ddog_Vec_LibraryConfig ok;
+      struct ddog_OkResult ok;
     };
     struct {
       struct ddog_Error err;
     };
   };
-} ddog_Result_VecLibraryConfig;
+} ddog_LibraryConfigLoggedResult;
 
 /**
  * C-compatible representation of an anonymous file handle

@@ -202,6 +202,20 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
     zend_string_release(str);
 }
 
+static inline size_t smart_str_get_len(smart_str *str) { return str->s ? ZSTR_LEN(str->s) : 0; }
+
+static inline zend_string *smart_str_extract(smart_str *str) {
+    if (str->s) {
+        zend_string *res;
+        smart_str_0(str);
+        res = str->s;
+        str->s = NULL;
+        return res;
+    } else {
+        return ZSTR_EMPTY_ALLOC();
+    }
+}
+
 static inline zend_string *php_base64_encode_str(const zend_string *str) {
     return php_base64_encode((const unsigned char*)(ZSTR_VAL(str)), ZSTR_LEN(str));
 }
