@@ -267,7 +267,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
         case IS_RESOURCE: {
             const char *type_name = zend_rsrc_list_get_rsrc_type(Z_RES_P(zv));
             ddtrace_capture_long_value(Z_RES_P(zv)->handle, value);
-            value->type = (ddog_CharSlice){ .ptr = type_name, .len = strlen(type_name) };
+            value->type = type_name ? (ddog_CharSlice){ .ptr = type_name, .len = strlen(type_name) } : DDOG_CHARSLICE_C("<closed resource>");
             break;
         }
 
