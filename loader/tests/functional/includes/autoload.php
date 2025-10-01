@@ -129,3 +129,10 @@ function skip_if_opcache_missing() {
         exit(0);
     }
 }
+
+function skip_if_over_php85() {
+    if (PHP_MAJOR_VERSION >= 8 && PHP_MINOR_VERSION >= 5) {
+        echo "Skip: test is not compatible with PHP 8.5+\n";
+        exit(0);
+    }
+}
