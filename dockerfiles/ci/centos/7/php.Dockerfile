@@ -39,6 +39,9 @@ RUN bash -c 'set -eux; \
         --prefix=${PHP_INSTALL_DIR_ZTS} \
         --with-config-file-path=${PHP_INSTALL_DIR_ZTS} \
         --with-config-file-scan-dir=${PHP_INSTALL_DIR_ZTS}/conf.d \
+        $(if [ "$(expr substr ${PHP_VERSION} 1 1)" -eq 8 ] && [ "$(expr substr ${PHP_VERSION} 3 1)" -ge 5 ]; then \
+              echo "ax_cv_have_func_attribute_ifunc=no"; \
+            fi) \
     && make -j 2 \
     && make install \
     && cp .libs/libphp*.so ${PHP_INSTALL_DIR_ZTS}/lib/apache2handler-libphp.so \
