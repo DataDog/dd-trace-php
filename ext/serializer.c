@@ -41,6 +41,7 @@
 #include "ip_extraction.h"
 #include <components/log/log.h>
 #include "priority_sampling/priority_sampling.h"
+#include "process_tags.h"
 #include "span.h"
 #include "uri_normalization.h"
 #include "user_request.h"
@@ -828,6 +829,16 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
             zval hostname_zv;
             ZVAL_STR(&hostname_zv, hostname);
             zend_hash_str_add_new(meta, ZEND_STRL("_dd.hostname"), &hostname_zv);
+        }
+    }
+
+    // Add process tags if enabled
+    if (ddtrace_process_tags_enabled()) {
+        zend_string *process_tags = ddtrace_process_tags_get_serialized();
+        if (process_tags && ZSTR_LEN(process_tags) > 0) {
+            zval process_tags_zv;
+            ZVAL_STR_COPY(&process_tags_zv, process_tags);
+            zend_hash_str_add_new(meta, ZEND_STRL("_dd.tags.process"), &process_tags_zv);
         }
     }
 
