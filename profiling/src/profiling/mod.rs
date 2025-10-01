@@ -542,7 +542,7 @@ impl TimeCollector {
 
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
-        match profile.add_sample(sample, timestamp) {
+        match profile.try_add_sample(sample, timestamp) {
             Ok(_id) => {}
             Err(err) => {
                 warn!("Failed to add sample to the profile: {err}")

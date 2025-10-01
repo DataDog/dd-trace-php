@@ -258,6 +258,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
     CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true")                                                     \
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
+    CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
+    CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
     DD_INTEGRATIONS
 
 #ifndef _WIN32
