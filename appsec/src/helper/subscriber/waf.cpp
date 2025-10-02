@@ -121,7 +121,27 @@ public:
 
     waf_handle_up new_handle()
     {
-        return waf_handle_up{ddwaf_builder_build_instance(builder_.get())};
+        auto handle =
+            waf_handle_up{ddwaf_builder_build_instance(builder_.get())};
+
+        // as of libddwaf 1.29.0, empty configs are accepted but fail to build
+        // if there aren't other, non-empty, configs. If build fails and we're
+        // not using default rules, retry with defaults added.
+        if (handle == nullptr && !using_default_rules_) {
+            SPDLOG_WARN(
+                "Failed to build WAF instance, retrying with default config");
+            parameter these_diags{};
+            add_default_config(these_diags);
+            handle =
+                waf_handle_up{ddwaf_builder_build_instance(builder_.get())};
+
+            // if it still fails, remove the defaults we just added
+            if (handle == nullptr) {
+                remove_default_config();
+            }
+        }
+
+        return handle;
     }
 
 private:
@@ -198,7 +218,16 @@ void format_waf_result(
                 dds::action a{
                     parse_action_type_string(std::string(action.key())), {}};
                 for (const auto &parameter : action) {
-                    a.parameters.emplace(parameter.key(), parameter);
+                    std::string value;
+                    // As of libddwaf 1.28.0, status_code and grpc_status_code
+                    // are uint64_t instead of strings
+                    if (parameter.is_unsigned()) {
+                        value =
+                            std::to_string(static_cast<uint64_t>(parameter));
+                    } else {
+                        value = std::string{parameter};
+                    }
+                    a.parameters.emplace(parameter.key(), std::move(value));
                 }
                 event.actions.emplace_back(std::move(a));
             }
