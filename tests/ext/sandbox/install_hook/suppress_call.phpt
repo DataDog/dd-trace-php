@@ -1,10 +1,5 @@
 --TEST--
 Suppress function call via suppressCall()
---SKIPIF--
-<?php
-if (!version_compare(PHP_VERSION, '8.5.0', '>='))
-    die('skip: temporary disable on PHP 8.5+');
-?>
 --FILE--
 <?php
 function foo() {
