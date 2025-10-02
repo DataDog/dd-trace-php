@@ -89,8 +89,8 @@ class TruncatedJsonInputStream {
 public:
     using Ch = char;
 
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
     TruncatedJsonInputStream(
+        // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
         const char *data, std::size_t length, std::size_t size_limit = SIZE_MAX)
         : data_{data}, length_{length}, pos_{0}, size_limit_{size_limit}
     {}
@@ -188,9 +188,9 @@ public:
         return AddValue(val);
     }
 
-    // NOLINTNEXTLINE(readability-convert-member-functions-to-static,readability-named-parameter)
-    auto RawNumber(
-        const TruncatedJsonInputStream::Ch *, rapidjson::SizeType, bool) -> bool
+    // NOLINTNEXTLINE(readability-convert-member-functions-to-static)
+    auto RawNumber(const TruncatedJsonInputStream::Ch * /* unused */,
+        rapidjson::SizeType /* unused */, bool /* unused */) -> bool
     {
         assert("RawNumber should not be called (requires flags we are not "
                "using)" == nullptr);

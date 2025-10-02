@@ -33,7 +33,7 @@ target_link_libraries(extension PRIVATE zai)
 target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec)
 target_include_directories(extension PRIVATE ..)
 
-# we don't have any C++ now, but just so we don't forget in the future...
+# gnu unique prevents shared libraries from being unloaded from memory by dlclose
 check_cxx_compiler_flag("-fno-gnu-unique" COMPILER_HAS_NO_GNU_UNIQUE)
 if(COMPILER_HAS_NO_GNU_UNIQUE)
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)

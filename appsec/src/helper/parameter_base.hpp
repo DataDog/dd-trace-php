@@ -41,6 +41,7 @@ public:
     [[nodiscard]] parameter_type type() const noexcept
     {
         switch (ddwaf_object_get_type(&obj_)) {
+        default:
         case DDWAF_OBJ_INVALID:
             return parameter_type::invalid;
         case DDWAF_OBJ_NULL:
