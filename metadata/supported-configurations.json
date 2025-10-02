@@ -16,11 +16,25 @@
         "sensitive": true
       }
     ],
+    "DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "0.5"
+      }
+    ],
     "DD_API_SECURITY_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "1"
       }
     ],
     "DD_API_SECURITY_SAMPLE_DELAY": [
