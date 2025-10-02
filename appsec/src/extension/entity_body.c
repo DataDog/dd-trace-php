@@ -69,9 +69,7 @@ void dd_entity_body_startup(void)
     _json_decode_ex = php_json_decode_ex;
 #endif
 
-    if (get_global_DD_APPSEC_TESTING()) {
-        dd_phpobj_reg_funcs(ext_functions);
-    }
+    dd_phpobj_reg_funcs(ext_functions);
 }
 
 void dd_entity_body_gshutdown(void)

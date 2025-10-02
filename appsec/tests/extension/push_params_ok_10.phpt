@@ -31,14 +31,14 @@ var_dump(rshutdown());
 $cmd = $helper->get_command("request_exec");
 
 echo "Checking subctx_id is present:\n";
-var_dump(isset($cmd[1][0]['subctx_id']));
+var_dump(isset($cmd[1][1]['subctx_id']));
 echo "subctx_id value:\n";
-var_dump($cmd[1][0]['subctx_id']);
+var_dump($cmd[1][1]['subctx_id']);
 
 echo "Checking subctx_last_call is present:\n";
-var_dump(isset($cmd[1][0]['subctx_last_call']));
+var_dump(isset($cmd[1][1]['subctx_last_call']));
 echo "subctx_last_call value:\n";
-var_dump($cmd[1][0]['subctx_last_call']);
+var_dump($cmd[1][1]['subctx_last_call']);
 
 ?>
 --EXPECTF--
