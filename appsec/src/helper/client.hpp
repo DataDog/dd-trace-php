@@ -82,8 +82,8 @@ protected:
     }
 
     template <typename T>
-    std::shared_ptr<typename T::response> publish(
-        typename T::request &command, const std::string &rasp_rule = "");
+    std::shared_ptr<typename T::response> publish(typename T::request &command,
+        const network::request_exec_options &options);
     template <typename T> bool service_guard();
     template <typename T, bool actions = true>
     bool send_message(const std::shared_ptr<typename T::response> &message);

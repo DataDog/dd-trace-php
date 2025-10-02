@@ -5,7 +5,11 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include <SAPI.h>
 #include <Zend/zend_extensions.h>
+#include <Zend/zend_operators.h>
+#include <Zend/zend_string.h>
+#include <Zend/zend_types.h>
 #include <ext/standard/info.h>
+#include <json/json.h>
 #include <php.h>
 
 // for open(2)
@@ -38,13 +42,11 @@
 #include "rasp.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
+#include "string_helpers.h"
 #include "tags.h"
 #include "telemetry.h"
 #include "user_tracking.h"
 #include "version.h"
-
-#include <json/json.h>
-#include <zend_string.h>
 
 #if ZTS
 static atomic_int _thread_count;
@@ -471,8 +473,12 @@ static PHP_FUNCTION(datadog_appsec_testing_stop_for_debugger)
 
 static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 {
-    zval *data = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &data) != SUCCESS) {
+    zend_array *data;
+    zend_string *rasp_rule = NULL;
+    zend_string *subctx_id = NULL;
+    bool subctx_last_call = false;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "h|SSb", &data, &rasp_rule,
+            &subctx_id, &subctx_last_call) != SUCCESS) {
         RETURN_FALSE;
     }
 
@@ -486,8 +492,14 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
         RETURN_FALSE;
     }
 
+    struct req_exec_opts opts = {
+        .rasp_rule = rasp_rule,
+        .subctx_id = subctx_id,
+        .subctx_last_call = subctx_last_call,
+    };
+
     struct block_params block_params = {0};
-    if (dd_request_exec(conn, data, false, &block_params) != dd_success) {
+    if (dd_request_exec(conn, data, &opts, &block_params) != dd_success) {
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;
@@ -506,18 +518,64 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    zval *addresses = NULL;
-    zend_string *rasp_rule = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|S", &addresses, &rasp_rule) ==
+    zend_array *addresses = NULL;
+    zval *opts_zv = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "h|z!", &addresses, &opts_zv) ==
         FAILURE) {
         RETURN_FALSE;
     }
 
-    if (Z_TYPE_P(addresses) != IS_ARRAY) {
-        RETURN_FALSE;
+    if (opts_zv) {
+        ZVAL_DEREF(opts_zv);
     }
 
-    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0 &&
+    struct req_exec_opts opts = {0};
+    if (opts_zv && Z_TYPE_P(opts_zv) == IS_ARRAY) {
+        zval *rasp_rule_zv =
+            zend_hash_str_find(Z_ARR_P(opts_zv), LSTRARG("rasp_rule"));
+        if (rasp_rule_zv) {
+            ZVAL_DEREF(rasp_rule_zv);
+            if (Z_TYPE_P(rasp_rule_zv) != IS_STRING) {
+                php_error_docref(
+                    NULL, E_WARNING, "Invalid type for option rasp_rule");
+                RETURN_FALSE;
+            }
+            opts.rasp_rule = Z_STR_P(rasp_rule_zv);
+        }
+
+        zval *subctx_id_zv =
+            zend_hash_str_find(Z_ARR_P(opts_zv), LSTRARG("subctx_id"));
+        if (subctx_id_zv) {
+            ZVAL_DEREF(subctx_id_zv);
+            if (Z_TYPE_P(subctx_id_zv) != IS_STRING) {
+                php_error_docref(
+                    NULL, E_WARNING, "Invalid type for option subctx_id");
+                RETURN_FALSE;
+            }
+            opts.subctx_id = Z_STR_P(subctx_id_zv);
+        }
+
+        zval *subctx_last_call_zv =
+            zend_hash_str_find(Z_ARR_P(opts_zv), LSTRARG("subctx_last_call"));
+        if (subctx_last_call_zv) {
+            ZVAL_DEREF(subctx_last_call_zv);
+            if (Z_TYPE_P(subctx_last_call_zv) != IS_TRUE &&
+                Z_TYPE_P(subctx_last_call_zv) != IS_FALSE) {
+                php_error_docref(NULL, E_WARNING,
+                    "Invalid type for option subctx_last_call");
+                RETURN_FALSE;
+            }
+            opts.subctx_last_call = Z_TYPE_P(subctx_last_call_zv) == IS_TRUE;
+        }
+    } else if (opts_zv) {
+        // legacy second string argument
+        if (!try_convert_to_string(opts_zv)) {
+            RETURN_FALSE;
+        }
+        opts.rasp_rule = Z_STR_P(opts_zv);
+    }
+
+    if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0 &&
         !get_global_DD_APPSEC_RASP_ENABLED()) {
         return;
     }
@@ -529,9 +587,9 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
     }
 
     struct block_params block_params = {0};
-    dd_result res = dd_request_exec(conn, addresses, rasp_rule, &block_params);
+    dd_result res = dd_request_exec(conn, addresses, &opts, &block_params);
 
-    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0) {
+    if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0) {
         struct timespec end;
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
         double elapsed_us =
@@ -553,12 +611,15 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_INFO(0, "data")
+ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, "rasp_rule", NULL)
+ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, "subctx_id", NULL)
+ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, "subctx_last_call", false)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
     push_addresses_arginfo, 0, 0, IS_VOID, 1)
 ZEND_ARG_INFO(0, addresses)
-ZEND_ARG_INFO(0, rasp)
+ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, rasp_rule_or_opts, NULL)
 ZEND_END_ARG_INFO()
 
 // clang-format off

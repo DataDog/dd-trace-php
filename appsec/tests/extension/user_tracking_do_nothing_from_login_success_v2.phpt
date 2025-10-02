@@ -31,7 +31,7 @@ $helper->get_commands(); // Ignore
 
 $c = $helper->get_commands();
 echo "usr.id:\n";
-var_dump($c[0][1][1]['usr.id']);
+var_dump($c[0][1][0]['usr.id']);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
