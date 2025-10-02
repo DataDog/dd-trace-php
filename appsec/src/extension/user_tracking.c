@@ -233,45 +233,46 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
         return;
     }
 
-    zval data_zv;
-    size_t data_size = 0;
+    zend_array *data_array;
+    uint32_t data_size = 0;
     data_size += user_login != NULL && ZSTR_LEN(user_login) > 0 ? 1 : 0;
     data_size += user_id != NULL && ZSTR_LEN(user_id) > 0 ? 1 : 0;
     data_size += event != user_event_none ? 1 : 0;
-    array_init_size(&data_zv, data_size);
+    data_array = zend_new_array(data_size);
 
     if (event == user_event_login_success) {
-        zend_hash_str_add_empty_element(Z_ARRVAL(data_zv),
-            LSTRARG("server.business_logic.users.login.success"));
+        zend_hash_str_add_empty_element(
+            data_array, LSTRARG("server.business_logic.users.login.success"));
     } else if (event == user_event_login_failure) {
-        zend_hash_str_add_empty_element(Z_ARRVAL(data_zv),
-            LSTRARG("server.business_logic.users.login.failure"));
+        zend_hash_str_add_empty_element(
+            data_array, LSTRARG("server.business_logic.users.login.failure"));
     }
 
     if (user_login != NULL && ZSTR_LEN(user_login) > 0) {
         zval user_login_zv;
         ZVAL_STR_COPY(&user_login_zv, user_login);
 
-        zend_hash_str_add_new(Z_ARRVAL(data_zv), "usr.login",
-            sizeof("usr.login") - 1, &user_login_zv);
+        zend_hash_str_add_new(
+            data_array, "usr.login", sizeof("usr.login") - 1, &user_login_zv);
     }
 
     if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
         zval user_id_zv;
         ZVAL_STR_COPY(&user_id_zv, user_id);
         zend_hash_str_add_new(
-            Z_ARRVAL(data_zv), "usr.id", sizeof("usr.id") - 1, &user_id_zv);
+            data_array, "usr.id", sizeof("usr.id") - 1, &user_id_zv);
     }
 
     struct block_params block_params = {0};
-    dd_result res = dd_request_exec(conn, &data_zv, false, &block_params);
+    dd_result res = dd_request_exec(
+        conn, data_array, &(struct req_exec_opts){0}, &block_params);
     if (res == dd_network) {
         mlog_g(dd_log_info, "request_exec failed with dd_network; closing "
                             "connection to helper");
         dd_helper_close_conn();
     }
 
-    zval_ptr_dtor(&data_zv);
+    zend_array_destroy(data_array);
 
     if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
         dd_tags_set_event_user_id(user_id);

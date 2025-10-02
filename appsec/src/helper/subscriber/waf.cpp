@@ -541,8 +541,8 @@ instance::listener::~listener()
     }
 }
 
-void instance::listener::call(
-    dds::parameter_view &data, event &event, const std::string &rasp_rule)
+void instance::listener::call(dds::parameter_view &data, event &event,
+    const network::request_exec_options &options)
 {
     ddwaf_object res;
     DDWAF_RET_CODE code;
@@ -552,8 +552,10 @@ void instance::listener::call(
     const ddwaf_object *actions = nullptr;
     const ddwaf_object *attributes = nullptr;
     auto run_waf = [&]() {
-        dds::parameter_view *persistent = rasp_rule.empty() ? &data : nullptr;
-        dds::parameter_view *ephemeral = rasp_rule.empty() ? nullptr : &data;
+        dds::parameter_view *persistent =
+            options.rasp_rule.value_or("").empty() ? &data : nullptr;
+        dds::parameter_view *ephemeral =
+            options.rasp_rule.value_or("").empty() ? nullptr : &data;
         code = ddwaf_run(
             handle_, persistent, ephemeral, &res, waf_timeout_.count());
         for (size_t i = 0; i < ddwaf_object_size(&res); ++i) {
@@ -612,8 +614,10 @@ void instance::listener::call(
     // Free result on exception/return
     const std::unique_ptr<ddwaf_object, decltype(&ddwaf_object_free)> scope(
         &res, ddwaf_object_free);
-    if (rasp_rule.empty()) {
-        // RASP WAF call should not be counted on total_runtime_
+
+    bool has_rasp_rule = !options.rasp_rule.value_or("").empty();
+    // RASP WAF call should not be counted on total_runtime_
+    if (!has_rasp_rule) {
         // NOLINTNEXTLINE
         total_runtime_ += duration / 1000.0;
     }
@@ -631,19 +635,19 @@ void instance::listener::call(
             }
         }
     }
-    if (!rasp_rule.empty()) {
+    if (has_rasp_rule) {
         // NOLINTNEXTLINE
         rasp_runtime_ += duration / 1000.0;
         rasp_calls_++;
         if (timeout) {
             rasp_timeouts_ += 1;
-            rasp_metrics_[rasp_rule].timeouts++;
+            rasp_metrics_[options.rasp_rule.value()].timeouts++;
         }
-        rasp_metrics_[rasp_rule].evaluated++;
+        rasp_metrics_[options.rasp_rule.value()].evaluated++;
         if (code == DDWAF_MATCH) {
-            rasp_metrics_[rasp_rule].matches++;
+            rasp_metrics_[options.rasp_rule.value()].matches++;
         } else if (code != DDWAF_OK) {
-            rasp_metrics_[rasp_rule].errors++;
+            rasp_metrics_[options.rasp_rule.value()].errors++;
         }
     }
     if (attributes != nullptr) {
