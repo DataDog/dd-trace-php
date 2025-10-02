@@ -72,9 +72,7 @@ void dd_entity_body_startup(void)
 
     dd_xml_parser_startup();
 
-    if (get_global_DD_APPSEC_TESTING()) {
-        dd_phpobj_reg_funcs(ext_functions);
-    }
+    dd_phpobj_reg_funcs(ext_functions);
 }
 
 void dd_entity_body_shutdown(void) { dd_xml_parser_shutdown(); }

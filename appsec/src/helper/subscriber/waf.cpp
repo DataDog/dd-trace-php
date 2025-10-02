@@ -523,7 +523,7 @@ void initialise_logging(spdlog::level::level_enum level)
 
 instance::listener::listener(ddwaf_context ctx,
     std::chrono::microseconds waf_timeout, std::string ruleset_version)
-    : handle_{ctx}, waf_timeout_{waf_timeout},
+    : waf_ctx_{ctx}, waf_timeout_{waf_timeout},
       ruleset_version_{std::move(ruleset_version)}
 {
     base_tags_.add("event_rules_version", ruleset_version_);
@@ -531,24 +531,17 @@ instance::listener::listener(ddwaf_context ctx,
 }
 
 instance::listener::listener(instance::listener &&other) noexcept
-    : handle_{other.handle_}, waf_timeout_{other.waf_timeout_}
+    : waf_ctx_{std::move(other.waf_ctx_)}, waf_timeout_{other.waf_timeout_}
 {
-    other.handle_ = nullptr;
+    other.waf_ctx_ = nullptr;
     other.waf_timeout_ = {};
 }
 
 instance::listener &instance::listener::operator=(listener &&other) noexcept
 {
-    handle_ = other.handle_;
-    other.handle_ = nullptr;
+    waf_ctx_ = std::move(other.waf_ctx_);
+    other.waf_ctx_ = nullptr;
     return *this;
-}
-
-instance::listener::~listener()
-{
-    if (handle_ != nullptr) {
-        ddwaf_context_destroy(handle_);
-    }
 }
 
 void instance::listener::call(dds::parameter_view &data, event &event,
@@ -564,13 +557,20 @@ void instance::listener::call(dds::parameter_view &data, event &event,
     const bool has_rasp_rule = !options.rasp_rule.value_or("").empty();
     auto run_waf = [&]() {
         if (has_rasp_rule) {
-            auto *subctx = ddwaf_subcontext_init(handle_);
+            auto *subctx = ddwaf_subcontext_init(waf_ctx_.get());
             code = ddwaf_subcontext_eval(
                 subctx, &data, nullptr, &res, waf_timeout_.count());
             ddwaf_subcontext_destroy(subctx);
+        } else if (options.subctx_id) {
+            auto &&cur_subctx = subcontexts_[options.subctx_id.value()];
+            if (!cur_subctx) {
+                cur_subctx.reset(ddwaf_subcontext_init(waf_ctx_.get()));
+            }
+            code = ddwaf_subcontext_eval(
+                cur_subctx.get(), &data, nullptr, &res, waf_timeout_.count());
         } else {
             code = ddwaf_context_eval(
-                handle_, &data, nullptr, &res, waf_timeout_.count());
+                waf_ctx_.get(), &data, nullptr, &res, waf_timeout_.count());
         }
 
         parameter_view const res_view{res};
@@ -622,6 +622,19 @@ void instance::listener::call(dds::parameter_view &data, event &event,
         }
     };
     const std::unique_ptr<ddwaf_object, decltype(deleter)> scope(&res, deleter);
+
+    // Free subcontext if requested
+    defer const cleanup{[&]() {
+        if (options.subctx_last_call && options.subctx_id) {
+            size_t const removed =
+                subcontexts_.erase(options.subctx_id.value());
+            if (removed == 0) {
+                SPDLOG_WARN("Subcontext could not be removed; nothing "
+                            "found for id {}",
+                    options.subctx_id.value());
+            }
+        }
+    }};
 
     // RASP WAF call should not be counted on total_runtime_
     if (!has_rasp_rule) {

@@ -26,9 +26,21 @@ class waf_builder;
 struct ddwaf_handle_deleter {
     void operator()(ddwaf_handle h) const { ddwaf_destroy(h); }
 };
-
 using waf_handle_up =
     std::unique_ptr<std::remove_pointer_t<ddwaf_handle>, ddwaf_handle_deleter>;
+
+struct ddwaf_context_deleter {
+    void operator()(ddwaf_context c) const { ddwaf_context_destroy(c); }
+};
+using waf_context_up = std::unique_ptr<std::remove_pointer_t<ddwaf_context>,
+    ddwaf_context_deleter>;
+
+struct ddwaf_subcontext_deleter {
+    void operator()(ddwaf_subcontext c) const { ddwaf_subcontext_destroy(c); }
+};
+using waf_subcontext_up =
+    std::unique_ptr<std::remove_pointer_t<ddwaf_subcontext>,
+        ddwaf_subcontext_deleter>;
 
 class instance : public dds::subscriber {
 public:
@@ -44,7 +56,7 @@ public:
         listener &operator=(const listener &) = delete;
         listener(listener &&) noexcept;
         listener &operator=(listener &&) noexcept;
-        ~listener() override;
+        ~listener() override = default;
 
         void call(dds::parameter_view &data, event &event,
             const network::request_exec_options &options) override;
@@ -61,7 +73,8 @@ public:
             unsigned errors = 0;
         };
         std::unordered_map<std::string, rasp_telemetry_metrics> rasp_metrics_;
-        ddwaf_context handle_{};
+        waf_context_up waf_ctx_;
+        std::unordered_map<std::string, waf_subcontext_up> subcontexts_;
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
         std::string ruleset_version_;
