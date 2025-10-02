@@ -305,8 +305,9 @@ static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_
         ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(locals), key, val) {
             if (!zend_string_equals_literal(key, "GLOBALS")) {
                 struct ddog_CaptureValue capture_value = {0};
+                ddtrace_snapshot_redacted_name(&capture_value, dd_zend_string_to_CharSlice(key));
                 ddtrace_create_capture_value(val, &capture_value, capture_config, capture_config->max_reference_depth);
-                ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_LOCAL, (ddog_CharSlice) {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)}, capture_value);
+                ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_LOCAL, dd_zend_string_to_CharSlice(key), capture_value);
             }
         } ZEND_HASH_FOREACH_END();
     }
