@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddappsec.stub.php instead.
- * Stub hash: bbcd7847cb72e68f69e8717497eafd65eaabf880 */
+ * Stub hash: 3ea3e2b20161461c931e9357562c1da79b04bdc0 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
     arginfo_datadog_appsec_is_enabled, 0, 0, _IS_BOOL, 0)
@@ -11,7 +11,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
     arginfo_datadog_appsec_push_addresses, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_TYPE_INFO(0, addresses, IS_ARRAY, 0)
-ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, rasp_rule, IS_STRING, 0, "\'\'")
+ZEND_ARG_TYPE_MASK(0, rasp_rule, MAY_BE_ARRAY | MAY_BE_STRING, "\'\'")
 ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, rule_variant, IS_STRING, 0, "\'\'")
 ZEND_END_ARG_INFO()
 
