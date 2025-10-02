@@ -47,7 +47,7 @@ public:
         ~listener() override;
 
         void call(dds::parameter_view &data, event &event,
-            const std::string &rasp_rule) override;
+            const network::request_exec_options &options) override;
 
         // NOLINTNEXTLINE(google-runtime-references)
         void submit_metrics(
