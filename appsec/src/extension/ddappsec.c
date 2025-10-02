@@ -28,6 +28,7 @@
 #include "commands_ctx.h"
 #include "compatibility.h"
 #include "configuration.h"
+#include "curl.h"
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
@@ -514,7 +515,7 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
     if (!DDAPPSEC_G(active)) {
         mlog(dd_log_debug, "Trying to access to push_addresses "
                            "function while appsec is disabled");
-        return;
+        RETURN_FALSE;
     }
 
     zend_array *addresses = NULL;
@@ -576,13 +577,13 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
 
     if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0 &&
         !get_global_DD_APPSEC_RASP_ENABLED()) {
-        return;
+        RETURN_FALSE;
     }
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
         mlog_g(dd_log_debug, "No connection; skipping push_addresses");
-        return;
+        RETURN_FALSE;
     }
 
     struct block_params block_params = {0};
@@ -602,6 +603,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
 
     dd_req_lifecycle_abort(REQUEST_STAGE_MID_REQUEST, res, &block_params);
     dd_request_abort_destroy_block_params(&block_params);
+
+    RETURN_TRUE;
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
@@ -616,7 +619,7 @@ ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, "subctx_last_call", false)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    push_addresses_arginfo, 0, 0, IS_VOID, 1)
+    push_addresses_arginfo, 0, 0, _IS_BOOL, 1)
 ZEND_ARG_INFO(0, addresses)
 ZEND_ARG_INFO_WITH_DEFAULT_VALUE(0, rasp_rule_or_opts, NULL)
 ZEND_END_ARG_INFO()
@@ -641,6 +644,7 @@ static const zend_function_entry testing_functions[] = {
 static void _register_testing_objects(void)
 {
     dd_phpobj_reg_funcs(functions);
+    dd_curl_register_functions();
 
     if (!get_global_DD_APPSEC_TESTING()) {
         return;
