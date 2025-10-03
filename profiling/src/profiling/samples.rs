@@ -368,8 +368,8 @@ impl SampleValue {
 
     pub fn as_slice(&self) -> &[i64] {
         // Convert the &(i64, MaybeUninit<i64>) into &[i64].
-        let tuple = RestructuredSample::from(self).value;
-        let ptr = &tuple as *const (_, _) as *const i64;
+        let tuple = &RestructuredSample::from(self).value;
+        let ptr = tuple as *const (_, _) as *const i64;
         let n = self.sample_types().len();
         // SAFETY: todo
         unsafe { slice::from_raw_parts(ptr, n) }
@@ -715,6 +715,53 @@ mod test {
     //     );
     //     assert_eq!(values, vec![10, 20, 30, 70]);
     // }
+
+    #[test]
+    fn spot_check_cpu_sample() {
+        let nanoseconds = 3200;
+        let sample = SampleValue::CpuTime { nanoseconds };
+
+        let profile_type = sample.sample_types();
+        assert_eq!(
+            profile_type.as_slice(),
+            &[ValueType {
+                r#type: "cpu-time",
+                unit: "nanoseconds",
+            }]
+        );
+
+        assert_eq!(sample.as_slice(), &[nanoseconds]);
+
+        assert_eq!(sample.discriminant(), SampleDiscriminant::CpuTime);
+        assert_eq!(sample.discriminant().index(), 1);
+    }
+
+    #[test]
+    fn spot_check_wall_sample() {
+        let count = 1;
+        let nanoseconds = 3700;
+        let sample = SampleValue::WallTime { count, nanoseconds };
+
+        let profile_type = sample.sample_types();
+        assert_eq!(
+            profile_type.as_slice(),
+            &[
+                ValueType {
+                    r#type: "sample",
+                    unit: "count",
+                },
+                ValueType {
+                    r#type: "wall-time",
+                    unit: "nanoseconds",
+                }
+            ]
+        );
+
+        assert_eq!(sample.as_slice(), &[count, nanoseconds]);
+
+        assert_eq!(sample.discriminant(), SampleDiscriminant::WallTime);
+        assert_eq!(sample.discriminant().index(), 0);
+    }
 
     #[test]
     fn discriminants_match_for_all_variants() {

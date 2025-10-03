@@ -402,7 +402,7 @@ impl TimeCollector {
             key,
             value:
                 SampleData {
-                    sample: sample_value,
+                    sample,
                     call_stack,
                     timestamp,
                     labels,
@@ -428,15 +428,15 @@ impl TimeCollector {
             }
         };
 
-        // Fetch the profile associated to the sample_value provided, creating
-        // an empty profile as needed.
+        // Fetch the profile associated to the sample provided, creating an
+        // empty profile as needed.
         let profile = if let Some(maybe_profile) = aggregated_profile
             .profiles
-            .get_mut(sample_value.discriminant().index())
+            .get_mut(sample.discriminant().index())
         {
             maybe_profile.get_or_insert_with(|| {
                 let mut profile = Profile::default();
-                let src = sample_value.sample_types();
+                let src = sample.sample_types();
                 let mut dst = ArrayVec::new();
                 for value_type in src {
                     let strings = aggregated_profile.dict.dictionary().strings();
@@ -451,7 +451,7 @@ impl TimeCollector {
                 profile
             })
         } else {
-            warn!("tried to insert {sample_value:?} but it wasn't found in the aggregated profile list");
+            warn!("tried to insert {sample:?} but it wasn't found in the aggregated profile list");
             return;
         };
 
@@ -473,7 +473,7 @@ impl TimeCollector {
             sb.set_stack_id(stack_id);
             sb.set_link(link).expect("set_link failed");
 
-            for val in sample_value.as_slice() {
+            for val in sample.as_slice() {
                 sb.push_value(*val).expect("push_value failed");
             }
             sb.try_reserve_attributes(labels.len())
