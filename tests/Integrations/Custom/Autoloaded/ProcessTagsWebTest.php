@@ -43,7 +43,7 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
         // Parse the process tags
         $tags = [];
         foreach (explode(',', $processTags) as $pair) {
-            [$key, $value] = explode(':', $pair, 2);
+            list($key, $value) = explode(':', $pair, 2);
             $tags[$key] = $value;
         }
 
