@@ -16,11 +16,11 @@ ENV PHP_API=${phpApi}
 ENV PHP_URL=${phpTarGzUrl:-https://www.php.net/distributions/php-${phpVersion}.tar.gz}
 ENV PHP_SHA256=${phpSha256Hash}
 ENV PHP_SRC_DIR=${SRC_DIR}/php
-ENV PHP_INI_DIR /usr/local/etc/php-${phpVersion}
+ENV PHP_INI_DIR=/usr/local/etc/php-${phpVersion}
 ENV PHP_INSTALL_DIR=/usr/local/php-${phpVersion}
 
 RUN install-php
-ENV PATH ${PATH}:${PHP_INSTALL_DIR}/bin
+ENV PATH=${PATH}:${PHP_INSTALL_DIR}/bin
 
 ADD ./env-init /root/.bashrc
 ENV ENV=/root/.bashrc

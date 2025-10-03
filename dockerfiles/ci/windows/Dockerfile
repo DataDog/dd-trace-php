@@ -26,7 +26,7 @@ FROM base AS php-zts
 ENV THREAD_SAFE=1
 RUN build_php.bat
 
-FROM base as final
+FROM base AS final
 COPY --chown=circleci:circleci --from=php-nts /php /php-nts
 COPY --chown=circleci:circleci --from=php-zts /php /php-zts
 
