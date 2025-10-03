@@ -405,7 +405,7 @@ mod detail {
         let mut execute_data_ptr = top_execute_data;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            let maybe_frame = unsafe { collect_call_frame(execute_data, &dict) }?;
+            let maybe_frame = unsafe { collect_call_frame(execute_data, dict.dictionary())? };
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;
 
