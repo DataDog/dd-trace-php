@@ -90,8 +90,6 @@ pub struct Label {
     pub value: LabelValue,
 }
 
-// TODO(api-migration): map labels to new attribute model when wiring SampleBuilder.
-
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct ValueType {
     pub r#type: &'static str,
@@ -472,6 +470,7 @@ impl TimeCollector {
             for val in sample_value.as_slice() {
                 sb.push_value(*val).expect("push_value failed");
             }
+            sb.try_reserve_attributes(labels.len()).expect("try_reserve_attributes failed");
             for label in labels {
                 let key_id = aggregated_profile
                     .dict
