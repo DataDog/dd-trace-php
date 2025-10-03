@@ -2859,7 +2859,7 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
             schema.add(parameter::int64(4));
             expected_schemas.add(std::to_string(i), std::move(schema));
             body_length =
-                parameter_to_json(parameter_view(expected_schemas)).length();
+                parameter_to_json(*&expected_schemas).length();
             i++;
         }
         msg.data.add("server.request.body", std::move(body));

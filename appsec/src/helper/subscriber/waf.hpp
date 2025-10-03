@@ -60,8 +60,7 @@ public:
             unsigned timeouts = 0;
             unsigned errors = 0;
         };
-        std::unordered_map<std::string, rasp_telemetry_metrics> rasp_metrics_ =
-            {};
+        std::unordered_map<std::string, rasp_telemetry_metrics> rasp_metrics_;
         ddwaf_context handle_{};
         std::chrono::microseconds waf_timeout_;
         double total_runtime_{0.0};
