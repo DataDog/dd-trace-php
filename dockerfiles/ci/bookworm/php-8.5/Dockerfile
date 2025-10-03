@@ -95,6 +95,10 @@ COPY --chown=circleci:circleci --from=php-zts $PHP_INSTALL_DIR/zts $PHP_INSTALL_
 USER root
 
 RUN set -eux; \
+    sed -i '/report_memleaks=0/d' /opt/php/debug/lib/php/PEAR/RunTest.php; \
+    sed -i '/report_memleaks=0/d' /opt/php/debug-zts-asan/lib/php/PEAR/RunTest.php ; \
+    sed -i '/report_memleaks=0/d' /opt/php/nts-asan/lib/php/PEAR/RunTest.php; \
+    sed -i '/report_memleaks=0/d' /opt/php/zts/lib/php/PEAR/RunTest.php; \
     # Enable the apache config \
     echo "LoadModule php_module /usr/lib/apache2/modules/libphp.so" | tee /etc/apache2/mods-enabled/php.load; \
     # Set the default PHP version
