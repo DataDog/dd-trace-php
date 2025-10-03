@@ -86,7 +86,8 @@ extern "C" fn frankenphp_sapi_module_activate() -> i32 {
             zend::ddog_php_prof_get_current_execute_data()
         })
     {
-        timeline_idle_stop();
+        // SAFETY: guarded by timeline_enabled check.
+        unsafe { timeline_idle_stop() };
     }
 
     unsafe {
@@ -430,18 +431,17 @@ pub unsafe fn timeline_startup() {
     }
 }
 
-fn timeline_idle_stop() {
+/// Ends the idle period for timeline.
+///
+/// # Safety
+///
+/// Timeline must be enabled. Most callers will naturally do this anyway.
+unsafe fn timeline_idle_stop() {
     IDLE_SINCE.with(|cell| {
         // try to borrow and bail out if not successful
         let Ok(idle_since) = cell.try_borrow() else {
             return;
         };
-
-        if !REQUEST_LOCALS
-            .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
-        {
-            return;
-        }
 
         if let Some(profiler) = Profiler::get() {
             profiler.collect_idle(
@@ -469,12 +469,14 @@ fn timeline_idle_start() {
 /// # SAFETY
 /// Must be called only in rinit and after [crate::config::first_rinit].
 pub unsafe fn timeline_rinit() {
-    if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
-    {
+    let timeline_enabled = REQUEST_LOCALS
+        .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled);
+    if !timeline_enabled {
         return;
     }
 
-    timeline_idle_stop();
+    // SAFETY: guarded by timeline_enabled check.
+    unsafe { timeline_idle_stop() };
 
     #[cfg(php_zts)]
     IS_NEW_THREAD.with(|cell| {
@@ -482,11 +484,6 @@ pub unsafe fn timeline_rinit() {
             return;
         }
         cell.set(false);
-        if !REQUEST_LOCALS
-            .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
-        {
-            return;
-        }
 
         if let Some(profiler) = Profiler::get() {
             profiler.collect_thread_start_end(
@@ -518,7 +515,12 @@ pub fn timeline_prshutdown() {
 /// # Saftey
 /// Must be called in shutdown before [crate::config::shutdown].
 pub(crate) fn timeline_mshutdown() {
-    timeline_idle_stop();
+    let timeline_enabled = REQUEST_LOCALS
+        .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled);
+    if timeline_enabled {
+        // SAFETY: guarded by timeline_enabled check.
+        unsafe { timeline_idle_stop() };
+    }
 
     // Unhook `sapi_module.activate` / `sapi_module.deactivate` in case SAPI is FrankenPHP. This
     // hook was installed in `timeline_minit`

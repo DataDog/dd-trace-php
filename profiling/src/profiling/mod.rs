@@ -735,15 +735,6 @@ impl Profiler {
         self.fork_barrier.wait();
     }
 
-    pub fn send_sample(
-        &self,
-        message: SampleMessage,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
-    }
-
     pub fn send_local_root_span_resource(
         &self,
         message: LocalRootSpanResourceMessage,
