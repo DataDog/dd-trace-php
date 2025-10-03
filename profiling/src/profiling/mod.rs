@@ -1190,8 +1190,8 @@ impl Profiler {
         };
         let known_funcs = dict.known_funcs();
         let thread_fid = Some(match state {
-            State::ThreadStart => known_funcs.thread_start,
-            State::ThreadStop => known_funcs.thread_stop,
+            timeline::State::ThreadStart => known_funcs.thread_start,
+            timeline::State::ThreadStop => known_funcs.thread_stop,
             // SAFETY: we only pass in ThreadStart or ThreadEnd to this fn
             _ => unsafe { std::hint::unreachable_unchecked() },
         });
