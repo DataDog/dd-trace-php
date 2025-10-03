@@ -37,11 +37,12 @@ use datadog_profiling::profiles::{PoissonUpscalingRule, ProfileError};
 use ddcommon::error::FfiSafeErrorMessage;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
+use rustc_hash::FxHasher;
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::ffi::CStr;
-use std::hash::Hash;
+use std::hash::{BuildHasherDefault, Hash};
 use std::ptr::{null_mut, NonNull};
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Barrier};
@@ -233,7 +234,7 @@ unsafe impl FfiSafeErrorMessage for Unreachable {
 impl TimeCollector {
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
+        profiles: &mut HashMap<ProfileIndex, AggregatedProfile, BuildHasherDefault<FxHasher>>,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
@@ -367,7 +368,7 @@ impl TimeCollector {
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
+        profiles: &mut HashMap<ProfileIndex, AggregatedProfile, BuildHasherDefault<FxHasher>>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
@@ -390,7 +391,7 @@ impl TimeCollector {
     // todo: clean up expects
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, AggregatedProfile>,
+        profiles: &mut HashMap<ProfileIndex, AggregatedProfile, BuildHasherDefault<FxHasher>>,
     ) {
         let SampleMessage {
             key,
@@ -470,7 +471,8 @@ impl TimeCollector {
             for val in sample_value.as_slice() {
                 sb.push_value(*val).expect("push_value failed");
             }
-            sb.try_reserve_attributes(labels.len()).expect("try_reserve_attributes failed");
+            sb.try_reserve_attributes(labels.len())
+                .expect("try_reserve_attributes failed");
             for label in labels {
                 let key_id = aggregated_profile
                     .dict
@@ -501,7 +503,10 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, AggregatedProfile> = HashMap::with_capacity(1);
+
+        // sip::Hasher::write showed up in profiles, using alternative hasher.
+        let mut profiles: HashMap<ProfileIndex, AggregatedProfile, BuildHasherDefault<FxHasher>> =
+            HashMap::with_capacity_and_hasher(1, Default::default());
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
