@@ -86,15 +86,16 @@ std::optional<engine::result> engine::context::publish(
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
+    // XXX: this unnecessarily keeps transient data
     prev_published_params_.push_back(std::move(param));
 
-    parameter_view data(prev_published_params_.back());
+    parameter_view data{*&prev_published_params_.back()};
     if (!data.is_map()) {
         throw invalid_object(".", "not a map");
     }
 
-    for (const auto &entry : data) {
-        DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, entry.key());
+    for (const auto &[key, value] : data.map_iterable()) {
+        DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, key);
     }
 
     event event;

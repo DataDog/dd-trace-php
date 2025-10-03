@@ -28,31 +28,43 @@ namespace dds::waf {
 
 namespace {
 void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
-    parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter);
+    const parameter_view &diagnostics,
+    telemetry::telemetry_submitter &msubmitter);
 } // namespace
 
 class waf_builder {
     static constexpr auto BUNDLED_KEY = "datadog/0/ASM_DD/0/bundled"sv;
+    static constexpr auto OBFUSCATOR_KEY = "datadog/0/ASM_DD/0/config"sv;
 
     waf_builder(ddwaf_builder builder, parameter default_rules)
         : builder_{builder}, default_rules_{std::move(default_rules)}
     {}
 
 public:
-    static std::optional<waf_builder> create(const ddwaf_config &cfg,
-        parameter default_rules, parameter &diagnostics)
+    static std::optional<waf_builder> create(
+        // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+        const parameter &obfuscator_cfg, parameter default_rules,
+        parameter &diagnostics)
     {
-        auto *builder = ddwaf_builder_init(&cfg);
+        auto *builder = ddwaf_builder_init();
         if (builder == nullptr) {
             return std::nullopt;
         }
 
-        bool const res =
+        bool res =
             ddwaf_builder_add_or_update_config(builder, BUNDLED_KEY.data(),
                 BUNDLED_KEY.size(), &default_rules, &diagnostics);
-
         if (res) {
-            return {{builder, std::move(default_rules)}};
+            // Use separate diagnostics for obfuscator to preserve
+            // ruleset_version
+            parameter obfuscator_diagnostics;
+            res = ddwaf_builder_add_or_update_config(builder,
+                OBFUSCATOR_KEY.data(), OBFUSCATOR_KEY.size(), &obfuscator_cfg,
+                &obfuscator_diagnostics);
+            diagnostics.merge(std::move(obfuscator_diagnostics));
+            if (res) {
+                return {{builder, std::move(default_rules)}};
+            }
         }
 
         ddwaf_builder_destroy(builder);
@@ -101,11 +113,11 @@ public:
             } else {
                 SPDLOG_WARN("Failed to add/update config {}: {}",
                     key.full_key(),
-                    parameter_to_json(parameter_view{these_diags}));
+                    parameter_to_json(parameter_view{*&these_diags}));
             }
 
             handle_config_diagnostics(
-                key, parameter_view{these_diags}, submitter);
+                key, parameter_view{*&these_diags}, submitter);
 
             diagnostics.merge(std::move(these_diags));
         }
@@ -186,7 +198,7 @@ private:
 };
 
 namespace {
-action_type parse_action_type_string(const std::string &action)
+action_type parse_action_type_string(std::string_view action)
 {
     if (action == "block_request") {
         return action_type::block;
@@ -209,15 +221,14 @@ action_type parse_action_type_string(const std::string &action)
 
 void format_waf_result(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    const ddwaf_object *actions, const ddwaf_object *events, event &event)
+    const parameter_view &actions, const parameter_view &events, event &event)
 {
     try {
-        if (actions != nullptr) {
-            const parameter_view actions_pv{*actions};
-            for (const auto &action : actions_pv) {
-                dds::action a{
-                    parse_action_type_string(std::string(action.key())), {}};
-                for (const auto &parameter : action) {
+        if (actions.is_map()) {
+            for (const auto &[key, action] : actions.map_iterable()) {
+                dds::action a{parse_action_type_string(key), {}};
+                for (const auto &[action_key, parameter] :
+                    action.map_iterable()) {
                     std::string value;
                     // As of libddwaf 1.28.0, status_code and grpc_status_code
                     // are uint64_t instead of strings
@@ -227,14 +238,13 @@ void format_waf_result(
                     } else {
                         value = std::string{parameter};
                     }
-                    a.parameters.emplace(parameter.key(), std::move(value));
+                    a.parameters.emplace(action_key, std::move(value));
                 }
                 event.actions.emplace_back(std::move(a));
             }
         }
-        if (events != nullptr) {
-            const parameter_view events_pv{*events};
-            for (const auto &event_pv : events_pv) {
+        if (events.is_array()) {
+            for (const auto &event_pv : events.array_iterable()) {
                 event.triggers.emplace_back(parameter_to_json(event_pv));
             }
         }
@@ -332,8 +342,8 @@ constexpr std::array<std::string_view, 5> diagnostic_keys{
     "rules_override",
 };
 
-void load_result_report(
-    parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter)
+void load_result_report(const parameter_view &diagnostics,
+    telemetry::telemetry_submitter &msubmitter)
 {
     const auto info = static_cast<parameter_view::map>(diagnostics);
 
@@ -378,7 +388,7 @@ void load_result_report(
                 continue;
             }
             std::uint64_t error_count = 0;
-            for (const parameter_view &err : errors_map) {
+            for (const auto &[ignored_key, err] : errors_map.map_iterable()) {
                 // key is error message, value is array of ids
                 assert(err.type() == parameter_type::array);
                 error_count += err.size();
@@ -394,7 +404,8 @@ void load_result_report(
 }
 
 void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
-    parameter_view diagnostics, telemetry::telemetry_submitter &msubmitter)
+    const parameter_view &diagnostics,
+    telemetry::telemetry_submitter &msubmitter)
 {
     using log_level = telemetry::telemetry_submitter::log_level;
 
@@ -464,12 +475,11 @@ void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
     }
 }
 
-void load_result_report_legacy(parameter_view diagnostics, std::string &version,
-    telemetry::telemetry_submitter &msubmitter)
+void load_result_report_legacy(const parameter_view &diagnostics,
+    std::string &version, telemetry::telemetry_submitter &msubmitter)
 {
     try {
-        const parameter_view diagnostics_view{diagnostics};
-        auto info = static_cast<parameter_view::map>(diagnostics_view);
+        auto info = static_cast<parameter_view::map>(diagnostics);
 
         auto rules_it = info.find("rules");
         if (rules_it != info.end()) {
@@ -544,45 +554,41 @@ instance::listener::~listener()
 void instance::listener::call(dds::parameter_view &data, event &event,
     const network::request_exec_options &options)
 {
-    ddwaf_object res;
+    ddwaf_object res{};
     DDWAF_RET_CODE code;
     unsigned duration = 0;
     bool timeout = false;
-    const ddwaf_object *events = nullptr;
-    const ddwaf_object *actions = nullptr;
-    const ddwaf_object *attributes = nullptr;
+    parameter_view events{ddwaf_object{}};
+    parameter_view actions{ddwaf_object{}};
+    parameter_view attributes{ddwaf_object{}};
+    const bool has_rasp_rule = !options.rasp_rule.value_or("").empty();
     auto run_waf = [&]() {
-        dds::parameter_view *persistent =
-            options.rasp_rule.value_or("").empty() ? &data : nullptr;
-        dds::parameter_view *ephemeral =
-            options.rasp_rule.value_or("").empty() ? nullptr : &data;
-        code = ddwaf_run(
-            handle_, persistent, ephemeral, &res, waf_timeout_.count());
-        for (size_t i = 0; i < ddwaf_object_size(&res); ++i) {
-            const ddwaf_object *child = ddwaf_object_get_index(&res, i);
-            if (child == nullptr) {
-                continue;
-            }
+        if (has_rasp_rule) {
+            auto *subctx = ddwaf_subcontext_init(handle_);
+            code = ddwaf_subcontext_eval(
+                subctx, &data, nullptr, &res, waf_timeout_.count());
+            ddwaf_subcontext_destroy(subctx);
+        } else {
+            code = ddwaf_context_eval(
+                handle_, &data, nullptr, &res, waf_timeout_.count());
+        }
 
-            size_t length = 0;
-            const char *key = ddwaf_object_get_key(child, &length);
-            if (key == nullptr) {
-                continue;
-            }
-
-            const std::string_view key_sv{key, length};
-            if (key_sv == "events"sv) {
-                events = child;
-            } else if (key_sv == "actions"sv) {
-                actions = child;
-            } else if (key_sv == "attributes"sv) {
-                attributes = child;
-            } else if (key_sv == "keep"sv) {
-                event.keep = ddwaf_object_get_bool(child);
-            } else if (key_sv == "duration"sv) {
-                duration = ddwaf_object_get_unsigned(child);
-            } else if (key_sv == "timeout"sv) {
-                timeout = ddwaf_object_get_bool(child);
+        parameter_view const res_view{res};
+        if (res_view.is_map()) {
+            for (auto &&[key, value] : res_view.map_iterable()) {
+                if (key == "events"sv) {
+                    events = value;
+                } else if (key == "actions"sv) {
+                    actions = value;
+                } else if (key == "attributes"sv) {
+                    attributes = value;
+                } else if (key == "keep"sv) {
+                    event.keep = ddwaf_object_get_bool(&value);
+                } else if (key == "duration"sv) {
+                    duration = ddwaf_object_get_unsigned(&value);
+                } else if (key == "timeout"sv) {
+                    timeout = ddwaf_object_get_bool(&value);
+                }
             }
         }
     };
@@ -595,27 +601,28 @@ void instance::listener::call(dds::parameter_view &data, event &event,
         // switch below so it's slightly inefficient, albeit since it's only
         // done on debug, we can live with it...
         std::string events_json;
-        if (events != nullptr) {
-            events_json = parameter_to_json(parameter_view{*events});
+        if (events.is_array()) {
+            events_json = parameter_to_json(events);
             DD_STDLOG(DD_STDLOG_AFTER_WAF, events_json, duration / millis);
         }
         SPDLOG_DEBUG("Waf response: code {} - keep {} - duration {} - timeout "
                      "{} - actions {} - attributes {} - events {}",
             fmt::underlying(code), event.keep, duration / millis, timeout,
-            actions != nullptr ? parameter_to_json(parameter_view{*actions})
-                               : "",
-            attributes != nullptr
-                ? parameter_to_json(parameter_view{*attributes})
-                : "",
+            actions.is_valid() ? parameter_to_json(actions) : "",
+            attributes.is_valid() ? parameter_to_json(attributes) : "",
             events_json);
     } else {
         run_waf();
     }
     // Free result on exception/return
-    const std::unique_ptr<ddwaf_object, decltype(&ddwaf_object_free)> scope(
-        &res, ddwaf_object_free);
+    auto deleter = [](ddwaf_object *obj) {
+        if (obj != nullptr) {
+            auto *alloc = ddwaf_get_default_allocator();
+            ddwaf_object_destroy(obj, alloc);
+        }
+    };
+    const std::unique_ptr<ddwaf_object, decltype(deleter)> scope(&res, deleter);
 
-    bool has_rasp_rule = !options.rasp_rule.value_or("").empty();
     // RASP WAF call should not be counted on total_runtime_
     if (!has_rasp_rule) {
         // NOLINTNEXTLINE
@@ -624,10 +631,8 @@ void instance::listener::call(dds::parameter_view &data, event &event,
     if (timeout) {
         waf_hit_timeout_ = true;
     }
-    if (actions != nullptr) {
-        const parameter_view actions_pv{*actions};
-        for (const auto &action : actions_pv) {
-            const std::string_view action_type = action.key();
+    if (actions.is_map()) {
+        for (const auto &[action_type, action] : actions.map_iterable()) {
             if (action_type == "block_request" ||
                 action_type == "redirect_request") {
                 request_blocked_ = true;
@@ -650,10 +655,10 @@ void instance::listener::call(dds::parameter_view &data, event &event,
             rasp_metrics_[options.rasp_rule.value()].errors++;
         }
     }
-    if (attributes != nullptr) {
-        const parameter_view attributes_pv{*attributes};
-        for (const parameter_view &derivative : attributes_pv) {
-            if (derivative.key().starts_with("_dd.appsec.s.")) {
+    if (attributes.is_map()) {
+        for (const auto &[derivative_key, derivative] :
+            attributes.map_iterable()) {
+            if (derivative_key.starts_with("_dd.appsec.s.")) {
                 std::string json_derivative = parameter_to_json(derivative);
                 if (json_derivative.length() > max_plain_schema_allowed) {
                     auto encoded = compress(json_derivative);
@@ -663,28 +668,28 @@ void instance::listener::call(dds::parameter_view &data, event &event,
                 }
                 if (json_derivative.length() <= max_schema_size) {
                     meta_attributes_.emplace(
-                        derivative.key(), std::move(json_derivative));
+                        derivative_key, std::move(json_derivative));
                 } else {
                     SPDLOG_WARN("Schema for key {} is too large to submit",
-                        derivative.key());
+                        derivative_key);
                 }
             } else {
                 if (derivative.is_signed()) {
                     auto value =
                         static_cast<double>(static_cast<int64_t>(derivative));
-                    metrics_attributes_.emplace(derivative.key(), value);
+                    metrics_attributes_.emplace(derivative_key, value);
                 } else if (derivative.is_unsigned()) {
                     auto value =
                         static_cast<double>(static_cast<uint64_t>(derivative));
-                    metrics_attributes_.emplace(derivative.key(), value);
+                    metrics_attributes_.emplace(derivative_key, value);
                 } else if (derivative.is_float()) {
                     auto value = static_cast<double>(derivative);
-                    metrics_attributes_.emplace(derivative.key(), value);
+                    metrics_attributes_.emplace(derivative_key, value);
                 } else if (derivative.is_string()) {
-                    meta_attributes_.emplace(derivative.key(), derivative);
+                    meta_attributes_.emplace(derivative_key, derivative);
                 } else {
                     SPDLOG_WARN("Unsupported attribute type for key {}",
-                        derivative.key());
+                        derivative_key);
                 }
             }
         }
@@ -768,13 +773,25 @@ void instance::listener::submit_metrics(
     }
 }
 
+namespace {
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+parameter get_obfuscator_config(std::string_view key, std::string_view value)
+{
+    parameter res = parameter::map();
+    parameter obfuscator = parameter::map();
+    obfuscator.add("key_regex", parameter::string(key));
+    obfuscator.add("value_regex", parameter::string(value));
+    res.add("obfuscator", std::move(obfuscator));
+    return res;
+}
+} // namespace
+
 instance::instance(parameter rules, telemetry::telemetry_submitter &msubmit,
-    std::uint64_t waf_timeout_us, std::string_view key_regex,
+    std::uint64_t waf_timeout_us, std::string_view key_regex, // NOLINT
     std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
 {
-    const ddwaf_config config{
-        {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
+    parameter const config = get_obfuscator_config(key_regex, value_regex);
 
     parameter diagnostics{};
     auto maybe_builder =
@@ -785,9 +802,9 @@ instance::instance(parameter rules, telemetry::telemetry_submitter &msubmit,
         handle_ = builder_->new_handle();
     }
 
-    load_result_report(parameter_view{diagnostics}, msubmit);
+    load_result_report(parameter_view{*&diagnostics}, msubmit);
     load_result_report_legacy(
-        parameter_view{diagnostics}, ruleset_version_, msubmit);
+        parameter_view{*&diagnostics}, ruleset_version_, msubmit);
     waf_init_report(msubmit, handle_ != nullptr,
         ruleset_version_.empty() ? std::nullopt
                                  : std::make_optional(ruleset_version_));
@@ -843,7 +860,8 @@ instance &instance::operator=(instance &&other) noexcept
 std::unique_ptr<subscriber::listener> instance::get_listener()
 {
     return std::make_unique<listener>(
-        ddwaf_context_init(handle_.get()), waf_timeout_, ruleset_version_);
+        ddwaf_context_init(handle_.get(), ddwaf_get_default_allocator()),
+        waf_timeout_, ruleset_version_);
 }
 
 std::unique_ptr<subscriber> instance::update(
@@ -857,9 +875,9 @@ std::unique_ptr<subscriber> instance::update(
 
     std::string version;
     {
-        load_result_report(parameter_view{diagnostics}, msubmitter);
+        load_result_report(parameter_view{*&diagnostics}, msubmitter);
         load_result_report_legacy(
-            parameter_view{diagnostics}, version, msubmitter);
+            parameter_view{*&diagnostics}, version, msubmitter);
         if (version.empty()) {
             version = ruleset_version_;
         }

@@ -43,24 +43,29 @@ void parameter_to_json_helper(const parameter_view &pv, T &output,
         break;
     case parameter_type::map:
         output.SetObject();
-        for (const auto &v : pv) {
+        for (const auto &[k, v] : pv.map_iterable()) {
             rapidjson::Value key;
             rapidjson::Value value;
             parameter_to_json_helper(v, value, alloc);
 
-            std::string_view const sv = v.key();
-            key.SetString(sv.data(), sv.size(), alloc);
+            key.SetString(k.data(), k.size(), alloc);
 
             output.AddMember(key, value, alloc);
         }
         break;
     case parameter_type::array:
         output.SetArray();
-        for (const auto &v : pv) {
+        for (const auto &v : pv.array_iterable()) {
             rapidjson::Value value;
             parameter_to_json_helper(v, value, alloc);
             output.PushBack(value, alloc);
         }
+        break;
+    case parameter_type::float64:
+        output.SetDouble(double(pv));
+        break;
+    case parameter_type::null:
+        output.SetNull();
         break;
     case parameter_type::invalid:
         throw std::runtime_error("invalid parameter in structure");
@@ -97,52 +102,58 @@ template <typename T, typename = std::enable_if_t<std::disjunction_v<
 // NOLINTNEXTLINE(misc-no-recursion)
 void json_to_object(ddwaf_object *object, T &doc)
 {
+    static constexpr size_t default_capacity = 16;
+    auto *alloc = ddwaf_get_default_allocator();
+
     switch (doc.GetType()) {
     case rapidjson::kFalseType:
-        ddwaf_object_stringl(object, "false", sizeof("false") - 1);
+        ddwaf_object_set_bool(object, false);
         break;
     case rapidjson::kTrueType:
-        ddwaf_object_stringl(object, "true", sizeof("true") - 1);
+        ddwaf_object_set_bool(object, true);
         break;
     case rapidjson::kObjectType: {
-        ddwaf_object_map(object);
+        ddwaf_object_set_map(object, default_capacity, alloc);
         for (auto &kv : doc.GetObject()) {
-            ddwaf_object element;
-            json_to_object(&element, kv.value);
-
             std::string_view const key = kv.name.GetString();
-            ddwaf_object_map_addl(object, key.data(), key.length(), &element);
+            ddwaf_object *element = ddwaf_object_insert_key(
+                object, key.data(), key.length(), alloc);
+            if (element) {
+                json_to_object(element, kv.value);
+            }
         }
         break;
     }
     case rapidjson::kArrayType: {
-        ddwaf_object_array(object);
+        ddwaf_object_set_array(object, default_capacity, alloc);
         for (auto &v : doc.GetArray()) {
-            ddwaf_object element;
-            json_to_object(&element, v);
-
-            ddwaf_object_array_add(object, &element);
+            ddwaf_object *element = ddwaf_object_insert(object, alloc);
+            if (element) {
+                json_to_object(element, v);
+            }
         }
         break;
     }
     case rapidjson::kStringType: {
         std::string_view const str = doc.GetString();
-        ddwaf_object_stringl(object, str.data(), str.size());
+        ddwaf_object_set_string(object, str.data(), str.size(), alloc);
         break;
     }
     case rapidjson::kNumberType: {
         if (doc.IsInt64()) {
-            ddwaf_object_signed(object, doc.GetInt64());
+            ddwaf_object_set_signed(object, doc.GetInt64());
         } else if (doc.IsUint64()) {
-            ddwaf_object_unsigned(object, doc.GetUint64());
+            ddwaf_object_set_unsigned(object, doc.GetUint64());
         } else if (doc.IsDouble()) {
-            ddwaf_object_float(object, doc.GetDouble());
+            ddwaf_object_set_float(object, doc.GetDouble());
         }
         break;
     }
     case rapidjson::kNullType:
+        ddwaf_object_set_null(object);
+        break;
     default:
-        ddwaf_object_invalid(object);
+        ddwaf_object_set_invalid(object);
         break;
     }
 }
@@ -150,7 +161,7 @@ void json_to_object(ddwaf_object *object, T &doc)
 dds::parameter json_to_parameter(const rapidjson::Value &value)
 {
     dds::parameter obj;
-    json_to_object(obj, value);
+    json_to_object(&obj, value);
     return obj;
 }
 

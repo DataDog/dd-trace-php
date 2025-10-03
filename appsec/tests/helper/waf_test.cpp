@@ -124,7 +124,7 @@ TEST(WafTest, RunWithInvalidParam)
         std::shared_ptr<subscriber> wi{
             waf::instance::from_string(waf_rule, submitm)};
         auto ctx = wi->get_listener();
-        parameter_view pv;
+        parameter_view pv{ddwaf_object{}};
         dds::event e;
         EXPECT_THROW(ctx->call(pv, e, {}), invalid_object);
     }
@@ -160,7 +160,7 @@ TEST(WafTest, RunWithInvalidParam)
                     std::string{"event_rules_version:1.2.3,waf_version:"} +
                     ddwaf_get_version() + std::string{",rule_type:lfi"})));
 
-        parameter_view pv;
+        parameter_view pv{ddwaf_object{}};
         dds::event e;
         std::string rasp = "lfi";
         EXPECT_THROW(ctx->call(pv, e, {.rasp_rule = rasp}), invalid_object);
@@ -181,7 +181,7 @@ TEST(WafTest, RunWithTimeout)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 2"sv));
 
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         EXPECT_THROW(ctx->call(pv, e, {}), timeout_error);
     }
@@ -201,7 +201,7 @@ TEST(WafTest, RunWithTimeout)
         // will cause the duration to be non-zero
         EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
         EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         std::string rasp = "lfi";
         EXPECT_THROW(ctx->call(pv, e, {.rasp_rule = rasp}), timeout_error);
@@ -222,7 +222,7 @@ TEST(WafTest, ValidRunGood)
         auto p = parameter::map();
         p.add("arg1", parameter::string("string 1"sv));
 
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         ctx->call(pv, e, {}); // default to rasp=false
 
@@ -250,7 +250,7 @@ TEST(WafTest, ValidRunGood)
         auto p = parameter::map();
         p.add("arg1", parameter::string("string 1"sv));
 
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         std::string rasp = "lfi";
         ctx->call(pv, e, {.rasp_rule = rasp});
@@ -307,7 +307,7 @@ TEST(WafTest, ValidRunMonitor)
     p.add("arg1", parameter::string("string 1"sv));
     p.add("arg2", parameter::string("string 3"sv));
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     dds::event e;
     ctx->call(pv, e, {});
 
@@ -348,7 +348,7 @@ TEST(WafTest, ValidRunMonitorObfuscated)
     p.add("arg1", std::move(sub_p));
     p.add("arg2", parameter::string("string 3"sv));
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     dds::event e;
     ctx->call(pv, e, {});
 
@@ -382,7 +382,7 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
     sub_p.add("password", parameter::string("acunetix-product"sv));
     p.add("server.request.headers.no_cookies", std::move(sub_p));
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     dds::event e;
     ctx->call(pv, e, {});
 
@@ -416,7 +416,7 @@ TEST(WafTest, UpdateRuleData)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         ctx->call(pv, e, {});
     }
@@ -439,7 +439,7 @@ TEST(WafTest, UpdateRuleData)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         ctx->call(pv, e, {});
 
@@ -473,7 +473,7 @@ TEST(WafTest, UpdateInvalid)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         ctx->call(pv, e, {});
     }
@@ -504,7 +504,7 @@ TEST(WafTest, SchemasAreAdded)
     p.add("arg1", std::move(sub_p));
     p.add("arg2", parameter::string("string 3"sv));
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     dds::event e;
     ctx->call(pv, e, {});
 
@@ -543,7 +543,7 @@ TEST(WafTest, FingerprintAreNotAdded)
 
     auto p = parameter::map();
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     dds::event e;
     ctx->call(pv, e, {});
 
@@ -586,7 +586,7 @@ TEST(WafTest, FingerprintAreAdded)
     p.add("usr.session_id", parameter::string("asdfds"sv));
     p.add("usr.id", parameter::string("asdfds"sv));
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     dds::event e;
     ctx->call(pv, e, {});
 
@@ -610,7 +610,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
 
     auto p = parameter::map();
     p.add("http.client_ip", parameter::string("192.168.1.1"sv));
-    parameter_view pv(p);
+    parameter_view pv{*&p};
 
     { // Standard actions types with custom parameters
         std::string rules_with_actions =
@@ -778,14 +778,14 @@ TEST(WafTest, TelemetryIsSent)
             parameter::string("http://169.254.169.254?something=here"sv));
         p.add("server.request.body",
             parameter::string("http://169.254.169.254?something=here"sv));
-        parameter_view pv(p);
+        parameter_view pv{*&p};
         dds::event e;
         std::string rasp = "ssrf";
         ctx->call(pv, e, {.rasp_rule = rasp});
 
         // Now rasp call without match
         auto p2 = parameter::map();
-        parameter_view pv2(p2);
+        parameter_view pv2{*&p2};
         ctx->call(pv2, e, {.rasp_rule = rasp});
 
         // Now lfi with match
@@ -794,13 +794,13 @@ TEST(WafTest, TelemetryIsSent)
         auto query = parameter::map();
         query.add("query", parameter::string("../somefile"sv));
         p3.add("server.request.query", std::move(query));
-        parameter_view pv3(p3);
+        parameter_view pv3{*&p3};
         ctx->call(pv3, e, {.rasp_rule = "lfi"});
 
-        parameter_view pv4;
+        parameter_view pv4{ddwaf_object{}};
         EXPECT_THROW(ctx->call(pv4, e, {.rasp_rule = "lfi"}), invalid_object);
 
-        parameter_view pv5;
+        parameter_view pv5{ddwaf_object{}};
         EXPECT_THROW(ctx->call(pv5, e, {.rasp_rule = "lfi"}), invalid_object);
 
         EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
@@ -880,7 +880,7 @@ TEST(WafTest, TelemetryTimeoutMetric)
     // will cause the duration to be non-zero
     EXPECT_CALL(submitm, submit_span_metric(metrics::waf_duration, _));
     EXPECT_CALL(submitm, submit_span_metric(metrics::rasp_duration, _));
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     dds::event e;
     std::string rasp = "lfi";
     EXPECT_THROW(ctx->call(pv, e, {.rasp_rule = rasp}), timeout_error);
@@ -928,7 +928,7 @@ TEST(WafTest, TraceAttributesAreSent)
     auto headers = parameter::map();
     headers.add("user-agent", parameter::string("some-agent"sv));
     p.add("server.request.headers.no_cookies", std::move(headers));
-    parameter_view pv(p);
+    parameter_view pv{*&p};
 
     {
         std::shared_ptr<subscriber> wi{

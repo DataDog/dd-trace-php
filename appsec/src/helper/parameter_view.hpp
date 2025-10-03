@@ -6,92 +6,140 @@
 
 #pragma once
 
-#include <limits>
+#include <concepts>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
-#include <vector>
 
 #include "exception.hpp"
-#include "parameter.hpp"
 #include "parameter_base.hpp"
 
 namespace dds {
 
-class parameter_view : public parameter_base {
+class __attribute__((__may_alias__)) parameter_view : public parameter_base {
+
 public:
     using map = std::unordered_map<std::string_view, parameter_view>;
 
-    class iterator {
-    public:
-        explicit iterator(const parameter_view &pv, size_t index = 0)
-            : current_(
-                  pv.array + (index < pv.nbEntries ? index : pv.nbEntries)),
-              end_(pv.array + pv.nbEntries)
+    template <typename T>
+        requires std::convertible_to<T, ddwaf_object>
+    // NOLINTNEXTLINE
+    parameter_view(const T &arg)
+        : parameter_base{static_cast<ddwaf_object>(arg)}
+    {}
+    parameter_view(const parameter_view &) = default;
+    parameter_view &operator=(const parameter_view &) = default;
+    parameter_view(parameter_view &&) = default;
+    parameter_view &operator=(parameter_view &&) = default;
+    ~parameter_view() = default;
+
+    template <bool is_map> struct iterator {
+        using value_type = std::conditional_t<is_map,
+            std::pair<std::string_view, parameter_view>, parameter_view>;
+
+        using difference_type = std::ptrdiff_t;
+        using pointer = value_type *;
+        using reference = value_type &;
+        using iterator_category = std::forward_iterator_tag;
+
+        // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+        explicit iterator(ddwaf_object obj, size_t index = 0, size_t total = 0)
+            : obj_{obj}, index_(index), total_(total)
         {}
 
         bool operator!=(const iterator &rhs) const noexcept
         {
-            return current_ != rhs.current_;
+            return index_ != rhs.index_;
         }
 
-        const parameter_view &operator*() const noexcept
+        value_type operator*() const noexcept
         {
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
-            return static_cast<const parameter_view &>(*current_);
+            // Get the value at current index
+            const ddwaf_object *val = ddwaf_object_at_value(&obj_, index_);
+
+            if constexpr (is_map) {
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+                const auto *key = reinterpret_cast<const parameter_view *>(
+                    ddwaf_object_at_key(&obj_, index_));
+
+                if (!key->is_string()) {
+                    return {std::string_view{}, parameter_view{*val}};
+                }
+                auto key_str = static_cast<std::string_view>(*key);
+                return {key_str, parameter_view{*val}};
+            } else {
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+                return *val;
+            }
         }
 
         iterator &operator++() noexcept
         {
-            if (current_ != end_) {
-                current_++;
+            if (index_ < total_) {
+                index_++;
             }
             return *this;
         }
 
     protected:
-        const ddwaf_object *current_{nullptr};
-        const ddwaf_object *end_{nullptr};
+        ddwaf_object obj_;
+        size_t index_{0};
+        size_t total_{0};
     };
 
-    parameter_view() = default;
-    explicit parameter_view(const ddwaf_object &arg)
-    {
-        *(static_cast<ddwaf_object *>(this)) = arg;
-    }
-
-    explicit parameter_view(const parameter &arg)
-    {
-        *(static_cast<ddwaf_object *>(this)) =
-            static_cast<const ddwaf_object &>(arg);
-    }
-
-    parameter_view(const parameter_view &) = default;
-    parameter_view &operator=(const parameter_view &) = default;
-
-    parameter_view(parameter_view &&) = delete;
-    parameter_view operator=(parameter_view &&) = delete;
-
-    ~parameter_view() = default;
-
-    [[nodiscard]] iterator begin() const
-    {
-        if (!is_container()) {
-            throw invalid_type("parameter not a container");
+    class array_iterable_t {
+    public:
+        explicit array_iterable_t(const parameter_view &obj) : obj_{obj}
+        {
+            if (!obj_.is_array()) {
+                throw invalid_type("parameter not an array");
+            }
         }
-        return iterator(*this);
-    }
-    [[nodiscard]] iterator end() const
-    {
-        if (!is_container()) {
-            throw invalid_type("parameter not a container");
+        [[nodiscard]] iterator<false> begin() const
+        {
+            return iterator<false>(*&obj_, 0, obj_.size());
         }
-        return iterator(*this, size());
+        [[nodiscard]] iterator<false> end() const
+        {
+            return iterator<false>(*&obj_, obj_.size(), obj_.size());
+        }
+
+    private:
+        const parameter_view &obj_; // NOLINT
+    };
+    [[nodiscard]] class array_iterable_t array_iterable() const
+    {
+        return array_iterable_t{*this};
     }
 
-    parameter_view &operator[](size_t index) const
+    class map_iterable_t {
+    public:
+        explicit map_iterable_t(const parameter_view &obj) : obj_{obj}
+        {
+            if (!obj_.is_map()) {
+                throw invalid_type("parameter not a map");
+            }
+        }
+        [[nodiscard]] iterator<true> begin() const
+        {
+            return iterator<true>(*&obj_, 0, obj_.size());
+        }
+        [[nodiscard]] iterator<true> end() const
+        {
+            return iterator<true>(*&obj_, obj_.size(), obj_.size());
+        }
+
+    private:
+        const parameter_view &obj_; // NOLINT
+    };
+
+    [[nodiscard]] class map_iterable_t map_iterable() const
+    {
+        return map_iterable_t{*this};
+    }
+
+    const parameter_view &operator[](size_t index) const
     {
         if (!is_container()) {
             throw invalid_type("parameter not a container");
@@ -102,33 +150,48 @@ public:
                                     ") out of range(" + std::to_string(size()) +
                                     ")");
         }
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
-        return static_cast<parameter_view &>(ddwaf_object::array[index]);
+
+        const ddwaf_object *val = ddwaf_object_at_value(&obj_, index);
+        if (val == nullptr) {
+            throw std::out_of_range("failed to get object at index");
+        }
+        // This is unsafe but matches the original API
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        return *reinterpret_cast<const parameter_view *>(val);
     }
 
     explicit operator map() const
     {
-        if (ddwaf_object::type != DDWAF_OBJ_MAP) {
+        if (!is_map()) {
             throw bad_cast("parameter_view not a map");
         }
 
-        if (array == nullptr || nbEntries == 0) {
-            return {};
+        std::unordered_map<std::string_view, parameter_view> result;
+        size_t sz = size();
+        if (sz == 0) {
+            return result;
         }
 
-        std::unordered_map<std::string_view, parameter_view> map;
-        map.reserve(nbEntries);
-        for (unsigned i = 0; i < nbEntries; i++) {
-            const auto &kv = array[i];
-            if (kv.parameterName == nullptr) {
+        result.reserve(sz);
+        for (size_t i = 0; i < sz; i++) {
+            const ddwaf_object *key_obj = ddwaf_object_at_key(&obj_, i);
+            const ddwaf_object *val_obj = ddwaf_object_at_value(&obj_, i);
+
+            if (key_obj == nullptr || val_obj == nullptr) {
+                continue;
+            }
+
+            size_t key_len;
+            const char *key_str = ddwaf_object_get_string(key_obj, &key_len);
+            if (key_str == nullptr) {
                 throw bad_cast("invalid key in map entry");
             }
 
-            map.emplace(
-                std::string_view(kv.parameterName, kv.parameterNameLength), kv);
+            result.emplace(
+                std::string_view(key_str, key_len), parameter_view{*val_obj});
         }
 
-        return map;
+        return result;
     }
 };
 
