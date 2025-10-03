@@ -104,7 +104,10 @@ TEST(EngineTest, MultipleSubscriptors)
             [](dds::parameter_view &data, dds::event &event_,
                 const dds::network::request_exec_options &options) -> void {
                 std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
-                if (subs.find(data[0].parameterName) != subs.end()) {
+                auto map_it = data.map_iterable();
+                auto it = map_it.begin();
+                if (it != map_it.end() &&
+                    subs.find((*it).first) != subs.end()) {
                     event_.triggers.push_back("some event");
                     event_.actions.push_back({dds::action_type::block, {}});
                 }
@@ -116,7 +119,10 @@ TEST(EngineTest, MultipleSubscriptors)
             [](dds::parameter_view &data, dds::event &event_,
                 const dds::network::request_exec_options &options) -> void {
                 std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
-                if (subs.find(data[0].parameterName) != subs.end()) {
+                auto map_it = data.map_iterable();
+                auto it = map_it.begin();
+                if (it != map_it.end() &&
+                    subs.find((*it).first) != subs.end()) {
                     event_.triggers.push_back("some event");
                 }
             }));
