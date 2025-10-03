@@ -69,7 +69,7 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
         );
 
         // Verify server.type is normalized (lowercase, only allowed chars)
-        $this->assertMatchesRegularExpression(
+        $this->assertRegularExpression(
             '/^[a-z0-9\/_.-]+$/',
             $tags['server.type'],
             'server.type should be normalized'
