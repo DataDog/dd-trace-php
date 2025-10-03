@@ -141,6 +141,28 @@ else
       cd $(php-config --extension-dir);
       mv xdebug.so xdebug$VERSION.so;
     done
+  else
+    cd /tmp
+
+    # memcached master version
+    git clone https://github.com/php-memcached-dev/php-memcached.git
+    cd php-memcached
+    phpize && ./configure && make -j"$(nproc)" && make install && echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+    cd ..
+
+    # memcache master version
+    git clone https://github.com/websupport-sk/pecl-memcache.git
+    cd pecl-memcache
+    phpize && ./configure && make -j"$(nproc)" && make install && echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
+    cd ..
+
+    pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
+
+    # Xdebug master version (disabled by default)
+    git clone https://github.com/xdebug/xdebug.git
+    cd xdebug
+    phpize && ./configure && make -j"$(nproc)" && make install;
+    cd ..
   fi
   pecl install rdkafka; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
   pecl install sqlsrv$SQLSRV_VERSION;
@@ -194,8 +216,14 @@ else
         ln -s $EXTENSION_DIR/redis.so $EXTENSION_DIR/redis-5.3.7.so
     fi
   fi
-  if [[ $PHP_VERSION_ID -ge 84 && $PHP_VERSION_ID -lt 85 ]]; then
-    pecl install redis-6.1.0
+  if [[ $PHP_VERSION_ID -ge 84 ]]; then
+    if [[ $PHP_VERSION_ID -ge 85 ]]; then
+      git clone https://github.com/phpredis/phpredis.git
+      cd phpredis
+      phpize && ./configure && make -j"$(nproc)" && make install
+    else
+      pecl install redis-6.1.0
+    fi
   fi
 
 fi
