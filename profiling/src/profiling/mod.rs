@@ -17,10 +17,13 @@ use crate::bindings::ddog_php_prof_get_active_fiber;
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
+use crate::bindings::{
+    self as zend, datadog_php_profiling_get_profiling_context, zend_execute_data,
+};
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
-use crate::{Clocks, CLOCKS, TAGS};
+use crate::profiling::dictionary::PhpProfilesDictionary;
+use crate::{timeline, Clocks, CLOCKS, TAGS};
 use arrayvec::ArrayVec;
 use chrono::Utc;
 use core::mem::forget;
@@ -129,7 +132,7 @@ pub struct SampleData {
 /// that the function ids and their associated strings belong to.
 pub struct CallStack {
     pub frames: Vec<ZendFrame>,
-    pub dictionary: DdArc<ProfilesDictionary>,
+    pub dictionary: DdArc<PhpProfilesDictionary>,
 }
 
 impl CallStack {
@@ -213,7 +216,7 @@ pub enum PhpUpscalingRule {
 }
 
 struct AggregatedProfile {
-    dict: DdArc<ProfilesDictionary>,
+    dict: DdArc<PhpProfilesDictionary>,
     scratch: ScratchPad,
 
     // The length of the array corresponds to the profile types, enabled or
@@ -257,7 +260,7 @@ impl TimeCollector {
                 warn!("Invalid interval for profile: {err}");
             }
 
-            let mut builder = PprofBuilder::new(&aggregated.dict, &aggregated.scratch);
+            let mut builder = PprofBuilder::new(aggregated.dict.dictionary(), &aggregated.scratch);
             builder
                 .with_options(PprofOptions::default())
                 .expect("todo fix this expect");
@@ -319,7 +322,9 @@ impl TimeCollector {
         wall_export
     }
 
-    fn create_profile(dict: &DdArc<ProfilesDictionary>) -> Result<AggregatedProfile, ProfileError> {
+    fn create_profile(
+        dict: &DdArc<PhpProfilesDictionary>,
+    ) -> Result<AggregatedProfile, ProfileError> {
         Ok(AggregatedProfile {
             dict: dict.try_clone()?,
             scratch: ScratchPad::try_new()?,
@@ -434,7 +439,7 @@ impl TimeCollector {
                 let src = sample_value.sample_types();
                 let mut dst = ArrayVec::new();
                 for value_type in src {
-                    let strings = aggregated_profile.dict.strings();
+                    let strings = aggregated_profile.dict.dictionary().strings();
                     let vt = datadog_profiling::profiles::datatypes::ValueType {
                         type_id: strings.try_insert(value_type.r#type).unwrap(),
                         unit_id: strings.try_insert(value_type.unit).unwrap(),
@@ -476,6 +481,7 @@ impl TimeCollector {
             for label in labels {
                 let key_id = aggregated_profile
                     .dict
+                    .dictionary()
                     .strings()
                     .try_insert(label.key)
                     .expect("label key deduplication failed");
@@ -1060,7 +1066,6 @@ impl Profiler {
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
-        // todo: put back [eval] with its file name.
         let dict = match dictionary::try_clone_tls_or_global() {
             Ok(d) => d,
             Err(err) => {
@@ -1068,7 +1073,11 @@ impl Profiler {
                 return;
             }
         };
-        let eval_fid = match synth_function_id(&dict, "[eval]", Some(filename.as_str())) {
+        let eval_fid = match synth_function_id(
+            dict.dictionary(),
+            dict.known_strs().eval,
+            Some(filename.as_str()),
+        ) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [eval] frame: {err}");
@@ -1107,7 +1116,7 @@ impl Profiler {
         now: i64,
         duration: i64,
         filename: String,
-        include_type: &str,
+        include_type: i32,
     ) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
@@ -1118,21 +1127,20 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        let dict = match dictionary::try_clone_tls_or_global() {
+        let dictionary = match dictionary::try_clone_tls_or_global() {
             Ok(d) => d,
             Err(err) => {
                 warn!("Failed to clone dictionary: {err}");
                 return;
             }
         };
-        let name = format!("[{include_type}]");
-        let include_fid = match synth_function_id(&dict, &name, None) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                warn!("Failed to build [{include_type}] frame: {err}");
-                None
-            }
+        let known_funcs = dictionary.known_funcs();
+        let func = match include_type as u32 {
+            zend::ZEND_INCLUDE => known_funcs.include,
+            zend::ZEND_REQUIRE => known_funcs.require,
+            _ => known_funcs.truncated, // not really but this case shouldn't happen
         };
+        let include_fid = Some(func);
         let sample = SampleValue::Timeline {
             nanoseconds: duration,
         };
@@ -1142,7 +1150,7 @@ impl Profiler {
                     function_id: include_fid,
                     line: 0,
                 }],
-                dictionary: dict,
+                dictionary,
             },
             sample,
             labels,
@@ -1162,12 +1170,13 @@ impl Profiler {
     /// This function will collect a thread start or stop timeline event
     #[cfg(php_zts)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
+    pub fn collect_thread_start_end(&self, now: i64, state: timeline::State) {
+        let event = state.as_str();
         let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
             key: "event",
-            value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
+            value: LabelValue::Str(Cow::Borrowed(event)),
         });
 
         let n_labels = labels.len();
@@ -1179,14 +1188,13 @@ impl Profiler {
                 return;
             }
         };
-        let thread_name = format!("[{event}]");
-        let thread_fid = match synth_function_id(&*dict, &thread_name, None) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                warn!("Failed to build [{event}] frame: {err}");
-                None
-            }
-        };
+        let known_funcs = dict.known_funcs();
+        let thread_fid = Some(match state {
+            State::ThreadStart => known_funcs.thread_start,
+            State::ThreadStop => known_funcs.thread_stop,
+            // SAFETY: we only pass in ThreadStart or ThreadEnd to this fn
+            _ => unsafe { std::hint::unreachable_unchecked() },
+        });
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
@@ -1224,7 +1232,6 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        // todo:  "[fatal]".into(),
         let dict = match dictionary::try_clone_tls_or_global() {
             Ok(d) => d,
             Err(err) => {
@@ -1232,7 +1239,11 @@ impl Profiler {
                 return;
             }
         };
-        let fatal_fid = match synth_function_id(&dict, "[fatal]", Some(file.as_str())) {
+        let fatal_fid = match synth_function_id(
+            dict.dictionary(),
+            dict.known_strs().fatal,
+            Some(file.as_str()),
+        ) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [fatal] frame: {err}");
@@ -1286,7 +1297,6 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        // todo: "[opcache restart]".into() with file
         let dict = match dictionary::try_clone_tls_or_global() {
             Ok(d) => d,
             Err(err) => {
@@ -1294,7 +1304,11 @@ impl Profiler {
                 return;
             }
         };
-        let opcache_fid = match synth_function_id(&dict, "[opcache restart]", Some(file.as_str())) {
+        let opcache_fid = match synth_function_id(
+            dict.dictionary(),
+            dict.known_strs().opcache_restart,
+            Some(file.as_str()),
+        ) {
             Ok(id) => Some(id),
             Err(err) => {
                 warn!("Failed to build [opcache restart] frame: {err}");
@@ -1327,7 +1341,8 @@ impl Profiler {
 
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
+    pub fn collect_idle(&self, now: i64, duration: i64, state: timeline::State) {
+        let reason = state.as_str();
         let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
@@ -1337,7 +1352,6 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        // todo: "[idle]".into(),
         let dict = match dictionary::try_clone_tls_or_global() {
             Ok(d) => d,
             Err(err) => {
@@ -1345,13 +1359,7 @@ impl Profiler {
                 return;
             }
         };
-        let idle_fid = match synth_function_id(&dict, "[idle]", None) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                warn!("Failed to build [idle] frame: {err}");
-                None
-            }
-        };
+        let idle_fid = Some(dict.known_funcs().idle);
         let sample = SampleValue::Timeline {
             nanoseconds: duration,
         };
@@ -1387,7 +1395,6 @@ impl Profiler {
         collected: i64,
         #[cfg(php_gc_status)] runs: i64,
     ) {
-        // todo: "[gc]".into()
         let dict = match dictionary::try_clone_tls_or_global() {
             Ok(d) => d,
             Err(err) => {
@@ -1417,20 +1424,13 @@ impl Profiler {
             value: LabelValue::Num(collected, "count"),
         });
         let n_labels = labels.len();
-        let gc_fid = match synth_function_id(&dict, "[gc]", None) {
-            Ok(id) => Some(id),
-            Err(err) => {
-                warn!("Failed to build [gc] frame: {err}");
-                None
-            }
-        };
         let sample = SampleValue::Timeline {
             nanoseconds: duration,
         };
         match self.prepare_and_send_message(
             CallStack {
                 frames: vec![ZendFrame {
-                    function_id: gc_fid,
+                    function_id: Some(dict.known_funcs().gc),
                     line: 0,
                 }],
                 dictionary: dict,
@@ -1645,12 +1645,12 @@ pub struct JoinError {
 #[inline]
 fn synth_function_id(
     dict: &ProfilesDictionary,
-    fname: &str,
+    name: StringId,
     file: Option<&str>,
 ) -> Result<FunctionId, ProfileError> {
     let strings = dict.strings();
     let function = Function {
-        name: strings.try_insert(fname)?,
+        name,
         system_name: StringId::EMPTY,
         file_name: match file {
             Some(f) if !f.is_empty() => strings.try_insert(f)?,
@@ -1673,18 +1673,20 @@ mod tests {
     #[allow(dead_code)] // todo: fix tests
     fn get_frames() -> CallStack {
         let dictionary = {
-            let dict = ProfilesDictionary::try_new().unwrap();
+            let dict = PhpProfilesDictionary::try_new().unwrap();
             DdArc::try_new(dict).unwrap()
         };
-        let foobar = dictionary.strings().try_insert("foobar").unwrap();
-        let foobar_php = dictionary.strings().try_insert("foobar.php").unwrap();
+        let strings = dictionary.dictionary().strings();
+        let foobar = strings.try_insert("foobar").unwrap();
+        let foobar_php = strings.try_insert("foobar.php").unwrap();
 
+        let functions = dictionary.dictionary().functions();
         let function = Function {
             name: foobar,
             system_name: StringId::EMPTY,
             file_name: foobar_php,
         };
-        let function_id = dictionary.functions().try_insert(function).unwrap();
+        let function_id = functions.try_insert(function).unwrap();
 
         CallStack {
             frames: vec![ZendFrame {

@@ -270,7 +270,9 @@ mod detail {
                                 let func = unsafe {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
-                                if let Some(frame) = build_frame(func, execute_data, &dict)? {
+                                if let Some(frame) =
+                                    build_frame(func, execute_data, dict.dictionary())?
+                                {
                                     samples.try_push(frame)?;
                                 }
                             }
@@ -279,7 +281,7 @@ mod detail {
                     }
                 }
 
-                let maybe_frame = unsafe { collect_call_frame(execute_data, &dict) }?;
+                let maybe_frame = unsafe { collect_call_frame(execute_data, dict.dictionary()) }?;
                 if let Some(frame) = maybe_frame {
                     samples.try_push(frame)?;
 
@@ -288,9 +290,8 @@ mod detail {
                     // subtracting one, then the [truncated] message itself
                     // would be truncated!
                     if samples.len() == max_depth - 1 {
-                        let trunc = dictionary::truncated_function(&dict)?;
                         samples.try_push(ZendFrame {
-                            function_id: Some(trunc),
+                            function_id: Some(dict.known_funcs().truncated),
                             line: 0,
                         })?;
                         break;

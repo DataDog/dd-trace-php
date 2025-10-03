@@ -40,7 +40,7 @@ thread_local! {
     static IS_NEW_THREAD: Cell<bool> = const { Cell::new(false) };
 }
 
-enum State {
+pub enum State {
     Idle,
     Sleeping,
     Select,
@@ -51,7 +51,7 @@ enum State {
 }
 
 impl State {
-    fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &'static str {
         match self {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
@@ -154,7 +154,7 @@ fn sleeping_fn(
         // Safety: `unwrap` can be unchecked, as we checked for `is_err()`
         let now = unsafe { now.unwrap_unchecked().as_nanos() } as i64;
         let duration = duration.as_nanos() as i64;
-        profiler.collect_idle(now, duration, state.as_str());
+        profiler.collect_idle(now, duration, state);
     }
 }
 
@@ -451,7 +451,7 @@ unsafe fn timeline_idle_stop() {
                     .unwrap()
                     .as_nanos() as i64,
                 idle_since.elapsed().as_nanos() as i64,
-                State::Idle.as_str(),
+                State::Idle,
             );
         }
     });
@@ -492,7 +492,7 @@ pub unsafe fn timeline_rinit() {
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
                     .as_nanos() as i64,
-                State::ThreadStart.as_str(),
+                State::ThreadStart,
             );
         }
     });
@@ -561,7 +561,7 @@ pub(crate) fn timeline_gshutdown() {
         profiler.collect_thread_start_end(
             // Safety: checked for `is_err()` above
             now,
-            State::ThreadStop.as_str(),
+            State::ThreadStop,
         );
     }
 }
@@ -679,7 +679,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
                 now.unwrap().as_nanos() as i64,
                 duration.as_nanos() as i64,
                 filename,
-                include_type,
+                r#type,
             );
         }
         return op_array;
