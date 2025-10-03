@@ -4,32 +4,17 @@
 #include <stdbool.h>
 #include <php.h>
 
-/**
- * Initialize process tags collection. 
- * Should be called once during MINIT phase.
- */
-void ddtrace_process_tags_minit(void);
+// Called at first RINIT to collect process tags
+void ddtrace_process_tags_first_rinit(void);
 
-/**
- * Shutdown process tags.
- * Should be called during MSHUTDOWN phase.
- */
+// Called at MSHUTDOWN to free resources
 void ddtrace_process_tags_mshutdown(void);
 
-/**
- * Check if process tags propagation is enabled.
- * 
- * @return true if DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED is true
- */
+// Check if process tags propagation is enabled
 bool ddtrace_process_tags_enabled(void);
 
-/**
- * Get the serialized process tags as a comma-separated string.
- * Format: key1:value1,key2:value2,...
- * Keys are sorted alphabetically.
- * 
- * @return zend_string* containing serialized tags, or NULL if disabled or empty
- */
+// Get the serialized process tags (comma-separated, sorted)
+// Returns NULL if disabled or not yet collected
 zend_string *ddtrace_process_tags_get_serialized(void);
 
 #endif  // DD_PROCESS_TAGS_H

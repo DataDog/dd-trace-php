@@ -1546,7 +1546,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_live_debugger_minit();
     ddtrace_minit_remote_config();
     ddtrace_trace_source_minit();
-    ddtrace_process_tags_minit();
 
 #ifndef _WIN32
     ddtrace_signals_minit();
@@ -1630,6 +1629,9 @@ static void dd_rinit_once(void) {
      * TODO Audit/remove config usages before RINIT and move config init to RINIT.
      */
     ddtrace_startup_logging_first_rinit();
+
+    // Collect process tags now that script path is available
+    ddtrace_process_tags_first_rinit();
 
     // Uses config, cannot run earlier
 #ifndef _WIN32
