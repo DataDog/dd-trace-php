@@ -117,6 +117,7 @@ pub fn alloc_prof_first_rinit() {
         });
 
     if !allocation_enabled {
+        debug!("Allocation profiling is disabled.");
         return;
     }
 
