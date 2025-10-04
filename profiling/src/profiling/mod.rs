@@ -106,6 +106,10 @@ impl ValueType {
     }
 }
 
+// TODO: we have an issue where something like an Exception profile may say
+//      it's disabled just because there were no values. We need to pass the
+//      enabled profile types after all (we used to do this, it was mistakenly
+//      dropped when porting to the new API).
 /// A ProfileIndex contains the fields that factor into the uniqueness of a
 /// profile when we aggregate it. It's mostly based on the upload protocols,
 /// because we cannot mix profiles belonging to different services into the
