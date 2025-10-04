@@ -38,7 +38,7 @@ use datadog_profiling::profiles::datatypes::{
 use datadog_profiling::profiles::pprof_builder::{PprofBuilder, PprofOptions};
 use datadog_profiling::profiles::{PoissonUpscalingRule, ProfileError};
 use ddcommon::error::FfiSafeErrorMessage;
-use log::{debug, info, trace, warn};
+use log::{debug, info, log_enabled, trace, warn, Level};
 use once_cell::sync::OnceCell;
 use rustc_hash::FxHasher;
 use std::borrow::Cow;
@@ -258,6 +258,30 @@ impl TimeCollector {
             // interval share the same timing information.
             if let Err(err) = aggregated.scratch.set_end_time(end_time) {
                 warn!("Invalid interval for profile: {err}");
+            }
+
+            if log_enabled!(Level::Debug) {
+                let n_profiles = aggregated
+                    .profiles
+                    .iter()
+                    .map(|p| p.is_some() as usize)
+                    .sum();
+                let mut profiles = Vec::with_capacity(n_profiles);
+                profiles.extend(aggregated.profiles.iter().enumerate().filter_map(
+                    |(index, profile)| {
+                        if profile.is_some() {
+                            Some(unsafe {
+                                core::mem::transmute::<u8, SampleDiscriminant>(index as u8)
+                            })
+                        } else {
+                            None
+                        }
+                    },
+                ));
+                debug!(
+                    "Profile types with values for this upload: {:?}",
+                    profiles.as_slice()
+                );
             }
 
             let mut builder = PprofBuilder::new(aggregated.dict.dictionary(), &aggregated.scratch);
