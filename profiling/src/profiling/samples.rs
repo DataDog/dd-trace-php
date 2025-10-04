@@ -440,9 +440,11 @@ impl SampleDiscriminant {
             SampleDiscriminant::Alloc => {
                 let sampling_distance = NonZeroU64::new(intervals.alloc.load(Ordering::SeqCst));
                 sampling_distance.map(|sampling_distance| {
+                    // One day we can make this less brittle with
+                    // offset_of_enum, but it's not stable yet.
                     PhpUpscalingRule::Poisson(PoissonUpscalingRule {
-                        sum_offset: 0,
-                        count_offset: 1,
+                        sum_offset: 1,
+                        count_offset: 0,
                         sampling_distance,
                     })
                 })
