@@ -1629,6 +1629,7 @@ impl Profiler {
                 },
             })
         } else {
+            debug!("tried to send {sample:?} but that profile type isn't enabled");
             None
         }
     }
