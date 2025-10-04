@@ -40,6 +40,9 @@ fi
 cd profiling
 CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
 echo "${CARGO_TARGET_DIR}"
+# TODO(temporary): revert debug info back to line-tables-only once investigation is done
+# Force full debug info for better debugging on CI builds
+sed -i.bak 's/^debug = "line-tables-only"/debug = "full"/' Cargo.toml || true
 if [ "$thread_safety" = "zts" ]; then
     touch build.rs  # Ensure build.rs executes after switch-php for ZTS
 fi

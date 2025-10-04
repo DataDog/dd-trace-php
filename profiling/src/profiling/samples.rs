@@ -228,7 +228,7 @@ impl EnabledProfiles {
 
 const SAMPLE_TYPE_WALL_TIME: ProfileType = ProfileType::from([
     ValueType {
-        r#type: "sample", // todo: rename "wall-time-sample"
+        r#type: "sample", // todo: rename "wall-sample"
         unit: "count",
     },
     ValueType {
