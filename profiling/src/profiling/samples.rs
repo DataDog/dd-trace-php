@@ -371,7 +371,9 @@ impl SampleValue {
         let tuple = &RestructuredSample::from(self).value;
         let ptr = tuple as *const (_, _) as *const i64;
         let n = self.sample_types().len();
-        // SAFETY: todo
+        // SAFETY: &(i64, MaybeUninit<i64>) is layout compatible with &[i64]
+        // provided that the length of the slice is either 1 or 2, and lengths
+        // of 2 are only used when the MaybeUninit is actually initialized.
         unsafe { slice::from_raw_parts(ptr, n) }
     }
 }
