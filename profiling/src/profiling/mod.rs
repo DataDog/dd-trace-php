@@ -867,6 +867,8 @@ impl Profiler {
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
+    #[inline(never)]
+    #[export_name = "ddog_php_prof_collect_time"]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
@@ -958,6 +960,8 @@ impl Profiler {
 
     /// Collect a stack sample with memory allocations.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
+    #[inline(never)]
+    #[export_name = "ddog_php_prof_collect_alloc"]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -997,6 +1001,8 @@ impl Profiler {
 
     /// Collect a stack sample with exception.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
+    #[inline(never)]
+    #[export_name = "ddog_php_prof_collect_exception"]
     pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
