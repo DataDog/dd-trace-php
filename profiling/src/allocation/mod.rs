@@ -2,7 +2,7 @@ use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
 use libc::size_t;
-use log::{debug, error, trace};
+use log::{debug, error, info};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::RefCell;
@@ -117,16 +117,12 @@ pub fn alloc_prof_first_rinit() {
         });
 
     if !allocation_enabled {
-        debug!("Allocation profiling is disabled.");
+        info!("Memory allocation profiling is disabled.");
         return;
     }
 
     ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
-
-    trace!(
-        "Memory allocation profiling initialized with a sampling distance of {} bytes.",
-        ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst)
-    );
+    info!("Memory allocation profiling initialized with a sampling distance of {sampling_distance} bytes.");
 }
 
 pub fn alloc_prof_rinit() {
