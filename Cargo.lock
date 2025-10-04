@@ -542,7 +542,7 @@ dependencies = [
 [[package]]
 name = "build_common"
 version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "cbindgen 0.29.0",
  "serde",
@@ -1158,7 +1158,7 @@ dependencies = [
 [[package]]
 name = "datadog-alloc"
 version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "allocator-api2",
  "libc 0.2.173",
@@ -1286,7 +1286,7 @@ dependencies = [
 [[package]]
 name = "datadog-library-config"
 version = "0.0.2"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "anyhow",
  "memfd",
@@ -1313,12 +1313,12 @@ dependencies = [
 [[package]]
 name = "datadog-library-config-ffi"
 version = "0.0.2"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "anyhow",
  "build_common 21.0.0",
  "constcat",
- "datadog-library-config 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=75038aa9)",
+ "datadog-library-config 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=cb19cf48)",
  "ddcommon 21.0.0",
  "ddcommon-ffi 21.0.0",
 ]
@@ -1375,7 +1375,7 @@ dependencies = [
  "criterion",
  "criterion-perf-events",
  "crossbeam-channel",
- "datadog-library-config-ffi 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=75038aa9)",
+ "datadog-library-config-ffi 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=cb19cf48)",
  "datadog-php-profiling",
  "datadog-profiling",
  "ddcommon 21.0.0",
@@ -1400,7 +1400,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling"
 version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "allocator-api2",
  "anyhow",
@@ -1437,7 +1437,7 @@ dependencies = [
 [[package]]
 name = "datadog-profiling-protobuf"
 version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "prost",
 ]
@@ -1655,7 +1655,7 @@ dependencies = [
 [[package]]
 name = "ddcommon"
 version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "anyhow",
  "cc",
@@ -1702,7 +1702,7 @@ dependencies = [
 [[package]]
 name = "ddcommon-ffi"
 version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=75038aa9#75038aa966624ef4dea4a6c305c602786e059d06"
+source = "git+https://github.com/DataDog/libdatadog?rev=cb19cf48#cb19cf48e6636027a79cb4a85767c839cdef1982"
 dependencies = [
  "allocator-api2",
  "anyhow",

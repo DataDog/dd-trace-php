@@ -529,8 +529,13 @@ impl TimeCollector {
                 let ts = UNIX_EPOCH + Duration::from_nanos(nanos);
                 sb.set_timestamp(ts);
             }
-            if let Ok(sample) = sb.build() {
-                profile.add_sample(sample).expect("add_sample failed");
+            match sb.build() {
+                Ok(s) => {
+                    if let Err(err) = profile.add_sample(s) {
+                        warn!("Failed to add sample: {err}");
+                    }
+                }
+                Err(err) => warn!("Failed to build sample: {err}"),
             }
         }
     }
@@ -1629,7 +1634,6 @@ impl Profiler {
                 .try_send(ProfilerMessage::Sample(message))
                 .map_err(Box::new)
         } else {
-            debug!("tried to send {sample:?} but that profile type isn't enabled");
             Ok(())
         }
     }
