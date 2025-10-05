@@ -249,7 +249,7 @@ impl TimeCollector {
         last_export: &WallTime,
     ) -> WallTime {
         // Process pending samples before we upload.
-        Self::process_queue(&self.sample_queue, profiles, &last_export);
+        Self::process_queue(&self.sample_queue, profiles, last_export);
 
         let wall_export = WallTime::now();
         if profiles.is_empty() {
