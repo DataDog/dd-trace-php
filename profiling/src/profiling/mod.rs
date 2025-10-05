@@ -24,6 +24,7 @@ use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
+use crossbeam_queue::ArrayQueue;
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
 };
@@ -32,6 +33,7 @@ use datadog_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
@@ -192,7 +194,7 @@ pub struct LocalRootSpanResourceMessage {
 #[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
-    Sample(SampleMessage),
+    ProcessQueue,
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 
     /// Used to put the helper thread into a barrier for caller so it can fork.
@@ -221,6 +223,7 @@ impl Default for Globals {
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
     interrupt_manager: Arc<InterruptManager>,
+    sample_queue: Arc<ArrayQueue<SampleMessage>>,
     message_sender: Sender<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     time_collector_handle: JoinHandle<()>,
@@ -233,6 +236,7 @@ pub struct Profiler {
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
     interrupt_manager: Arc<InterruptManager>,
+    sample_queue: Arc<ArrayQueue<SampleMessage>>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
@@ -244,6 +248,9 @@ impl TimeCollector {
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
+        // Process pending samples before we upload.
+        Self::process_queue(&self.sample_queue, profiles, &last_export);
+
         let wall_export = WallTime::now();
         if profiles.is_empty() {
             info!("No profiles to upload.");
@@ -492,60 +499,64 @@ impl TimeCollector {
         }
     }
 
-    fn handle_sample_message(
-        message: SampleMessage,
+    #[inline(never)]
+    fn process_queue(
+        sample_queue: &ArrayQueue<SampleMessage>,
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
-        if message.key.sample_types.is_empty() {
-            // profiling disabled, this should not happen!
-            warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
-            return;
-        }
+        while let Some(message) = sample_queue.pop() {
+            if message.key.sample_types.is_empty() {
+                // profiling disabled, this should not happen!
+                warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
+                return;
+            }
 
-        let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
-            value
-        } else {
-            profiles.insert(
-                message.key.clone(),
-                Self::create_profile(&message, started_at.systemtime),
-            );
-            profiles
-                .get_mut(&message.key)
-                .expect("entry to exist; just inserted it")
-        };
-
-        let mut locations = Vec::with_capacity(message.value.frames.len());
-
-        let values = message.value.sample_values;
-        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
-
-        for frame in &message.value.frames {
-            let location = Location {
-                function: Function {
-                    name: frame.function.as_ref(),
-                    system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
-                },
-                line: frame.line as i64,
-                ..Location::default()
+            let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key)
+            {
+                value
+            } else {
+                profiles.insert(
+                    message.key.clone(),
+                    Self::create_profile(&message, started_at.systemtime),
+                );
+                profiles
+                    .get_mut(&message.key)
+                    .expect("entry to exist; just inserted it")
             };
 
-            locations.push(location);
-        }
+            let mut locations = Vec::with_capacity(message.value.frames.len());
 
-        let sample = Sample {
-            locations,
-            values: &values,
-            labels,
-        };
+            let values = message.value.sample_values;
+            let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
-        let timestamp = NonZeroI64::new(message.value.timestamp);
+            for frame in &message.value.frames {
+                let location = Location {
+                    function: Function {
+                        name: frame.function.as_ref(),
+                        system_name: "",
+                        filename: frame.file.as_deref().unwrap_or(""),
+                    },
+                    line: frame.line as i64,
+                    ..Location::default()
+                };
 
-        match profile.try_add_sample(sample, timestamp) {
-            Ok(_id) => {}
-            Err(err) => {
-                warn!("Failed to add sample to the profile: {err}")
+                locations.push(location);
+            }
+
+            let sample = Sample {
+                locations,
+                values: &values,
+                labels,
+            };
+
+            let timestamp = NonZeroI64::new(message.value.timestamp);
+
+            match profile.try_add_sample(sample, timestamp) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add sample to the profile: {err}")
+                }
             }
         }
     }
@@ -563,7 +574,6 @@ impl TimeCollector {
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let never = crossbeam_channel::never();
         let mut running = true;
-
         while running {
             // The crossbeam_channel::select! doesn't have the ability to
             // optionally recv something. Instead, if the tick channel
@@ -582,8 +592,8 @@ impl TimeCollector {
                 recv(self.message_receiver) -> result => {
                     match result {
                         Ok(message) => match message {
-                            ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
+                            ProfilerMessage::ProcessQueue =>
+                                Self::process_queue(&self.sample_queue, &mut profiles, &last_wall_export),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
@@ -615,7 +625,10 @@ impl TimeCollector {
                 },
 
                 recv(timer) -> message => match message {
-                    Ok(_) => self.interrupt_manager.trigger_interrupts(),
+                    Ok(_) => {
+                        self.interrupt_manager.trigger_interrupts();
+                        Self::process_queue(&self.sample_queue, &mut profiles, &last_wall_export)
+                    },
 
                     Err(err) => {
                         warn!("{err}");
@@ -670,11 +683,13 @@ impl Profiler {
     pub fn new(system_settings: &mut SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
+        let sample_queue = Arc::new(ArrayQueue::new(128));
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
+            sample_queue: Arc::clone(&sample_queue),
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
@@ -692,6 +707,7 @@ impl Profiler {
         Profiler {
             fork_barrier,
             interrupt_manager,
+            sample_queue,
             message_sender,
             upload_sender,
             time_collector_handle: thread_utils::spawn(DDPROF_TIME, move || {
@@ -756,15 +772,6 @@ impl Profiler {
     /// Call after a fork, but only on the thread of the parent process that forked.
     pub fn post_fork_parent(&self) {
         self.fork_barrier.wait();
-    }
-
-    pub fn send_sample(
-        &self,
-        message: SampleMessage,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(
@@ -1483,11 +1490,28 @@ impl Profiler {
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
+    ) -> Result<(), &'static str> {
+        // We don't want to wake the other thread too frequently, that's the
+        // whole reason we don't directly send it messages anymore. Keep in
+        // mind that if it wakes up for certain reasons, it will process the
+        // queue already, so this isn't the only pressure to handle it.
+        // todo: reason about a specific frequency here, under both NTS & ZTS
+        thread_local! {
+            static SAMPLES_SENT: Cell<usize> = const { Cell::new(0) };
+        }
+        let samples_sent = SAMPLES_SENT.get();
+        if samples_sent % 16 == 15 {
+            if let Err(err) = self.message_sender.try_send(ProfilerMessage::ProcessQueue) {
+                warn!("Failed to tell the profiler to process the sample queue: {err}");
+            }
+        }
         let message = self.prepare_sample_message(frames, samples, labels, timestamp);
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+        if self.sample_queue.push(message).is_err() {
+            SAMPLES_SENT.set(samples_sent.wrapping_add(1));
+            Err("failed to enqueue sample, queue is full")
+        } else {
+            Ok(())
+        }
     }
 
     fn prepare_sample_message(

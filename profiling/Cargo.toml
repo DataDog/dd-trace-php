@@ -19,6 +19,7 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
+crossbeam-queue = { version = "0.3", default-features = false, features = ["std"]}
 
 # This libdatadog commit is to be compat with tracer for a given lib config
 # crash fix which is not yet on a release.
