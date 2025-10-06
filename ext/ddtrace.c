@@ -2776,48 +2776,105 @@ zend_string *get_env() {
     return get_DD_ENV();
 }
 
+ddog_Method dd_string_to_method(zend_string *method) {
+    if (zend_string_equals_literal(method, "GET")) {
+        return DDOG_METHOD_GET;
+    }
+    if (zend_string_equals_literal(method, "POST")) {
+        return DDOG_METHOD_POST;
+    }
+    if (zend_string_equals_literal(method, "PUT")) {
+        return DDOG_METHOD_PUT;
+    }
+    if (zend_string_equals_literal(method, "DELETE")) {
+        return DDOG_METHOD_DELETE;
+    }
+    if (zend_string_equals_literal(method, "PATCH")) {
+        return DDOG_METHOD_PATCH;
+    }
+    if (zend_string_equals_literal(method, "HEAD")) {
+        return DDOG_METHOD_HEAD;
+    }
+    if (zend_string_equals_literal(method, "OPTIONS")) {
+        return DDOG_METHOD_OPTIONS;
+    }
+    if (zend_string_equals_literal(method, "TRACE")) {
+        return DDOG_METHOD_TRACE;
+    }
+    if (zend_string_equals_literal(method, "CONNECT")) {
+        return DDOG_METHOD_CONNECT;
+    }
+    return DDOG_METHOD_OTHER;
+}
+
 PHP_FUNCTION(DDTrace_add_endpoint) {
     UNUSED(execute_data);
-    zend_string *type = NULL;
     zend_string *path = NULL;
     zend_string *operation_name = NULL;
     zend_string *resource_name = NULL;
+    zend_string *method = NULL;
+    zend_string *type = NULL;
     zend_string *request_body_type = NULL;
     zend_string *response_body_type = NULL;
     zend_long response_code = 0;
     zend_long authentication = 0;
-    zend_string *metadata = NULL;
+    zend_string *metadata_input = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSSSSllS", &type, &path, &operation_name, &resource_name, &request_body_type, &response_body_type,
-                              &response_code, &authentication, &metadata) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSS|SSllS", &path, &operation_name, &resource_name, &method, &type, &request_body_type, &response_body_type,
+                              &response_code, &authentication, &metadata_input) == FAILURE) {
         RETURN_FALSE;
     }
 
+    zend_string *default_metadata = NULL;
+    zend_string *metadata = metadata_input;
+    if (metadata == NULL) {
+        default_metadata = zend_string_init(ZEND_STRL("{}"), 0);
+        metadata = default_metadata;
+    }
+
     ddog_CharSlice type_slice = dd_zend_string_to_CharSlice(type);
-    ddog_Method method_enum = DDOG_METHOD_GET;
+    ddog_Method method_enum = dd_string_to_method(method);
     ddog_CharSlice path_slice = dd_zend_string_to_CharSlice(path);
     ddog_CharSlice operation_name_slice = dd_zend_string_to_CharSlice(operation_name);
     ddog_CharSlice resource_name_slice = dd_zend_string_to_CharSlice(resource_name);
-    struct ddog_Vec_CharSlice *request_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(request_body_type));
-    struct ddog_Vec_CharSlice *response_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(response_body_type));
-    struct ddog_Vec_Authentication *authentication_vec = ddog_number_to_owned_Authentication(authentication);
+    struct ddog_Vec_CharSlice *request_body_type_vec = NULL;
+    if (request_body_type) {
+        request_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(request_body_type));
+    }
+    struct ddog_Vec_CharSlice *response_body_type_vec = NULL;
+    if (response_body_type) {
+        response_body_type_vec = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(response_body_type));
+    }
+    struct ddog_Vec_Authentication *authentication_vec = NULL;
+    if (authentication) {
+        authentication_vec = ddog_number_to_owned_Authentication(authentication);
+    }
 
-    size_t len = ZSTR_LEN(metadata);
-    zend_string *metadata_utf8  = NULL;
     ddog_CharSlice metadata_slice = {0};
-    char *stripped_utf8 = ddtrace_strip_invalid_utf8(ZSTR_VAL(metadata), &len);
-    if (stripped_utf8 != NULL && len > 0) {
-        metadata_utf8 = zend_string_init(stripped_utf8, len, 0);
-        metadata_slice = dd_zend_string_to_CharSlice(metadata_utf8);
+    if (metadata && ZSTR_LEN(metadata) > 0) {
+        size_t len = ZSTR_LEN(metadata);
+        char *stripped_utf8 = ddtrace_strip_invalid_utf8(ZSTR_VAL(metadata), &len);
+        if (stripped_utf8 != NULL && len > 0) {
+            zend_string *metadata_utf8 = zend_string_init(stripped_utf8, len, 0);
+            metadata_slice = dd_zend_string_to_CharSlice(metadata_utf8);
+            ddtrace_drop_rust_string(stripped_utf8, len);
+            // metadata_utf8 will be released by Zend after function returns or at cleanup
+        } else {
+            metadata_slice = dd_zend_string_to_CharSlice(metadata);
+        }
     }
 
     if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
         RETURN_FALSE;
     }
 
-    ddog_sidecar_telemetry_addEndpoint(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum,
+    ddog_sidecar_telemetry_addEndpoint_buffer(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum,
                                        path_slice, operation_name_slice, resource_name_slice, request_body_type_vec, response_body_type_vec,
                                        response_code, authentication_vec, metadata_slice);
+
+    if (!metadata_input) {
+        zend_string_release(default_metadata);
+    }
 
     RETURN_TRUE;
 }
