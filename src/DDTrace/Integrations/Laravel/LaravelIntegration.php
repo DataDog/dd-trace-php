@@ -144,6 +144,16 @@ class LaravelIntegration extends Integration
                 }
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
+                if (!\DDTrace\are_endpoints_collected()) {
+                    $routeCollection = $This->getRoutes();
+                    foreach ($routeCollection as $value) {
+                        $path = $value->uri;
+                        $method = $value->methods[0] ?? '';
+                        $resourceName = $method . ' ' . $path;
+                        \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
+                    }
+                }
             }
         );
 
@@ -565,10 +575,6 @@ class LaravelIntegration extends Integration
                 }
              }
         );
-
-        if (!\DDTrace\are_endpoints_collected()) {
-            \DDTrace\add_endpoint("type", "/api/v1/traces", "operation_name", "resource_name", "body_type", "response_type", 1, 2, '{"some":"json"}');
-        }
 
         return Integration::LOADED;
     }
