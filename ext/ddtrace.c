@@ -2868,7 +2868,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
         RETURN_FALSE;
     }
 
-    ddog_sidecar_telemetry_addEndpoint_buffer(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum,
+    ddog_sidecar_telemetry_addEndpoint(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum,
                                        path_slice, operation_name_slice, resource_name_slice, request_body_type_vec, response_body_type_vec,
                                        response_code, authentication_vec, metadata_slice);
 
