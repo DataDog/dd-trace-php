@@ -2801,11 +2801,8 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
         RETURN_FALSE;
     }
 
-    zend_string *default_metadata = NULL;
-    zend_string *metadata = metadata_input;
-    if (metadata == NULL) {
-        default_metadata = zend_string_init(ZEND_STRL("{}"), 0);
-        metadata = default_metadata;
+    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        RETURN_FALSE;
     }
 
     ddog_CharSlice type_slice = dd_zend_string_to_CharSlice(type);
@@ -2827,32 +2824,37 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     }
 
     ddog_CharSlice metadata_slice = {0};
-    if (metadata && ZSTR_LEN(metadata) > 0) {
-        size_t len = ZSTR_LEN(metadata);
-        char *stripped_utf8 = ddtrace_strip_invalid_utf8(ZSTR_VAL(metadata), &len);
-        if (stripped_utf8 != NULL && len > 0) {
-            zend_string *metadata_utf8 = zend_string_init(stripped_utf8, len, 0);
-            metadata_slice = dd_zend_string_to_CharSlice(metadata_utf8);
-            ddtrace_drop_rust_string(stripped_utf8, len);
-            // metadata_utf8 will be released by Zend after function returns or at cleanup
+    char *stripped_utf8 = NULL;
+    size_t stripped_utf8_len = 0;
+    if (metadata_input && ZSTR_LEN(metadata_input) > 0) {
+        stripped_utf8_len = ZSTR_LEN(metadata_input);
+        stripped_utf8 = ddtrace_strip_invalid_utf8(ZSTR_VAL(metadata_input), &stripped_utf8_len);
+        if (stripped_utf8 != NULL) {
+            metadata_slice = (ddog_CharSlice){.ptr = stripped_utf8, .len = stripped_utf8_len};
         } else {
-            metadata_slice = dd_zend_string_to_CharSlice(metadata);
+            // nothing invalid
+            metadata_slice = dd_zend_string_to_CharSlice(metadata_input);
         }
+    } else {
+        metadata_slice = (ddog_CharSlice){ZEND_STRL("{}")};
     }
 
-    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
-        RETURN_FALSE;
+    ddog_MaybeError result = ddog_sidecar_telemetry_addEndpoint(
+        &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice,
+        resource_name_slice, request_body_type_vec, response_body_type_vec, response_code, authentication_vec, metadata_slice);
+
+    if (stripped_utf8) {
+        ddtrace_drop_rust_string(stripped_utf8, stripped_utf8_len);
     }
 
-    ddog_sidecar_telemetry_addEndpoint(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum,
-                                       path_slice, operation_name_slice, resource_name_slice, request_body_type_vec, response_body_type_vec,
-                                       response_code, authentication_vec, metadata_slice);
-
-    if (!metadata_input) {
-        zend_string_release(default_metadata);
+    if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+        ddog_CharSlice message = ddog_Error_message(&result.some);
+        LOG_LINE(ERROR, "Error submitting  endpoint to sidecar: %.*s", (int)message.len, (char *)message.ptr);
+        ZVAL_FALSE(return_value);
+    } else {
+        ZVAL_TRUE(return_value);
     }
-
-    RETURN_TRUE;
+    ddog_MaybeError_drop(result);
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
