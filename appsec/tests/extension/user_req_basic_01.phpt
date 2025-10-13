@@ -75,11 +75,11 @@ Result of notify_start:
 Array
 (
     [status] => 403
-    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}
+    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "block_id": ""}]}
     [headers] => Array
         (
             [Content-Type] => application/json
-            [Content-Length] => 167
+            [Content-Length] => 183
         )
 
 )
@@ -87,11 +87,11 @@ Result of notify_commit:
 Array
 (
     [status] => 403
-    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}
+    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "block_id": ""}]}
     [headers] => Array
         (
             [Content-Type] => application/json
-            [Content-Length] => 167
+            [Content-Length] => 183
         )
 
 )

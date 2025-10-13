@@ -19,5 +19,5 @@ rinit();
 Status: 403 Forbidden
 Content-type: application/json
 --EXPECTF--
-{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}
+{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "block_id": ""}]}
 Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page - block_id:  in %s on line %d

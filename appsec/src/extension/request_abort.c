@@ -51,7 +51,7 @@ static const char static_error_html[] =
     "4842b7}footer{width:100%;text-align:center}footer "
     "p{font-size:16px}</style></head><body><main><p>Sorry, you cannot access "
     "this page. Please contact the customer service "
-    "team.</p></main><footer><p>Security provided by <a "
+    "team.{block_id}</p></main><footer><p>Security provided by <a "
     "href=\"https://www.datadoghq.com/product/security-platform/"
     "application-security-monitoring/\" "
     "target=\"_blank\">Datadog</a></p></footer></body></html>";
@@ -59,7 +59,7 @@ static const char static_error_html[] =
 static const char static_error_json[] =
     "{\"errors\": [{\"title\": \"You've been blocked\", \"detail\": \"Sorry, yo"
     "u cannot access this page. Please contact the customer service team. Secur"
-    "ity provided by Datadog.\"}]}";
+    "ity provided by Datadog.\", \"block_id\": \"{block_id}\"}]}";
 
 static zend_string *_initial_cwd;
 static zend_string *_body_error_html_def;
@@ -76,6 +76,7 @@ static THREAD_LOCAL_ON_ZTS int _response_code = DEFAULT_BLOCKING_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS dd_response_type _response_type =
     DEFAULT_RESPONSE_TYPE;
 static THREAD_LOCAL_ON_ZTS zend_string *_block_id = NULL;
+static THREAD_LOCAL_ON_ZTS zend_string *_block_id_default = NULL;
 static THREAD_LOCAL_ON_ZTS int _redirection_response_code =
     DEFAULT_REDIRECTION_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS zend_string *_redirection_location = NULL;
@@ -230,7 +231,12 @@ void dd_set_redirect_code_and_location(int code, zend_string *nullable location,
 
 static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
 {
-    if (target_ptr_ptr && _block_id) {
+    zend_string *block_id = _block_id;
+    if (!block_id) {
+        block_id = _block_id_default;
+    }
+
+    if (target_ptr_ptr) {
         zend_string *target = *target_ptr_ptr;
         // Replace all occurrences of "{block_id}" in target with the content of _block_id
         const char *placeholder = "{block_id}";
@@ -242,13 +248,13 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
             size_t before_len = pos - ZSTR_VAL(target);
             size_t after_offset = before_len + placeholder_len;
             size_t after_len = ZSTR_LEN(target) - after_offset;
-            size_t replacement_len = ZSTR_LEN(_block_id);
+            size_t replacement_len = ZSTR_LEN(block_id);
             size_t new_len = before_len + replacement_len + after_len;
 
             zend_string *new_zstr = zend_string_alloc(new_len, 0);
 
             memcpy(ZSTR_VAL(new_zstr), ZSTR_VAL(target), before_len);
-            memcpy(ZSTR_VAL(new_zstr) + before_len, ZSTR_VAL(_block_id), replacement_len);
+            memcpy(ZSTR_VAL(new_zstr) + before_len, ZSTR_VAL(block_id), replacement_len);
             memcpy(ZSTR_VAL(new_zstr) + before_len + replacement_len, ZSTR_VAL(target) + after_offset, after_len);
 
             ZSTR_VAL(new_zstr)[new_len] = '\0';
@@ -368,6 +374,8 @@ void _request_abort_static_page(int response_code, int type)
         return;
     }
 
+    _replace_block_id(&body);
+
     if (!_abort_prelude()) {
         mlog(dd_log_debug, "_abort_prelude has failed");
         zend_string_release(body);
@@ -421,6 +429,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
         zend_hash_add_new(headers, _content_type_zstr, &content_type);
 
         zend_string *content = _get_html_blocking_template();
+        _replace_block_id(&content);
         body_len = content->len;
         ZVAL_STR(&body, content);
         zend_hash_add_new(arr, _body_zstr, &body);
@@ -429,6 +438,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
         zend_hash_add_new(headers, _content_type_zstr, &content_type);
 
         zend_string *content = _get_json_blocking_template();
+        _replace_block_id(&content);
         body_len = content->len;
         ZVAL_STR(&body, content);
         zend_hash_add_new(arr, _body_zstr, &body);
@@ -677,6 +687,8 @@ void dd_request_abort_startup(void)
         zend_string_init_interned(ZEND_STRL(HTML_CONTENT_TYPE), 1);
     _content_type_json_zstr =
         zend_string_init_interned(ZEND_STRL(JSON_CONTENT_TYPE), 1);
+
+    _block_id_default = zend_string_init_interned(ZEND_STRL(""), 1);
 
     if (!get_global_DD_APPSEC_TESTING()) {
         return;
