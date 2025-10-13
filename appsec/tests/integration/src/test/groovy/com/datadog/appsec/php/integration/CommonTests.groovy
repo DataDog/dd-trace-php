@@ -280,13 +280,37 @@ trait CommonTests {
     }
 
     @Test
-    void 'test blocking'() {
+    void 'test blocking json'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/phpinfo.php')
+                .header('Content-type', 'application/json')
+                .header('Accept', 'application/json')
                 .header('X-Forwarded-For', '80.80.80.80').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
-            assert re.body().contains('blocked')
+            def body = new groovy.json.JsonSlurper().parseText(re.body())
+            assert body.errors[0].title == "You've been blocked"
+            assert body.errors[0].detail == "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."
+            assert body.errors[0].block_id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        }
+
+        Span span = trace.first()
+
+        this.assert_blocked_span(span)
+    }
+
+    @Test
+    void 'test blocking html'() {
+        // Set ip which is blocked
+        HttpRequest req = container.buildReq('/phpinfo.php')
+                .header('Content-type', 'application/html')
+                .header('Accept', 'text/html')
+                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+
+            assert re.body().contains('You\'ve been blocked')
+            assert re.body() =~ /Sorry, you cannot access this page\. Please contact the customer service team\.([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/
         }
 
         Span span = trace.first()
