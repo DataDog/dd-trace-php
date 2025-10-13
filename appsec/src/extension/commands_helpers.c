@@ -357,13 +357,14 @@ static void _command_process_block_parameters(mpack_node_t root)
             }
             --expected_nodes;
         } else if (dd_mpack_node_lstr_eq(key, "block_id")) {
-                size_t block_id_len = mpack_node_strlen(value);
-                block_id = zend_string_init(mpack_node_str(value), block_id_len, 0);
-                --expected_nodes;
+            size_t block_id_len = mpack_node_strlen(value);
+            block_id = zend_string_init(mpack_node_str(value), block_id_len, 0);
+            --expected_nodes;
         }
     }
 
-    mlog(dd_log_debug, "Blocking parameters: status_code=%d, type=%d, block_id=%s",
+    mlog(dd_log_debug,
+        "Blocking parameters: status_code=%d, type=%d, block_id=%s",
         status_code, type, block_id ? ZSTR_VAL(block_id) : "NULL");
     dd_set_block_code_and_type(status_code, type, block_id);
 }
@@ -417,8 +418,10 @@ static void _command_process_redirect_parameters(mpack_node_t root)
         }
     }
 
-    mlog(dd_log_debug, "Redirect parameters: status_code=%d, location=%s, block_id=%s",
-        status_code, location ? ZSTR_VAL(location) : "NULL", block_id ? ZSTR_VAL(block_id) : "NULL");
+    mlog(dd_log_debug,
+        "Redirect parameters: status_code=%d, location=%s, block_id=%s",
+        status_code, location ? ZSTR_VAL(location) : "NULL",
+        block_id ? ZSTR_VAL(block_id) : "NULL");
     dd_set_redirect_code_and_location(status_code, location, block_id);
 }
 static void _command_process_stack_trace_parameters(mpack_node_t root)

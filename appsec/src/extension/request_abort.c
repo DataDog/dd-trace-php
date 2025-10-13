@@ -198,8 +198,9 @@ static dd_response_type _get_response_type_from_accept_header(
     return response_type_json;
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void dd_set_block_code_and_type(int code, dd_response_type type, zend_string *nullable block_id)
+void dd_set_block_code_and_type(
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, dd_response_type type, zend_string *nullable block_id)
 {
     _response_code = code;
     _block_id = block_id;
@@ -217,8 +218,9 @@ void dd_set_block_code_and_type(int code, dd_response_type type, zend_string *nu
     }
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void dd_set_redirect_code_and_location(int code, zend_string *nullable location, zend_string *nullable block_id)
+void dd_set_redirect_code_and_location(
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, zend_string *nullable location, zend_string *nullable block_id)
 {
     _redirection_response_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
@@ -236,9 +238,10 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
         block_id = _block_id_default;
     }
 
-    if (target_ptr_ptr) {
-        zend_string *target = *target_ptr_ptr;
-        // Replace all occurrences of "{block_id}" in target with the content of _block_id
+    if (target_ptr_ptr && *target_ptr_ptr) {
+        zend_string *nonnull target = *target_ptr_ptr;
+        // Replace all occurrences of "{block_id}" in target with the content of
+        // _block_id
         const char *placeholder = "{block_id}";
         size_t placeholder_len = strlen(placeholder);
 
@@ -254,8 +257,10 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
             zend_string *new_zstr = zend_string_alloc(new_len, 0);
 
             memcpy(ZSTR_VAL(new_zstr), ZSTR_VAL(target), before_len);
-            memcpy(ZSTR_VAL(new_zstr) + before_len, ZSTR_VAL(block_id), replacement_len);
-            memcpy(ZSTR_VAL(new_zstr) + before_len + replacement_len, ZSTR_VAL(target) + after_offset, after_len);
+            memcpy(ZSTR_VAL(new_zstr) + before_len, ZSTR_VAL(block_id),
+                replacement_len);
+            memcpy(ZSTR_VAL(new_zstr) + before_len + replacement_len,
+                ZSTR_VAL(target) + after_offset, after_len);
 
             ZSTR_VAL(new_zstr)[new_len] = '\0';
 
@@ -307,12 +312,13 @@ void dd_request_abort_redirect(void)
 
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
-            "Datadog blocked the request and attempted a redirection to %s - block_id: %s",
+            "Datadog blocked the request and attempted a redirection to %s - "
+            "block_id: %s",
             ZSTR_VAL(_redirection_location),
             _block_id ? ZSTR_VAL(_block_id) : "");
     } else {
-        _emit_error(
-            "Datadog blocked the request and attempted a redirection to %s - block_id: %s",
+        _emit_error("Datadog blocked the request and attempted a redirection "
+                    "to %s - block_id: %s",
             ZSTR_VAL(_redirection_location),
             _block_id ? ZSTR_VAL(_block_id) : "");
     }
@@ -392,11 +398,12 @@ void _request_abort_static_page(int response_code, int type)
 
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
-            "Datadog blocked the request and presented a static error page - block_id: %s",
+            "Datadog blocked the request and presented a static error page - "
+            "block_id: %s",
             _block_id ? ZSTR_VAL(_block_id) : "");
     } else {
-        _emit_error(
-            "Datadog blocked the request and presented a static error page - block_id: %s",
+        _emit_error("Datadog blocked the request and presented a static error "
+                    "page - block_id: %s",
             _block_id ? ZSTR_VAL(_block_id) : "");
     }
 }
