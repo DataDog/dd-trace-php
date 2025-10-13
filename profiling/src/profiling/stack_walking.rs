@@ -290,7 +290,9 @@ mod detail {
         let mut samples = Vec::new();
         let mut execute_data_ptr = top_execute_data;
 
-        samples.try_reserve(max_depth >> 3)?;
+        let has_execute_data = !execute_data_ptr.is_null();
+        let size_hint = max_depth >> 3;
+        samples.try_reserve(has_execute_data as usize * size_hint)?;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
             // allowed because it's only used on the frameless path
