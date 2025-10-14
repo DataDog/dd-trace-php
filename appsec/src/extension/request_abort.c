@@ -51,7 +51,8 @@ static const char static_error_html[] =
     "4842b7}footer{width:100%;text-align:center}footer "
     "p{font-size:16px}</style></head><body><main><p>Sorry, you cannot access "
     "this page. Please contact the customer service "
-    "team.{block_id}</p></main><footer><p>Security provided by <a "
+    "team.</br> Block ID: {block_id}</p></main><footer><p>Security provided by "
+    "<a "
     "href=\"https://www.datadoghq.com/product/security-platform/"
     "application-security-monitoring/\" "
     "target=\"_blank\">Datadog</a></p></footer></body></html>";
