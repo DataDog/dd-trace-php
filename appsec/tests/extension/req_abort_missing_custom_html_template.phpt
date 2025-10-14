@@ -23,4 +23,4 @@ Content-type: text/html; charset=UTF-8
 --EXPECTF--
 Warning: %s: %s to open stream: No such file or directory in %s on line %d
 
-Warning: datadog\appsec\testing\rinit(): Datadog blocked the request, but the response has already been partially committed - block_id:  in %s on line %d
+Warning: datadog\appsec\testing\rinit(): Datadog blocked the request, but the response has already been partially committed. No action required. Block ID:  in %s on line %d

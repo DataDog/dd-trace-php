@@ -23,4 +23,4 @@ Content-type: application/json
 --EXPECTF--
 {"value": "Datadog has blocked this request some-id", "block_id": "some-id"}
 
-Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page - block_id: some-id in %s on line %d
+Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page. No action required. Block ID: some-id in %s on line %d

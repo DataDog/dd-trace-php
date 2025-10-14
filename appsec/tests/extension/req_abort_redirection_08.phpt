@@ -20,5 +20,5 @@ Some content here which should not be displayed
 Status: 303 See Other
 Content-type: text/html; charset=UTF-8
 --EXPECTF--
-Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and attempted a redirection to http://alex.com?block_id={block_id} - block_id:  in %s on line %s
+Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and attempted a redirection to http://alex.com?block_id={block_id}. No action required. Block ID:  in %s on line %s
 

@@ -328,13 +328,13 @@ void dd_request_abort_redirect(void)
 
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
-            "Datadog blocked the request and attempted a redirection to %s - "
-            "block_id: %s",
+            "Datadog blocked the request and attempted a redirection to %s. No "
+            "action required. Block ID: %s",
             ZSTR_VAL(_redirection_location),
             _block_id ? ZSTR_VAL(_block_id) : "");
     } else {
         _emit_error("Datadog blocked the request and attempted a redirection "
-                    "to %s - block_id: %s",
+                    "to %s. No action required. Block ID: %s",
             ZSTR_VAL(_redirection_location),
             _block_id ? ZSTR_VAL(_block_id) : "");
     }
@@ -414,12 +414,12 @@ void _request_abort_static_page(int response_code, int type)
 
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
-            "Datadog blocked the request and presented a static error page - "
-            "block_id: %s",
+            "Datadog blocked the request and presented a static error page. No "
+            "action required. Block ID: %s",
             _block_id ? ZSTR_VAL(_block_id) : "");
     } else {
         _emit_error("Datadog blocked the request and presented a static error "
-                    "page - block_id: %s",
+                    "page. No action required. Block ID: %s",
             _block_id ? ZSTR_VAL(_block_id) : "");
     }
 }
@@ -499,12 +499,12 @@ static bool _abort_prelude(void)
         if (DDAPPSEC_G(during_request_shutdown)) {
             mlog(dd_log_info,
                 "Datadog blocked the request, but the response has already "
-                "been partially committed - block_id: %s",
+                "been partially committed. No action required. Block ID: %s",
                 _block_id ? ZSTR_VAL(_block_id) : "");
         } else {
             _emit_error(
                 "Datadog blocked the request, but the response has already "
-                "been partially committed - block_id: %s",
+                "been partially committed. No action required. Block ID: %s",
                 _block_id ? ZSTR_VAL(_block_id) : "");
         }
         return false;

@@ -13,4 +13,4 @@ THIS SHOULD NOT BE REACHED
 Status: 403 Forbidden
 --EXPECTF--
 %s
-Warning: %s: Datadog blocked the request and presented a static error page - block_id:  in Unknown on line %d
+Warning: %s: Datadog blocked the request and presented a static error page. No action required. Block ID:  in Unknown on line %d

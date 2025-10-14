@@ -25,4 +25,4 @@ var_dump("THIS SHOULD NOT GET IN THE OUTPUT");
 Status: 303 See Other
 Content-type: text/html; charset=UTF-8
 --EXPECTF--
-Warning: datadog\appsec\push_addresses(): Datadog blocked the request and attempted a redirection to https://datadoghq.com - block_id:  in %s on line %d
+Warning: datadog\appsec\push_addresses(): Datadog blocked the request and attempted a redirection to https://datadoghq.com. No action required. Block ID:  in %s on line %d
