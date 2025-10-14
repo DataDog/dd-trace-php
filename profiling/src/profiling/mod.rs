@@ -220,7 +220,7 @@ struct TimeCollector {
 impl TimeCollector {
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut rustc_hash::FxHashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
@@ -448,7 +448,7 @@ impl TimeCollector {
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut rustc_hash::FxHashMap<ProfileIndex, InternalProfile>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
@@ -473,7 +473,7 @@ impl TimeCollector {
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut rustc_hash::FxHashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
         if message.key.enabled_profiles.num_enabled_profiles() == 0 {
@@ -538,7 +538,11 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(2);
+
+        // Using the rustc_hash hasher here because the std hasher's hashdos
+        // resistance is not needed here, and it's costly.
+        let mut profiles: rustc_hash::FxHashMap<ProfileIndex, InternalProfile> =
+            HashMap::with_capacity_and_hasher(2, Default::default());
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
