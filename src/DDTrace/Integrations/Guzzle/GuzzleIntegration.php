@@ -14,7 +14,7 @@ class GuzzleIntegration extends Integration
 {
     const NAME = 'guzzle';
 
-    public function handlePromiseResponse($response, SpanData $span)
+    public static function handlePromiseResponse($response, SpanData $span)
     {
         if ($response->getState() === \GuzzleHttp\Promise\PromiseInterface::FULFILLED) {
             $fulfilledResponse = $response->wait();
@@ -23,7 +23,7 @@ class GuzzleIntegration extends Integration
             }
         } else {
             /** @var \GuzzleHttp\Promise\PromiseInterface $response */
-            $response->then(function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
+            $response->then(static function (\Psr\Http\Message\ResponseInterface $response) use ($span) {
                 $statusCode = $response->getStatusCode();
                 $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
                 HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
@@ -31,10 +31,8 @@ class GuzzleIntegration extends Integration
         }
     }
 
-    public function init(): int
+    public static function init(): int
     {
-        $integration = $this;
-
         /* Until we support both pre- and post- hooks on the same function, do
          * not send distributed tracing headers; curl will almost guaranteed do
          * it for us anyway. Just do a post-hook to get the response.
@@ -42,13 +40,13 @@ class GuzzleIntegration extends Integration
         \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'send',
-            function (SpanData $span, $args, $retval) use ($integration) {
+            static function (SpanData $span, $args, $retval) {
                 $span->resource = 'send';
                 $span->name = 'GuzzleHttp\Client.send';
-                Integration::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-                $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
 
                 if (
                     \defined('GuzzleHttp\ClientInterface::VERSION')
@@ -60,7 +58,7 @@ class GuzzleIntegration extends Integration
                 }
 
                 if (isset($args[0])) {
-                    $integration->addRequestInfo($span, $args[0]);
+                    self::addRequestInfo($span, $args[0]);
                 }
 
                 if (isset($retval)) {
@@ -76,7 +74,7 @@ class GuzzleIntegration extends Integration
                         $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
                         HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        $integration->handlePromiseResponse($response, $span);
+                        self::handlePromiseResponse($response, $span);
                     }
                 }
             }
@@ -85,22 +83,22 @@ class GuzzleIntegration extends Integration
         \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'transfer',
-            function (SpanData $span, $args, $retval) use ($integration) {
+            static function (SpanData $span, $args, $retval) {
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
-                Integration::handleInternalSpanServiceName($span, GuzzleIntegration::NAME);
+                Integration::handleInternalSpanServiceName($span, self::NAME);
                 $span->type = Type::HTTP_CLIENT;
                 $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-                $span->meta[Tag::COMPONENT] = GuzzleIntegration::NAME;
+                $span->meta[Tag::COMPONENT] = self::NAME;
                 $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
 
                 if (isset($args[0])) {
-                    $integration->addRequestInfo($span, $args[0]);
+                    self::addRequestInfo($span, $args[0]);
                 }
                 if (isset($retval)) {
                     $response = $retval;
                     if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        $integration->handlePromiseResponse($response, $span);
+                        self::handlePromiseResponse($response, $span);
                     }
                 }
             }
@@ -109,7 +107,7 @@ class GuzzleIntegration extends Integration
         return Integration::LOADED;
     }
 
-    public function addRequestInfo(SpanData $span, $request)
+    public static function addRequestInfo(SpanData $span, $request)
     {
         if ($request instanceof \Psr\Http\Message\RequestInterface) {
             $url = $request->getUri();

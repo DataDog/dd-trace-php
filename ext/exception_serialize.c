@@ -11,7 +11,6 @@
 #include "sidecar.h"
 #include "live_debugger.h"
 #include "ext/hash/php_hash.h"
-#include <zend_abstract_interface/symbols/symbols.h>
 #include <exceptions/exceptions.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -411,13 +410,12 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         ddog_CharSlice class_slice = DDOG_CHARSLICE_C("");
         zval *class_name = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_CLASS));
         if (class_name && Z_TYPE_P(class_name) == IS_STRING) {
-            ce = zai_symbol_lookup_class_global(zai_str_from_zstr(Z_STR_P(class_name)));
+            ce = zend_hash_find_ptr_lc(EG(class_table), Z_STR_P(class_name));
             class_slice = dd_zend_string_to_CharSlice(Z_STR_P(class_name));
         }
         zval *func_name = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_FUNCTION));
         if (func_name && Z_TYPE_P(func_name) == IS_STRING) {
-            zai_str wtf = zai_str_from_zstr(Z_STR_P(func_name));
-            func = zai_symbol_lookup_function(ce ? ZAI_SYMBOL_SCOPE_CLASS : ZAI_SYMBOL_SCOPE_GLOBAL, ce, &wtf);
+            func = zend_hash_find_ptr_lc(ce ? &ce->function_table : EG(function_table), Z_STR_P(func_name));
             func_slice = dd_zend_string_to_CharSlice(Z_STR_P(func_name));
         }
 

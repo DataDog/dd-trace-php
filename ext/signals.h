@@ -3,6 +3,7 @@
 
 void ddtrace_set_coredumpfilter(void);
 void ddtrace_signals_first_rinit(void);
+void ddtrace_signals_minit(void);
 void ddtrace_signals_mshutdown(void);
 
 #endif  // DD_TRACE_SIGNALS_H

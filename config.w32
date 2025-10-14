@@ -29,6 +29,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " distributed_tracing_headers.c";
 	DDTRACE_EXT_SOURCES += " ddshared.c";
 	DDTRACE_EXT_SOURCES += " dogstatsd.c";
+	DDTRACE_EXT_SOURCES += " endpoint_guessing.c";
 	DDTRACE_EXT_SOURCES += " engine_api.c";
 	DDTRACE_EXT_SOURCES += " engine_hooks.c";
 	DDTRACE_EXT_SOURCES += " exception_serialize.c";
@@ -105,8 +106,8 @@ if (PHP_DDTRACE != 'no') {
 	ADD_SOURCES(zai_dirname + "/headers", "headers.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/hook", "hook.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/json", "json.c", "ddtrace");
+    ADD_SOURCES(zai_dirname + "/sandbox", "call.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/zai_string", "string.c", "ddtrace");
-	ADD_SOURCES(zai_dirname + "/symbols", "call.c lookup.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/uri_normalization", "uri_normalization.c", "ddtrace");
 	if (version < 800) {
 		ADD_SOURCES(zai_dirname + "/sandbox/php7", "sandbox.c", "ddtrace");

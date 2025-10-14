@@ -11,14 +11,22 @@ pub use stack_walking::*;
 use thread_utils::get_current_thread_name;
 use uploader::*;
 
+#[cfg(all(php_has_fibers, not(test)))]
+use crate::bindings::ddog_php_prof_get_active_fiber;
+#[cfg(all(php_has_fibers, test))]
+use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
+
+use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
+use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
+use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use datadog_profiling::api::{
-    Function, Label as ApiLabel, Location, Period, Sample, ValueType as ApiValueType,
+    Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
 };
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
@@ -31,20 +39,7 @@ use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant, SystemTime};
-
-#[cfg(all(php_has_fibers, not(test)))]
-use crate::bindings::ddog_php_prof_get_active_fiber;
-#[cfg(all(php_has_fibers, test))]
-use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
-
-#[cfg(feature = "timeline")]
-use core::{ptr, str};
-#[cfg(feature = "timeline")]
-use std::time::UNIX_EPOCH;
-
-#[cfg(feature = "allocation_profiling")]
-use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[cfg(all(target_os = "linux", feature = "io_profiling"))]
 use crate::io::{
@@ -53,16 +48,6 @@ use crate::io::{
     SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
     SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
 };
-
-#[cfg(feature = "exception_profiling")]
-use crate::exception::EXCEPTION_PROFILING_INTERVAL;
-
-#[cfg(any(
-    feature = "allocation_profiling",
-    feature = "exception_profiling",
-    feature = "io_profiling"
-))]
-use datadog_profiling::api::UpscalingInfo;
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -282,7 +267,6 @@ impl TimeCollector {
         let get_offset = |sample_type| sample_types.iter().position(|&x| x.r#type == sample_type);
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
-        #[cfg(feature = "allocation_profiling")]
         let (alloc_samples_offset, alloc_size_offset) =
             (get_offset("alloc-samples"), get_offset("alloc-size"));
 
@@ -325,7 +309,6 @@ impl TimeCollector {
         );
 
         // check if we have the `exception-samples` sample types
-        #[cfg(feature = "exception_profiling")]
         let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
@@ -341,7 +324,6 @@ impl TimeCollector {
         );
         let _ = profile.set_start_time(started_at);
 
-        #[cfg(feature = "allocation_profiling")]
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
             (alloc_size_offset, alloc_samples_offset)
         {
@@ -448,7 +430,6 @@ impl TimeCollector {
                 "file write size samples",
             );
         }
-        #[cfg(feature = "exception_profiling")]
         if let Some(exception_samples_offset) = exception_samples_offset {
             let upscaling_info = UpscalingInfo::Proportional {
                 scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
@@ -547,7 +528,7 @@ impl TimeCollector {
 
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
-        match profile.add_sample(sample, timestamp) {
+        match profile.try_add_sample(sample, timestamp) {
             Ok(_id) => {}
             Err(err) => {
                 warn!("Failed to add sample to the profile: {err}")
@@ -651,7 +632,6 @@ pub enum UploadMessage {
     Upload(Box<UploadRequest>),
 }
 
-#[cfg(feature = "timeline")]
 const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
 const DDPROF_TIME: &str = "ddprof_time";
@@ -907,9 +887,7 @@ impl Profiler {
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                #[cfg_attr(not(feature = "timeline"), allow(unused_mut))]
                 let mut timestamp = NO_TIMESTAMP;
-                #[cfg(feature = "timeline")]
                 {
                     let system_settings = self.system_settings.load(Ordering::SeqCst);
                     // SAFETY: system settings are stable during a request.
@@ -946,7 +924,6 @@ impl Profiler {
     }
 
     /// Collect a stack sample with memory allocations.
-    #[cfg(feature = "allocation_profiling")]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
@@ -986,7 +963,6 @@ impl Profiler {
     }
 
     /// Collect a stack sample with exception.
-    #[cfg(feature = "exception_profiling")]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_exception(
         &self,
@@ -1014,9 +990,7 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                #[cfg_attr(not(feature = "timeline"), allow(unused_mut))]
                 let mut timestamp = NO_TIMESTAMP;
-                #[cfg(feature = "timeline")]
                 {
                     let system_settings = self.system_settings.load(Ordering::SeqCst);
                     // SAFETY: system settings are stable during a request.
@@ -1050,13 +1024,11 @@ impl Profiler {
         }
     }
 
-    #[cfg(feature = "timeline")]
     const TIMELINE_COMPILE_FILE_LABELS: &'static [Label] = &[Label {
         key: "event",
         value: LabelValue::Str(Cow::Borrowed("compilation")),
     }];
 
-    #[cfg(feature = "timeline")]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
         let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
@@ -1087,7 +1059,6 @@ impl Profiler {
         }
     }
 
-    #[cfg(feature = "timeline")]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_compile_file(
         &self,
@@ -1130,7 +1101,7 @@ impl Profiler {
     }
 
     /// This function will collect a thread start or stop timeline event
-    #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg(php_zts)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
         let mut labels = Profiler::common_labels(1);
@@ -1165,7 +1136,6 @@ impl Profiler {
     }
 
     /// This function can be called to collect any fatal errors
-    #[cfg(feature = "timeline")]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
         let mut labels = Profiler::common_labels(2);
@@ -1206,7 +1176,7 @@ impl Profiler {
     }
 
     /// This function can be called to collect an opcache restart
-    #[cfg(all(feature = "timeline", php_opcache_restart_hook))]
+    #[cfg(php_opcache_restart_hook)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub(crate) fn collect_opcache_restart(
         &self,
@@ -1251,7 +1221,6 @@ impl Profiler {
     }
 
     /// This function can be called to collect any kind of inactivity that is happening
-    #[cfg(feature = "timeline")]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
         let mut labels = Profiler::common_labels(1);
@@ -1287,7 +1256,6 @@ impl Profiler {
 
     /// collect a stack frame for garbage collection.
     /// as we do not know about the overhead currently, we only collect a fake frame.
-    #[cfg(feature = "timeline")]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_garbage_collection(
         &self,
@@ -1607,7 +1575,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "timeline", not(miri)))]
+    #[cfg(not(miri))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
         let frames = get_frames();
         let samples = get_samples();

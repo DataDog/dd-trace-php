@@ -1,6 +1,6 @@
 #ifndef ZAI_HOOK_H
 #define ZAI_HOOK_H
-#include "../symbols/symbols.h"
+#include "../zai_string/string.h"
 #if PHP_VERSION_ID >= 80000
 #include <zend_observer.h>
 #endif
@@ -14,7 +14,7 @@ bool zai_hook_ginit(void);
 bool zai_hook_rinit(void);
 void zai_hook_post_startup(void);
 void zai_hook_activate(void);
-void zai_hook_clean(void);
+void zai_hook_clean(bool fast_shutdown);
 void zai_hook_rshutdown(void);
 void zai_hook_gshutdown(void);
 void zai_hook_mshutdown(void); /* }}} */

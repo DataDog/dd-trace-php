@@ -63,6 +63,34 @@
 #define ZVAL_VARARG_PARAM(list, arg_num) (&(((zval *)list)[arg_num]))
 #define IS_TRUE_P(x) (Z_TYPE_P(x) == IS_TRUE)
 
+static zend_always_inline zend_fcall_info dd_fcall_info(int argc, zval *args, zval *rv) {
+    return (zend_fcall_info){
+            .param_count = argc,
+            .params = args,
+            .retval = rv,
+            .size = sizeof(zend_fcall_info),
+#if PHP_VERSION_ID < 70100
+            .symbol_table = NULL,
+#endif
+#if PHP_VERSION_ID >= 80000
+            .named_params = NULL,
+#else
+            .no_separation = 1,
+#endif
+    };
+}
+
+static zend_always_inline void dd_get_closure_to_fcc(zval *closure, zend_fcall_info_cache *fcc) {
+#if PHP_VERSION_ID < 70300
+    fcc->initialized = 1;
+#endif
+#if PHP_VERSION_ID < 80000
+    Z_OBJ_HANDLER_P(closure, get_closure)(closure, &fcc->called_scope, &fcc->function_handler, &fcc->object);
+#else
+    Z_OBJ_HANDLER_P(closure, get_closure)(Z_OBJ_P(closure), &fcc->called_scope, &fcc->function_handler, &fcc->object, 1);
+#endif
+}
+
 static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
 #if PHP_VERSION_ID < 70400
     return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR);
@@ -172,6 +200,20 @@ static inline void smart_str_append_printf(smart_str *dest, const char *format, 
     va_end(arg);
     smart_str_append(dest, str);
     zend_string_release(str);
+}
+
+static inline size_t smart_str_get_len(smart_str *str) { return str->s ? ZSTR_LEN(str->s) : 0; }
+
+static inline zend_string *smart_str_extract(smart_str *str) {
+    if (str->s) {
+        zend_string *res;
+        smart_str_0(str);
+        res = str->s;
+        str->s = NULL;
+        return res;
+    } else {
+        return ZSTR_EMPTY_ALLOC();
+    }
 }
 
 static inline zend_string *php_base64_encode_str(const zend_string *str) {
@@ -305,6 +347,8 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
         __fill_idx++; \
     } while (0)
 
+#define ZEND_ACC_HEAP_RT_CACHE ZEND_ACC_NO_RT_ARENA
+
 #define DD_PARAM_ERROR_CODE error_code
 #else
 #define DD_PARAM_ERROR_CODE _error_code
@@ -429,6 +473,15 @@ static zend_always_inline void zend_array_release(zend_array *array)
         }
     }
 }
+
+static inline void *zend_hash_find_ptr_lc(const HashTable *ht, zend_string *key) {
+    void *result;
+    zend_string *lc_key = zend_string_tolower(key);
+    result = zend_hash_find_ptr(ht, lc_key);
+    zend_string_release(lc_key);
+    return result;
+}
+
 
 #define ZEND_UNREACHABLE() ZEND_ASSUME(0)
 

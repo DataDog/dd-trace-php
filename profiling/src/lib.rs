@@ -16,16 +16,13 @@ mod wall_time;
 #[cfg(php_run_time_cache)]
 mod string_set;
 
-#[cfg(feature = "allocation_profiling")]
 mod allocation;
 
 #[cfg(all(feature = "io_profiling", target_os = "linux"))]
 mod io;
 
-#[cfg(feature = "exception_profiling")]
 mod exception;
 
-#[cfg(feature = "timeline")]
 mod timeline;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
@@ -79,15 +76,35 @@ static mut RUNTIME_PHP_VERSION: &str = {
 };
 
 lazy_static! {
-    static ref LAZY_STATICS_TAGS: Vec<Tag> = {
-        vec![
+    /// # Safety
+    /// The first time this is accessed must be after config is initialized in
+    /// the first RINIT and before mshutdown!
+    static ref GLOBAL_TAGS: Vec<Tag> = {
+        let mut tags = vec![
             tag!("language", "php"),
             tag!("profiler_version", env!("PROFILER_VERSION")),
             // SAFETY: calling getpid() is safe.
             Tag::new("process_id", unsafe { libc::getpid() }.to_string())
                 .expect("process_id tag to be valid"),
             Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        ]
+        ];
+
+        // This should probably be "language_version", but this is the
+        // standardized tag name.
+        // SAFETY: PHP_VERSION is safe to access in rinit (only
+        // mutated during minit).
+        add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
+        add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+        // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
+        // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
+        // `zend-nts-ndebug`
+        let runtime_engine = if cfg!(php_zts) {
+            "zend-zts-ndebug"
+        } else {
+            "zend-nts-ndebug"
+        };
+        add_tag(&mut tags, "runtime_engine", runtime_engine);
+        tags
     };
 
     /// The Server API the profiler is running under.
@@ -186,7 +203,7 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
         globals_dtor: Some(gshutdown),
         globals_size: 1,
         #[cfg(php_zts)]
-        globals_id_ptr: unsafe { ptr::addr_of_mut!(GLOBALS_ID_PTR) },
+        globals_id_ptr: ptr::addr_of_mut!(GLOBALS_ID_PTR),
         #[cfg(not(php_zts))]
         globals_ptr: ptr::null_mut(),
         ..Default::default()
@@ -197,18 +214,16 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 }
 
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
-    #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg(php_zts)]
     timeline::timeline_ginit();
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_ginit();
 }
 
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
-    #[cfg(all(feature = "timeline", php_zts))]
+    #[cfg(php_zts)]
     timeline::timeline_gshutdown();
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_gshutdown();
 }
 
@@ -301,6 +316,14 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     config::minit(module_number);
 
+    // Force early initialization of the HTTPS connector while we're still
+    // single-threaded. This ensures rustls-native-certs reads SSL_CERT_FILE
+    // and SSL_CERT_DIR environment variables safely before any threads are
+    // spawned, avoiding potential getenv/setenv race conditions.
+    {
+        let _connector = ddcommon::connector::Connector::default();
+    }
+
     // Use a hybrid extension hack to load as a module but have the
     // zend_extension hooks available:
     // https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
@@ -358,10 +381,8 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // Note that on PHP 7 this never fails, and on PHP 8 it returns void.
     unsafe { zend::zend_register_extension(&extension, handle) };
 
-    #[cfg(feature = "timeline")]
     timeline::timeline_minit();
 
-    #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_minit();
 
     // There are a few things which need to do something on the first rinit of
@@ -386,7 +407,6 @@ extern "C" fn prshutdown() -> ZendResult {
     // delay this until the last possible time.
     unsafe { bindings::zai_config_rshutdown() };
 
-    #[cfg(feature = "timeline")]
     timeline::timeline_prshutdown();
 
     ZendResult::Success
@@ -396,6 +416,8 @@ pub struct RequestLocals {
     pub env: Option<String>,
     pub service: Option<String>,
     pub version: Option<String>,
+    pub git_commit_sha: Option<String>,
+    pub git_repository_url: Option<String>,
     pub tags: Vec<Tag>,
 
     /// SystemSettings are global. Note that if this is being read in fringe
@@ -425,6 +447,8 @@ impl Default for RequestLocals {
             env: None,
             service: None,
             version: None,
+            git_commit_sha: None,
+            git_repository_url: None,
             tags: vec![],
             system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
             interrupt_count: AtomicU32::new(0),
@@ -573,6 +597,21 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 }
             });
             locals.version = config::version();
+            locals.git_commit_sha = config::git_commit_sha();
+            locals.git_repository_url = config::git_repository_url().map(|val| {
+                // Remove potential credentials, customers are encouraged to not send those anyway.
+                if let Some(at_pos) = val.find("@") {
+                    if let Some(proto_pos) = val.find("://") {
+                        // Keep protocol, but remove credentials
+                        format!("{}{}", &val[..(proto_pos + 3)], &val[(at_pos + 1)..])
+                    } else {
+                        // No protocol, just remove everything before @
+                        val[(at_pos + 1)..].to_string()
+                    }
+                } else {
+                    val
+                }
+            });
 
             let (tags, maybe_err) = config::tags();
             if let Some(err) = maybe_err {
@@ -643,13 +682,11 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             }
         }
 
-        #[cfg(feature = "exception_profiling")]
         exception::exception_profiling_first_rinit();
 
         #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         io::io_prof_first_rinit();
 
-        #[cfg(feature = "allocation_profiling")]
         allocation::alloc_prof_first_rinit();
     });
 
@@ -663,26 +700,23 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
             CLOCKS.with_borrow_mut(|clocks| clocks.initialize(cpu_time_enabled));
 
             TAGS.set({
-                let mut tags = LAZY_STATICS_TAGS.clone();
+                // SAFETY: accessing in RINIT after config is initialized.
+                let globals = GLOBAL_TAGS.deref();
+                let extra_tags_len = locals.service.is_some() as usize
+                    + locals.env.is_some() as usize
+                    + locals.version.is_some() as usize
+                    + locals.git_commit_sha.is_some() as usize
+                    + locals.git_repository_url.is_some() as usize;
+
+                let mut tags = Vec::new();
+                tags.reserve_exact(globals.len() + extra_tags_len + locals.tags.len());
+                tags.extend_from_slice(globals.as_slice());
                 add_optional_tag(&mut tags, "service", &locals.service);
                 add_optional_tag(&mut tags, "env", &locals.env);
                 add_optional_tag(&mut tags, "version", &locals.version);
-                // This should probably be "language_version", but this is the
-                // standardized tag name.
-                // SAFETY: PHP_VERSION is safe to access in rinit (only
-                // mutated during minit).
-                add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-                add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-                // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
-                // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-                // `zend-nts-ndebug`
-                let runtime_engine = if cfg!(php_zts) {
-                    "zend-zts-ndebug"
-                } else {
-                    "zend-nts-ndebug"
-                };
-                add_tag(&mut tags, "runtime_engine", runtime_engine);
-                tags.extend_from_slice(&locals.tags);
+                add_optional_tag(&mut tags, "git.commit.sha", &locals.git_commit_sha);
+                add_optional_tag(&mut tags, "git.repository_url", &locals.git_repository_url);
+                tags.extend_from_slice(locals.tags.as_slice());
                 Arc::new(tags)
             });
 
@@ -703,14 +737,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         TAGS.set(Arc::default());
     }
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_rinit();
 
     // SAFETY: called after config is initialized.
-    #[cfg(feature = "timeline")]
-    unsafe {
-        timeline::timeline_rinit()
-    };
+    unsafe { timeline::timeline_rinit() };
 
     ZendResult::Success
 }
@@ -724,12 +754,8 @@ fn add_optional_tag<T: AsRef<str>>(tags: &mut Vec<Tag>, key: &str, value: &Optio
 fn add_tag(tags: &mut Vec<Tag>, key: &str, value: &str) {
     assert!(!value.is_empty());
     match Tag::new(key, value) {
-        Ok(tag) => {
-            tags.push(tag);
-        }
-        Err(err) => {
-            warn!("invalid tag: {err}");
-        }
+        Ok(tag) => tags.push(tag),
+        Err(err) => warn!("invalid {key} tag: {err}"),
     }
 }
 
@@ -766,7 +792,6 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         }
     });
 
-    #[cfg(feature = "allocation_profiling")]
     allocation::alloc_prof_rshutdown();
 
     #[cfg(feature = "tracing")]
@@ -827,8 +852,6 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
             },
         );
 
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "allocation_profiling")] {
                 zend::php_info_print_table_row(
                     2,
                     c"Allocation Profiling Enabled".as_ptr(),
@@ -847,17 +870,6 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         no_all
                     }
                 );
-            } else {
-                zend::php_info_print_table_row(
-                    2,
-                    b"Allocation Profiling Enabled\0".as_ptr(),
-                    b"Not available. The profiler was built without allocation profiling.\0"
-                );
-            }
-        }
-
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "timeline")] {
                 zend::php_info_print_table_row(
                     2,
                     c"Timeline Enabled".as_ptr(),
@@ -869,17 +881,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         no_all
                     },
                 );
-            } else {
-                zend::php_info_print_table_row(
-                    2,
-                    c"Timeline Enabled".as_ptr(),
-                    c"Not available. The profiler was build without timeline support.".as_ptr()
-                );
-            }
-        }
 
-        cfg_if::cfg_if! {
-            if #[cfg(feature = "exception_profiling")] {
                 zend::php_info_print_table_row(
                     2,
                     c"Exception Profiling Enabled".as_ptr(),
@@ -891,14 +893,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                         no_all
                     },
                 );
-            } else {
-                zend::php_info_print_table_row(
-                    2,
-                    c"Exception Profiling Enabled".as_ptr(),
-                    c"Not available. The profiler was built without exception profiling support.".as_ptr()
-                );
-            }
-        }
+
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "io_profiling")] {
@@ -993,10 +988,8 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     trace!("MSHUTDOWN({_type}, {_module_number})");
 
     // SAFETY: being called before [config::shutdown].
-    #[cfg(feature = "timeline")]
     timeline::timeline_mshutdown();
 
-    #[cfg(feature = "exception_profiling")]
     exception::exception_profiling_mshutdown();
 
     // SAFETY: calling in mshutdown as required.
@@ -1022,14 +1015,10 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // SAFETY: calling this in zend_extension startup.
     unsafe {
         pthread::startup();
-        #[cfg(feature = "timeline")]
         timeline::timeline_startup();
     }
 
-    #[cfg(all(
-        feature = "allocation_profiling",
-        not(php_zend_mm_set_custom_handlers_ex)
-    ))]
+    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation::alloc_prof_startup();
 
     ZendResult::Success

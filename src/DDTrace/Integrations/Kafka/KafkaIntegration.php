@@ -19,46 +19,44 @@ class KafkaIntegration extends Integration
         'client.id' => Tag::KAFKA_CLIENT_ID
     ];
 
-    public function init(): int
+    public static function init(): int
     {
         if (strtok(phpversion('rdkafka'), '.') < 6) {
             return Integration::NOT_LOADED;
         }
 
-        $this->installProducerTopicHooks();
-        $this->installConsumerHooks();
-        $this->installConfigurationHooks();
+        self::installProducerTopicHooks();
+        self::installConsumerHooks();
+        self::installConfigurationHooks();
 
         return Integration::LOADED;
     }
 
-    private function installProducerTopicHooks()
+    private static function installProducerTopicHooks()
     {
-        $integration = $this;
         \DDTrace\install_hook(
             'RdKafka\ProducerTopic::producev',
-            function (HookData $hook) use ($integration) {
+            static function (HookData $hook) {
                 /** @var \RdKafka\ProducerTopic $this */
-                $integration->setupKafkaProduceSpan($hook, $this);
+                KafkaIntegration::setupKafkaProduceSpan($hook, $hook->instance);
             }
         );
     }
 
-    public function setupKafkaProduceSpan(HookData $hook, \RdKafka\ProducerTopic $producerTopic)
+    public static function setupKafkaProduceSpan(HookData $hook, \RdKafka\ProducerTopic $producerTopic)
     {
-        /** @var \RdKafka\ProducerTopic $this */
         $span = $hook->span();
-        KafkaIntegration::setupCommonSpanMetadata($span, Tag::KAFKA_PRODUCE, Tag::SPAN_KIND_VALUE_PRODUCER, Tag::MQ_OPERATION_SEND);
+        self::setupCommonSpanMetadata($span, Tag::KAFKA_PRODUCE, Tag::SPAN_KIND_VALUE_PRODUCER, Tag::MQ_OPERATION_SEND);
 
         $span->meta[Tag::MQ_DESTINATION] = $producerTopic->getName();
         $span->meta[Tag::MQ_DESTINATION_KIND] = Type::QUEUE;
 
         $conf = ObjectKVStore::get($producerTopic, 'conf');
-        KafkaIntegration::addProducerSpanMetadata($span, $conf, $hook->args);
+        self::addProducerSpanMetadata($span, $conf, $hook->args);
 
         if (\ddtrace_config_distributed_tracing_enabled()) {
             $headers = \DDTrace\generate_distributed_tracing_headers();
-            $hook->args = $this->injectHeadersIntoArgs($hook->args, $headers);
+            $hook->args = self::injectHeadersIntoArgs($hook->args, $headers);
             $hook->overrideArguments($hook->args);
         }
     }
@@ -73,7 +71,7 @@ class KafkaIntegration extends Integration
         }
     }
 
-    private function injectHeadersIntoArgs(array $args, array $headers): array
+    private static function injectHeadersIntoArgs(array $args, array $headers): array
     {
         // public RdKafka\ProducerTopic::producev (
         //      integer $partition ,
@@ -96,10 +94,8 @@ class KafkaIntegration extends Integration
         return $args;
     }
 
-    private function installConsumerHooks()
+    private static function installConsumerHooks()
     {
-        $integration = $this;
-
         $consumerMethods = [
             'RdKafka\KafkaConsumer::consume',
             'RdKafka\Queue::consume'
@@ -108,10 +104,10 @@ class KafkaIntegration extends Integration
         foreach ($consumerMethods as $method) {
             \DDTrace\install_hook(
                 $method,
-                function (HookData $hook) use ($integration) {
+                static function (HookData $hook) {
                     $hook->data['start'] = microtime(true);
                 },
-                function (HookData $hook) use ($integration) {
+                static function (HookData $hook) {
                     /** @var \RdKafka\Message $message */
                     $message = $hook->returned;
 
@@ -142,7 +138,7 @@ class KafkaIntegration extends Integration
                     }
 
                     $hook->data['span'] = $span;
-                    $integration->setupKafkaConsumeSpan($hook, $this);
+                    KafkaIntegration::setupKafkaConsumeSpan($hook, $hook->instance);
                     \DDTrace\collect_code_origins(1);
                     \DDTrace\close_span();
                 }
@@ -150,13 +146,13 @@ class KafkaIntegration extends Integration
         }
     }
 
-    public function setupKafkaConsumeSpan(HookData $hook, $consumer)
+    public static function setupKafkaConsumeSpan(HookData $hook, $consumer)
     {
         $span = $hook->data['span'];
-        KafkaIntegration::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, Tag::SPAN_KIND_VALUE_CONSUMER, Tag::MQ_OPERATION_RECEIVE);
+        self::setupCommonSpanMetadata($span, Tag::KAFKA_CONSUME, Tag::SPAN_KIND_VALUE_CONSUMER, Tag::MQ_OPERATION_RECEIVE);
 
         $conf = ObjectKVStore::get($consumer, 'conf');
-        KafkaIntegration::addMetadataToSpan($span, $conf);
+        self::addMetadataToSpan($span, $conf);
     }
 
     private static function addMetadataToSpan($span, $conf)
@@ -178,7 +174,7 @@ class KafkaIntegration extends Integration
         $span->meta[Tag::MQ_OPERATION] = $operation;
     }
 
-    private function installConfigurationHooks()
+    private static function installConfigurationHooks()
     {
         $configurationHooks = [
             'RdKafka\KafkaConsumer' => ['__construct'],
@@ -188,23 +184,23 @@ class KafkaIntegration extends Integration
 
         foreach ($configurationHooks as $class => $methods) {
             foreach ($methods as $method) {
-                $this->installConfigurationHook($class, $method);
+                self::installConfigurationHook($class, $method);
             }
         }
     }
 
-    private function installConfigurationHook(string $class, string $method)
+    private static function installConfigurationHook(string $class, string $method)
     {
         \DDTrace\hook_method(
             $class,
             $method,
-            function ($This, $scope, $args) use ($method) {
+            static function ($This, $scope, $args) use ($method) {
                 if ($method === '__construct') {
                     $conf = $args[0];
                     ObjectKVStore::put($This, 'conf', $conf->dump());
                 }
             },
-            function ($This, $scope, $args, $returnValue) use ($method) {
+            static function ($This, $scope, $args, $returnValue) use ($method) {
                 if (in_array($method, ['newTopic', 'newQueue'])) {
                     $conf = ObjectKVStore::get($This, 'conf');
                     ObjectKVStore::put($returnValue, 'conf', $conf);

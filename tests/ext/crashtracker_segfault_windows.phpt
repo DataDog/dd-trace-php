@@ -53,13 +53,19 @@ $rr->waitForRequest(function ($request) {
         return false;
     }
 
-    $payload = $body["payload"][0];
-    $payload["message"] = json_decode($payload["message"], true);
-    $output = json_encode($payload, JSON_PRETTY_PRINT);
+    foreach ($body["payload"] as $payload) {
+        $payload["message"] = json_decode($payload["message"], true);
+        if (!isset($payload["message"]["metadata"])) {
+            break;
+        }
 
-    echo $output;
+        $output = json_encode($payload, JSON_PRETTY_PRINT);
+        echo $output;
 
-    return true;
+        return true;
+    }
+
+    return false;
 });
 ?>
 --EXPECTF--

@@ -24,6 +24,7 @@
 #include "trace_source.h"
 #include "standalone_limiter.h"
 #include "code_origins.h"
+#include "endpoint_guessing.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -387,11 +388,12 @@ void ddtrace_observe_opened_span(ddtrace_span_data *span) {
                     }
 
                     zval rv;
+                    zend_fcall_info_cache fcc;
+                    dd_get_closure_to_fcc(closure_zv, &fcc);
+                    zend_fcall_info fci = dd_fcall_info(1, &span_zv, &rv);
                     zai_sandbox sandbox;
                     zai_sandbox_open(&sandbox);
-                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    bool success = zai_sandbox_call(&sandbox, &fci, &fcc);
                     if (!success || PG(last_error_message)) {
                         dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
                     }
@@ -835,7 +837,7 @@ static void dd_close_entry_span_of_stack(ddtrace_span_stack *stack) {
             ddtrace_switch_span_stack(stack->parent_stack);
         }
 
-        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES()) == FAILURE) {
+        if (get_DD_TRACE_AUTO_FLUSH_ENABLED() && ddtrace_flush_tracer(false, get_DD_TRACE_FLUSH_COLLECT_CYCLES(), false) == FAILURE) {
             // In case we have root spans enabled, we need to always flush if we close that one (RSHUTDOWN)
             LOG(WARN, "Unable to auto flush the tracer");
         }
@@ -861,6 +863,10 @@ void ddtrace_close_span(ddtrace_span_data *span) {
 
         zend_execute_data *execute_data = EG(current_execute_data);
         ddtrace_maybe_add_code_origin_information(span, execute_data && EX(func) && !ZEND_USER_CODE(EX(func)->type));
+
+        if (get_DD_TRACE_RESOURCE_RENAMING_ENABLED()) {
+            ddtrace_maybe_add_guessed_endpoint_tag(ROOTSPANDATA(&span->std));
+        }
     }
 
     if (Z_TYPE(span->property_on_close) != IS_ARRAY || zend_hash_num_elements(Z_ARR(span->property_on_close))) {
@@ -876,11 +882,12 @@ void ddtrace_close_span(ddtrace_span_data *span) {
                 ZVAL_DEREF(closure_zv);
                 if (Z_TYPE_P(closure_zv) == IS_OBJECT && Z_OBJCE_P(closure_zv) == zend_ce_closure) {
                     zval rv;
+                    zend_fcall_info_cache fcc;
+                    dd_get_closure_to_fcc(closure_zv, &fcc);
+                    zend_fcall_info fci = dd_fcall_info(1, &span_zv, &rv);
                     zai_sandbox sandbox;
                     zai_sandbox_open(&sandbox);
-                    bool success = zai_symbol_call(ZAI_SYMBOL_SCOPE_GLOBAL, NULL,
-                                                   ZAI_SYMBOL_FUNCTION_CLOSURE, closure_zv,
-                                                   &rv, 1 | ZAI_SYMBOL_SANDBOX, &sandbox, &span_zv);
+                    bool success = zai_sandbox_call(&sandbox, &fci, &fcc);
                     if (!success || PG(last_error_message)) {
                         dd_uhook_report_sandbox_error(sandbox.engine_state.current_execute_data, Z_OBJ_P(closure_zv));
                     }
@@ -1078,7 +1085,7 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
     dd_drop_span(span, false);
 }
 
-void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces) {
+void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown) {
     if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
@@ -1106,7 +1113,9 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces) {
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
 #endif
-                    OBJ_RELEASE(&tmp->std);
+                    if (!fast_shutdown) {
+                        OBJ_RELEASE(&tmp->std);
+                    }
                 } while (span != end);
                 // We hold a reference to stacks with flushable spans
                 OBJ_RELEASE(&stack->std);
@@ -1126,12 +1135,14 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces) {
     DDTRACE_G(dropped_spans_count) = 0;
 }
 
-void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces) {
+void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown) {
     // We need to loop here, as closing the last span root stack could add other spans here
     while (DDTRACE_G(top_closed_stack)) {
-        ddtrace_serialize_closed_spans(traces);
-        // Also flush possible cycles here
-        gc_collect_cycles();
+        ddtrace_serialize_closed_spans(traces, fast_shutdown);
+        if (DDTRACE_G(open_spans_count)) {
+            // Also flush possible cycles here, if there are remaining open spans
+            gc_collect_cycles();
+        }
     }
 }
 

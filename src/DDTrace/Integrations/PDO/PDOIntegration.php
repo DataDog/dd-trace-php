@@ -16,7 +16,7 @@ class PDOIntegration extends Integration
 
     const CONNECTION_TAGS_KEY = 'connection_tags';
 
-    private static $DB_DRIVER_TO_SYSTEM = [
+    const DB_DRIVER_TO_SYSTEM = [
         'cubrid' => 'other_sql',
         'dblib' => 'other_sql',
         // may be mssql or Sybase, not supported anymore so shouldn't be a problem
@@ -34,14 +34,12 @@ class PDOIntegration extends Integration
     /**
      * Add instrumentation to PDO requests
      */
-    public function init(): int
+    public static function init(): int
     {
         if (!extension_loaded('PDO')) {
             // PDO is provided through an extension and not through a class loader.
             return Integration::NOT_AVAILABLE;
         }
-
-        $integration = $this;
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
         \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
@@ -56,17 +54,17 @@ class PDOIntegration extends Integration
 
         if (PHP_VERSION_ID >= 80400) {
             // public PDO::connect ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
-            \DDTrace\trace_method('PDO', 'connect', function (SpanData $span, array $args, $pdo) {
+            \DDTrace\trace_method('PDO', 'connect', static function (SpanData $span, array $args, $pdo) {
                 Integration::handleOrphan($span);
                 $span->name = $span->resource = 'PDO.connect';
-                $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
-                ObjectKVStore::put($pdo, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
-                PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
+                $connectionMetadata = self::extractConnectionMetadata($args);
+                ObjectKVStore::put($pdo, self::CONNECTION_TAGS_KEY, $connectionMetadata);
+                self::setCommonSpanInfo($connectionMetadata, $span);
             });
         }
 
         // public int PDO::exec(string $query)
-        \DDTrace\install_hook('PDO::exec', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('PDO::exec', static function (HookData $hook) {
             list($query) = $hook->args;
 
             $span = $hook->span();
@@ -74,17 +72,18 @@ class PDOIntegration extends Integration
             $span->name = 'PDO.exec';
             $span->resource = Integration::toString($query);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            PDOIntegration::setCommonSpanInfo($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            $instance = $hook->instance;
+            PDOIntegration::setCommonSpanInfo($instance, $span);
+            PDOIntegration::addTraceAnalyticsIfEnabled($span);
 
-            PDOIntegration::injectDBIntegration($this, $hook);
-            PDOIntegration::handleRasp($this, $span);
-        }, function (HookData $hook) use ($integration) {
+            PDOIntegration::injectDBIntegration($instance, $hook);
+            PDOIntegration::handleRasp($instance, $span);
+        }, static function (HookData $hook) {
             $span = $hook->span();
             if (is_numeric($hook->returned)) {
                 $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned;
             }
-            PDOIntegration::detectError($this, $span);
+            PDOIntegration::detectError($hook->instance, $span);
         });
 
         // public PDOStatement PDO::query(string $query)
@@ -92,73 +91,80 @@ class PDOIntegration extends Integration
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_CLASS, string $classname, array $ctorargs)
         // public PDOStatement PDO::query(string $query, int PDO::FETCH_INFO, object $object)
         // public int PDO::exec(string $query)
-        \DDTrace\install_hook('PDO::query', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('PDO::query', static function (HookData $hook) {
             list($query) = $hook->args;
 
             $span = $hook->span();
             $span->name = 'PDO.query';
             $span->resource = Integration::toString($query);
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-            PDOIntegration::setCommonSpanInfo($this, $span);
-            $integration->addTraceAnalyticsIfEnabled($span);
+            $instance = $hook->instance;
+            PDOIntegration::setCommonSpanInfo($instance, $span);
+            PDOIntegration::addTraceAnalyticsIfEnabled($span);
 
-            PDOIntegration::injectDBIntegration($this, $hook);
-            PDOIntegration::handleRasp($this, $span);
-        }, function (HookData $hook) use ($integration) {
+            PDOIntegration::injectDBIntegration($instance, $hook);
+            PDOIntegration::handleRasp($instance, $span);
+        }, static function (HookData $hook) {
             $span = $hook->span();
+            $instance = $hook->instance;
             if ($hook->returned instanceof \PDOStatement) {
                 $span->metrics[Tag::DB_ROW_COUNT] = $hook->returned->rowCount();
-                ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
+                ObjectKVStore::propagate($instance, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
             }
-            PDOIntegration::detectError($this, $span);
+            PDOIntegration::detectError($instance, $span);
         });
 
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
-        \DDTrace\install_hook('PDO::prepare', function (HookData $hook) use ($integration) {
+        \DDTrace\install_hook('PDO::prepare', static function (HookData $hook) {
             list($query) = $hook->args;
 
             $span = $hook->span();
             Integration::handleOrphan($span);
             $span->name = 'PDO.prepare';
             $span->resource = Integration::toString($query);
-            PDOIntegration::setCommonSpanInfo($this, $span);
+            $instance = $hook->instance;
+            PDOIntegration::setCommonSpanInfo($instance, $span);
 
-            PDOIntegration::injectDBIntegration($this, $hook);
-            PDOIntegration::handleRasp($this, $span);
-        }, function (HookData $hook) use ($integration) {
-            ObjectKVStore::propagate($this, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
+            PDOIntegration::injectDBIntegration($instance, $hook);
+            PDOIntegration::handleRasp($instance, $span);
+        }, static function (HookData $hook) {
+            ObjectKVStore::propagate($hook->instance, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
         });
 
         // public bool PDO::commit ( void )
-        \DDTrace\trace_method('PDO', 'commit', function (SpanData $span) {
+        \DDTrace\install_hook('PDO::commit', static function (HookData $hook) {
+            $span = $hook->span();
             Integration::handleOrphan($span);
             $span->name = $span->resource = 'PDO.commit';
-            PDOIntegration::setCommonSpanInfo($this, $span);
+            PDOIntegration::setCommonSpanInfo($hook->instance, $span);
         });
 
         // public bool PDOStatement::execute ([ array $input_parameters ] )
-        \DDTrace\trace_method(
-            'PDOStatement',
-            'execute',
-            function (SpanData $span, array $args, $retval) use ($integration) {
+        \DDTrace\install_hook(
+            'PDOStatement::execute',
+            static function (HookData $hook) {
+                $hook->span();
+            },
+            static function (HookData $hook) {
+                $span = $hook->span();
+                $instance = $hook->instance;
                 Integration::handleOrphan($span);
                 $span->name = 'PDOStatement.execute';
                 Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
                 $span->type = Type::SQL;
-                $span->resource = $this->queryString;
+                $span->resource = $instance->queryString;
                 $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
-                if ($retval === true) {
+                if ($hook->returned === true) {
                     try {
-                        $span->metrics[Tag::DB_ROW_COUNT] = $this->rowCount();
+                        $span->metrics[Tag::DB_ROW_COUNT] = $instance->rowCount();
                     } catch (\Exception $e) {
                         // Ignore exception thrown by rowCount() method.
                         // Drupal PDOStatement::rowCount() method throws an exception if the query is not a SELECT.
-                        // TODO: Check the instance of '$this' instead of doing this try/catch.
                     }
                 }
-                PDOIntegration::setCommonSpanInfo($this, $span);
-                $integration->addTraceAnalyticsIfEnabled($span);
-                PDOIntegration::detectError($this, $span);
+                PDOIntegration::setCommonSpanInfo($instance, $span);
+                PDOIntegration::addTraceAnalyticsIfEnabled($span);
+                PDOIntegration::detectError($instance, $span);
             }
         );
 
@@ -200,45 +206,62 @@ class PDOIntegration extends Integration
         $span->meta[Tag::ERROR_TYPE] = get_class($pdoOrStatement) . ' error';
     }
 
+    const DSN_REGEX = <<<'REGEX'
+(\A
+    (?<engine>[^:]++):
+    (?:
+        (?:
+             (?:server|unix_socket|host(?:name)?)=(?<host>(?:[^;]*+(?:;;)?)++)
+            |port=(?<port>(?&host))
+            |charset=(?<charset>(?&host))
+            |(?:database|dbname)=(?<db>(?&host))
+            |driver=(?<driver>(?&host))
+            |(?&host) # host can actually be empty, supporting repeated or trailing semicolons
+        )
+        (?:;|\Z)
+    )++
+)xi
+REGEX;
+
     private static function parseDsn($dsn)
     {
-        $engine = substr($dsn, 0, strpos($dsn, ':'));
-        $tags = ['db.engine' => $engine];
-        $dbSystem = isset(self::$DB_DRIVER_TO_SYSTEM[$engine])
-          ? self::$DB_DRIVER_TO_SYSTEM[$engine]
-          : 'other_sql';
-        $tags[Tag::DB_SYSTEM] = $dbSystem;
-        $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
-        $valStrings = explode(';', substr($dsn, strlen($engine) + 1));
-        foreach ($valStrings as $valString) {
-            if (!strpos($valString, '=')) {
-                continue;
-            }
-            list($key, $value) = explode('=', $valString);
-            switch (strtolower($key)) {
-                case 'charset':
-                    $tags[Tag::DB_CHARSET] = $value;
-                    break;
-                case 'database':
-                case 'dbname':
-                    $tags[Tag::DB_NAME] = $value;
-                    break;
-                case 'server':
-                case 'unix_socket':
-                case 'hostname':
-                case 'host':
-                    $tags[Tag::TARGET_HOST] = $value;
-                    break;
-                case 'port':
-                    $tags[Tag::TARGET_PORT] = $value;
-                    break;
-                case 'driver':
-                    // This is more specific than just "odbc"
-                    $tags[Tag::DB_SYSTEM] = strtolower($value);
-                    break;
-            }
-        }
+        if (\preg_match(self::DSN_REGEX, $dsn, $m)) {
+            $engine = $m['engine']; // If uri: is used we'll also land here, but it's deprecated and we don't support it
+            $db = $m['db'] ?? "";
+            $charset = $m['charset'] ?? "";
+            $host = $m['host'] ?? "";
+            $port = $m['port'] ?? "";
+            $driver = $m['driver'] ?? "";
 
+            $dbSystem = self::DB_DRIVER_TO_SYSTEM[$engine] ?? 'other_sql';
+            $tags = ['db.engine' => $engine];
+            $tags[Tag::DB_SYSTEM] = $dbSystem;
+            $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
+
+            if ($db !== "") {
+                $tags[Tag::DB_NAME] = $db;
+            }
+            if ($charset !== "") {
+                $tags[Tag::DB_CHARSET] = $charset;
+            }
+            if ($host !== "") {
+                $tags[Tag::TARGET_HOST] = $host;
+            }
+            if ($port !== "") {
+                $tags[Tag::TARGET_PORT] = $port;
+            }
+            if ($driver !== "") {
+                $tags[Tag::DB_SYSTEM] = strtolower($driver);
+            }
+        } elseif ($iniDsn = ini_get("pdo.dsn.$dsn")) {
+            $tags = self::parseDsn($iniDsn);
+        } else {
+            // If we cannot find the ini
+            $tags = [
+                Tag::DB_SYSTEM => 'other_sql',
+                Tag::DB_TYPE => 'other_sql',
+            ];
+        }
         return $tags;
     }
 
@@ -246,7 +269,7 @@ class PDOIntegration extends Integration
     {
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         if ($driver === "odbc") {
-            $cached_driver = ObjectKVStore::get($pdo, PDOIntegration::CONNECTION_TAGS_KEY, []);
+            $cached_driver = ObjectKVStore::get($pdo, self::CONNECTION_TAGS_KEY, []);
             // This particular driver is not supported for DBM
             if (isset($cached_driver[Tag::DB_SYSTEM]) && $cached_driver[Tag::DB_SYSTEM] === "ingres") {
                 return;
@@ -273,7 +296,7 @@ class PDOIntegration extends Integration
         if (\is_array($source)) {
             $storedConnectionInfo = $source;
         } else {
-            $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+            $storedConnectionInfo = ObjectKVStore::get($source, self::CONNECTION_TAGS_KEY, []);
         }
         if (!\is_array($storedConnectionInfo)) {
             $storedConnectionInfo = [];
@@ -281,23 +304,19 @@ class PDOIntegration extends Integration
 
         $span->type = Type::SQL;
         $span->meta[Tag::SPAN_KIND] = 'client';
-        $span->meta[Tag::COMPONENT] = PDOIntegration::NAME;
+        $span->meta[Tag::COMPONENT] = self::NAME;
         if (\dd_trace_env_config("DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE") &&
                 isset($storedConnectionInfo[Tag::TARGET_HOST])
         ) {
-            Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME, true);
+            Integration::handleInternalSpanServiceName($span, self::NAME, true);
             $span->service = $span->service
                 . '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
         } else {
-            Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
+            Integration::handleInternalSpanServiceName($span, self::NAME);
         }
 
         foreach ($storedConnectionInfo as $tag => $value) {
             $span->meta[$tag] = $value;
-        }
-
-        if (\dd_trace_env_config("DD_APPSEC_RASP_ENABLED") && function_exists('datadog\appsec\push_addresses')
-            && !empty($span->resource) && !empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
         }
     }
 
@@ -317,7 +336,7 @@ class PDOIntegration extends Integration
             return;
         }
 
-        $storedConnectionInfo = ObjectKVStore::get($source, PDOIntegration::CONNECTION_TAGS_KEY, []);
+        $storedConnectionInfo = ObjectKVStore::get($source, self::CONNECTION_TAGS_KEY, []);
         if (!\is_array($storedConnectionInfo) || empty($storedConnectionInfo[Tag::DB_SYSTEM])) {
             return;
         }
