@@ -429,6 +429,8 @@ void zai_config_ini_rinit(void) {
 
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
 
+    bool has_stable_config = zai_config_stable_file_is_available();
+
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         if (memoized->ini_change == zai_config_system_ini_change) {
@@ -439,7 +441,7 @@ void zai_config_ini_rinit(void) {
         if (!env_to_ini_name || !memoized->original_on_modify) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
                 zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
-                zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
+                zai_config_stable_file_entry *entry = has_stable_config ? zai_config_stable_file_get_value(name) : NULL;
                 if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG
                     && strcpy(buf.ptr, ZSTR_VAL(entry->value))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {

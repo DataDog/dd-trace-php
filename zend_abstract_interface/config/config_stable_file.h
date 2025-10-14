@@ -18,3 +18,4 @@ void zai_config_stable_file_minit(void);
 void zai_config_stable_file_mshutdown(void);
 
 zai_config_stable_file_entry *zai_config_stable_file_get_value(zai_str name);
+bool zai_config_stable_file_is_available(void);
