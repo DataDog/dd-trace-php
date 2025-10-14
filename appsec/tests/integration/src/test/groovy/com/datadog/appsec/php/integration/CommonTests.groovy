@@ -310,7 +310,8 @@ trait CommonTests {
             assert re.statusCode() == 403
 
             assert re.body().contains('You\'ve been blocked')
-            assert re.body() =~ /Sorry, you cannot access this page\. Please contact the customer service team\.([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/
+            assert re.body().contains('Sorry, you cannot access this page. Please contact the customer service team.')
+            assert re.body() =~ /Block ID: ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/
         }
 
         Span span = trace.first()
