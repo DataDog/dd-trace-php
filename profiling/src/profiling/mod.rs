@@ -33,6 +33,7 @@ use datadog_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
@@ -50,6 +51,14 @@ use crate::io::{
 };
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
+
+// Batch up to this many samples per thread before sending
+const SAMPLE_POOL_MAX: usize = 16;
+
+thread_local! {
+    // Thread-local pool of samples to amortize wakeups
+    static SAMPLE_POOL: RefCell<Vec<SampleData>> = const { RefCell::new(Vec::new()) };
+}
 
 pub const NO_TIMESTAMP: i64 = 0;
 
@@ -155,7 +164,7 @@ pub struct SampleData {
 #[derive(Debug)]
 pub struct SampleMessage {
     pub key: ProfileIndex,
-    pub value: SampleData,
+    pub values: Vec<SampleData>,
 }
 
 #[derive(Debug)]
@@ -489,48 +498,46 @@ impl TimeCollector {
             .entry(message.key.clone())
             .or_insert_with(|| Self::create_profile(&message, started_at.systemtime));
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
-
-        let values = {
-            let iter = message
-                .key
-                .enabled_profiles
-                .filter(&message.value.sample_values);
-            let mut values = Vec::new();
-            if values.try_reserve_exact(iter.len()).is_err() {
-                debug!("out of memory: sample dropped");
-                return;
-            }
-            values.extend(iter);
-            values
-        };
-        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
-
-        for frame in &message.value.frames {
-            let location = Location {
-                function: Function {
-                    name: frame.function.as_ref(),
-                    system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
-                },
-                line: frame.line as i64,
-                ..Location::default()
+        // Process each SampleData in the message
+        for data in &message.values {
+            // Build filtered values for enabled profiles
+            let values = {
+                let iter = message.key.enabled_profiles.filter(&data.sample_values);
+                let mut values = Vec::new();
+                if values.try_reserve_exact(iter.len()).is_err() {
+                    debug!("out of memory: sample dropped");
+                    continue;
+                }
+                values.extend(iter);
+                values
             };
 
-            locations.push(location);
-        }
+            // Map labels
+            let labels: Vec<ApiLabel> = data.labels.iter().map(ApiLabel::from).collect();
 
-        let sample = Sample {
-            locations,
-            values: &values,
-            labels,
-        };
+            // Map frames to locations
+            let mut locations = Vec::with_capacity(data.frames.len());
+            for frame in &data.frames {
+                let location = Location {
+                    function: Function {
+                        name: frame.function.as_ref(),
+                        system_name: "",
+                        filename: frame.file.as_deref().unwrap_or(""),
+                    },
+                    line: frame.line as i64,
+                    ..Location::default()
+                };
+                locations.push(location);
+            }
 
-        let timestamp = NonZeroI64::new(message.value.timestamp);
+            let sample = Sample {
+                locations,
+                values: &values,
+                labels,
+            };
 
-        match profile.try_add_sample(sample, timestamp) {
-            Ok(_id) => {}
-            Err(err) => {
+            let timestamp = NonZeroI64::new(data.timestamp);
+            if let Err(err) = profile.try_add_sample(sample, timestamp) {
                 warn!("Failed to add sample to the profile: {err}")
             }
         }
@@ -1473,13 +1480,32 @@ impl Profiler {
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        let message = self.prepare_sample_message(frames, samples, labels, timestamp);
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+    ) -> Result<(), TrySendError<ProfilerMessage>> {
+        // We also need a time-based pressure in case of low sample production,
+        // so we re-use the fact that interrupt_counts are set when the
+        // wall/cpu timer of 10ms has elapsed.
+        let time_elapsed = samples.interrupt_count != 0;
+
+        let flush = SAMPLE_POOL.with_borrow_mut(|pool| {
+            // Avoid amortized growth.
+            pool.reserve_exact(SAMPLE_POOL_MAX.saturating_sub(pool.len()));
+            pool.push(SampleData {
+                frames,
+                labels,
+                sample_values: samples,
+                timestamp,
+            });
+            pool.len() == SAMPLE_POOL_MAX || time_elapsed
+        });
+
+        if flush {
+            self.flush_sample_pool()
+        } else {
+            Ok(())
+        }
     }
 
+    #[cfg(test)]
     fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
@@ -1501,13 +1527,34 @@ impl Profiler {
                 enabled_profiles,
                 tags,
             },
-            value: SampleData {
+            values: vec![SampleData {
                 frames,
                 labels,
                 sample_values,
                 timestamp,
-            },
+            }],
         }
+    }
+
+    /// Flush any remaining batched samples in this thread's pool.
+    pub fn flush_sample_pool(&self) -> Result<(), TrySendError<ProfilerMessage>> {
+        SAMPLE_POOL.with_borrow_mut(|pool| {
+            if pool.is_empty() {
+                return Ok(());
+            }
+            let values = core::mem::take(pool);
+            let enabled_profiles = self.enabled_profiles.clone();
+            let tags = TAGS.with_borrow(Arc::clone);
+            let message = SampleMessage {
+                key: ProfileIndex {
+                    enabled_profiles,
+                    tags,
+                },
+                values,
+            };
+            self.message_sender
+                .try_send(ProfilerMessage::Sample(message))
+        })
     }
 }
 
@@ -1604,9 +1651,9 @@ mod tests {
             ]
         );
         let sample_values = enabled_profiles
-            .filter(&message.value.sample_values)
+            .filter(&message.values[0].sample_values)
             .collect::<Vec<_>>();
         assert_eq!(sample_values, vec![10, 20, 30, 60]);
-        assert_eq!(message.value.timestamp, 900);
+        assert_eq!(message.values[0].timestamp, 900);
     }
 }
