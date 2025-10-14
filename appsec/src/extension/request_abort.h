@@ -23,6 +23,7 @@ void dd_set_redirect_code_and_location(
     int code, zend_string *nullable location, zend_string *nullable block_id);
 
 void dd_request_abort_startup(void);
+void dd_request_abort_rinit(void);
 void dd_request_abort_zend_ext_startup(void);
 void dd_request_abort_shutdown(void);
 // noreturn unless called from rinit on fpm

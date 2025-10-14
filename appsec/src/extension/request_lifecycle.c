@@ -180,6 +180,7 @@ static zend_array *nullable _do_request_begin(
     dd_entity_body_rinit();
 
     dd_tags_rinit();
+    dd_request_abort_rinit();
 
     zend_string *nullable rbe = NULL;
     if (rbe_zv) {

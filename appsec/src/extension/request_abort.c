@@ -73,11 +73,11 @@ static zend_string *_content_length_zstr;
 static zend_string *_location_zstr;
 static zend_string *_content_type_html_zstr;
 static zend_string *_content_type_json_zstr;
+static zend_string *_block_id = NULL;
+static zend_string *_block_id_default = NULL;
 static THREAD_LOCAL_ON_ZTS int _response_code = DEFAULT_BLOCKING_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS dd_response_type _response_type =
     DEFAULT_RESPONSE_TYPE;
-static THREAD_LOCAL_ON_ZTS zend_string *_block_id = NULL;
-static THREAD_LOCAL_ON_ZTS zend_string *_block_id_default = NULL;
 static THREAD_LOCAL_ON_ZTS int _redirection_response_code =
     DEFAULT_REDIRECTION_RESPONSE_CODE;
 static THREAD_LOCAL_ON_ZTS zend_string *_redirection_location = NULL;
@@ -243,46 +243,46 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
         zend_string *nonnull target = *target_ptr_ptr;
         const char *placeholder = "{block_id}";
         size_t placeholder_len = strlen(placeholder);
+        const char *replacement = ZSTR_VAL(block_id);
         size_t replacement_len = ZSTR_LEN(block_id);
 
         const char *src = ZSTR_VAL(target);
-        size_t old_len = ZSTR_LEN(target);
-        size_t required_size = 0;
-
+        const char *target_original = ZSTR_VAL(target);
+        size_t target_original_len = ZSTR_LEN(target);
         const char *p = src;
         size_t count = 0;
         while ((p = strstr(p, placeholder)) != NULL) {
-            required_size += (p - src) + replacement_len;
-            p += placeholder_len;
-            src = p;
             count++;
+            p += placeholder_len;
         }
-        required_size += ZSTR_VAL(target) + old_len - src;
-
-        if (count > 0) {
-            zend_string *new_zstr = zend_string_alloc(required_size, 0);
-
-            const char *src2 = ZSTR_VAL(target);
-            char *dst = ZSTR_VAL(new_zstr);
-
-            while ((p = strstr(src2, placeholder)) != NULL) {
-                size_t bytes = p - src2;
-                memcpy(dst, src2, bytes);
-                dst += bytes;
-                memcpy(dst, ZSTR_VAL(block_id), replacement_len);
-                dst += replacement_len;
-                src2 = p + placeholder_len;
-            }
-            size_t remaining = ZSTR_VAL(target) + old_len - src2;
-            if (remaining > 0) {
-                memcpy(dst, src2, remaining);
-                dst += remaining;
-            }
-            *dst = '\0';
-
-            zend_string_release(target);
-            *target_ptr_ptr = new_zstr;
+        if (count == 0) {
+            return;
         }
+
+        size_t required_len = target_original_len - (count * placeholder_len) +
+                              (count * replacement_len);
+        zend_string *new_zstr = zend_string_alloc(required_len, 0);
+
+        char *dst = ZSTR_VAL(new_zstr);
+
+        while ((p = strstr(src, placeholder)) != NULL) {
+            size_t pre_placeholder_len = p - src;
+            memcpy(dst, src, pre_placeholder_len);
+            dst += pre_placeholder_len;
+            memcpy(dst, replacement, replacement_len);
+            dst += replacement_len;
+            src = p + placeholder_len;
+        }
+        const char *src_end = target_original + target_original_len;
+        const size_t remaining = src_end - src;
+        if (remaining > 0) {
+            memcpy(dst, src, remaining);
+            dst += remaining;
+        }
+        *dst = '\0';
+
+        zend_string_release(target);
+        *target_ptr_ptr = new_zstr;
     }
 }
 
@@ -522,6 +522,8 @@ static bool _abort_prelude(void)
     return true;
 }
 
+void dd_request_abort_rinit(void) { _block_id = zend_empty_string; }
+
 static void _force_destroy_output_handlers(void)
 {
     OG(active) = NULL;
@@ -711,7 +713,7 @@ void dd_request_abort_startup(void)
     _content_type_json_zstr =
         zend_string_init_interned(ZEND_STRL(JSON_CONTENT_TYPE), 1);
 
-    _block_id_default = zend_string_init_interned(ZEND_STRL(""), 1);
+    _block_id_default = zend_empty_string;
 
     if (!get_global_DD_APPSEC_TESTING()) {
         return;
