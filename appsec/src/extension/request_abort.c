@@ -241,29 +241,47 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
 
     if (target_ptr_ptr && *target_ptr_ptr) {
         zend_string *nonnull target = *target_ptr_ptr;
-        // Replace all occurrences of "{block_id}" in target with the content of
-        // _block_id
+        // Replace all occurrences of "{block_id}" in target with the content of _block_id
         const char *placeholder = "{block_id}";
         size_t placeholder_len = strlen(placeholder);
+        size_t replacement_len = ZSTR_LEN(block_id);
 
-        char *pos = strstr(ZSTR_VAL(target), placeholder);
+        const char *src = ZSTR_VAL(target);
+        size_t old_len = ZSTR_LEN(target);
+        size_t required_size = 0;
 
-        if (pos) {
-            size_t before_len = pos - ZSTR_VAL(target);
-            size_t after_offset = before_len + placeholder_len;
-            size_t after_len = ZSTR_LEN(target) - after_offset;
-            size_t replacement_len = ZSTR_LEN(block_id);
-            size_t new_len = before_len + replacement_len + after_len;
+        // One pass: Calculate actual size and find if replacement is needed
+        const char *p = src;
+        size_t count = 0;
+        while ((p = strstr(p, placeholder)) != NULL) {
+            required_size += (p - src) + replacement_len;
+            p += placeholder_len;
+            src = p;
+            count++;
+        }
+        required_size += ZSTR_VAL(target) + old_len - src;
 
-            zend_string *new_zstr = zend_string_alloc(new_len, 0);
+        if (count > 0) {
+            zend_string *new_zstr = zend_string_alloc(required_size, 0);
 
-            memcpy(ZSTR_VAL(new_zstr), ZSTR_VAL(target), before_len);
-            memcpy(ZSTR_VAL(new_zstr) + before_len, ZSTR_VAL(block_id),
-                replacement_len);
-            memcpy(ZSTR_VAL(new_zstr) + before_len + replacement_len,
-                ZSTR_VAL(target) + after_offset, after_len);
+            const char *src2 = ZSTR_VAL(target);
+            char *dst = ZSTR_VAL(new_zstr);
 
-            ZSTR_VAL(new_zstr)[new_len] = '\0';
+            while ((p = strstr(src2, placeholder)) != NULL) {
+                size_t bytes = p - src2;
+                memcpy(dst, src2, bytes);
+                dst += bytes;
+                memcpy(dst, ZSTR_VAL(block_id), replacement_len);
+                dst += replacement_len;
+                src2 = p + placeholder_len;
+            }
+            // Copy the remainder
+            size_t remaining = ZSTR_VAL(target) + old_len - src2;
+            if (remaining > 0) {
+                memcpy(dst, src2, remaining);
+                dst += remaining;
+            }
+            *dst = '\0';
 
             zend_string_release(target);
             *target_ptr_ptr = new_zstr;
