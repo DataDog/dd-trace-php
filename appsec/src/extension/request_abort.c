@@ -241,7 +241,6 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
 
     if (target_ptr_ptr && *target_ptr_ptr) {
         zend_string *nonnull target = *target_ptr_ptr;
-        // Replace all occurrences of "{block_id}" in target with the content of _block_id
         const char *placeholder = "{block_id}";
         size_t placeholder_len = strlen(placeholder);
         size_t replacement_len = ZSTR_LEN(block_id);
@@ -250,7 +249,6 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
         size_t old_len = ZSTR_LEN(target);
         size_t required_size = 0;
 
-        // One pass: Calculate actual size and find if replacement is needed
         const char *p = src;
         size_t count = 0;
         while ((p = strstr(p, placeholder)) != NULL) {
@@ -275,7 +273,6 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
                 dst += replacement_len;
                 src2 = p + placeholder_len;
             }
-            // Copy the remainder
             size_t remaining = ZSTR_VAL(target) + old_len - src2;
             if (remaining > 0) {
                 memcpy(dst, src2, remaining);
