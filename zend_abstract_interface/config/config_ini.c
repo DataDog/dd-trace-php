@@ -437,6 +437,11 @@ void zai_config_ini_rinit(void) {
             continue;
         }
 
+        // Skip entries with no names to avoid unnecessary processing
+        if (memoized->names_count == 0) {
+            continue;
+        }
+
         // makes only sense to update INIs once, avoid rereading env unnecessarily
         if (!env_to_ini_name || !memoized->original_on_modify) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
