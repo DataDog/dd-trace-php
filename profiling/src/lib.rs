@@ -784,8 +784,8 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         if system_settings.profiling_enabled {
             if let Some(profiler) = Profiler::get() {
                 // Flush any remaining batched samples for this thread.
-                if let Err(err) = profiler.flush_sample_pool() {
-                    debug!("failed to flush sample pool in rshutdown: {err}");
+                if let Err(err) = profiler.notify_queue_processor() {
+                    debug!("failed to notify queue processor in rshutdown: {err}");
                 }
                 let interrupt = VmInterrupt {
                     interrupt_count_ptr: &locals.interrupt_count,

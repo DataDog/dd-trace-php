@@ -1368,6 +1368,7 @@ dependencies = [
  "criterion",
  "criterion-perf-events",
  "crossbeam-channel",
+ "crossbeam-queue",
  "datadog-alloc",
  "datadog-library-config-ffi 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e)",
  "datadog-php-profiling",

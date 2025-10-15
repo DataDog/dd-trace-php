@@ -25,18 +25,21 @@ use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
+use crossbeam_queue::ArrayQueue;
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
 };
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
+use lazy_static::lazy_static;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
+use std::ops::BitOr;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
@@ -52,12 +55,10 @@ use crate::io::{
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
-// Batch up to this many samples per thread before sending
-const SAMPLE_POOL_MAX: usize = 16;
-
-thread_local! {
-    // Thread-local pool of samples to amortize wakeups
-    static SAMPLE_POOL: RefCell<Vec<SampleData>> = const { RefCell::new(Vec::new()) };
+const SAMPLE_POOL_MAX: usize = 1 << 7;
+lazy_static! {
+    static ref SAMPLE_POOL: Arc<ArrayQueue<SampleMessage>> =
+        Arc::new(ArrayQueue::new(SAMPLE_POOL_MAX));
 }
 
 pub const NO_TIMESTAMP: i64 = 0;
@@ -180,7 +181,7 @@ pub struct LocalRootSpanResourceMessage {
 #[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
-    Sample(SampleMessage),
+    ProcessQueue,
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 
     /// Used to put the helper thread into a barrier for caller so it can fork.
@@ -232,6 +233,7 @@ impl TimeCollector {
         profiles: &mut rustc_hash::FxHashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
+        Self::process_queue(profiles, last_export);
         let wall_export = WallTime::now();
         if profiles.is_empty() {
             info!("No profiles to upload.");
@@ -480,6 +482,16 @@ impl TimeCollector {
         }
     }
 
+    #[inline(never)]
+    fn process_queue(
+        profiles: &mut rustc_hash::FxHashMap<ProfileIndex, InternalProfile>,
+        last_wall_export: &WallTime,
+    ) {
+        while let Some(sample) = SAMPLE_POOL.pop() {
+            Self::handle_sample_message(sample, profiles, last_wall_export)
+        }
+    }
+
     fn handle_sample_message(
         message: SampleMessage,
         profiles: &mut rustc_hash::FxHashMap<ProfileIndex, InternalProfile>,
@@ -579,8 +591,7 @@ impl TimeCollector {
                 recv(self.message_receiver) -> result => {
                     match result {
                         Ok(message) => match message {
-                            ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
+                            ProfilerMessage::ProcessQueue => Self::process_queue(&mut profiles, &last_wall_export),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
@@ -753,15 +764,6 @@ impl Profiler {
     /// Call after a fork, but only on the thread of the parent process that forked.
     pub fn post_fork_parent(&self) {
         self.fork_barrier.wait();
-    }
-
-    pub fn send_sample(
-        &self,
-        message: SampleMessage,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(
@@ -1474,6 +1476,7 @@ impl Profiler {
         labels
     }
 
+    // todo: fix caller's error logs since we batch now
     fn prepare_and_send_message(
         &self,
         frames: Vec<ZendFrame>,
@@ -1481,31 +1484,37 @@ impl Profiler {
         labels: Vec<Label>,
         timestamp: i64,
     ) -> Result<(), TrySendError<ProfilerMessage>> {
-        // We also need a time-based pressure in case of low sample production,
-        // so we re-use the fact that interrupt_counts are set when the
-        // wall/cpu timer of 10ms has elapsed.
+        thread_local! {
+            static MESSAGES_QUEUED: Cell<usize> = const { Cell::new(0) };
+        }
+
+        // If enough messages have been queued on this thread, then we flush.
+        // We have to do this to hopefully avoid the buffer ever getting full,
+        // because that will cause samples to be dropped.
+        let messages_queued = MESSAGES_QUEUED.get().wrapping_add(1);
+        MESSAGES_QUEUED.set(messages_queued);
+        let enough_messages = messages_queued % (SAMPLE_POOL_MAX >> 2) == 0;
+
+        // We also need a time-based pressure so that in case of low sample
+        // production, we still put samples into the correct window. This could
+        // still be _slightly_ off which I think is acceptable.
         let time_elapsed = samples.interrupt_count != 0;
 
-        let flush = SAMPLE_POOL.with_borrow_mut(|pool| {
-            // Avoid amortized growth.
-            pool.reserve_exact(SAMPLE_POOL_MAX.saturating_sub(pool.len()));
-            pool.push(SampleData {
-                frames,
-                labels,
-                sample_values: samples,
-                timestamp,
-            });
-            pool.len() == SAMPLE_POOL_MAX || time_elapsed
-        });
-
-        if flush {
-            self.flush_sample_pool()
+        let result =
+            SAMPLE_POOL.push(self.prepare_sample_message(frames, samples, labels, timestamp));
+        if result.is_err().bitor(time_elapsed.bitor(enough_messages)) {
+            if result.is_err() {
+                // If something has gone wrong with the processing thread, this
+                // could issue this message on every sample once the queue is
+                // full, so using debug here instead of warn.
+                debug!("sample dropped because the queue was full");
+            }
+            self.message_sender.try_send(ProfilerMessage::ProcessQueue)
         } else {
             Ok(())
         }
     }
 
-    #[cfg(test)]
     fn prepare_sample_message(
         &self,
         frames: Vec<ZendFrame>,
@@ -1536,25 +1545,8 @@ impl Profiler {
         }
     }
 
-    /// Flush any remaining batched samples in this thread's pool.
-    pub fn flush_sample_pool(&self) -> Result<(), TrySendError<ProfilerMessage>> {
-        SAMPLE_POOL.with_borrow_mut(|pool| {
-            if pool.is_empty() {
-                return Ok(());
-            }
-            let values = core::mem::take(pool);
-            let enabled_profiles = self.enabled_profiles.clone();
-            let tags = TAGS.with_borrow(Arc::clone);
-            let message = SampleMessage {
-                key: ProfileIndex {
-                    enabled_profiles,
-                    tags,
-                },
-                values,
-            };
-            self.message_sender
-                .try_send(ProfilerMessage::Sample(message))
-        })
+    pub fn notify_queue_processor(&self) -> Result<(), TrySendError<ProfilerMessage>> {
+        self.message_sender.try_send(ProfilerMessage::ProcessQueue)
     }
 }
 
