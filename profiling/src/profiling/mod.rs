@@ -836,23 +836,13 @@ impl Profiler {
         }
     }
 
-    fn join_collector_and_uploader(self, timeout: Duration) -> Result<(), JoinError> {
-        if self.should_join.load(Ordering::SeqCst) {
-            let result1 = thread_utils::join_timeout(self.time_collector_handle, timeout);
-            if let Err(err) = &result1 {
-                warn!("{err}, recent samples may be lost");
-            }
-
-            // Wait for the time_collector to join, since that will drop
-            // the sender half of the channel that the uploader is
-            // holding, allowing it to finish.
-            let result2 = thread_utils::join_timeout(self.uploader_handle, timeout);
-            if let Err(err) = &result2 {
-                warn!("{err}, recent samples are most likely lost");
-            }
-
-            let num_failures = result1.is_err() as usize + result2.is_err() as usize;
-            result2.and(result1).map_err(|_| JoinError { num_failures })
+    fn join_collector_and_uploader(self, _timeout: Duration) -> Result<(), JoinError> {
+        let result1 = self.time_collector_handle.join();
+        let result2 = self.uploader_handle.join();
+        if result1.is_err() || result2.is_err() {
+            Err(JoinError {
+                num_failures: result1.is_err() as usize + result2.is_err() as usize,
+            })
         } else {
             Ok(())
         }

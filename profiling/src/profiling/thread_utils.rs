@@ -50,6 +50,7 @@ where
     }
 }
 
+#[allow(unused)]
 #[derive(thiserror::Error, Debug)]
 #[error("timeout of {timeout_ms} ms reached when joining thread {thread}")]
 pub struct TimeoutError {
@@ -61,6 +62,7 @@ pub struct TimeoutError {
 /// Otherwise, it will leak the handle and return an error.
 /// # Panics
 /// If the thread being joined has panic'd, this will resume the panic.
+#[allow(unused)]
 pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), TimeoutError> {
     // After notifying the other threads, it's likely they'll need some time
     // to respond adequately. Joining on the JoinHandle is supposed to be the
