@@ -26,6 +26,7 @@ void dd_request_abort_startup(void);
 void dd_request_abort_rinit(void);
 void dd_request_abort_zend_ext_startup(void);
 void dd_request_abort_shutdown(void);
+void dd_request_abort_rshutdown(void);
 // noreturn unless called from rinit on fpm
 void dd_request_abort_static_page(void);
 zend_array *nonnull dd_request_abort_static_page_spec(
