@@ -90,10 +90,6 @@ static void _block_parameters_free(void)
             zend_string_release(_block_parameters->block_id);
             _block_parameters->block_id = NULL;
         }
-        if (_block_parameters->redirection_location) {
-            zend_string_release(_block_parameters->redirection_location);
-            _block_parameters->redirection_location = NULL;
-        }
         efree(_block_parameters);
         _block_parameters = NULL;
     }
