@@ -181,14 +181,13 @@ pub struct LocalRootSpanResourceMessage {
 #[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
-    ProcessQueue,
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 
     /// Used to put the helper thread into a barrier for caller so it can fork.
     Pause,
 
     /// Used to wake the helper thread so it can synchronize the fact a
-    /// request is being served.
+    /// request is being served, or to process the queue.
     Wake,
 }
 
@@ -233,7 +232,10 @@ impl TimeCollector {
         profiles: &mut rustc_hash::FxHashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
+        // Also process the queue before timeout so recent samples are in the
+        // right profile window.
         Self::process_queue(profiles, last_export);
+
         let wall_export = WallTime::now();
         if profiles.is_empty() {
             info!("No profiles to upload.");
@@ -586,12 +588,14 @@ impl TimeCollector {
                 &never
             };
 
+            // Process the queue whenever we wake.
+            Self::process_queue(&mut profiles, &last_wall_export);
+
             crossbeam_channel::select! {
 
                 recv(self.message_receiver) -> result => {
                     match result {
                         Ok(message) => match message {
-                            ProfilerMessage::ProcessQueue => Self::process_queue(&mut profiles, &last_wall_export),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
@@ -1489,27 +1493,22 @@ impl Profiler {
         }
 
         // If enough messages have been queued on this thread, then we flush.
-        // We have to do this to hopefully avoid the buffer ever getting full,
-        // because that will cause samples to be dropped.
+        // This is a bit "stupid" so that it doesn't require reading the
+        // length of the queue, which would cause extra synchronization.
         let messages_queued = MESSAGES_QUEUED.get().wrapping_add(1);
         MESSAGES_QUEUED.set(messages_queued);
-        let enough_messages = messages_queued % (SAMPLE_POOL_MAX >> 2) == 0;
-
-        // We also need a time-based pressure so that in case of low sample
-        // production, we still put samples into the correct window. This could
-        // still be _slightly_ off which I think is acceptable.
-        let time_elapsed = samples.interrupt_count != 0;
+        let enough_messages = messages_queued % (SAMPLE_POOL_MAX >> 1) == 0;
 
         let result =
             SAMPLE_POOL.push(self.prepare_sample_message(frames, samples, labels, timestamp));
-        if result.is_err().bitor(time_elapsed.bitor(enough_messages)) {
+        if result.is_err().bitor(enough_messages) {
             if result.is_err() {
                 // If something has gone wrong with the processing thread, this
                 // could issue this message on every sample once the queue is
                 // full, so using debug here instead of warn.
                 debug!("sample dropped because the queue was full");
             }
-            self.message_sender.try_send(ProfilerMessage::ProcessQueue)
+            self.message_sender.try_send(ProfilerMessage::Wake)
         } else {
             Ok(())
         }
@@ -1546,7 +1545,7 @@ impl Profiler {
     }
 
     pub fn notify_queue_processor(&self) -> Result<(), TrySendError<ProfilerMessage>> {
-        self.message_sender.try_send(ProfilerMessage::ProcessQueue)
+        self.message_sender.try_send(ProfilerMessage::Wake)
     }
 }
 
