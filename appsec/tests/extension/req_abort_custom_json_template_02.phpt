@@ -21,6 +21,6 @@ rinit();
 Status: 500 Internal Server Error
 Content-type: application/json
 --EXPECTF--
-{"value": "Datadog has blocked this request some-id", "block_id": "some-id"}
+{"value": "Datadog has blocked this request. Security Response ID: some-id", "security_response_id": "some-id"}
 
-Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page. No action required. Block ID: some-id in %s on line %d
+Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page. No action required. Security Response ID: some-id in %s on line %d

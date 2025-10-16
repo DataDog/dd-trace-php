@@ -50,10 +50,11 @@ static const char static_error_html[] =
     "align-content:center;flex-direction:column}p{font-size:18px;line-height:"
     "normal;color:#646464;font-family:sans-serif;font-weight:400}a{color:#"
     "4842b7}footer{width:100%;text-align:center}footer "
-    "p{font-size:16px}</style></head><body><main><p>Sorry, you cannot access "
-    "this page. Please contact the customer service "
-    "team.</br> Block ID: {block_id}</p></main><footer><p>Security provided by "
-    "<a "
+    "p{font-size:16px}.security-response-id{font-size:14px;color:#999;margin-"
+    "top:20px;font-family:monospace}</style></head><body><main><p>Sorry, you "
+    "cannot access this page. Please contact the customer service team.</p><p "
+    "class=\"security-response-id\">Security Response ID: "
+    "[security_response_id]</p></main><footer><p>Security provided by <a "
     "href=\"https://www.datadoghq.com/product/security-platform/"
     "application-security-monitoring/\" "
     "target=\"_blank\">Datadog</a></p></footer></body></html>";
@@ -61,7 +62,7 @@ static const char static_error_html[] =
 static const char static_error_json[] =
     "{\"errors\": [{\"title\": \"You've been blocked\", \"detail\": \"Sorry, yo"
     "u cannot access this page. Please contact the customer service team. Secur"
-    "ity provided by Datadog.\", \"block_id\": \"{block_id}\"}]}";
+    "ity provided by Datadog.\", \"security_response_id\": \"[security_response_id]\"}]}";
 
 static zend_string *_initial_cwd;
 static zend_string *_body_error_html_def;
@@ -276,7 +277,7 @@ static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
 
     if (target_ptr_ptr && *target_ptr_ptr) {
         zend_string *nonnull target = *target_ptr_ptr;
-        const char *placeholder = "{block_id}";
+        const char *placeholder = "[security_response_id]";
         size_t placeholder_len = strlen(placeholder);
         const char *replacement = ZSTR_VAL(block_id);
         size_t replacement_len = ZSTR_LEN(block_id);
@@ -366,13 +367,13 @@ void dd_request_abort_redirect(void)
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
             "Datadog blocked the request and attempted a redirection to %s. No "
-            "action required. Block ID: %s",
+            "action required. Security Response ID: %s",
             ZSTR_VAL(_block_parameters->redirection_location),
             _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
                                         : "");
     } else {
         _emit_error("Datadog blocked the request and attempted a redirection "
-                    "to %s. No action required. Block ID: %s",
+                    "to %s. No action required. Security Response ID: %s",
             ZSTR_VAL(_block_parameters->redirection_location),
             _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
                                         : "");
@@ -452,12 +453,12 @@ void _request_abort_static_page(int response_code, int type)
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
             "Datadog blocked the request and presented a static error page. No "
-            "action required. Block ID: %s",
+            "action required. Security Response ID: %s",
             _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
                                         : "");
     } else {
         _emit_error("Datadog blocked the request and presented a static error "
-                    "page. No action required. Block ID: %s",
+                    "page. No action required. Security Response ID: %s",
             _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
                                         : "");
     }
@@ -539,14 +540,14 @@ static bool _abort_prelude(void)
         if (DDAPPSEC_G(during_request_shutdown)) {
             mlog(dd_log_info,
                 "Datadog blocked the request, but the response has already "
-                "been partially committed. No action required. Block ID: %s",
+                "been partially committed. No action required. Security Response ID: %s",
                 _block_parameters->block_id
                     ? ZSTR_VAL(_block_parameters->block_id)
                     : "");
         } else {
             _emit_error(
                 "Datadog blocked the request, but the response has already "
-                "been partially committed. No action required. Block ID: %s",
+                "been partially committed. No action required. Security Response ID: %s",
                 _block_parameters->block_id
                     ? ZSTR_VAL(_block_parameters->block_id)
                     : "");

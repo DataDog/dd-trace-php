@@ -13,4 +13,4 @@ X-foo: bar
 --EXPECTF--
 foobar
 
-Warning: datadog\appsec\testing\abort_static_page(): Datadog blocked the request, but the response has already been partially committed. No action required. Block ID:  in %s on line %d
+Warning: datadog\appsec\testing\abort_static_page(): Datadog blocked the request, but the response has already been partially committed. No action required. Security Response ID:  in %s on line %d
