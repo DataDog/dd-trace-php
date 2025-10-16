@@ -23,6 +23,7 @@ datadog-trace-utils = { path = "../libdatadog/datadog-trace-utils" }
 datadog-crashtracker-ffi = { path = "../libdatadog/datadog-crashtracker-ffi", default-features = false, features = ["collector"] }
 datadog-library-config-ffi = { path = "../libdatadog/datadog-library-config-ffi", default-features = false }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
+datadog-tracer-flare = { path = "../libdatadog/datadog-tracer-flare" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"
 itertools = "0.11.0"

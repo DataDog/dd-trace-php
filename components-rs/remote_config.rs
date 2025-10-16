@@ -1,3 +1,4 @@
+use crate::log::ddog_set_log_level;
 use crate::sidecar::MaybeShmLimiter;
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
@@ -6,15 +7,16 @@ use datadog_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluat
 use datadog_live_debugger_ffi::send_data::{
     ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
 };
+use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_remote_config::fetch::ConfigInvariants;
 use datadog_remote_config::{
     RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target,
 };
-use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
+use datadog_tracer_flare::TracerFlareManager;
 use ddcommon::tag::Tag;
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
@@ -27,7 +29,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_char;
 use std::mem;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use tracing::debug;
 
 type DynamicConfigUpdate = for<'a> extern "C" fn(
@@ -38,6 +40,9 @@ type DynamicConfigUpdate = for<'a> extern "C" fn(
 
 static mut LIVE_DEBUGGER_CALLBACKS: Option<LiveDebuggerCallbacks> = None;
 static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
+
+static mut TRACER_FLARE_MANAGER: LazyLock<TracerFlareManager> =
+    LazyLock::new(|| TracerFlareManager::new("", "php"));
 
 type VecRemoteConfigProduct = ddcommon_ffi::Vec<RemoteConfigProduct>;
 #[no_mangle]
@@ -263,35 +268,45 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             RemoteConfigUpdate::Add {
                 value,
                 limiter_index,
-            } => match value.data {
-                RemoteConfigData::LiveDebugger(debugger) => {
-                    let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
-                    let rc_ref = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
-                    let entry = remote_config.live_debugger.active.entry(value.config_id);
-                    let (debugger, limiter) = &mut **match entry {
-                        Entry::Occupied(mut e) => {
-                            e.insert(val);
-                            e.into_mut()
+            } => {
+                let tracer_flare_action =
+                    unsafe { TRACER_FLARE_MANAGER.handle_remote_config_data(&value.data) };
+                match value.data {
+                    RemoteConfigData::LiveDebugger(debugger) => {
+                        let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
+                        let rc_ref = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
+                        let entry = remote_config.live_debugger.active.entry(value.config_id);
+                        let (debugger, limiter) = &mut **match entry {
+                            Entry::Occupied(mut e) => {
+                                e.insert(val);
+                                e.into_mut()
+                            }
+                            Entry::Vacant(e) => e.insert(val),
+                        };
+                        apply_config(rc_ref, debugger, limiter);
+                    }
+                    RemoteConfigData::DynamicConfig(config_data) => {
+                        let configs: Vec<Configs> = config_data.lib_config.into();
+                        if !configs.is_empty() {
+                            insert_new_configs(
+                                &mut remote_config.dynamic_config.old_config_values,
+                                &mut remote_config.dynamic_config.configs,
+                                configs,
+                            );
+                            remote_config.dynamic_config.active_config_path = Some(value.config_id);
                         }
-                        Entry::Vacant(e) => e.insert(val),
-                    };
-                    apply_config(rc_ref, debugger, limiter);
-                }
-                RemoteConfigData::DynamicConfig(config_data) => {
-                    let configs: Vec<Configs> = config_data.lib_config.into();
-                    if !configs.is_empty() {
-                        insert_new_configs(
-                            &mut remote_config.dynamic_config.old_config_values,
-                            &mut remote_config.dynamic_config.configs,
-                            configs,
-                        );
-                        remote_config.dynamic_config.active_config_path = Some(value.config_id);
+                    }
+                    RemoteConfigData::Ignored(_) => (),
+                    RemoteConfigData::TracerFlareConfig(flare_config) => {
+                        let _ = flare_config;
+                        ()
+                    }
+                    RemoteConfigData::TracerFlareTask(agent_task) => {
+                        let _ = agent_task;
+                        ()
                     }
                 }
-                RemoteConfigData::Ignored(_) => (),
-                RemoteConfigData::TracerFlareConfig(_) => {}
-                RemoteConfigData::TracerFlareTask(_) => {}
-            },
+            }
             RemoteConfigUpdate::Remove(path) => match path.product {
                 RemoteConfigProduct::LiveDebugger => {
                     if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id)
