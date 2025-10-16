@@ -2816,7 +2816,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     zend_string *type = NULL;
     zend_string *request_body_type = NULL;
     zend_string *response_body_type = NULL;
-    zend_long response_code = 0;
+    zend_long response_code = -1;
     zend_long authentication = 0;
     zend_string *metadata_input = NULL;
 
