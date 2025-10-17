@@ -436,16 +436,6 @@ typedef struct ddog_Vec_CharSlice {
   uintptr_t capacity;
 } ddog_Vec_CharSlice;
 
-/**
- * Holds the raw parts of a Rust Vec; it should only be created from Rust,
- * never from C.
- */
-typedef struct ddog_Vec_I32 {
-  const int32_t *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-} ddog_Vec_I32;
-
 typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
@@ -460,6 +450,10 @@ typedef struct ddog_Vec_CChar {
   uintptr_t len;
   uintptr_t capacity;
 } ddog_Vec_CChar;
+
+typedef struct ddog_Vec_CChar *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
+                                                           ddog_CharSlice value,
+                                                           bool return_old);
 
 typedef enum ddog_IntermediateValue_Tag {
   DDOG_INTERMEDIATE_VALUE_STRING,
@@ -627,7 +621,120 @@ typedef struct ddog_Vec_DebuggerPayload {
   uintptr_t capacity;
 } ddog_Vec_DebuggerPayload;
 
+/**
+ * `QueueId` is a struct that represents a unique identifier for a queue.
+ * It contains a single field, `inner`, which is a 64-bit unsigned integer.
+ */
+typedef uint64_t ddog_QueueId;
+
 typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_ShmCacheMap;
+
+/**
+ * A 128-bit (16 byte) buffer containing the UUID.
+ *
+ * # ABI
+ *
+ * The `Bytes` type is always guaranteed to be have the same ABI as [`Uuid`].
+ */
+typedef uint8_t ddog_Bytes[16];
+
+/**
+ * A Universally Unique Identifier (UUID).
+ *
+ * # Examples
+ *
+ * Parse a UUID given in the simple format and print it as a urn:
+ *
+ * ```
+ * # use uuid::Uuid;
+ * # fn main() -> Result<(), uuid::Error> {
+ * let my_uuid = Uuid::parse_str("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")?;
+ *
+ * println!("{}", my_uuid.urn());
+ * # Ok(())
+ * # }
+ * ```
+ *
+ * Create a new random (V4) UUID and print it out in hexadecimal form:
+ *
+ * ```
+ * // Note that this requires the `v4` feature enabled in the uuid crate.
+ * # use uuid::Uuid;
+ * # fn main() {
+ * # #[cfg(feature = "v4")] {
+ * let my_uuid = Uuid::new_v4();
+ *
+ * println!("{}", my_uuid);
+ * # }
+ * # }
+ * ```
+ *
+ * # Formatting
+ *
+ * A UUID can be formatted in one of a few ways:
+ *
+ * * [`simple`](#method.simple): `a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8`.
+ * * [`hyphenated`](#method.hyphenated):
+ *   `a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8`.
+ * * [`urn`](#method.urn): `urn:uuid:A1A2A3A4-B1B2-C1C2-D1D2-D3D4D5D6D7D8`.
+ * * [`braced`](#method.braced): `{a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8}`.
+ *
+ * The default representation when formatting a UUID with `Display` is
+ * hyphenated:
+ *
+ * ```
+ * # use uuid::Uuid;
+ * # fn main() -> Result<(), uuid::Error> {
+ * let my_uuid = Uuid::parse_str("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")?;
+ *
+ * assert_eq!(
+ *     "a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8",
+ *     my_uuid.to_string(),
+ * );
+ * # Ok(())
+ * # }
+ * ```
+ *
+ * Other formats can be specified using adapter methods on the UUID:
+ *
+ * ```
+ * # use uuid::Uuid;
+ * # fn main() -> Result<(), uuid::Error> {
+ * let my_uuid = Uuid::parse_str("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")?;
+ *
+ * assert_eq!(
+ *     "urn:uuid:a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8",
+ *     my_uuid.urn().to_string(),
+ * );
+ * # Ok(())
+ * # }
+ * ```
+ *
+ * # Endianness
+ *
+ * The specification for UUIDs encodes the integer fields that make up the
+ * value in big-endian order. This crate assumes integer inputs are already in
+ * the correct order by default, regardless of the endianness of the
+ * environment. Most methods that accept integers have a `_le` variant (such as
+ * `from_fields_le`) that assumes any integer values will need to have their
+ * bytes flipped, regardless of the endianness of the environment.
+ *
+ * Most users won't need to worry about endianness unless they need to operate
+ * on individual fields (such as when converting between Microsoft GUIDs). The
+ * important things to remember are:
+ *
+ * - The endianness is in terms of the fields of the UUID, not the environment.
+ * - The endianness is assumed to be big-endian when there's no `_le` suffix
+ *   somewhere.
+ * - Byte-flipping in `_le` methods applies to each integer.
+ * - Endianness roundtrips, so if you create a UUID with `from_fields_le`
+ *   you'll get the same values back out with `to_fields_le`.
+ *
+ * # ABI
+ *
+ * The `Uuid` type is always guaranteed to be have the same ABI as [`Bytes`].
+ */
+typedef ddog_Bytes ddog_Uuid;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -1282,6 +1389,23 @@ typedef struct ddog_crasht_Handle_CrashInfoBuilder {
   struct ddog_crasht_CrashInfoBuilder *inner;
 } ddog_crasht_Handle_CrashInfoBuilder;
 
+typedef enum  ddog_crasht_CrashInfoBuilder_NewResult_Tag {
+  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_OK,
+  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_ERR,
+}  ddog_crasht_CrashInfoBuilder_NewResult_Tag;
+
+typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
+   ddog_crasht_CrashInfoBuilder_NewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_Handle_CrashInfoBuilder ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+}  ddog_crasht_CrashInfoBuilder_NewResult;
+
 typedef enum ddog_crasht_CrashInfo_NewResult_Tag {
   DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
   DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
@@ -1370,6 +1494,23 @@ typedef struct ddog_crasht_StackFrame_NewResult {
     };
   };
 } ddog_crasht_StackFrame_NewResult;
+
+typedef enum  ddog_crasht_StackTrace_NewResult_Tag {
+  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_OK,
+  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_ERR,
+}  ddog_crasht_StackTrace_NewResult_Tag;
+
+typedef struct  ddog_crasht_StackTrace_NewResult {
+   ddog_crasht_StackTrace_NewResult_Tag tag;
+  union {
+    struct {
+      struct ddog_crasht_Handle_StackTrace ok;
+    };
+    struct {
+      struct ddog_Error err;
+    };
+  };
+}  ddog_crasht_StackTrace_NewResult;
 
 typedef enum ddog_StringWrapperResult_Tag {
   DDOG_STRING_WRAPPER_RESULT_OK,

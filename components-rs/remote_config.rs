@@ -429,17 +429,6 @@ pub unsafe extern "C" fn ddog_CharSlice_to_owned(str: CharSlice) -> *mut ddcommo
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_number_to_owned_i32(number: i32) -> *mut ddcommon_ffi::Vec<i32> {
-    let std_vec: Vec<i32> = vec![number];
-    Box::into_raw(Box::new(std_vec.into()))
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ddog_Vec_CChar_drop(ptr: *mut ddcommon_ffi::Vec<CharSlice>) {
-    Box::from_raw(ptr);
-}
-
-#[no_mangle]
 pub extern "C" fn ddog_remote_configs_service_env_change(
     remote_config: &mut RemoteConfigState,
     service: CharSlice,

@@ -19,40 +19,6 @@
 
 
 
-typedef enum  ddog_crasht_CrashInfoBuilder_NewResult_Tag {
-  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_OK,
-  DDOG_CRASHT_CRASH_INFO_BUILDER_NEW_RESULT_ERR,
-}  ddog_crasht_CrashInfoBuilder_NewResult_Tag;
-
-typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
-   ddog_crasht_CrashInfoBuilder_NewResult_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_Handle_CrashInfoBuilder ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-}  ddog_crasht_CrashInfoBuilder_NewResult;
-
-typedef enum  ddog_crasht_StackTrace_NewResult_Tag {
-  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_OK,
-  DDOG_CRASHT_STACK_TRACE_NEW_RESULT_ERR,
-}  ddog_crasht_StackTrace_NewResult_Tag;
-
-typedef struct  ddog_crasht_StackTrace_NewResult {
-   ddog_crasht_StackTrace_NewResult_Tag tag;
-  union {
-    struct {
-      struct ddog_crasht_Handle_StackTrace ok;
-    };
-    struct {
-      struct ddog_Error err;
-    };
-  };
-}  ddog_crasht_StackTrace_NewResult;
-
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -443,6 +409,16 @@ struct ddog_VoidResult ddog_crasht_CrashInfo_normalize_ips(struct ddog_crasht_Ha
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_CrashInfo_resolve_names(struct ddog_crasht_Handle_CrashInfo *crash_info,
                                                            uint32_t pid);
+
+/**
+ * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * This function will:
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfo_enrich_callstacks(struct ddog_crasht_Handle_CrashInfo *crash_info,
+                                                               uint32_t pid);
 
 /**
  * # Safety
