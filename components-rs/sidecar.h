@@ -136,15 +136,10 @@ ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(struct ddog_SidecarTranspor
 ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport **transport,
                                                    const struct ddog_InstanceId *instance_id,
                                                    const ddog_QueueId *queue_id,
-                                                   ddog_CharSlice type,
                                                    enum ddog_Method method,
                                                    ddog_CharSlice path,
                                                    ddog_CharSlice operation_name,
-                                                   ddog_CharSlice resource_name,
-                                                   struct ddog_Vec_CharSlice *request_body_type,
-                                                   struct ddog_Vec_CharSlice *response_body_type,
-                                                   struct ddog_Vec_Authentication *authentication,
-                                                   ddog_CharSlice metadata);
+                                                   ddog_CharSlice resource_name);
 
 /**
  * Reports a dependency to the telemetry.

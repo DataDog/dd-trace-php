@@ -435,12 +435,6 @@ pub unsafe extern "C" fn ddog_number_to_owned_i32(number: i32) -> *mut ddcommon_
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_number_to_owned_Authentication(auth: ddtelemetry::data::Authentication) -> *mut ddcommon_ffi::Vec<ddtelemetry::data::Authentication> {
-    let std_vec: Vec<ddtelemetry::data::Authentication> = vec![auth];
-    Box::into_raw(Box::new(std_vec.into()))
-}
-
-#[no_mangle]
 pub unsafe extern "C" fn ddog_Vec_CChar_drop(ptr: *mut ddcommon_ffi::Vec<CharSlice>) {
     Box::from_raw(ptr);
 }
