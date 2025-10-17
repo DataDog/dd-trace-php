@@ -1449,6 +1449,8 @@ deploy_to_reliability_env:
   stage: pre-release
   image: registry.ddbuild.io/ci/async-profiler-build:v71888475-datadog-ci
   tags: [ "arch:amd64" ]
+  only:
+    - tags
   needs:
 <?php
 foreach ($arch_targets as $arch) {
