@@ -68,7 +68,7 @@ array(2) {
   [0]=>
   array(7) {
     ["message"]=>
-    string(165) "Error raised in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:12 for foo(): Testnotice in <redacted>%cintegration_runtime_error.php on line 13"
+    string(165) "Error raised in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:12 for foo(): $ERROR_MSG in <redacted>%cintegration_runtime_error.php on line 13"
     ["level"]=>
     string(5) "ERROR"
     ["count"]=>
@@ -85,7 +85,7 @@ array(2) {
   [1]=>
   array(7) {
     ["message"]=>
-    string(161) "Exception thrown in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:7 for foo(): test in <redacted>%cintegration_runtime_error.php on line %d"
+    string(167) "Exception thrown in ddtrace's closure defined at <redacted>%cintegration_runtime_error.php:7 for foo(): $ERROR_MSG in <redacted>%cintegration_runtime_error.php on line %d"
     ["level"]=>
     string(5) "ERROR"
     ["count"]=>
