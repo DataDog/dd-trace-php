@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 67e1cc5d41d7a0bd13f946b9c4ecd169f5414f78 */
+ * Stub hash: 2171d4533fc0c86c617ba09955e9a51f7b8751d4 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -176,9 +176,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_add_endpoint, 0, 4, _IS_
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_STRING, 1, "NULL")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, body_type, IS_STRING, 1, "NULL")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, response_type, IS_STRING, 1, "NULL")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, response_code, IS_LONG, 1, "NULL")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, authentication, IS_LONG, 1, "NULL")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, metadata, IS_STRING, 1, "\'{}\'")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, metadata, IS_STRING, 1, "NULL")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
