@@ -143,7 +143,6 @@ ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport 
                                                    ddog_CharSlice resource_name,
                                                    struct ddog_Vec_CharSlice *request_body_type,
                                                    struct ddog_Vec_CharSlice *response_body_type,
-                                                   int32_t response_code,
                                                    struct ddog_Vec_Authentication *authentication,
                                                    ddog_CharSlice metadata);
 

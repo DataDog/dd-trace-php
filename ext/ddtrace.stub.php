@@ -840,11 +840,10 @@ namespace DDTrace {
      * @param string $type The type of the endpoint
      * @param string $body_type The body type of the endpoint
      * @param string $response_type The response type of the endpoint
-     * @param int $response_code The response code of the endpoint
      * @param int $authentication The authentication of the endpoint
      * @param string $metadata The metadata of the endpoint
      */
-    function add_endpoint(string $path, string $operation_name, string $resource_name, string $method, ?string $type = NULL, ?string $body_type = NULL, ?string $response_type = NULL, ?int $response_code = NULL, ?int $authentication = NULL, ?string $metadata = NULL): bool {}
+    function add_endpoint(string $path, string $operation_name, string $resource_name, string $method, ?string $type = NULL, ?string $body_type = NULL, ?string $response_type = NULL, ?int $authentication = NULL, ?string $metadata = NULL): bool {}
 }
 
 namespace DDTrace\System {

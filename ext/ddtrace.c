@@ -2816,12 +2816,11 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     zend_string *type = NULL;
     zend_string *request_body_type = NULL;
     zend_string *response_body_type = NULL;
-    zend_long response_code = -1;
     zend_long authentication = 0;
     zend_string *metadata_input = NULL;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSS|SSllS", &path, &operation_name, &resource_name, &method, &type, &request_body_type, &response_body_type,
-                              &response_code, &authentication, &metadata_input) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSS|SSSlS", &path, &operation_name, &resource_name, &method, &type, &request_body_type, &response_body_type,
+                              &authentication, &metadata_input) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -2865,7 +2864,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
 
     ddog_MaybeError result = ddog_sidecar_telemetry_addEndpoint(
         &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), type_slice, method_enum, path_slice, operation_name_slice,
-        resource_name_slice, request_body_type_vec, response_body_type_vec, response_code, authentication_vec, metadata_slice);
+        resource_name_slice, request_body_type_vec, response_body_type_vec, authentication_vec, metadata_slice);
 
     if (stripped_utf8) {
         ddtrace_drop_rust_string(stripped_utf8, stripped_utf8_len);
