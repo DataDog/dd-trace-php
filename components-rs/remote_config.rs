@@ -16,7 +16,7 @@ use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
-use datadog_tracer_flare::TracerFlareManager;
+use datadog_tracer_flare::{ReturnAction, TracerFlareManager};
 use ddcommon::tag::Tag;
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
@@ -269,8 +269,13 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 value,
                 limiter_index,
             } => {
-                let tracer_flare_action =
-                    unsafe { TRACER_FLARE_MANAGER.handle_remote_config_data(&value.data) };
+                let tracer_flare_action = unsafe {
+                    TRACER_FLARE_MANAGER
+                        .handle_remote_config_data(&value.data)
+                        // TODO I'm not sure what I'm actually meant to do in
+                        // this case
+                        .unwrap_or_else(|_| ReturnAction::None)
+                };
                 match value.data {
                     RemoteConfigData::LiveDebugger(debugger) => {
                         let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
@@ -299,10 +304,22 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     RemoteConfigData::Ignored(_) => (),
                     RemoteConfigData::TracerFlareConfig(flare_config) => {
                         let _ = flare_config;
+                        match tracer_flare_action {
+                            ReturnAction::Send(_) => {}
+                            ReturnAction::Set(_) => {}
+                            ReturnAction::Unset => {}
+                            ReturnAction::None => {}
+                        }
                         ()
                     }
                     RemoteConfigData::TracerFlareTask(agent_task) => {
                         let _ = agent_task;
+                        match tracer_flare_action {
+                            ReturnAction::Send(_) => {}
+                            ReturnAction::Set(_) => {}
+                            ReturnAction::Unset => {}
+                            ReturnAction::None => {}
+                        }
                         ()
                     }
                 }
