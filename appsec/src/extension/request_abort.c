@@ -24,6 +24,7 @@
 
 #define HTML_CONTENT_TYPE "text/html"
 #define JSON_CONTENT_TYPE "application/json"
+#define BLOCK_ID_DEFAULT (zend_empty_string)
 
 #if PHP_VERSION_ID >= 80200
 #    define FRANKENPHP_SUPPORT 1
@@ -49,9 +50,11 @@ static const char static_error_html[] =
     "align-content:center;flex-direction:column}p{font-size:18px;line-height:"
     "normal;color:#646464;font-family:sans-serif;font-weight:400}a{color:#"
     "4842b7}footer{width:100%;text-align:center}footer "
-    "p{font-size:16px}</style></head><body><main><p>Sorry, you cannot access "
-    "this page. Please contact the customer service "
-    "team.</p></main><footer><p>Security provided by <a "
+    "p{font-size:16px}.security-response-id{font-size:14px;color:#999;margin-"
+    "top:20px;font-family:monospace}</style></head><body><main><p>Sorry, you "
+    "cannot access this page. Please contact the customer service team.</p><p "
+    "class=\"security-response-id\">Security Response ID: "
+    "[security_response_id]</p></main><footer><p>Security provided by <a "
     "href=\"https://www.datadoghq.com/product/security-platform/"
     "application-security-monitoring/\" "
     "target=\"_blank\">Datadog</a></p></footer></body></html>";
@@ -59,7 +62,8 @@ static const char static_error_html[] =
 static const char static_error_json[] =
     "{\"errors\": [{\"title\": \"You've been blocked\", \"detail\": \"Sorry, yo"
     "u cannot access this page. Please contact the customer service team. Secur"
-    "ity provided by Datadog.\"}]}";
+    "ity provided by Datadog.\", \"security_response_id\": "
+    "\"[security_response_id]\"}]}";
 
 static zend_string *_initial_cwd;
 static zend_string *_body_error_html_def;
@@ -72,12 +76,41 @@ static zend_string *_content_length_zstr;
 static zend_string *_location_zstr;
 static zend_string *_content_type_html_zstr;
 static zend_string *_content_type_json_zstr;
-static THREAD_LOCAL_ON_ZTS int _response_code = DEFAULT_BLOCKING_RESPONSE_CODE;
-static THREAD_LOCAL_ON_ZTS dd_response_type _response_type =
-    DEFAULT_RESPONSE_TYPE;
-static THREAD_LOCAL_ON_ZTS int _redirection_response_code =
-    DEFAULT_REDIRECTION_RESPONSE_CODE;
-static THREAD_LOCAL_ON_ZTS zend_string *_redirection_location = NULL;
+struct _block_parameters {
+    zend_string *nullable block_id;
+    dd_response_type response_type;
+    int response_code;
+    zend_string *nullable redirection_location;
+};
+
+static THREAD_LOCAL_ON_ZTS struct _block_parameters *nullable _block_parameters;
+
+static void _block_parameters_free(void)
+{
+    if (_block_parameters) {
+        if (_block_parameters->block_id) {
+            zend_string_release(_block_parameters->block_id);
+            _block_parameters->block_id = NULL;
+        }
+        efree(_block_parameters);
+        _block_parameters = NULL;
+    }
+}
+
+static void _block_parameters_set(
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    zend_string *nullable block_id, dd_response_type response_type,
+    int response_code, zend_string *nullable redirection_location)
+{
+    if (_block_parameters) {
+        _block_parameters_free();
+    }
+    _block_parameters = emalloc(sizeof(*_block_parameters));
+    _block_parameters->block_id = block_id;
+    _block_parameters->response_type = response_type;
+    _block_parameters->response_code = response_code;
+    _block_parameters->redirection_location = redirection_location;
+}
 
 #ifdef FRANKENPHP_SUPPORT
 static typeof(zend_compile_file) _orig_zend_compile_file;
@@ -196,38 +229,104 @@ static dd_response_type _get_response_type_from_accept_header(
     return response_type_json;
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void dd_set_block_code_and_type(int code, dd_response_type type)
+void dd_set_block_code_and_type(
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, dd_response_type type, zend_string *nullable block_id)
 {
-    _response_code = code;
-
+    dd_response_type _type = type;
     // Account for lack of enum type safety
     switch (type) {
     case response_type_auto:
     case response_type_html:
     case response_type_json:
-        _response_type = type;
+        _type = type;
         break;
     default:
-        _response_type = response_type_auto;
+        _type = response_type_auto;
         break;
     }
+
+    _block_parameters_set(block_id, _type, code, NULL);
 }
 
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void dd_set_redirect_code_and_location(int code, zend_string *nullable location)
+void dd_request_abort_rinit(void)
 {
-    _redirection_response_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
+    _block_parameters_set(BLOCK_ID_DEFAULT, DEFAULT_RESPONSE_TYPE,
+        DEFAULT_BLOCKING_RESPONSE_CODE, NULL);
+}
+
+void dd_set_redirect_code_and_location(
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, zend_string *nullable location, zend_string *nullable block_id)
+{
+    int response_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
+
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
     if (code >= 300 && code < 400) {
-        _redirection_response_code = code;
+        response_code = code;
     }
-    _redirection_location = location;
+    _block_parameters_set(
+        block_id, response_type_auto, response_code, location);
+}
+
+static void _replace_block_id(zend_string **nonnull target_ptr_ptr)
+{
+    zend_string *block_id = _block_parameters->block_id;
+    if (!block_id) {
+        block_id = BLOCK_ID_DEFAULT;
+    }
+
+    if (target_ptr_ptr && *target_ptr_ptr) {
+        zend_string *nonnull target = *target_ptr_ptr;
+        const char *placeholder = "[security_response_id]";
+        size_t placeholder_len = strlen(placeholder);
+        const char *replacement = ZSTR_VAL(block_id);
+        size_t replacement_len = ZSTR_LEN(block_id);
+
+        const char *src = ZSTR_VAL(target);
+        const char *target_original = ZSTR_VAL(target);
+        size_t target_original_len = ZSTR_LEN(target);
+        const char *p = src;
+        size_t count = 0;
+        while ((p = strstr(p, placeholder)) != NULL) {
+            count++;
+            p += placeholder_len;
+        }
+        if (count == 0) {
+            return;
+        }
+
+        size_t required_len = target_original_len - (count * placeholder_len) +
+                              (count * replacement_len);
+        zend_string *new_zstr = zend_string_alloc(required_len, 0);
+
+        char *dst = ZSTR_VAL(new_zstr);
+
+        while ((p = strstr(src, placeholder)) != NULL) {
+            size_t pre_placeholder_len = p - src;
+            memcpy(dst, src, pre_placeholder_len);
+            dst += pre_placeholder_len;
+            memcpy(dst, replacement, replacement_len);
+            dst += replacement_len;
+            src = p + placeholder_len;
+        }
+        const char *src_end = target_original + target_original_len;
+        const size_t remaining = src_end - src;
+        if (remaining > 0) {
+            memcpy(dst, src, remaining);
+            dst += remaining;
+        }
+        *dst = '\0';
+
+        zend_string_release(target);
+        *target_ptr_ptr = new_zstr;
+    }
 }
 
 void dd_request_abort_redirect(void)
 {
-    if (_redirection_location == NULL || ZSTR_LEN(_redirection_location) == 0) {
+    if (_block_parameters->redirection_location == NULL ||
+        ZSTR_LEN(_block_parameters->redirection_location) == 0) {
         _request_abort_static_page(
             DEFAULT_BLOCKING_RESPONSE_CODE, DEFAULT_RESPONSE_TYPE);
         return;
@@ -238,19 +337,24 @@ void dd_request_abort_redirect(void)
         return;
     }
 
+    if (_block_parameters->block_id) {
+        _replace_block_id(&_block_parameters->redirection_location);
+    }
+
     char *line;
-    uint line_len = (uint)spprintf(
-        &line, 0, "Location: %s", ZSTR_VAL(_redirection_location));
+    uint line_len = (uint)spprintf(&line, 0, "Location: %s",
+        ZSTR_VAL(_block_parameters->redirection_location));
 
     mlog_g(dd_log_debug, "Will forward to %s with status %d",
-        ZSTR_VAL(_redirection_location), _redirection_response_code);
+        ZSTR_VAL(_block_parameters->redirection_location),
+        _block_parameters->response_code);
 
-    SG(sapi_headers).http_response_code = _redirection_response_code;
+    SG(sapi_headers).http_response_code = _block_parameters->response_code;
     int res = sapi_header_op(SAPI_HEADER_REPLACE,
         &(sapi_header_line){.line = line, .line_len = line_len});
     if (res == FAILURE) {
         mlog(dd_log_warning, "Could not forward to %s",
-            ZSTR_VAL(_redirection_location));
+            ZSTR_VAL(_block_parameters->redirection_location));
     }
 
     efree(line);
@@ -263,12 +367,17 @@ void dd_request_abort_redirect(void)
 
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
-            "Datadog blocked the request and attempted a redirection to %s",
-            ZSTR_VAL(_redirection_location));
+            "Datadog blocked the request and attempted a redirection to %s. No "
+            "action required. Security Response ID: %s",
+            ZSTR_VAL(_block_parameters->redirection_location),
+            _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
+                                        : "");
     } else {
-        _emit_error(
-            "Datadog blocked the request and attempted a redirection to %s",
-            ZSTR_VAL(_redirection_location));
+        _emit_error("Datadog blocked the request and attempted a redirection "
+                    "to %s. No action required. Security Response ID: %s",
+            ZSTR_VAL(_block_parameters->redirection_location),
+            _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
+                                        : "");
     }
 }
 
@@ -277,12 +386,16 @@ zend_array *nonnull dd_request_abort_redirect_spec(void)
     zend_array *arr = zend_new_array(2);
 
     zval status;
-    ZVAL_LONG(&status, _redirection_response_code);
+    ZVAL_LONG(&status, _block_parameters->response_code);
     zend_hash_add_new(arr, _status_zstr, &status);
+
+    if (_block_parameters->block_id) {
+        _replace_block_id(&_block_parameters->redirection_location);
+    }
 
     zend_array *headers = zend_new_array(1);
     zval location;
-    ZVAL_STR(&location, _redirection_location);
+    ZVAL_STR(&location, _block_parameters->redirection_location);
     zend_hash_add_new(headers, _location_zstr, &location);
     zval headers_zv;
     ZVAL_ARR(&headers_zv, headers);
@@ -322,6 +435,8 @@ void _request_abort_static_page(int response_code, int type)
         return;
     }
 
+    _replace_block_id(&body);
+
     if (!_abort_prelude()) {
         mlog(dd_log_debug, "_abort_prelude has failed");
         zend_string_release(body);
@@ -338,16 +453,22 @@ void _request_abort_static_page(int response_code, int type)
 
     if (DDAPPSEC_G(during_request_shutdown)) {
         mlog(dd_log_info,
-            "Datadog blocked the request and presented a static error page");
+            "Datadog blocked the request and presented a static error page. No "
+            "action required. Security Response ID: %s",
+            _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
+                                        : "");
     } else {
-        _emit_error(
-            "Datadog blocked the request and presented a static error page");
+        _emit_error("Datadog blocked the request and presented a static error "
+                    "page. No action required. Security Response ID: %s",
+            _block_parameters->block_id ? ZSTR_VAL(_block_parameters->block_id)
+                                        : "");
     }
 }
 
 void dd_request_abort_static_page(void)
 {
-    _request_abort_static_page(_response_code, _response_type);
+    _request_abort_static_page(
+        _block_parameters->response_code, _block_parameters->response_type);
 }
 
 zend_array *nonnull dd_request_abort_static_page_spec(
@@ -356,11 +477,11 @@ zend_array *nonnull dd_request_abort_static_page_spec(
     zend_array *arr = zend_new_array(3);
 
     zval status;
-    ZVAL_LONG(&status, _response_code);
+    ZVAL_LONG(&status, _block_parameters->response_code);
     zend_hash_add_new(arr, _status_zstr, &status);
 
     zend_array *headers = zend_new_array(2);
-    dd_response_type response_type = _response_type;
+    dd_response_type response_type = _block_parameters->response_type;
     if (response_type == response_type_auto) {
         response_type = _get_response_type_from_accept_header(_server);
     }
@@ -373,6 +494,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
         zend_hash_add_new(headers, _content_type_zstr, &content_type);
 
         zend_string *content = _get_html_blocking_template();
+        _replace_block_id(&content);
         body_len = content->len;
         ZVAL_STR(&body, content);
         zend_hash_add_new(arr, _body_zstr, &body);
@@ -381,6 +503,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
         zend_hash_add_new(headers, _content_type_zstr, &content_type);
 
         zend_string *content = _get_json_blocking_template();
+        _replace_block_id(&content);
         body_len = content->len;
         ZVAL_STR(&body, content);
         zend_hash_add_new(arr, _body_zstr, &body);
@@ -418,11 +541,19 @@ static bool _abort_prelude(void)
         if (DDAPPSEC_G(during_request_shutdown)) {
             mlog(dd_log_info,
                 "Datadog blocked the request, but the response has already "
-                "been partially committed");
+                "been partially committed. No action required. Security "
+                "Response ID: %s",
+                _block_parameters->block_id
+                    ? ZSTR_VAL(_block_parameters->block_id)
+                    : "");
         } else {
             _emit_error(
                 "Datadog blocked the request, but the response has already "
-                "been partially committed");
+                "been partially committed. No action required. Security "
+                "Response ID: %s",
+                _block_parameters->block_id
+                    ? ZSTR_VAL(_block_parameters->block_id)
+                    : "");
         }
         return false;
     }
@@ -671,6 +802,8 @@ void dd_request_abort_shutdown(void)
     }
 #endif
 }
+
+void dd_request_abort_rshutdown(void) { _block_parameters_free(); }
 
 static zend_string *nonnull _get_json_blocking_template(void)
 {

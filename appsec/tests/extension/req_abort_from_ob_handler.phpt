@@ -16,4 +16,4 @@ ob_start(function($buf, $phase) {
 THIS SHOULD NOT BE OUTPUT
 --EXPECTF--
 %s
-Warning: datadog\appsec\testing\abort_static_page(): Datadog blocked the request and presented a static error page in %s on line %d
+Warning: datadog\appsec\testing\abort_static_page(): Datadog blocked the request and presented a static error page. No action required. Security Response ID:  in %s on line %d

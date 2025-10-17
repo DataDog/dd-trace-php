@@ -18,13 +18,15 @@ typedef enum {
 #define DEFAULT_REDIRECTION_RESPONSE_CODE 303
 #define DEFAULT_RESPONSE_TYPE response_type_auto
 
-void dd_set_block_code_and_type(int code, dd_response_type type);
+void dd_set_block_code_and_type(int code, dd_response_type type, zend_string *nullable block_id);
 void dd_set_redirect_code_and_location(
-    int code, zend_string *nullable location);
+    int code, zend_string *nullable location, zend_string *nullable block_id);
 
 void dd_request_abort_startup(void);
+void dd_request_abort_rinit(void);
 void dd_request_abort_zend_ext_startup(void);
 void dd_request_abort_shutdown(void);
+void dd_request_abort_rshutdown(void);
 // noreturn unless called from rinit on fpm
 void dd_request_abort_static_page(void);
 zend_array *nonnull dd_request_abort_static_page_spec(

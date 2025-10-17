@@ -21,5 +21,5 @@ rinit();
 Status: 500 Internal Server Error
 Content-type: application/json
 --EXPECTF--
-{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}
-Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page in %s on line %d
+{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "security_response_id": ""}]}
+Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page. No action required. Security Response ID:  in %s on line %d

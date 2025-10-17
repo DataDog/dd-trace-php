@@ -253,6 +253,8 @@ static zend_array *nullable _do_request_begin(
 
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
+    dd_request_abort_rshutdown();
+
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         mlog_g(dd_log_debug, "Skipping all request shutdown actions because "
                              "appsec is fully disabled");
