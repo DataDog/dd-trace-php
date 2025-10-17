@@ -1,7 +1,7 @@
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache License Version 2.0.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2021-Present Datadog, Inc.
 
-pub use cc_utils::cc;
+pub use ddcommon::cc_utils::cc;
 pub use sidecar_mockgen::generate_mock_symbols;
 use std::path::Path;
 use std::{env, fs, process};
@@ -58,7 +58,7 @@ fn main() {
             cc_build.target(current_platform::CURRENT_PLATFORM);
         }
 
-        cc_utils::ImprovedBuild::new()
+        ddcommon::cc_utils::ImprovedBuild::new()
             .set_cc_builder(cc_build)
             .file("mock_php_syms.c")
             .link_dynamically("dl")

@@ -414,6 +414,16 @@ struct ddog_VoidResult ddog_crasht_CrashInfo_resolve_names(struct ddog_crasht_Ha
  * # Safety
  * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
  * which has not previously been dropped.
+ * This function will:
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfo_enrich_callstacks(struct ddog_crasht_Handle_CrashInfo *crash_info,
+                                                               uint32_t pid);
+
+/**
+ * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
  * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN

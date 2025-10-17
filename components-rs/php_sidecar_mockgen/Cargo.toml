@@ -4,7 +4,7 @@ name = "php_sidecar_mockgen"
 version = "0.1.0"
 
 [dependencies]
-cc_utils = { path = "../../libdatadog/tools/cc_utils" }
+ddcommon = { path = "../../libdatadog/ddcommon" }
 current_platform = "0.2.0"
 sidecar_mockgen = { path = "../../libdatadog/tools/sidecar_mockgen" }
 
