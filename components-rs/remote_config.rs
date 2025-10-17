@@ -16,6 +16,7 @@ use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
+use datadog_tracer_flare::zip::zip_and_send;
 use datadog_tracer_flare::{ReturnAction, TracerFlareManager};
 use ddcommon::tag::Tag;
 use ddcommon::Endpoint;
@@ -24,9 +25,11 @@ use ddcommon_ffi::{CharSlice, MaybeError};
 use itertools::Itertools;
 use regex_automata::dfa::regex::Regex;
 use serde::Serialize;
+use std::any::Any;
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::ffi::c_char;
 use std::mem;
 use std::sync::{Arc, LazyLock};
@@ -41,6 +44,7 @@ type DynamicConfigUpdate = for<'a> extern "C" fn(
 static mut LIVE_DEBUGGER_CALLBACKS: Option<LiveDebuggerCallbacks> = None;
 static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
 
+// TODO figure out how to find uri to agent
 static mut TRACER_FLARE_MANAGER: LazyLock<TracerFlareManager> =
     LazyLock::new(|| TracerFlareManager::new("", "php"));
 
@@ -272,9 +276,10 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 let tracer_flare_action = unsafe {
                     TRACER_FLARE_MANAGER
                         .handle_remote_config_data(&value.data)
-                        // TODO I'm not sure what I'm actually meant to do in
-                        // this case
-                        .unwrap_or_else(|_| ReturnAction::None)
+                        .unwrap_or_else(|_| {
+                            // TODO Log the error
+                            ReturnAction::None
+                        })
                 };
                 match value.data {
                     RemoteConfigData::LiveDebugger(debugger) => {
@@ -301,27 +306,50 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                             remote_config.dynamic_config.active_config_path = Some(value.config_id);
                         }
                     }
+                    RemoteConfigData::TracerFlareTask(_)
+                    | RemoteConfigData::TracerFlareConfig(_) => {
+                        match tracer_flare_action {
+                            // If the action returned is None, then nothing.
+                            ReturnAction::None => (),
+                            // If the action is Set with a specified LogLevel,
+                            // then the SDK will have to take care of putting
+                            // the right log level and start collection logs.
+                            ReturnAction::Set(log_level) => {
+                                let _ = log_level;
+                                // TODO Set log level
+                            }
+                            // If the action is Unset, the SDK will have to put
+                            // back the previous log level.
+                            ReturnAction::Unset => {
+                                // TODO Restore log level
+                            }
+                            // If the action is Set with a specified LogLevel,
+                            // then the SDK will have to take care of putting
+                            // the right log level and start collection logs.
+                            ReturnAction::Send(_) => {
+                                let mut log_files: Vec<String> = vec![];
+
+                                match env::var("DD_TRACE_LOG_FILE") {
+                                    Ok(tracer_log_file) => {
+                                        log_files.push(tracer_log_file);
+                                    }
+                                    Err(_) => (),
+                                };
+                                // TODO Add other paths to various log files
+
+                                unsafe {
+                                    zip_and_send(
+                                        log_files,
+                                        String::from(""),
+                                        &TRACER_FLARE_MANAGER,
+                                        tracer_flare_action,
+                                    );
+                                };
+                                // TODO restore log_level
+                            }
+                        }
+                    }
                     RemoteConfigData::Ignored(_) => (),
-                    RemoteConfigData::TracerFlareConfig(flare_config) => {
-                        let _ = flare_config;
-                        match tracer_flare_action {
-                            ReturnAction::Send(_) => {}
-                            ReturnAction::Set(_) => {}
-                            ReturnAction::Unset => {}
-                            ReturnAction::None => {}
-                        }
-                        ()
-                    }
-                    RemoteConfigData::TracerFlareTask(agent_task) => {
-                        let _ = agent_task;
-                        match tracer_flare_action {
-                            ReturnAction::Send(_) => {}
-                            ReturnAction::Set(_) => {}
-                            ReturnAction::Unset => {}
-                            ReturnAction::None => {}
-                        }
-                        ()
-                    }
                 }
             }
             RemoteConfigUpdate::Remove(path) => match path.product {
