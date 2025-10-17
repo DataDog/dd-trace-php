@@ -20,7 +20,7 @@
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 ddog_Endpoint *ddtrace_endpoint;
-ddog_Endpoint *dogstatsd_endpoint;
+ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 static uint8_t dd_sidecar_formatted_session_id[36];
 
@@ -55,6 +55,12 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     ddog_CharSlice runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_run_time_id, .len = sizeof(formatted_run_time_id)};
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
+}
+
+static void dd_free_endpoints(void) {
+    ddog_endpoint_drop(ddtrace_endpoint);
+    ddog_endpoint_drop(dogstatsd_endpoint);
+    ddtrace_endpoint = NULL;
 }
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
@@ -150,6 +156,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     if (!ddtrace_endpoint) {
         return NULL;
     }
+    ZEND_ASSERT(dogstatsd_endpoint != NULL);
 
     dd_set_endpoint_test_token(dogstatsd_endpoint);
 
@@ -165,10 +172,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
 
     ddog_SidecarTransport *sidecar_transport;
     if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect))) {
-        if (dogstatsd_endpoint) {
-            ddog_endpoint_drop(dogstatsd_endpoint);
-            dogstatsd_endpoint = NULL;
-        }
+        dd_free_endpoints();
         return NULL;
     }
 
@@ -214,12 +218,7 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_sidecar = dd_sidecar_connection_factory();
     if (!ddtrace_sidecar) { // Something went wrong
         if (ddtrace_endpoint) {
-            ddog_endpoint_drop(ddtrace_endpoint);
-            ddtrace_endpoint = NULL;
-        }
-        if (dogstatsd_endpoint) {
-            ddog_endpoint_drop(dogstatsd_endpoint);
-            dogstatsd_endpoint = NULL;
+            dd_free_endpoints();
         }
     }
 
@@ -260,12 +259,7 @@ void ddtrace_sidecar_shutdown(void) {
     }
 
     if (ddtrace_endpoint) {
-        ddog_endpoint_drop(ddtrace_endpoint);
-    }
-
-    if (dogstatsd_endpoint) {
-        ddog_endpoint_drop(dogstatsd_endpoint);
-        dogstatsd_endpoint = NULL;
+        dd_free_endpoints();
     }
 
     if (ddtrace_sidecar) {
@@ -288,12 +282,7 @@ void ddtrace_reset_sidecar(void) {
         ddtrace_sidecar = dd_sidecar_connection_factory_ex(true);
         if (!ddtrace_sidecar) { // Something went wrong
             if (ddtrace_endpoint) {
-                ddog_endpoint_drop(ddtrace_endpoint);
-                ddtrace_endpoint = NULL;
-            }
-            if (dogstatsd_endpoint) {
-                ddog_endpoint_drop(dogstatsd_endpoint);
-                dogstatsd_endpoint = NULL;
+                dd_free_endpoints();
             }
         } else {
             ddtrace_sidecar_submit_root_span_data();
