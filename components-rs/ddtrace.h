@@ -11,123 +11,6 @@ struct _zend_string;
 #include "telemetry.h"
 #include "sidecar.h"
 
-typedef struct ddog_Vec_CChar *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
-                                                           ddog_CharSlice value,
-                                                           bool return_old);
-
-/**
- * `QueueId` is a struct that represents a unique identifier for a queue.
- * It contains a single field, `inner`, which is a 64-bit unsigned integer.
- */
-typedef uint64_t ddog_QueueId;
-
-/**
- * A 128-bit (16 byte) buffer containing the UUID.
- *
- * # ABI
- *
- * The `Bytes` type is always guaranteed to be have the same ABI as [`Uuid`].
- */
-typedef uint8_t ddog_Bytes[16];
-
-/**
- * A Universally Unique Identifier (UUID).
- *
- * # Examples
- *
- * Parse a UUID given in the simple format and print it as a urn:
- *
- * ```
- * # use uuid::Uuid;
- * # fn main() -> Result<(), uuid::Error> {
- * let my_uuid = Uuid::parse_str("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")?;
- *
- * println!("{}", my_uuid.urn());
- * # Ok(())
- * # }
- * ```
- *
- * Create a new random (V4) UUID and print it out in hexadecimal form:
- *
- * ```
- * // Note that this requires the `v4` feature enabled in the uuid crate.
- * # use uuid::Uuid;
- * # fn main() {
- * # #[cfg(feature = "v4")] {
- * let my_uuid = Uuid::new_v4();
- *
- * println!("{}", my_uuid);
- * # }
- * # }
- * ```
- *
- * # Formatting
- *
- * A UUID can be formatted in one of a few ways:
- *
- * * [`simple`](#method.simple): `a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8`.
- * * [`hyphenated`](#method.hyphenated):
- *   `a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8`.
- * * [`urn`](#method.urn): `urn:uuid:A1A2A3A4-B1B2-C1C2-D1D2-D3D4D5D6D7D8`.
- * * [`braced`](#method.braced): `{a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8}`.
- *
- * The default representation when formatting a UUID with `Display` is
- * hyphenated:
- *
- * ```
- * # use uuid::Uuid;
- * # fn main() -> Result<(), uuid::Error> {
- * let my_uuid = Uuid::parse_str("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")?;
- *
- * assert_eq!(
- *     "a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8",
- *     my_uuid.to_string(),
- * );
- * # Ok(())
- * # }
- * ```
- *
- * Other formats can be specified using adapter methods on the UUID:
- *
- * ```
- * # use uuid::Uuid;
- * # fn main() -> Result<(), uuid::Error> {
- * let my_uuid = Uuid::parse_str("a1a2a3a4b1b2c1c2d1d2d3d4d5d6d7d8")?;
- *
- * assert_eq!(
- *     "urn:uuid:a1a2a3a4-b1b2-c1c2-d1d2-d3d4d5d6d7d8",
- *     my_uuid.urn().to_string(),
- * );
- * # Ok(())
- * # }
- * ```
- *
- * # Endianness
- *
- * The specification for UUIDs encodes the integer fields that make up the
- * value in big-endian order. This crate assumes integer inputs are already in
- * the correct order by default, regardless of the endianness of the
- * environment. Most methods that accept integers have a `_le` variant (such as
- * `from_fields_le`) that assumes any integer values will need to have their
- * bytes flipped, regardless of the endianness of the environment.
- *
- * Most users won't need to worry about endianness unless they need to operate
- * on individual fields (such as when converting between Microsoft GUIDs). The
- * important things to remember are:
- *
- * - The endianness is in terms of the fields of the UUID, not the environment.
- * - The endianness is assumed to be big-endian when there's no `_le` suffix
- *   somewhere.
- * - Byte-flipping in `_le` methods applies to each integer.
- * - Endianness roundtrips, so if you create a UUID with `from_fields_le`
- *   you'll get the same values back out with `to_fields_le`.
- *
- * # ABI
- *
- * The `Uuid` type is always guaranteed to be have the same ABI as [`Bytes`].
- */
-typedef ddog_Bytes ddog_Uuid;
-
 extern ddog_Uuid ddtrace_runtime_id;
 
 extern void (*ddog_log_callback)(ddog_CharSlice);
@@ -190,10 +73,6 @@ bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_c
 bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remote_config);
 
 struct ddog_Vec_CharSlice *ddog_CharSlice_to_owned(ddog_CharSlice str);
-
-struct ddog_Vec_I32 *ddog_number_to_owned_i32(int32_t number);
-
-void ddog_Vec_CChar_drop(struct ddog_Vec_CharSlice *ptr);
 
 bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
                                             ddog_CharSlice service,
