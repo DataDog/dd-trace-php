@@ -62,7 +62,8 @@ static const char static_error_html[] =
 static const char static_error_json[] =
     "{\"errors\": [{\"title\": \"You've been blocked\", \"detail\": \"Sorry, yo"
     "u cannot access this page. Please contact the customer service team. Secur"
-    "ity provided by Datadog.\", \"security_response_id\": \"[security_response_id]\"}]}";
+    "ity provided by Datadog.\", \"security_response_id\": "
+    "\"[security_response_id]\"}]}";
 
 static zend_string *_initial_cwd;
 static zend_string *_body_error_html_def;
@@ -540,14 +541,16 @@ static bool _abort_prelude(void)
         if (DDAPPSEC_G(during_request_shutdown)) {
             mlog(dd_log_info,
                 "Datadog blocked the request, but the response has already "
-                "been partially committed. No action required. Security Response ID: %s",
+                "been partially committed. No action required. Security "
+                "Response ID: %s",
                 _block_parameters->block_id
                     ? ZSTR_VAL(_block_parameters->block_id)
                     : "");
         } else {
             _emit_error(
                 "Datadog blocked the request, but the response has already "
-                "been partially committed. No action required. Security Response ID: %s",
+                "been partially committed. No action required. Security "
+                "Response ID: %s",
                 _block_parameters->block_id
                     ? ZSTR_VAL(_block_parameters->block_id)
                     : "");
