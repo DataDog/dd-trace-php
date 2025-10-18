@@ -1,4 +1,5 @@
 mod interrupts;
+mod periodic_timer;
 mod sample_type_filter;
 pub mod stack_walking;
 mod thread_utils;
@@ -7,6 +8,7 @@ mod uploader;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
+use periodic_timer::PeriodicTimer;
 use thread_utils::get_current_thread_name;
 use uploader::*;
 
@@ -559,7 +561,8 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let wall_timer = crossbeam_channel::tick(WALL_TIME_PERIOD);
+        let wall_timer_impl = PeriodicTimer::new(WALL_TIME_PERIOD);
+        let wall_timer = wall_timer_impl.receiver();
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let never = crossbeam_channel::never();
         let mut running = true;

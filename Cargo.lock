@@ -1370,6 +1370,7 @@ dependencies = [
  "rustc_version",
  "serde_json",
  "thiserror 2.0.12",
+ "timerfd",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -4805,6 +4806,15 @@ checksum = "2834e6017e3e5e4b9834939793b282bc03b37a3336245fa820e35e233e2a85de"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "timerfd"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "84e482e368cf7efa2c8b570f476e5b9fd9fd5e9b9219fc567832b05f13511091"
+dependencies = [
+ "rustix",
 ]
 
 [[package]]
