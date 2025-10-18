@@ -520,8 +520,8 @@ dependencies = [
 
 [[package]]
 name = "build_common"
-version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+version = "22.1.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "cbindgen 0.29.0",
  "serde",
@@ -1136,8 +1136,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+version = "22.1.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "allocator-api2",
  "libc 0.2.173",
@@ -1265,7 +1265,7 @@ dependencies = [
 [[package]]
 name = "datadog-library-config"
 version = "0.0.2"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "anyhow",
  "memfd",
@@ -1292,14 +1292,14 @@ dependencies = [
 [[package]]
 name = "datadog-library-config-ffi"
 version = "0.0.2"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "anyhow",
- "build_common 21.0.0",
+ "build_common 22.1.0",
  "constcat",
- "datadog-library-config 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e)",
- "ddcommon 21.0.0",
- "ddcommon-ffi 21.0.0",
+ "datadog-library-config 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43)",
+ "ddcommon 22.1.0",
+ "ddcommon-ffi 22.1.0",
 ]
 
 [[package]]
@@ -1354,10 +1354,10 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
- "datadog-library-config-ffi 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e)",
+ "datadog-library-config-ffi 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43)",
  "datadog-php-profiling",
  "datadog-profiling",
- "ddcommon 21.0.0",
+ "ddcommon 22.1.0",
  "env_logger 0.11.6",
  "lazy_static",
  "libc 0.2.173",
@@ -1377,8 +1377,8 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+version = "22.1.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -1387,14 +1387,13 @@ dependencies = [
  "chrono",
  "datadog-alloc",
  "datadog-profiling-protobuf",
- "ddcommon 21.0.0",
+ "ddcommon 22.1.0",
  "futures",
  "http",
  "http-body-util",
  "hyper",
  "hyper-multipart-rfc7578",
  "indexmap 2.7.1",
- "lz4_flex",
  "mime",
  "prost",
  "rustc-hash",
@@ -1403,12 +1402,13 @@ dependencies = [
  "target-triple",
  "tokio",
  "tokio-util",
+ "zstd",
 ]
 
 [[package]]
 name = "datadog-profiling-protobuf"
-version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+version = "22.1.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "prost",
 ]
@@ -1625,8 +1625,8 @@ dependencies = [
 
 [[package]]
 name = "ddcommon"
-version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+version = "22.1.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "anyhow",
  "cc",
@@ -1672,14 +1672,14 @@ dependencies = [
 
 [[package]]
 name = "ddcommon-ffi"
-version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
+version = "22.1.0"
+source = "git+https://github.com/DataDog/libdatadog?rev=0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43#0f08a57083fd93ad15b3907a4b2b2a47b3b5cd43"
 dependencies = [
  "anyhow",
- "build_common 21.0.0",
+ "build_common 22.1.0",
  "chrono",
  "crossbeam-queue",
- "ddcommon 21.0.0",
+ "ddcommon 22.1.0",
  "hyper",
  "serde",
 ]
@@ -2910,15 +2910,6 @@ name = "log"
 version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
-
-[[package]]
-name = "lz4_flex"
-version = "0.9.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a8cbbb2831780bc3b9c15a41f5b49222ef756b6730a95f3decfdd15903eb5a3"
-dependencies = [
- "twox-hash",
-]
 
 [[package]]
 name = "manual_future"
