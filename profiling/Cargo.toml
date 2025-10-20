@@ -19,6 +19,7 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
+crossbeam-queue = "0.3"
 
 # This libdatadog commit is to be compat with tracer for a given lib config
 # crash fix which is not yet on a release.
@@ -39,10 +40,10 @@ rustc-hash = "1.1.0"
 thiserror = "2"
 tracing = { version = "0.1", optional = true }
 uuid = { version = "1.0", features = ["v4"] }
+nix = { version = "0.29", features = ["event", "fs"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 timerfd = "1.6"
-nix = { version = "0.29", features = ["event"] }
 
 [dependencies.tracing-subscriber]
 version = "0.3"

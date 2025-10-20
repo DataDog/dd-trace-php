@@ -26,7 +26,8 @@ use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
-use crossbeam_channel::{Receiver, Sender, TrySendError};
+use crossbeam_channel::{Sender, TrySendError};
+use crossbeam_queue::ArrayQueue;
 use datadog_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
 };
@@ -224,7 +225,7 @@ impl Default for Globals {
 pub struct Profiler {
     fork_barrier: Arc<Barrier>,
     interrupt_manager: Arc<InterruptManager>,
-    message_sender: Sender<ProfilerMessage>,
+    message_queue: Arc<ArrayQueue<ProfilerMessage>>,
     message_notifier: EventNotifier,
     upload_sender: Sender<UploadMessage>,
     time_collector_handle: JoinHandle<()>,
@@ -237,7 +238,6 @@ pub struct Profiler {
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
     interrupt_manager: Arc<InterruptManager>,
-    message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
     event_loop: EventLoop,
@@ -564,14 +564,11 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let upload_tick = crossbeam_channel::tick(self.upload_period);
         let mut running = true;
 
         while running {
             // Wait for the next event from the event loop
             let event = match self.event_loop.wait_for_event(
-                &self.message_receiver,
-                &upload_tick,
                 &self.interrupt_manager,
             ) {
                 Some(ev) => ev,
@@ -602,11 +599,6 @@ impl TimeCollector {
                         // the interrupt manager.
                         ProfilerMessage::Wake => {}
                     }
-                }
-
-                event_loop::LoopEvent::MessageDisconnected => {
-                    /* Channel is empty and disconnected. */
-                    break;
                 }
 
                 event_loop::LoopEvent::WallTimer => {
@@ -657,18 +649,17 @@ impl Profiler {
     pub fn new(system_settings: &mut SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
-        let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
 
-        // Create the event loop to get the notifiers before moving into TimeCollector
-        let event_loop = EventLoop::new(WALL_TIME_PERIOD, UPLOAD_PERIOD)
+        // Create the event loop with message queue
+        let event_loop = EventLoop::new(WALL_TIME_PERIOD, UPLOAD_PERIOD, 100)
             .expect("Failed to create event loop");
+        let message_queue = event_loop.message_queue();
         let message_notifier = event_loop.message_notifier();
 
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
-            message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
             event_loop,
@@ -686,7 +677,7 @@ impl Profiler {
         Profiler {
             fork_barrier,
             interrupt_manager,
-            message_sender,
+            message_queue,
             message_notifier,
             upload_sender,
             time_collector_handle: thread_utils::spawn(DDPROF_TIME, move || {
@@ -709,9 +700,10 @@ impl Profiler {
 
         // Second, make a best-effort attempt to wake the helper thread so
         // that it is aware another PHP request is in flight.
-        _ = self.message_sender.try_send(ProfilerMessage::Wake);
-        // Signal the event loop to wake up
-        self.message_notifier.notify();
+        if self.message_queue.push(ProfilerMessage::Wake).is_ok() {
+            // Signal the event loop to wake up
+            self.message_notifier.notify();
+        }
     }
 
     pub fn remove_interrupt(&self, interrupt: VmInterrupt) {
@@ -731,8 +723,11 @@ impl Profiler {
         // Send the message to the uploader first, as it has a longer worst
         // case time to wait.
         let uploader_result = self.upload_sender.send(UploadMessage::Pause);
-        let profiler_result = self.message_sender.send(ProfilerMessage::Pause);
-        self.message_notifier.notify();
+        let profiler_result = self.message_queue.push(ProfilerMessage::Pause)
+            .map_err(|_| anyhow::anyhow!("message queue full"));
+        if profiler_result.is_ok() {
+            self.message_notifier.notify();
+        }
 
         match (uploader_result, profiler_result) {
             (Ok(_), Ok(_)) => {
@@ -760,26 +755,32 @@ impl Profiler {
         &self,
         message: SampleMessage,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        let result = self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new);
-        if result.is_ok() {
-            self.message_notifier.notify();
+        let msg = ProfilerMessage::Sample(message);
+        match self.message_queue.push(msg) {
+            Ok(()) => {
+                self.message_notifier.notify();
+                Ok(())
+            }
+            Err(returned_msg) => {
+                Err(Box::new(TrySendError::Full(returned_msg)))
+            }
         }
-        result
     }
 
     pub fn send_local_root_span_resource(
         &self,
         message: LocalRootSpanResourceMessage,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        let result = self.message_sender
-            .try_send(ProfilerMessage::LocalRootSpanResource(message))
-            .map_err(Box::new);
-        if result.is_ok() {
-            self.message_notifier.notify();
+        let msg = ProfilerMessage::LocalRootSpanResource(message);
+        match self.message_queue.push(msg) {
+            Ok(()) => {
+                self.message_notifier.notify();
+                Ok(())
+            }
+            Err(returned_msg) => {
+                Err(Box::new(TrySendError::Full(returned_msg)))
+            }
         }
-        result
     }
 
     /// Begins the shutdown process. To complete it, call [Profiler::shutdown].
@@ -797,20 +798,18 @@ impl Profiler {
         }
     }
 
-    pub fn join_and_drop_sender(&mut self, timeout: Duration) {
+    pub fn join_and_drop_sender(&mut self, _timeout: Duration) {
         debug!("Stopping profiler.");
 
-        let sent = match self
-            .message_sender
-            .send_timeout(ProfilerMessage::Cancel, timeout)
-        {
-            Err(err) => {
-                warn!("Recent samples are most likely lost: Failed to notify other threads of cancellation: {err}.");
-                false
-            }
-            Ok(_) => {
+        let sent = match self.message_queue.push(ProfilerMessage::Cancel) {
+            Ok(()) => {
+                self.message_notifier.notify();
                 debug!("Notified other threads of cancellation.");
                 true
+            }
+            Err(_) => {
+                warn!("Recent samples are most likely lost: Failed to notify other threads of cancellation (queue full).");
+                false
             }
         };
         self.should_join.store(sent, Ordering::SeqCst);
@@ -883,7 +882,6 @@ impl Profiler {
         if let Some(mut profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).take() } {
             // Drop some things to reduce memory.
             profiler.interrupt_manager = Arc::new(InterruptManager::new());
-            profiler.message_sender = crossbeam_channel::bounded(0).0;
             profiler.upload_sender = crossbeam_channel::bounded(0).0;
 
             // But we're not 100% sure everything is safe to drop, notably the
@@ -1491,13 +1489,16 @@ impl Profiler {
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         let message = self.prepare_sample_message(frames, samples, labels, timestamp);
-        let result = self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new);
-        if result.is_ok() {
-            self.message_notifier.notify();
+        let msg = ProfilerMessage::Sample(message);
+        match self.message_queue.push(msg) {
+            Ok(()) => {
+                self.message_notifier.notify();
+                Ok(())
+            }
+            Err(returned_msg) => {
+                Err(Box::new(TrySendError::Full(returned_msg)))
+            }
         }
-        result
     }
 
     fn prepare_sample_message(
