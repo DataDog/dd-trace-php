@@ -1,3 +1,4 @@
+mod event_loop;
 mod interrupts;
 mod periodic_timer;
 mod sample_type_filter;
@@ -8,7 +9,7 @@ mod uploader;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
-use periodic_timer::PeriodicTimer;
+use event_loop::{EventLoop, EventNotifier};
 use thread_utils::get_current_thread_name;
 use uploader::*;
 
@@ -224,6 +225,7 @@ pub struct Profiler {
     fork_barrier: Arc<Barrier>,
     interrupt_manager: Arc<InterruptManager>,
     message_sender: Sender<ProfilerMessage>,
+    message_notifier: EventNotifier,
     upload_sender: Sender<UploadMessage>,
     time_collector_handle: JoinHandle<()>,
     uploader_handle: JoinHandle<()>,
@@ -238,6 +240,7 @@ struct TimeCollector {
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
+    event_loop: EventLoop,
 }
 
 impl TimeCollector {
@@ -561,77 +564,58 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let wall_timer_impl = PeriodicTimer::new(WALL_TIME_PERIOD);
-        let wall_timer = wall_timer_impl.receiver();
         let upload_tick = crossbeam_channel::tick(self.upload_period);
-        let never = crossbeam_channel::never();
         let mut running = true;
 
         while running {
-            // The crossbeam_channel::select! doesn't have the ability to
-            // optionally recv something. Instead, if the tick channel
-            // shouldn't be selected on, then pass the never channel for that
-            // iteration instead, keeping the code structure of the recvs the
-            // same. Since the never channel will never be ready, this
-            // effectively makes that branch optional for that loop iteration.
-            let timer = if self.interrupt_manager.has_interrupts() {
-                &wall_timer
-            } else {
-                &never
+            // Wait for the next event from the event loop
+            let event = match self.event_loop.wait_for_event(
+                &self.message_receiver,
+                &upload_tick,
+                &self.interrupt_manager,
+            ) {
+                Some(ev) => ev,
+                None => continue, // Error occurred, try again
             };
 
-            crossbeam_channel::select! {
-
-                recv(self.message_receiver) -> result => {
-                    match result {
-                        Ok(message) => match message {
-                            ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
-                            ProfilerMessage::LocalRootSpanResource(message) =>
-                                Self::handle_resource_message(message, &mut profiles),
-                            ProfilerMessage::Cancel => {
-                                // flush what we have before exiting
-                                last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
-                                running = false;
-                            },
-                            ProfilerMessage::Pause => {
-                                // First, wait for every thread to finish what
-                                // they are currently doing.
-                                self.fork_barrier.wait();
-                                // Then, wait for the fork to be completed.
-                                self.fork_barrier.wait();
-                            },
-                            // The purpose is to wake up and sync the state of
-                            // the interrupt manager.
-                            ProfilerMessage::Wake => {}
+            // Process the event
+            match event {
+                event_loop::LoopEvent::Message(message) => {
+                    match message {
+                        ProfilerMessage::Sample(sample) =>
+                            Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
+                        ProfilerMessage::LocalRootSpanResource(message) =>
+                            Self::handle_resource_message(message, &mut profiles),
+                        ProfilerMessage::Cancel => {
+                            // flush what we have before exiting
+                            last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                            running = false;
                         },
-
-                        Err(_) => {
-                            /* Docs say:
-                             * > A message could not be received because the
-                             * > channel is empty and disconnected.
-                             * If this happens, let's just break and end.
-                             */
-                            break;
-                        }
+                        ProfilerMessage::Pause => {
+                            // First, wait for every thread to finish what
+                            // they are currently doing.
+                            self.fork_barrier.wait();
+                            // Then, wait for the fork to be completed.
+                            self.fork_barrier.wait();
+                        },
+                        // The purpose is to wake up and sync the state of
+                        // the interrupt manager.
+                        ProfilerMessage::Wake => {}
                     }
-                },
+                }
 
-                recv(timer) -> message => match message {
-                    Ok(_) => self.interrupt_manager.trigger_interrupts(),
+                event_loop::LoopEvent::MessageDisconnected => {
+                    /* Channel is empty and disconnected. */
+                    break;
+                }
 
-                    Err(err) => {
-                        warn!("{err}");
-                        break;
-                    },
-                },
+                event_loop::LoopEvent::WallTimer => {
+                    self.interrupt_manager.trigger_interrupts();
+                }
 
-                recv(upload_tick) -> message => {
-                    if message.is_ok() {
-                        last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
-                    }
-                },
-
+                event_loop::LoopEvent::UploadTimer => {
+                    last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                }
             }
         }
     }
@@ -675,12 +659,19 @@ impl Profiler {
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
+
+        // Create the event loop to get the notifiers before moving into TimeCollector
+        let event_loop = EventLoop::new(WALL_TIME_PERIOD, UPLOAD_PERIOD)
+            .expect("Failed to create event loop");
+        let message_notifier = event_loop.message_notifier();
+
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
+            event_loop,
         };
 
         let uploader = Uploader::new(
@@ -696,6 +687,7 @@ impl Profiler {
             fork_barrier,
             interrupt_manager,
             message_sender,
+            message_notifier,
             upload_sender,
             time_collector_handle: thread_utils::spawn(DDPROF_TIME, move || {
                 time_collector.run();
@@ -718,6 +710,8 @@ impl Profiler {
         // Second, make a best-effort attempt to wake the helper thread so
         // that it is aware another PHP request is in flight.
         _ = self.message_sender.try_send(ProfilerMessage::Wake);
+        // Signal the event loop to wake up
+        self.message_notifier.notify();
     }
 
     pub fn remove_interrupt(&self, interrupt: VmInterrupt) {
@@ -738,6 +732,7 @@ impl Profiler {
         // case time to wait.
         let uploader_result = self.upload_sender.send(UploadMessage::Pause);
         let profiler_result = self.message_sender.send(ProfilerMessage::Pause);
+        self.message_notifier.notify();
 
         match (uploader_result, profiler_result) {
             (Ok(_), Ok(_)) => {
@@ -765,18 +760,26 @@ impl Profiler {
         &self,
         message: SampleMessage,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
+        let result = self.message_sender
             .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+            .map_err(Box::new);
+        if result.is_ok() {
+            self.message_notifier.notify();
+        }
+        result
     }
 
     pub fn send_local_root_span_resource(
         &self,
         message: LocalRootSpanResourceMessage,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
+        let result = self.message_sender
             .try_send(ProfilerMessage::LocalRootSpanResource(message))
-            .map_err(Box::new)
+            .map_err(Box::new);
+        if result.is_ok() {
+            self.message_notifier.notify();
+        }
+        result
     }
 
     /// Begins the shutdown process. To complete it, call [Profiler::shutdown].
@@ -1488,9 +1491,13 @@ impl Profiler {
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         let message = self.prepare_sample_message(frames, samples, labels, timestamp);
-        self.message_sender
+        let result = self.message_sender
             .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+            .map_err(Box::new);
+        if result.is_ok() {
+            self.message_notifier.notify();
+        }
+        result
     }
 
     fn prepare_sample_message(
