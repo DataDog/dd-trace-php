@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 139f8e60f945750fd3f81c339dc5318c0b155fbd */
+ * Stub hash: 9539356c50d39ee983e578d17d1796e50b761f86 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -132,8 +132,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_flush, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_curl_multi_exec_get_request_spans, 0, 1, IS_VOID, 0)
-	ZEND_ARG_INFO(1, array)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_curl_multi_exec_get_request_spans, 1, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_dogstatsd_count, 0, 2, IS_VOID, 0)
@@ -546,7 +545,7 @@ static const zend_function_entry class_DDTrace_SpanData_methods[] = {
 };
 
 static const zend_function_entry class_DDTrace_Integration_methods[] = {
-	ZEND_RAW_FENTRY("init", NULL, arginfo_class_DDTrace_Integration_init, ZEND_ACC_PUBLIC|ZEND_ACC_ABSTRACT, NULL, NULL)
+	ZEND_RAW_FENTRY("init", NULL, arginfo_class_DDTrace_Integration_init, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC|ZEND_ACC_ABSTRACT, NULL, NULL)
 	ZEND_FE_END
 };
 
