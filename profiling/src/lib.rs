@@ -577,7 +577,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
-        locals.interrupt_count.store(0, Ordering::SeqCst);
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {
