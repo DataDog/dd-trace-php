@@ -22,6 +22,29 @@ class TelemetryHelpers {
         }
     }
 
+    static class AppEndpoints {
+        static names = ['app-endpoints']
+        List<Endpoint> endpoints
+
+        AppEndpoints(Map m) {
+            endpoints = m.endpoints.collect { new Endpoint(it as Map) }
+        }
+    }
+
+    static class Endpoint {
+        String method
+        String operationName
+        String path
+        String resourceName
+
+        Endpoint(Map m) {
+            method = m.method
+            operationName = m.operation_name
+            path = m.path
+            resourceName = m.resource_name
+        }
+    }
+
     static class Metric {
         String namespace
         String name
