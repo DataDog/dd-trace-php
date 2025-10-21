@@ -96,7 +96,7 @@ class TelemetryTests {
         TelemetryHelpers.Metric wafReq1
         TelemetryHelpers.Metric wafReq2
 
-        waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
             wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
@@ -195,7 +195,7 @@ class TelemetryTests {
                         ]
         ])
 
-        def messages = waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+        def messages = TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages
                     .collectMany { it.series }
                     .findAll {
@@ -281,7 +281,7 @@ class TelemetryTests {
                 ]
         ])
 
-        def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
+        def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
             def relevantLogs = logs.collectMany { it.logs.findAll { it.tags.contains('log_type:rc::') } }
             relevantLogs.size() >= 3
         }.collectMany { it.logs }
@@ -327,7 +327,7 @@ class TelemetryTests {
 
         List<TelemetryHelpers.IntegrationEntry> allIntegrations = []
         boolean foundRedis = false
-        waitForIntegrations(30) { List<TelemetryHelpers.WithIntegrations> messages ->
+        TelemetryHelpers.waitForIntegrations(CONTAINER, 30) { List<TelemetryHelpers.WithIntegrations> messages ->
             allIntegrations.addAll(messages.collectMany { it.integrations })
             foundRedis = allIntegrations.find { it.name == 'phpredis' && it.enabled == Boolean.TRUE } != null
         }
@@ -339,7 +339,7 @@ class TelemetryTests {
         allIntegrations = []
         foundRedis = false
         boolean foundExec = false
-        waitForIntegrations(15) { List<TelemetryHelpers.WithIntegrations> messages ->
+        TelemetryHelpers.waitForIntegrations(CONTAINER, 15) { List<TelemetryHelpers.WithIntegrations> messages ->
             allIntegrations.addAll(messages.collectMany { it.integrations })
             foundRedis = allIntegrations.find { it.name == 'phpredis' && it.enabled == Boolean.TRUE } != null
             foundExec = allIntegrations.find { it.name == 'exec' && it.enabled == Boolean.TRUE } != null
@@ -347,41 +347,6 @@ class TelemetryTests {
 
         assert !foundRedis
         assert foundExec
-    }
-
-    private static List<TelemetryHelpers.GenerateMetrics> waitForMetrics(int timeoutSec, Closure<Boolean> cl) {
-        waitForTelemetryData(timeoutSec, cl, TelemetryHelpers.GenerateMetrics)
-    }
-
-    private static List<TelemetryHelpers.WithIntegrations> waitForIntegrations(int timeoutSec, Closure<Boolean> cl) {
-        waitForTelemetryData(timeoutSec, cl, TelemetryHelpers.WithIntegrations)
-    }
-
-    private static List<TelemetryHelpers.Logs> waitForTelemetryLogs(int timeoutSec, Closure<Boolean> cl) {
-        waitForTelemetryData(timeoutSec, cl, TelemetryHelpers.Logs)
-    }
-
-    private static <T> List<T> waitForTelemetryData(int timeoutSec, Closure<Boolean> cl, Class<T> cls) {
-        List<T> messages = []
-        def deadline = System.currentTimeSeconds() + timeoutSec
-        def lastHttpReq = System.currentTimeSeconds() - 6
-        while (System.currentTimeSeconds() < deadline) {
-            if (System.currentTimeSeconds() - lastHttpReq > 5) {
-                lastHttpReq = System.currentTimeSeconds()
-                // used to flush global (not request-bound) telemetry metrics
-                def request = CONTAINER.buildReq('/hello.php').GET().build()
-                def trace = CONTAINER.traceFromRequest(request, ofString()) { HttpResponse<String> resp ->
-                    assert resp.body().size() > 0
-                }
-            }
-            def telData = CONTAINER.drainTelemetry(500)
-            messages.addAll(
-                    TelemetryHelpers.filterMessages(telData, cls))
-            if (cl.call(messages)) {
-                break
-            }
-        }
-        messages
     }
 
     /**
@@ -423,7 +388,7 @@ class TelemetryTests {
         TelemetryHelpers.Metric lfiTimeout
         TelemetryHelpers.Metric ssrfTimeout
 
-        waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
             lfiEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:lfi' in it.tags}
@@ -514,7 +479,7 @@ class TelemetryTests {
         TelemetryHelpers.Metric loginSuccess
         TelemetryHelpers.Metric loginFailure
 
-        waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             println allSeries
             loginSuccess = allSeries.find{ it.name == 'sdk.event' && 'event_type:login_success' in it.tags}
