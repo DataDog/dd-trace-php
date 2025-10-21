@@ -105,33 +105,6 @@ class Laravel8xTests {
         assert span.meta."appsec.blocked" == "true"
     }
 
-    private static <T> List<T> waitForTelemetryData(int timeoutSec, Closure<Boolean> cl, Class<T> cls) {
-        List<T> messages = []
-        def deadline = System.currentTimeSeconds() + timeoutSec
-        def lastHttpReq = System.currentTimeSeconds() - 6
-        while (System.currentTimeSeconds() < deadline) {
-            if (System.currentTimeSeconds() - lastHttpReq > 5) {
-                lastHttpReq = System.currentTimeSeconds()
-                // used to flush global (not request-bound) telemetry metrics
-                def request = CONTAINER.buildReq('/').GET().build()
-                def trace = CONTAINER.traceFromRequest(request, ofString()) { HttpResponse<String> resp ->
-                    assert resp.body().size() > 0
-                }
-            }
-            def telData = CONTAINER.drainTelemetry(500)
-            messages.addAll(
-                    TelemetryHelpers.filterMessages(telData, cls))
-            if (cl.call(messages)) {
-                break
-            }
-        }
-        messages
-    }
-
-    private static List<TelemetryHelpers.AppEndpoints> waitForMetrics(int timeoutSec, Closure<Boolean> cl) {
-        waitForTelemetryData(timeoutSec, cl, TelemetryHelpers.AppEndpoints)
-    }
-
     @Test
     void 'Endpoints are sended'() {
         def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
@@ -142,10 +115,10 @@ class Laravel8xTests {
 
         List<TelemetryHelpers.Endpoint> endpoints
 
-        waitForMetrics(30) { List<TelemetryHelpers.AppEndpoints> messages ->
+        TelemetryHelpers.waitForAppEndpoints(container, 30, { List<TelemetryHelpers.Endpoint> messages ->
             endpoints = messages.collectMany { it.endpoints }
             endpoints.size() > 0
-        }
+        })
 
         assert endpoints.size() == 6
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
