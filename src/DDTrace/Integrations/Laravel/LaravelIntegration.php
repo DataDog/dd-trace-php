@@ -146,10 +146,10 @@ class LaravelIntegration extends Integration
                 if (!\DDTrace\are_endpoints_collected()) {
                     $routeCollection = $This->getRoutes();
                     foreach ($routeCollection as $value) {
-                        $path = $value->uri;
-                        $method = $value->methods[0] ?? '';
-                        $resourceName = $method . ' ' . $path;
-                        \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
+                        $path = $value->uri();
+                        $methods = $value->methods();
+                        $resourceName = $methods[0] . ' ' . $path;
+                        \DDTrace\add_endpoint($path, 'http.request', $resourceName, $methods[0]);
                     }
                 }
             }
