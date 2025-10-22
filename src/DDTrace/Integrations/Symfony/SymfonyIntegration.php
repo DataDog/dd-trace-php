@@ -503,7 +503,8 @@ class SymfonyIntegration extends Integration
                         \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
                     }
 
-                    if (!\DDTrace\are_endpoints_collected() && self::$kernel !== null) {
+                    if (self::$frameworkPrefix === SymfonyIntegration::NAME && self::$kernel !== null && !\DDTrace\are_endpoints_collected())
+                    {
                         /** @var ContainerInterface $container */
                         $container = self::$kernel->getContainer();
                         /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
