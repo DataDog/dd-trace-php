@@ -165,7 +165,7 @@ class TelemetryHelpers {
         }
     }
 
-    public static <T> List<T> waitForTelemetryData(AppSecContainer container, int timeoutSec, Closure<Boolean> cl, Class<T> cls) {
+    public static <T> List<T> waitForTelemetryData(AppSecContainer container, int timeoutSec, Closure<Boolean> cl, Class<T> cls, String path = '/hello.php') {
         List<T> messages = []
         def deadline = System.currentTimeSeconds() + timeoutSec
         def lastHttpReq = System.currentTimeSeconds() - 6
@@ -173,7 +173,7 @@ class TelemetryHelpers {
             if (System.currentTimeSeconds() - lastHttpReq > 5) {
                 lastHttpReq = System.currentTimeSeconds()
                 // used to flush global (not request-bound) telemetry metrics
-                def request = container.buildReq('/hello.php').GET().build()
+                def request = container.buildReq(path).GET().build()
                 def trace = container.traceFromRequest(request, ofString()) { HttpResponse<String> resp ->
                     assert resp.body().size() > 0
                 }
@@ -188,8 +188,8 @@ class TelemetryHelpers {
         messages
     }
 
-    public static List<AppEndpoints> waitForAppEndpoints(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
-        waitForTelemetryData(container, timeoutSec, cl, AppEndpoints)
+    public static List<AppEndpoints> waitForAppEndpoints(AppSecContainer container, int timeoutSec, Closure<Boolean> cl, String path = '/') {
+        waitForTelemetryData(container, timeoutSec, cl, AppEndpoints, path)
     }
 
     public static List<GenerateMetrics> waitForMetrics(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {

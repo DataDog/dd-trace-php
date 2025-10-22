@@ -148,7 +148,7 @@ class LaravelIntegration extends Integration
                     foreach ($routeCollection as $value) {
                         $path = method_exists($value, 'uri') ? $value->uri() : '';
                         $methods = method_exists($value, 'methods') ? $value->methods() : [];
-                        $method = isset($methods[0]) ? $methods[0] : '';
+                        $method = isset($methods[0]) ? $methods[0] : 'GET';
                         $resourceName = $method . ' ' . $path;
                         \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
                     }

@@ -502,6 +502,22 @@ class SymfonyIntegration extends Integration
                         function_exists('datadog\appsec\push_addresses')) {
                         \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
                     }
+
+                    if (!\DDTrace\are_endpoints_collected() && self::$kernel !== null) {
+                        /** @var ContainerInterface $container */
+                        $container = self::$kernel->getContainer();
+                        /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
+                        $router = $container->get('router');
+                        $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
+                        /** @var \Symfony\Component\Routing\Route $route */
+                        foreach ($routes as $route) {
+                            $path = method_exists($route, 'getPath') ? $route->getPath() : '';
+                            $methods = method_exists($route, 'getMethods') ? $route->getMethods() : [];
+                            $method = isset($methods[0]) ? $methods[0] : 'GET';
+                            $resourceName = $method . ' ' . $path;
+                            \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
+                        }
+                    }
                 }
             );
         }
