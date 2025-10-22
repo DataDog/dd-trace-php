@@ -72,7 +72,7 @@ bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_c
 
 bool ddog_global_log_probe_limiter_inc(const struct ddog_RemoteConfigState *remote_config);
 
-struct ddog_Vec_CharSlice *ddog_CharSlice_to_owned(ddog_CharSlice str);
+struct ddog_Vec_CChar *ddog_CharSlice_to_owned(ddog_CharSlice str);
 
 bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remote_config,
                                             ddog_CharSlice service,
