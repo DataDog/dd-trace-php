@@ -37,7 +37,7 @@ function download_php {
   if [[ $version_id -lt 50400 ]]; then
     download_url="http://museum.php.net/php5/php-${version}.tar.gz"
   elif [[ $version_id -ge 80500 ]]; then
-    download_url="https://downloads.php.net/~daniels/php-8.5.0RC1.tar.gz"
+    download_url="https://downloads.php.net/~daniels/php-8.5.0RC3.tar.gz"
   else
     download_url="https://www.php.net/distributions/php-${version}.tar.gz"
   fi

@@ -141,8 +141,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: 8.5.0
-        phpTarGzUrl: https://downloads.php.net/~daniels/php-8.5.0RC1.tar.gz
-        phpSha256Hash: "0ea5059a387117fe6ed9a72cdc20945dbff6acc072df936e97d35a9cb26420e0"
+        phpTarGzUrl: https://downloads.php.net/~daniels/php-8.5.0RC3.tar.gz
+        phpSha256Hash: "937e544d72ee1eb28d2190cadaadf8e5e8d7d8c365b5c1f6a99b4f979a1f3a1b"
         phpApi: 20250925
     volumes:
       - ../../:/app

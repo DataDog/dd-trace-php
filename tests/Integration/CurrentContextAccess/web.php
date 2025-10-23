@@ -14,6 +14,7 @@ use DDTrace\Type;
 
 function internal_span()
 {
+    echo "Inside internal_span\n";
 }
 
 

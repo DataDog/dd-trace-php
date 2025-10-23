@@ -49,7 +49,7 @@ ${PHP_SRC_DIR}/configure \
         --enable-ftp \
         $(if [[ ${PHP_VERSION_ID} -ge 71 ]]; then echo --enable-intl; fi) \
         --enable-mbstring \
-        --enable-opcache \
+        $(if [[ ${PHP_VERSION_ID} -le 84 ]]; then echo --enable-opcache; fi) \
         $(if [[ ${PHP_VERSION_ID} -ge 80 ]]; then echo --enable-zend-test=shared; fi) \
         --enable-pcntl \
         --enable-soap \
