@@ -10,25 +10,75 @@
         $args[] = new class () implements \OpenTelemetry\Config\SDK\Configuration\Environment\EnvSource {
             public function readRaw(string $name): mixed
             {
-                if ($name === 'OTEL_EXPORTER_OTLP_ENDPOINT') {
-                    $url = \dd_trace_env_config('DD_TRACE_AGENT_URL');
-                    $component = \parse_url($url);
+                if ($name === 'OTEL_EXPORTER_OTLP_ENDPOINT' || $name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+                    // Determine protocol
+                    $protocol = null;
 
-                    $host = $component['host'] ?? null;
-                    $scheme = $component['scheme'] ?? null;
-
-                    $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_PROTOCOL');
-
-                    $port = null;
-                    if ($protocol === 'grpc') {
-                        $port = '4317';
-                    }
-                    if ($protocol === 'http') {
-                        $port = '4318';
+                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+                        // Get metrics-specific protocol
+                        $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL');
                     }
 
-                    $new_url = $scheme . '://' . $host . ':' . $port;
-                    return $new_url;
+                    if ($protocol === null) {
+                        // Get general OTLP protocol
+                        $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_PROTOCOL');
+                    }
+
+                    if ($protocol === null) {
+                        // Use language default
+                        $protocol = 'http'; // is this just http? or http/protobuf
+                    }
+
+                    // Determine endpoint
+
+                    // Check for metrics-specific endpoint (use exactly as-is)
+                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+                        $metricsEndpoint = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_METRICS_ENDPOINT');
+                        if ($metricsEndpoint !== null) {
+                            return $metricsEndpoint;
+                        }
+                    }
+
+                    // Check for general OTLP endpoint
+                    $generalEndpoint = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_ENDPOINT');
+                    if ($generalEndpoint !== null) {
+                        // May need to add subpath for metrics endpoint with HTTP protocol
+                        if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' && $protocol !== 'grpc') {
+                            return rtrim($generalEndpoint, '/') . '/v1/metrics';
+                        }
+                        return $generalEndpoint;
+                    }
+
+                    // Get agent host from DD_AGENT_HOST or DD_TRACE_AGENT_URL
+                    $host = \dd_trace_env_config('DD_AGENT_HOST');
+
+                    if ($host === null || $host === '') {
+                        // Try to extract from DD_TRACE_AGENT_URL
+                        $agentUrl = \dd_trace_env_config('DD_TRACE_AGENT_URL');
+                        if ($agentUrl !== null && $agentUrl !== '') {
+                            $component = \parse_url($agentUrl);
+                            if ($component !== false) {
+                                $host = $component['host'] ?? null;
+                            }
+                        }
+                    }
+
+                    // Build endpoint: http://{host}:{port}
+                    if ($host === null || $host === '') {
+                        $host = 'localhost';
+                    }
+
+                    // Determine port based on protocol
+                    $port = ($protocol === 'grpc') ? '4317' : '4318';
+
+                    $endpoint = 'http://' . $host . ':' . $port;
+
+                    // Add subpath for metrics endpoint with HTTP protocol
+                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' && $protocol !== 'grpc') {
+                        $endpoint .= '/v1/metrics';
+                    }
+
+                    return $endpoint;
                 }
 
                 // Explicitly return null to match the original implicit behavior.
