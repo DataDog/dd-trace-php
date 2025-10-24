@@ -30,16 +30,8 @@ public:
 
 class broker : public base_broker {
 public:
-    // msgpack limits
-    static constexpr std::size_t max_array_size = 256;
-    static constexpr std::size_t max_map_size = 256;
-    static constexpr std::size_t max_string_length = 4096;
-    static constexpr std::size_t max_binary_size = 0;
-    static constexpr std::size_t max_extension_size = 0;
-    static constexpr std::size_t max_depth = 32;
-
-    // other limits
-    static constexpr std::size_t max_msg_body_size = 65536;
+    // message body size limit (700 KB)
+    static constexpr std::size_t max_msg_body_size = 750UL * 1024UL;
 
     explicit broker(std::unique_ptr<base_socket> &&socket)
         : socket_(std::move(socket))

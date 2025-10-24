@@ -419,36 +419,6 @@ TEST(BrokerTest, RecvRequestInit)
     EXPECT_EQ(ddwaf_object_type(pv[2][5]), DDWAF_OBJ_NULL);
 }
 
-TEST(BrokerTest, RecvRequestInitOverLimits)
-{
-    mock::socket *socket = new mock::socket();
-    network::broker broker{std::unique_ptr<mock::socket>(socket)};
-
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(2);
-    pack_str(packer, "request_init");
-    packer.pack_array(1);
-
-    auto map_size = network::broker::max_map_size + 1;
-    packer.pack_map(map_size);
-    for (unsigned i = 0; i < map_size; i++) {
-        pack_str(packer, std::to_string(i));
-        pack_str(packer, std::to_string(i));
-    }
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(
-            DoAll(CopyString(&expected_data), Return(expected_data.size())));
-
-    EXPECT_THROW(
-        network::request request = broker.recv(std::chrono::milliseconds(100)),
-        msgpack::unpack_error);
-}
-
 TEST(BrokerTest, RecvRequestShutdown)
 {
     mock::socket *socket = new mock::socket();
@@ -550,178 +520,6 @@ TEST(BrokerTest, InvalidRequest)
         msgpack::type_error);
 }
 
-TEST(BrokerTest, ParsingStringLimit)
-{
-    mock::socket *socket = new mock::socket();
-    network::broker broker{std::unique_ptr<mock::socket>(socket)};
-
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(1);
-    pack_str(packer, "server.response.code");
-    pack_str(packer, std::string(network::broker::max_string_length + 1, 'a'));
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(
-            DoAll(CopyString(&expected_data), Return(expected_data.size())));
-
-    network::request request;
-    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
-        msgpack::type_error);
-}
-
-TEST(BrokerTest, ParsingMapLimit)
-{
-    mock::socket *socket = new mock::socket();
-    network::broker broker{std::unique_ptr<mock::socket>(socket)};
-
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(network::broker::max_map_size + 1);
-    for (std::size_t i = 0; i < network::broker::max_map_size + 1; i++) {
-        pack_str(packer, "server.response.code");
-        pack_str(packer, "1729");
-    }
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(
-            DoAll(CopyString(&expected_data), Return(expected_data.size())));
-
-    network::request request;
-    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
-        msgpack::type_error);
-}
-
-TEST(BrokerTest, ParsingArrayLimit)
-{
-    mock::socket *socket = new mock::socket();
-    network::broker broker{std::unique_ptr<mock::socket>(socket)};
-
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(1);
-    pack_str(packer, "server.response.code");
-    packer.pack_array(network::broker::max_array_size + 1);
-    for (std::size_t i = 0; i < network::broker::max_array_size + 1; i++) {
-        pack_str(packer, "1729");
-    }
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(
-            DoAll(CopyString(&expected_data), Return(expected_data.size())));
-
-    network::request request;
-    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
-        msgpack::type_error);
-}
-
-TEST(BrokerTest, ParsingDepthLimit)
-{
-    mock::socket *socket = new mock::socket();
-    network::broker broker{std::unique_ptr<mock::socket>(socket)};
-
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(1);
-    pack_str(packer, "server.response.code");
-    for (std::size_t i = 0; i < network::broker::max_depth; i++) {
-        packer.pack_array(1);
-    }
-    pack_str(packer, "1729");
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(
-            DoAll(CopyString(&expected_data), Return(expected_data.size())));
-
-    network::request request;
-    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
-        msgpack::type_error);
-}
-
-TEST(BrokerTest, ParsingBinLimit)
-{
-    mock::socket *socket = new mock::socket();
-    network::broker broker{std::unique_ptr<mock::socket>(socket)};
-
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(1);
-    pack_str(packer, "server.response.code");
-    packer.pack_bin(4);
-    packer.pack_bin_body("1729", 4);
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(
-            DoAll(CopyString(&expected_data), Return(expected_data.size())));
-
-    network::request request;
-    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
-        msgpack::type_error);
-}
-
-TEST(BrokerTest, ParsingExtLimit)
-{
-    mock::socket *socket = new mock::socket();
-    network::broker broker{std::unique_ptr<mock::socket>(socket)};
-
-    std::stringstream ss;
-    msgpack::packer<std::stringstream> packer(ss);
-    packer.pack_array(1);
-    pack_str(packer, "request_shutdown");
-    packer.pack_array(1);
-    packer.pack_map(1);
-    pack_str(packer, "server.response.code");
-    packer.pack_ext(4, 4);
-    packer.pack_ext_body("1729", 4);
-
-    const std::string &expected_data = ss.str();
-
-    network::header_t h{"dds", (uint32_t)expected_data.size()};
-    EXPECT_CALL(*socket, recv(_, _))
-        .WillOnce(DoAll(CopyHeader(&h), Return(sizeof(network::header_t))))
-        .WillOnce(
-            DoAll(CopyString(&expected_data), Return(expected_data.size())));
-
-    network::request request;
-    EXPECT_THROW(request = broker.recv(std::chrono::milliseconds(100)),
-        msgpack::type_error);
-}
-
 TEST(BrokerTest, ParsingBodyLimit)
 {
     mock::socket *socket = new mock::socket();
@@ -733,9 +531,11 @@ TEST(BrokerTest, ParsingBodyLimit)
     pack_str(packer, "request_shutdown");
     packer.pack_array(1);
     packer.pack_map(16);
+    // Create a message larger than 750KB limit
+    // 16 * (4 + 50000) = 800,064 bytes, well over 750KB
     for (char c = 'a'; c < 'q'; c++) {
         pack_str(packer, std::string(4, c));
-        pack_str(packer, std::string(4096, c));
+        pack_str(packer, std::string(50000, c));
     }
 
     const std::string &expected_data = ss.str();
@@ -761,9 +561,11 @@ TEST(BrokerTest, ParsingBodyLimitFailFlush)
     pack_str(packer, "request_shutdown");
     packer.pack_array(1);
     packer.pack_map(16);
+    // Create a message larger than 750KB limit
+    // 16 * (4 + 50000) = 800,064 bytes, well over 750KB
     for (char c = 'a'; c < 'q'; c++) {
         pack_str(packer, std::string(4, c));
-        pack_str(packer, std::string(4096, c));
+        pack_str(packer, std::string(50000, c));
     }
 
     const std::string &expected_data = ss.str();

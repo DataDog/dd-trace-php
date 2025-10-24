@@ -34,11 +34,22 @@ if(DD_APPSEC_BUILD_EXTENSION)
         POSITION_INDEPENDENT_CODE 1
         C_VISIBILITY_PRESET hidden)
 
-    target_include_directories(mpack PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/)
+    target_include_directories(mpack
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/extension/mpack/)
+    target_link_libraries(mpack PUBLIC PhpConfig) # for the allocation functions
+    target_compile_definitions(mpack PUBLIC MPACK_HAS_CONFIG=1)
     if(MPACK_DEBUG)
         target_compile_definitions(mpack PUBLIC MPACK_DEBUG=1 MPACK_BUFFER_SIZE=32)
     else()
         target_compile_definitions(mpack PUBLIC MPACK_STDIO=0 MPACK_WRITE_TRACKING=1 MPACK_BUFFER_SIZE=131072)
+    endif()
+
+    if(DD_APPSEC_TESTING)
+        add_library(mpack_malloc OBJECT ${MPACK_C_SOURCES})
+        target_include_directories(mpack_malloc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/)
+        target_compile_definitions(mpack_malloc PUBLIC MPACK_STDIO=0 MPACK_WRITE_TRACKING=1 MPACK_BUFFER_SIZE=131072)
     endif()
 endif()
 
