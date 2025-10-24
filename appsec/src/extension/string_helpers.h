@@ -5,10 +5,10 @@
 // Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "attributes.h"
+#include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <limits.h>
-#include "attributes.h"
 
 #define STR_FOR_FMT(a) ((a) != NULL ? (a) : "(null)")
 

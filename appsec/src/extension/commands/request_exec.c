@@ -50,7 +50,13 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     struct ctx *ctx = _ctx;
 
     dd_mpack_write_nullable_zstr(w, ctx->rasp_rule);
-    dd_mpack_write_zval(w, ctx->data);
+
+    dd_mpack_limits limits = dd_mpack_def_limits;
+    dd_mpack_write_zval_lim(w, ctx->data, &limits);
+
+    if (dd_mpack_limits_reached(&limits)) {
+        mlog(dd_log_info, "Limits reched when serializing request exec data");
+    }
 
     return dd_success;
 }

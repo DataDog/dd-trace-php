@@ -755,9 +755,13 @@ int main(int argc, char *argv[])
         iocontext.run();
     } catch (std::runtime_error &err) {
         SPDLOG_CRITICAL("Fatal error: {}. Exiting", err.what());
-        return 1;
+        _Exit(1);
     }
 
     SPDLOG_INFO("Exiting normally");
-    return 0;
+
+    // there are some rare crashes where fiber cleanup tries to resume a fiber
+    // without a fctx_ anymore... use _Exit() to avoid a segfault in those
+    // cases since finding a proper fix is not worth the effort here
+    _Exit(0);
 }
