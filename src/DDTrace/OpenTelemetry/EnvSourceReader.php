@@ -26,52 +26,66 @@
 
                     if ($protocol === null) {
                         // Use language default
-                        $protocol = 'http'; // is this just http? or http/protobuf
+                        $protocol = 'http/protobuf';
                     }
 
                     // Determine endpoint
 
-                    // Check for metrics-specific endpoint (use exactly as-is)
+                    // Check for general OTLP endpoint (only when requesting metrics endpoint)
                     if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
-                        $metricsEndpoint = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_METRICS_ENDPOINT');
-                        if ($metricsEndpoint !== null) {
-                            return $metricsEndpoint;
+                        $generalEndpoint = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_ENDPOINT');
+                        if ($generalEndpoint !== null) {
+                            // May need to add subpath for metrics endpoint with HTTP protocol
+                            if ($protocol !== 'grpc') {
+                                return rtrim($generalEndpoint, '/') . '/v1/metrics';
+                            }
+                            return $generalEndpoint;
                         }
-                    }
-
-                    // Check for general OTLP endpoint
-                    $generalEndpoint = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_ENDPOINT');
-                    if ($generalEndpoint !== null) {
-                        // May need to add subpath for metrics endpoint with HTTP protocol
-                        if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' && $protocol !== 'grpc') {
-                            return rtrim($generalEndpoint, '/') . '/v1/metrics';
-                        }
-                        return $generalEndpoint;
                     }
 
                     // Get agent host from DD_AGENT_HOST or DD_TRACE_AGENT_URL
-                    $host = \dd_trace_env_config('DD_AGENT_HOST');
+                    $host = null;
+                    $scheme = 'http';
+                    $port = null;
 
-                    if ($host === null || $host === '') {
-                        // Try to extract from DD_TRACE_AGENT_URL
-                        $agentUrl = \dd_trace_env_config('DD_TRACE_AGENT_URL');
-                        if ($agentUrl !== null && $agentUrl !== '') {
-                            $component = \parse_url($agentUrl);
-                            if ($component !== false) {
-                                $host = $component['host'] ?? null;
+                    // First check DD_TRACE_AGENT_URL for unix sockets or full URLs
+                    $agentUrl = \dd_trace_env_config('DD_TRACE_AGENT_URL');
+                    if ($agentUrl !== '') {
+                        $component = \parse_url($agentUrl);
+                        if ($component !== false) {
+                            $scheme = $component['scheme'] ?? 'http';
+
+                            // Handle unix scheme - return as-is
+                            if ($scheme === 'unix') {
+                                // Unix sockets: pass through the full URL
+                                // The SDK must be configured with a URL in the format unix:///path/to/socket.sock
+                                return $agentUrl;
                             }
+
+                            $host = $component['host'] ?? null;
+                            $port = $component['port'] ?? null;
                         }
                     }
 
-                    // Build endpoint: http://{host}:{port}
-                    if ($host === null || $host === '') {
+                    // Fall back to DD_AGENT_HOST if no URL was set
+                    if ($host === null) {
+                        $ddAgentHost = \dd_trace_env_config('DD_AGENT_HOST');
+                        if ($ddAgentHost !== '') {
+                            $host = $ddAgentHost;
+                        }
+                    }
+
+                    // Build endpoint: {scheme}://{host}:{port}
+                    if ($host === '') {
                         $host = 'localhost';
                     }
 
-                    // Determine port based on protocol
-                    $port = ($protocol === 'grpc') ? '4317' : '4318';
+                    // Determine port based on protocol if not already set
+                    if ($port === null) {
+                        $port = ($protocol === 'grpc') ? '4317' : '4318';
+                    }
 
-                    $endpoint = 'http://' . $host . ':' . $port;
+                    $endpoint = $scheme . '://' . $host . ':' . $port;
 
                     // Add subpath for metrics endpoint with HTTP protocol
                     if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' && $protocol !== 'grpc') {
