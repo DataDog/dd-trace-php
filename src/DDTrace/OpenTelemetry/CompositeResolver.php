@@ -1,27 +1,30 @@
 <?php
-// This file does not actually replace the EnvSourceReader, but it's guaranteed to be autoloaded before the actual EnvSourceReader.
-// We just hook the EnvSourceReader to track it.
+// This file does not actually replace the CompositeResolver, but it's guaranteed to be autoloaded before the actual CompositeResolver.
+// We just hook the CompositeResolver to track it.
 
 \DDTrace\install_hook(
-    'OpenTelemetry\Config\SDK\Configuration\Environment\EnvSourceReader::__construct',
+    'OpenTelemetry\SDK\Common\Configuration\Resolver\CompositeResolver::__construct',
+    null,
     function (\DDTrace\HookData $hook) {
-        $args = \is_object($hook->args) ? \iterator_to_array($hook->args) : $hook->args;
 
-        $args[] = new class () implements \OpenTelemetry\Config\SDK\Configuration\Environment\EnvSource {
-            public function readRaw(string $name): mixed
+        $this->addResolver(new class () implements \OpenTelemetry\SDK\Common\Configuration\Resolver\ResolverInterface {
+            public function retrieveValue(string $name): mixed
             {
+                if ($name === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
+                    return "delta";
+                }
                 if ($name === 'OTEL_EXPORTER_OTLP_ENDPOINT' || $name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
                     // Determine protocol
                     $protocol = null;
 
                     if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
                         // Get metrics-specific protocol
-                        $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL');
+                        $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getEnum('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL');
                     }
 
                     if ($protocol === null) {
                         // Get general OTLP protocol
-                        $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_PROTOCOL');
+                        $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getEnum('OTEL_EXPORTER_OTLP_PROTOCOL');
                     }
 
                     if ($protocol === null) {
@@ -63,7 +66,6 @@
                             }
 
                             $host = $component['host'] ?? null;
-                            $port = $component['port'] ?? null;
                         }
                     }
 
@@ -81,10 +83,7 @@
                     }
 
                     // Determine port based on protocol if not already set
-                    if ($port === null) {
-                        $port = ($protocol === 'grpc') ? '4317' : '4318';
-                    }
-
+                    $port = ($protocol === 'grpc') ? '4317' : '4318';
                     $endpoint = $scheme . '://' . $host . ':' . $port;
 
                     // Add subpath for metrics endpoint with HTTP protocol
@@ -98,8 +97,10 @@
                 // Explicitly return null to match the original implicit behavior.
                 return null;
             }
-        };
 
-        $hook->overrideArguments($args);
+            public function hasVariable(string $variableName): bool {
+                return $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT' || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE';
+            }
+        });
     }
 );
