@@ -40,6 +40,13 @@ class WordPressIntegration extends Integration
                 $query = new \WP_Query($args);
                 foreach ($query->posts as $post) {
                     $path = property_exists($post, 'guid') ? $post->guid : '';
+                    $parsed = parse_url($path);
+                    if (isset($parsed['path'])) {
+                        $path = $parsed['path'];
+                    }
+                    if (isset($parsed['query'])) {
+                        $path .= '?' . $parsed['query'];
+                    }
                     $method = 'GET';
                     $resourceName = $method . ' ' . $path;
                     \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
