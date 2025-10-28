@@ -48,4 +48,13 @@ class CommonScenariosController extends Controller
         // replace this example code with whatever you need
         return new Response('Hi!');
     }
+
+    /**
+     * @Route("/telemetry", name="telemetry")
+     */
+    public function telemetryAction(Request $request)
+    {
+        dd_trace_internal_fn("finalize_telemetry");
+        return new Response('Done');
+    }    
 }
