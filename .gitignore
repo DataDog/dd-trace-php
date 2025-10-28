@@ -70,3 +70,5 @@ cookies.txt
 tests/tested_versions
 .gitlab/*-gen.yml
 .gitlab-ci-local/
+compile_commands.json
+.cache/

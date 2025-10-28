@@ -1,3 +1,4 @@
+use crate::log::ddog_set_log_level;
 use crate::sidecar::MaybeShmLimiter;
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
@@ -6,15 +7,17 @@ use datadog_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluat
 use datadog_live_debugger_ffi::send_data::{
     ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
 };
+use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_remote_config::fetch::ConfigInvariants;
 use datadog_remote_config::{
     RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target,
 };
-use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
+use datadog_tracer_flare::zip::zip_and_send;
+use datadog_tracer_flare::{ReturnAction, TracerFlareManager};
 use ddcommon::tag::Tag;
 use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
@@ -22,12 +25,14 @@ use ddcommon_ffi::{CharSlice, MaybeError};
 use itertools::Itertools;
 use regex_automata::dfa::regex::Regex;
 use serde::Serialize;
+use std::any::Any;
 use std::borrow::Cow;
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::ffi::c_char;
 use std::mem;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use tracing::debug;
 
 type DynamicConfigUpdate = for<'a> extern "C" fn(
@@ -38,6 +43,10 @@ type DynamicConfigUpdate = for<'a> extern "C" fn(
 
 static mut LIVE_DEBUGGER_CALLBACKS: Option<LiveDebuggerCallbacks> = None;
 static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
+
+// TODO figure out how to find uri to agent
+static mut TRACER_FLARE_MANAGER: LazyLock<TracerFlareManager> =
+    LazyLock::new(|| TracerFlareManager::new("", "php"));
 
 type VecRemoteConfigProduct = ddcommon_ffi::Vec<RemoteConfigProduct>;
 #[no_mangle]
@@ -263,35 +272,86 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             RemoteConfigUpdate::Add {
                 value,
                 limiter_index,
-            } => match value.data {
-                RemoteConfigData::LiveDebugger(debugger) => {
-                    let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
-                    let rc_ref = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
-                    let entry = remote_config.live_debugger.active.entry(value.config_id);
-                    let (debugger, limiter) = &mut **match entry {
-                        Entry::Occupied(mut e) => {
-                            e.insert(val);
-                            e.into_mut()
-                        }
-                        Entry::Vacant(e) => e.insert(val),
-                    };
-                    apply_config(rc_ref, debugger, limiter);
-                }
-                RemoteConfigData::DynamicConfig(config_data) => {
-                    let configs: Vec<Configs> = config_data.lib_config.into();
-                    if !configs.is_empty() {
-                        insert_new_configs(
-                            &mut remote_config.dynamic_config.old_config_values,
-                            &mut remote_config.dynamic_config.configs,
-                            configs,
-                        );
-                        remote_config.dynamic_config.active_config_path = Some(value.config_id);
+            } => {
+                let tracer_flare_action = unsafe {
+                    TRACER_FLARE_MANAGER
+                        .handle_remote_config_data(&value.data)
+                        .unwrap_or_else(|_| {
+                            // TODO Log the error
+                            ReturnAction::None
+                        })
+                };
+                match value.data {
+                    RemoteConfigData::LiveDebugger(debugger) => {
+                        let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
+                        let rc_ref = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
+                        let entry = remote_config.live_debugger.active.entry(value.config_id);
+                        let (debugger, limiter) = &mut **match entry {
+                            Entry::Occupied(mut e) => {
+                                e.insert(val);
+                                e.into_mut()
+                            }
+                            Entry::Vacant(e) => e.insert(val),
+                        };
+                        apply_config(rc_ref, debugger, limiter);
                     }
+                    RemoteConfigData::DynamicConfig(config_data) => {
+                        let configs: Vec<Configs> = config_data.lib_config.into();
+                        if !configs.is_empty() {
+                            insert_new_configs(
+                                &mut remote_config.dynamic_config.old_config_values,
+                                &mut remote_config.dynamic_config.configs,
+                                configs,
+                            );
+                            remote_config.dynamic_config.active_config_path = Some(value.config_id);
+                        }
+                    }
+                    RemoteConfigData::TracerFlareTask(_)
+                    | RemoteConfigData::TracerFlareConfig(_) => {
+                        match tracer_flare_action {
+                            // If the action returned is None, then nothing.
+                            ReturnAction::None => (),
+                            // If the action is Set with a specified LogLevel,
+                            // then the SDK will have to take care of putting
+                            // the right log level and start collection logs.
+                            ReturnAction::Set(log_level) => {
+                                let _ = log_level;
+                                // TODO Set log level
+                            }
+                            // If the action is Unset, the SDK will have to put
+                            // back the previous log level.
+                            ReturnAction::Unset => {
+                                // TODO Restore log level
+                            }
+                            // If the action is Set with a specified LogLevel,
+                            // then the SDK will have to take care of putting
+                            // the right log level and start collection logs.
+                            ReturnAction::Send(_) => {
+                                let mut log_files: Vec<String> = vec![];
+
+                                match env::var("DD_TRACE_LOG_FILE") {
+                                    Ok(tracer_log_file) => {
+                                        log_files.push(tracer_log_file);
+                                    }
+                                    Err(_) => (),
+                                };
+                                // TODO Add other paths to various log files
+
+                                unsafe {
+                                    zip_and_send(
+                                        log_files,
+                                        String::from(""),
+                                        &TRACER_FLARE_MANAGER,
+                                        tracer_flare_action,
+                                    );
+                                };
+                                // TODO restore log_level
+                            }
+                        }
+                    }
+                    RemoteConfigData::Ignored(_) => (),
                 }
-                RemoteConfigData::Ignored(_) => (),
-                RemoteConfigData::TracerFlareConfig(_) => {}
-                RemoteConfigData::TracerFlareTask(_) => {}
-            },
+            }
             RemoteConfigUpdate::Remove(path) => match path.product {
                 RemoteConfigProduct::LiveDebugger => {
                     if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id)
