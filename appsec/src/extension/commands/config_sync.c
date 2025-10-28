@@ -12,7 +12,6 @@
 #include "../logging.h"
 #include "../msgpack_helpers.h"
 #include "config_sync.h"
-#include <mpack.h>
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
 dd_result dd_command_process_config_sync(
