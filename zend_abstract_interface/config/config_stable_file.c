@@ -32,6 +32,10 @@ zai_config_stable_file_entry *zai_config_stable_file_get_value(zai_str name) {
     return zend_hash_str_find_ptr(stable_config, name.ptr, name.len);
 }
 
+bool zai_config_stable_file_is_available(void) {
+    return stable_config != NULL;
+}
+
 static void stable_config_entry_dtor(zval *el) {
     zai_config_stable_file_entry *e = (zai_config_stable_file_entry *)Z_PTR_P(el);
     zend_string_release(e->value);
