@@ -10,7 +10,7 @@ class TelemetryTest extends WebFrameworkTestCase
 {
     public static function getAppIndexScript()
     {
-        return __DIR__ . '/../../../Frameworks/Symfony/Version_2_3/public/index.php';
+        return __DIR__ . '/../../../Frameworks/Symfony/Version_2_3/web/app.php';
     }
 
     public static function getTestedLibrary()
