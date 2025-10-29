@@ -242,10 +242,8 @@ class DrupalIntegration extends Integration
                     $span->type = Type::WEB_SERVLET;
                     $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
-                    /** @var \Drupal\Core\Theme\ThemeManager $themeManager */
-                    $themeManager = $this;
-
-                    $activeTheme = $themeManager->getActiveTheme();
+                    /** @var \Drupal\Core\Theme\ThemeManager $this */
+                    $activeTheme = $this->getActiveTheme();
                     $themeName = $activeTheme->getName();
                     $themeEngine = $activeTheme->getEngine();
 
@@ -270,9 +268,10 @@ class DrupalIntegration extends Integration
                             );
                         }
                     }
-
+                },
+                'posthook' => function (SpanData $span, $args) {
                     /** @var null|\Drupal\Core\Theme\Registry $themeRegistry */
-                    $themeRegistry = ObjectKVStore::get($themeManager, 'theme_registry');
+                    $themeRegistry = ObjectKVStore::get($this, 'theme_registry');
                     if ($themeRegistry) {
                         $runtimeThemeRegistry = $themeRegistry->getRuntime();
                         $hook = $args[0];
