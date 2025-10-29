@@ -40,9 +40,7 @@ class CommonScenariosController extends AbstractController
         return new Response('Hi!');
     }
 
-    /**
-     * @Route("/telemetry", name="telemetry")
-     */
+    #[Route('/telemetry', name: 'telemetry')]
     public function telemetryAction(Request $request)
     {
         dd_trace_internal_fn("finalize_telemetry");
