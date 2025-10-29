@@ -41,10 +41,8 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
     }
 
     if (propagated_tags && ZSTR_LEN(propagated_tags) > 0) {
-        if (str.s) {
-            smart_str_appendc(&str, ';');
-        }
-        int last_separator = true;
+        bool last_separator = true;
+        bool is_first_iteration = true;
         char next_equals;
         for (char *cur = ZSTR_VAL(propagated_tags), *end = cur + ZSTR_LEN(propagated_tags); cur < end; ++cur) {
             if (last_separator) {
@@ -55,6 +53,10 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
                     cur += strlen(".tid=") + 16;
                     continue;
                 }
+                if (str.s && is_first_iteration) {
+                    smart_str_appendc(&str, ';');
+                }
+                is_first_iteration = false;
                 smart_str_appendc(&str, 't');
             }
             signed char chr = *cur;
