@@ -73,6 +73,7 @@ ZEND_DECLARE_MODULE_GLOBALS(ddappsec)
 // clang-format off
 static const  zend_module_dep _ddappsec_deps[] = {
     ZEND_MOD_OPTIONAL("ddtrace")
+    ZEND_MOD_REQUIRED("json")
     ZEND_MOD_END
 };
 

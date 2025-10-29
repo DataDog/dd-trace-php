@@ -177,7 +177,7 @@ static zval _convert_json(char *nonnull entity, size_t entity_len)
     }
 
 #define MAX_DEPTH 30
-    php_json_decode_ex(
+    _json_decode_ex(
         &zv, entity, entity_len, PHP_JSON_OBJECT_AS_ARRAY, MAX_DEPTH);
     if (Z_TYPE(zv) == IS_NULL) {
         mlog(dd_log_info, "Failed to parse JSON response body");
