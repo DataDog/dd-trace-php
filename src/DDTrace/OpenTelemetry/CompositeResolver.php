@@ -10,6 +10,13 @@
         $this->addResolver(new class () implements \OpenTelemetry\SDK\Common\Configuration\Resolver\ResolverInterface {
             public function retrieveValue(string $name): mixed
             {
+                // Only configure metrics-related settings if DD_METRICS_OTEL_ENABLED is true
+                if (($name === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE' ||
+                     $name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') &&
+                    !\dd_trace_env_config('DD_METRICS_OTEL_ENABLED')) {
+                    return null;
+                }
+
                 if ($name === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
                     return "delta";
                 }
@@ -99,13 +106,12 @@
             }
 
             public function hasVariable(string $variableName): bool {
-                // For temporality preference, only claim to have it if it's not set in the environment
-                // This allows environment variables set by tests to take precedence
-                if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
-                    return getenv('OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') === false;
+                // Only claim metrics endpoint if DD_METRICS_OTEL_ENABLED is true
+                if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+                    return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED');
                 }
 
-                return $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT' || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT';
+                return $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT';
             }
         });
     }
