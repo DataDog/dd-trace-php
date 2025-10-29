@@ -78,7 +78,7 @@ class SymfonyIntegration extends Integration
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name('symfony');
-                    $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;                    
+                    $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 },
             ]
         );
