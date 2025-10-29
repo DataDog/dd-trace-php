@@ -99,7 +99,13 @@
             }
 
             public function hasVariable(string $variableName): bool {
-                return $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT' || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE';
+                // For temporality preference, only claim to have it if it's not set in the environment
+                // This allows environment variables set by tests to take precedence
+                if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
+                    return getenv('OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') === false;
+                }
+
+                return $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT' || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT';
             }
         });
     }
