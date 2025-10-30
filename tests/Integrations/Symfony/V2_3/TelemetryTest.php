@@ -18,6 +18,11 @@ class TelemetryTest extends WebFrameworkTestCase
         return 'symfony/framework-bundle';
     }
 
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '2.3.42';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
@@ -58,7 +63,8 @@ class TelemetryTest extends WebFrameworkTestCase
 
         $this->resetRequestDumper();
 
-        $this->call(GetSpec::create("telemetry", "/telemetry"));
+        $this->call(GetSpec::create("telemetry", "/app.php/telemetry"));
+
         usleep(500000);
         $response = $this->retrieveDumpedData($this->untilTelemetryRequest("app-endpoints"), true);
         $payloads = $this->readTelemetryPayloads($response);
