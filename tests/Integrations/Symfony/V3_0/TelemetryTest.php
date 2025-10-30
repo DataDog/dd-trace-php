@@ -18,6 +18,11 @@ class TelemetryTest extends WebFrameworkTestCase
         return 'symfony/framework-bundle';
     }
 
+    protected static function getTestedVersion($testedLibrary)
+    {
+        return '3.0.9';
+    }
+
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
