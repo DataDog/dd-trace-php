@@ -4,9 +4,10 @@ Zend/tests/arginfo_zpp_mismatch_strict.phpt
 Zend/tests/bug63882_2.phpt
 Zend/tests/bug69315.phpt
 Zend/tests/bug70258.phpt
-Zend/tests/bug70805.phpt
-Zend/tests/bug70805_1.phpt
-Zend/tests/bug70805_2.phpt
+Zend/tests/gc/bug70805.phpt
+Zend/tests/gc/bug70805_1.phpt
+Zend/tests/gc/bug70805_2.phpt
+Zend/tests/disable_classes_warning.phpt
 Zend/tests/bug71539_5.phpt
 Zend/tests/bug72038.phpt
 Zend/tests/bug75921.phpt
@@ -18,8 +19,8 @@ Zend/tests/fibers/out-of-memory-in-fiber.phpt
 Zend/tests/fibers/out-of-memory-in-nested-fiber.phpt
 Zend/tests/fibers/out-of-memory-in-recursive-fiber.phpt
 Zend/tests/gc_031.phpt
-Zend/tests/gc_037.phpt
-Zend/tests/gc_045.phpt
+Zend/tests/gc/gc_037.phpt
+Zend/tests/gc/gc_045.phpt
 Zend/tests/get_defined_functions_basic.phpt
 Zend/tests/get_required_files.phpt
 Zend/tests/gh7958.phpt
@@ -217,3 +218,4 @@ ext/standard/tests/http/ghsa-hgf5-96fm-v528-003.phpt
 ext/standard/tests/http/ghsa-hgf5-96fm-v528-002.phpt
 ext/standard/tests/http/ghsa-hgf5-96fm-v528-001.phpt
 ext/standard/tests/http/ignore_errors.phpt
+ext/posix/tests/posix_getgrnam_basic.phpt

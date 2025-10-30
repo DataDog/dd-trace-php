@@ -172,6 +172,10 @@ ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib6
 
 # Caution, takes a very long time! Since we have to build one from source,
 # I picked LLVM 17, which matches Rust 1.76.
+# Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
+# Minimum: libclang. Nice-to-have: full toolchain including linker to play
+# with cross-language link-time optimization. Needs to match rustc -Vv's llvm
+# version.
 RUN source scl_source enable devtoolset-9 \
   && yum install -y python3 \
   && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
@@ -217,6 +221,7 @@ RUN source scl_source enable devtoolset-7 \
 ARG RUST_VERSION="1.84.1"
 ARG RUST_SHA256_ARM="be89f6ad9b70cc4b25182ae299f94ab047a713a51fddf95284823c8afe4aef85"
 ARG RUST_SHA256_X86="106c89f23ce1c763fcbea8e2714b2ba869bf7af70804813987a4483896398933"
+# Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
 RUN source scl_source enable devtoolset-7 \
