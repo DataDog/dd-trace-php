@@ -252,26 +252,17 @@ static int _internal_run_time_cache_handle = -1;
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #if CFG_RUN_TIME_CACHE // defined by build.rs
-    // Grab 1 slot for the full module|class::method name.
-    // Grab 1 slot for caching filename, as it turns out the utf-8 validity
-    // check is worth caching.
-#if PHP_VERSION_ID < 80200
+    // Grab 1 slot for the function_id.
     _user_run_time_cache_handle =
         zend_get_op_array_extension_handle(module_name);
-    int second = zend_get_op_array_extension_handle(module_name);
-    ZEND_ASSERT(_user_run_time_cache_handle + 1 == second);
-#else
-    _user_run_time_cache_handle =
-        zend_get_op_array_extension_handles(module_name, 2);
 
 #if PHP_VERSION_ID >= 80400
     // On PHP 8.4+, the internal cache slots need to be registered separately
     // from the user ones.
     _internal_run_time_cache_handle =
-        zend_get_internal_function_extension_handles(module_name, 2);
+        zend_get_internal_function_extension_handle(module_name);
 #endif
 
-#endif
 #else
     (void)module_name;
 #endif

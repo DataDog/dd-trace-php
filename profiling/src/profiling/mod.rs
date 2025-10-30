@@ -1,3 +1,4 @@
+pub mod dictionary;
 mod interrupts;
 mod sample_type_filter;
 pub mod stack_walking;
@@ -19,16 +20,19 @@ use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::profiling::dictionary::{try_clone_tls_or_global, PhpProfilesDictionary};
 use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use datadog_profiling::api::{
-    Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
-};
+use datadog_profiling::api::{Period, UpscalingInfo, ValueType as ApiValueType};
+use datadog_profiling::api2;
+use datadog_profiling::api2::{Function2, Location2, StringId2};
 use datadog_profiling::exporter::Tag;
 use datadog_profiling::internal::Profile as InternalProfile;
+use datadog_profiling::profiles::collections::Arc as DdArc;
+use datadog_profiling::profiles::ProfileError;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
@@ -39,14 +43,6 @@ use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-
-#[cfg(all(target_os = "linux", feature = "io_profiling"))]
-use crate::io::{
-    FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
-    FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
-    SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
-    SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
-};
 
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
@@ -97,7 +93,7 @@ const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
     unit: "nanoseconds",
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Copy, Debug)]
 struct WallTime {
     instant: Instant,
     systemtime: SystemTime,
@@ -122,26 +118,6 @@ pub enum LabelValue {
 pub struct Label {
     pub key: &'static str,
     pub value: LabelValue,
-}
-
-impl<'a> From<&'a Label> for ApiLabel<'a> {
-    fn from(label: &'a Label) -> Self {
-        let key = label.key;
-        match label.value {
-            LabelValue::Str(ref str) => Self {
-                key,
-                str,
-                num: 0,
-                num_unit: "",
-            },
-            LabelValue::Num(num, num_unit) => Self {
-                key,
-                str: "",
-                num,
-                num_unit,
-            },
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -169,15 +145,36 @@ pub struct ProfileIndex {
     pub tags: Arc<Vec<Tag>>,
 }
 
-#[derive(Debug)]
+/// Represents a sample that's going to be sent over the queue/channel for
+/// processing.
 pub struct SampleData {
-    pub frames: Vec<ZendFrame>,
+    pub call_stack: CallStack,
     pub labels: Vec<Label>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
 }
 
-#[derive(Debug)]
+/// Holds a vec of call frames with the leaf at offset 0, and the dictionary
+/// that the function ids and their associated strings belong to.
+pub struct CallStack {
+    pub frames: Vec<ZendFrame>,
+    pub dictionary: DdArc<PhpProfilesDictionary>,
+}
+
+impl CallStack {
+    pub fn try_clone(&self) -> Result<CallStack, ProfileError> {
+        let mut frames = Vec::new();
+        frames.try_reserve(self.frames.len())?;
+        frames.extend_from_slice(self.frames.as_slice());
+        let dictionary = self.dictionary.try_clone()?;
+        Ok(CallStack { frames, dictionary })
+    }
+}
+
+/// SAFETY: the function_ids refer to data in the dictionary, which keeps it
+/// alive.
+unsafe impl Send for CallStack {}
+
 pub struct SampleMessage {
     pub key: ProfileIndex,
     pub value: SampleData,
@@ -189,7 +186,6 @@ pub struct LocalRootSpanResourceMessage {
     pub resource: String,
 }
 
-#[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
     Sample(SampleMessage),
@@ -515,34 +511,53 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
+        let mut locations = Vec::with_capacity(message.value.call_stack.frames.len());
 
         let values = message.value.sample_values;
-        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
-        for frame in &message.value.frames {
-            let location = Location {
-                function: Function {
-                    name: frame.function.as_ref(),
-                    system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
-                },
+        let dictionary = try_clone_tls_or_global().unwrap();
+        let labels: Vec<Result<api2::Label, _>> = message
+            .value
+            .labels
+            .iter()
+            .map(|l| {
+                // todo: intern label keys
+                let key = dictionary.dictionary().try_insert_str2(l.key)?;
+                Ok(match &l.value {
+                    LabelValue::Str(str) => api2::Label {
+                        key,
+                        str: str.as_ref(),
+                        num: 0,
+                        num_unit: "",
+                    },
+                    LabelValue::Num(num, num_unit) => api2::Label {
+                        key,
+                        str: "",
+                        num: *num,
+                        num_unit,
+                    },
+                })
+            })
+            .collect();
+
+        for frame in &message.value.call_stack.frames {
+            let location = Location2 {
+                function: frame.function_id.unwrap_or_default(),
                 line: frame.line as i64,
-                ..Location::default()
+                ..Location2::default()
             };
 
             locations.push(location);
         }
 
-        let sample = Sample {
-            locations,
-            values: &values,
-            labels,
-        };
-
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
-        match profile.try_add_sample(sample, timestamp) {
+        match profile.try_add_sample2(
+            locations.as_slice(),
+            values.as_slice(),
+            labels.into_iter(),
+            timestamp,
+        ) {
             Ok(_id) => {}
             Err(err) => {
                 warn!("Failed to add sample to the profile: {err}")
@@ -889,13 +904,15 @@ impl Profiler {
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
+    #[inline(never)]
+    #[export_name = "ddog_php_prof_collect_time"]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
                 let labels = Profiler::common_labels(0);
@@ -913,7 +930,7 @@ impl Profiler {
                 }
 
                 match self.prepare_and_send_message(
-                    frames,
+                    call_stack,
                     SampleValues {
                         interrupt_count,
                         wall_time,
@@ -939,6 +956,8 @@ impl Profiler {
 
     /// Collect a stack sample with memory allocations.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
+    #[inline(never)]
+    #[export_name = "ddog_php_prof_collect_alloc"]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
@@ -947,13 +966,13 @@ impl Profiler {
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
                 match self.prepare_and_send_message(
-                    frames,
+                    call_stack,
                     SampleValues {
                         alloc_size,
                         alloc_samples,
@@ -978,6 +997,8 @@ impl Profiler {
 
     /// Collect a stack sample with exception.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
+    #[inline(never)]
+    #[export_name = "ddog_php_prof_collect_exception"]
     pub fn collect_exception(
         &self,
         execute_data: *mut zend_execute_data,
@@ -986,8 +1007,8 @@ impl Profiler {
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let mut labels = Profiler::common_labels(2);
 
                 labels.push(Label {
@@ -1016,7 +1037,7 @@ impl Profiler {
                 }
 
                 match self.prepare_and_send_message(
-                    frames,
+                    call_stack,
                     SampleValues {
                         exception: 1,
                         ..Default::default()
@@ -1049,12 +1070,9 @@ impl Profiler {
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
+        let call_stack = Self::one_frame_call_stack(COW_EVAL.as_ref(), filename.as_ref(), line);
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(Cow::Owned(filename)),
-                line,
-            }],
+            call_stack,
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1090,12 +1108,9 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let call_stack = Self::one_frame_call_stack(format!("[{include_type}]").as_ref(), "", 0);
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
-                line: 0,
-            }],
+            call_stack,
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1114,6 +1129,25 @@ impl Profiler {
         }
     }
 
+    fn one_frame_call_stack(name: &str, file_name: &str, line: u32) -> CallStack {
+        let dictionary =
+            try_clone_tls_or_global().expect("failed to acquire a thread-local ProfilesDictionary");
+        let f2 = Function2 {
+            name: dictionary.dictionary().try_insert_str2(name).unwrap(),
+            system_name: Default::default(),
+            file_name: if file_name.is_empty() {
+                StringId2::EMPTY
+            } else {
+                dictionary.dictionary().try_insert_str2(file_name).unwrap()
+            },
+        };
+        let function_id = dictionary.dictionary().try_insert_function2(f2).ok();
+        CallStack {
+            frames: vec![ZendFrame { function_id, line }],
+            dictionary,
+        }
+    }
+
     /// This function will collect a thread start or stop timeline event
     #[cfg(php_zts)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
@@ -1128,11 +1162,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: format!("[{event}]").into(),
-                file: None,
-                line: 0,
-            }],
+            Self::one_frame_call_stack(format!("[{event}]").as_ref(), "", 0),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1166,11 +1196,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[fatal]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }],
+            Self::one_frame_call_stack("[fatal]", file.as_str(), line),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1213,11 +1239,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[opcache restart]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }],
+            Self::one_frame_call_stack("[opcache_restart]", file.as_str(), line),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1246,12 +1268,15 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let dictionary = try_clone_tls_or_global().unwrap();
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[idle]".into(),
-                file: None,
-                line: 0,
-            }],
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: Some(dictionary.known_funcs().idle),
+                    line: 0,
+                }],
+                dictionary,
+            },
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1302,12 +1327,15 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
+        let dictionary = try_clone_tls_or_global().unwrap();
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
-                line: 0,
-            }],
+            CallStack {
+                frames: vec![ZendFrame {
+                    function_id: Some(dictionary.known_funcs().gc),
+                    line: 0,
+                }],
+                dictionary,
+            },
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1479,12 +1507,12 @@ impl Profiler {
 
     fn prepare_and_send_message(
         &self,
-        frames: Vec<ZendFrame>,
+        call_stack: CallStack,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        let message = self.prepare_sample_message(frames, samples, labels, timestamp);
+        let message = self.prepare_sample_message(call_stack, samples, labels, timestamp);
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
             .map_err(Box::new)
@@ -1492,7 +1520,7 @@ impl Profiler {
 
     fn prepare_sample_message(
         &self,
-        frames: Vec<ZendFrame>,
+        call_stack: CallStack,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1510,7 +1538,7 @@ impl Profiler {
         SampleMessage {
             key: ProfileIndex { sample_types, tags },
             value: SampleData {
-                frames,
+                call_stack,
                 labels,
                 sample_values,
                 timestamp,
@@ -1530,14 +1558,33 @@ mod tests {
     use datadog_profiling::exporter::Uri;
     use log::LevelFilter;
 
-    fn get_frames() -> Vec<ZendFrame> {
-        vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }]
+    #[allow(dead_code)] // todo: fix tests
+    fn get_call_stack() -> CallStack {
+        let dictionary = {
+            let dict = PhpProfilesDictionary::try_new().unwrap();
+            DdArc::try_new(dict).unwrap()
+        };
+        let dict = dictionary.dictionary();
+        let foobar = dict.try_insert_str2("foobar").unwrap();
+        let foobar_php = dict.try_insert_str2("foobar.php").unwrap();
+
+        let f2 = Function2 {
+            name: foobar,
+            system_name: StringId2::EMPTY,
+            file_name: foobar_php,
+        };
+        let function_id = dict.try_insert_function2(f2).unwrap();
+
+        CallStack {
+            frames: vec![ZendFrame {
+                function_id: Some(function_id),
+                line: 42,
+            }],
+            dictionary,
+        }
     }
 
+    #[allow(dead_code)] // todo: fix tests
     pub fn get_system_settings() -> SystemSettings {
         SystemSettings {
             profiling_enabled: true,
@@ -1589,7 +1636,7 @@ mod tests {
     #[test]
     #[cfg(not(miri))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
-        let frames = get_frames();
+        let call_stack = get_call_stack();
         let samples = get_samples();
         let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();
@@ -1599,7 +1646,8 @@ mod tests {
 
         let profiler = Profiler::new(&mut settings);
 
-        let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
+        let message: SampleMessage =
+            profiler.prepare_sample_message(call_stack, samples, labels, 900);
 
         assert_eq!(
             message.key.sample_types,
