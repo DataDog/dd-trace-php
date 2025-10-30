@@ -4,6 +4,7 @@ Test fiber observing with bailout
 <?php if (PHP_VERSION_ID < 80100) die("skip: Fibers are a PHP 8.1+ feature"); ?>
 --INI--
 memory_limit=100M
+fatal_error_backtraces=0
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
 DD_TRACE_GENERATE_ROOT_SPAN=0
