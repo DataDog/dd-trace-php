@@ -39,7 +39,7 @@ struct PACKED _dd_header { // NOLINT
 
 typedef struct PACKED _dd_header dd_header;
 
-static const int CONNECT_TIMEOUT = 2500;    // ms
+static const int CONNECT_TIMEOUT = 1500;    // ms
 static const int CONNECT_RETRY_PAUSE = 100; // ms
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 
