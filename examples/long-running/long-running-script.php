@@ -24,7 +24,7 @@ function repetitive_function()
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $output = curl_exec($ch);
     error_log('Received response: ' . var_export($output, 1));
-    curl_close($ch);
+    if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 }
 
 $count = 0;

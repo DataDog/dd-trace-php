@@ -14,6 +14,7 @@ TEA_TEST_CASE_WITH_STUB("exceptions", "reading message with non-string type retu
     zend_string *str = zai_exception_message(Z_OBJ(ex));
     REQUIRE(ZSTR_LEN(str) > 0);
 
+    zend_string_release(str);
     zval_ptr_dtor(&ex);
 })
 
@@ -25,6 +26,7 @@ TEA_TEST_CASE_WITH_STUB("exceptions", "reading message from exception", "./stubs
     zend_string *str = zai_exception_message(Z_OBJ(ex));
     REQUIRE(zend_string_equals_literal(str, "msg"));
 
+    zend_string_release(str);
     zval_ptr_dtor(&ex);
 })
 
@@ -36,6 +38,7 @@ TEA_TEST_CASE_WITH_STUB("exceptions", "reading message from exception subclass",
     zend_string *str = zai_exception_message(Z_OBJ(ex));
     REQUIRE(zend_string_equals_literal(str, "msg"));
 
+    zend_string_release(str);
     zval_ptr_dtor(&ex);
 })
 
@@ -47,6 +50,7 @@ TEA_TEST_CASE_WITH_STUB("exceptions", "reading message from error", "./stubs/fun
     zend_string *str = zai_exception_message(Z_OBJ(ex));
     REQUIRE(zend_string_equals_literal(str, "msg"));
 
+    zend_string_release(str);
     zval_ptr_dtor(&ex);
 })
 
@@ -58,6 +62,7 @@ TEA_TEST_CASE_WITH_STUB("exceptions", "reading message from error subclass", "./
     zend_string *str = zai_exception_message(Z_OBJ(ex));
     REQUIRE(zend_string_equals_literal(str, "msg"));
 
+    zend_string_release(str);
     zval_ptr_dtor(&ex);
 })
 

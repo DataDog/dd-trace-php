@@ -211,3 +211,10 @@ The exact PHP version that a given test checks this env var varies, but these
 are some tests which are skipped for older versions which don't check it:
 
  - `ext/sockets/tests/socket_shutdown.phpt`
+
+## `Zend/tests/disable_classes_warning.phpt`
+
+Disabled on versions: `8.5+`.
+
+PHP 8.5 completely removed the `disable_classes` INI directive (see [RFC](https://wiki.php.net/rfc/remove_disable_classes)).
+

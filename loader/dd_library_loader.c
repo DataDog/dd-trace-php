@@ -16,7 +16,7 @@
 #include "php_dd_library_loader.h"
 
 #define MIN_API_VERSION 320151012
-#define MAX_API_VERSION 420240924
+#define MAX_API_VERSION 420250925
 #define MAX_INI_API_VERSION MAX_API_VERSION + 1
 
 #define PHP_70_VERSION 20151012
@@ -25,7 +25,7 @@
 #define PHP_80_VERSION 20200930
 
 #define MIN_PHP_VERSION "7.0"
-#define MAX_PHP_VERSION "8.4"
+#define MAX_PHP_VERSION "8.5"
 
 extern zend_module_entry dd_library_loader_mod;
 

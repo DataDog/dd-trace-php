@@ -123,24 +123,49 @@ if [[ $SHARED_BUILD -ne 0 ]]; then
   # TODO Add ext/pdo_mysql, ext/pdo_pgsql, and ext/pdo_sqlite
 else
   pecl channel-update pecl.php.net;
-
-  pecl install amqp$AMQP_VERSION; echo "extension=amqp.so" >> ${iniDir}/amqp.ini;
   yes '' | pecl install apcu; echo "extension=apcu.so" >> ${iniDir}/apcu.ini;
   pecl install ast$AST_VERSION; echo "extension=ast.so" >> ${iniDir}/ast.ini;
   if [[ $PHP_VERSION_ID -ge 71 && $PHP_VERSION_ID -le 80 ]]; then
     yes '' | CFLAGS="-Wno-incompatible-function-pointer-types" pecl install mcrypt$(if [[ $PHP_VERSION_ID -le 71 ]]; then echo -1.0.0; fi); echo "extension=mcrypt.so" >> ${iniDir}/mcrypt.ini;
   fi
-  yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
-  yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
-  pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
+
+  if [[ $PHP_VERSION_ID -lt 85 ]]; then
+    pecl install amqp$AMQP_VERSION; echo "extension=amqp.so" >> "${iniDir}/amqp.ini"
+    yes 'no' | pecl install memcached; echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+    yes '' | pecl install memcache$MEMCACHE_VERSION; echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
+    pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
+
+    # Xdebug is disabled by default
+    for VERSION in "${XDEBUG_VERSIONS[@]}"; do
+      pecl install xdebug$VERSION;
+      cd $(php-config --extension-dir);
+      mv xdebug.so xdebug$VERSION.so;
+    done
+  else
+    cd /tmp
+
+    # memcached master version
+    git clone https://github.com/php-memcached-dev/php-memcached.git
+    cd php-memcached
+    phpize && ./configure && make -j"$(nproc)" && make install && echo "extension=memcached.so" >> ${iniDir}/memcached.ini;
+    cd ..
+
+    # memcache master version
+    git clone https://github.com/websupport-sk/pecl-memcache.git
+    cd pecl-memcache
+    phpize && ./configure && make -j"$(nproc)" && make install && echo "extension=memcache.so" >> ${iniDir}/memcache.ini;
+    cd ..
+
+    pecl install mongodb$MONGODB_VERSION; echo "extension=mongodb.so" >> ${iniDir}/mongodb.ini;
+
+    # Xdebug master version (disabled by default)
+    git clone https://github.com/xdebug/xdebug.git
+    cd xdebug
+    phpize && ./configure && make -j"$(nproc)" && make install;
+    cd ..
+  fi
   pecl install rdkafka; echo "extension=rdkafka.so" >> ${iniDir}/rdkafka.ini;
   pecl install sqlsrv$SQLSRV_VERSION;
-  # Xdebug is disabled by default
-  for VERSION in "${XDEBUG_VERSIONS[@]}"; do
-    pecl install xdebug$VERSION;
-    cd $(php-config --extension-dir);
-    mv xdebug.so xdebug$VERSION.so;
-  done
   echo "zend_extension=opcache.so" >> ${iniDir}/../php-apache2handler.ini;
 
   # ext-parallel needs PHP 8 ZTS
@@ -150,7 +175,7 @@ else
   fi
 
   # ext-swoole needs PHP 8
-  if [[ $PHP_VERSION_ID -ge 80 ]]; then
+  if [[ $PHP_VERSION_ID -ge 80 && $PHP_VERSION_ID -lt 85 ]]; then
     pushd /tmp
     if [[ $PHP_VERSION_ID -ge 83 ]]; then
       pecl download swoole-6.0.0RC1;
@@ -169,7 +194,7 @@ else
   fi
 
   # ext-grpc is needed for google spanner
-  if [[ $PHP_VERSION_ID -ge 80 ]]; then
+  if [[ $PHP_VERSION_ID -ge 80 && $PHP_VERSION_ID -lt 85 ]]; then
     pecl install grpc;
     # avoid installing it by default, it seems to stall some testsuites.
   fi
@@ -192,7 +217,13 @@ else
     fi
   fi
   if [[ $PHP_VERSION_ID -ge 84 ]]; then
-    pecl install redis-6.1.0
+    if [[ $PHP_VERSION_ID -ge 85 ]]; then
+      git clone https://github.com/phpredis/phpredis.git
+      cd phpredis
+      phpize && ./configure && make -j"$(nproc)" && make install
+    else
+      pecl install redis-6.1.0
+    fi
   fi
 
 fi
