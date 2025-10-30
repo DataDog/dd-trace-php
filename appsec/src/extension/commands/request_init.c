@@ -9,13 +9,12 @@
 
 #include "../commands_helpers.h"
 #include "../configuration.h"
-#include "../ddappsec.h"
-#include "../ddtrace.h"
+#include "../ddappsec.h" // NOLINT(unused-includes)
 #include "../entity_body.h"
-#include "../ip_extraction.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
-#include "../php_compat.h"
+#include "../php_compat.h" // NOLINT(unused-includes)
+#include "../php_helpers.h"
 #include "../string_helpers.h"
 #include "request_init.h"
 #include <mpack.h>
@@ -31,7 +30,8 @@ static void _pack_files_field_names(
 static void _pack_path_params(
     mpack_writer_t *nonnull w, const zend_string *nullable uri_raw);
 static void _pack_request_body(mpack_writer_t *nonnull w,
-    struct req_info_init *nonnull ctx, const zend_array *nonnull server);
+    struct req_info_init *nonnull ctx, const zend_array *nonnull server,
+    dd_mpack_limits *nonnull limits);
 
 static const dd_command_spec _spec = {
     .name = "request_init",
@@ -64,20 +64,27 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
     // Pack data from SAPI request_info
     sapi_request_info *request_info = &SG(request_info);
 
+    // Limits applied to query, cookies and request body
+    dd_mpack_limits limits = dd_mpack_def_limits;
+
     // 1.
     dd_mpack_write_lstr(w, "server.request.query");
-    dd_mpack_write_array(w, dd_get_superglob_or_equiv(ZEND_STRL("_GET"),
-                                TRACK_VARS_GET, ctx->superglob_equiv));
+    dd_mpack_write_array_lim(w,
+        dd_get_superglob_or_equiv(
+            ZEND_STRL("_GET"), TRACK_VARS_GET, ctx->superglob_equiv),
+        &limits);
 
     // 2.
     const zend_array *nonnull server = dd_get_superglob_or_equiv(
         ZEND_STRL("_SERVER"), TRACK_VARS_SERVER, ctx->superglob_equiv);
     dd_mpack_write_lstr(w, "server.request.method");
     if (ctx->superglob_equiv) {
-        dd_mpack_write_nullable_zstr(w,
-            dd_php_get_string_elem_cstr(server, ZEND_STRL("REQUEST_METHOD")));
+        dd_mpack_write_nullable_zstr_lim(w,
+            dd_php_get_string_elem_cstr(server, ZEND_STRL("REQUEST_METHOD")),
+            limits.max_string_length);
     } else {
-        mpack_write(w, request_info->request_method);
+        dd_mpack_write_nullable_cstr_lim(
+            w, request_info->request_method, limits.max_string_length);
     }
 
     // Pack data from server global
@@ -87,14 +94,16 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
 
     // 3.
     dd_mpack_write_lstr(w, "server.request.cookies");
-    dd_mpack_write_array(w, dd_get_superglob_or_equiv(ZEND_STRL("_COOKIE"),
-                                TRACK_VARS_COOKIE, ctx->superglob_equiv));
+    dd_mpack_write_array_lim(w,
+        dd_get_superglob_or_equiv(
+            ZEND_STRL("_COOKIE"), TRACK_VARS_COOKIE, ctx->superglob_equiv),
+        &limits);
 
     // 4.
     const zend_string *nullable request_uri =
         dd_php_get_string_elem_cstr(server, ZEND_STRL("REQUEST_URI"));
     dd_mpack_write_lstr(w, "server.request.uri.raw");
-    dd_mpack_write_nullable_zstr(w, request_uri);
+    dd_mpack_write_nullable_zstr_lim(w, request_uri, limits.max_string_length);
 
     // 5.
     dd_mpack_write_lstr(w, "server.request.headers.no_cookies");
@@ -102,7 +111,7 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
 
     // 6.
     dd_mpack_write_lstr(w, "server.request.body");
-    _pack_request_body(w, ctx, server);
+    _pack_request_body(w, ctx, server, &limits);
 
     // 7.
     const zend_array *nonnull files = dd_get_superglob_or_equiv(
@@ -129,6 +138,10 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull _ctx)
     }
 
     mpack_finish_map(w);
+
+    if (dd_mpack_limits_reached(&limits)) {
+        mlog(dd_log_info, "Limits reched when serializing request init");
+    }
 
     return dd_success;
 }
@@ -163,6 +176,9 @@ static void _pack_headers(
 {
     mpack_build_map(w);
 
+    // apply limits to part of the headers map
+    dd_mpack_limits limits = dd_mpack_def_limits;
+
     // Pack headers
     zend_string *key;
     zval *val;
@@ -172,12 +188,17 @@ static void _pack_headers(
             continue;
         }
 
+        if (limits.elements_remaining == 0) {
+            mlog(dd_log_warning, "Headers map is full, stopping");
+            break;
+        }
+
         if (zend_string_equals_literal(key, "CONTENT_TYPE")) {
             dd_mpack_write_lstr(w, "content-type");
-            dd_mpack_write_zval(w, val);
+            dd_mpack_write_zval_lim(w, val, &limits);
         } else if (zend_string_equals_literal(key, "CONTENT_LENGTH")) {
             dd_mpack_write_lstr(w, "content-length");
-            dd_mpack_write_zval(w, val);
+            dd_mpack_write_zval_lim(w, val, &limits);
         } else if (zend_string_equals_literal(key, "PHP_AUTH_DIGEST")) {
             if (Z_TYPE_P(val) == IS_STRING && Z_STRLEN_P(val) > 0) {
                 dd_mpack_write_lstr(w, "authorization");
@@ -186,14 +207,16 @@ static void _pack_headers(
                 memcpy(auth_str, "digest ", sizeof("digest ") - 1);
                 memcpy(auth_str + sizeof("digest ") - 1, Z_STRVAL_P(val),
                     Z_STRLEN_P(val));
-                mpack_write_str(w, auth_str, auth_len);
+                dd_mpack_write_nullable_str_lim(
+                    w, auth_str, auth_len, limits.max_string_length);
                 efree(auth_str);
             }
-        } else if (_is_relevant_header(key)) {
+        } else if (_is_relevant_header(key)) { // i.e. not a cookie header
             zend_string *transf_header_name = _transform_header_name(key);
-            dd_mpack_write_zstr(w, transf_header_name);
+            dd_mpack_write_zstr_lim(
+                w, transf_header_name, limits.max_string_length);
             zend_string_efree(transf_header_name);
-            dd_mpack_write_zval(w, val);
+            dd_mpack_write_zval_lim(w, val, &limits);
         }
     }
     ZEND_HASH_FOREACH_END();
@@ -290,29 +313,31 @@ static void _pack_path_params(
 }
 
 static void _pack_request_body(mpack_writer_t *nonnull w,
-    struct req_info_init *nonnull ctx, const zend_array *nonnull server)
+    struct req_info_init *nonnull ctx, const zend_array *nonnull server,
+    dd_mpack_limits *nonnull limits)
 {
     const zend_array *post = dd_get_superglob_or_equiv(
         ZEND_STRL("_POST"), TRACK_VARS_POST, ctx->superglob_equiv);
     if (zend_hash_num_elements(post) != 0) {
         dd_mpack_write_array(w, post);
-    } else {
-        bool written = false;
-        if (ctx->entity) {
-            zend_string *ct =
-                dd_php_get_string_elem_cstr(server, ZEND_STRL("CONTENT_TYPE"));
-            if (ct) {
-                zval body_zv = dd_entity_body_convert(
-                    ZSTR_VAL(ct), ZSTR_LEN(ct), ctx->entity);
-                if (Z_TYPE(body_zv) != IS_NULL) {
-                    dd_mpack_write_zval(w, &body_zv);
-                    zval_ptr_dtor(&body_zv);
-                    written = true;
-                }
+        return;
+    }
+
+    bool written = false;
+    if (ctx->entity) {
+        zend_string *ct =
+            dd_php_get_string_elem_cstr(server, ZEND_STRL("CONTENT_TYPE"));
+        if (ct) {
+            zval body_zv =
+                dd_entity_body_convert(ZSTR_VAL(ct), ZSTR_LEN(ct), ctx->entity);
+            if (Z_TYPE(body_zv) != IS_NULL) {
+                dd_mpack_write_zval_lim(w, &body_zv, limits);
+                zval_ptr_dtor(&body_zv);
+                written = true;
             }
         }
-        if (!written) {
-            dd_mpack_write_array(w, &zend_empty_array);
-        }
+    }
+    if (!written) {
+        dd_mpack_write_array(w, &zend_empty_array);
     }
 }
