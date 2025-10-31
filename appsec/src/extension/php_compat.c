@@ -41,3 +41,44 @@ const HashTable zend_empty_array = {.gc.refcount = 2,
     .nNextFreeElement = 0,
     .pDestructor = ZVAL_PTR_DTOR};
 #endif
+
+#if PHP_VERSION_ID < 70400
+zend_bool try_convert_to_string(zval *op)
+{
+
+    if (Z_TYPE_P(op) == IS_STRING) {
+        return 1;
+    }
+
+    zend_object *old_exception = EG(exception);
+    EG(exception) = NULL;
+
+    zend_string *str = NULL;
+    bool bailout = false;
+    zend_try { str = _zval_get_string_func(op); }
+    zend_catch
+    {
+        bailout = true;
+        str = NULL;
+    }
+    zend_end_try();
+
+    if (UNEXPECTED(bailout || EG(exception))) {
+        if (str) {
+            zend_string_release(str);
+        }
+        if (!EG(exception) && old_exception) {
+            EG(exception) = old_exception;
+        }
+        return false;
+    }
+
+    if (old_exception) {
+        EG(exception) = old_exception;
+    }
+
+    zval_ptr_dtor(op);
+    ZVAL_STR(op, str);
+    return true;
+}
+#endif

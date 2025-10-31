@@ -5,10 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "json_truncated_parser.h"
-#include <zend_hash.h>
 
 extern "C" {
 #include "logging.h"
+#include <zend_hash.h>
 }
 #include <cstdint>
 #include <cstdlib>

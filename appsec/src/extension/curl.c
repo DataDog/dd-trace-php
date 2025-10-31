@@ -4,7 +4,9 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
-#include <php.h> // NOLINT (must come before php_streams.h)
+// clang-format off
+#include <php.h>  // (must come before php_streams.h)
+// clang-format on
 #include <main/php_streams.h>
 
 #include "compatibility.h"

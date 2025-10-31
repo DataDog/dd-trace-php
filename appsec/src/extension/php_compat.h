@@ -80,6 +80,7 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #endif
 
 #if PHP_VERSION_ID < 70400
+zend_bool try_convert_to_string(zval *op);
 #    define tsrm_env_lock()
 #    define tsrm_env_unlock()
 #endif
@@ -87,6 +88,7 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #if PHP_VERSION_ID < 80000
 #define ZEND_ARG_TYPE_MASK(pass_by_ref, name, type_mask, default_value) ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value)
 #define ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value) ZEND_ARG_INFO(pass_by_ref, name)
+#define ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, type_hint, allow_null, default_value) ZEND_ARG_TYPE_INFO(pass_by_ref, name, type_hint, allow_null)
 #define IS_MIXED 0
 #endif
 

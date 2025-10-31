@@ -5,12 +5,12 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <php.h>
-#include <stddef.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <php.h>
+#include <stddef.h>
 
 /**
  * Parse possibly truncated JSON data using RapidJSON with permissive flags.
