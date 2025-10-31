@@ -504,14 +504,14 @@ foreach ($windows_build_platforms as $platform) {
     # Start the container
     docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
-    # Build nts
-    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}.dll; move x64\Release\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}.pdb"
+    # Build nts (fail fast on any step)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; cd app; switch-php nts; & 'C:\\php\\SDK\\phpize.bat'; .\\configure.bat --enable-debug-pack; nmake; Move-Item x64\\Release\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}.dll -ErrorAction Stop; Move-Item x64\\Release\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}.pdb -ErrorAction Stop"
 
-    # Reuse libdatadog build
-    docker exec ${CONTAINER_NAME} powershell.exe "mkdir app\x64\Release_TS; mv app\x64\Release\target app\x64\Release_TS\target"
+    # Reuse libdatadog build (fail if move fails)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target' 'app\\x64\\Release_TS\\target' -ErrorAction Stop"
 
-    # Build zts
-    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php zts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}-zts.pdb"
+    # Build zts (fail fast on any step)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; cd app; switch-php zts; & 'C:\\php\\SDK\\phpize.bat'; .\\configure.bat --enable-debug-pack; nmake; Move-Item x64\\Release_TS\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}-zts.dll -ErrorAction Stop; Move-Item x64\\Release_TS\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}-zts.pdb -ErrorAction Stop"
 
     # Try to stop the container, don't care if we fail
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
