@@ -101,7 +101,11 @@ parameter parameter::string(std::string_view str) noexcept
         str.length() <= max_length ? str.length() : max_length;
     ddwaf_object obj;
     auto *alloc = ddwaf_get_default_allocator();
-    ddwaf_object_set_string(&obj, str.data(), length, alloc);
+    const auto *data = str.data();
+    if (data == nullptr) {
+        data = "";
+    }
+    ddwaf_object_set_string(&obj, data, length, alloc);
     return parameter{obj};
 }
 

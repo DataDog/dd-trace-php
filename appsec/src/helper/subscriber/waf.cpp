@@ -43,7 +43,8 @@ class waf_builder {
 public:
     static std::optional<waf_builder> create(
         // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-        const parameter &cfg, parameter default_rules, parameter &diagnostics)
+        const parameter &obfuscator_cfg, parameter default_rules,
+        parameter &diagnostics)
     {
         auto *builder = ddwaf_builder_init();
         if (builder == nullptr) {
@@ -58,7 +59,7 @@ public:
             // ruleset_version
             parameter obfuscator_diagnostics;
             res = ddwaf_builder_add_or_update_config(builder,
-                OBFUSCATOR_KEY.data(), OBFUSCATOR_KEY.size(), &cfg,
+                OBFUSCATOR_KEY.data(), OBFUSCATOR_KEY.size(), &obfuscator_cfg,
                 &obfuscator_diagnostics);
             diagnostics.merge(std::move(obfuscator_diagnostics));
             if (res) {
@@ -625,7 +626,8 @@ void instance::listener::call(dds::parameter_view &data, event &event,
     // Free subcontext if requested
     defer const cleanup{[&]() {
         if (options.subctx_last_call && options.subctx_id) {
-            size_t const removed = subcontexts_.erase(options.subctx_id.value());
+            size_t const removed =
+                subcontexts_.erase(options.subctx_id.value());
             if (removed == 0) {
                 SPDLOG_WARN("Subcontext could not be removed; nothing "
                             "found for id {}",

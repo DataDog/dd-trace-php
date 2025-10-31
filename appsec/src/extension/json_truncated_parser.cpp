@@ -92,7 +92,7 @@ public:
     TruncatedJsonInputStream(
         // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
         const char *data, std::size_t length, std::size_t size_limit = SIZE_MAX)
-        : data_{data}, length_{length},  size_limit_{size_limit}
+        : data_{data}, length_{length}, size_limit_{size_limit}
     {}
 
     [[nodiscard]] auto Peek() const -> Ch
