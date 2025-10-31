@@ -6,76 +6,92 @@
 #include "parameter.hpp"
 #include "ddwaf.h"
 #include "exception.hpp"
-#include <algorithm>
+
+#include <array>
+#include <cassert>
+#include <charconv>
+
+namespace {
+
+constexpr size_t default_capacity = 16;
+
+} // namespace
 
 namespace dds {
 
-parameter::parameter(const ddwaf_object &arg)
-{
-    *static_cast<ddwaf_object *>(this) = arg;
-}
+parameter::parameter(const ddwaf_object &arg) { obj_ = arg; }
 
 parameter::parameter(parameter &&other) noexcept
 {
-    *((ddwaf_object *)this) = *other;
-    ddwaf_object_invalid(other);
+    obj_ = other.obj_;
+    ddwaf_object_set_invalid(&other.obj_);
 }
 
 parameter &parameter::operator=(parameter &&other) noexcept
 {
-    *((ddwaf_object *)this) = *other;
-    ddwaf_object_invalid(other);
+    obj_ = other.obj_;
+    ddwaf_object_set_invalid(&other.obj_);
     return *this;
 }
 
 parameter parameter::map() noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_map(&obj);
+    auto *alloc = ddwaf_get_default_allocator();
+
+    ddwaf_object_set_map(&obj, default_capacity, alloc);
     return parameter{obj};
 }
 
 parameter parameter::array() noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_array(&obj);
+    auto *alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_array(&obj, default_capacity, alloc);
     return parameter{obj};
 }
 
 parameter parameter::uint64(uint64_t value) noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_unsigned(&obj, value);
+    ddwaf_object_set_unsigned(&obj, value);
     return parameter{obj};
 }
 
 parameter parameter::int64(int64_t value) noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_signed(&obj, value);
+    ddwaf_object_set_signed(&obj, value);
     return parameter{obj};
 }
 
 parameter parameter::string(uint64_t value) noexcept
 {
+    // v2 doesn't have string_from_unsigned, convert manually
+    std::array<char, sizeof("18446744073709551615")> buf{};
+    std::to_chars_result result =
+        std::to_chars(buf.data(), buf.data() + buf.size(), value);
+    if (result.ec != std::errc()) {
+        result.ptr = buf.data();
+    }
     ddwaf_object obj;
-    ddwaf_object_string_from_unsigned(&obj, value);
+    auto *alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_string(&obj, buf.data(), result.ptr - buf.data(), alloc);
     return parameter{obj};
 }
 
 parameter parameter::string(int64_t value) noexcept
 {
+    // v2 doesn't have string_from_signed, convert manually
+    std::array<char, sizeof("9223372036854775807")> buf{};
+    std::to_chars_result result =
+        std::to_chars(buf.data(), buf.data() + buf.size(), value);
+    if (result.ec != std::errc()) {
+        result.ptr = buf.data();
+    }
     ddwaf_object obj;
-    ddwaf_object_string_from_signed(&obj, value);
-    return parameter{obj};
-}
-
-parameter parameter::string(const std::string &str) noexcept
-{
-    length_type const length =
-        str.length() <= max_length ? str.length() : max_length;
-    ddwaf_object obj;
-    ddwaf_object_stringl(&obj, str.c_str(), length);
+    auto *alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_string(&obj, buf.data(), result.ptr - buf.data(), alloc);
     return parameter{obj};
 }
 
@@ -84,38 +100,46 @@ parameter parameter::string(std::string_view str) noexcept
     length_type const length =
         str.length() <= max_length ? str.length() : max_length;
     ddwaf_object obj;
-    ddwaf_object_stringl(&obj, str.data(), length);
+    auto *alloc = ddwaf_get_default_allocator();
+    const auto *data = str.data();
+    if (data == nullptr) {
+        data = "";
+    }
+    ddwaf_object_set_string(&obj, data, length, alloc);
     return parameter{obj};
 }
 
 parameter parameter::as_boolean(bool value) noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_bool(&obj, value);
+    ddwaf_object_set_bool(&obj, value);
     return parameter{obj};
 }
 
 parameter parameter::float64(float value) noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_float(&obj, value);
+    ddwaf_object_set_float(&obj, value);
     return parameter{obj};
 }
 
 parameter parameter::null() noexcept
 {
     ddwaf_object obj;
-    ddwaf_object_null(&obj);
+    ddwaf_object_set_null(&obj);
     return parameter{obj};
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-rvalue-reference-param-not-moved)
 bool parameter::add(parameter &&entry) noexcept
 {
-    if (!ddwaf_object_array_add(this, entry)) {
+    auto *alloc = ddwaf_get_default_allocator();
+    ddwaf_object *inserted = ddwaf_object_insert(&obj_, alloc);
+    if (inserted == nullptr) {
         return false;
     }
-    ddwaf_object_invalid(entry);
+    *inserted = entry.obj_;
+    ddwaf_object_set_invalid(&entry.obj_);
     return true;
 }
 
@@ -124,10 +148,14 @@ bool parameter::add(std::string_view name, parameter &&entry) noexcept
 {
     length_type const length =
         name.length() <= max_length ? name.length() : max_length;
-    if (!ddwaf_object_map_addl(this, name.data(), length, entry)) {
+    auto *alloc = ddwaf_get_default_allocator();
+    ddwaf_object *inserted =
+        ddwaf_object_insert_key(&obj_, name.data(), length, alloc);
+    if (inserted == nullptr) {
         return false;
     }
-    ddwaf_object_invalid(entry);
+    *inserted = entry.obj_;
+    ddwaf_object_set_invalid(&entry.obj_);
     return true;
 }
 
@@ -138,31 +166,68 @@ bool parameter::merge(parameter other)
         return false;
     }
 
-    if (type() == parameter_type::array) {
+    auto *alloc = ddwaf_get_default_allocator();
+
+    if (is_array()) {
         for (size_t i = 0; i < other.size(); ++i) {
-            ddwaf_object_array_add(this, other[i]);
-            ddwaf_object_invalid(&other[i]);
+            const ddwaf_object *other_val =
+                ddwaf_object_at_value(&other.obj_, i);
+            if (other_val == nullptr) {
+                assert(false && "ddwaf_object_at_value returned nullptr");
+                continue;
+            }
+            ddwaf_object *inserted = ddwaf_object_insert(&obj_, alloc);
+            if (inserted == nullptr) {
+                assert(false && "ddwaf_object_insert returned nullptr");
+                continue;
+            }
+            *inserted = *other_val;
+            ddwaf_object_set_invalid(
+                const_cast<ddwaf_object *>(other_val)); // NOLINT
         }
         return true;
     }
-    if (type() == parameter_type::map) {
-        for (size_t i = 0; i < other.size(); ++i) {
-            auto &oentry = other[i];
-            const std::string_view &key = oentry.key();
+    if (is_map()) {
+        for (size_t i = 0; i < other.size() /* 0 if not container */; ++i) {
+            const ddwaf_object *other_key = ddwaf_object_at_key(&other.obj_, i);
+            const ddwaf_object *other_val =
+                ddwaf_object_at_value(&other.obj_, i);
 
-            // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
-            auto *start = static_cast<parameter *>(ddwaf_object::array);
-            auto *end = start + this->nbEntries;
-            auto *orig_entry = std::find_if(
-                start, end, [&key](const auto &v) { return v.key() == key; });
+            if ((other_key == nullptr) || (other_val == nullptr)) {
+                assert(false && "ddwaf_object_at_key or ddwaf_object_at_value "
+                                "returned nullptr");
+                continue;
+            }
 
-            if (orig_entry == end) { // not found
-                ddwaf_object_map_addl_nc(
-                    this, key.data(), key.length(), &oentry);
-                ddwaf_object_invalid(&oentry); // also nulls out key
+            size_t key_len;
+            const char *key_str = ddwaf_object_get_string(other_key, &key_len);
+            if (key_str == nullptr) {
+                // non string key; skip
+                continue;
+            }
+
+            // check if key exists in this map
+            const ddwaf_object *existing =
+                ddwaf_object_find(&obj_, key_str, key_len);
+
+            if (existing == nullptr) {
+                // not found, add it
+                ddwaf_object *inserted =
+                    ddwaf_object_insert_key(&obj_, key_str, key_len, alloc);
+                if (inserted != nullptr) {
+                    *inserted = *other_val;
+                    ddwaf_object temp;
+                    ddwaf_object_set_invalid(&temp);
+                    *const_cast<ddwaf_object *>(other_val) = temp; // NOLINT
+                }
             } else {
-                // a merge is required
-                orig_entry->merge(std::move(oentry));
+                // merge required
+                parameter &orig_p{reinterpret_cast<parameter &>(  // NOLINT
+                    const_cast<ddwaf_object &>(*existing))};      // NOLINT
+                parameter &other_p{reinterpret_cast<parameter &>( // NOLINT
+                    const_cast<ddwaf_object &>(*other_val))};     // NOLINT
+
+                orig_p.merge(std::move(other_p));
             }
         }
         return true;
@@ -181,8 +246,15 @@ parameter &parameter::operator[](size_t index) const
                                 ") out of range(" + std::to_string(size()) +
                                 ")");
     }
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
-    return static_cast<parameter &>(ddwaf_object::array[index]);
+
+    const ddwaf_object *obj = ddwaf_object_at_value(&obj_, index);
+    if (obj == nullptr) {
+        throw std::out_of_range("failed to get object at index");
+    }
+
+    // This is unsafe but matches the original API
+    // // NOLINTNEXTLINE
+    return *const_cast<parameter *>(reinterpret_cast<const parameter *>(obj));
 }
 
 } // namespace dds
