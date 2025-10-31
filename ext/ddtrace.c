@@ -2617,6 +2617,9 @@ PHP_FUNCTION(DDTrace_Internal_add_span_flag) {
 void dd_internal_handle_fork(void) {
     // CHILD PROCESS
 #ifndef _WIN32
+    ddtrace_pid_t current_pid = getpid();
+    bool is_child_process = (ddtrace_master_pid != 0 && current_pid != ddtrace_master_pid);
+
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_curl_shutdown();
         ddtrace_coms_clean_background_sender_after_fork();
@@ -2636,7 +2639,23 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar();
+
+#ifndef _WIN32
+    // If we're a child process and using sidecar, reuse the master's sidecar connection
+    // Don't call ddtrace_reset_sidecar() which would create a new sidecar instance
+    if (is_child_process && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && ddtrace_sidecar) {
+        // Child process reuses master's sidecar - just update instance ID
+        ddtrace_force_new_instance_id();
+        // Reconnect with fork flag
+        if (ddtrace_sidecar) {
+            ddtrace_sidecar_submit_root_span_data();
+        }
+    } else
+#endif
+    {
+        // Not a child process, or not using sidecar - normal reset
+        ddtrace_reset_sidecar();
+    }
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
