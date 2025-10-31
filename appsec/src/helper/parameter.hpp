@@ -24,7 +24,8 @@ public:
     parameter(parameter &&) noexcept;
     parameter &operator=(parameter &&) noexcept;
 
-    ~parameter() {
+    ~parameter()
+    {
         auto *alloc = ddwaf_get_default_allocator();
         ddwaf_object_destroy(&obj_, alloc);
     }
@@ -43,7 +44,7 @@ public:
     bool add(parameter &&entry) noexcept;
     bool add(std::string_view name, parameter &&entry) noexcept;
     bool merge(parameter other);
-    
+
     // The reference should be considered invalid after adding an element
     parameter &operator[](size_t index) const;
 };

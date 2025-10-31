@@ -32,14 +32,15 @@ using waf_handle_up =
 struct ddwaf_context_deleter {
     void operator()(ddwaf_context c) const { ddwaf_context_destroy(c); }
 };
-using waf_context_up =
-    std::unique_ptr<std::remove_pointer_t<ddwaf_context>, ddwaf_context_deleter>;
+using waf_context_up = std::unique_ptr<std::remove_pointer_t<ddwaf_context>,
+    ddwaf_context_deleter>;
 
 struct ddwaf_subcontext_deleter {
     void operator()(ddwaf_subcontext c) const { ddwaf_subcontext_destroy(c); }
 };
 using waf_subcontext_up =
-    std::unique_ptr<std::remove_pointer_t<ddwaf_subcontext>, ddwaf_subcontext_deleter>;
+    std::unique_ptr<std::remove_pointer_t<ddwaf_subcontext>,
+        ddwaf_subcontext_deleter>;
 
 class instance : public dds::subscriber {
 public:

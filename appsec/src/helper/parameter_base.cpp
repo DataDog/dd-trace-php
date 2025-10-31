@@ -8,8 +8,8 @@
 #include <string>
 #include <string_view>
 
-#include "parameter_base.hpp"
 #include "ddwaf.h"
+#include "parameter_base.hpp"
 
 namespace dds {
 
@@ -17,7 +17,7 @@ namespace {
 // NOLINTNEXTLINE(misc-no-recursion,google-runtime-references)
 void debug_str_helper(std::string &res, const ddwaf_object &p)
 {
-    switch (p.type) {
+    switch (static_cast<DDWAF_OBJ_TYPE>(p.type)) {
     case DDWAF_OBJ_INVALID:
         res += "<invalid>";
         break;
@@ -35,7 +35,7 @@ void debug_str_helper(std::string &res, const ddwaf_object &p)
     case DDWAF_OBJ_STRING: {
         res += '"';
         size_t len;
-        const char *str =ddwaf_object_get_string(&p, &len);
+        const char *str = ddwaf_object_get_string(&p, &len);
         res += std::string_view{str, len};
         res += '"';
         break;

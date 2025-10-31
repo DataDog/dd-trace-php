@@ -92,7 +92,7 @@ public:
     TruncatedJsonInputStream(
         // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
         const char *data, std::size_t length, std::size_t size_limit = SIZE_MAX)
-        : data_{data}, length_{length}, pos_{0}, size_limit_{size_limit}
+        : data_{data}, length_{length},  size_limit_{size_limit}
     {}
 
     [[nodiscard]] auto Peek() const -> Ch
@@ -116,7 +116,7 @@ public:
 private:
     const char *data_;
     std::size_t length_;
-    std::size_t pos_; // NOLINT(modernize-use-default-member-init)
+    std::size_t pos_{0}; // NOLINT(modernize-use-default-member-init)
     std::size_t size_limit_;
 };
 
@@ -197,8 +197,8 @@ public:
         return false;
     }
 
-    auto String(
-        const char *str, rapidjson::SizeType length, bool /* copy */) -> bool
+    auto String(const char *str, rapidjson::SizeType length, bool /* copy */)
+        -> bool
     {
         zval val;
         ZVAL_STRINGL(&val, str, length);
@@ -212,8 +212,8 @@ public:
         return AddValue(obj);
     }
 
-    auto Key(
-        const char *str, rapidjson::SizeType length, bool /* copy */) -> bool
+    auto Key(const char *str, rapidjson::SizeType length, bool /* copy */)
+        -> bool
     {
         pending_key_.reset(zend_string_init(str, length, false));
         return true;
@@ -371,7 +371,7 @@ auto dd_parse_json_truncated(
         RapidJsonPhpAllocator>
         reader(&allocator);
 
-    rapidjson::ParseResult parse_result =
+    rapidjson::ParseResult const parse_result =
         reader.Parse<parse_flags>(stream, handler);
 
     if (parse_result != rapidjson::kParseErrorNone) {

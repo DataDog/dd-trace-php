@@ -78,7 +78,7 @@ public:
         }
         return ddwaf_object_get_length(&obj_);
     }
-    
+
     [[nodiscard]] bool is_array() const noexcept
     {
         return ddwaf_object_is_array(&obj_);

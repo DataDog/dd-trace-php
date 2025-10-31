@@ -28,7 +28,7 @@ TEST(JsonHelperTest, Int64ToJson)
 TEST(JsonHelperTest, Uint64ToJson)
 {
     ddwaf_object obj;
-    ddwaf_object_set_unsigned(&obj,std::numeric_limits<uint64_t>::max());
+    ddwaf_object_set_unsigned(&obj, std::numeric_limits<uint64_t>::max());
 
     parameter_view pv(obj);
     std::string result = parameter_to_json(pv);

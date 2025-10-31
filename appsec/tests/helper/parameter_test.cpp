@@ -68,7 +68,7 @@ TEST(ParameterTest, UintMaxConstructorAsString)
     ss << value;
     const auto &value_str = ss.str();
     size_t len;
-    const char* str = ddwaf_object_get_string(&p, &len);
+    const char *str = ddwaf_object_get_string(&p, &len);
     EXPECT_EQ(std::string_view(str, len), value_str);
     EXPECT_EQ(std::string_view(p), value_str);
 }
@@ -89,7 +89,7 @@ TEST(ParameterTest, UintMinConstructorAsString)
     ss << value;
     const auto &value_str = ss.str();
     size_t len;
-    const char* str = ddwaf_object_get_string(&p, &len);
+    const char *str = ddwaf_object_get_string(&p, &len);
     EXPECT_EQ(std::string_view(str, len), value_str);
     EXPECT_EQ(std::string_view(p), value_str);
 }
@@ -110,7 +110,7 @@ TEST(ParameterTest, IntMaxConstructorAsString)
     ss << value;
     const auto &value_str = ss.str();
     size_t len;
-    const char* str = ddwaf_object_get_string(&p, &len);
+    const char *str = ddwaf_object_get_string(&p, &len);
     EXPECT_EQ(std::string_view(str, len), value_str);
     EXPECT_EQ(std::string_view(p), value_str);
 }
@@ -131,7 +131,7 @@ TEST(ParameterTest, IntMinConstructorAsString)
     ss << value;
     const auto &value_str = ss.str();
     size_t len;
-    const char* str = ddwaf_object_get_string(&p, &len);
+    const char *str = ddwaf_object_get_string(&p, &len);
     EXPECT_EQ(std::string_view(str, len), value_str);
     EXPECT_EQ(std::string_view(p), value_str);
 }
@@ -152,7 +152,7 @@ TEST(ParameterTest, StringConstructor)
     EXPECT_THROW(auto i64 = int64_t(p), bad_cast);
 
     size_t len2;
-    const char* str2 = ddwaf_object_get_string(&p, &len2);
+    const char *str2 = ddwaf_object_get_string(&p, &len2);
     EXPECT_STREQ(str2, value.data());
     EXPECT_STREQ(std::string_view(p).data(), value.data());
 }
@@ -173,7 +173,7 @@ TEST(ParameterTest, StringViewConstructor)
     EXPECT_THROW(auto i64 = int64_t(p), bad_cast);
 
     size_t len2;
-    const char* str2 = ddwaf_object_get_string(&p, &len2);
+    const char *str2 = ddwaf_object_get_string(&p, &len2);
     EXPECT_STREQ(str2, value.data());
     EXPECT_STREQ(std::string_view(p).data(), value.data());
 }
@@ -185,12 +185,11 @@ TEST(ParameterTest, MoveConstructor)
 
     EXPECT_EQ(pcopy.type(), parameter_type::string);
     size_t len3;
-    const char* str3 = ddwaf_object_get_string(&pcopy, &len3);
+    const char *str3 = ddwaf_object_get_string(&pcopy, &len3);
     EXPECT_STREQ(str3, "thisisastring");
 
     EXPECT_FALSE(p.is_valid());
 }
-
 
 TEST(ParameterTest, Map)
 {
@@ -224,7 +223,7 @@ TEST(ParameterTest, Map)
     parameter_view pv{*&p};
     auto map_it = pv.map_iterable();
     int idx = 0;
-    for (const auto& [key, value] : map_it) {
+    for (const auto &[key, value] : map_it) {
         EXPECT_STREQ(key.data(), ("key" + std::to_string(idx)).c_str());
         idx++;
     }
@@ -287,7 +286,8 @@ TEST(ParameterTest, StaticCastFromMapObject)
     ddwaf_object_set_map(&obj, size, alloc);
     for (int i = 0; i < size; i++) {
         auto key = std::to_string(i);
-        ddwaf_object *elem = ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
+        ddwaf_object *elem =
+            ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
         ddwaf_object_set_string(elem, "value", 5, alloc);
     }
 
@@ -299,7 +299,7 @@ TEST(ParameterTest, StaticCastFromMapObject)
     parameter_view pv{*&p};
     auto map_it = pv.map_iterable();
     int idx = 0;
-    for (const auto& [key, value] : map_it) {
+    for (const auto &[key, value] : map_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
         EXPECT_STREQ(key.data(), std::to_string(idx).c_str());
@@ -416,7 +416,7 @@ TEST(ParameterTest, MergeMapsWithOverlappingKeys)
     parameter_view pv{*&p1};
     auto map_it = pv.map_iterable();
     bool found_overlap = false;
-    for (const auto& [key, value] : map_it) {
+    for (const auto &[key, value] : map_it) {
         if (key == "overlap") {
             found_overlap = true;
             // the overlapped entry should contain both inner keys
@@ -425,7 +425,7 @@ TEST(ParameterTest, MergeMapsWithOverlappingKeys)
 
             auto nested_map_it = value.map_iterable();
             bool found_inner1 = false, found_inner2 = false;
-            for (const auto& [inner_key, inner_value] : nested_map_it) {
+            for (const auto &[inner_key, inner_value] : nested_map_it) {
                 if (inner_key == "inner1") {
                     found_inner1 = true;
                     EXPECT_STREQ(

@@ -171,7 +171,7 @@ TEST(WafTest, RunWithInvalidParam)
 
 TEST(WafTest, RunWithTimeout)
 {
-     { // No rasp
+    { // No rasp
         NiceMock<mock::tel_submitter> submitm{};
         std::shared_ptr<subscriber> wi(
             waf::instance::from_string(waf_rule, submitm, 0));

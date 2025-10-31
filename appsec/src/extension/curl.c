@@ -13,19 +13,19 @@
 static PHP_FUNCTION(datadog_appsec_fflush_stdiocast)
 {
     zval *stream_zv;
-    
+
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_RESOURCE(stream_zv)
+    Z_PARAM_RESOURCE(stream_zv)
     ZEND_PARSE_PARAMETERS_END();
-    
+
     php_stream *stream = NULL;
     php_stream_from_zval(stream, stream_zv);
-    
+
     if (stream->stdiocast != NULL) {
         int result = fflush(stream->stdiocast);
         RETURN_BOOL(result == 0);
     }
-    
+
     RETURN_TRUE;
 }
 
@@ -40,7 +40,4 @@ static const zend_function_entry functions[] = {
 };
 // clang-format on
 
-void dd_curl_register_functions(void)
-{
-    dd_phpobj_reg_funcs(functions);
-}
+void dd_curl_register_functions(void) { dd_phpobj_reg_funcs(functions); }

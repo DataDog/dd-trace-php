@@ -19,10 +19,7 @@ constexpr size_t default_capacity = 16;
 
 namespace dds {
 
-parameter::parameter(const ddwaf_object &arg)
-{
-    obj_ = arg;
-}
+parameter::parameter(const ddwaf_object &arg) { obj_ = arg; }
 
 parameter::parameter(parameter &&other) noexcept
 {
@@ -71,8 +68,9 @@ parameter parameter::int64(int64_t value) noexcept
 parameter parameter::string(uint64_t value) noexcept
 {
     // v2 doesn't have string_from_unsigned, convert manually
-    std::array<char, sizeof("18446744073709551615")> buf{}; 
-    std::to_chars_result result = std::to_chars(buf.data(), buf.data() + buf.size(), value);
+    std::array<char, sizeof("18446744073709551615")> buf{};
+    std::to_chars_result result =
+        std::to_chars(buf.data(), buf.data() + buf.size(), value);
     if (result.ec != std::errc()) {
         result.ptr = buf.data();
     }
@@ -85,8 +83,9 @@ parameter parameter::string(uint64_t value) noexcept
 parameter parameter::string(int64_t value) noexcept
 {
     // v2 doesn't have string_from_signed, convert manually
-    std::array<char, sizeof("9223372036854775807")> buf{}; 
-    std::to_chars_result result = std::to_chars(buf.data(), buf.data() + buf.size(), value);
+    std::array<char, sizeof("9223372036854775807")> buf{};
+    std::to_chars_result result =
+        std::to_chars(buf.data(), buf.data() + buf.size(), value);
     if (result.ec != std::errc()) {
         result.ptr = buf.data();
     }
@@ -146,7 +145,8 @@ bool parameter::add(std::string_view name, parameter &&entry) noexcept
     length_type const length =
         name.length() <= max_length ? name.length() : max_length;
     auto *alloc = ddwaf_get_default_allocator();
-    ddwaf_object *inserted = ddwaf_object_insert_key(&obj_, name.data(), length, alloc);
+    ddwaf_object *inserted =
+        ddwaf_object_insert_key(&obj_, name.data(), length, alloc);
     if (inserted == nullptr) {
         return false;
     }
@@ -166,7 +166,8 @@ bool parameter::merge(parameter other)
 
     if (is_array()) {
         for (size_t i = 0; i < other.size(); ++i) {
-            const ddwaf_object *other_val = ddwaf_object_at_value(&other.obj_, i);
+            const ddwaf_object *other_val =
+                ddwaf_object_at_value(&other.obj_, i);
             if (other_val == nullptr) {
                 assert(false && "ddwaf_object_at_value returned nullptr");
                 continue;
@@ -185,10 +186,12 @@ bool parameter::merge(parameter other)
     if (is_map()) {
         for (size_t i = 0; i < other.size() /* 0 if not container */; ++i) {
             const ddwaf_object *other_key = ddwaf_object_at_key(&other.obj_, i);
-            const ddwaf_object *other_val = ddwaf_object_at_value(&other.obj_, i);
+            const ddwaf_object *other_val =
+                ddwaf_object_at_value(&other.obj_, i);
 
             if ((other_key == nullptr) || (other_val == nullptr)) {
-                assert(false && "ddwaf_object_at_key or ddwaf_object_at_value returned nullptr");
+                assert(false && "ddwaf_object_at_key or ddwaf_object_at_value "
+                                "returned nullptr");
                 continue;
             }
 
@@ -200,23 +203,25 @@ bool parameter::merge(parameter other)
             }
 
             // check if key exists in this map
-            const ddwaf_object *existing = ddwaf_object_find(&obj_, key_str, key_len);
+            const ddwaf_object *existing =
+                ddwaf_object_find(&obj_, key_str, key_len);
 
             if (existing == nullptr) {
                 // not found, add it
-                ddwaf_object *inserted = ddwaf_object_insert_key(&obj_, key_str, key_len, alloc);
+                ddwaf_object *inserted =
+                    ddwaf_object_insert_key(&obj_, key_str, key_len, alloc);
                 if (inserted != nullptr) {
                     *inserted = *other_val;
                     ddwaf_object temp;
                     ddwaf_object_set_invalid(&temp);
-                    *const_cast<ddwaf_object*>(other_val) = temp; // NOLINT
+                    *const_cast<ddwaf_object *>(other_val) = temp; // NOLINT
                 }
             } else {
                 // merge required
-                parameter &orig_p{reinterpret_cast<parameter &>( // NOLINT
-                    const_cast<ddwaf_object &>(*existing))}; // NOLINT
+                parameter &orig_p{reinterpret_cast<parameter &>(  // NOLINT
+                    const_cast<ddwaf_object &>(*existing))};      // NOLINT
                 parameter &other_p{reinterpret_cast<parameter &>( // NOLINT
-                    const_cast<ddwaf_object &>(*other_val))}; // NOLINT
+                    const_cast<ddwaf_object &>(*other_val))};     // NOLINT
 
                 orig_p.merge(std::move(other_p));
             }
@@ -245,7 +250,7 @@ parameter &parameter::operator[](size_t index) const
 
     // This is unsafe but matches the original API
     // // NOLINTNEXTLINE
-    return *const_cast<parameter*>(reinterpret_cast<const parameter*>(obj));
+    return *const_cast<parameter *>(reinterpret_cast<const parameter *>(obj));
 }
 
 } // namespace dds

@@ -12,7 +12,6 @@
 #include <json/json.h>
 #include <php.h>
 
-
 // for open(2)
 #include <dlfcn.h>
 #include <fcntl.h>

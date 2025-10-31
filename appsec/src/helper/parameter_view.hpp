@@ -37,7 +37,7 @@ public:
     template <bool is_map> struct iterator {
         using value_type = std::conditional_t<is_map,
             std::pair<std::string_view, parameter_view>, parameter_view>;
-        
+
         using difference_type = std::ptrdiff_t;
         using pointer = value_type *;
         using reference = value_type &;
@@ -57,7 +57,7 @@ public:
         {
             // Get the value at current index
             const ddwaf_object *val = ddwaf_object_at_value(&obj_, index_);
-            
+
             if constexpr (is_map) {
                 // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
                 const auto *key = reinterpret_cast<const parameter_view *>(
@@ -90,7 +90,8 @@ public:
 
     class array_iterable_t {
     public:
-        explicit array_iterable_t(const parameter_view &obj) : obj_{obj} {
+        explicit array_iterable_t(const parameter_view &obj) : obj_{obj}
+        {
             if (!obj_.is_array()) {
                 throw invalid_type("parameter not an array");
             }
@@ -107,7 +108,8 @@ public:
     private:
         const parameter_view &obj_; // NOLINT
     };
-    [[nodiscard]] class array_iterable_t array_iterable() const {
+    [[nodiscard]] class array_iterable_t array_iterable() const
+    {
         return array_iterable_t{*this};
     }
 
@@ -132,7 +134,8 @@ public:
         const parameter_view &obj_; // NOLINT
     };
 
-    [[nodiscard]] class map_iterable_t map_iterable() const {
+    [[nodiscard]] class map_iterable_t map_iterable() const
+    {
         return map_iterable_t{*this};
     }
 
@@ -154,7 +157,7 @@ public:
         }
         // This is unsafe but matches the original API
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        return *reinterpret_cast<const parameter_view*>(val);
+        return *reinterpret_cast<const parameter_view *>(val);
     }
 
     explicit operator map() const
@@ -184,8 +187,8 @@ public:
                 throw bad_cast("invalid key in map entry");
             }
 
-            result.emplace(std::string_view(key_str, key_len),
-                          parameter_view{*val_obj});
+            result.emplace(
+                std::string_view(key_str, key_len), parameter_view{*val_obj});
         }
 
         return result;

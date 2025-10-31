@@ -102,7 +102,7 @@ TEST(ParameterViewTest, FromMapParameter)
 
     i = 0;
     auto map_it = pv.map_iterable();
-    for (const auto& [key, value] : map_it) {
+    for (const auto &[key, value] : map_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
         EXPECT_STREQ(key.data(), std::to_string(i).c_str());
@@ -238,7 +238,8 @@ TEST(ParameterViewTest, FromMapObject)
     ddwaf_object_set_map(&obj, size, alloc);
     for (i = 0; i < size; i++) {
         auto key = std::to_string(i);
-        ddwaf_object *elem = ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
+        ddwaf_object *elem =
+            ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
         ddwaf_object_set_string(elem, "value", 5, alloc);
     }
 
@@ -249,7 +250,7 @@ TEST(ParameterViewTest, FromMapObject)
 
     i = 0;
     auto map_it = pv.map_iterable();
-    for (const auto& [key, value] : map_it) {
+    for (const auto &[key, value] : map_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
         EXPECT_STREQ(key.data(), std::to_string(i).c_str());
@@ -271,7 +272,8 @@ TEST(ParameterViewTest, StaticCastFromMapObject)
     ddwaf_object_set_map(&obj, size, alloc);
     for (i = 0; i < size; i++) {
         auto key = std::to_string(i);
-        ddwaf_object *elem = ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
+        ddwaf_object *elem =
+            ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
         ddwaf_object_set_string(elem, "value", 5, alloc);
     }
 
@@ -282,7 +284,7 @@ TEST(ParameterViewTest, StaticCastFromMapObject)
 
     i = 0;
     auto map_it = pv.map_iterable();
-    for (const auto& [key, value] : map_it) {
+    for (const auto &[key, value] : map_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
         EXPECT_STREQ(key.data(), std::to_string(i).c_str());

@@ -116,7 +116,8 @@ void json_to_object(ddwaf_object *object, T &doc)
         ddwaf_object_set_map(object, default_capacity, alloc);
         for (auto &kv : doc.GetObject()) {
             std::string_view const key = kv.name.GetString();
-            ddwaf_object *element = ddwaf_object_insert_key(object, key.data(), key.length(), alloc);
+            ddwaf_object *element = ddwaf_object_insert_key(
+                object, key.data(), key.length(), alloc);
             if (element) {
                 json_to_object(element, kv.value);
             }

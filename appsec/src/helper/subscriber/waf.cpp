@@ -28,7 +28,8 @@ namespace dds::waf {
 
 namespace {
 void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
-    const parameter_view& diagnostics, telemetry::telemetry_submitter &msubmitter);
+    const parameter_view &diagnostics,
+    telemetry::telemetry_submitter &msubmitter);
 } // namespace
 
 class waf_builder {
@@ -40,9 +41,9 @@ class waf_builder {
     {}
 
 public:
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    static std::optional<waf_builder> create(const parameter &cfg,
-        parameter default_rules, parameter &diagnostics)
+    static std::optional<waf_builder> create(
+        // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+        const parameter &cfg, parameter default_rules, parameter &diagnostics)
     {
         auto *builder = ddwaf_builder_init();
         if (builder == nullptr) {
@@ -53,7 +54,8 @@ public:
             ddwaf_builder_add_or_update_config(builder, BUNDLED_KEY.data(),
                 BUNDLED_KEY.size(), &default_rules, &diagnostics);
         if (res) {
-            // Use separate diagnostics for obfuscator to preserve ruleset_version
+            // Use separate diagnostics for obfuscator to preserve
+            // ruleset_version
             parameter obfuscator_diagnostics;
             res = ddwaf_builder_add_or_update_config(builder,
                 OBFUSCATOR_KEY.data(), OBFUSCATOR_KEY.size(), &cfg,
@@ -103,8 +105,7 @@ public:
 
             parameter these_diags{};
             bool const res = ddwaf_builder_add_or_update_config(builder_.get(),
-                key.full_key().data(), key.full_key().size(),
-                &added.second,
+                key.full_key().data(), key.full_key().size(), &added.second,
                 &these_diags);
             if (res) {
                 SPDLOG_DEBUG("Added/updated config: {}", key.full_key());
@@ -225,7 +226,8 @@ void format_waf_result(
         if (actions.is_map()) {
             for (const auto &[key, action] : actions.map_iterable()) {
                 dds::action a{parse_action_type_string(key), {}};
-                for (const auto &[action_key, parameter] : action.map_iterable()) {
+                for (const auto &[action_key, parameter] :
+                    action.map_iterable()) {
                     std::string value;
                     // As of libddwaf 1.28.0, status_code and grpc_status_code
                     // are uint64_t instead of strings
@@ -339,8 +341,8 @@ constexpr std::array<std::string_view, 5> diagnostic_keys{
     "rules_override",
 };
 
-void load_result_report(
-    const parameter_view& diagnostics, telemetry::telemetry_submitter &msubmitter)
+void load_result_report(const parameter_view &diagnostics,
+    telemetry::telemetry_submitter &msubmitter)
 {
     const auto info = static_cast<parameter_view::map>(diagnostics);
 
@@ -401,7 +403,8 @@ void load_result_report(
 }
 
 void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
-    const parameter_view& diagnostics, telemetry::telemetry_submitter &msubmitter)
+    const parameter_view &diagnostics,
+    telemetry::telemetry_submitter &msubmitter)
 {
     using log_level = telemetry::telemetry_submitter::log_level;
 
@@ -471,8 +474,8 @@ void handle_config_diagnostics(const remote_config::parsed_config_key &cfg_key,
     }
 }
 
-void load_result_report_legacy(const parameter_view& diagnostics, std::string &version,
-    telemetry::telemetry_submitter &msubmitter)
+void load_result_report_legacy(const parameter_view &diagnostics,
+    std::string &version, telemetry::telemetry_submitter &msubmitter)
 {
     try {
         auto info = static_cast<parameter_view::map>(diagnostics);
@@ -569,7 +572,7 @@ void instance::listener::call(dds::parameter_view &data, event &event,
                 waf_ctx_.get(), &data, nullptr, &res, waf_timeout_.count());
         }
 
-        parameter_view res_view{res};
+        parameter_view const res_view{res};
         if (res_view.is_map()) {
             for (auto &&[key, value] : res_view.map_iterable()) {
                 if (key == "events"sv) {
@@ -618,11 +621,11 @@ void instance::listener::call(dds::parameter_view &data, event &event,
         }
     };
     const std::unique_ptr<ddwaf_object, decltype(deleter)> scope(&res, deleter);
-    
+
     // Free subcontext if requested
-    defer cleanup{[&]() {
+    defer const cleanup{[&]() {
         if (options.subctx_last_call && options.subctx_id) {
-            size_t removed = subcontexts_.erase(options.subctx_id.value());
+            size_t const removed = subcontexts_.erase(options.subctx_id.value());
             if (removed == 0) {
                 SPDLOG_WARN("Subcontext could not be removed; nothing "
                             "found for id {}",
@@ -664,7 +667,8 @@ void instance::listener::call(dds::parameter_view &data, event &event,
         }
     }
     if (attributes.is_map()) {
-        for (const auto &[derivative_key, derivative] : attributes.map_iterable()) {
+        for (const auto &[derivative_key, derivative] :
+            attributes.map_iterable()) {
             if (derivative_key.starts_with("_dd.appsec.s.")) {
                 std::string json_derivative = parameter_to_json(derivative);
                 if (json_derivative.length() > max_plain_schema_allowed) {
@@ -798,7 +802,7 @@ instance::instance(parameter rules, telemetry::telemetry_submitter &msubmit,
     std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
 {
-    parameter config = get_obfuscator_config(key_regex, value_regex);
+    parameter const config = get_obfuscator_config(key_regex, value_regex);
 
     parameter diagnostics{};
     auto maybe_builder =
