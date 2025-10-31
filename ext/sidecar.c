@@ -23,6 +23,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 ddog_Endpoint *ddtrace_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+ddtrace_pid_t ddtrace_master_pid = 0;
 static uint8_t dd_sidecar_formatted_session_id[36];
 
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
@@ -213,6 +214,11 @@ bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_c
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
+
+    // Store master PID for later fork detection
+#ifndef _WIN32
+    ddtrace_master_pid = getpid();
+#endif
 
     ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
 

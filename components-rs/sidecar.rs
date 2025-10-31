@@ -1,9 +1,21 @@
+use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
+use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
+use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
+use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
+use datadog_sidecar::tracer::shm_limiter_path;
+use ddcommon::rate_limiter::{Limiter, LocalLimiter};
+use ddcommon_ffi::slice::AsBytes;
+use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
+use ddtelemetry_ffi::try_c;
+use lazy_static::{lazy_static, LazyStatic};
+#[cfg(windows)]
+use spawn_worker::get_trampoline_target_data;
+#[cfg(any(windows, php_shared_build))]
+use spawn_worker::LibDependency;
 use std::ffi::{c_char, CStr, OsStr};
 use std::ops::DerefMut;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
-use lazy_static::{lazy_static, LazyStatic};
-use tracing::warn;
 #[cfg(windows)]
 use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
@@ -23,12 +35,13 @@ use spawn_worker::LibDependency;
 #[cfg(windows)]
 use spawn_worker::get_trampoline_target_data;
 
+use tracing::warn;
 
 #[cfg(php_shared_build)]
 extern "C" {
-    #[linkage="extern_weak"]
+    #[linkage = "extern_weak"]
     static DDTRACE_MOCK_PHP: *mut u8;
-    #[linkage="extern_weak"]
+    #[linkage = "extern_weak"]
     static DDTRACE_MOCK_PHP_SIZE: *mut usize;
 }
 
@@ -36,8 +49,7 @@ extern "C" {
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     if !unsafe { DDTRACE_MOCK_PHP_SIZE }.is_null() {
         let mock = unsafe { std::slice::from_raw_parts(DDTRACE_MOCK_PHP, *DDTRACE_MOCK_PHP_SIZE) };
-        cfg.library_dependencies
-            .push(LibDependency::Binary(mock));
+        cfg.library_dependencies.push(LibDependency::Binary(mock));
     }
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
@@ -54,7 +66,8 @@ pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
 #[cfg(windows)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
     let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
-    cfg.library_dependencies.push(LibDependency::Path(php_dll.into()));
+    cfg.library_dependencies
+        .push(LibDependency::Path(php_dll.into()));
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 
@@ -145,12 +158,13 @@ pub extern "C" fn ddog_sidecar_connect_php(
             }
         }
         #[cfg(windows)]
-            let log_level = log_level.to_utf8_lossy().as_ref().into();
+        let log_level = log_level.to_utf8_lossy().as_ref().into();
         #[cfg(not(windows))]
-            let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
-        cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
+        let log_level = OsStr::from_bytes(log_level.as_bytes()).into();
+        cfg.child_env
+            .insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
     }
-    
+
     let reconnect_fn = on_reconnect.map(|on_reconnect| {
         let cfg = cfg.clone();
         Box::new(move || {
@@ -159,7 +173,7 @@ pub extern "C" fn ddog_sidecar_connect_php(
             Some(transport)
         }) as Box<dyn Fn() -> _>
     });
-    
+
     let mut stream = try_c!(sidecar_connect(cfg));
     stream.reconnect_fn = reconnect_fn;
     *connection = Box::into_raw(stream);
@@ -185,17 +199,23 @@ pub extern "C" fn ddtrace_sidecar_reconnect(
     });
 }
 
-
 lazy_static! {
-    pub static ref SHM_LIMITER: Option<ShmLimiterMemory<()>> = ShmLimiterMemory::open(&shm_limiter_path()).map_or_else(|e| {
-        warn!("Attempt to use the SHM_LIMITER failed: {e:?}");
-        None
-    }, Some);
-
-    pub static ref EXCEPTION_HASH_LIMITER: Option<ExceptionHashRateLimiter> = ExceptionHashRateLimiter::open().map_or_else(|e| {
-        warn!("Attempt to use the EXCEPTION_HASH_LIMITER failed: {e:?}");
-        None
-    }, Some);
+    pub static ref SHM_LIMITER: Option<ShmLimiterMemory<()>> =
+        ShmLimiterMemory::open(&shm_limiter_path()).map_or_else(
+            |e| {
+                warn!("Attempt to use the SHM_LIMITER failed: {e:?}");
+                None
+            },
+            Some
+        );
+    pub static ref EXCEPTION_HASH_LIMITER: Option<ExceptionHashRateLimiter> =
+        ExceptionHashRateLimiter::open().map_or_else(
+            |e| {
+                warn!("Attempt to use the EXCEPTION_HASH_LIMITER failed: {e:?}");
+                None
+            },
+            Some
+        );
 }
 
 pub struct MaybeShmLimiter(Option<AnyLimiter>);
@@ -227,12 +247,20 @@ pub extern "C" fn ddog_shm_limiter_inc(limiter: &MaybeShmLimiter, limit: u32) ->
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_exception_hash_limiter_inc(connection: &mut SidecarTransport, hash: u64, granularity_seconds: u32) -> bool {
+pub extern "C" fn ddog_exception_hash_limiter_inc(
+    connection: &mut SidecarTransport,
+    hash: u64,
+    granularity_seconds: u32,
+) -> bool {
     if let Some(limiter) = &*EXCEPTION_HASH_LIMITER {
         if let Some(limiter) = limiter.find(hash) {
             return limiter.inc();
         }
     }
-    let _ = acquire_exception_hash_rate_limiter(connection, hash, Duration::from_secs(granularity_seconds as u64));
+    let _ = acquire_exception_hash_rate_limiter(
+        connection,
+        hash,
+        Duration::from_secs(granularity_seconds as u64),
+    );
     true
 }

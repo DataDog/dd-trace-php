@@ -6,10 +6,20 @@
 #include "ddtrace_export.h"
 #include "ddtrace.h"
 #include "zend_string.h"
+#ifndef _WIN32
+#include <unistd.h>
+// Platform-specific PID type
+typedef pid_t ddtrace_pid_t;
+#else
+#include <process.h>
+// Windows uses int for process IDs
+typedef int ddtrace_pid_t;
+#endif
 
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+extern ddtrace_pid_t ddtrace_master_pid;
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
 struct telemetry_rc_info {
