@@ -333,7 +333,7 @@ impl TimeCollector {
         let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = InternalProfile::new(
+        let mut profile = InternalProfile::try_new(
             &sample_types,
             Some(Period {
                 r#type: ApiValueType {
@@ -342,7 +342,8 @@ impl TimeCollector {
                 },
                 value: period.min(i64::MAX as u128) as i64,
             }),
-        );
+        )
+        .expect("failed to create internal profile");
         let _ = profile.set_start_time(started_at);
 
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =

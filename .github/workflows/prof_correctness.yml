@@ -120,44 +120,44 @@ jobs:
           done
 
       - name: Check profiler correctness for allocations
-        uses: Datadog/prof-correctness/analyze@main
+        uses: Datadog/prof-correctness/analyze@PROF-11832-Add-zstd-to-compression-configuration-to-libdatadog
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations/
 
       - name: Check profiler correctness for allocations with 1 byte sampling distance
-        uses: Datadog/prof-correctness/analyze@main
+        uses: Datadog/prof-correctness/analyze@PROF-11832-Add-zstd-to-compression-configuration-to-libdatadog
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations_1byte/
 
       - name: Check profiler correctness for time
-        uses: Datadog/prof-correctness/analyze@main
+        uses: Datadog/prof-correctness/analyze@PROF-11832-Add-zstd-to-compression-configuration-to-libdatadog
         with:
           expected_json: profiling/tests/correctness/time.json
           pprof_path: profiling/tests/correctness/time/
 
       - name: Check profiler correctness for strange frames
-        uses: Datadog/prof-correctness/analyze@main
+        uses: Datadog/prof-correctness/analyze@PROF-11832-Add-zstd-to-compression-configuration-to-libdatadog
         with:
           expected_json: profiling/tests/correctness/strange_frames.json
           pprof_path: profiling/tests/correctness/strange_frames/
 
       - name: Check profiler correctness for timeline
-        uses: Datadog/prof-correctness/analyze@main
+        uses: Datadog/prof-correctness/analyze@PROF-11832-Add-zstd-to-compression-configuration-to-libdatadog
         with:
           expected_json: profiling/tests/correctness/timeline.json
           pprof_path: profiling/tests/correctness/timeline/
 
       - name: Check profiler correctness for exceptions ZTS
         if: matrix.phpts == 'zts'
-        uses: Datadog/prof-correctness/analyze@main
+        uses: Datadog/prof-correctness/analyze@PROF-11832-Add-zstd-to-compression-configuration-to-libdatadog
         with:
           expected_json: profiling/tests/correctness/exceptions_zts.json
           pprof_path: profiling/tests/correctness/exceptions_zts/
 
       - name: Check profiler correctness for exceptions
-        uses: Datadog/prof-correctness/analyze@main
+        uses: Datadog/prof-correctness/analyze@PROF-11832-Add-zstd-to-compression-configuration-to-libdatadog
         with:
           expected_json: profiling/tests/correctness/exceptions.json
           pprof_path: profiling/tests/correctness/exceptions/
