@@ -49,7 +49,7 @@ pub struct KnownFunctionIds {
 }
 
 pub struct PhpProfilesDictionary {
-    dict: ProfilesDictionary,
+    dict: DdArc<ProfilesDictionary>,
     known_strs: KnownStringIds,
     known_funcs: KnownFunctionIds,
 }
@@ -74,7 +74,7 @@ impl PhpProfilesDictionary {
 
     pub fn try_new() -> Result<Self, ProfileError> {
         // Try to create a fresh dictionary and store it.
-        let dict = ProfilesDictionary::try_new()?;
+        let dict = DdArc::try_new(ProfilesDictionary::try_new()?)?;
 
         // Add some strings that are used later to avoid needing to grow the
         // dictionary at that point in time, freeing up the hot path.
@@ -133,6 +133,11 @@ impl PhpProfilesDictionary {
             known_strs,
             known_funcs,
         })
+    }
+
+    /// Returns a cloned Arc to the underlying `ProfilesDictionary`.
+    pub fn dictionary_arc(&self) -> Result<DdArc<ProfilesDictionary>, ArcOverflow> {
+        self.dict.try_clone()
     }
 }
 

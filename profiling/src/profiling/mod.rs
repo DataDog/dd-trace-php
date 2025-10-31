@@ -468,6 +468,11 @@ impl TimeCollector {
             }
         }
 
+        // plumb through the profiles dictionary from the message
+        if let Ok(dict_arc) = message.value.call_stack.dictionary.dictionary_arc() {
+            profile.set_profiles_dictionary(dict_arc);
+        }
+
         profile
     }
 
