@@ -217,8 +217,8 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
             log("%s thrown in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
                              type, deffile, defline, scope, colon, name, msg, regular_exception ? ZSTR_VAL(exfile) : "Unknown", exline);
             if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s in <redacted>%s on line %d",
-                             type, ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, msg, regular_exception ? ddtrace_telemetry_redact_file(ZSTR_VAL(exfile)) : "Unknown", exline);
+                INTEGRATION_ERROR_TELEMETRY(ERROR, "%s thrown in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): $ERROR_MSG in <redacted>%s on line %d",
+                             type, ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, regular_exception ? ddtrace_telemetry_redact_file(ZSTR_VAL(exfile)) : "Unknown", exline);
             }
             if (exfile) {
                 zend_string_release(exfile);
@@ -227,8 +227,8 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
             log("Error raised in ddtrace's closure defined at %s:%d for %s%s%s(): %s in %s on line %d",
                              deffile, defline, scope, colon, name, LAST_ERROR_STRING, LAST_ERROR_FILE, PG(last_error_lineno));
             if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() && get_DD_TELEMETRY_LOG_COLLECTION_ENABLED()) {
-                INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): %s in <redacted>%s on line %d",
-                             ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, LAST_ERROR_STRING, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
+                INTEGRATION_ERROR_TELEMETRY(ERROR, "Error raised in ddtrace's closure defined at <redacted>%s:%d for %s%s%s(): $ERROR_MSG in <redacted>%s on line %d",
+                             ddtrace_telemetry_redact_file(deffile), defline, scope, colon, name, ddtrace_telemetry_redact_file(LAST_ERROR_FILE), PG(last_error_lineno));
             }
         }
     })
