@@ -166,9 +166,11 @@ if (PHP_DDTRACE != 'no') {
 	var build_cargo = "\t$(CARGO) build --package ddtrace-php " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
 	if (configure_module_dirname.match(/^[A-Z]:/)) {
 		frag_out.WriteLine(build_cargo);
+		frag_out.WriteLine("\t@if errorlevel 1 exit /B 1");
 	} else {
 		frag_out.WriteLine("\t@cd \"$(PHP_SRC_DIR)/" + configure_module_dirname + "\"");
 		frag_out.WriteLine(build_cargo);
+		frag_out.WriteLine("\t@if errorlevel 1 exit /B 1");
 		frag_out.WriteLine("\t@cd \"$(PHP_SRC_DIR)\"");
 	}
 	frag_out.Close();
