@@ -44,6 +44,14 @@ use std::sync::{Arc, Barrier};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+#[cfg(all(target_os = "linux", feature = "io_profiling"))]
+use crate::io::{
+    FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
+    FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
+    SOCKET_READ_SIZE_PROFILING_INTERVAL, SOCKET_READ_TIME_PROFILING_INTERVAL,
+    SOCKET_WRITE_SIZE_PROFILING_INTERVAL, SOCKET_WRITE_TIME_PROFILING_INTERVAL,
+};
+
 const UPLOAD_PERIOD: Duration = Duration::from_secs(67);
 
 pub const NO_TIMESTAMP: i64 = 0;
@@ -1423,8 +1431,8 @@ impl Profiler {
     {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(call_stack) => {
+                let depth = call_stack.frames.len();
                 let labels = Profiler::common_labels(0);
 
                 let n_labels = labels.len();
@@ -1433,7 +1441,7 @@ impl Profiler {
                 set_value(&mut values);
 
                 match self.prepare_and_send_message(
-                    frames,
+                    call_stack,
                     values,
                     labels,
                     NO_TIMESTAMP,

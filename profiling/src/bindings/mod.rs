@@ -627,9 +627,12 @@ impl<'a> ZaiStr<'a> {
     pub fn as_bytes(&self) -> &'a [u8] {
         debug_assert!(!self.ptr.is_null());
         let len = self.len;
+        #[allow(clippy::unnecessary_cast)] // platform-specific whether needed
         // Safety: the ZaiStr is supposed to uphold all the invariants, and
         // the pointer has been debug_asserted to not be null, so 🤞🏻.
-        unsafe { std::slice::from_raw_parts(self.ptr as *const u8, len) }
+        unsafe {
+            std::slice::from_raw_parts(self.ptr as *const u8, len)
+        }
     }
 
     #[inline]
