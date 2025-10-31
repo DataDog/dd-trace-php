@@ -207,6 +207,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/remote_config.c \
     ext/serializer.c \
     ext/sidecar.c \
+    ext/sidecar_shm.c \
     ext/signals.c \
     ext/span.c \
     ext/startup_logging.c \
