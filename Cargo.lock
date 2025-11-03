@@ -1153,7 +1153,6 @@ dependencies = [
  "backtrace",
  "blazesym",
  "cc",
- "cc_utils",
  "chrono",
  "criterion",
  "ddcommon 0.0.1",
@@ -1344,7 +1343,6 @@ name = "datadog-log"
 version = "0.0.1"
 dependencies = [
  "chrono",
- "ddcommon-ffi 0.0.1",
  "tempfile",
  "tracing",
  "tracing-appender",
@@ -1597,7 +1595,6 @@ dependencies = [
  "http-body-util",
  "httpmock",
  "hyper",
- "hyper-http-proxy",
  "prost",
  "rand 0.8.5",
  "rmp",
@@ -2496,26 +2493,6 @@ dependencies = [
  "smallvec",
  "tokio",
  "want",
-]
-
-[[package]]
-name = "hyper-http-proxy"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ad4b0a1e37510028bc4ba81d0e38d239c39671b0f0ce9e02dfa93a8133f7c08"
-dependencies = [
- "bytes",
- "futures-util",
- "headers",
- "http",
- "hyper",
- "hyper-rustls",
- "hyper-util",
- "pin-project-lite",
- "tokio",
- "tokio-rustls",
- "tower-service",
- "webpki-roots",
 ]
 
 [[package]]
@@ -3432,8 +3409,8 @@ dependencies = [
 name = "php_sidecar_mockgen"
 version = "0.1.0"
 dependencies = [
+ "cc_utils",
  "current_platform",
- "ddcommon 0.0.1",
  "sidecar_mockgen",
 ]
 
