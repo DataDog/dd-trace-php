@@ -8,6 +8,7 @@
 
 extern "C" {
 #include "logging.h"
+#include "php_compat.h"
 #include <zend_hash.h>
 }
 #include <cstdint>

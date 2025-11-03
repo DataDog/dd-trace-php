@@ -23,11 +23,21 @@
 
 #if PHP_VERSION_ID < 70200
 #    undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX
-#    define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(                           \
-        name, return_reference, required_num_args, type, allow_null)           \
-        static const zend_internal_arg_info name[] = {                         \
-            {(const char *)(zend_uintptr_t)(required_num_args), NULL, type,    \
-                return_reference, allow_null, 0},
+#    undef ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO
+
+#    define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, return_reference, required_num_args, type, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), NULL, type, return_reference, allow_null, 0 },
+
+#    define ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO(name, type, allow_null) \
+    ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(name, 0, -1, type, allow_null)
+
+#    define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, return_reference, required_num_args, class_name, allow_null) \
+    static const zend_internal_arg_info name[] = { \
+        { (const char*)(zend_uintptr_t)(required_num_args), #class_name, IS_OBJECT, return_reference, allow_null, 0 },
+
+#    define ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO(name, class_name, allow_null) \
+    ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(name, 0, -1, class_name, allow_null)
 
 // persistent must be true iif we're on the startup phase
 static zend_always_inline zend_string *zend_string_init_interned(
@@ -70,12 +80,22 @@ static zend_always_inline void _gc_try_delref(zend_refcounted_h *_rc)
 #    define GC_TRY_DELREF(p) _gc_try_delref(&(p)->gc)
 
 zend_bool zend_ini_parse_bool(zend_string *str);
-#   define zend_string_efree zend_string_free
+#    define zend_string_efree zend_string_free
 
 static inline HashTable *zend_new_array(uint32_t nSize) {
     HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
     zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
     return ht;
+}
+
+#    include <Zend/zend_smart_str.h>
+void zend_print_zval_r_to_buf_compat(smart_str *buf, zval *expr, int indent);
+static inline zend_string *zend_print_zval_r_to_str(zval *expr, int indent)
+{
+    smart_str buf = {0};
+    zend_print_zval_r_to_buf_compat(&buf, expr, indent);
+    smart_str_0(&buf);
+    return buf.s;
 }
 #endif
 

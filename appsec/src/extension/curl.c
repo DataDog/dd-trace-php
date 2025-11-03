@@ -10,6 +10,7 @@
 #include <main/php_streams.h>
 
 #include "compatibility.h"
+#include "php_compat.h"
 #include "php_objects.h"
 
 static PHP_FUNCTION(datadog_appsec_fflush_stdiocast)
