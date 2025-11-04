@@ -2,6 +2,9 @@
 // This file does not actually replace the CompositeResolver, but it's guaranteed to be autoloaded before the actual CompositeResolver.
 // We just hook the CompositeResolver to track it.
 
+use OpenTelemetry\Contrib\Otlp\OtlpUtil;
+use OpenTelemetry\API\Signals;
+
 \DDTrace\install_hook(
     'OpenTelemetry\SDK\Common\Configuration\Resolver\CompositeResolver::__construct',
     null,
@@ -24,7 +27,7 @@
                     // Determine protocol
                     $protocol = null;
 
-                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' && \OpenTelemetry\SDK\Common\Configuration\Configuration::has('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL')) {
                         // Get metrics-specific protocol
                         $protocol = \OpenTelemetry\SDK\Common\Configuration\Configuration::getEnum('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL');
                     }
@@ -42,15 +45,13 @@
                     // Determine endpoint
 
                     // Check for general OTLP endpoint (only when requesting metrics endpoint)
-                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
-                        $generalEndpoint = \OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_ENDPOINT');
-                        if ($generalEndpoint !== null) {
-                            // May need to add subpath for metrics endpoint with HTTP protocol
-                            if ($protocol !== 'grpc') {
-                                return rtrim($generalEndpoint, '/') . '/v1/metrics';
-                            }
-                            return $generalEndpoint;
+                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' && \OpenTelemetry\SDK\Common\Configuration\Configuration::has('OTEL_EXPORTER_OTLP_ENDPOINT')) {
+                        $generalEndpoint = rtrim(\OpenTelemetry\SDK\Common\Configuration\Configuration::getString('OTEL_EXPORTER_OTLP_ENDPOINT'), '/');
+                        // May need to add subpath for metrics endpoint with HTTP protocol
+                        if ($protocol !== 'grpc') {
+                            return "$generalEndpoint/v1/metrics";
                         }
+                        return $generalEndpoint.OtlpUtil::method(Signals::METRICS);
                     }
 
                     // Get agent host from DD_AGENT_HOST or DD_TRACE_AGENT_URL
@@ -93,11 +94,15 @@
                     $port = ($protocol === 'grpc') ? '4317' : '4318';
                     $endpoint = $scheme . '://' . $host . ':' . $port;
 
-                    // Add subpath for metrics endpoint with HTTP protocol
-                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' && $protocol !== 'grpc') {
-                        $endpoint .= '/v1/metrics';
+                    if ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+                        // Add subpath for metrics endpoint with HTTP protocol
+                        if ($protocol !== 'grpc') {
+                            return $endpoint.'/v1/metrics';
+                        }
+                        else {
+                            return $endpoint.OtlpUtil::method(Signals::METRICS);
+                        }
                     }
-
                     return $endpoint;
                 }
 
@@ -106,12 +111,14 @@
             }
 
             public function hasVariable(string $variableName): bool {
-                // Only claim metrics endpoint if DD_METRICS_OTEL_ENABLED is true
-                if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+                // Only provide default values if DD_METRICS_OTEL_ENABLED is true
+                // AND the variable is not already set in the environment
+                if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' || 
+                    $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT' ||
+                    $variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
                     return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED');
                 }
-
-                return $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT';
+                return false;
             }
         });
     }

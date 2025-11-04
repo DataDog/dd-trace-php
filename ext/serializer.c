@@ -816,18 +816,25 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     }
 
     if (get_DD_TRACE_REPORT_HOSTNAME()) {
+        if (ZSTR_LEN(get_DD_HOSTNAME())) {
+            zval hostname_zv;
+            ZVAL_STR(&hostname_zv, get_DD_HOSTNAME());
+            zend_hash_str_add_new(meta, ZEND_STRL("_dd.hostname"), &hostname_zv);
+        } else {
+
 #ifndef HOST_NAME_MAX
 #define HOST_NAME_MAX 255
 #endif
 
-        zend_string *hostname = zend_string_alloc(HOST_NAME_MAX, 0);
-        if (gethostname(ZSTR_VAL(hostname), HOST_NAME_MAX + 1)) {
-            zend_string_release(hostname);
-        } else {
-            hostname = zend_string_truncate(hostname, strlen(ZSTR_VAL(hostname)), 0);
-            zval hostname_zv;
-            ZVAL_STR(&hostname_zv, hostname);
-            zend_hash_str_add_new(meta, ZEND_STRL("_dd.hostname"), &hostname_zv);
+            zend_string *hostname = zend_string_alloc(HOST_NAME_MAX, 0);
+            if (gethostname(ZSTR_VAL(hostname), HOST_NAME_MAX + 1)) {
+                zend_string_release(hostname);
+            } else {
+                hostname = zend_string_truncate(hostname, strlen(ZSTR_VAL(hostname)), 0);
+                zval hostname_zv;
+                ZVAL_STR(&hostname_zv, hostname);
+                zend_hash_str_add_new(meta, ZEND_STRL("_dd.hostname"), &hostname_zv);
+            }
         }
     }
 

@@ -139,6 +139,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS, "3600")                                          \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
     CONFIG(BOOL, DD_TRACE_REPORT_HOSTNAME, "false")                                                            \
+    CONFIG(STRING, DD_HOSTNAME, "")                                                                            \
     CONFIG(BOOL, DD_TRACE_FLUSH_COLLECT_CYCLES, "false")                                                       \
     CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN, "false") /* true if pid == 1 || ppid == 1 */                \
     CONFIG(BOOL, DD_TRACE_FORCE_FLUSH_ON_SIGTERM, "false") /* true if pid == 1 || ppid == 1 */                 \
