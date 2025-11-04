@@ -42,8 +42,9 @@ target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++17 -f
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
   target_compile_options(extension PRIVATE -Wall)
 else()
-  target_compile_options(extension PRIVATE -Wall -Wextra -pedantic -Werror -Wno-nullability-extension
-    -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-auto-type -Wno-language-extension-token)
+  target_compile_options(extension PRIVATE -Wall -Wextra $<$<COMPILE_LANGUAGE:C>:-pedantic>
+    -Werror -Wno-nullability-extension -Wno-gnu-zero-variadic-macro-arguments
+    -Wno-gnu-auto-type -Wno-language-extension-token)
 endif()
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
