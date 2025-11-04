@@ -1699,7 +1699,7 @@ class CurlHandleAppSecContext
 
         \datadog\appsec\push_addresses($data, [
             'subctx_id' => (string)spl_object_id($this),
-            'subctx_last_call' => $lastCall,
+            'subctx_last_call' => (bool)$lastCall,
         ]);
 
         // if we block, we don't reach this, therefore we won't handle more notifications
