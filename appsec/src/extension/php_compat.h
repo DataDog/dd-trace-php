@@ -19,6 +19,16 @@
 #define MAY_BE_NULL 0
 #define MAY_BE_STRING 0
 #define MAY_BE_ARRAY 0
+
+#    include <Zend/zend_smart_str.h>
+void zend_print_zval_r_to_buf_compat(smart_str *buf, zval *expr, int indent);
+static inline zend_string *zend_print_zval_r_to_str(zval *expr, int indent)
+{
+    smart_str buf = {0};
+    zend_print_zval_r_to_buf_compat(&buf, expr, indent);
+    smart_str_0(&buf);
+    return buf.s;
+}
 #endif
 
 #if PHP_VERSION_ID < 70200
@@ -86,16 +96,6 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
     HashTable *ht = (HashTable *)emalloc(sizeof(HashTable));
     zend_hash_init(ht, nSize, dummy, ZVAL_PTR_DTOR, 0);
     return ht;
-}
-
-#    include <Zend/zend_smart_str.h>
-void zend_print_zval_r_to_buf_compat(smart_str *buf, zval *expr, int indent);
-static inline zend_string *zend_print_zval_r_to_str(zval *expr, int indent)
-{
-    smart_str buf = {0};
-    zend_print_zval_r_to_buf_compat(&buf, expr, indent);
-    smart_str_0(&buf);
-    return buf.s;
 }
 #endif
 
