@@ -44,7 +44,8 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_L
 else()
   target_compile_options(extension PRIVATE -Wall -Wextra $<$<COMPILE_LANGUAGE:C>:-pedantic>
     -Werror -Wno-nullability-extension -Wno-gnu-zero-variadic-macro-arguments
-    -Wno-gnu-auto-type -Wno-language-extension-token)
+    -Wno-gnu-auto-type -Wno-language-extension-token
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-missing-field-initializers>)
 endif()
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
