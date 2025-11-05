@@ -519,16 +519,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "build_common"
-version = "23.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
-dependencies = [
- "cbindgen 0.29.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1112,7 +1102,7 @@ dependencies = [
  "datadog-trace-protobuf",
  "datadog-trace-stats",
  "datadog-trace-utils",
- "ddcommon 0.0.1",
+ "ddcommon",
  "ddtelemetry",
  "dogstatsd-client",
  "either",
@@ -1137,10 +1127,10 @@ dependencies = [
 
 [[package]]
 name = "datadog-alloc"
-version = "23.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
+version = "0.0.1"
 dependencies = [
  "allocator-api2",
+ "bolero",
  "libc 0.2.177",
  "windows-sys 0.52.0",
 ]
@@ -1155,7 +1145,7 @@ dependencies = [
  "cc",
  "chrono",
  "criterion",
- "ddcommon 0.0.1",
+ "ddcommon",
  "ddtelemetry",
  "goblin",
  "http",
@@ -1184,10 +1174,10 @@ name = "datadog-crashtracker-ffi"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "build_common 0.0.1",
+ "build_common",
  "datadog-crashtracker",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
+ "ddcommon",
+ "ddcommon-ffi",
  "function_name",
  "libc 0.2.177",
  "serde",
@@ -1215,7 +1205,7 @@ dependencies = [
  "bytes",
  "criterion",
  "datadog-ipc-macros",
- "ddcommon 0.0.1",
+ "ddcommon",
  "futures",
  "glibc_version",
  "io-lifetimes",
@@ -1263,43 +1253,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "datadog-library-config"
-version = "0.0.2"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
-dependencies = [
- "anyhow",
- "memfd",
- "rand 0.8.5",
- "rmp",
- "rmp-serde",
- "serde",
- "serde_yaml",
-]
-
-[[package]]
 name = "datadog-library-config-ffi"
 version = "0.0.2"
 dependencies = [
  "anyhow",
- "build_common 0.0.1",
+ "build_common",
  "constcat",
- "datadog-library-config 0.0.2",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
+ "datadog-library-config",
+ "ddcommon",
+ "ddcommon-ffi",
  "tempfile",
-]
-
-[[package]]
-name = "datadog-library-config-ffi"
-version = "0.0.2"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
-dependencies = [
- "anyhow",
- "build_common 23.0.0",
- "constcat",
- "datadog-library-config 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e)",
- "ddcommon 23.0.0",
- "ddcommon-ffi 23.0.0",
 ]
 
 [[package]]
@@ -1308,7 +1271,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "constcat",
- "ddcommon 0.0.1",
+ "ddcommon",
  "http-body-util",
  "hyper",
  "percent-encoding",
@@ -1326,10 +1289,10 @@ dependencies = [
 name = "datadog-live-debugger-ffi"
 version = "0.0.1"
 dependencies = [
- "build_common 0.0.1",
+ "build_common",
  "datadog-live-debugger",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
+ "ddcommon",
+ "ddcommon-ffi",
  "log",
  "percent-encoding",
  "serde_json",
@@ -1365,10 +1328,10 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
- "datadog-library-config-ffi 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e)",
+ "datadog-library-config-ffi",
  "datadog-php-profiling",
  "datadog-profiling",
- "ddcommon 23.0.0",
+ "ddcommon",
  "env_logger 0.11.6",
  "lazy_static",
  "libc 0.2.177",
@@ -1388,23 +1351,25 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling"
-version = "23.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "bitmaps",
+ "bolero",
  "byteorder",
  "bytes",
  "chrono",
+ "criterion",
  "datadog-alloc",
  "datadog-profiling-protobuf",
- "ddcommon 23.0.0",
+ "ddcommon",
  "futures",
  "http",
  "http-body-util",
  "hyper",
  "hyper-multipart-rfc7578",
  "indexmap 2.7.1",
+ "lz4_flex",
  "mime",
  "prost",
  "rustc-hash",
@@ -1418,9 +1383,10 @@ dependencies = [
 
 [[package]]
 name = "datadog-profiling-protobuf"
-version = "23.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
+version = "0.0.1"
 dependencies = [
+ "bolero",
+ "datadog-profiling-protobuf",
  "prost",
 ]
 
@@ -1433,7 +1399,7 @@ dependencies = [
  "datadog-live-debugger",
  "datadog-remote-config",
  "datadog-trace-protobuf",
- "ddcommon 0.0.1",
+ "ddcommon",
  "futures",
  "futures-util",
  "http",
@@ -1471,8 +1437,8 @@ dependencies = [
  "datadog-remote-config",
  "datadog-sidecar-macros",
  "datadog-trace-utils",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
+ "ddcommon",
+ "ddcommon-ffi",
  "ddtelemetry",
  "dogstatsd-client",
  "futures",
@@ -1518,8 +1484,8 @@ dependencies = [
  "datadog-remote-config",
  "datadog-sidecar",
  "datadog-trace-utils",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
+ "ddcommon",
+ "ddcommon-ffi",
  "ddtelemetry",
  "ddtelemetry-ffi",
  "dogstatsd-client",
@@ -1589,7 +1555,7 @@ dependencies = [
  "datadog-trace-normalization",
  "datadog-trace-protobuf",
  "datadog-trace-utils",
- "ddcommon 0.0.1",
+ "ddcommon",
  "flate2",
  "futures",
  "http-body-util",
@@ -1646,62 +1612,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "ddcommon"
-version = "23.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
-dependencies = [
- "anyhow",
- "cc",
- "const_format",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "http",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-rustls",
- "hyper-util",
- "libc 0.2.177",
- "nix",
- "pin-project",
- "regex",
- "rustls",
- "rustls-native-certs",
- "serde",
- "static_assertions",
- "thiserror 1.0.69",
- "tokio",
- "tokio-rustls",
- "tower-service",
- "windows-sys 0.52.0",
-]
-
-[[package]]
 name = "ddcommon-ffi"
 version = "0.0.1"
 dependencies = [
  "anyhow",
  "bolero",
- "build_common 0.0.1",
+ "build_common",
  "chrono",
  "crossbeam-queue",
- "ddcommon 0.0.1",
- "hyper",
- "serde",
-]
-
-[[package]]
-name = "ddcommon-ffi"
-version = "23.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=ee5d57c6eb4f4a828c29c1ed1837937fd78f135e#ee5d57c6eb4f4a828c29c1ed1837937fd78f135e"
-dependencies = [
- "anyhow",
- "build_common 23.0.0",
- "chrono",
- "crossbeam-queue",
- "ddcommon 23.0.0",
+ "ddcommon",
  "hyper",
  "serde",
 ]
@@ -1713,7 +1632,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "datadog-ddsketch",
- "ddcommon 0.0.1",
+ "ddcommon",
  "futures",
  "hashbrown 0.15.2",
  "http",
@@ -1736,9 +1655,9 @@ dependencies = [
 name = "ddtelemetry-ffi"
 version = "0.0.1"
 dependencies = [
- "build_common 0.0.1",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
+ "build_common",
+ "ddcommon",
+ "ddcommon-ffi",
  "ddtelemetry",
  "function_name",
  "libc 0.2.177",
@@ -1756,15 +1675,15 @@ dependencies = [
  "const-str",
  "datadog-crashtracker-ffi",
  "datadog-ipc",
- "datadog-library-config-ffi 0.0.2",
+ "datadog-library-config-ffi",
  "datadog-live-debugger",
  "datadog-live-debugger-ffi",
  "datadog-remote-config",
  "datadog-sidecar",
  "datadog-sidecar-ffi",
  "datadog-trace-utils",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
+ "ddcommon",
+ "ddcommon-ffi",
  "ddtelemetry",
  "ddtelemetry-ffi",
  "env_logger 0.10.2",
@@ -1843,7 +1762,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "cadence",
- "ddcommon 0.0.1",
+ "ddcommon",
  "http",
  "serde",
  "tokio",
@@ -2916,6 +2835,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
 
 [[package]]
+name = "lz4_flex"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a8cbbb2831780bc3b9c15a41f5b49222ef756b6730a95f3decfdd15903eb5a3"
+dependencies = [
+ "twox-hash",
+]
+
+[[package]]
 name = "manual_future"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3507,7 +3435,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "059a34f111a9dee2ce1ac2826a68b24601c4298cfeb1a587c3cb493d5ab46f52"
 dependencies = [
- "libc 0.1.12",
+ "libc 0.2.177",
  "nix",
 ]
 

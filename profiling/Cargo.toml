@@ -20,13 +20,11 @@ cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 
-# This libdatadog commit is just after v23 to fix an issue with the cc_utils
-# crate, see:
-# https://github.com/DataDog/libdatadog/pull/1300
-datadog-alloc = { git = "https://github.com/DataDog/libdatadog", rev = "ee5d57c6eb4f4a828c29c1ed1837937fd78f135e" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "ee5d57c6eb4f4a828c29c1ed1837937fd78f135e" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "ee5d57c6eb4f4a828c29c1ed1837937fd78f135e" }
-datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", rev = "ee5d57c6eb4f4a828c29c1ed1837937fd78f135e" }
+# Use local libdatadog path to avoid Windows symlink checkout issues during CI
+datadog-alloc = { path = "../libdatadog/datadog-alloc" }
+datadog-profiling = { path = "../libdatadog/datadog-profiling" }
+ddcommon = { path = "../libdatadog/ddcommon" }
+datadog-library-config-ffi = { path = "../libdatadog/datadog-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }
 libc = "0.2"
