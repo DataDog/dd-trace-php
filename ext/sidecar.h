@@ -30,7 +30,9 @@ struct telemetry_rc_info {
 };
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 
+void ddtrace_sidecar_minit(bool appsec_activation, bool appsec_config);
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
+bool ddtrace_sidecar_connect_worker_after_fork(void);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_finalize(bool clear_id);
