@@ -62,6 +62,10 @@ target_linker_flag_conditional(extension "-Wl,--version-script=${CMAKE_CURRENT_S
 target_linker_flag_conditional(extension -flat_namespace "-undefined suppress")
 target_linker_flag_conditional(extension -Wl,-exported_symbol -Wl,_get_module)
 
+if(DD_APPSEC_EXTENSION_STATIC_LIBSTDCXX AND NOT APPLE)
+    target_link_options(extension PRIVATE -static-libstdc++)
+endif()
+
 patch_away_libc(extension)
 
 if(DD_APPSEC_TESTING)
