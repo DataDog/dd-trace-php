@@ -2016,55 +2016,110 @@ class CommitableChange
     }
 }
 
-class BufferedReadFilter extends \php_user_filter
-{
-    /**
-     * @var CurlFilteredStreamBody the body associated with this stream
-     */
-    private $curlStreamBody;
-
-    public static function register()
+if (PHP_VERSION_ID >= 70100) {
+    class BufferedReadFilter extends \php_user_filter
     {
-        stream_filter_register('ddappsec.read_spy', __CLASS__);
-    }
+        /**
+         * @var CurlFilteredStreamBody the body associated with this stream
+         */
+        private $curlStreamBody;
 
-    public function onCreate() : bool
-    {
-        if (!\key_exists('curl_stream_body', $this->params)) {
-            return false;
+        public static function register()
+        {
+            stream_filter_register('ddappsec.read_spy', __CLASS__);
         }
 
-        $this->curlStreamBody = $this->params['curl_stream_body'];
-        return true;
-    }
+        public function onCreate(): bool
+        {
+            if (!\key_exists('curl_stream_body', $this->params)) {
+                return false;
+            }
 
-    /**
-     * Called when the filter is destroyed
-     * @return void
-     */
-    public function onClose()
-    {
-        $this->curlStreamBody->markHasAllData();
-    }
-
-    /**
-     * Filter the data
-     */
-    public function filter($in, $out, &$consumed, $closing): int
-    {
-        while ($bucket = stream_bucket_make_writeable($in)) {
-            $consumed += $bucket->datalen;
-
-            $this->curlStreamBody->reqBodyFilterAppend($bucket->data);
-
-            // pass the data through unchanged
-            stream_bucket_append($out, $bucket);
+            $this->curlStreamBody = $this->params['curl_stream_body'];
+            return true;
         }
 
-        if ($closing) {
+        /**
+         * Called when the filter is destroyed
+         * @return void
+         */
+        public function onClose() : void
+        {
             $this->curlStreamBody->markHasAllData();
         }
 
-        return PSFS_PASS_ON;
+        /**
+         * Filter the data
+         */
+        public function filter($in, $out, &$consumed, $closing): int
+        {
+            while ($bucket = stream_bucket_make_writeable($in)) {
+                $consumed += $bucket->datalen;
+
+                $this->curlStreamBody->reqBodyFilterAppend($bucket->data);
+
+                // pass the data through unchanged
+                stream_bucket_append($out, $bucket);
+            }
+
+            if ($closing) {
+                $this->curlStreamBody->markHasAllData();
+            }
+
+            return PSFS_PASS_ON;
+        }
+    }
+} else {
+    class BufferedReadFilter extends \php_user_filter
+    {
+        /**
+         * @var CurlFilteredStreamBody the body associated with this stream
+         */
+        private $curlStreamBody;
+
+        public static function register()
+        {
+            stream_filter_register('ddappsec.read_spy', __CLASS__);
+        }
+
+        public function onCreate(): bool
+        {
+            if (!\key_exists('curl_stream_body', $this->params)) {
+                return false;
+            }
+
+            $this->curlStreamBody = $this->params['curl_stream_body'];
+            return true;
+        }
+
+        /**
+         * Called when the filter is destroyed
+         * @return void
+         */
+        public function onClose()
+        {
+            $this->curlStreamBody->markHasAllData();
+        }
+
+        /**
+         * Filter the data
+         */
+        public function filter($in, $out, &$consumed, $closing): int
+        {
+            while ($bucket = stream_bucket_make_writeable($in)) {
+                $consumed += $bucket->datalen;
+
+                $this->curlStreamBody->reqBodyFilterAppend($bucket->data);
+
+                // pass the data through unchanged
+                stream_bucket_append($out, $bucket);
+            }
+
+            if ($closing) {
+                $this->curlStreamBody->markHasAllData();
+            }
+
+            return PSFS_PASS_ON;
+        }
     }
 }
