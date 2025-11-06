@@ -104,7 +104,7 @@ int ddtrace_get_fd_path(int fd, char *buf) {
     return fcntl(fd, F_GETPATH, buf);
 #else
     char pathbuf[MAXPATHLEN];
-    snprintf(pathbuf, MAXPATHLEN, "/proc/self/fd/%d", fd);
+    snprintf(pathbuf, MAXPATHLEN, "/dev/fd/%d", fd);
     int len = readlink(pathbuf, buf, PATH_MAX);
     if (len >= 0) {
         buf[len] = 0;
