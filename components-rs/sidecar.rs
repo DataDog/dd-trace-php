@@ -14,6 +14,7 @@ use ddcommon::rate_limiter::{Limiter, LocalLimiter};
 use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
+use ddcommon::Endpoint;
 use ddcommon_ffi::slice::AsBytes;
 use ddcommon_ffi::{CharSlice, self as ffi, MaybeError};
 use ddtelemetry_ffi::try_c;
@@ -117,11 +118,13 @@ pub extern "C" fn ddog_sidecar_connect_php(
     log_level: CharSlice,
     enable_telemetry: bool,
     on_reconnect: Option<extern "C" fn(*mut SidecarTransport)>,
+    crashtracker_endpoint: Option<&Endpoint>,
 ) -> MaybeError {
     let mut cfg = config::FromEnv::config();
     cfg.self_telemetry = enable_telemetry;
     let appsec_cfg_guard = APPSEC_CONFIG.lock().unwrap();
     cfg.appsec_config = appsec_cfg_guard.clone();
+    cfg.crashtracker_endpoint = crashtracker_endpoint.map(Clone::clone);
     unsafe {
         if *error_path != 0 {
             let error_path = CStr::from_ptr(error_path).to_bytes();
