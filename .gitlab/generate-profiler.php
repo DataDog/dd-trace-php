@@ -36,6 +36,7 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
     - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
+    - export DD_PROFILING_OUTPUT_PPROF=/tmp/
 
     - cd profiling
     - export TEST_PHP_EXECUTABLE=$(which php)
@@ -74,3 +75,32 @@ foreach ($profiler_minor_major_targets as $version) {
     - sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
     - cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
 
+"PHP language tests":
+  stage: test
+  tags: [ "arch:${ARCH}" ]
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  variables:
+    KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+    CARGO_TARGET_DIR: /tmp/cargo
+    libdir: /tmp/datadog-profiling
+    SKIP_ONLINE_TEST: "1"
+    REPORT_EXIT_STATUS: "1"
+    DD_PROFILING_OUTPUT_PPROF: /tmp/
+    XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
+  parallel:
+    matrix:
+      - PHP_MAJOR_MINOR: *all_profiler_targets
+        ARCH: amd64
+        FLAVOUR: [nts, zts]
+  script:
+    - unset DD_SERVICE; unset DD_ENV; env
+
+    - command -v switch-php && switch-php "${FLAVOUR}"
+    - cd profiling
+    - cargo build --release --all-features
+    - cd ..
+    - echo "extension=/tmp/cargo/release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
+    - php -v
+    - .gitlab/run_php_language_tests.sh
