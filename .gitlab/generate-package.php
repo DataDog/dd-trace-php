@@ -489,9 +489,11 @@ foreach ($windows_build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     GIT_STRATEGY: clone
-    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_COUNT: 2
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
+    GIT_CONFIG_KEY_1: core.symlinks
+    GIT_CONFIG_VALUE_1: true
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
     # Make sure we actually fail if a command fails
@@ -1057,9 +1059,11 @@ endforeach;
   stage: verify
   tags: [ "windows-v2:2019"]
   variables:
-    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_COUNT: 2
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
+    GIT_CONFIG_KEY_1: core.symlinks
+    GIT_CONFIG_VALUE_1: true
   needs:
     - job: "package extension windows"
       artifacts: true
