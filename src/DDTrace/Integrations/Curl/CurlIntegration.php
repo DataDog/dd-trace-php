@@ -426,7 +426,7 @@ final class CurlIntegration extends Integration
                         $hook->data = $ctx->tentativeSetInfileSize((int)$value);
                     } elseif ($option === CURLOPT_READFUNCTION) {
                         if (\is_callable($value)) {
-                            $body = new CurlCallableInBody($ctx, $value);
+                            $body = new CurlCallableInBody($ctx, $value, null);
                             $hook->overrideArguments(array($ch, $option, $body));
                             $hook->data = $ctx->tentativeSetRequestBody($body);
                         } else {
@@ -778,7 +778,7 @@ class CurlStreamBody extends CurlBody
         fseek($this->stream, 0);
         $str = stream_get_contents($this->stream);
         if (!empty($str)) {
-            return $transform($str);
+            return $transform($str, $contentType);
         }
         return null;
     }
@@ -829,7 +829,7 @@ class CurlFilteredStreamBody extends CurlBody
      */
     private $suppressNotification = false;
 
-    public function __construct(CurlHandleAppSecContext $ctx, $stream, int $maxBodyBuffSize = null)
+    public function __construct(CurlHandleAppSecContext $ctx, $stream, /* ?int */ $maxBodyBuffSize)
     {
         parent::__construct($ctx);
         if ($maxBodyBuffSize === null) {
@@ -967,7 +967,7 @@ class CurlCallableInBody extends CurlBody
      */
     private $maxBodyBuffSize;
 
-    public function __construct(CurlHandleAppSecContext  $ctx, callable $upstream, int $maxBodyBuffSize = null)
+    public function __construct(CurlHandleAppSecContext  $ctx, callable $upstream, /*?int*/ $maxBodyBuffSize)
     {
         parent::__construct($ctx);
         $this->upstream = $upstream;
@@ -1066,12 +1066,23 @@ class CurlCallableOutBody extends CurlBody
      */
     private $maxBodyBuffSize;
 
-    public function __construct(CurlHandleAppSecContext  $ctx, callable $downstream = null, int $maxBodyBuffSize = null)
+    public function __construct(CurlHandleAppSecContext $ctx
+        /*, ?callable $downstream = null */ /* , ?int $maxBodyBuffSize */)
     {
         parent::__construct($ctx);
+        if (func_num_args() > 1) {
+            $downstream = func_get_arg(1);
+        } else {
+            $downstream = null;
+        }
         $this->downstream = $downstream ?? function ($ch, $data) {
             return strlen($data);
         };
+        if (func_num_args() > 2) {
+            $maxBodyBuffSize = func_get_arg(2);
+        } else {
+            $maxBodyBuffSize = null;
+        }
         if ($maxBodyBuffSize === null) {
             $this->maxBodyBuffSize = self::defaultSizeLimit();
         } else {
@@ -1147,9 +1158,14 @@ class CurlStringBody extends CurlBody
      */
     private $body;
 
-    public function __construct(CurlHandleAppSecContext $ctx, string $body, int $limit = null)
+    public function __construct(CurlHandleAppSecContext $ctx, string $body /*, ?int $limit */)
     {
         parent::__construct($ctx);
+        if (func_num_args() > 2) {
+            $limit = func_get_arg(2);
+        } else {
+            $limit = null;
+        }
         if ($limit === null) {
             $limit = parent::defaultSizeLimit();
         }
@@ -1216,9 +1232,14 @@ class CurlArrayBody extends CurlBody
      */
     private $curSize = 0;
 
-    public function __construct(CurlHandleAppSecContext $ctx, array $body, int $limit = null)
+    public function __construct(CurlHandleAppSecContext $ctx, array $body /*, ?int $limit */)
     {
         parent::__construct($ctx);
+        if (func_num_args() > 2) {
+            $limit = func_get_arg(2);
+        } else {
+            $limit = null;
+        }
         $this->limit = $limit === null ? parent::defaultSizeLimit() : $limit;
         $this->body = $this->initialContextProcessing($body);
     }
@@ -1475,8 +1496,18 @@ class CurlHandleAppSecContext
         });
     }
 
-    public function tentativeSetRequestBody(CurlBody $curlBody = null, $cancel = null) : CommitableChange
+    /**
+     * @param CurlBody|null $curlBody
+     * @return CommitableChange
+     */
+    public function tentativeSetRequestBody($curlBody /*, ?callable $cancel */) : CommitableChange
     {
+        if (func_num_args() == 2) {
+            $cancel = func_get_arg(1);
+        } else {
+            $cancel = null;
+        }
+
         return new CommitableChange(function () use ($curlBody) {
             if ($this->curlReqBody instanceof CurlCallableInBody &&
                 $curlBody instanceof CurlStreamBody) {
@@ -1492,15 +1523,28 @@ class CurlHandleAppSecContext
             $cancel);
     }
 
-    public function tentativeSetFallbackContentType(string $contentType = null) : CommitableChange
+    /**
+     * @param string|null $contentType
+     * @return CommitableChange
+     */
+    public function tentativeSetFallbackContentType($contentType) : CommitableChange
     {
         return new CommitableChange(function () use ($contentType) {
             $this->fallbackContentType = $contentType;
         });
     }
 
-    public function tentativeSetResponseBody(CurlBody $curlBody = null, $cancel = null) : CommitableChange
+    /**
+     * @param ?CurlBody $curlBody
+     * @return CommitableChange
+     */
+    public function tentativeSetResponseBody($curlBody /*, ?callable $cancel */) : CommitableChange
     {
+        if (func_num_args() == 2) {
+            $cancel = func_get_arg(1);
+        } else {
+            $cancel = null;
+        }
         return new CommitableChange(function () use ($curlBody) {
             $this->curlRespBody = $curlBody;
             $this->returnTransfer = false;
@@ -1525,8 +1569,14 @@ class CurlHandleAppSecContext
         );
     }
 
-    public function tentativeSetResponseHeaders(CurlBody $curlBody = null, $cancel = null) : CommitableChange
+    public function tentativeSetResponseHeaders($curlBody /*, ?callable $cancel*/) : CommitableChange
     {
+        if (func_num_args() == 2) {
+            $cancel = func_get_arg(1);
+        } else {
+            $cancel = null;
+        }
+
         return new CommitableChange(function () use ($curlBody) {
             $this->curlResponseHeaders = $curlBody;
         },
@@ -1717,7 +1767,7 @@ class CurlHandleAppSecContext
             // by default, curl writes to the php output
             // even in multi handles
             $stream = fopen("php://output", "wb");
-            $this->curlRespBody = new CurlFilteredStreamBody($this, $stream);
+            $this->curlRespBody = new CurlFilteredStreamBody($this, $stream, null);
             $filter = $this->curlRespBody->filterStream(STREAM_FILTER_WRITE);
             if ($filter) {
                 CurlIntegration::curl_setopt_internal($ch, CURLOPT_FILE, $stream);
@@ -1761,7 +1811,7 @@ class CurlHandleAppSecContext
         }
     }
 
-    public static function parseContent(string $data, string $contentType = null)
+    public static function parseContent(string $data, string $contentType)
     {
         if (empty($contentType)) {
             return null;
@@ -1792,7 +1842,7 @@ class CurlHandleAppSecContext
         return null;
     }
 
-    public static function parseHeaders(string $rawHeaders, string $unusedContentType = null) : array
+    public static function parseHeaders(string $rawHeaders, string $unusedContentType) : array
     {
         $headers = array();
         foreach (explode("\r\n", $rawHeaders) as $line) {
@@ -1981,7 +2031,11 @@ class CommitableChange
      */
     private $cancel;
 
-    public function __construct(callable $impl, callable $cancel = null)
+    /**
+     * @param callable $impl
+     * @param callable|null $cancel (Can't annotate with ?callable due to PHP 7.0)
+     */
+    public function __construct(callable $impl, $cancel = null)
     {
         $this->impl = $impl;
         $this->cancel = $cancel;
