@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
-use tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
+use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
 
 /// cbindgen:no-export
 #[repr(C)]
