@@ -399,4 +399,178 @@ class WafSubcontextTests {
 
         assert_no_blocking trace
     }
+
+    @Test
+    void 'request body just under limit triggers blocking'() {
+        // Test that a request body just under the 512KB limit (524288 bytes)
+        // with the blocking pattern at the end can still trigger a match and block
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_under_limit_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains("You've been blocked")
+        }
+
+        assert_triggering_rule trace, 'CUSTOM-001'
+        assert_triggering_snippet trace, 'blocked_request_body'
+    }
+
+    @Test
+    void 'request body over limit does not trigger blocking'() {
+        // Test that a request body over the 512KB limit (524288 bytes)
+        // does NOT trigger blocking, even with the blocking pattern at the end
+        // because the body is truncated before the pattern is captured
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_over_limit_no_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("Return from curl_exec:")
+        }
+
+        assert_no_blocking trace
+    }
+
+    @Test
+    void 'response body just under limit triggers blocking'() {
+        // Test that a response body just under the 512KB limit (524288 bytes)
+        // with the blocking pattern at the end can still trigger a match and block
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_under_limit_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains("You've been blocked")
+        }
+
+        assert_triggering_rule trace, 'CUSTOM-002'
+        assert_triggering_snippet trace, 'blocked_response_body'
+    }
+
+    @Test
+    void 'response body over limit does not trigger blocking'() {
+        // Test that a response body over the 512KB limit (524288 bytes)
+        // does NOT trigger blocking, even with the blocking pattern at the end
+        // because the body is truncated before the pattern is captured
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_over_limit_no_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("Return from curl_exec:")
+        }
+
+        assert_no_blocking trace
+    }
+
+    @Test
+    void 'request body CURLOPT_INFILE just under limit triggers blocking'() {
+        // Test CURLOPT_INFILE with request body just under limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_infile_under_limit_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains("You've been blocked")
+        }
+
+        assert_triggering_rule trace, 'CUSTOM-001'
+        assert_triggering_snippet trace, 'blocked_request_body'
+    }
+
+    @Test
+    void 'request body CURLOPT_INFILE over limit does not trigger blocking'() {
+        // Test CURLOPT_INFILE with request body over limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_infile_over_limit_no_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("Return from curl_exec:")
+        }
+
+        assert_no_blocking trace
+    }
+
+    @Test
+    void 'request body CURLOPT_READFUNCTION just under limit triggers blocking'() {
+        // Test CURLOPT_READFUNCTION with request body just under limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_readfunction_under_limit_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains("You've been blocked")
+        }
+
+        assert_triggering_rule trace, 'CUSTOM-001'
+        assert_triggering_snippet trace, 'blocked_request_body'
+    }
+
+    @Test
+    void 'request body CURLOPT_READFUNCTION over limit does not trigger blocking'() {
+        // Test CURLOPT_READFUNCTION with request body over limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_readfunction_over_limit_no_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("Return from curl_exec:")
+        }
+
+        assert_no_blocking trace
+    }
+
+    @Test
+    void 'request body CURLOPT_POSTFIELDS array just under limit triggers blocking'() {
+        // Test CURLOPT_POSTFIELDS with array (multipart) under limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_array_under_limit_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains("You've been blocked")
+        }
+
+        assert_triggering_rule trace, 'CUSTOM-001'
+        assert_triggering_snippet trace, 'blocked_request_body'
+    }
+
+    @Test
+    void 'request body CURLOPT_POSTFIELDS array over limit does not trigger blocking'() {
+        // Test CURLOPT_POSTFIELDS with array (multipart) over limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_array_over_limit_no_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("Return from curl_exec:")
+        }
+
+        assert_no_blocking trace
+    }
+
+    @Test
+    void 'response body CURLOPT_FILE just under limit triggers blocking'() {
+        // Test CURLOPT_FILE with response body just under limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_file_under_limit_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains("You've been blocked")
+        }
+
+        assert_triggering_rule trace, 'CUSTOM-002'
+        assert_triggering_snippet trace, 'blocked_response_body'
+    }
+
+    @Test
+    void 'response body CURLOPT_FILE over limit does not trigger blocking'() {
+        // Test CURLOPT_FILE with response body over limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_file_over_limit_no_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("Response written to file")
+        }
+
+        assert_no_blocking trace
+    }
+
+    @Test
+    void 'response body CURLOPT_WRITEFUNCTION just under limit triggers blocking'() {
+        // Test CURLOPT_WRITEFUNCTION with response body just under limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_writefunction_under_limit_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+            assert resp.body().text.contains("You've been blocked")
+        }
+
+        assert_triggering_rule trace, 'CUSTOM-002'
+        assert_triggering_snippet trace, 'blocked_response_body'
+    }
+
+    @Test
+    void 'response body CURLOPT_WRITEFUNCTION over limit does not trigger blocking'() {
+        // Test CURLOPT_WRITEFUNCTION with response body over limit
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_writefunction_over_limit_no_block') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("Response captured via writefunction")
+        }
+
+        assert_no_blocking trace
+    }
 }

@@ -8,6 +8,27 @@ if (extension_loaded('ddtrace')) {
     die("This endpoint should not have ddtrace loaded.");
 }
 
+function generate_body_under_limit($blocking_pattern = 'blocked_response_body') : string
+{
+    $limit = 524288;
+    $json_overhead = strlen('{"key":"","padding":""}') + strlen($blocking_pattern);
+    $padding_size = $limit - $json_overhead - 100; // 100 byte safety margin
+    return json_encode(array(
+        'key' => $blocking_pattern,
+        'padding' => str_repeat('a', $padding_size)
+    ));
+}
+
+function generate_body_over_limit($blocking_pattern = 'blocked_response_body') : string
+{
+    $limit = 524288;
+    $padding_size = $limit + 5000;
+    return json_encode(array(
+        'padding' => str_repeat('a', $padding_size),
+        'key' => $blocking_pattern  // This comes after truncation point
+    ));
+}
+
 $variant = $_GET['variant'] ?? 'header';
 
 switch ($variant) {
@@ -41,6 +62,16 @@ switch ($variant) {
         }
 
         echo $method, ':', $input;
+        break;
+    case 'large_response_under_limit':
+        // return a JSON response just under the 512KB limit with blocking pattern
+        header('Content-Type: application/json');
+        echo generate_body_under_limit();
+        break;
+    case 'large_response_over_limit':
+        // return a JSON response over the 512KB limit with blocking pattern beyond truncation
+        header('Content-Type: application/json');
+        echo generate_body_over_limit();
         break;
     default:
         http_response_code(400);

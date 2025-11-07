@@ -18,6 +18,37 @@ function endpoint_url($variant) : string
     return 'http://127.0.0.1:8899/curl_requests_endpoint.php?variant=' . $variant;
 }
 
+/**
+ * Generate a JSON body just under the 512KB limit with a blocking pattern
+ * @param string $blocking_pattern The pattern that triggers WAF blocking
+ * @return string JSON-encoded body
+ */
+function generate_body_under_limit($blocking_pattern = 'blocked_request_body') : string
+{
+    $limit = 524288;
+    $json_overhead = strlen('{"key":"","padding":""}') + strlen($blocking_pattern);
+    $padding_size = $limit - $json_overhead - 100; // 100 byte safety margin
+    return json_encode(array(
+        'key' => $blocking_pattern,
+        'padding' => str_repeat('a', $padding_size)
+    ));
+}
+
+/**
+ * Generate a JSON body over the 512KB limit with blocking pattern after truncation point
+ * @param string $blocking_pattern The pattern that should NOT be captured (beyond limit)
+ * @return string JSON-encoded body
+ */
+function generate_body_over_limit($blocking_pattern = 'blocked_request_body') : string
+{
+    $limit = 524288;
+    $padding_size = $limit + 5000;
+    return json_encode(array(
+        'padding' => str_repeat('a', $padding_size),
+        'key' => $blocking_pattern  // This comes after truncation point
+    ));
+}
+
 switch ($variant) {
     case 'simple':
         $url = 'http://localhost/example.json';
@@ -385,6 +416,200 @@ switch ($variant) {
         // now set URL again and execute - should NOT block since context was cleared
         curl_setopt($ch, CURLOPT_URL, 'http://localhost/example.html');
         curl_ret_transfer_exec($ch);
+        break;
+    case 'request_body_under_limit_blocks':
+        // Test that a request body just under the limit can trigger blocking
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, generate_body_under_limit());
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'request_body_over_limit_no_block':
+        // Test that a request body over the limit does NOT trigger blocking
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, generate_body_over_limit());
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'request_body_infile_under_limit_blocks':
+        // Test CURLOPT_INFILE with body just under limit
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Expect:'));
+
+        $body = generate_body_under_limit();
+        $tmpfile = tempnam(sys_get_temp_dir(), 'curl_infile_');
+        file_put_contents($tmpfile, $body);
+        $fp = fopen($tmpfile, 'rb');
+        curl_setopt($ch, CURLOPT_INFILE, $fp);
+        curl_setopt($ch, CURLOPT_PUT, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_INFILESIZE, strlen($body));
+        curl_ret_transfer_exec($ch);
+        fclose($fp);
+        unlink($tmpfile);
+        break;
+    case 'request_body_infile_over_limit_no_block':
+        // Test CURLOPT_INFILE with body over limit
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Expect:'));
+
+        $body = generate_body_over_limit();
+        $tmpfile = tempnam(sys_get_temp_dir(), 'curl_infile_');
+        file_put_contents($tmpfile, $body);
+        $fp = fopen($tmpfile, 'rb');
+        curl_setopt($ch, CURLOPT_INFILE, $fp);
+        curl_setopt($ch, CURLOPT_PUT, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_INFILESIZE, strlen($body));
+        curl_ret_transfer_exec($ch);
+        fclose($fp);
+        unlink($tmpfile);
+        break;
+    case 'request_body_readfunction_under_limit_blocks':
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Expect:'));
+
+        $data = generate_body_under_limit();
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_INFILESIZE, strlen($data));
+
+        $readPos = 0;
+        curl_setopt($ch, CURLOPT_READFUNCTION, function ($ch, $fd, $length) use ($data, &$readPos) {
+            if ($readPos >= strlen($data)) {
+                return '';
+            }
+            $chunk = substr($data, $readPos, $length);
+            $readPos += strlen($chunk);
+            return $chunk;
+        });
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'request_body_readfunction_over_limit_no_block':
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Expect:'));
+
+        $data = generate_body_over_limit();
+        curl_setopt($ch, CURLOPT_UPLOAD, true);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'POST');
+        curl_setopt($ch, CURLOPT_INFILESIZE, strlen($data));
+
+        $readPos = 0;
+        curl_setopt($ch, CURLOPT_READFUNCTION, function ($ch, $fd, $length) use ($data, &$readPos) {
+            if ($readPos >= strlen($data)) {
+                return '';
+            }
+            $chunk = substr($data, $readPos, $length);
+            $readPos += strlen($chunk);
+            return $chunk;
+        });
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'request_body_array_under_limit_blocks':
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+
+        $limit = 524288;
+        $blocking_pattern = 'blocked_request_body';
+        // account for multipart overhead
+        $padding_size = $limit - strlen($blocking_pattern) - 500;
+        curl_setopt($ch, CURLOPT_POSTFIELDS, array(
+            'key' => $blocking_pattern,
+            'padding' => str_repeat('a', $padding_size)
+        ));
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'request_body_array_over_limit_no_block':
+        $url = endpoint_url('echo');
+        $ch = curl_init($url);
+
+        $limit = 524288;
+        $padding_size = $limit + 5000;
+        curl_setopt($ch, CURLOPT_POSTFIELDS, array(
+            'padding' => str_repeat('a', $padding_size),
+            'key' => 'blocked_request_body'
+        ));
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'response_body_under_limit_blocks':
+        $url = endpoint_url('large_response_under_limit');
+        $ch = curl_init($url);
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'response_body_over_limit_no_block':
+        $url = endpoint_url('large_response_over_limit');
+        $ch = curl_init($url);
+        curl_ret_transfer_exec($ch);
+        break;
+    case 'response_body_file_under_limit_blocks':
+        $url = endpoint_url('large_response_under_limit');
+        $ch = curl_init($url);
+        $tmpfile = tempnam(sys_get_temp_dir(), 'curl_response_');
+        $fp = fopen($tmpfile, 'wb');
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_exec($ch);
+        fclose($fp);
+        if (curl_errno($ch)) {
+            echo 'Error:' . curl_error($ch);
+        } else {
+            echo "Response written to file\n";
+        }
+        curl_close($ch);
+        unlink($tmpfile);
+        break;
+    case 'response_body_file_over_limit_no_block':
+        $url = endpoint_url('large_response_over_limit');
+        $ch = curl_init($url);
+        $tmpfile = tempnam(sys_get_temp_dir(), 'curl_response_');
+        $fp = fopen($tmpfile, 'wb');
+        curl_setopt($ch, CURLOPT_FILE, $fp);
+        curl_exec($ch);
+        fclose($fp);
+        if (curl_errno($ch)) {
+            echo 'Error:' . curl_error($ch);
+        } else {
+            echo "Response written to file\n";
+        }
+        curl_close($ch);
+        unlink($tmpfile);
+        break;
+    case 'response_body_writefunction_under_limit_blocks':
+        $url = endpoint_url('large_response_under_limit');
+        $ch = curl_init($url);
+        $responseData = '';
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$responseData) {
+            $responseData .= $data;
+            return strlen($data);
+        });
+        curl_exec($ch);
+        if (curl_errno($ch)) {
+            echo 'Error:' . curl_error($ch);
+        } else {
+            echo "Response captured via writefunction\n";
+        }
+        curl_close($ch);
+        break;
+    case 'response_body_writefunction_over_limit_no_block':
+        $url = endpoint_url('large_response_over_limit');
+        $ch = curl_init($url);
+        $responseData = '';
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function ($ch, $data) use (&$responseData) {
+            $responseData .= $data;
+            return strlen($data);
+        });
+        curl_exec($ch);
+        if (curl_errno($ch)) {
+            echo 'Error:' . curl_error($ch);
+        } else {
+            echo "Response captured via writefunction\n";
+        }
+        curl_close($ch);
         break;
     default:
         http_response_code(500);
