@@ -1107,20 +1107,21 @@ dependencies = [
  "bytes",
  "clap",
  "criterion",
- "datadog-ddsketch",
- "datadog-log",
  "datadog-trace-protobuf",
  "datadog-trace-stats",
  "datadog-trace-utils",
  "ddcommon 0.0.1",
  "ddtelemetry",
- "dogstatsd-client",
  "either",
  "http",
  "http-body-util",
  "httpmock",
  "hyper",
  "hyper-util",
+ "libdd-ddsketch",
+ "libdd-dogstatsd-client",
+ "libdd-log",
+ "libdd-tinybytes",
  "rand 0.8.5",
  "regex",
  "rmp-serde",
@@ -1128,7 +1129,6 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
- "tinybytes",
  "tokio",
  "tokio-util",
  "tracing",
@@ -1199,15 +1199,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "datadog-ddsketch"
-version = "0.0.1"
-dependencies = [
- "prost",
- "prost-build",
- "protoc-bin-vendored",
-]
-
-[[package]]
 name = "datadog-ipc"
 version = "0.1.0"
 dependencies = [
@@ -1220,6 +1211,7 @@ dependencies = [
  "glibc_version",
  "io-lifetimes",
  "libc 0.2.177",
+ "libdd-tinybytes",
  "memfd",
  "nix",
  "page_size",
@@ -1230,7 +1222,6 @@ dependencies = [
  "spawn_worker",
  "tarpc",
  "tempfile",
- "tinybytes",
  "tokio",
  "tokio-serde",
  "tokio-util",
@@ -1251,20 +1242,6 @@ dependencies = [
 [[package]]
 name = "datadog-library-config"
 version = "0.0.2"
-dependencies = [
- "anyhow",
- "memfd",
- "rand 0.8.5",
- "rmp",
- "rmp-serde",
- "serde",
- "serde_yaml",
- "tempfile",
-]
-
-[[package]]
-name = "datadog-library-config"
-version = "0.0.2"
 source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
 dependencies = [
  "anyhow",
@@ -1274,19 +1251,6 @@ dependencies = [
  "rmp-serde",
  "serde",
  "serde_yaml",
-]
-
-[[package]]
-name = "datadog-library-config-ffi"
-version = "0.0.2"
-dependencies = [
- "anyhow",
- "build_common 0.0.1",
- "constcat",
- "datadog-library-config 0.0.2",
- "ddcommon 0.0.1",
- "ddcommon-ffi 0.0.1",
- "tempfile",
 ]
 
 [[package]]
@@ -1297,7 +1261,7 @@ dependencies = [
  "anyhow",
  "build_common 21.0.0",
  "constcat",
- "datadog-library-config 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e)",
+ "datadog-library-config",
  "ddcommon 21.0.0",
  "ddcommon-ffi 21.0.0",
 ]
@@ -1339,17 +1303,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "datadog-log"
-version = "0.0.1"
-dependencies = [
- "chrono",
- "tempfile",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "datadog-php-profiling"
 version = "0.0.0"
 dependencies = [
@@ -1365,7 +1318,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-alloc",
- "datadog-library-config-ffi 0.0.2 (git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e)",
+ "datadog-library-config-ffi",
  "datadog-php-profiling",
  "datadog-profiling",
  "ddcommon 21.0.0",
@@ -1474,13 +1427,14 @@ dependencies = [
  "ddcommon 0.0.1",
  "ddcommon-ffi 0.0.1",
  "ddtelemetry",
- "dogstatsd-client",
  "futures",
  "http",
  "http-body-util",
  "httpmock",
  "hyper",
  "libc 0.2.177",
+ "libdd-dogstatsd-client",
+ "libdd-tinybytes",
  "manual_future",
  "memory-stats",
  "microseh",
@@ -1496,7 +1450,6 @@ dependencies = [
  "simd-json",
  "spawn_worker",
  "tempfile",
- "tinybytes",
  "tokio",
  "tokio-util",
  "tracing",
@@ -1522,13 +1475,13 @@ dependencies = [
  "ddcommon-ffi 0.0.1",
  "ddtelemetry",
  "ddtelemetry-ffi",
- "dogstatsd-client",
  "http",
  "libc 0.2.177",
+ "libdd-dogstatsd-client",
+ "libdd-tinybytes",
  "paste",
  "rmp-serde",
  "tempfile",
- "tinybytes",
  "tracing",
 ]
 
@@ -1569,10 +1522,10 @@ name = "datadog-trace-stats"
 version = "0.0.1"
 dependencies = [
  "criterion",
- "datadog-ddsketch",
  "datadog-trace-protobuf",
  "datadog-trace-utils",
  "hashbrown 0.15.2",
+ "libdd-ddsketch",
  "rand 0.8.5",
 ]
 
@@ -1595,6 +1548,7 @@ dependencies = [
  "http-body-util",
  "httpmock",
  "hyper",
+ "libdd-tinybytes",
  "prost",
  "rand 0.8.5",
  "rmp",
@@ -1603,7 +1557,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
- "tinybytes",
  "tokio",
  "tracing",
  "urlencoding",
@@ -1712,7 +1665,6 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
- "datadog-ddsketch",
  "ddcommon 0.0.1",
  "futures",
  "hashbrown 0.15.2",
@@ -1721,6 +1673,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "libc 0.2.177",
+ "libdd-ddsketch",
  "serde",
  "serde_json",
  "sys-info",
@@ -1756,7 +1709,6 @@ dependencies = [
  "const-str",
  "datadog-crashtracker-ffi",
  "datadog-ipc",
- "datadog-library-config-ffi 0.0.2",
  "datadog-live-debugger",
  "datadog-live-debugger-ffi",
  "datadog-remote-config",
@@ -1773,6 +1725,8 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "libc 0.2.177",
+ "libdd-library-config-ffi",
+ "libdd-tinybytes",
  "log",
  "paste",
  "regex",
@@ -1783,7 +1737,6 @@ dependencies = [
  "simd-json",
  "spawn_worker",
  "tempfile",
- "tinybytes",
  "tracing",
  "tracing-core",
  "tracing-subscriber",
@@ -1835,19 +1788,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.96",
-]
-
-[[package]]
-name = "dogstatsd-client"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "cadence",
- "ddcommon 0.0.1",
- "http",
- "serde",
- "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -2870,6 +2810,80 @@ name = "libc"
 version = "0.2.177"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
+
+[[package]]
+name = "libdd-ddsketch"
+version = "1.0.0"
+dependencies = [
+ "prost",
+ "prost-build",
+ "protoc-bin-vendored",
+]
+
+[[package]]
+name = "libdd-dogstatsd-client"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "cadence",
+ "ddcommon 0.0.1",
+ "http",
+ "serde",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "libdd-library-config"
+version = "1.0.0"
+dependencies = [
+ "anyhow",
+ "memfd",
+ "rand 0.8.5",
+ "rmp",
+ "rmp-serde",
+ "serde",
+ "serde_yaml",
+ "tempfile",
+]
+
+[[package]]
+name = "libdd-library-config-ffi"
+version = "0.0.2"
+dependencies = [
+ "anyhow",
+ "build_common 0.0.1",
+ "constcat",
+ "ddcommon 0.0.1",
+ "ddcommon-ffi 0.0.1",
+ "libdd-library-config",
+ "tempfile",
+]
+
+[[package]]
+name = "libdd-log"
+version = "1.0.0"
+dependencies = [
+ "chrono",
+ "tempfile",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "libdd-tinybytes"
+version = "1.0.0"
+dependencies = [
+ "libdd-tinybytes",
+ "once_cell",
+ "pretty_assertions",
+ "proptest",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "test-case",
+]
 
 [[package]]
 name = "libloading"
@@ -4810,20 +4824,6 @@ checksum = "2834e6017e3e5e4b9834939793b282bc03b37a3336245fa820e35e233e2a85de"
 dependencies = [
  "num-conv",
  "time-core",
-]
-
-[[package]]
-name = "tinybytes"
-version = "0.0.1"
-dependencies = [
- "once_cell",
- "pretty_assertions",
- "proptest",
- "rmp-serde",
- "serde",
- "serde_json",
- "test-case",
- "tinybytes",
 ]
 
 [[package]]
