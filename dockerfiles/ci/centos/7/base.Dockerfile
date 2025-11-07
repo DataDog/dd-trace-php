@@ -232,6 +232,25 @@ RUN source scl_source enable devtoolset-7 \
     && cd - \
     && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
 
+# Install rust-src manually, since it's not included in the offline installer.
+# Levi figured this out through reading the rustup script and trial and error.
+RUN rustver="1.84.1" \
+    && prefix="$(rustc --print sysroot)" \
+    && curl -OL "https://static.rust-lang.org/dist/channel-rust-$rustver.toml" \
+    && url=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "url" {print $3}' | cut -f2 -d'"') \
+    && hash=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "hash" {print $3}' | cut -f2 -d'"') \
+    && echo "URL: $url" \
+    && echo "Hash: $hash" \
+    && curl -OL "$url" \
+    && fname="${url##*/}" \
+    && dir="${fname%.tar.*}" \
+    && printf '%s  %s' "$hash" "$fname" | sha256sum --check --status \
+    && tar -xf "$fname" \
+    && cd "$dir" \
+    && ./install.sh --prefix="$prefix" \
+    && cd - \
+    && rm -fr "$fname" "$dir" "channel-rust-$rustver.toml"
+
 # now install PHP specific dependencies
 RUN set -eux; \
     yum install -y epel-release; \
