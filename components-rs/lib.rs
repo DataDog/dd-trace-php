@@ -1,6 +1,7 @@
 #![allow(internal_features)]
 #![feature(allow_internal_unstable)]
 #![feature(linkage)]
+#![allow(static_mut_refs)] // remove with move to Rust 2024 edition
 
 pub mod log;
 pub mod remote_config;

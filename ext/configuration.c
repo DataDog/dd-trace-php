@@ -8,6 +8,8 @@
 #include "sidecar.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
+
+#include "live_debugger.h"
 #include "sidecar.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -162,12 +164,14 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
         if (!DDTRACE_G(remote_config_state)) {  \
             return true; \
         } \
-        return ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C(config), dd_zend_string_to_CharSlice(new_str)); \
+        return ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C(config), zend_string_copy(new_str)); \
     }
 
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_HEADER_TAGS, "datadog.trace.header_tags")
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_SAMPLE_RATE, "datadog.trace.sample_rate")
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_LOGS_ENABLED, "datadog.logs_injection")
+INI_CHANGE_DYNAMIC_CONFIG(DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "datadog.code_origins_for_spans_enabled")
+INI_CHANGE_DYNAMIC_CONFIG(DD_EXCEPTION_REPLAY_ENABLED, "datadog.exception_replay_enabled")
 
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
 #define EXPAND_FIRST(arg, ...) arg
@@ -199,6 +203,17 @@ static zai_config_entry config_entries[] = {DD_CONFIGURATION};
 #undef CONFIG
 
 bool runtime_config_first_init = false;
+
+bool ddtrace_runtime_config_is_modified(ddtrace_config_id config) {
+    if (zai_config_memoized_entries[config].name_index >= 0) {
+        return true;
+    }
+#if ZTS
+    return EG(modified_ini_directives) && zend_hash_exists(EG(modified_ini_directives), zai_config_memoized_entries[config].ini_entries[0]->name);
+#else
+    return zai_config_memoized_entries[config].ini_entries[0]->modified;
+#endif
+}
 
 static char dd_tolower_ascii(char c) { return c >= 'A' && c <= 'Z' ? c - ('A' - 'a') : c; }
 
