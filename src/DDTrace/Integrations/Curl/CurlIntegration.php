@@ -1679,36 +1679,13 @@ class CurlHandleAppSecContext
 
         $data = array();
 
-        // handle cookies
-        if ($type === 'request' && key_exists('cookie', $headers)) {
-            $cookies = $headers['cookie'];
-            unset($headers['cookie']);
-        }
-        if ($type === 'response' && key_exists('set-cookie', $headers)) {
-            $cookies = array_map(
-                // remove anything after ;
-                function ($setCookieHeader) {
-                    $posColon = strpos($setCookieHeader, ';');
-                    if ($posColon !== false) {
-                        $setCookieHeader = substr($setCookieHeader, 0, $posColon);
-                    }
-                    return $setCookieHeader;
-                },
-                $headers['set-cookie']
-            );
-            unset($headers['set-cookie']);
-        }
         if ($this->cookie !== null && $type === 'request') {
-            // also include CURLOPT_COOKIE
-            $cookies = $cookies ?? array();
-            $cookies[] = $this->cookie;
-        }
-        if (!empty($cookies)) {
-            $cookies = array_map(array(self::class, 'parseCookieHeader'), $cookies);
-            $data["client.{$type}.cookies"] = $cookies;
+            // also include CURLOPT_COOKIE - merge into headers
+            $headers['cookie'] = $headers['cookie'] ?? array();
+            $headers['cookie'][] = $this->cookie;
         }
 
-        $data['client.request.method'] = $this->getMethod();
+        $data['server.io.net.request.method'] = $this->getMethod();
 
         if ($type === 'request') {
             // fill in stuff based on url
@@ -1721,21 +1698,20 @@ class CurlHandleAppSecContext
                 $headers['host'] = array($host);
             }
 
-            $uri_raw = $purl['path'] ?? '/';
-            if (!empty($purl['query'])) {
-                $uri_raw .= '?' . $purl['query'];
-                parse_str($purl['query'], $queryParams);
-                $data['client.request.query'] = $queryParams;
-            }
-            $data['client.request.uri.raw'] = $uri_raw;
+            // RFC-1062: Provide full URL in server.io.net.url
+            // libddwaf may internally derive path and query
+            $data['server.io.net.url'] = $this->url;
         }
 
         if (!empty($headers)) {
-            $data["client.{$type}.headers.no_cookies"] = $headers;
+            $data["server.io.net.{$type}.headers"] = $headers;
         }
 
         if (!empty($parsedBody)) {
-            $data["client.{$type}.body"] = $parsedBody;
+            if (function_exists('\datadog\appsec\should_send_downstream_bodies')
+                && \datadog\appsec\should_send_downstream_bodies()) {
+                $data["server.io.net.{$type}.body"] = $parsedBody;
+            }
         }
 
         if (empty($data)) {

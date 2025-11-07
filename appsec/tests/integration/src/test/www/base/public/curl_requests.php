@@ -611,6 +611,26 @@ switch ($variant) {
         }
         curl_close($ch);
         break;
+    case 'multiple_downstream_with_body_blocks':
+        // first downstream request with safe body - body analyzed, no block
+        $url1 = endpoint_url('echo');
+        $ch1 = curl_init($url1);
+        curl_setopt($ch1, CURLOPT_POST, true);
+        curl_setopt($ch1, CURLOPT_POSTFIELDS, json_encode(['key' => 'safe_value']));
+        curl_setopt($ch1, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_ret_transfer_exec($ch1); // Closes handle automatically
+
+        // second downstream request with blocking body - body NOT analyzed (limit=1 reached)
+        // If this body were analyzed, it would trigger blocking and return 403
+        $url2 = endpoint_url('echo');
+        $ch2 = curl_init($url2);
+        curl_setopt($ch2, CURLOPT_POST, true);
+        curl_setopt($ch2, CURLOPT_POSTFIELDS, json_encode(['key' => 'blocked_request_body']));
+        curl_setopt($ch2, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        curl_ret_transfer_exec($ch2); // Closes handle automatically
+
+        echo "Both requests completed\n";
+        break;
     default:
         http_response_code(500);
         die("Unknown variant: $variant\n");

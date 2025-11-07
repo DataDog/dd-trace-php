@@ -56,6 +56,11 @@ class WafSubcontextTests {
 
         assert_triggering_rule trace, 'CUSTOM-002'
         assert_triggering_snippet trace, 'blocked_response_body'
+
+        // RFC-1062: Verify the downstream request metric is set
+        Span span = trace.first()
+        assert span.metrics.containsKey('_dd.appsec.downstream_request')
+        assert span.metrics['_dd.appsec.downstream_request'] == 1.0
     }
 
     @Test
@@ -192,7 +197,7 @@ class WafSubcontextTests {
 
 
         assert_triggering_rule trace, 'CUSTOM-005'
-        assert_triggering_snippet trace, 'blocked_query_param'
+        assert_triggering_snippet trace, 'http://localhost/example.html?param=blocked_query_param'
     }
 
     @Test
@@ -228,7 +233,7 @@ class WafSubcontextTests {
 
 
         assert_triggering_rule trace, 'CUSTOM-003b'
-        assert_triggering_snippet trace, 'blocked_request_cookies'
+        assert_triggering_snippet trace, 'session=blocked_request_cookies'
     }
 
     @Test
@@ -276,7 +281,7 @@ class WafSubcontextTests {
 
 
         assert_triggering_rule trace, 'CUSTOM-004b'
-        assert_triggering_snippet trace, 'blocked_response_cookies'
+        assert_triggering_snippet trace, 'session=blocked_response_cookies'
     }
 
     @Test
@@ -353,7 +358,7 @@ class WafSubcontextTests {
         }
 
         assert_triggering_rule trace, 'CUSTOM-005'
-        assert_triggering_snippet trace, 'blocked_query_param'
+        assert_triggering_snippet trace, 'http://localhost/example.html?param=blocked_query_param'
     }
 
     @Test
@@ -429,8 +434,6 @@ class WafSubcontextTests {
 
     @Test
     void 'response body just under limit triggers blocking'() {
-        // Test that a response body just under the 512KB limit (524288 bytes)
-        // with the blocking pattern at the end can still trigger a match and block
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_under_limit_blocks') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
             assert resp.body().text.contains("You've been blocked")
@@ -442,9 +445,6 @@ class WafSubcontextTests {
 
     @Test
     void 'response body over limit does not trigger blocking'() {
-        // Test that a response body over the 512KB limit (524288 bytes)
-        // does NOT trigger blocking, even with the blocking pattern at the end
-        // because the body is truncated before the pattern is captured
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_over_limit_no_block') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             String body = resp.body().text
@@ -456,7 +456,6 @@ class WafSubcontextTests {
 
     @Test
     void 'request body CURLOPT_INFILE just under limit triggers blocking'() {
-        // Test CURLOPT_INFILE with request body just under limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_infile_under_limit_blocks') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
             assert resp.body().text.contains("You've been blocked")
@@ -468,7 +467,6 @@ class WafSubcontextTests {
 
     @Test
     void 'request body CURLOPT_INFILE over limit does not trigger blocking'() {
-        // Test CURLOPT_INFILE with request body over limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_infile_over_limit_no_block') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             String body = resp.body().text
@@ -480,7 +478,6 @@ class WafSubcontextTests {
 
     @Test
     void 'request body CURLOPT_READFUNCTION just under limit triggers blocking'() {
-        // Test CURLOPT_READFUNCTION with request body just under limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_readfunction_under_limit_blocks') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
             assert resp.body().text.contains("You've been blocked")
@@ -492,7 +489,6 @@ class WafSubcontextTests {
 
     @Test
     void 'request body CURLOPT_READFUNCTION over limit does not trigger blocking'() {
-        // Test CURLOPT_READFUNCTION with request body over limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_readfunction_over_limit_no_block') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             String body = resp.body().text
@@ -504,7 +500,6 @@ class WafSubcontextTests {
 
     @Test
     void 'request body CURLOPT_POSTFIELDS array just under limit triggers blocking'() {
-        // Test CURLOPT_POSTFIELDS with array (multipart) under limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_array_under_limit_blocks') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
             assert resp.body().text.contains("You've been blocked")
@@ -516,7 +511,6 @@ class WafSubcontextTests {
 
     @Test
     void 'request body CURLOPT_POSTFIELDS array over limit does not trigger blocking'() {
-        // Test CURLOPT_POSTFIELDS with array (multipart) over limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=request_body_array_over_limit_no_block') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             String body = resp.body().text
@@ -528,7 +522,6 @@ class WafSubcontextTests {
 
     @Test
     void 'response body CURLOPT_FILE just under limit triggers blocking'() {
-        // Test CURLOPT_FILE with response body just under limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_file_under_limit_blocks') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
             assert resp.body().text.contains("You've been blocked")
@@ -540,7 +533,6 @@ class WafSubcontextTests {
 
     @Test
     void 'response body CURLOPT_FILE over limit does not trigger blocking'() {
-        // Test CURLOPT_FILE with response body over limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_file_over_limit_no_block') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             String body = resp.body().text
@@ -552,7 +544,6 @@ class WafSubcontextTests {
 
     @Test
     void 'response body CURLOPT_WRITEFUNCTION just under limit triggers blocking'() {
-        // Test CURLOPT_WRITEFUNCTION with response body just under limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_writefunction_under_limit_blocks') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
             assert resp.body().text.contains("You've been blocked")
@@ -564,7 +555,6 @@ class WafSubcontextTests {
 
     @Test
     void 'response body CURLOPT_WRITEFUNCTION over limit does not trigger blocking'() {
-        // Test CURLOPT_WRITEFUNCTION with response body over limit
         Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=response_body_writefunction_over_limit_no_block') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             String body = resp.body().text
@@ -572,5 +562,23 @@ class WafSubcontextTests {
         }
 
         assert_no_blocking trace
+    }
+
+    @Test
+    void 'multiple downstream requests - only first body analyzed with default limit'() {
+        // This test makes 2 downstream curl requests within one user request
+        // First: safe body (analyzed, no block)
+        // Second: blocking body (NOT analyzed due to limit=1, so no block)
+        // If the second body were analyzed, this would return 403 instead of 200
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=multiple_downstream_with_body_blocks') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+
+        // RFC-1062: Verify the downstream request metric is set
+        Span span = trace.first()
+        assert span.metrics.containsKey('_dd.appsec.downstream_request')
+        assert span.metrics['_dd.appsec.downstream_request'] == 1.0
     }
 }

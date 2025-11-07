@@ -6946,7 +6946,7 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.request.body"
+                "address": "server.io.net.request.body"
               }
             ],
             "list": [
@@ -6973,7 +6973,7 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.response.body"
+                "address": "server.io.net.response.body"
               }
             ],
             "list": [
@@ -7000,7 +7000,7 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.request.headers.no_cookies"
+                "address": "server.io.net.request.headers"
               }
             ],
             "list": [
@@ -7027,14 +7027,13 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.request.cookies"
+                "address": "server.io.net.request.headers",
+                "key_path": ["cookie"]
               }
             ],
-            "list": [
-              "blocked_request_cookies"
-            ]
+            "regex": "blocked_request_cookies"
           },
-          "operator": "exact_match"
+          "operator": "match_regex"
         }
       ],
       "transformers": [],
@@ -7054,7 +7053,7 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.response.headers.no_cookies"
+                "address": "server.io.net.response.headers"
               }
             ],
             "list": [
@@ -7081,14 +7080,13 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.response.cookies"
+                "address": "server.io.net.response.headers",
+                "key_path": ["set-cookie"]
               }
             ],
-            "list": [
-              "blocked_response_cookies"
-            ]
+            "regex": "blocked_response_cookies"
           },
-          "operator": "exact_match"
+          "operator": "match_regex"
         }
       ],
       "transformers": [],
@@ -7108,14 +7106,12 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.request.query"
+                "address": "server.io.net.url"
               }
             ],
-            "list": [
-              "blocked_query_param"
-            ]
+            "regex": "\\?.*blocked_query_param"
           },
-          "operator": "exact_match"
+          "operator": "match_regex"
         }
       ],
       "transformers": [],
@@ -7135,7 +7131,7 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.request.uri.raw"
+                "address": "server.io.net.url"
               }
             ],
             "regex": "/blocked_uri_path"
@@ -7160,7 +7156,7 @@
           "parameters": {
             "inputs": [
               {
-                "address": "client.request.method"
+                "address": "server.io.net.request.method"
               }
             ],
             "list": [
