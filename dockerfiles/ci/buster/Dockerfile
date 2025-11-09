@@ -333,7 +333,7 @@ RUN rustver="1.84.1" \
     && printf '%s  %s' "$hash" "$fname" | sha256sum --check --status \
     && tar -xf "$fname" \
     && cd "$dir" \
-    && ./install.sh --prefix="$prefix" \
+    && ./install.sh --components="rust-src" --prefix="$prefix" \
     && cd - \
     && rm -fr "$fname" "$dir" "channel-rust-$rustver.toml"
 
