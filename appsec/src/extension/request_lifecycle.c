@@ -86,6 +86,8 @@ void dd_req_lifecycle_startup(void)
     }
 
     _server_zstr = zend_string_init_interned(LSTRARG("_SERVER"), 1);
+    _dd_downstream_request_metric =
+        zend_string_init_interned(LSTRARG("_dd.appsec.downstream_request"), 1);
 
     _register_functions();
 }
@@ -279,8 +281,8 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         if (metrics_zv) {
             zval zv;
             ZVAL_DOUBLE(&zv, 1.0);
-            zend_hash_str_update(Z_ARRVAL_P(metrics_zv),
-                LSTRARG("_dd.appsec.downstream_request"), &zv);
+            zend_hash_update(
+                Z_ARRVAL_P(metrics_zv), _dd_downstream_request_metric, &zv);
             mlog_g(dd_log_debug,
                 "Set _dd.appsec.downstream_request metric (analyzed %" PRIu64
                 " bodies)",
