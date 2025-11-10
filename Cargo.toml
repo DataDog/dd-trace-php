@@ -25,6 +25,10 @@ codegen-units = 1
 panic = "abort"
 inherits = "release"
 
+[profile.profiler-release]
+panic = "abort"
+inherits = "release"
+
 # These are to satistfy the build with libdatadog as a path dependency inside
 # components-rs. There may be a better way to fix this, but I'm alreday two
 # tasks removed from what I'm trying to do, so pushing forward.
