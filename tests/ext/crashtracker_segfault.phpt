@@ -59,6 +59,21 @@ $rr->waitForRequest(function ($request) {
 %A{
     "message": {
 %A
+            "runtime_stack": {
+                "format": "Datadog Runtime Callback 1.0",
+                "frames": [
+                    {
+                        "file": "[internal function]",
+                        "function": "posix_kill"
+                    },
+                    {
+                        "file": "Command line code",
+                        "function": "[top-level code]",
+                        "line": 1
+                    }
+                ]
+            }
+%A
         "files": {
 %A
         },

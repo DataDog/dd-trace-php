@@ -174,11 +174,12 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/compat_string.c \
     ext/coms.c \
     ext/configuration.c \
+    ext/crashtracking_frames.c \
     ext/ddshared.c \
     ext/distributed_tracing_headers.c \
     ext/dogstatsd.c \
     ext/dogstatsd_client.c \
-	ext/endpoint_guessing.c \
+    ext/endpoint_guessing.c \
     ext/engine_api.c \
     ext/engine_hooks.c \
     ext/exception_serialize.c \
