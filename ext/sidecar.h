@@ -8,11 +8,9 @@
 #include "zend_string.h"
 #ifndef _WIN32
 #include <unistd.h>
-// Platform-specific PID type
 typedef pid_t ddtrace_pid_t;
 #else
 #include <process.h>
-// Windows uses int for process IDs
 typedef int ddtrace_pid_t;
 #endif
 

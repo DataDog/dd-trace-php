@@ -433,6 +433,7 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
+#ifndef _WIN32
         // Only disable sidecar sender when explicitly disabled
         bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index == ZAI_CONFIG_ORIGIN_DEFAULT && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
         zend_string *bgs_service = NULL;
@@ -447,6 +448,7 @@ static void dd_activate_once(void) {
                 bgs_service = ddtrace_default_service_name();
             }
         }
+#endif
 
         // If we're to enable appsec, we need to enable sidecar
         bool appsec_activation = false;
@@ -1548,8 +1550,6 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_signals_minit();
 #endif
 
-    // Store master PID for threaded sidecar connectivity
-    // The actual sidecar setup happens in first RINIT via pthread_once
     ddtrace_sidecar_minit(false, false);
 
     return SUCCESS;
@@ -2641,33 +2641,26 @@ void dd_internal_handle_fork(void) {
     ddtrace_generate_runtime_id();
 
 #ifndef _WIN32
-    // Handle sidecar after fork with threaded connectivity
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && ddtrace_sidecar) {
         if (is_child_process) {
-            // Child process connects to master's sidecar as a worker
             ddtrace_force_new_instance_id();
 
-            // Connect to master as worker using threaded connectivity
             if (ddtrace_sidecar_connect_worker_after_fork()) {
                 LOG(DEBUG, "Child process connected to master sidecar as worker (child_pid=%d, master_pid=%d)",
                     current_pid, ddtrace_master_pid);
 
-                // Submit root span data with the new connection
                 if (ddtrace_sidecar) {
                     ddtrace_sidecar_submit_root_span_data();
                 }
             } else {
                 LOG(WARN, "Failed to connect child process as worker to master sidecar (child_pid=%d, master_pid=%d)",
                     current_pid, ddtrace_master_pid);
-                // Fallback: reset sidecar on failure
                 ddtrace_reset_sidecar();
             }
         }
-        // Parent process: keep existing connection, no action needed
     } else
 #endif
     {
-        // Not using sidecar - normal reset for non-sidecar trace sender
         ddtrace_reset_sidecar();
     }
     if (!get_DD_TRACE_FORKED_PROCESS()) {

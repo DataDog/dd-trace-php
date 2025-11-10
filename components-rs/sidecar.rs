@@ -3,15 +3,16 @@ use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
-use ddcommon::rate_limiter::{Limiter, LocalLimiter};
-use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
-use ddtelemetry_ffi::try_c;
 use lazy_static::{lazy_static, LazyStatic};
-#[cfg(windows)]
-use spawn_worker::get_trampoline_target_data;
+use libdd_common::rate_limiter::{Limiter, LocalLimiter};
+use libdd_common::Endpoint;
+use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
+use libdd_telemetry_ffi::try_c;
 #[cfg(any(windows, php_shared_build))]
 use spawn_worker::LibDependency;
+#[cfg(windows)]
+use spawn_worker::get_trampoline_target_data;
 use std::ffi::{c_char, CStr, OsStr};
 use std::ops::DerefMut;
 #[cfg(unix)]
@@ -20,20 +21,6 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
 use std::time::Duration;
-use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
-use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
-use libdd_common::rate_limiter::{Limiter, LocalLimiter};
-use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
-use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
-use datadog_sidecar::tracer::shm_limiter_path;
-use libdd_common::Endpoint;
-use libdd_common_ffi::slice::AsBytes;
-use libdd_common_ffi::{CharSlice, self as ffi, MaybeError};
-use libdd_telemetry_ffi::try_c;
-#[cfg(any(windows, php_shared_build))]
-use spawn_worker::LibDependency;
-#[cfg(windows)]
-use spawn_worker::get_trampoline_target_data;
 
 use tracing::warn;
 
