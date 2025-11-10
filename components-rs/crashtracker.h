@@ -643,27 +643,19 @@ struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_trace_id(struct ddog_cr
  * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
-                                                              ddog_CharSlice uuid);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                 ddog_CharSlice message);
 
 /**
  * # Safety
  * The `builder` can be null, but if non-null it must point to a Builder made by this module,
  * which has not previously been dropped.
- * The CharSlice must be valid.
+ * All arguments must be valid.
+ * This method requires that the builder has a UUID, siginfo, and metadata set
  */
 DDOG_CHECK_RETURN
-struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid_random(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
-
-/**
- * # Safety
- * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
- * which has not previously been dropped.
- * The CharSlice must be valid.
- */
-DDOG_CHECK_RETURN
-struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
-                                                                 ddog_CharSlice message);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_upload_ping_to_endpoint(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                            const struct ddog_Endpoint *endpoint);
 
 /**
  * Create a new StackFrame, and returns an opaque reference to it.

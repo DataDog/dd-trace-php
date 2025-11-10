@@ -10,14 +10,14 @@ use std::sync::Mutex;
 use std::time::Duration;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
 use datadog_sidecar::service::blocking::{acquire_exception_hash_rate_limiter, SidecarTransport};
-use ddcommon::rate_limiter::{Limiter, LocalLimiter};
+use libdd_common::rate_limiter::{Limiter, LocalLimiter};
 use datadog_ipc::rate_limiter::{AnyLimiter, ShmLimiterMemory};
 use datadog_sidecar::service::exception_hash_rate_limiter::ExceptionHashRateLimiter;
 use datadog_sidecar::tracer::shm_limiter_path;
-use ddcommon::Endpoint;
-use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::{CharSlice, self as ffi, MaybeError};
-use ddtelemetry_ffi::try_c;
+use libdd_common::Endpoint;
+use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::{CharSlice, self as ffi, MaybeError};
+use libdd_telemetry_ffi::try_c;
 #[cfg(any(windows, php_shared_build))]
 use spawn_worker::LibDependency;
 #[cfg(windows)]
