@@ -163,8 +163,6 @@ static void dd_frames_callback(void (*emit_frame)(const ddog_crasht_RuntimeStack
             inner_frame.file = DDOG_CHARSLICE_C("[internal function]");
             EMIT(&inner_frame);
             not_frameless_call: ;
-#else
-            UNUSED(last_call);
 #endif
         } else {
             frame.file = DDOG_CHARSLICE_C("[internal function]");
