@@ -23,7 +23,7 @@ function read ($id) {
 function write ($id, $sess_data) {
     ob_start("output_html");
     echo "laruence";
-    ob_end_flush();
+    @ob_end_flush();
     return true;
 }
 

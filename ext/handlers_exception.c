@@ -25,6 +25,10 @@ static zif_handler dd_http_response_code = NULL;
 static zif_handler dd_set_error_handler = NULL;
 static zif_handler dd_set_exception_handler = NULL;
 static zif_handler dd_restore_exception_handler = NULL;
+#if PHP_VERSION_ID >= 80500
+static zif_handler dd_get_error_handler = NULL;
+static zif_handler dd_get_exception_handler = NULL;
+#endif
 
 static void dd_check_exception_in_header(int old_response_code) {
     int new_response_code = SG(sapi_headers).http_response_code;
@@ -196,6 +200,38 @@ static PHP_FUNCTION(ddtrace_restore_exception_handler) {
         dd_wrap_exception_or_error_handler(&EG(user_exception_handler), false);
     }
 }
+
+#if PHP_VERSION_ID >= 80500
+static PHP_FUNCTION(ddtrace_get_error_handler) {
+    dd_get_error_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    // Unwrap the handler if it's our wrapper
+    if (Z_TYPE_P(return_value) == IS_OBJECT && Z_OBJCE_P(return_value) == &dd_exception_or_error_handler_ce) {
+        zval *handler = dd_exception_or_error_handler_handler(Z_OBJ_P(return_value));
+        zval_ptr_dtor(return_value);
+        if (Z_ISUNDEF_P(handler)) {
+            ZVAL_NULL(return_value);
+        } else {
+            ZVAL_COPY(return_value, handler);
+        }
+    }
+}
+
+static PHP_FUNCTION(ddtrace_get_exception_handler) {
+    dd_get_exception_handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+
+    // Unwrap the handler if it's our wrapper
+    if (Z_TYPE_P(return_value) == IS_OBJECT && Z_OBJCE_P(return_value) == &dd_exception_or_error_handler_ce) {
+        zval *handler = dd_exception_or_error_handler_handler(Z_OBJ_P(return_value));
+        zval_ptr_dtor(return_value);
+        if (Z_ISUNDEF_P(handler)) {
+            ZVAL_NULL(return_value);
+        } else {
+            ZVAL_COPY(return_value, handler);
+        }
+    }
+}
+#endif
 
 static zend_internal_function ddtrace_exception_or_error_handler;
 
@@ -497,6 +533,10 @@ void ddtrace_exception_handlers_startup(void) {
         {ZEND_STRL("set_exception_handler"), &dd_set_exception_handler, ZEND_FN(ddtrace_set_exception_handler)},
         {ZEND_STRL("restore_exception_handler"), &dd_restore_exception_handler,
          ZEND_FN(ddtrace_restore_exception_handler)},
+#if PHP_VERSION_ID >= 80500
+        {ZEND_STRL("get_error_handler"), &dd_get_error_handler, ZEND_FN(ddtrace_get_error_handler)},
+        {ZEND_STRL("get_exception_handler"), &dd_get_exception_handler, ZEND_FN(ddtrace_get_exception_handler)},
+#endif
     };
     size_t handlers_len = sizeof handlers / sizeof handlers[0];
     for (size_t i = 0; i < handlers_len; ++i) {

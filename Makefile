@@ -176,7 +176,7 @@ test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-te
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
 test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(shell test $(PHP_MAJOR_MINOR) -lt 85 && echo "-d zend_extension=opcache.so") $(BUILD_DIR)/tests/opcache
 
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
@@ -439,8 +439,8 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-crashtracker-ffi  \
 			--config datadog-crashtracker-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/crashtracker.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-library-config-ffi  \
-			--config datadog-library-config-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-library-config-ffi  \
+			--config libdd-library-config-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/library-config.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
@@ -1125,6 +1125,48 @@ TEST_WEB_84 := \
 	test_web_laravel_octane_latest \
 	test_web_lumen_100 \
 	test_web_nette_latest \
+	test_web_slim_312 \
+	test_web_symfony_latest \
+	test_web_wordpress_59 \
+	test_web_wordpress_61 \
+	test_web_custom \
+	test_web_zend_1_21
+
+TEST_INTEGRATIONS_85 := \
+	test_integrations_amqp2 \
+	test_integrations_amqp_latest \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_kafka \
+	test_integrations_laminaslog2 \
+	test_integrations_memcache \
+	test_integrations_memcached \
+	test_integrations_mongodb_latest \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog_latest \
+	test_integrations_mysqli \
+	test_integrations_openai_latest \
+	test_opentelemetry_1 \
+	test_integrations_guzzle_latest \
+	test_integrations_pcntl \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
+	test_integrations_elasticsearch_latest \
+	test_integrations_predis_2 \
+	test_integrations_predis_latest \
+	test_integrations_frankenphp \
+	test_integrations_ratchet \
+	test_integrations_sqlsrv \
+	test_opentracing_10
+
+TEST_WEB_85 := \
+	test_metrics \
+	test_web_cakephp_latest \
+	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
+	test_web_lumen_100 \
 	test_web_slim_312 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \

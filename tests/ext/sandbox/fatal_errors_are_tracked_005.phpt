@@ -2,6 +2,8 @@
 All open internal spans are marked with the fatal error
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum,DDTrace\Testing\trigger_error
+--INI--
+fatal_error_backtraces=0
 --FILE--
 <?php
 register_shutdown_function(function () {
