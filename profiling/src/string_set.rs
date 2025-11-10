@@ -1,7 +1,7 @@
 use crate::thin_str::ThinStr;
 use core::hash;
 use core::ops::Deref;
-use datadog_alloc::{ChainAllocator, VirtualAllocator};
+use libdd_alloc::{ChainAllocator, VirtualAllocator};
 
 type Hasher = hash::BuildHasherDefault<rustc_hash::FxHasher>;
 type HashSet<K> = std::collections::HashSet<K, Hasher>;
