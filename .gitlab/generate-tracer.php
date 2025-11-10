@@ -654,6 +654,7 @@ $xdebug_test_matrix = [
     ["8.2", "3.2.2"],
     ["8.3", "3.3.2"],
     ["8.4", "3.4.0"],
+    // ["8.5", "3.5.0"], Xdebug not supported yet on 8.5
 ];
 foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 ?>

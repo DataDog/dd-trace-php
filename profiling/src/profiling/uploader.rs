@@ -119,7 +119,7 @@ impl Uploader {
                                 let filename_prefix = filename.as_ref();
                                 let r = request.profile.serialize_into_compressed_pprof(None, None).unwrap();
                                 i += 1;
-                                let name = format!("{filename_prefix}.{i}.lz4");
+                                let name = format!("{filename_prefix}.{i}.zst");
                                 std::fs::write(&name, r.buffer).expect("write to succeed");
                                 info!("Successfully wrote profile to {name}");
                             },

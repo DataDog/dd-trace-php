@@ -20,12 +20,12 @@ cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 
-# This libdatadog commit is to be compat with tracer for a given lib config
-# crash fix which is not yet on a release.
-datadog-alloc = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
-datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
+# Use a libdatadog version after v23 to get a fix for cc_utils. Unfortunately,
+# it's also only halfway through the crate renaming migration.
+libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", rev = "aa2396efbb14b196e91de88a73bb4e1a7d06f74b" }
+datadog-profiling = {  git = "https://github.com/DataDog/libdatadog", rev = "aa2396efbb14b196e91de88a73bb4e1a7d06f74b" }
+ddcommon = {  git = "https://github.com/DataDog/libdatadog", rev = "aa2396efbb14b196e91de88a73bb4e1a7d06f74b" }
+libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }
 libc = "0.2"
