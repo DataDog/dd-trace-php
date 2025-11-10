@@ -1107,10 +1107,10 @@ class CurlCallableOutBody extends CurlBody
         if ($left >= 0) {
             $data_len = strlen($data);
             if ($data_len > $left) {
-                $data = substr($data, 0, $left);
+                $this->buffer = substr($data, 0, $left);
+            } else {
+                $this->buffer .= $data;
             }
-
-            $this->buffer .= $data;
         }
 
         if (strlen($this->buffer) >= $max_len) {
