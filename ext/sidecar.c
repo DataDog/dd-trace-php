@@ -153,7 +153,6 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
 
 }
 
-// Forward declaration for reconnection handler
 static ddog_SidecarTransport *dd_sidecar_connection_factory(void);
 
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
@@ -176,7 +175,6 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     }
 
     ddog_SidecarTransport *sidecar_transport;
-    // With threaded connectivity, use connect_worker to connect to master's listener
     if (!ddtrace_ffi_try("Failed connecting to sidecar as worker",
                         ddog_sidecar_connect_worker((int32_t)ddtrace_master_pid, &sidecar_transport))) {
         dd_free_endpoints();
@@ -185,7 +183,6 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
 
     dd_sidecar_post_connect(&sidecar_transport, is_fork, logpath);
 
-    // Set up automatic reconnection handler
     ddtrace_sidecar_reconnect(&sidecar_transport, dd_sidecar_connection_factory);
 
     return sidecar_transport;
@@ -219,52 +216,26 @@ bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_c
 #endif
 }
 
-// Called in MINIT - stores master PID for threaded connectivity
 void ddtrace_sidecar_minit(bool appsec_activation, bool appsec_config) {
     UNUSED(appsec_activation, appsec_config);
 
-    // Store master PID for threaded connectivity only if not already set
-    // This ensures that after fork, child processes keep the parent's PID
     if (ddtrace_master_pid == 0) {
 #ifdef _WIN32
         ddtrace_master_pid = _getpid();
 #else
         ddtrace_master_pid = getpid();
 #endif
-        LOG(DEBUG, "Sidecar MINIT: Stored master PID=%d", ddtrace_master_pid);
-    } else {
-        LOG(DEBUG, "Sidecar MINIT: Master PID already set to %d, current PID=%d",
-            ddtrace_master_pid,
-#ifdef _WIN32
-            _getpid()
-#else
-            getpid()
-#endif
-        );
     }
 }
 
-// Setup master sidecar connection - called once on first RINIT
 static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_config) {
-    // Check if we're in a forked child process
-    // pthread_once state is not inherited across fork, so child processes
-    // might try to call this function. They should NOT start a new master listener.
 #ifndef _WIN32
     ddtrace_pid_t current_pid = getpid();
-
-    LOG(DEBUG, "ddtrace_sidecar_setup_master called: current_pid=%d, ddtrace_master_pid=%d",
-        current_pid, ddtrace_master_pid);
-
     bool is_child_process = (ddtrace_master_pid != 0 && current_pid != ddtrace_master_pid);
 
     if (is_child_process) {
-        LOG(DEBUG, "Skipping master sidecar setup in child process (child_pid=%d, master_pid=%d)",
-            current_pid, ddtrace_master_pid);
-        // Child processes should only connect as workers, which is handled in dd_internal_handle_fork()
         return;
     }
-
-    LOG(DEBUG, "Proceeding with master sidecar setup for PID=%d", current_pid);
 #endif
 
     ddtrace_set_non_resettable_sidecar_globals();
@@ -272,7 +243,6 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
 
     ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
 
-    // Start master listener for worker processes/threads to connect to
     if (!ddtrace_ffi_try("Failed starting sidecar master listener", ddog_sidecar_connect_master((int32_t)ddtrace_master_pid))) {
         LOG(WARN, "Failed to start sidecar master listener");
         if (ddtrace_endpoint) {
@@ -281,7 +251,6 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
         return;
     }
 
-    // Master process also needs a transport - connect as first worker
     ddog_SidecarTransport *sidecar_transport = NULL;
     if (!ddtrace_ffi_try("Failed connecting master to sidecar", ddog_sidecar_connect_worker((int32_t)ddtrace_master_pid, &sidecar_transport))) {
         LOG(WARN, "Failed to connect master process to sidecar");
@@ -303,11 +272,8 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddtrace_telemetry_first_init();
     }
-
-    LOG(DEBUG, "Sidecar master setup complete, PID=%d", ddtrace_master_pid);
 }
 
-// Called in RINIT - handles git metadata and root span data
 void ddtrace_sidecar_rinit(void) {
     if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
         zval git_object;
@@ -330,20 +296,15 @@ void ddtrace_sidecar_rinit(void) {
     ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, NULL);
 }
 
-// Setup function called via pthread_once on first RINIT
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
-    // This is called on first RINIT when config is available
-    // Set up the master sidecar connection with threaded connectivity
     ddtrace_sidecar_setup_master(appsec_activation, appsec_config);
 }
 
-// Connect child process to master sidecar as worker after fork
 bool ddtrace_sidecar_connect_worker_after_fork(void) {
     if (!ddtrace_endpoint || ddtrace_master_pid == 0) {
         return false;
     }
 
-    // Connect to master as worker using threaded connectivity
     ddog_SidecarTransport *sidecar_transport = NULL;
     if (!ddtrace_ffi_try("Failed connecting worker to sidecar after fork",
                         ddog_sidecar_connect_worker((int32_t)ddtrace_master_pid, &sidecar_transport))) {
@@ -356,10 +317,8 @@ bool ddtrace_sidecar_connect_worker_after_fork(void) {
         *logpath = 0;
     }
 
-    // Post-connect with fork flag set to true
     dd_sidecar_post_connect(&sidecar_transport, true, logpath);
 
-    // Drop old transport and use the new worker connection
     if (ddtrace_sidecar) {
         ddog_sidecar_transport_drop(ddtrace_sidecar);
     }
@@ -395,31 +354,31 @@ void ddtrace_sidecar_finalize(bool clear_id) {
 }
 
 void ddtrace_sidecar_shutdown(void) {
-    // Shutdown master listener thread if this is the master process
+    // Shutdown master listener thread FIRST if this is the master process
+    // This must happen before dropping the sidecar transport to ensure clean shutdown
 #ifndef _WIN32
     ddtrace_pid_t current_pid = getpid();
     if (ddtrace_master_pid != 0 && current_pid == ddtrace_master_pid) {
-        LOG(DEBUG, "Shutting down master listener thread (PID=%d)", current_pid);
         ddtrace_ffi_try("Failed shutting down master listener", ddog_sidecar_shutdown_master_listener());
     }
 #else
     if (ddtrace_master_pid != 0 && _getpid() == ddtrace_master_pid) {
-        LOG(DEBUG, "Shutting down master listener thread (PID=%d)", _getpid());
         ddtrace_ffi_try("Failed shutting down master listener", ddog_sidecar_shutdown_master_listener());
     }
 #endif
 
-    if (ddtrace_sidecar_instance_id) {
-        ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
+    if (ddtrace_sidecar) {
+        ddog_sidecar_transport_drop(ddtrace_sidecar);
     }
 
     if (ddtrace_endpoint) {
         dd_free_endpoints();
     }
 
-    if (ddtrace_sidecar) {
-        ddog_sidecar_transport_drop(ddtrace_sidecar);
+    if (ddtrace_sidecar_instance_id) {
+        ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
     }
+
 }
 
 void ddtrace_force_new_instance_id(void) {

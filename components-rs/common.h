@@ -264,34 +264,6 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
-typedef enum ddog_ConfigurationOrigin {
-  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
-  DDOG_CONFIGURATION_ORIGIN_CODE,
-  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
-  DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
-} ddog_ConfigurationOrigin;
-
-typedef enum ddog_DynamicConfigUpdateMode {
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
-} ddog_DynamicConfigUpdateMode;
-
-typedef enum ddog_EvaluateAt {
-  DDOG_EVALUATE_AT_ENTRY,
-  DDOG_EVALUATE_AT_EXIT,
-} ddog_EvaluateAt;
-
-typedef enum ddog_InBodyLocation {
-  DDOG_IN_BODY_LOCATION_NONE,
-  DDOG_IN_BODY_LOCATION_START,
-  DDOG_IN_BODY_LOCATION_END,
-} ddog_InBodyLocation;
-
 typedef enum ddog_Log {
   DDOG_LOG_ERROR = 1,
   DDOG_LOG_WARN = 2,
@@ -305,6 +277,13 @@ typedef enum ddog_Log {
   DDOG_LOG_SPAN_TRACE = (5 | (3 << 4)),
   DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
 } ddog_Log;
+
+typedef enum ddog_DynamicConfigUpdateMode {
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
+} ddog_DynamicConfigUpdateMode;
 
 typedef enum ddog_InBodyLocation {
   DDOG_IN_BODY_LOCATION_NONE,
@@ -457,6 +436,8 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
+typedef struct _zend_string *ddog_OwnedZendString;
+
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
@@ -471,8 +452,6 @@ typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
 } ddog_Tag;
-
-typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
@@ -803,6 +782,7 @@ typedef enum ddog_FieldType {
 
 typedef enum ddog_DebuggerType {
   DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
+  DDOG_DEBUGGER_TYPE_SNAPSHOTS,
   DDOG_DEBUGGER_TYPE_LOGS,
 } ddog_DebuggerType;
 
@@ -1086,38 +1066,6 @@ typedef struct ddog_SenderParameters {
   ddog_CharSlice url;
 } ddog_SenderParameters;
 
-typedef enum ddog_crasht_BuildIdType {
-  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
-  DDOG_CRASHT_BUILD_ID_TYPE_GO,
-  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
-  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
-} ddog_crasht_BuildIdType;
-
-/**
- * Result type for runtime callback registration
- */
-typedef enum ddog_crasht_CallbackResult {
-  DDOG_CRASHT_CALLBACK_RESULT_OK,
-  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
-} ddog_crasht_CallbackResult;
-
-typedef enum ddog_crasht_DemangleOptions {
-  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
-  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
-} ddog_crasht_DemangleOptions;
-
-typedef enum ddog_crasht_ErrorKind {
-  DDOG_CRASHT_ERROR_KIND_PANIC,
-  DDOG_CRASHT_ERROR_KIND_UNHANDLED_EXCEPTION,
-  DDOG_CRASHT_ERROR_KIND_UNIX_SIGNAL,
-} ddog_crasht_ErrorKind;
-
-typedef enum ddog_crasht_FileType {
-  DDOG_CRASHT_FILE_TYPE_APK,
-  DDOG_CRASHT_FILE_TYPE_ELF,
-  DDOG_CRASHT_FILE_TYPE_PE,
-} ddog_crasht_FileType;
-
 /**
  * Stacktrace collection occurs in the context of a crashing process.
  * If the stack is sufficiently corruputed, it is possible (but unlikely),
@@ -1260,6 +1208,14 @@ typedef enum ddog_crasht_DemangleOptions {
   DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
 } ddog_crasht_DemangleOptions;
 
+/**
+ * Result type for runtime callback registration
+ */
+typedef enum ddog_crasht_CallbackResult {
+  DDOG_CRASHT_CALLBACK_RESULT_OK,
+  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
+} ddog_crasht_CallbackResult;
+
 typedef struct ddog_crasht_CrashInfo ddog_crasht_CrashInfo;
 
 typedef struct ddog_crasht_CrashInfoBuilder ddog_crasht_CrashInfoBuilder;
@@ -1336,7 +1292,7 @@ typedef struct ddog_crasht_Config {
   /**
    * Timeout in milliseconds before the signal handler starts tearing things down to return.
    * If 0, uses the default timeout as specified in
-   * `datadog_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
+   * `libdd_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
    * the specified timeout value.
    * This is given as a uint32_t, but the actual timeout needs to fit inside of an i32 (max
    * 2^31-1). This is a limitation of the various interfaces used to guarantee the timeout.

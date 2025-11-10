@@ -1089,106 +1089,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "data-pipeline"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "arc-swap",
- "bytes",
- "clap",
- "criterion",
- "datadog-trace-protobuf",
- "datadog-trace-stats",
- "datadog-trace-utils",
- "ddcommon 0.0.1",
- "ddtelemetry",
- "either",
- "http",
- "http-body-util",
- "httpmock",
- "hyper",
- "hyper-util",
- "libdd-ddsketch",
- "libdd-dogstatsd-client",
- "libdd-log",
- "libdd-tinybytes",
- "rand 0.8.5",
- "regex",
- "rmp-serde",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tokio",
- "tokio-util",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "datadog-alloc"
-version = "21.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=0b59f64c4fc08105e5b73c5a0752ced3cf8f653e#0b59f64c4fc08105e5b73c5a0752ced3cf8f653e"
-dependencies = [
- "allocator-api2",
- "libc 0.2.177",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "datadog-crashtracker"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "backtrace",
- "blazesym",
- "cc",
- "chrono",
- "criterion",
- "ddcommon 0.0.1",
- "ddtelemetry",
- "goblin",
- "http",
- "libc 0.2.177",
- "nix",
- "num-derive",
- "num-traits",
- "os_info",
- "page_size",
- "portable-atomic",
- "rand 0.8.5",
- "schemars",
- "serde",
- "serde_json",
- "symbolic-common",
- "symbolic-demangle",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "uuid",
- "windows 0.59.0",
-]
-
-[[package]]
-name = "datadog-crashtracker-ffi"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "build_common",
- "datadog-crashtracker",
- "ddcommon 0.0.1",
- "ddcommon-ffi",
- "function_name",
- "libc 0.2.177",
- "serde",
- "serde_json",
- "symbolic-common",
- "symbolic-demangle",
- "tempfile",
- "windows 0.59.0",
-]
-
-[[package]]
 name = "datadog-ipc"
 version = "0.1.0"
 dependencies = [
@@ -1264,17 +1164,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "uuid",
-]
-
-[[package]]
-name = "datadog-log"
-version = "0.0.1"
-dependencies = [
- "chrono",
- "tempfile",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
 ]
 
 [[package]]
