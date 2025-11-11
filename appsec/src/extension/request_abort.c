@@ -62,8 +62,8 @@ static const char static_error_html[] =
 static const char static_error_json[] =
     "{\"errors\": [{\"title\": \"You've been blocked\", \"detail\": \"Sorry, yo"
     "u cannot access this page. Please contact the customer service team. Secur"
-    "ity provided by Datadog.\", \"security_response_id\": "
-    "\"[security_response_id]\"}]}";
+    "ity provided by Datadog.\"}], \"security_response_id\": "
+    "\"[security_response_id]\"}";
 
 static zend_string *_initial_cwd;
 static zend_string *_body_error_html_def;
