@@ -120,3 +120,14 @@ services:
         phpTarGzUrl: https://www.php.net/distributions/php-8.4.1.tar.gz
         phpSha256Hash: "c3d1ce4157463ea43004289c01172deb54ce9c5894d8722f4e805461bf9feaec"
     image: 'datadog/dd-trace-ci:php-8.4_centos-7'
+
+  php-8.5:
+    build:
+      context: .
+      dockerfile: php.Dockerfile
+      x-bake: *bake
+      args:
+        phpVersion: "8.5"
+        phpTarGzUrl: https://downloads.php.net/~daniels/php-8.5.0RC3.tar.gz
+        phpSha256Hash: "937e544d72ee1eb28d2190cadaadf8e5e8d7d8c365b5c1f6a99b4f979a1f3a1b"
+    image: 'datadog/dd-trace-ci:php-8.5_centos-7'

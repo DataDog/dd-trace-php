@@ -2,6 +2,8 @@
 E_ERROR fatal errors are tracked from internal function
 --ENV--
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
+--INI--
+fatal_error_backtraces=0
 --FILE--
 <?php
 register_shutdown_function(function () {

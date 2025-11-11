@@ -1,4 +1,4 @@
-use datadog_alloc::{AllocError, Allocator, ChainAllocator};
+use libdd_alloc::{AllocError, Allocator, ChainAllocator};
 use std::alloc::Layout;
 use std::borrow::Borrow;
 use std::hash;
@@ -190,7 +190,7 @@ static EMPTY_INLINE_STRING: StaticInlineString<0> = StaticInlineString::<0> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use datadog_alloc::Global;
+    use libdd_alloc::Global;
     use datadog_profiling::collections::string_table::wordpress_test_data;
 
     // Not really, please manually de-allocate strings when done with them.

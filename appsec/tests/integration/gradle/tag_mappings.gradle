@@ -124,5 +124,17 @@ ext.tag_mappings = [
     'php-7.0-release-zts': 'sha256:4bb5fac6fbd3124234d062328c68f6c51027aa95f13e4e8b14afd7c8de518ec6',
     'apache2-mod-php-8.4-release': 'sha256:79c2d7dd843b18ce2c5f929e6300e9a1f64a5e00a7edbaeb9f75d8a60b2be3d2',
     'php-7.0-release': 'sha256:627c4f460fa1c11f3f5da44d9361eba5de9f38134189ca05b3bfdb9979011e44',
-    'php-7.1-release-zts': 'sha256:d997b9f99c28967872bd0949f8572b089daaadb6ceaa1e856ccc76e07e2ba6b7'
+    'php-7.1-release-zts': 'sha256:d997b9f99c28967872bd0949f8572b089daaadb6ceaa1e856ccc76e07e2ba6b7',
+    'php-8.5-release': 'sha256:8728b0dd4fe83b1b0ea6e8d129d685dbd46e93d97782421bfdd549b9ecc57e9f',
+    'php-8.5-release-zts': 'sha256:7521a31e22c9363ac681b71cd058046ade967ff35210a15083fbb1cc342b4188',
+    'php-8.5-debug': 'sha256:badd675d5b86c52ea0100784adca65d728e8731ceae9693869763171f5b363bd',
+    'apache2-fpm-php-8.5-release-zts': 'sha256:73f65188ffdd1a8fa0d14c8209f8a741fdb20b98db41f2a839fd49d6f567af45',
+    'apache2-fpm-php-8.5-release': 'sha256:0897c1b7f60aa2424c4c893d89fffff6258c8cd798056f8f5efdd6b4b0e65ab3',
+    'apache2-fpm-php-8.5-debug': 'sha256:229af7b98d64bb48438ca2ddaf3451da0e344649e01e0bdd15f9d03edda97e63',
+    'apache2-mod-php-8.5-release-zts': 'sha256:c251da953a25e265551659a91798911948f882a959e9c926581824ca24618539',
+    'apache2-mod-php-8.5-release': 'sha256:7be04bc4f4858dbfae4367c201e3e171ce085b14049bc00b5032fd32784de7da',
+    'apache2-mod-php-8.5-debug': 'sha256:546eda07534d0c0221fc6636ff54ac102db36d6201a59621651a4f059611e1ff',
+    'nginx-fpm-php-8.5-release-zts': 'sha256:0fdcee4b7c84f764789e825796115687843b72f667e73ddbb629a212a34333bd',
+    'nginx-fpm-php-8.5-release': 'sha256:07573dae4a904c764ee8de036a62199a9f9dc106664b8e9bdb477c1391c74ca1',
+    'nginx-fpm-php-8.5-debug': 'sha256:35ab8b5b90fcc43418a621a5f335fd724d41953cfca876aff4cce0c2cca02413'
 ]

@@ -79,8 +79,8 @@ jobs:
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
-              if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.lz4 ]; then
-                echo "File $DD_PROFILING_OUTPUT_PPROF.1.lz4 should not exist!"
+              if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.zst ]; then
+                echo "File $DD_PROFILING_OUTPUT_PPROF.1.zst should not exist!"
                 exit 1;
               fi
           done

@@ -17,7 +17,7 @@ use std::ptr::null_mut;
 use uuid::Uuid;
 
 pub use datadog_crashtracker_ffi::*;
-pub use datadog_library_config_ffi::*;
+pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
 use ddcommon::{parse_uri, Endpoint};
 use ddcommon_ffi::slice::AsBytes;
@@ -107,7 +107,7 @@ pub extern "C" fn ddog_library_configurator_new_dummy(
     debug_logs: bool,
     language: CharSlice,
 ) -> Box<Configurator> {
-    datadog_library_config_ffi::ddog_library_configurator_new(debug_logs, language)
+    ddog_library_configurator_new(debug_logs, language)
 }
 
 // Starting with https://github.com/rust-lang/rust/commit/7f74c894b0e31f370b5321d94f2ca2830e1d30fd

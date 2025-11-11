@@ -2,6 +2,7 @@
 
 require_once __DIR__."/includes/autoload.php";
 skip_if_php5();
+skip_if_over_php85();
 skip_if_opcache_missing();
 
 $output = runCLI(__DIR__.'/fixtures/opcache.php');
