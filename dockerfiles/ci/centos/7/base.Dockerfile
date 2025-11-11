@@ -241,7 +241,7 @@ RUN source scl_source enable devtoolset-7 \
 
 # Install rust-src manually, since it's not included in the offline installer.
 # Levi figured this out through reading the rustup script and trial and error.
-RUN rustver="1.84.1" \
+RUN rustver="$RUST_VERSION" \
     && prefix="$(rustc --print sysroot)" \
     && curl -OL "https://static.rust-lang.org/dist/channel-rust-$rustver.toml" \
     && url=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "url" {print $3}' | cut -f2 -d'"') \
