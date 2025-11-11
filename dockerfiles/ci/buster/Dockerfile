@@ -318,25 +318,6 @@ RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
 
 ENV PATH="/rust/cargo/bin:${PATH}"
 
-# Install rust-src manually, since it's not included in the offline installer.
-# Levi figured this out through reading the rustup script and trial and error.
-RUN rustver="1.84.1" \
-    && prefix="$(rustc --print sysroot)" \
-    && curl -OL "https://static.rust-lang.org/dist/channel-rust-$rustver.toml" \
-    && url=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "url" {print $3}' | cut -f2 -d'"') \
-    && hash=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "hash" {print $3}' | cut -f2 -d'"') \
-    && echo "URL: $url" \
-    && echo "Hash: $hash" \
-    && curl -OL "$url" \
-    && fname="${url##*/}" \
-    && dir="${fname%.tar.*}" \
-    && printf '%s  %s' "$hash" "$fname" | sha256sum --check --status \
-    && tar -xf "$fname" \
-    && cd "$dir" \
-    && ./install.sh --components="rust-src" --prefix="$prefix" \
-    && cd - \
-    && rm -fr "$fname" "$dir" "channel-rust-$rustver.toml"
-
 ARG GO_VERSION="1.22.1"
 ARG GO_SHA256_ARM="e56685a245b6a0c592fc4a55f0b7803af5b3f827aaa29feab1f40e491acf35b8"
 ARG GO_SHA256_X86="aab8e15785c997ae20f9c88422ee35d962c4562212bb0f879d052a35c8307c7f"
