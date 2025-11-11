@@ -21,7 +21,6 @@ class WafSubcontextTests {
     static boolean enabled = variant.contains('zts') && phpVersion.contains('7.0') ||
             !variant.contains('zts') && (phpVersion.contains('8.3') || phpVersion.contains('8.4'))
 
-
     private static final int TEST_SERVER_PORT = 8899
 
     @Container

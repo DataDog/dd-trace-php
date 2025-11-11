@@ -1724,7 +1724,7 @@ class CurlHandleAppSecContext
         $this->notifiedBodies = -1;
 
         \datadog\appsec\push_addresses($data, [
-            'subctx_id' => (string)spl_object_id($this),
+            'subctx_id' => spl_object_hash($this),
             'subctx_last_call' => (bool)$lastCall,
         ]);
 
