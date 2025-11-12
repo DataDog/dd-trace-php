@@ -45,6 +45,9 @@ $rr->waitForRequest(function ($request) {
         if (!isset($payload["message"]["metadata"])) {
             break;
         }
+        if (($payload["message"]["kind"] ?? "") == "Crash ping") {
+            continue;
+        }
 
         $output = json_encode($payload, JSON_PRETTY_PRINT);
         echo $output;
