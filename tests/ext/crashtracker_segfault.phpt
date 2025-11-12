@@ -28,7 +28,7 @@ posix_setrlimit(POSIX_RLIMIT_CORE, 0, 0);
 
 $php = getenv('TEST_PHP_EXECUTABLE');
 $args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
-$cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);'";
+$cmd = $php." ".$args." -r 'spl_autoload_register(function() { posix_kill(posix_getpid(), 11); }); class_exists(Test::class);'";
 system($cmd);
 
 $rr->waitForRequest(function ($request) {
@@ -68,6 +68,16 @@ $rr->waitForRequest(function ($request) {
                     {
                         "file": "[internal function]",
                         "function": "posix_kill"
+                    },
+                    {
+                        "file": "Command line code",
+                        "function": "{closur%s}",
+                        "line": 1
+                    },
+%A                  {
+                        "file": "[internal function]",
+                        "function": "class_exists",
+                        "line": 1
                     },
                     {
                         "file": "Command line code",
