@@ -1,5 +1,5 @@
 --TEST--
-User requests: basic functionality with block_id
+User requests: basic functionality with security_response_id
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=true
@@ -75,7 +75,7 @@ Result of notify_start:
 Array
 (
     [status] => 403
-    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "security_response_id": ""}]}
+    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}], "security_response_id": ""}
     [headers] => Array
         (
             [Content-Type] => application/json
@@ -87,7 +87,7 @@ Result of notify_commit:
 Array
 (
     [status] => 403
-    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "security_response_id": ""}]}
+    [body] => {"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}], "security_response_id": ""}
     [headers] => Array
         (
             [Content-Type] => application/json

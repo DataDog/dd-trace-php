@@ -23,4 +23,4 @@ rshutdown();
 Status: 403 Forbidden
 Content-type: application/json
 --EXPECTF--
-{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "security_response_id": ""}]}
+{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}], "security_response_id": ""}

@@ -38,6 +38,30 @@ class CurlSpanInfo {
         if (isset($this->span) && $this->span->getDuration() === 0) {
             $stack = \DDTrace\active_stack();
             \DDTrace\switch_stack($this->span);
+
+            foreach ($this->spans as $requestSpan) {
+                list($ch, $requestSpan) = $requestSpan;
+                if (isset($requestSpan->meta[Tag::ERROR_MSG])) {
+                    continue;
+                }
+                if (isset($requestSpan->meta[Tag::NETWORK_DESTINATION_NAME]) && $requestSpan->meta[Tag::NETWORK_DESTINATION_NAME] !== 'unparsable-host') {
+                    continue;
+                }
+                $info = curl_getinfo($ch);
+                $errorMsg = curl_error($ch);
+                if (empty($info['http_code']) && $errorMsg !== 'No error') {
+                    $error_trace = \DDTrace\get_sanitized_exception_trace(new \Exception(), 1);
+                    $requestSpan->meta[Tag::ERROR_MSG] = $errorMsg;
+                    $requestSpan->meta[Tag::ERROR_TYPE] = 'curl error';
+                    $requestSpan->meta[Tag::ERROR_STACK] = $error_trace;
+                }
+                CurlIntegration::set_curl_attributes($requestSpan, $info);
+                if (isset($info["total_time"])) {
+                    $endTime = $info["total_time"] + $requestSpan->getStartTime() / 1e9;
+                    \DDTrace\update_span_duration($requestSpan, $endTime);
+                }
+            }
+
             \DDTrace\close_span();
             \DDTrace\switch_stack($stack);
         }

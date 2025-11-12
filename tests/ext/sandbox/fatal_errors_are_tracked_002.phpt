@@ -6,6 +6,7 @@ E_ERROR fatal errors are tracked from hitting the memory limit
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 memory_limit=2M
+fatal_error_backtraces=0
 --FILE--
 <?php
 register_shutdown_function(function () {

@@ -934,6 +934,7 @@ static zend_object *dd_init_span_data_object(zend_class_entry *class_type, ddtra
     zend_object_std_init(&span->std, class_type);
     span->std.handlers = handlers;
     object_properties_init(&span->std, class_type);
+    ZVAL_NULL(&span->property_parent); // readonly prop cannot be initialized in stub
 #if PHP_VERSION_ID < 80000
     // Not handled in arginfo on these old versions
     array_init(&span->property_meta);
@@ -984,6 +985,7 @@ static zend_object *ddtrace_span_stack_create(zend_class_entry *class_type) {
     stack->root_stack = stack;
     stack->std.handlers = &ddtrace_span_stack_handlers;
     object_properties_init(&stack->std, class_type);
+    ZVAL_NULL(&stack->property_parent); // readonly prop cannot be initialized in stub
     // Explicitly assign property-mapped NULLs
     stack->active = NULL;
     stack->parent_stack = NULL;

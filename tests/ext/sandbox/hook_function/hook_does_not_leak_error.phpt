@@ -15,7 +15,8 @@ set_error_handler(function() {
     return false;
 });
 
-function foo() {}
+function foo() { echo "foo\n"; }
+
 DDTrace\trace_function("foo", function() {
     trigger_error("Fatal", E_USER_ERROR);
 });
@@ -27,6 +28,9 @@ foo();
 
 ?>
 --EXPECTF--
+foo
+[ddtrace] [warning] Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
 int(200)
+foo
 [ddtrace] [warning] Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
 [ddtrace] [info] Flushing trace of size %s

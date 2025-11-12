@@ -36,8 +36,8 @@ function download_php {
   local download_url
   if [[ $version_id -lt 50400 ]]; then
     download_url="http://museum.php.net/php5/php-${version}.tar.gz"
-  elif [[ $version_id -ge 80400 ]]; then
-    download_url="https://downloads.php.net/~saki/php-8.4.0RC3.tar.gz"
+  elif [[ $version_id -ge 80500 ]]; then
+    download_url="https://downloads.php.net/~daniels/php-8.5.0RC3.tar.gz"
   else
     download_url="https://www.php.net/distributions/php-${version}.tar.gz"
   fi
@@ -81,7 +81,7 @@ chmod +x /tmp/apxs_wrapper
 }
 
 function run_dsymutil {
-  if [[ $(uname) != Darwin ]] then
+  if [[ $(uname) != Darwin ]]; then
     return
   fi
   local readonly dir=$1 exe=

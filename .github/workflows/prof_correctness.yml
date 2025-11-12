@@ -78,7 +78,7 @@ jobs:
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              php -d extension="${PWD}/target/profiler-release/libdatadog_php_profiling.so" "profiling/tests/correctness/${test_case}.php"
               if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.lz4 ]; then
                 echo "File $DD_PROFILING_OUTPUT_PPROF.1.lz4 should not exist!"
                 exit 1;
