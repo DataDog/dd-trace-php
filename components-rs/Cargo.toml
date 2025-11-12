@@ -20,7 +20,7 @@ datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
 libdd-tinybytes = { path = "../libdatadog/libdd-tinybytes" }
 libdd-trace-utils = { path = "../libdatadog/libdd-trace-utils" }
-datadog-crashtracker-ffi = { path = "../libdatadog/datadog-crashtracker-ffi", default-features = false, features = ["collector"] }
+libdd-crashtracker-ffi = { path = "../libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi", default-features = false }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }

@@ -17,7 +17,7 @@ use std::ffi::c_char;
 use std::ptr::null_mut;
 use uuid::Uuid;
 
-pub use datadog_crashtracker_ffi::*;
+pub use libdd_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
 use libdd_common::{parse_uri, Endpoint};
