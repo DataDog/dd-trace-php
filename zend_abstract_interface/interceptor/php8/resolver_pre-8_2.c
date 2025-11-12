@@ -239,11 +239,8 @@ static int zai_interceptor_declare_class_delayed_handler(zend_execute_data *exec
 
 // The JIT *requires* a CALL VM (or HYBRID VM and ZEND_DECLARE_* ops are not marked as HOT handlers)
 // Thus we know that EX(opline)->handler contains a valid zend_vm_opcode_handler_t, which we can call.
-#ifdef HAVE_GCC_GLOBAL_REGS
-typedef void (ZEND_FASTCALL *zend_vm_opcode_handler_t)(void);
-#else
+// When HAVE_GCC_GLOBAL_REGS is given, it's actually accepting void. However with the C ABI it doesn't matter if you pass too many args...
 typedef int (ZEND_FASTCALL *zend_vm_opcode_handler_t)(zend_execute_data *execute_data);
-#endif
 static zend_vm_opcode_handler_t zai_interceptor_handlers[256];
 
 // Alternative implementation when a JIT is active. We have no choice but be a noisy neighbor in this case (on PHP 8.0 at least)
@@ -251,14 +248,10 @@ static zend_vm_opcode_handler_t zai_interceptor_handlers[256];
 // offset we are unable to access from here (lacking visibility).
 // Given that the JIT just works under circumstances which would allow us to directly call the handlers, we just can call them here and continue.
 static int zai_interceptor_declare_jit_handler(zend_execute_data *execute_data) {
-    zend_string *lcname = Z_STR_P(RT_CONSTANT(EX(opline), EX(opline)->op1));
-#ifdef HAVE_GCC_GLOBAL_REGS
-    zai_interceptor_handlers[EX(opline)->opcode]();
-    ++EX(opline); // opline increment is register increment, but user opcode handler reads back from EX(opline). Manually increment here.
-#else
-    zai_interceptor_handlers[EX(opline)->opcode](execute_data);
-#endif
-    if (EX(opline)->opcode == ZEND_DECLARE_FUNCTION) {
+    zend_op *orig_opline = EX(opline);
+    zend_string *lcname = Z_STR_P(RT_CONSTANT(orig_opline, orig_opline->op1));
+    zai_interceptor_handlers[orig_opline->opcode](execute_data);
+    if (orig_opline->opcode == ZEND_DECLARE_FUNCTION) {
         zend_function *function = zend_hash_find_ptr(CG(function_table), lcname);
         if (function) {
             zai_hook_resolve_function(function, lcname);
@@ -268,6 +261,12 @@ static int zai_interceptor_declare_jit_handler(zend_execute_data *execute_data) 
         if (ce) {
             zai_hook_resolve_class(ce, lcname);
         }
+    }
+    // When HAVE_GCC_GLOBAL_REGS is given this will be the case: EX(opline) is unmodified. But we cannot trivially observe HAVE_GCC_GLOBAL_REGS
+    // in PHP 8.0 or 8.1. Hence we just check for whether it was changed - and if not we can go ahead with the HAVE_GCC_GLOBAL_REGS specific handling.
+    if (orig_opline == EX(opline)) {
+        // opline increment is register increment, but user opcode handler reads back from EX(opline). Manually increment here.
+        ++EX(opline);
     }
     return ZEND_USER_OPCODE_CONTINUE;
 }
