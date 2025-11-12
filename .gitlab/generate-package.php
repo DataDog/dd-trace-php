@@ -1452,6 +1452,30 @@ deploy_to_reliability_env:
     # Prevent token from appearing in logs
     GITHUB_TOKEN: "[MASKED]"
 
+"upload SSI debug symbols":
+  stage: pre-release
+  image: registry.ddbuild.io/ci/async-profiler-build:v71888475-datadog-ci
+  tags: [ "arch:amd64" ]
+  only:
+    - tags
+  needs:
+<?php
+foreach ($arch_targets as $arch) {
+?>
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
+<?php
+}
+?>
+  before_script:
+    - mkdir build
+    - find packages -name "*.tar.gz" -exec tar xzf {} -C build/ \;
+  script:
+    - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_prod_us1 --with-decryption --query "Parameter.Value" --out text)
+    - export DATADOG_API_KEY_STAGING=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_staging --with-decryption --query "Parameter.Value" --out text)
+    - DATADOG_API_KEY=$DATADOG_API_KEY_STAGING DATADOG_SITE=datad0g.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
+    - DATADOG_API_KEY=$DATADOG_API_KEY_PROD DATADOG_SITE=datadoghq.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
+
 "publish release to github":
   stage: release
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
