@@ -15,10 +15,10 @@ use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
-use ddcommon::tag::Tag;
-use ddcommon::Endpoint;
-use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::{CharSlice, MaybeError};
+use libdd_common::tag::Tag;
+use libdd_common::Endpoint;
+use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::{CharSlice, MaybeError};
 use itertools::Itertools;
 use regex_automata::dfa::regex::Regex;
 use serde::Serialize;
@@ -39,14 +39,14 @@ type DynamicConfigUpdate = for<'a> extern "C" fn(
 static mut LIVE_DEBUGGER_CALLBACKS: Option<LiveDebuggerCallbacks> = None;
 static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
 
-type VecRemoteConfigProduct = ddcommon_ffi::Vec<RemoteConfigProduct>;
+type VecRemoteConfigProduct = libdd_common_ffi::Vec<RemoteConfigProduct>;
 #[no_mangle]
-pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = ddcommon_ffi::Vec::new();
+pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = libdd_common_ffi::Vec::new();
 
-type VecRemoteConfigCapabilities = ddcommon_ffi::Vec<RemoteConfigCapabilities>;
+type VecRemoteConfigCapabilities = libdd_common_ffi::Vec<RemoteConfigCapabilities>;
 #[no_mangle]
 pub static mut DDTRACE_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities =
-    ddcommon_ffi::Vec::new();
+    libdd_common_ffi::Vec::new();
 
 #[derive(Default)]
 struct DynamicConfig {
@@ -433,7 +433,7 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     service: CharSlice,
     env: CharSlice,
     version: CharSlice,
-    tags: &ddcommon_ffi::Vec<Tag>,
+    tags: &libdd_common_ffi::Vec<Tag>,
 ) -> bool {
     let new_target = Target {
         service: service.to_utf8_lossy().to_string(),

@@ -1,5 +1,5 @@
-use datadog_trace_utils::span::SpanBytes;
-use ddcommon_ffi::slice::{AsBytes, CharSlice};
+use libdd_trace_utils::span::SpanBytes;
+use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::os::raw::c_char;

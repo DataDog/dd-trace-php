@@ -8,7 +8,7 @@ pub mod sidecar;
 pub mod telemetry;
 pub mod bytes;
 
-use ddcommon::entity_id::{get_container_id, set_cgroup_file};
+use libdd_common::entity_id::{get_container_id, set_cgroup_file};
 use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use std::borrow::Cow;
@@ -19,10 +19,10 @@ use uuid::Uuid;
 pub use datadog_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
-use ddcommon::{parse_uri, Endpoint};
-use ddcommon_ffi::slice::AsBytes;
-pub use ddcommon_ffi::*;
-pub use ddtelemetry_ffi::*;
+use libdd_common::{parse_uri, Endpoint};
+use libdd_common_ffi::slice::AsBytes;
+pub use libdd_common_ffi::*;
+pub use libdd_telemetry_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]

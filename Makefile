@@ -48,7 +48,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJ
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-crashtracker,datadog-crashtracker-ffi,data-pipeline,ddcommon,ddcommon-ffi,ddtelemetry,ddtelemetry-ffi,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-tinybytes,spawn_worker,tools/{cc_utils,sidecar_mockgen},datadog-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-crashtracker,datadog-crashtracker-ffi,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-common,libdd-common-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},datadog-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -424,14 +424,14 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 			--config cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/ddtrace.h; \
 		cd libdatadog; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
-			--config ddcommon-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-common-ffi \
+			--config libdd-common-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
 			--config datadog-live-debugger-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
-			--config ddtelemetry-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-telemetry-ffi  \
+			--config libdd-telemetry-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
 			--config datadog-sidecar-ffi/cbindgen.toml \
