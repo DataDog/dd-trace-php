@@ -1466,20 +1466,8 @@ foreach ($arch_targets as $arch) {
   script:
     - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_prod_us1 --with-decryption --query "Parameter.Value" --out text)
     - export DATADOG_API_KEY_STAGING=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_staging --with-decryption --query "Parameter.Value" --out text)
-    - |
-      if [ -n "${DATADOG_API_KEY_STAGING:-}" ]; then
-        echo "Uploading debug symbols to Datadog..."
-        DATADOG_API_KEY=$DATADOG_API_KEY_STAGING DATADOG_SITE=datad0g.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
-      else
-        echo "DATADOG_API_KEY_STAGING not set, skipping Datadog symbol upload"
-      fi
-    - |
-      if [ -n "${DATADOG_API_KEY_PROD:-}" ]; then
-        echo "Uploading debug symbols to Datadog..."
-        DATADOG_API_KEY=$DATADOG_API_KEY_PROD DATADOG_SITE=datadoghq.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
-      else
-        echo "DATADOG_API_KEY_PROD not set, skipping Datadog symbol upload"
-      fi
+    - DATADOG_API_KEY=$DATADOG_API_KEY_STAGING DATADOG_SITE=datad0g.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
+    - DATADOG_API_KEY=$DATADOG_API_KEY_PROD DATADOG_SITE=datadoghq.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
 
 "publish release to github":
   stage: release
