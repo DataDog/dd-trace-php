@@ -306,7 +306,7 @@ ENV RUSTUP_HOME=/rust/rustup
 RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && chmod -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && MARCH=$(uname -m) \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $RUST_VERSION -c "rustc,cargo,clippy-preview,rustfmt-preview,rust-std" \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $RUST_VERSION -c "rustc,cargo,clippy-preview,rustfmt-preview,rust-std,rust-src" \
     && export PATH="/rust/cargo/bin:$PATH" \
     && rustup install nightly${RUST_NIGHTLY_VERSION} \
     && rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}-$MARCH-unknown-linux-gnu
