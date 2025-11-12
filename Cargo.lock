@@ -1138,6 +1138,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "libdd-common",
+ "libdd-data-pipeline",
  "percent-encoding",
  "regex",
  "regex-automata 0.4.9",
