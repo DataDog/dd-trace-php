@@ -355,14 +355,16 @@ static void _command_process_block_parameters(mpack_node_t root)
             --expected_nodes;
         } else if (dd_mpack_node_lstr_eq(key, "security_response_id")) {
             size_t security_response_id_len = mpack_node_strlen(value);
-            security_response_id = zend_string_init(mpack_node_str(value), security_response_id_len, 0);
+            security_response_id = zend_string_init(
+                mpack_node_str(value), security_response_id_len, 0);
             --expected_nodes;
         }
     }
 
     mlog(dd_log_debug,
         "Blocking parameters: status_code=%d, type=%d, security_response_id=%s",
-        status_code, type, security_response_id ? ZSTR_VAL(security_response_id) : "NULL");
+        status_code, type,
+        security_response_id ? ZSTR_VAL(security_response_id) : "NULL");
     dd_set_block_code_and_type(status_code, type, security_response_id);
 }
 
@@ -410,16 +412,19 @@ static void _command_process_redirect_parameters(mpack_node_t root)
             --expected_nodes;
         } else if (dd_mpack_node_lstr_eq(key, "security_response_id")) {
             size_t security_response_id_len = mpack_node_strlen(value);
-            security_response_id = zend_string_init(mpack_node_str(value), security_response_id_len, 0);
+            security_response_id = zend_string_init(
+                mpack_node_str(value), security_response_id_len, 0);
             --expected_nodes;
         }
     }
 
     mlog(dd_log_debug,
-        "Redirect parameters: status_code=%d, location=%s, security_response_id=%s",
+        "Redirect parameters: status_code=%d, location=%s, "
+        "security_response_id=%s",
         status_code, location ? ZSTR_VAL(location) : "NULL",
         security_response_id ? ZSTR_VAL(security_response_id) : "NULL");
-    dd_set_redirect_code_and_location(status_code, location, security_response_id);
+    dd_set_redirect_code_and_location(
+        status_code, location, security_response_id);
 }
 static void _command_process_stack_trace_parameters(mpack_node_t root)
 {

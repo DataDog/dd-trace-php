@@ -257,7 +257,8 @@ void dd_request_abort_rinit(void)
 
 void dd_set_redirect_code_and_location(
     // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    int code, zend_string *nullable location, zend_string *nullable security_response_id)
+    int code, zend_string *nullable location,
+    zend_string *nullable security_response_id)
 {
     int response_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
 
@@ -370,14 +371,16 @@ void dd_request_abort_redirect(void)
             "Datadog blocked the request and attempted a redirection to %s. No "
             "action required. Security Response ID: %s",
             ZSTR_VAL(_block_parameters->redirection_location),
-            _block_parameters->security_response_id ? ZSTR_VAL(_block_parameters->security_response_id)
-                                        : "");
+            _block_parameters->security_response_id
+                ? ZSTR_VAL(_block_parameters->security_response_id)
+                : "");
     } else {
         _emit_error("Datadog blocked the request and attempted a redirection "
                     "to %s. No action required. Security Response ID: %s",
             ZSTR_VAL(_block_parameters->redirection_location),
-            _block_parameters->security_response_id ? ZSTR_VAL(_block_parameters->security_response_id)
-                                        : "");
+            _block_parameters->security_response_id
+                ? ZSTR_VAL(_block_parameters->security_response_id)
+                : "");
     }
 }
 
@@ -455,13 +458,15 @@ void _request_abort_static_page(int response_code, int type)
         mlog(dd_log_info,
             "Datadog blocked the request and presented a static error page. No "
             "action required. Security Response ID: %s",
-            _block_parameters->security_response_id ? ZSTR_VAL(_block_parameters->security_response_id)
-                                        : "");
+            _block_parameters->security_response_id
+                ? ZSTR_VAL(_block_parameters->security_response_id)
+                : "");
     } else {
         _emit_error("Datadog blocked the request and presented a static error "
                     "page. No action required. Security Response ID: %s",
-            _block_parameters->security_response_id ? ZSTR_VAL(_block_parameters->security_response_id)
-                                        : "");
+            _block_parameters->security_response_id
+                ? ZSTR_VAL(_block_parameters->security_response_id)
+                : "");
     }
 }
 
