@@ -275,7 +275,11 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
-
+        def appsecJsonMap = new groovy.json.JsonSlurper().parseText(span.meta."_dd.appsec.json")
+        assert appsecJsonMap.triggers.every { trigger ->
+            def securityResponseId = trigger.security_response_id
+            securityResponseId != null && securityResponseId ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        }
         return span
     }
 

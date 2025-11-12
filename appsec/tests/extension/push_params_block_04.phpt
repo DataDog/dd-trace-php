@@ -1,5 +1,5 @@
 --TEST--
-Push address gets blocked with block_id
+Push address gets blocked with security_response_id
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=1
@@ -12,7 +12,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_exec([[['block', ['status_code' => '404', 'type' => 'json', 'block_id' => 'some-id-here']]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_exec([[['block', ['status_code' => '404', 'type' => 'json', 'security_response_id' => 'some-id-here']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ]);
 
 rinit();

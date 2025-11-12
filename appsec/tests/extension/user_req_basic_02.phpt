@@ -1,5 +1,5 @@
 --TEST--
-User requests: basic functionality with block_id
+User requests: basic functionality with security_response_id
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=true
