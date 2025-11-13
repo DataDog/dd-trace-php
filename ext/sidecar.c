@@ -10,6 +10,7 @@
 #include <components-rs/sidecar.h>
 #include <zend_string.h>
 #include "sidecar.h"
+#include "live_debugger.h"
 #include "telemetry.h"
 #include "serializer.h"
 #include "remote_config.h"
@@ -139,7 +140,7 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
 
             ddtrace_ffi_try("Failed sending config data",
                             ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
-                                                                    env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags)));
+                                                                    env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
         }
 
         tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
@@ -512,7 +513,7 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
 
         // This must not be in mutex, as a reconnect may happen here
         ddtrace_ffi_try("Failed sending config data",
-                        ddog_sidecar_set_universal_service_tags(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+                        ddog_sidecar_set_universal_service_tags(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
     } else {
         zend_string_release(service_string);
         zend_string_release(env_string);

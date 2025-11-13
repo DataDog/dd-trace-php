@@ -1,6 +1,7 @@
 #![allow(internal_features)]
 #![feature(allow_internal_unstable)]
 #![feature(linkage)]
+#![allow(static_mut_refs)] // remove with move to Rust 2024 edition
 
 pub mod log;
 pub mod remote_config;
@@ -16,7 +17,7 @@ use std::ffi::c_char;
 use std::ptr::null_mut;
 use uuid::Uuid;
 
-pub use datadog_crashtracker_ffi::*;
+pub use libdd_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
 use libdd_common::{parse_uri, Endpoint};

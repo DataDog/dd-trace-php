@@ -4,6 +4,7 @@ include_guard = "DDTRACE_PHP_H"
 style = "both"
 header = """
 struct _zend_string;
+typedef struct _zend_string _zend_string;
 """
 
 no_includes = true

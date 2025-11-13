@@ -257,6 +257,9 @@ typedef struct ddog_Vec_Tag_ParseResult {
   struct ddog_Error *error_message;
 } ddog_Vec_Tag_ParseResult;
 
+typedef struct _zend_string _zend_string;
+
+
 #define ddog_LOG_ONCE (1 << 3)
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
@@ -270,6 +273,13 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
 } ddog_ConfigurationOrigin;
+
+typedef enum ddog_DynamicConfigUpdateMode {
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
+} ddog_DynamicConfigUpdateMode;
 
 typedef enum ddog_EvaluateAt {
   DDOG_EVALUATE_AT_ENTRY,
@@ -441,9 +451,11 @@ typedef struct ddog_Tag {
   const struct ddog_DslString *value;
 } ddog_Tag;
 
-typedef struct ddog_Vec_CChar *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
-                                                           ddog_CharSlice value,
-                                                           bool return_old);
+typedef struct _zend_string *ddog_OwnedZendString;
+
+typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
+                                                         ddog_OwnedZendString value,
+                                                         enum ddog_DynamicConfigUpdateMode mode);
 
 typedef enum ddog_IntermediateValue_Tag {
   DDOG_INTERMEDIATE_VALUE_STRING,
@@ -750,6 +762,8 @@ typedef struct ddog_Vec_RemoteConfigCapabilities {
 
 typedef struct ddog_Vec_RemoteConfigCapabilities ddog_VecRemoteConfigCapabilities;
 
+#define ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED (_zend_string*)1
+
 typedef struct ddog_DebuggerCapture ddog_DebuggerCapture;
 typedef struct ddog_DebuggerValue ddog_DebuggerValue;
 
@@ -965,6 +979,12 @@ typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
 typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
+
+typedef enum ddog_DynamicInstrumentationConfigState {
+  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
+  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
+  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
+} ddog_DynamicInstrumentationConfigState;
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
