@@ -46,5 +46,5 @@ fi
 RUSTFLAGS="-L native=$(dirname "$(gcc -print-file-name=libssp_nonshared.a)")" RUSTC_BOOTSTRAP=1 cargo build -Zbuild-std=std,panic_abort --target "${TRIPLET:?}" --profile profiler-release
 cd -
 
-cp -v "${CARGO_TARGET_DIR}/profiler-release/libdatadog_php_profiling.so" "${output_file}"
+cp -v "${CARGO_TARGET_DIR}/${TRIPLET}/profiler-release/libdatadog_php_profiling.so" "${output_file}"
 objcopy --compress-debug-sections "${output_file}"
