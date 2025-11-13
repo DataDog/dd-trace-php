@@ -14,7 +14,10 @@
             "php-http/discovery": true
         },
         "preferred-install": "dist",
-        "sort-packages": true
+        "sort-packages": true,
+        "audit": {
+            "block-insecure": false
+        }
     },
     "version": "2.4.6-p2",
     "require": {
