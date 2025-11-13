@@ -1,5 +1,6 @@
 #include "../tsrmls_cache.h"
 #include "jit_blacklist.h"
+#include "is_mapped.h"
 #include "zend_extensions.h"
 #include <Zend/zend_types.h>
 #include <Zend/zend_ini.h>
@@ -178,70 +179,6 @@ int zai_get_zend_func_rid(zend_op_array *op_array) {
     return zend_func_info_rid;
 }
 
-#if defined(__linux__) && (defined(__x86_64__) || defined(__aarch64__)) && PHP_VERSION_ID < 80400
-static bool is_mapped(void *addr, size_t size) {
-    uintptr_t page_size = sysconf(_SC_PAGESIZE);
-    assert(size <= page_size);
-    uintptr_t page_addr = ((uintptr_t)addr & ~(page_size - 1));
-    uintptr_t last_page_addr = ((uintptr_t)(addr + size - 1) & ~(page_size - 1));
-
-    unsigned char vec[2];
-#ifdef __x86_64__
-#define SYS_mincore 0x1B
-#else // aarch64
-#define SYS_mincore 0xE8
-#endif
-
-    int retries = 5;
-again:
-    if (syscall(SYS_mincore, page_addr, (1 + (page_addr != last_page_addr)) * page_size, &vec) == 0) {
-        return true;
-    } else if (errno == EFAULT || errno == ENOMEM) {
-        return false;
-    } else if (errno == EAGAIN) {
-        if (retries-- > 0) {
-            goto again;
-        }
-		return true;
-    } else {
-        // we don't know... assume true
-#ifdef ZEND_DEBUG
-        abort();
-#else
-        return true;
-#endif
-    }
-}
-#elif defined(__APPLE__) && PHP_VERSION_ID < 80400
-#include <mach/mach.h>
-static bool is_mapped(void *addr, size_t size) {
-    mach_port_t task = mach_task_self();
-    vm_address_t address = (vm_address_t)addr;
-
-    while (address < (vm_address_t)addr + size) {
-        __auto_type a = address;
-        vm_size_t region_size;
-        vm_region_basic_info_data_64_t info;
-        kern_return_t kr = vm_region_64(task, &address, &region_size, VM_REGION_BASIC_INFO, (vm_region_info_t)&info,
-                                        &(mach_msg_type_number_t){VM_REGION_BASIC_INFO_COUNT_64}, &(memory_object_name_t){0});
-
-        if (kr != KERN_SUCCESS || !(info.protection & VM_PROT_READ)) {
-            return false;
-        }
-
-        address += region_size;
-    }
-
-    return true;
-}
-#else
-static inline bool is_mapped(void *addr, size_t size) {
-    (void)addr;
-    (void)size;
-    return true;
-}
-#endif
-
 void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 #if PHP_VERSION_ID >= 80400
     if (opcache_handle) {
@@ -269,7 +206,7 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
 
     // check whether the op_trace_info is actually readable or EFAULTing
     // we can't trust opcache too much here...
-    if (!is_mapped(ZEND_OP_TRACE_INFO(opline, offset), sizeof(zend_op_trace_info))) {
+    if (!zai_is_mapped(ZEND_OP_TRACE_INFO(opline, offset), sizeof(zend_op_trace_info))) {
         return;
     }
 

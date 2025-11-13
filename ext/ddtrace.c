@@ -1424,7 +1424,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return FAILURE;
     }
 
-    ddog_init_span_func((void *)zend_string_release, (void *)zend_string_addref);
+    ddog_init_span_func((void *)zend_string_release, (void *)zend_string_addref, ddtrace_zend_string_init);
 
     ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
 
