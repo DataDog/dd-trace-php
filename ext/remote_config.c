@@ -78,7 +78,7 @@ static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_
         zend_restore_ini_entry(name, PHP_INI_STAGE_RUNTIME);
     } else if (mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE) {
         zend_ini_entry *ini_entry = zend_hash_find_ptr(EG(ini_directives), name);
-        zend_string *old = ini_entry->modified || ini_entry->value ? zend_string_copy(ini_entry->value) : NULL;
+        zend_string *old = ini_entry->modified && ini_entry->value ? zend_string_copy(ini_entry->value) : NULL;
         if (zend_alter_ini_entry(name, value, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME) == SUCCESS) {
             if (old) {
                 ret = old;
