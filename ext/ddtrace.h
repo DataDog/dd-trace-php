@@ -179,6 +179,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     HashTable resource_weak_storage;
     dtor_func_t resource_dtor_func;
+
+    HashTable otel_config_telemetry;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 
