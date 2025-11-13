@@ -43,7 +43,7 @@ echo "${CARGO_TARGET_DIR}"
 if [ "$thread_safety" = "zts" ]; then
     touch build.rs  # Ensure build.rs executes after switch-php for ZTS
 fi
-cargo build --profile profiler-release
+RUSTFLAGS="-L native=$(dirname "$(gcc -print-file-name=libssp_nonshared.a)")" RUSTC_BOOTSTRAP=1 cargo build -Zbuild-std=std,panic_abort --target "${TRIPLET:?}" --profile profiler-release
 cd -
 
 cp -v "${CARGO_TARGET_DIR}/profiler-release/libdatadog_php_profiling.so" "${output_file}"
