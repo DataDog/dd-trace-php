@@ -148,14 +148,3 @@ function track_otel_config_if_whitelisted(string $name, mixed $value): void
         }
     }
 );
-
-// Proactively read all OTel configurations from environment variables at startup
-// This ensures configs are captured BEFORE telemetry is sent, even if MeterProvider
-// is initialized later or not at all during the request
-foreach (OTEL_CONFIG_WHITELIST as $config_name) {
-    $value = getenv($config_name);
-    if ($value !== false && $value !== '') {
-        track_otel_config_if_whitelisted($config_name, $value);
-    }
-}
-
