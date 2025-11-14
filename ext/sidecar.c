@@ -23,6 +23,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 ddog_Endpoint *ddtrace_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+ddtrace_pid_t ddtrace_master_pid = 0;
 static uint8_t dd_sidecar_formatted_session_id[36];
 
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
@@ -152,6 +153,8 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
 
 }
 
+static ddog_SidecarTransport *dd_sidecar_connection_factory(void);
+
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     // Should not happen, unless the agent url is malformed
     if (!ddtrace_endpoint) {
@@ -172,12 +175,15 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     }
 
     ddog_SidecarTransport *sidecar_transport;
-    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect, ddtrace_endpoint))) {
+    if (!ddtrace_ffi_try("Failed connecting to sidecar as worker",
+                        ddog_sidecar_connect_worker((int32_t)ddtrace_master_pid, &sidecar_transport))) {
         dd_free_endpoints();
         return NULL;
     }
 
     dd_sidecar_post_connect(&sidecar_transport, is_fork, logpath);
+
+    ddtrace_sidecar_reconnect(&sidecar_transport, dd_sidecar_connection_factory);
 
     return sidecar_transport;
 }
@@ -210,22 +216,115 @@ bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_c
 #endif
 }
 
-void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
+void ddtrace_sidecar_minit(bool appsec_activation, bool appsec_config) {
+    UNUSED(appsec_activation, appsec_config);
+
+    if (ddtrace_master_pid == 0) {
+#ifdef _WIN32
+        ddtrace_master_pid = _getpid();
+#else
+        ddtrace_master_pid = getpid();
+#endif
+    }
+}
+
+static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_config) {
+#ifndef _WIN32
+    ddtrace_pid_t current_pid = getpid();
+    bool is_child_process = (ddtrace_master_pid != 0 && current_pid != ddtrace_master_pid);
+
+    if (is_child_process) {
+        return;
+    }
+#endif
+
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
 
     ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
 
-    ddtrace_sidecar = dd_sidecar_connection_factory();
-    if (!ddtrace_sidecar) { // Something went wrong
+    if (!ddtrace_ffi_try("Failed starting sidecar master listener", ddog_sidecar_connect_master((int32_t)ddtrace_master_pid))) {
+        LOG(WARN, "Failed to start sidecar master listener");
         if (ddtrace_endpoint) {
             dd_free_endpoints();
         }
+        return;
     }
+
+    ddog_SidecarTransport *sidecar_transport = NULL;
+    if (!ddtrace_ffi_try("Failed connecting master to sidecar", ddog_sidecar_connect_worker((int32_t)ddtrace_master_pid, &sidecar_transport))) {
+        LOG(WARN, "Failed to connect master process to sidecar");
+        if (ddtrace_endpoint) {
+            dd_free_endpoints();
+        }
+        return;
+    }
+
+    char logpath[MAXPATHLEN];
+    int error_fd = atomic_load(&ddtrace_error_log_fd);
+    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
+        *logpath = 0;
+    }
+
+    dd_sidecar_post_connect(&sidecar_transport, false, logpath);
+    ddtrace_sidecar = sidecar_transport;
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddtrace_telemetry_first_init();
     }
+}
+
+void ddtrace_sidecar_rinit(void) {
+    if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
+        zval git_object;
+        ZVAL_UNDEF(&git_object);
+        ddtrace_inject_git_metadata(&git_object);
+        if (Z_TYPE(git_object) == IS_OBJECT) {
+            ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ(git_object);
+            if (Z_TYPE(git_metadata->property_commit) == IS_STRING) {
+                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.commit.sha"),
+                                         dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_commit))));
+            }
+            if (Z_TYPE(git_metadata->property_repository) == IS_STRING) {
+                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.repository_url"),
+                                         dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_repository))));
+            }
+            OBJ_RELEASE(&git_metadata->std);
+        }
+    }
+
+    ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, NULL);
+}
+
+void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
+    ddtrace_sidecar_setup_master(appsec_activation, appsec_config);
+}
+
+bool ddtrace_sidecar_connect_worker_after_fork(void) {
+    if (!ddtrace_endpoint || ddtrace_master_pid == 0) {
+        return false;
+    }
+
+    ddog_SidecarTransport *sidecar_transport = NULL;
+    if (!ddtrace_ffi_try("Failed connecting worker to sidecar after fork",
+                        ddog_sidecar_connect_worker((int32_t)ddtrace_master_pid, &sidecar_transport))) {
+        return false;
+    }
+
+    char logpath[MAXPATHLEN];
+    int error_fd = atomic_load(&ddtrace_error_log_fd);
+    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
+        *logpath = 0;
+    }
+
+    dd_sidecar_post_connect(&sidecar_transport, true, logpath);
+
+    if (ddtrace_sidecar) {
+        ddog_sidecar_transport_drop(ddtrace_sidecar);
+    }
+    ddtrace_sidecar = sidecar_transport;
+
+    return true;
 }
 
 void ddtrace_sidecar_ensure_active(void) {
@@ -255,17 +354,31 @@ void ddtrace_sidecar_finalize(bool clear_id) {
 }
 
 void ddtrace_sidecar_shutdown(void) {
-    if (ddtrace_sidecar_instance_id) {
-        ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
+    // Shutdown master listener thread FIRST if this is the master process
+    // This must happen before dropping the sidecar transport to ensure clean shutdown
+#ifndef _WIN32
+    ddtrace_pid_t current_pid = getpid();
+    if (ddtrace_master_pid != 0 && current_pid == ddtrace_master_pid) {
+        ddtrace_ffi_try("Failed shutting down master listener", ddog_sidecar_shutdown_master_listener());
+    }
+#else
+    if (ddtrace_master_pid != 0 && _getpid() == ddtrace_master_pid) {
+        ddtrace_ffi_try("Failed shutting down master listener", ddog_sidecar_shutdown_master_listener());
+    }
+#endif
+
+    if (ddtrace_sidecar) {
+        ddog_sidecar_transport_drop(ddtrace_sidecar);
     }
 
     if (ddtrace_endpoint) {
         dd_free_endpoints();
     }
 
-    if (ddtrace_sidecar) {
-        ddog_sidecar_transport_drop(ddtrace_sidecar);
+    if (ddtrace_sidecar_instance_id) {
+        ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
     }
+
 }
 
 void ddtrace_force_new_instance_id(void) {
@@ -555,28 +668,6 @@ void ddtrace_sidecar_activate(void) {
     ZEND_HASH_FOREACH_STR_KEY_VAL(get_DD_TAGS(), tag, value) {
         UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), dd_zend_string_to_CharSlice(tag), dd_zend_string_to_CharSlice(Z_STR_P(value))));
     } ZEND_HASH_FOREACH_END();
-}
-
-void ddtrace_sidecar_rinit(void) {
-    if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
-        zval git_object;
-        ZVAL_UNDEF(&git_object);
-        ddtrace_inject_git_metadata(&git_object);
-        if (Z_TYPE(git_object) == IS_OBJECT) {
-            ddtrace_git_metadata *git_metadata = (ddtrace_git_metadata *) Z_OBJ(git_object);
-            if (Z_TYPE(git_metadata->property_commit) == IS_STRING) {
-                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.commit.sha"),
-                                         dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_commit))));
-            }
-            if (Z_TYPE(git_metadata->property_repository) == IS_STRING) {
-                UNUSED(ddog_Vec_Tag_push(&DDTRACE_G(active_global_tags), DDOG_CHARSLICE_C("git.repository_url"),
-                                         dd_zend_string_to_CharSlice(Z_STR(git_metadata->property_repository))));
-            }
-            OBJ_RELEASE(&git_metadata->std);
-        }
-    }
-
-    ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, NULL);
 }
 
 void ddtrace_sidecar_rshutdown(void) {

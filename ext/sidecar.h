@@ -6,10 +6,18 @@
 #include "ddtrace_export.h"
 #include "ddtrace.h"
 #include "zend_string.h"
+#ifndef _WIN32
+#include <unistd.h>
+typedef pid_t ddtrace_pid_t;
+#else
+#include <process.h>
+typedef int ddtrace_pid_t;
+#endif
 
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+extern ddtrace_pid_t ddtrace_master_pid;
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
 struct telemetry_rc_info {
@@ -20,7 +28,9 @@ struct telemetry_rc_info {
 };
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 
+void ddtrace_sidecar_minit(bool appsec_activation, bool appsec_config);
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
+bool ddtrace_sidecar_connect_worker_after_fork(void);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_finalize(bool clear_id);
