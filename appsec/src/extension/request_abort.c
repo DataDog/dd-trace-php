@@ -251,6 +251,13 @@ void dd_set_block_code_and_type(
 
 void dd_request_abort_rinit(void)
 {
+    if (_block_parameters) {
+        mlog(dd_log_warning,
+            "_block_parameters is not NULL when calling dd_request_abort_rinit "
+            "(shutdown did not run on prev request?)");
+        _block_parameters = NULL;
+    }
+
     _block_parameters_set(SECURITY_RESPONSE_ID_DEFAULT, DEFAULT_RESPONSE_TYPE,
         DEFAULT_BLOCKING_RESPONSE_CODE, NULL);
 }

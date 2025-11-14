@@ -253,8 +253,6 @@ static zend_array *nullable _do_request_begin(
 
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
-    dd_request_abort_rshutdown();
-
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         mlog_g(dd_log_debug, "Skipping all request shutdown actions because "
                              "appsec is fully disabled");
@@ -432,6 +430,7 @@ static void _reset_globals(void)
 
     _shutdown_done_on_commit = false;
     dd_tags_rshutdown();
+    dd_request_abort_rshutdown();
 }
 
 static zend_string *nullable _extract_ip_from_autoglobal(void)
