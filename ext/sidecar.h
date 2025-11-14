@@ -44,6 +44,8 @@ ddog_Endpoint *ddtrace_sidecar_agent_endpoint(void);
 void ddtrace_sidecar_submit_root_span_data_direct_defaults(ddog_SidecarTransport **transport, ddtrace_root_span_data *root);
 void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transport, ddtrace_root_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version);
 
+ddog_SidecarTransport *dd_sidecar_connection_factory(void);
+
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads);
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
 

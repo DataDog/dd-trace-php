@@ -95,6 +95,8 @@ ddog_MaybeError ddog_sidecar_connect_worker(int32_t master_pid,
 
 ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
 
+ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
+
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);

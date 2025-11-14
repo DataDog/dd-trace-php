@@ -1,1 +1,3 @@
 leak:timer_create
+leak:__cxa_thread_atexit
+leak:CURRENT_PARKER
