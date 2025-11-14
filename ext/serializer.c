@@ -818,7 +818,7 @@ void ddtrace_set_root_span_properties(ddtrace_root_span_data *span) {
     if (get_DD_TRACE_REPORT_HOSTNAME()) {
         if (ZSTR_LEN(get_DD_HOSTNAME())) {
             zval hostname_zv;
-            ZVAL_STR(&hostname_zv, get_DD_HOSTNAME());
+            ZVAL_STR_COPY(&hostname_zv, get_DD_HOSTNAME());
             zend_hash_str_add_new(meta, ZEND_STRL("_dd.hostname"), &hostname_zv);
         } else {
 
