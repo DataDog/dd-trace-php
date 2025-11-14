@@ -23,10 +23,10 @@ void dd_set_redirect_code_and_location(
     int code, zend_string *nullable location, zend_string *nullable security_response_id);
 
 void dd_request_abort_startup(void);
-void dd_request_abort_rinit(void);
+void dd_request_abort_rinit(void); // not called for user requests
 void dd_request_abort_zend_ext_startup(void);
 void dd_request_abort_shutdown(void);
-void dd_request_abort_rshutdown(void);
+void dd_request_abort_rshutdown(void); // called from user requests too
 // noreturn unless called from rinit on fpm
 void dd_request_abort_static_page(void);
 zend_array *nonnull dd_request_abort_static_page_spec(
