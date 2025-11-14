@@ -1,5 +1,10 @@
 {
     "require": {
         "guzzlehttp/guzzle": "~5.0"
+    },
+    "config": {
+        "audit": {
+            "block-insecure": false
+        }
     }
 }

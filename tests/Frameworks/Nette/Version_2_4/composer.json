@@ -35,6 +35,9 @@
     "config": {
         "platform": {
             "php": "5.6"
+        },
+        "audit": {
+            "block-insecure": false
         }
     }
 }

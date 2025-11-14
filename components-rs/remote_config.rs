@@ -15,10 +15,10 @@ use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
-use ddcommon::tag::Tag;
-use ddcommon::Endpoint;
-use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::{CharSlice, MaybeError};
+use libdd_common::tag::Tag;
+use libdd_common::Endpoint;
+use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::{CharSlice, MaybeError};
 use itertools::Itertools;
 use regex_automata::dfa::regex::Regex;
 use serde::Serialize;
@@ -27,32 +27,44 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_char;
 use std::mem;
+use std::ptr::NonNull;
 use std::sync::Arc;
 use tracing::debug;
+use crate::bytes::{ZendString, OwnedZendString, dangling_zend_string};
 
-type DynamicConfigUpdate = for<'a> extern "C" fn(
+pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
+
+#[repr(C)]
+pub enum DynamicConfigUpdateMode {
+    Read,
+    ReadWrite,
+    Write,
+    Restore,
+}
+
+pub type DynamicConfigUpdate = for<'a> extern "C" fn(
     config: CharSlice,
-    value: CharSlice,
-    return_old: bool,
-) -> *mut Vec<c_char>;
+    value: OwnedZendString,
+    mode: DynamicConfigUpdateMode,
+) -> *mut ZendString;
 
 static mut LIVE_DEBUGGER_CALLBACKS: Option<LiveDebuggerCallbacks> = None;
 static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
 
-type VecRemoteConfigProduct = ddcommon_ffi::Vec<RemoteConfigProduct>;
+type VecRemoteConfigProduct = libdd_common_ffi::Vec<RemoteConfigProduct>;
 #[no_mangle]
-pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = ddcommon_ffi::Vec::new();
+pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = libdd_common_ffi::Vec::new();
 
-type VecRemoteConfigCapabilities = ddcommon_ffi::Vec<RemoteConfigCapabilities>;
+type VecRemoteConfigCapabilities = libdd_common_ffi::Vec<RemoteConfigCapabilities>;
 #[no_mangle]
 pub static mut DDTRACE_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities =
-    ddcommon_ffi::Vec::new();
+    libdd_common_ffi::Vec::new();
 
 #[derive(Default)]
 struct DynamicConfig {
     active_config_path: Option<String>,
     configs: Vec<Configs>,
-    old_config_values: HashMap<String, Vec<c_char>>,
+    old_config_values: HashMap<String, Option<OwnedZendString>>,
 }
 
 pub struct RemoteConfigState {
@@ -148,8 +160,6 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             language: "php".to_string(),
             tracer_version: include_str!("../VERSION").trim().into(),
             endpoint: endpoint.clone(),
-            products: DDTRACE_REMOTE_CONFIG_PRODUCTS.to_vec(),
-            capabilities: DDTRACE_REMOTE_CONFIG_CAPABILITIES.to_vec(),
         }),
         live_debugger: LiveDebuggerState::default(),
         dynamic_config: Default::default(),
@@ -169,22 +179,31 @@ struct SampleRule<'a> {
     sample_rate: f64,
 }
 
-fn map_config(config: &Configs) -> (&'static str, String) {
+fn bool_config(value: &bool) -> Cow<'static, str> {
+    Cow::Borrowed(if *value { "1" } else { "0" })
+}
+
+fn map_config_name(config: &Configs) -> &'static str {
     match config {
-        Configs::TracingHeaderTags(tags) => (
-            "datadog.trace.header_tags",
-            tags.iter().map(|(k, _)| k).join(","),
-        ),
-        Configs::TracingSampleRate(rate) => ("datadog.trace.sample_rate", rate.to_string()),
-        Configs::LogInjectionEnabled(enabled) => (
-            "datadog.logs_injection",
-            (if *enabled { "1" } else { "0" }).to_string(),
-        ),
-        Configs::TracingTags(tags) => ("datadog.tags", tags.join(",")),
-        Configs::TracingEnabled(enabled) => (
-            "datadog.trace.enabled",
-            (if *enabled { "1" } else { "0" }).to_string(),
-        ),
+        Configs::TracingHeaderTags(_) => "datadog.trace.header_tags",
+        Configs::TracingSampleRate(_) => "datadog.trace.sample_rate",
+        Configs::LogInjectionEnabled(_) => "datadog.logs_injection",
+        Configs::TracingTags(_) => "datadog.tags",
+        Configs::TracingEnabled(_) => "datadog.trace.enabled",
+        Configs::TracingSamplingRules(_) => "datadog.trace.sampling_rules",
+        Configs::DynamicInstrumentationEnabled(_) => "datadog.dynamic_instrumentation.enabled",
+        Configs::ExceptionReplayEnabled(_) => "datadog.exception_replay_enabled",
+        Configs::CodeOriginEnabled(_) => "datadog.code_origin_for_spans_enabled",
+    }
+}
+
+fn map_config_value(config: &Configs) -> Cow<'_, str> {
+    match config {
+        Configs::TracingHeaderTags(tags) => tags.iter().map(|(k, _)| k).join(",").into(),
+        Configs::TracingSampleRate(rate) => rate.to_string().into(),
+        Configs::LogInjectionEnabled(enabled) => bool_config(enabled),
+        Configs::TracingTags(tags) => tags.join(",").into(),
+        Configs::TracingEnabled(enabled) => bool_config(enabled),
         Configs::TracingSamplingRules(rules) => {
             let map: Vec<_> = rules
                 .iter()
@@ -201,43 +220,82 @@ fn map_config(config: &Configs) -> (&'static str, String) {
                     sample_rate: r.sample_rate,
                 })
                 .collect();
-            (
-                "datadog.trace.sampling_rules",
-                serde_json::to_string(&map).unwrap(),
-            )
+            serde_json::to_string(&map).unwrap().into()
+        }
+        Configs::DynamicInstrumentationEnabled(enabled) => bool_config(enabled),
+        Configs::ExceptionReplayEnabled(enabled) => bool_config(enabled),
+        Configs::CodeOriginEnabled(enabled) => bool_config(enabled),
+    }
+}
+
+fn use_rc_config<'a>(config: &Configs, user_value: &'a [u8], _rc_value: &'a str) -> bool {
+    match config {
+        Configs::DynamicInstrumentationEnabled(_) | Configs::ExceptionReplayEnabled(_) | Configs::CodeOriginEnabled(_) => {
+            let user_str = String::from_utf8_lossy(user_value);
+            user_str.parse::<i32>().unwrap_or(0) != 0 || user_str.eq_ignore_ascii_case("true") || user_str.eq_ignore_ascii_case("yes") || user_str.eq_ignore_ascii_case("on")
+        },
+        _ => true,
+    }
+}
+
+fn reset_old_config(name: &str, val: Option<OwnedZendString>) {
+    unsafe {
+        if let Some(val) = val {
+            DYNAMIC_CONFIG_UPDATE.unwrap()(name.into(), val, DynamicConfigUpdateMode::Write);
+        } else {
+            DYNAMIC_CONFIG_UPDATE.unwrap()(name.into(), dangling_zend_string(), DynamicConfigUpdateMode::Restore);
         }
     }
 }
 
 fn remove_old_configs(remote_config: &mut RemoteConfigState) {
     for (name, val) in remote_config.dynamic_config.old_config_values.drain() {
-        unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.as_str().into(), (&val).into(), false);
+        reset_old_config(name.as_str(), val);
     }
     remote_config.dynamic_config.old_config_values.clear();
     remote_config.dynamic_config.active_config_path = None;
 }
 
 fn insert_new_configs(
-    old_config_values: &mut HashMap<String, Vec<c_char>>,
+    old_config_values: &mut HashMap<String, Option<OwnedZendString>>,
     old_configs: &mut Vec<Configs>,
     new_configs: Vec<Configs>,
 ) {
     let mut found_configs = HashSet::new();
     for config in new_configs.iter() {
-        let (name, val) = map_config(config);
-        let is_update = old_config_values.contains_key(name);
-        let original =
-            unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.into(), val.as_str().into(), !is_update);
-        if !original.is_null() {
-            old_config_values.insert(name.into(), *unsafe { Box::from_raw(original) });
+        let (name, val) = (map_config_name(config), map_config_value(config));
+        let (is_update, merged) = {
+            let old_value = old_config_values.get(name);
+            let user_value = if let Some(old_zstr) = old_value {
+                old_zstr.as_ref().map(|v| v.0)
+            } else {
+                let val = unsafe { DYNAMIC_CONFIG_UPDATE.unwrap()(name.into(), dangling_zend_string(), DynamicConfigUpdateMode::Read) };
+                if val == DYANMIC_CONFIG_UPDATE_UNMODIFIED {
+                    None
+                } else {
+                    Some(NonNull::new(val).unwrap())
+                }
+            };
+            (old_value.is_some(), user_value.map(|v| {
+                if use_rc_config(config, unsafe { v.as_ref() }.as_ref(), val.as_ref()) {
+                    val.as_ref().into()
+                } else {
+                    OwnedZendString::from_copy(v)
+                }
+            }).unwrap_or_else(|| val.as_ref().into()))
+        };
+
+        let original = unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.into(), merged, if is_update { DynamicConfigUpdateMode::Write } else { DynamicConfigUpdateMode::ReadWrite });
+        if let Some(original) = NonNull::new(original) {
+            old_config_values.insert(name.into(), if original.as_ptr() == DYANMIC_CONFIG_UPDATE_UNMODIFIED { None } else { Some(OwnedZendString(original)) });
         }
         found_configs.insert(mem::discriminant(config));
     }
     for config in old_configs.iter() {
         if !found_configs.contains(&mem::discriminant(config)) {
-            let (name, _) = map_config(config);
+            let name = map_config_name(config);
             if let Some(val) = old_config_values.remove(name) {
-                unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.into(), (&val).into(), false);
+                reset_old_config(name, val);
             }
         }
     }
@@ -433,7 +491,7 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     service: CharSlice,
     env: CharSlice,
     version: CharSlice,
-    tags: &ddcommon_ffi::Vec<Tag>,
+    tags: &libdd_common_ffi::Vec<Tag>,
 ) -> bool {
     let new_target = Target {
         service: service.to_utf8_lossy().to_string(),
@@ -458,15 +516,27 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
 pub unsafe extern "C" fn ddog_remote_config_alter_dynamic_config(
     remote_config: &mut RemoteConfigState,
     config: CharSlice,
-    new_value: CharSlice,
+    new_value: OwnedZendString,
 ) -> bool {
     if let Some(entry) = remote_config
         .dynamic_config
         .old_config_values
         .get_mut(config.try_to_utf8().unwrap())
     {
-        *entry = new_value.as_slice().into();
-        return false;
+        let mut ret = false;
+        let config_name = config.to_utf8_lossy();
+        for config in remote_config.dynamic_config.configs.iter() {
+            let name = map_config_name(config);
+            if name == config_name.as_ref() {
+                let val = map_config_value(config);
+                if !use_rc_config(config, new_value.as_ref().as_ref(), val.as_ref()) {
+                    ret = true;
+                }
+                break;
+            }
+        }
+        *entry = Some(new_value);
+        return ret;
     }
     true
 }

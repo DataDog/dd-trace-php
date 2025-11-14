@@ -53,6 +53,9 @@
         "sort-packages": true,
         "allow-plugins": {
             "cakephp/plugin-installer": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     }
 }

@@ -57,6 +57,9 @@
             "drupal/core-vendor-hardening": true,
             "dealerdirect/phpcodesniffer-composer-installer": true,
             "phpstan/extension-installer": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "extra": {

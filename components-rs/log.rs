@@ -10,8 +10,8 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::util::SubscriberInitExt;
-use ddcommon_ffi::CharSlice;
-use ddcommon_ffi::slice::AsBytes;
+use libdd_common_ffi::CharSlice;
+use libdd_common_ffi::slice::AsBytes;
 
 pub const LOG_ONCE: isize = 1 << 3;
 

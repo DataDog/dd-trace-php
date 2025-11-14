@@ -38,6 +38,9 @@
             "g1a/composer-test-scenarios": true,
             "php-http/discovery": true,
             "cakephp/plugin-installer": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "autoload": {

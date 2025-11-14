@@ -43,8 +43,8 @@ echo "${CARGO_TARGET_DIR}"
 if [ "$thread_safety" = "zts" ]; then
     touch build.rs  # Ensure build.rs executes after switch-php for ZTS
 fi
-cargo build --release
+cargo build --profile profiler-release
 cd -
 
-cp -v "${CARGO_TARGET_DIR}/release/libdatadog_php_profiling.so" "${output_file}"
+cp -v "${CARGO_TARGET_DIR}/profiler-release/libdatadog_php_profiling.so" "${output_file}"
 objcopy --compress-debug-sections "${output_file}"

@@ -71,27 +71,43 @@ static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
 }
 #endif
 
-static struct ddog_Vec_CChar *dd_dynamic_instrumentation_update(ddog_CharSlice config, ddog_CharSlice value, bool return_old) {
+static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_string *value, ddog_DynamicConfigUpdateMode mode) {
     zend_string *name = dd_CharSlice_to_zend_string(config);
-    zend_string *old;
-    struct ddog_Vec_CChar *ret = NULL;
-    if (return_old) {
-        old = zend_string_copy(zend_ini_get_value(name));
-    }
-    if (zend_alter_ini_entry_chars(name, value.ptr, value.len, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME) == SUCCESS) {
-        if (return_old) {
-            ret = ddog_CharSlice_to_owned(dd_zend_string_to_CharSlice(old));
+    zend_string *ret = NULL;
+    if (mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE) {
+        zend_restore_ini_entry(name, PHP_INI_STAGE_RUNTIME);
+    } else if (mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE) {
+        zend_ini_entry *ini_entry = zend_hash_find_ptr(EG(ini_directives), name);
+        zend_string *old = ini_entry->modified && ini_entry->value ? zend_string_copy(ini_entry->value) : NULL;
+        if (zend_alter_ini_entry(name, value, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME) == SUCCESS) {
+            if (old) {
+                ret = old;
+            } else {
+                ret = ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED;
+            }
         }
-    }
-    if (return_old) {
-        zend_string_release(old);
+        zend_string_release(value);
+        if (old && ret != old) {
+            zend_string_release(old);
+        }
+    } else if (mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ) {
+        zend_ini_entry *ini_entry = zend_hash_find_ptr(EG(ini_directives), name);
+        if (ini_entry->modified && ini_entry->value) {
+            ret = ini_entry->value;
+        } else {
+            ret = ddog_DYANMIC_CONFIG_UPDATE_UNMODIFIED;
+        }
+    } else {
+        ZEND_ASSERT(mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE);
+        zend_alter_ini_entry(name, value, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+        zend_string_release(value);
     }
     zend_string_release(name);
     return ret;
 }
 
 void ddtrace_minit_remote_config(void) {
-    ddog_setup_remote_config(dd_dynamic_instrumentation_update, &ddtrace_live_debugger_setup);
+    ddog_setup_remote_config(dd_dynamic_configuration_update, &ddtrace_live_debugger_setup);
     dd_prev_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = dd_vm_interrupt;
 

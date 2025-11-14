@@ -12,15 +12,15 @@ use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
     InstanceId, QueueId, SidecarAction,
 };
-use ddcommon::tag::parse_tags;
-use ddcommon_ffi::slice::AsBytes;
-use ddcommon_ffi::{self as ffi, CharSlice, MaybeError};
-use ddtelemetry::data;
-use ddtelemetry::data::metrics::{MetricNamespace, MetricType};
-use ddtelemetry::data::{Dependency, Integration, LogLevel};
-use ddtelemetry::metrics::MetricContext;
-use ddtelemetry::worker::{LogIdentifier, TelemetryActions};
-use ddtelemetry_ffi::try_c;
+use libdd_common::tag::parse_tags;
+use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::{self as ffi, CharSlice, MaybeError};
+use libdd_telemetry::data;
+use libdd_telemetry::data::metrics::{MetricNamespace, MetricType};
+use libdd_telemetry::data::{Dependency, Integration, LogLevel};
+use libdd_telemetry::metrics::MetricContext;
+use libdd_telemetry::worker::{LogIdentifier, TelemetryActions};
+use libdd_telemetry_ffi::try_c;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -240,7 +240,7 @@ pub struct ShmCache {
 }
 
 #[derive(Hash, Eq, PartialEq)]
-struct ShmCacheKey(String, String);
+pub struct ShmCacheKey(String, String);
 
 impl Equivalent<ShmCacheKey> for (&str, &str) {
     fn equivalent(&self, key: &ShmCacheKey) -> bool {

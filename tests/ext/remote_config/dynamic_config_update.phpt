@@ -42,6 +42,9 @@ put_dynamic_config_file([
             ],
         ],
     ],
+    "dynamic_instrumentation_enabled" => true,
+    "exception_replay_enabled" => false,
+    "code_origin_enabled" => false,
 ]);
 
 // submit span data
@@ -59,6 +62,9 @@ var_dump(ini_get("datadog.logs_injection"));
 var_dump(ini_get("datadog.tags"));
 var_dump(ini_get("datadog.trace.enabled"));
 var_dump(ini_get("datadog.trace.sampling_rules"));
+var_dump(ini_get("datadog.dynamic_instrumentation.enabled"));
+var_dump(ini_get("datadog.exception_replay_enabled"));
+var_dump(ini_get("datadog.code_origin_for_spans_enabled"));
 
 ?>
 --CLEAN--
@@ -73,3 +79,6 @@ string(1) "1"
 string(15) "foo:bar,baz:qux"
 string(1) "1"
 string(187) "[{"service":"foo","resource":"bar","_provenance":"customer","sample_rate":0.0},{"name":"*","service":"f?o","resource":"b*r","tags":{"vuz":"v?"},"_provenance":"dynamic","sample_rate":0.0}]"
+string(1) "1"
+string(1) "0"
+string(1) "0"

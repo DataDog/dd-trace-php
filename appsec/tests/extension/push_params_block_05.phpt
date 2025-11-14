@@ -12,7 +12,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_exec([[['block', ['status_code' => '404', 'type' => 'html', 'block_id' => 'some-id']]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_exec([[['block', ['status_code' => '404', 'type' => 'html', 'security_response_id' => 'some-id']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ]);
 
 rinit();

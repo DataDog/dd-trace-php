@@ -42,6 +42,9 @@ define('EXTENSION_SUFFIX', IS_WINDOWS ? "dll" : "so");
 
 define('DEFAULT_INSTALL_DIR', IS_WINDOWS ? getenv('ProgramW6432') . '\Datadog\PHP Tracer' : '/opt/datadog');
 
+// Prevent injection, because php will only report the injected ini directories, even though it preserves the compiled one.
+putenv("DD_INSTRUMENT_SERVICE_WITH_APM=false");
+
 /**
  * The number of items to shift off `get_ini_settings` for config commands.
  */

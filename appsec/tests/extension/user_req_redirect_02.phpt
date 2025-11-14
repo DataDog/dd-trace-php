@@ -1,5 +1,5 @@
 --TEST--
-User requests: redirect with block_id
+User requests: redirect with security_response_id
 --INI--
 extension=ddtrace.so
 datadog.appsec.enabled=true
@@ -16,7 +16,7 @@ use function DDTrace\close_span;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createinitedRun([
-    response_list(response_request_init([[['redirect', ['status_code' => '302', 'location' => 'https://www.example.com?block_id=[security_response_id]', 'block_id' => 'some-block-id']]], ['{"yet another":"attack"}'], true])),
+    response_list(response_request_init([[['redirect', ['status_code' => '302', 'location' => 'https://www.example.com?security_response_id=[security_response_id]', 'security_response_id' => 'some-block-id']]], ['{"yet another":"attack"}'], true])),
     response_list(response_request_shutdown([[['ok', []]], [], []]))
 ]);
 
@@ -34,7 +34,7 @@ Array
     [status] => 302
     [headers] => Array
         (
-            [Location] => https://www.example.com?block_id=some-block-id
+            [Location] => https://www.example.com?security_response_id=some-block-id
         )
 
 )

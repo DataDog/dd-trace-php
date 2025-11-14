@@ -1,9 +1,9 @@
 --TEST--
-Abort request as a result of rinit, with a custom template with block_id
+Abort request as a result of rinit, with a custom template with security_response_id
 --INI--
 datadog.appsec.enabled=1
 --ENV--
-DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON=tests/extension/templates/response_with_block_id.json
+DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON=tests/extension/templates/response_with_security_response_id.json
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;
@@ -11,7 +11,7 @@ use function datadog\appsec\testing\rinit;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init([[['block', ['status_code' => '500', 'type' => 'json', 'block_id' => 'some-id']]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([[['block', ['status_code' => '500', 'type' => 'json', 'security_response_id' => 'some-id']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ], ['continuous' => true]);
 
 rinit();

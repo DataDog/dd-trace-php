@@ -75,7 +75,4 @@ $rr->waitForRequest(function ($request) {
                 "php.opcache.enable:1",
                 "php.opcache.jit:tracing",
 %A
-            ]
-        },
-%A
 }%A

@@ -1456,3 +1456,22 @@ void ddtrace_live_debugger_minit(void) {
 void ddtrace_live_debugger_mshutdown(void) {
     zend_hash_destroy(&DDTRACE_G(debugger_capture_ephemerals));
 }
+
+bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value, new_str);
+    if (DDTRACE_G(remote_config_state) && !ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C("datadog.dynamic_instrumentation.enabled"), zend_string_copy(new_str))) {
+        return false;
+    }
+
+    if (DDTRACE_G(request_initialized) && ddtrace_sidecar) {
+        ddog_sidecar_set_request_config(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), Z_TYPE_P(new_value) == IS_TRUE ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED);
+    }
+    return true;
+}
+
+ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(void) {
+    if (ddtrace_runtime_config_is_modified(DDTRACE_CONFIG_DD_DYNAMIC_INSTRUMENTATION_ENABLED)) {
+        return get_DD_DYNAMIC_INSTRUMENTATION_ENABLED() ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED;
+    }
+    return DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET;
+}

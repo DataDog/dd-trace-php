@@ -45,15 +45,15 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# NTS'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}"
-    - cargo build --release --all-features
-    - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
+    - cargo build --profile profiler-release --all-features
+    - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
 
     - touch build.rs #make sure `build.rs` gets executed after `switch-php` call
 
     - '# ZTS'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}-zts"
-    - cargo build --release --all-features
-    - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
+    - cargo build --profile profiler-release --all-features
+    - (cd tests; php run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
 
 "clippy NTS":
   stage: test

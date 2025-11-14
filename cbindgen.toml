@@ -4,6 +4,7 @@ include_guard = "DDTRACE_PHP_H"
 style = "both"
 header = """
 struct _zend_string;
+typedef struct _zend_string _zend_string;
 """
 
 no_includes = true
@@ -30,10 +31,10 @@ rename_variants = "ScreamingSnakeCase"
 [parse]
 parse_deps = true
 include = [
-    "ddcommon",
-    "ddtelemetry",
-    "ddtelemetry-ffi",
-    "ddcommon-ffi",
+    "libdd-common",
+    "libdd-telemetry",
+    "libdd-telemetry-ffi",
+    "libdd-common-ffi",
     "datadog-crashtracker-ffi",
     "datadog-sidecar",
     "datadog-ipc",

@@ -13,5 +13,10 @@
     },
     "autoload": {
         "files": [ "ignore_annotations.php" ]
+    },
+    "config": {
+        "audit": {
+            "block-insecure": false
+        }
     }
 }

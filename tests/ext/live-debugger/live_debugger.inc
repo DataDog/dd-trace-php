@@ -75,7 +75,7 @@ class DebuggerLogReplayer {
             ],
         ])), true);
         if ($allLogs) {
-            $allLogs = array_values(array_filter($allLogs, function ($v) { return strpos($v["uri"], '/debugger/v1/input') === 0; }));
+            $allLogs = array_values(array_filter($allLogs, function ($v) { return (strpos($v["uri"], '/debugger/v1/diagnostics') === 0 && isset($v["body"])) || strpos($v["uri"], '/debugger/v1/input') === 0 || strpos($v["uri"], '/debugger/v2/input') === 0; }));
         }
         if ($allLogs) {
             $this->outstandingLogs = $allLogs;
@@ -110,7 +110,7 @@ class DebuggerLogReplayer {
             ],
         ])), true);
         if ($allDiagnostics) {
-            $allDiagnostics = array_values(array_filter($allDiagnostics, function ($v) { return strpos($v["uri"], '/debugger/v1/diagnostics') === 0; }));
+            $allDiagnostics = array_values(array_filter($allDiagnostics, function ($v) { return strpos($v["uri"], '/debugger/v1/diagnostics') === 0 && !isset($v["body"]); }));
         }
         if ($allDiagnostics) {
             $this->outstandingDiagnostics = $allDiagnostics;

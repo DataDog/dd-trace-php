@@ -29,7 +29,7 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-            target/
+            /tmp/build-cargo/
           key: ${{ runner.os }}-cargo-asan-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build and install profiler
@@ -45,8 +45,8 @@ jobs:
           triplet=$(uname -m)-unknown-linux-gnu
           RUST_NIGHTLY_VERSION="-2025-01-03"
           rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}
-          RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std --target $triplet --release
-          cp -v "$CARGO_TARGET_DIR/$triplet/release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
+          RUSTFLAGS='-Zsanitizer=address' cargo +nightly${RUST_NIGHTLY_VERSION} build -Zbuild-std=std,panic_abort --target $triplet --profile profiler-release
+          cp -v "$CARGO_TARGET_DIR/$triplet/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Cache build dependencies
         uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0

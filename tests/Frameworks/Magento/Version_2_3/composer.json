@@ -13,6 +13,9 @@
             "laminas/laminas-dependency-plugin": true,
             "magento/magento-composer-installer": true,
             "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "version": "2.3.7-p4",

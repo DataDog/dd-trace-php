@@ -5,6 +5,9 @@ edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.84.1"
 
+[profile.release]
+panic = "abort"
+
 [lib]
 crate-type = ["cdylib"]
 bench = false # disables cargo build in libtest bench

@@ -311,6 +311,11 @@ static inline zend_string *zend_ini_get_value(zend_string *name) {
     }
 }
 
+static inline void zend_string_release_ex(zend_string *str, int persistent) {
+    UNUSED(persistent);
+    zend_string_release(str);
+}
+
 #define ZVAL_DEINDIRECT(z) do { \
         if (Z_TYPE_P(z) == IS_INDIRECT) { \
             (z) = Z_INDIRECT_P(z); \
