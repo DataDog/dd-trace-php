@@ -1605,7 +1605,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_user_req_shutdown();
 
-    ddtrace_sidecar_shutdown();
+    // Only shutdown sidecar in MSHUTDOWN for non-CLI SAPIs.
+    // CLI SAPI shuts down in RSHUTDOWN to allow thread joins before ASAN checks.
+    if (strcmp(sapi_module.name, "cli") != 0) {
+        ddtrace_sidecar_shutdown();
+    }
 
     ddtrace_live_debugger_mshutdown();
 
@@ -2643,6 +2647,9 @@ void dd_internal_handle_fork(void) {
 #ifndef _WIN32
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && ddtrace_sidecar) {
         if (is_child_process) {
+            // Clear inherited listener state - child doesn't own the master listener thread
+            ddtrace_ffi_try("Failed clearing inherited listener state", ddog_sidecar_clear_inherited_listener());
+
             ddtrace_force_new_instance_id();
 
             if (ddtrace_sidecar_connect_worker_after_fork()) {

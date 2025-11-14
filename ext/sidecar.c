@@ -9,6 +9,7 @@
 #include <components-rs/ddtrace.h>
 #include <components-rs/sidecar.h>
 #include <zend_string.h>
+#include <main/SAPI.h>
 #include "sidecar.h"
 #include "live_debugger.h"
 #include "telemetry.h"
@@ -153,7 +154,8 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
 
 }
 
-static ddog_SidecarTransport *dd_sidecar_connection_factory(void);
+// Forward declaration (non-static for export to handlers_pcntl.c)
+ddog_SidecarTransport *dd_sidecar_connection_factory(void);
 
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     // Should not happen, unless the agent url is malformed
@@ -672,6 +674,28 @@ void ddtrace_sidecar_activate(void) {
 
 void ddtrace_sidecar_rshutdown(void) {
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
+
+    // For CLI SAPI, shut down the master listener thread here in RSHUTDOWN
+    // since the process will exit after this request. For other SAPIs,
+    // the master listener persists across requests and shuts down in MSHUTDOWN.
+    if (strcmp(sapi_module.name, "cli") == 0) {
+#ifndef _WIN32
+        ddtrace_pid_t current_pid = getpid();
+        if (ddtrace_master_pid != 0 && current_pid == ddtrace_master_pid) {
+            // CRITICAL: Close the worker connection BEFORE shutting down the master listener.
+            // The master process has its own worker connection to the master listener.
+            // If we don't close it first, the handler thread waiting on this connection
+            // will never exit, causing the listener thread join to timeout.
+            if (ddtrace_sidecar) {
+                ddog_sidecar_transport_drop(ddtrace_sidecar);
+                ddtrace_sidecar = NULL;
+            }
+
+            ddtrace_ffi_try("Failed shutting down master listener in RSHUTDOWN",
+                          ddog_sidecar_shutdown_master_listener());
+        }
+#endif
+    }
 }
 
 bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
