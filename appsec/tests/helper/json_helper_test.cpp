@@ -17,7 +17,7 @@ namespace dds {
 TEST(JsonHelperTest, Int64ToJson)
 {
     ddwaf_object obj;
-    ddwaf_object_signed(&obj, std::numeric_limits<int64_t>::max());
+    ddwaf_object_set_signed(&obj, std::numeric_limits<int64_t>::max());
 
     parameter_view pv(obj);
     std::string result = parameter_to_json(pv);
@@ -28,7 +28,7 @@ TEST(JsonHelperTest, Int64ToJson)
 TEST(JsonHelperTest, Uint64ToJson)
 {
     ddwaf_object obj;
-    ddwaf_object_unsigned(&obj, std::numeric_limits<uint64_t>::max());
+    ddwaf_object_set_unsigned(&obj, std::numeric_limits<uint64_t>::max());
 
     parameter_view pv(obj);
     std::string result = parameter_to_json(pv);
@@ -39,7 +39,7 @@ TEST(JsonHelperTest, Uint64ToJson)
 TEST(JsonHelperTest, InvalidTypeToJson)
 {
     ddwaf_object obj;
-    ddwaf_object_invalid(&obj);
+    ddwaf_object_set_invalid(&obj);
     std::string result;
 
     parameter_view pv(obj);
@@ -52,7 +52,7 @@ TEST(JsonHelperTest, BoolType)
 {
     {
         ddwaf_object obj;
-        ddwaf_object_bool(&obj, false);
+        ddwaf_object_set_bool(&obj, false);
 
         parameter_view pv(obj);
         std::string result = parameter_to_json(pv);
@@ -61,7 +61,7 @@ TEST(JsonHelperTest, BoolType)
 
     {
         ddwaf_object obj;
-        ddwaf_object_bool(&obj, true);
+        ddwaf_object_set_bool(&obj, true);
 
         parameter_view pv(obj);
         std::string result = parameter_to_json(pv);
