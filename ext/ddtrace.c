@@ -2643,6 +2643,9 @@ void dd_internal_handle_fork(void) {
 #ifndef _WIN32
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && ddtrace_sidecar) {
         if (is_child_process) {
+            // Clear inherited listener state - child doesn't own the master listener thread
+            ddtrace_ffi_try("Failed clearing inherited listener state", ddog_sidecar_clear_inherited_listener());
+
             ddtrace_force_new_instance_id();
 
             if (ddtrace_sidecar_connect_worker_after_fork()) {
