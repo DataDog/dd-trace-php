@@ -73,6 +73,30 @@ switch ($variant) {
         header('Content-Type: application/json');
         echo generate_body_over_limit();
         break;
+    case 'forward':
+        $code = intval($_GET['code'] ?? '302');
+        $hops = intval($_GET['hops'] ?? '0');
+        $final_path = $_GET['final_path'] ?? '/example.json';
+
+        http_response_code($code);
+        if ($hops == 0) {
+            header("Location: $final_path", true, $code);
+            echo "Final redirect to $final_path with code $code";
+        } else {
+            $p = array(
+                'code' => $code,
+                'hops' => $hops - 1,
+                'final_path' => $final_path,
+                'variant' => 'forward',
+            );
+            $next_url = 'http://' . $_SERVER['HTTP_HOST'] . '/curl_requests_endpoint.php?'
+                . http_build_query($p);
+
+            header("Location: $next_url", true, $code);
+            echo "Redirecting to $next_url with $code";
+        }
+
+        break;
     default:
         http_response_code(400);
         echo "Unknown variant";

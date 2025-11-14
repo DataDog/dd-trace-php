@@ -1,6 +1,26 @@
 <?php
 $variant = $_GET['variant'] ?? 'simple';
 
+// Hook for tracing WAF push_addresses calls
+if (isset($_GET['trace_waf_runs'])) {
+    \DDTrace\trace_function('datadog\appsec\push_addresses', function (\DDTrace\SpanData $span, array $args) {
+        $span->name = 'appsec.push_addresses';
+        $span->type = 'appsec';
+        $span->service = 'appsec-waf';
+        $span->resource = 'push_addresses';
+
+        // Serialize first argument (data) to JSON and add as tag
+        if (isset($args[0])) {
+            $span->meta['push_call.data'] = json_encode($args[0]);
+        }
+
+        // Serialize second argument (options) to JSON and add as tag
+        if (isset($args[1])) {
+            $span->meta['push_call.options'] = json_encode($args[1]);
+        }
+    });
+}
+
 function curl_ret_transfer_exec($ch)
 {
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -630,6 +650,48 @@ switch ($variant) {
         curl_ret_transfer_exec($ch2); // Closes handle automatically
 
         echo "Both requests completed\n";
+        break;
+    case 'forward':
+    case 'forward_auth':
+    case 'forward_postredir':
+    case 'forward_post':
+    case 'forward_post_postredir':
+    case 'forward_put':
+    case 'forward_patch':
+        $code = intval($_GET['code'] ?? '302');
+        $final_path = $_GET['final_path'] ?? '/example.html';
+        $url = endpoint_url('forward') . "&code=$code&hops=1&final_path=$final_path";
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+
+        if ($variant === 'forward_post' || $variant === 'forward_post_postredir') {
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, 'test=data');
+        }
+
+        if ($variant === 'forward_put') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+        }
+
+        if ($variant === 'forward_patch') {
+            curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
+        }
+
+        if ($variant === 'forward_auth') {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer test-token']);
+            curl_setopt($ch, CURLOPT_COOKIE, 'session=test-session');
+            curl_setopt($ch, CURLOPT_UNRESTRICTED_AUTH, true);
+        }
+
+        if ($variant === 'forward_postredir') {
+            curl_setopt($ch, CURLOPT_POSTREDIR, true);
+        }
+        if ($variant === 'forward_post_postredir') {
+            $postredir = intval($_GET['postredir'] ?? '7');
+            curl_setopt($ch, CURLOPT_POSTREDIR, $postredir);
+        }
+
+        curl_ret_transfer_exec($ch);
         break;
     default:
         http_response_code(500);

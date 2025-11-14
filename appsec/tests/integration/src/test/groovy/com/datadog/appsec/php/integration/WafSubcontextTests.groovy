@@ -4,6 +4,8 @@ import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
+import groovy.json.JsonSlurper
+import groovy.transform.Canonical
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
@@ -579,5 +581,382 @@ class WafSubcontextTests {
         Span span = trace.first()
         assert span.metrics.containsKey('_dd.appsec.downstream_request')
         assert span.metrics['_dd.appsec.downstream_request'] == 1.0
+    }
+
+    @Canonical
+    static class PushAddressCall {
+        static JsonSlurper SLURPER = new JsonSlurper()
+
+        Map data
+        String subcontextId
+        Boolean subcontextLastCall
+
+        static List<PushAddressCall> fromTrace(Trace t) {
+            t.findAll { it.resource == 'push_addresses' }
+            .sort { it.start }
+            .collect {
+                def options = SLURPER.parseText(it.meta.'push_call.options' ?: '{}')
+                new PushAddressCall([
+                        data: SLURPER.parseText(it.meta.'push_call.data' ?: '{}'),
+                        subcontextId: options.subctx_id,
+                        subcontextLastCall: options.subctx_last_call
+                ])
+            }
+        }
+    }
+
+    @Test
+    void 'redirect — get with 301'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward&code=301&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            String body = resp.body().text
+            assert body.contains("This is an html")
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6 // 3 requests
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'GET'
+        assert firstReqReqData."server.io.net.url" ==
+                'http://127.0.0.1:8899/curl_requests_endpoint.php?variant=forward&code=301&hops=1&final_path=/example.html'
+
+        def firstReqRespData = pushCalls[1].data
+        assert firstReqRespData."server.io.net.response.status" == 301
+        assert firstReqRespData."server.io.net.response.headers".location[0] ==
+                'http://127.0.0.1:8899/curl_requests_endpoint.php?code=301&hops=0&final_path=%2Fexample.html&variant=forward'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'GET'
+        assert secondReqReqData."server.io.net.url" ==
+                'http://127.0.0.1:8899/curl_requests_endpoint.php?code=301&hops=0&final_path=%2Fexample.html&variant=forward'
+
+        def secondReqRespData = pushCalls[3].data
+        assert secondReqRespData."server.io.net.response.status" == 301
+        assert secondReqRespData."server.io.net.response.headers".location[0] == '/example.html'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'GET'
+        assert thirdReqReqData."server.io.net.url" == 'http://127.0.0.1:8899/example.html'
+
+        def thirdReqRespData = pushCalls[5].data
+        assert thirdReqRespData."server.io.net.response.status" == 200
+
+        assert !pushCalls[0].subcontextLastCall
+        assert pushCalls[1].subcontextLastCall
+        assert pushCalls[0].subcontextId == pushCalls[1].subcontextId
+
+        assert !pushCalls[2].subcontextLastCall
+        assert pushCalls[3].subcontextLastCall
+        assert pushCalls[2].subcontextId == pushCalls[3].subcontextId
+        assert pushCalls[2].subcontextId != pushCalls[0].subcontextId
+
+        assert !pushCalls[4].subcontextLastCall
+        assert pushCalls[5].subcontextLastCall
+        assert pushCalls[4].subcontextId == pushCalls[5].subcontextId
+        assert pushCalls[4].subcontextId != pushCalls[2].subcontextId
+    }
+
+    @Test
+    void 'redirect — POST with 301 converts to GET by default'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post&code=301&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'GET'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'GET'
+    }
+
+    @Test
+    void 'redirect — POST with 301 stays POST with POSTREDIR=1'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post_postredir&code=301&postredir=1&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'POST'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'POST'
+    }
+
+    @Test
+    void 'redirect — POST with 302 converts to GET by default'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post&code=302&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'GET'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'GET'
+    }
+
+    @Test
+    void 'redirect — POST with 302 stays POST with POSTREDIR=2'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post_postredir&code=302&postredir=2&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'POST'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'POST'
+    }
+
+    @Test
+    void 'redirect — POST with 303 converts to GET by default'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post&code=303&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'GET'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'GET'
+    }
+
+    @Test
+    void 'redirect — POST with 303 stays POST with POSTREDIR=4'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post_postredir&code=303&postredir=4&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'POST'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'POST'
+    }
+
+    @Test
+    void 'redirect — POST with 307 stays POST'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post&code=307&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'POST'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'POST'
+    }
+
+    @Test
+    void 'redirect — POST with 308 stays POST'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_post&code=308&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'POST'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'POST'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'POST'
+    }
+
+    @Test
+    void 'redirect — PATCH with 301 stays PATCH'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_patch&code=301&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'PATCH'
+    }
+
+    @Test
+    void 'redirect — PATCH with 302 stays PATCH'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_patch&code=302&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'PATCH'
+    }
+
+    @Test
+    void 'redirect — PATCH with 303 converts to GET'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_patch&code=303&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'GET'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'GET'
+    }
+
+    @Test
+    void 'redirect — PATCH with 307 stays PATCH'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_patch&code=307&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'PATCH'
+    }
+
+    @Test
+    void 'redirect — PATCH with 308 stays PATCH'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_patch&code=308&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.method" == 'PATCH'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.method" == 'PATCH'
+    }
+
+    @Test
+    void 'redirect — auth header and cookie dropped by default'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward&code=302&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.headers".authorization == null
+        assert firstReqReqData."server.io.net.request.headers".cookie == null
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.headers".authorization == null
+        assert secondReqReqData."server.io.net.request.headers".cookie == null
+    }
+
+    @Test
+    void 'redirect — auth header and cookie kept with UNRESTRICTED_AUTH'() {
+        Trace trace = CONTAINER.traceFromRequest('/curl_requests.php?variant=forward_auth&code=302&trace_waf_runs=1') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert_no_blocking trace
+        def pushCalls = PushAddressCall.fromTrace(trace)
+        assert pushCalls.size() == 6
+
+        def firstReqReqData = pushCalls[0].data
+        assert firstReqReqData."server.io.net.request.headers".authorization[0] == 'Bearer test-token'
+        assert firstReqReqData."server.io.net.request.headers".cookie[0] == 'session=test-session'
+
+        def secondReqReqData = pushCalls[2].data
+        assert secondReqReqData."server.io.net.request.headers".authorization[0] == 'Bearer test-token'
+        assert secondReqReqData."server.io.net.request.headers".cookie[0] == 'session=test-session'
+
+        def thirdReqReqData = pushCalls[4].data
+        assert thirdReqReqData."server.io.net.request.headers".authorization[0] == 'Bearer test-token'
+        assert thirdReqReqData."server.io.net.request.headers".cookie[0] == 'session=test-session'
     }
 }
