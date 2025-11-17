@@ -2866,8 +2866,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             zval *metric_value = ZVAL_VARARG_PARAM(params, 1);
             zval *tags = ZVAL_VARARG_PARAM(params, 2);
             if (Z_TYPE_P(metric_name) == IS_STRING && Z_TYPE_P(tags) == IS_STRING) {
-                ddtrace_metric_register_buffer(Z_STRVAL_P(metric_name), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-                ddtrace_metric_add_point(Z_STRVAL_P(metric_name), zval_get_double(metric_value), Z_STRVAL_P(tags));
+                ddtrace_metric_register_buffer(Z_STR_P(metric_name), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+                ddtrace_metric_add_point(Z_STR_P(metric_name), zval_get_double(metric_value), Z_STR_P(tags));
                 RETVAL_TRUE;
             }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
