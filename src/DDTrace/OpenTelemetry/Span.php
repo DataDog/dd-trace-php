@@ -274,7 +274,7 @@ final class Span extends API\Span implements ReadWriteSpanInterface
     /**
      * @inheritDoc
      */
-    public function getAttribute(string $key): mixed
+    public function getAttribute(string $key)
     {
         return $this->span->meta[$key] ?? ($this->span->metrics[$key] ?? null);
     }
