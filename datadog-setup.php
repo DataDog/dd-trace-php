@@ -42,6 +42,9 @@ define('EXTENSION_SUFFIX', IS_WINDOWS ? "dll" : "so");
 
 define('DEFAULT_INSTALL_DIR', IS_WINDOWS ? getenv('ProgramW6432') . '\Datadog\PHP Tracer' : '/opt/datadog');
 
+// Prevent injection, because php will only report the injected ini directories, even though it preserves the compiled one.
+putenv("DD_INSTRUMENT_SERVICE_WITH_APM=false");
+
 /**
  * The number of items to shift off `get_ini_settings` for config commands.
  */
@@ -549,12 +552,12 @@ function install($options)
             $tar_gz_suffix = ""; // retry with the full archive if the original download failed
         }
     }
-    if (!IS_WINDOWS || `where tar 2> nul` !== null) {
+    if (!IS_WINDOWS || shell_exec("where tar 2> nul") !== null) {
         execute_or_exit(
             "Cannot extract the archive",
             "tar -xf " . escapeshellarg($tmpDirTarGz) . " -C " . escapeshellarg($tmpDir)
         );
-    } elseif (($defaultPath = `where 7z 2> nul`) !== null || @is_dir($installDir7z = getenv("PROGRAMFILES") . "\\7-Zip")) {
+    } elseif (($defaultPath = shell_exec("where 7z 2> nul")) !== null || @is_dir($installDir7z = getenv("PROGRAMFILES") . "\\7-Zip")) {
         if ($defaultPath === null) {
             putenv("PATH=" . getenv("PATH") . ";$installDir7z");
         }
@@ -638,6 +641,7 @@ function install($options)
         // Trace
         $extensionRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/"
             . EXTENSION_PREFIX . "ddtrace$extensionSuffix." . EXTENSION_SUFFIX;
+
         if (!file_exists($extensionRealPath)) {
             print_error_and_exit(substr($extensionSuffix ?: '-nts', 1)
                 . ' builds of PHP ' . $phpProperties[PHP_VER] . ' are currently not supported');
@@ -1506,7 +1510,7 @@ function download($url, $destination, $retry = false)
             }
         }
 
-        curl_close($ch);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
         fclose($fp);
 
         if (false !== $return) {
@@ -1541,7 +1545,12 @@ function download($url, $destination, $retry = false)
         // PHP doesn't like too long location headers, and on PHP 7.3 and older they weren't read at all.
         // But this only really matters for CircleCI artifacts, so not too bad.
         if ($data == "") {
-            foreach ($http_response_header as $header) {
+            if (PHP_VERSION_ID >= 80500) {
+                $headers = http_get_last_response_headers();
+            } else {
+                $headers = $http_response_header;
+            }
+            foreach ($headers as $header) {
                 if (stripos($header, "location: ") === 0) {
                     $data = file_get_contents(substr($header, 10));
                     goto got_data;
@@ -2424,7 +2433,7 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
  */
 function get_supported_php_versions()
 {
-    return ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4'];
+    return ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
 }
 
 main();

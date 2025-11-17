@@ -11,7 +11,7 @@ function my_app()
     $ch = curl_init('http://httpbin-integration/status/200');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_exec($ch);
-    curl_close($ch);
+    if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
     $mysqli = \mysqli_connect('mysql-integration', 'test', 'test', 'test');
     if ($mysqli) {

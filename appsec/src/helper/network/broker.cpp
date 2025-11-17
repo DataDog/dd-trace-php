@@ -39,11 +39,8 @@ request broker::recv(std::chrono::milliseconds initial_timeout) const
             "Not enough data for header:" + std::to_string(res) + " bytes");
     }
 
-    static msgpack::unpack_limit const limits(max_array_size, max_map_size,
-        max_string_length, max_binary_size, max_extension_size, max_depth);
-
     msgpack::unpacker u(&default_reference_func, MSGPACK_NULLPTR,
-        MSGPACK_UNPACKER_INIT_BUFFER_SIZE, limits); // NOLINT
+        MSGPACK_UNPACKER_INIT_BUFFER_SIZE); // NOLINT
 
     static constexpr auto timeout_msg_body{std::chrono::milliseconds{300}};
     socket_->set_recv_timeout(timeout_msg_body);

@@ -275,7 +275,11 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
-
+        def appsecJsonMap = new groovy.json.JsonSlurper().parseText(span.meta."_dd.appsec.json")
+        assert appsecJsonMap.triggers.every { trigger ->
+            def securityResponseId = trigger.security_response_id
+            securityResponseId != null && securityResponseId ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        }
         return span
     }
 
@@ -291,7 +295,7 @@ trait CommonTests {
             def body = new groovy.json.JsonSlurper().parseText(re.body())
             assert body.errors[0].title == "You've been blocked"
             assert body.errors[0].detail == "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."
-            assert body.errors[0].security_response_id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+            assert body.security_response_id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
         }
 
         Span span = trace.first()

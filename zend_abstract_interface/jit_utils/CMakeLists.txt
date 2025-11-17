@@ -15,6 +15,7 @@ add_library(Zai::JitUtils ALIAS zai_jit_utils)
 
 install(
   FILES ${CMAKE_CURRENT_SOURCE_DIR}/jit_blacklist.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/is_mapped.h
   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/jit_utils/)
 
 target_link_libraries(zai_zend_abstract_interface INTERFACE zai_jit_utils)

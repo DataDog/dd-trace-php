@@ -22,18 +22,20 @@ typedef struct {
 
 static ddog_MappedMem_ShmHandle *dd_limiter_mapped_shm;
 static ddtrace_standalone_limiter *dd_limiter;
+static ddtrace_standalone_limiter dd_local_limiter;
 
 void ddtrace_standalone_limiter_create() {
     uint32_t limit = 1;
 
     ddog_ShmHandle *shm;
-    if (!ddtrace_ffi_try("Failed allocating shared memory", ddog_alloc_anon_shm_handle(limit, &shm))) {
-        return;
-    }
     size_t _size;
-    if (!ddtrace_ffi_try("Failed mapping shared memory", ddog_map_shm(shm, &dd_limiter_mapped_shm, (void **)&dd_limiter, &_size))) {
-        ddog_drop_anon_shm_handle(shm);
-        return;
+    if (ddtrace_ffi_try("Failed allocating shared memory", ddog_alloc_anon_shm_handle(limit, &shm))) {
+        if (!ddtrace_ffi_try("Failed mapping shared memory", ddog_map_shm(shm, &dd_limiter_mapped_shm, (void **)&dd_limiter, &_size))) {
+            dd_limiter = &dd_local_limiter;
+            ddog_drop_anon_shm_handle(shm);
+        }
+    } else {
+        dd_limiter = &dd_local_limiter;
     }
 
     dd_limiter->limit = limit;

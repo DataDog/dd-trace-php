@@ -8,20 +8,20 @@ crate-type = ["staticlib", "cdylib"]
 path = "lib.rs"
 
 [dependencies]
-ddcommon = { path = "../libdatadog/ddcommon", features = ["cgroup_testing"] }
-ddcommon-ffi = { path = "../libdatadog/ddcommon-ffi", default-features = false }
-ddtelemetry = { path = "../libdatadog/ddtelemetry" }
-ddtelemetry-ffi = { path = "../libdatadog/ddtelemetry-ffi", default-features = false }
+libdd-common = { path = "../libdatadog/libdd-common", features = ["cgroup_testing"] }
+libdd-common-ffi = { path = "../libdatadog/libdd-common-ffi", default-features = false }
+libdd-telemetry = { path = "../libdatadog/libdd-telemetry" }
+libdd-telemetry-ffi = { path = "../libdatadog/libdd-telemetry-ffi", default-features = false }
 datadog-live-debugger = { path = "../libdatadog/datadog-live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/datadog-live-debugger-ffi", default-features = false }
 datadog-ipc = { path = "../libdatadog/datadog-ipc" }
 datadog-remote-config = { path = "../libdatadog/datadog-remote-config" }
 datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
-tinybytes = { path = "../libdatadog/tinybytes" }
-datadog-trace-utils = { path = "../libdatadog/datadog-trace-utils" }
-datadog-crashtracker-ffi = { path = "../libdatadog/datadog-crashtracker-ffi", default-features = false, features = ["collector"] }
-datadog-library-config-ffi = { path = "../libdatadog/datadog-library-config-ffi", default-features = false }
+libdd-tinybytes = { path = "../libdatadog/libdd-tinybytes" }
+libdd-trace-utils = { path = "../libdatadog/libdd-trace-utils" }
+libdd-crashtracker-ffi = { path = "../libdatadog/libdd-crashtracker-ffi", default-features = false, features = ["collector"] }
+libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi", default-features = false }
 spawn_worker = { path = "../libdatadog/spawn_worker" }
 anyhow = { version = "1.0" }
 const-str = "0.5.6"

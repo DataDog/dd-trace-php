@@ -71,7 +71,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
-# Required: oniguruma (not installed by deafult)
+# Required: oniguruma (not installed by default)
 RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh oniguruma https://github.com/kkos/oniguruma/releases/download/v6.9.5_rev1/onig-6.9.5-rev1.tar.gz; \
     cd "${SRC_DIR}/oniguruma"; \
@@ -79,7 +79,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
-# Required: bison >= 3.0.0 (not installed by deafult)
+# Required: bison >= 3.0.0 (not installed by default)
 RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh bison https://mirrors.kernel.org/gnu/bison/bison-3.7.3.tar.gz; \
     cd "${SRC_DIR}/bison"; \
@@ -87,7 +87,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
-# Required: re2c >= 0.13.4 (not installed by deafult)
+# Required: re2c >= 0.13.4 (not installed by default)
 RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh re2c https://github.com/skvadrik/re2c/releases/download/2.0.3/re2c-2.0.3.tar.xz; \
     cd "${SRC_DIR}/re2c"; \
@@ -96,7 +96,6 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     cd - && rm -fr build
 
 # Required: CMake >= 3.20.0 (default version is 2.8.12.2)
-# Required to build libzip from source (has to be a separate RUN layer)
 RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.28.6/cmake-3.28.6.tar.gz; \
     cd "${SRC_DIR}/cmake"; \
@@ -112,16 +111,7 @@ RUN set -eux; \
     cmake --build build/ --target install; \
     cd - && rm -fr build
 
-
-# Required: libzip >= 0.11 (default version is 0.9)
-RUN source scl_source enable devtoolset-7; set -eux; \
-    /root/download-src.sh libzip https://libzip.org/download/libzip-1.7.3.tar.gz; \
-    cd "${SRC_DIR}/libzip"; \
-    mkdir build && cd build; \
-    cmake .. && make -j $(nproc) && make install; \
-    cd - && rm -fr build
-
-# PHP 8.4 requires OpenSSL >= 1.1.1
+# PHP 8.4+ requires OpenSSL >= 1.1.1
 RUN source scl_source enable devtoolset-7; set -ex; \
     /root/download-src.sh openssl https://openssl.org/source/old/1.1.1/openssl-1.1.1w.tar.gz; \
     cd "${SRC_DIR}/openssl"; \
@@ -143,12 +133,29 @@ RUN source scl_source enable devtoolset-7; set -ex; \
     make -j $(nproc) && make install; \
     cd - && rm -fr build
 
-# PHP 8.4 requires curl >= 7.61.0
+RUN source scl_source enable devtoolset-7; set -eux; \
+    /root/download-src.sh libzip https://libzip.org/download/libzip-1.10.1.tar.gz; \
+    cd "${SRC_DIR}/libzip"; \
+    rm -rf build && mkdir build && cd build; \
+    cmake .. \
+      -DCMAKE_INSTALL_PREFIX=/usr/local \
+      -DBUILD_SHARED_LIBS=ON \
+      -DENABLE_OPENSSL=ON \
+      -DCMAKE_PREFIX_PATH="/usr/local/openssl;/usr/local/zlib" \
+      -DOpenSSL_ROOT=/usr/local/openssl \
+      -DZLIB_ROOT=/usr/local/zlib \
+      -DCMAKE_POLICY_DEFAULT_CMP0074=NEW \
+      -DCMAKE_INSTALL_RPATH=/usr/local/openssl/lib; \
+    make -j $(nproc) && make install; \
+    ldconfig; \
+    cd - && rm -fr build
+
+# PHP 8.4 requires curl >= 7.61.0 (link it to OpenSSL 1.1.1 we just built)
 RUN source scl_source enable devtoolset-7; set -ex; \
     /root/download-src.sh curl https://curl.se/download/curl-7.61.1.tar.gz; \
     cd "${SRC_DIR}/curl"; \
     mkdir -v 'build' && cd 'build'; \
-    ../configure --prefix=/usr/local/curl; \
+    ../configure --prefix=/usr/local/curl --with-ssl=/usr/local/openssl; \
     make -j $(nproc) && make install; \
     cd - && rm -fr build
 
@@ -232,6 +239,25 @@ RUN source scl_source enable devtoolset-7 \
     && cd - \
     && rm -fr "$FILENAME" "${FILENAME%.tar.gz}"
 
+# Install rust-src manually, since it's not included in the offline installer.
+# Levi figured this out through reading the rustup script and trial and error.
+RUN rustver="$RUST_VERSION" \
+    && prefix="$(rustc --print sysroot)" \
+    && curl -OL "https://static.rust-lang.org/dist/channel-rust-$rustver.toml" \
+    && url=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "url" {print $3}' | cut -f2 -d'"') \
+    && hash=$(grep -A5 -e "pkg\.rust-src\.target\." "channel-rust-$rustver.toml" | awk '$1 == "hash" {print $3}' | cut -f2 -d'"') \
+    && echo "URL: $url" \
+    && echo "Hash: $hash" \
+    && curl -OL "$url" \
+    && fname="${url##*/}" \
+    && dir="${fname%.tar.*}" \
+    && printf '%s  %s' "$hash" "$fname" | sha256sum --check --status \
+    && tar -xf "$fname" \
+    && cd "$dir" \
+    && ./install.sh --components="rust-src" --prefix="$prefix" \
+    && cd - \
+    && rm -fr "$fname" "$dir" "channel-rust-$rustver.toml"
+
 # now install PHP specific dependencies
 RUN set -eux; \
     yum install -y epel-release; \
@@ -255,5 +281,6 @@ RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-d
 ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
 
 ENV PATH="/rust/cargo/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/openssl/lib:${LD_LIBRARY_PATH}"
 
 RUN echo '#define SECBIT_NO_SETUID_FIXUP (1 << 2)' > '/usr/include/linux/securebits.h'

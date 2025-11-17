@@ -56,6 +56,9 @@
         "sort-packages": true,
         "allow-plugins": {
             "symfony/flex": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "autoload": {

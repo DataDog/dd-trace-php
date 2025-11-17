@@ -99,11 +99,8 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
         dd_imsg imsg = {0};
         res = _imsg_recv(&imsg, conn);
         if (res) {
-            if (res != dd_helper_error) {
-                mlog(dd_log_warning,
-                    "Error receiving reply for command %.*s: %s", NAME_L,
-                    dd_result_to_string(res));
-            }
+            mlog(dd_log_warning, "Error receiving reply for command %.*s: %s",
+                NAME_L, dd_result_to_string(res));
             return res;
         }
 
@@ -283,7 +280,7 @@ static ATTR_WARN_UNUSED dd_result _imsg_recv(
 static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg)
 {
-    free(imsg->_data);
+    efree(imsg->_data);
     imsg->_data = NULL;
     imsg->_size = 0;
     return mpack_tree_destroy(&imsg->_tree);
@@ -306,7 +303,7 @@ static void _command_process_block_parameters(mpack_node_t root)
 {
     int status_code = DEFAULT_BLOCKING_RESPONSE_CODE;
     dd_response_type type = DEFAULT_RESPONSE_TYPE;
-    zend_string *block_id = NULL;
+    zend_string *security_response_id = NULL;
 
     int expected_nodes = 3;
     size_t count = mpack_node_map_count(root);
@@ -356,24 +353,26 @@ static void _command_process_block_parameters(mpack_node_t root)
                 continue;
             }
             --expected_nodes;
-        } else if (dd_mpack_node_lstr_eq(key, "block_id")) {
-            size_t block_id_len = mpack_node_strlen(value);
-            block_id = zend_string_init(mpack_node_str(value), block_id_len, 0);
+        } else if (dd_mpack_node_lstr_eq(key, "security_response_id")) {
+            size_t security_response_id_len = mpack_node_strlen(value);
+            security_response_id = zend_string_init(
+                mpack_node_str(value), security_response_id_len, 0);
             --expected_nodes;
         }
     }
 
     mlog(dd_log_debug,
-        "Blocking parameters: status_code=%d, type=%d, block_id=%s",
-        status_code, type, block_id ? ZSTR_VAL(block_id) : "NULL");
-    dd_set_block_code_and_type(status_code, type, block_id);
+        "Blocking parameters: status_code=%d, type=%d, security_response_id=%s",
+        status_code, type,
+        security_response_id ? ZSTR_VAL(security_response_id) : "NULL");
+    dd_set_block_code_and_type(status_code, type, security_response_id);
 }
 
 static void _command_process_redirect_parameters(mpack_node_t root)
 {
     int status_code = 0;
     zend_string *location = NULL;
-    zend_string *block_id = NULL;
+    zend_string *security_response_id = NULL;
 
     int expected_nodes = 3;
     size_t count = mpack_node_map_count(root);
@@ -411,18 +410,21 @@ static void _command_process_redirect_parameters(mpack_node_t root)
             size_t location_len = mpack_node_strlen(value);
             location = zend_string_init(mpack_node_str(value), location_len, 0);
             --expected_nodes;
-        } else if (dd_mpack_node_lstr_eq(key, "block_id")) {
-            size_t block_id_len = mpack_node_strlen(value);
-            block_id = zend_string_init(mpack_node_str(value), block_id_len, 0);
+        } else if (dd_mpack_node_lstr_eq(key, "security_response_id")) {
+            size_t security_response_id_len = mpack_node_strlen(value);
+            security_response_id = zend_string_init(
+                mpack_node_str(value), security_response_id_len, 0);
             --expected_nodes;
         }
     }
 
     mlog(dd_log_debug,
-        "Redirect parameters: status_code=%d, location=%s, block_id=%s",
+        "Redirect parameters: status_code=%d, location=%s, "
+        "security_response_id=%s",
         status_code, location ? ZSTR_VAL(location) : "NULL",
-        block_id ? ZSTR_VAL(block_id) : "NULL");
-    dd_set_redirect_code_and_location(status_code, location, block_id);
+        security_response_id ? ZSTR_VAL(security_response_id) : "NULL");
+    dd_set_redirect_code_and_location(
+        status_code, location, security_response_id);
 }
 static void _command_process_stack_trace_parameters(mpack_node_t root)
 {
@@ -840,7 +842,7 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
         if (key_len == LSTRLEN(name) && memcmp(key_str, name, key_len) == 0) { \
             static zend_string *_Atomic key_zstr;                              \
             _init_zstr(&key_zstr, name, LSTRLEN(name));                        \
-            zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 1);  \
+            zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 0);  \
             dd_telemetry_add_metric(key_zstr, value, tags_zstr, type);         \
             zend_string_release(tags_zstr);                                    \
             mlog_g(dd_log_debug,                                               \

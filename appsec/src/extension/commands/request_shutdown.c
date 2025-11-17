@@ -82,9 +82,15 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
 
     // 1.3.?
     if (Z_TYPE(resp_body) != IS_NULL) {
+        dd_mpack_limits limits = dd_mpack_def_limits;
+
         dd_mpack_write_lstr(w, "server.response.body");
-        dd_mpack_write_zval(w, &resp_body);
+        dd_mpack_write_zval_lim(w, &resp_body, &limits);
         zval_ptr_dtor_nogc(&resp_body);
+
+        if (dd_mpack_limits_reached(&limits)) {
+            mlog(dd_log_info, "Limits reched when serializing response body");
+        }
     }
 
     mpack_finish_map(w);
@@ -157,13 +163,14 @@ static void _pack_headers_no_cookies_llist(
     zend_llist *coll;
     ZEND_HASH_FOREACH_STR_KEY_PTR(&headers_map, key, coll)
     {
-        mpack_write_str(w, ZSTR_VAL(key), ZSTR_LEN(key));
-        mpack_start_array(w, zend_llist_count(coll));
+        dd_mpack_write_zstr(w, key);
 
+        mpack_start_array(w, zend_llist_count(coll));
         zend_llist_position p;
         for (struct _header_val *hv = zend_llist_get_first_ex(coll, &p); hv;
              hv = zend_llist_get_next_ex(coll, &p)) {
-            mpack_write_str(w, hv->val, hv->len);
+            dd_mpack_write_nullable_str_lim(
+                w, hv->val, hv->len, DD_MPACK_DEF_STRING_LIMIT);
         }
         mpack_finish_array(w);
     }
@@ -217,7 +224,7 @@ static void _pack_headers_no_cookies_map(
             zend_string_addref(key);
         }
 
-        mpack_write_str(w, ZSTR_VAL(key), ZSTR_LEN(key));
+        dd_mpack_write_zstr(w, key);
 
         if (Z_TYPE_P(val) == IS_ARRAY) {
             mpack_start_array(w, zend_array_count(Z_ARRVAL_P(val)));
@@ -225,7 +232,8 @@ static void _pack_headers_no_cookies_map(
             ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(val), zv)
             {
                 if (Z_TYPE_P(zv) == IS_STRING) {
-                    mpack_write_str(w, Z_STRVAL_P(zv), Z_STRLEN_P(zv));
+                    dd_mpack_write_zstr_lim(
+                        w, Z_STR_P(zv), DD_MPACK_DEF_STRING_LIMIT);
                 } else {
                     mpack_write_str(w, ZEND_STRL("(invalid value)"));
                     mlog(dd_log_warning,
@@ -237,7 +245,7 @@ static void _pack_headers_no_cookies_map(
             ZEND_HASH_FOREACH_END();
         } else if (Z_TYPE_P(val) == IS_STRING) {
             mpack_start_array(w, 1);
-            mpack_write_str(w, Z_STRVAL_P(val), Z_STRLEN_P(val));
+            dd_mpack_write_zstr_lim(w, Z_STR_P(val), DD_MPACK_DEF_STRING_LIMIT);
         } else {
             mpack_start_array(w, 1);
             mpack_write_str(w, ZEND_STRL("(invalid value)"));

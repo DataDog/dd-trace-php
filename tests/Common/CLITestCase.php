@@ -91,7 +91,7 @@ abstract class CLITestCase extends IntegrationTestCase
         $script = escapeshellarg($this->getScriptLocation());
         $arguments = escapeshellarg($arguments);
         $commandToExecute = "$envs " . PHP_BINARY . " $inis $script $arguments";
-        `$commandToExecute`;
+        shell_exec($commandToExecute);
     }
 
     /**

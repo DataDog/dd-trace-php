@@ -33,7 +33,7 @@ $responses[] = curl_exec($ch);
 show_curl_error_on_fail($ch);
 $responses[] = curl_exec($ch);
 show_curl_error_on_fail($ch);
-curl_close($ch);
+if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 
 include 'distributed_tracing.inc';
 foreach ($responses as $key => $response) {

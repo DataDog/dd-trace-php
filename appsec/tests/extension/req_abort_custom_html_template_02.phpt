@@ -3,7 +3,7 @@ Abort request as a result of rinit, with a custom template
 --INI--
 datadog.appsec.enabled=1
 --ENV--
-DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML=tests/extension/templates/response_with_block_id.html
+DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML=tests/extension/templates/response_with_security_response_id.html
 --FILE--
 <?php
 use function datadog\appsec\testing\rinit;
@@ -11,7 +11,7 @@ use function datadog\appsec\testing\rinit;
 include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
-    response_list(response_request_init([[['block', ['status_code' => '500', 'type' => 'html', 'block_id' => 'some-id']]], ['{"found":"attack"}','{"another":"attack"}']])),
+    response_list(response_request_init([[['block', ['status_code' => '500', 'type' => 'html', 'security_response_id' => 'some-id']]], ['{"found":"attack"}','{"another":"attack"}']])),
 ], ['continuous' => true]);
 
 rinit();

@@ -158,9 +158,11 @@ array(2) {
             ["locals"]=>
             array(8) {
               ["_COOKIE"]=>
-              array(1) {
+              array(2) {
                 ["type"]=>
                 string(5) "array"
+                ["notCapturedReason"]=>
+                string(13) "redactedIdent"
               }
               ["_FILES"]=>
               array(1) {

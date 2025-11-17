@@ -30,10 +30,13 @@ elif [ "${INSTALL_MODE}" = "sury" ]; then
         php${PHP_VERSION}-cli \
         php${PHP_VERSION}-curl \
         php${PHP_VERSION}-fpm \
-        php${PHP_VERSION}-opcache \
         libapache2-mod-php${PHP_VERSION}
         WWW_CONF=/etc/php/${PHP_VERSION}/fpm/pool.d/www.conf
         PHP_FPM_BIN=php-fpm${PHP_VERSION}
+    if [ "${PHP_VERSION}" != "8.5" ]; then
+        apt install -y \
+            php${PHP_VERSION}-opcache
+    fi
 else
     echo "Unknown installation mode: ${INSTALL_MODE}"
     exit 1

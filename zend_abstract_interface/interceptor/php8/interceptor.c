@@ -751,12 +751,16 @@ static zend_never_inline const void *zai_interceptor_handle_created_generator_fu
     return zai_interceptor_generator_post_op[2].handler;
 }
 
+#ifndef ZEND_OPCODE_HANDLER_CCONV
+#define ZEND_OPCODE_HANDLER_CCONV ZEND_FASTCALL
+#endif
+
 #ifdef __GNUC__
 bool zai_interceptor_avoid_compile_opt = true;
 uintptr_t zai_interceptor_dummy_label_use;
 
 // a bit of stuff to make the function control flow undecidable for the compiler, so that it doesn't optimize anything away
-static void *ZEND_FASTCALL zai_interceptor_handle_created_generator_goto(void) {
+static void *ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_goto(void) {
     if (zai_interceptor_avoid_compile_opt) {
         uintptr_t tmp = (uintptr_t)&&zai_interceptor_handle_created_generator_goto_LABEL2;
         zai_interceptor_dummy_label_use = tmp;
@@ -773,10 +777,17 @@ static void *ZEND_FASTCALL zai_interceptor_handle_created_generator_goto(void) {
 #endif
 
 // Windows & Mac use call VM without IP/FP
-static int ZEND_FASTCALL zai_interceptor_handle_created_generator_call(void) {
+#if PHP_VERSION_ID < 80500
+static int ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_call(void) {
     zai_interceptor_handle_created_generator_func();
     return 0 /* ZEND_VM_CONTINUE */;
 }
+#else
+static const zend_op *ZEND_OPCODE_HANDLER_CCONV zai_interceptor_handle_created_generator_call(void) {
+    zai_interceptor_handle_created_generator_func();
+    return &zai_interceptor_generator_post_op[2] /* ZEND_VM_CONTINUE */;
+}
+#endif
 
 static zend_object *(*generator_create_prev)(zend_class_entry *class_type);
 static zend_object *zai_interceptor_generator_create(zend_class_entry *class_type) {

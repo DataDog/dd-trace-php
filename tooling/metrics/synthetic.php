@@ -9,7 +9,7 @@ for ($curlIndex = 0; $curlIndex < CURL_COUNT; $curlIndex++) {
     curl_setopt($ch, CURLOPT_URL, 'httpbin-integration/get?client=curl');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     $output = curl_exec($ch);
-    curl_close($ch);
+    if (PHP_VERSION_ID < 80000) { curl_close($ch); }
 }
 
 for ($queryIndex = 0; $queryIndex < QUERY_COUNT; $queryIndex++) {

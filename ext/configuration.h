@@ -134,7 +134,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                                \
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                 \
-    CONFIG(BOOL, DD_EXCEPTION_REPLAY_ENABLED, "false")                                                         \
+    CONFIG(BOOL, DD_EXCEPTION_REPLAY_ENABLED, "false", .ini_change = ddtrace_alter_DD_EXCEPTION_REPLAY_ENABLED) \
     CONFIG(INT, DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES, "-1")                                                  \
     CONFIG(INT, DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS, "3600")                                          \
     CONFIG(STRING, DD_TRACE_MEMORY_LIMIT, "")                                                                  \
@@ -249,7 +249,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_INJECT_FORCE, "false", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5", .ini_change = zai_config_system_ini_change)    \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)          \
-    CONFIG(BOOL, DD_DYNAMIC_INSTRUMENTATION_ENABLED, "false", .ini_change = zai_config_system_ini_change)      \
+    CONFIG(BOOL, DD_DYNAMIC_INSTRUMENTATION_ENABLED, "false", .ini_change = ddtrace_alter_dynamic_instrumentation_config) \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(BOOL, DD_APM_TRACING_ENABLED, "true")                                                               \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
@@ -258,7 +258,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                            \
     CONFIG(SET, DD_TRACE_HTTP_CLIENT_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
     CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
-    CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true")                                                     \
+    CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true", .ini_change = ddtrace_alter_DD_CODE_ORIGIN_FOR_SPANS_ENABLED) \
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
@@ -335,5 +335,6 @@ static inline int ddtrace_quiet_zpp(void) {
 }
 
 void ddtrace_change_default_ini(ddtrace_config_id config_id, zai_str str);
+bool ddtrace_runtime_config_is_modified(ddtrace_config_id config);
 
 #endif  // DD_CONFIGURATION_H
