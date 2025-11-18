@@ -12,7 +12,7 @@ variables:
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/laravel-realworld
 
-.benchmarks-rules: &benchmarks-rules
+.benchmarks-profiler-rules: &benchmarks-profiler-rules
   - if: $CI_COMMIT_REF_NAME == "master"
     interruptible: false
   - interruptible: true
@@ -29,7 +29,7 @@ variables:
   needs: []
   image:
     name: $BASE_CI_IMAGE
-  rules: *benchmarks-rules
+  rules: *benchmarks-profiler-rules
   timeout: 90m
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
