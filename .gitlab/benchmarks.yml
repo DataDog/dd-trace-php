@@ -23,6 +23,19 @@ variables:
       when: on_success
     - when: manual
 
+.macrobenchmarks_rules: &macrobenchmarks_rules
+  - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
+    when: always
+    interruptible: false
+  - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+    when: always
+    interruptible: false
+  - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
+    when: always
+    interruptible: false
+  - when: manual
+    interruptible: true
+
 .microbenchmarks:
   stage: benchmarks
   tags: ["runner:apm-k8s-tweaked-metal"]
@@ -134,19 +147,6 @@ check-big-regressions:
   variables:
     # Gitlab and BP specific env vars. Do not modify.
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
-
-.macrobenchmarks_rules: &macrobenchmarks_rules
-  - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
-    when: always
-    interruptible: false
-  - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
-    when: always
-    interruptible: false
-  - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
-    when: always
-    interruptible: false
-  - when: manual
-    interruptible: true
 
 .macrobenchmarks:
   stage: benchmarks
