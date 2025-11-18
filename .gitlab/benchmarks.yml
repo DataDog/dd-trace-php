@@ -33,11 +33,18 @@ variables:
   - when: manual
     interruptible: true
 
-.benchmarks-tracer-rules:
-  rules:
-    - if: $CI_PIPELINE_SOURCE != "schedule"
-      when: on_success
-    - when: manual
+.benchmarks-tracer-rules: &benchmarks-tracer-rules
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
+    when: on_success
+    interruptible: false
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME != "master"
+    when: on_success
+    interruptible: true
+  - if: $CI_COMMIT_REF_NAME == "master"
+    when: manual
+    interruptible: false
+  - when: manual
+    interruptible: true
 
 .macrobenchmarks-rules: &macrobenchmarks-rules
   - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
