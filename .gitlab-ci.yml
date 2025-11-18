@@ -19,6 +19,10 @@ include:
     file: templates/ci_authenticated_job.yml
   - local: .gitlab/ci-images.yml
 
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
 generate-templates:
   stage: build
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
