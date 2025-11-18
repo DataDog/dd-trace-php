@@ -23,7 +23,7 @@ variables:
       when: on_success
     - when: manual
 
-.macrobenchmarks_rules: &macrobenchmarks_rules
+.macrobenchmarks-rules: &macrobenchmarks-rules
   - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
     when: always
     interruptible: false
@@ -150,14 +150,13 @@ check-big-regressions:
 
 .macrobenchmarks:
   stage: benchmarks
-  rules: *macrobenchmarks_rules
+  rules: *macrobenchmarks-rules
   tags: ["runner:apm-k8s-same-cpu"]
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  interruptible: true
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
