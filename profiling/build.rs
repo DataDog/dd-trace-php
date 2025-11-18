@@ -431,7 +431,9 @@ fn cfg_zts() {
     // Create a temporary C file to probe ZTS
     let out_dir = env::var("OUT_DIR").unwrap();
     let probe_path = Path::new(&out_dir).join("zts_probe.c");
-    fs::write(&probe_path, r#"
+    fs::write(
+        &probe_path,
+        r#"
 #include "main/php_config.h"
 #include <stdio.h>
 int main() {
@@ -442,7 +444,9 @@ int main() {
 #endif
     return 0;
 }
-"#).expect("Failed to write ZTS probe file");
+"#,
+    )
+    .expect("Failed to write ZTS probe file");
 
     // Get the C compiler from cc crate
     let compiler = cc::Build::new().get_compiler();

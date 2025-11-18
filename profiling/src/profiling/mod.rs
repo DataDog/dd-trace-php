@@ -24,11 +24,11 @@ use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use datadog_profiling::api::{
+use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
 };
-use datadog_profiling::exporter::Tag;
-use datadog_profiling::internal::Profile as InternalProfile;
+use libdd_profiling::exporter::Tag;
+use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
@@ -1528,7 +1528,7 @@ pub struct JoinError {
 mod tests {
     use super::*;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
-    use datadog_profiling::exporter::Uri;
+    use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
