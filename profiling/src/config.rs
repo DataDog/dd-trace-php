@@ -12,9 +12,9 @@ use core::fmt::{Display, Formatter};
 use core::mem::{swap, transmute, MaybeUninit};
 use core::ptr;
 use core::str::FromStr;
-pub use datadog_profiling::exporter::Uri;
-use ddcommon::tag::{parse_tags, Tag};
 use libc::{c_char, c_int};
+use libdd_common::tag::{parse_tags, Tag};
+pub use libdd_profiling::exporter::Uri;
 use log::{warn, LevelFilter};
 use std::borrow::Cow;
 use std::ffi::CString;
@@ -190,24 +190,24 @@ impl Default for AgentEndpoint {
     }
 }
 
-impl TryFrom<AgentEndpoint> for ddcommon::Endpoint {
+impl TryFrom<AgentEndpoint> for libdd_common::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: AgentEndpoint) -> Result<Self, Self::Error> {
         match value {
-            AgentEndpoint::Uri(uri) => datadog_profiling::exporter::config::agent(uri),
-            AgentEndpoint::Socket(path) => datadog_profiling::exporter::config::agent_uds(&path),
+            AgentEndpoint::Uri(uri) => libdd_profiling::exporter::config::agent(uri),
+            AgentEndpoint::Socket(path) => libdd_profiling::exporter::config::agent_uds(&path),
         }
     }
 }
 
-impl TryFrom<&AgentEndpoint> for ddcommon::Endpoint {
+impl TryFrom<&AgentEndpoint> for libdd_common::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: &AgentEndpoint) -> Result<Self, Self::Error> {
         match value {
-            AgentEndpoint::Uri(uri) => datadog_profiling::exporter::config::agent(uri.clone()),
-            AgentEndpoint::Socket(path) => datadog_profiling::exporter::config::agent_uds(path),
+            AgentEndpoint::Uri(uri) => libdd_profiling::exporter::config::agent(uri.clone()),
+            AgentEndpoint::Socket(path) => libdd_profiling::exporter::config::agent_uds(path),
         }
     }
 }
