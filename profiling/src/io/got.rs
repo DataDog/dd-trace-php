@@ -181,7 +181,11 @@ unsafe fn override_got_entry(
 
 /// Callback function that should be passed to `libc::dl_iterate_phdr()` and gets called for every
 /// shared object.
-pub unsafe extern "C" fn callback(info: *mut dl_phdr_info, _size: usize, data: *mut c_void) -> c_int {
+pub unsafe extern "C" fn callback(
+    info: *mut dl_phdr_info,
+    _size: usize,
+    data: *mut c_void,
+) -> c_int {
     let overwrites = &mut *(data as *mut Vec<GotSymbolOverwrite>);
 
     // detect myself ...

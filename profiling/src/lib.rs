@@ -31,8 +31,8 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, c_void, CStr};
 use core::ptr;
-use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
+use libdd_common::{cstr, tag, tag::Tag};
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -318,7 +318,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // and SSL_CERT_DIR environment variables safely before any threads are
     // spawned, avoiding potential getenv/setenv race conditions.
     {
-        let _connector = ddcommon::connector::Connector::default();
+        let _connector = libdd_common::connector::Connector::default();
     }
 
     // Use a hybrid extension hack to load as a module but have the
