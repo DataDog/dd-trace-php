@@ -27,7 +27,7 @@ use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use libdd_profiling::api::{Period, UpscalingInfo, ValueType as ApiValueType};
-use libdd_profiling::api2::{self, Location2};
+use libdd_profiling::api2::{self, Location2, ValueType2};
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use libdd_profiling::profiles::collections::{Arc as DdArc, ArcOverflow};
@@ -307,6 +307,7 @@ impl TimeCollector {
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
     fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
+        // Build string-based sample types for offset calculations
         let sample_types: Vec<ApiValueType> = message
             .key
             .sample_types
@@ -364,14 +365,42 @@ impl TimeCollector {
         // check if we have the `exception-samples` sample types
         let exception_samples_offset = get_offset("exception-samples");
 
+        // Build API2 ValueType2 using the profiles dictionary from the message's call stack
+        let dict_arc = message
+            .value
+            .call_stack
+            .dictionary
+            .dictionary_arc()
+            .expect("failed to clone profiles dictionary");
+
+        let sample_types2: Vec<ValueType2> = sample_types
+            .iter()
+            .map(|vt| {
+                let type_id = dict_arc
+                    .try_insert_str2(vt.r#type)
+                    .expect("failed to intern sample type");
+                let unit_id = dict_arc
+                    .try_insert_str2(vt.unit)
+                    .expect("failed to intern sample unit");
+                ValueType2 { type_id, unit_id }
+            })
+            .collect();
+
         let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = InternalProfile::try_new(
-            &sample_types,
-            Some(Period {
-                r#type: ApiValueType {
-                    r#type: WALL_TIME_PERIOD_TYPE.r#type,
-                    unit: WALL_TIME_PERIOD_TYPE.unit,
-                },
+        let period2 = ValueType2 {
+            type_id: dict_arc
+                .try_insert_str2(WALL_TIME_PERIOD_TYPE.r#type)
+                .expect("failed to intern period type"),
+            unit_id: dict_arc
+                .try_insert_str2(WALL_TIME_PERIOD_TYPE.unit)
+                .expect("failed to intern period unit"),
+        };
+
+        let mut profile = InternalProfile::try_new2(
+            dict_arc,
+            &sample_types2,
+            Some(api2::Period2 {
+                r#type: period2,
                 value: period.min(i64::MAX as u128) as i64,
             }),
         )
@@ -537,6 +566,14 @@ impl TimeCollector {
         }
 
         let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
+            // Ensure the existing profile's dictionary matches the incoming message's dictionary.
+            let existing_dict = value.get_profiles_dictionary().unwrap();
+            let incoming_dict = message.value.call_stack.dictionary.dictionary();
+            // TODO: Support migrating/switching profiles when the dictionary changes mid-stream.
+            assert!(
+                ptr::eq(existing_dict as *const _, incoming_dict as *const _),
+                "ProfilesDictionary mismatch between existing profile and incoming sample"
+            );
             value
         } else {
             profiles.insert(
