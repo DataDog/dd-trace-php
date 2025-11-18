@@ -17,6 +17,12 @@ variables:
     interruptible: false
   - interruptible: true
 
+.benchmarks-tracer-rules:
+  rules:
+    - if: $CI_PIPELINE_SOURCE != "schedule"
+      when: on_success
+    - when: manual
+
 .microbenchmarks:
   stage: benchmarks
   tags: ["runner:apm-k8s-tweaked-metal"]
@@ -68,12 +74,6 @@ benchmarks-profiler:
     - when: manual
   variables:
     SCENARIO: "profiler"
-
-.benchmarks-tracer-rules:
-  rules:
-    - if: $CI_PIPELINE_SOURCE != "schedule"
-      when: on_success
-    - when: manual
 
 benchmarks-tracer:
   extends:
