@@ -136,6 +136,7 @@ benchmarks-appsec:
     SCENARIO: "appsec"
 
 check-big-regressions:
+  rules: *benchmarks-tracer-rules
   stage: gate
   needs: [ "benchmarks-tracer" ]
   extends: .benchmarks-tracer-rules
