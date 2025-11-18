@@ -136,11 +136,15 @@ check-big-regressions:
 .macrobenchmarks_rules: &macrobenchmarks_rules
   - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
     when: always
+    interruptible: false
   - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
     when: always
+    interruptible: false
   - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
     when: always
+    interruptible: false
   - when: manual
+    interruptible: true
 
 .macrobenchmarks:
   stage: benchmarks
