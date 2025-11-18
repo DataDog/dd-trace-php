@@ -12,6 +12,10 @@ variables:
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/laravel-realworld
 
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
 .benchmarks-profiler-rules: &benchmarks-profiler-rules
   - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
     changes:
