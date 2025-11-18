@@ -1112,6 +1112,12 @@ void zai_hook_finish(zend_execute_data *ex, zval *rv, zai_hook_memory_t *memory)
     for (zai_hook_info *hook_start = memory->dynamic, *hook_info = hook_start + memory->hook_count - 1; hook_info >= hook_start; --hook_info) {
         zai_hook_t *hook = hook_info->hook;
 
+        // if we propagate bailout during hook->end, we don't try to finish
+        // again in zai_interceptor_terminate_all_pending_observers
+        // This may even segfault due to too many calls to
+        // ddtrace_clear_execute_data_span
+        memory->hook_count--;
+
         if (hook->end) {
             hook->end(memory->invocation, ex, rv, hook->aux.data, (char *)memory->dynamic + hook_info->dynamic_offset);
         }
