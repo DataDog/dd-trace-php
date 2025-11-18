@@ -5,6 +5,7 @@ pub use ffi::*;
 pub use libdd_library_config_ffi::*;
 
 use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
+use libdd_profiling::profiles::datatypes::FunctionId2;
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::marker::PhantomData;
@@ -352,13 +353,13 @@ extern "C" {
     /// none-the-less has been seen in the wild. It may also return None if
     /// the run_time_cache is not available on this function type.
     #[cfg(not(feature = "stack_walking_tests"))]
-    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
+    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut FunctionId2>;
 
     /// mock for testing
     #[cfg(feature = "stack_walking_tests")]
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
+    ) -> Option<&mut FunctionId2>;
 
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
@@ -626,9 +627,12 @@ impl<'a> ZaiStr<'a> {
     pub fn as_bytes(&self) -> &'a [u8] {
         debug_assert!(!self.ptr.is_null());
         let len = self.len;
+        #[allow(clippy::unnecessary_cast)] // platform-specific whether needed
         // Safety: the ZaiStr is supposed to uphold all the invariants, and
         // the pointer has been debug_asserted to not be null, so 🤞🏻.
-        unsafe { std::slice::from_raw_parts(self.ptr as *const u8, len) }
+        unsafe {
+            std::slice::from_raw_parts(self.ptr as *const u8, len)
+        }
     }
 
     #[inline]

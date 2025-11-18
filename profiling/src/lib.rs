@@ -1,26 +1,19 @@
+mod allocation;
 pub mod bindings;
 pub mod capi;
 mod clocks;
 mod config;
+mod exception;
 mod logging;
 pub mod profiling;
 mod pthread;
 mod sapi;
-mod thin_str;
+mod timeline;
+mod vec_ext;
 mod wall_time;
-
-#[cfg(php_run_time_cache)]
-mod string_set;
-
-mod allocation;
 
 #[cfg(all(feature = "io_profiling", target_os = "linux"))]
 mod io;
-
-mod exception;
-
-mod timeline;
-mod vec_ext;
 
 use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
 use crate::zend::datadog_sapi_globals_request_info;
@@ -213,6 +206,8 @@ pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     timeline::timeline_ginit();
+    // Initialize thread-local dictionary reference from the global dictionary.
+    profiling::dictionary::ginit();
 
     allocation::alloc_prof_ginit();
 }
@@ -220,6 +215,7 @@ unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     timeline::timeline_gshutdown();
+    profiling::dictionary::gshutdown();
 
     allocation::alloc_prof_gshutdown();
 }

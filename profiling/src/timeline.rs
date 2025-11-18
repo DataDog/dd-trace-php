@@ -227,6 +227,7 @@ create_sleeping_fn!(
 
 /// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
 #[cfg(zend_error_observer)]
+#[no_mangle]
 unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     _type: i32,
     #[cfg(zend_error_observer_80)] file: *const c_char,

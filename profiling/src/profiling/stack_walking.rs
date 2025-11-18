@@ -1,19 +1,17 @@
+use super::CallStack;
 use crate::bindings::{
     zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
 };
-use crate::vec_ext::VecExt;
-use std::borrow::Cow;
-
-#[cfg(php_frameless)]
-use crate::bindings::zend_flf_functions;
-
 #[cfg(php_frameless)]
 use crate::bindings::{
-    ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
+    zend_flf_functions, ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2,
+    ZEND_FRAMELESS_ICALL_3,
 };
-
-const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
-const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
+use crate::profiling::dictionary;
+use crate::vec_ext::VecExt;
+use libdd_profiling::profiles::collections::{ArcOverflow, SetError};
+use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, ProfilesDictionary, StringId2};
+use std::borrow::Cow;
 
 /// The profiler is not meant to handle such large strings--if a file or
 /// function name exceeds this size, it will fail in some manner, or be
@@ -21,14 +19,16 @@ const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[large string]");
 
-#[derive(Default, Debug)]
+#[derive(Clone, Debug)]
 pub struct ZendFrame {
-    // Most tools don't like frames that don't have function names, so use a
-    // fake name if you need to like "<?php".
-    pub function: Cow<'static, str>,
-    pub file: Option<Cow<'static, str>>,
+    pub function_id: Option<FunctionId2>,
     pub line: u32, // use 0 for no line info
 }
+
+/// SAFETY: `ZendFrame` is `Send` because frames are only sent inside messages that also
+/// carry an owning `Arc` to the `ProfilesDictionary` for the batch, ensuring ids live.
+unsafe impl Send for ZendFrame {}
+unsafe impl Sync for ZendFrame {}
 
 #[derive(thiserror::Error, Debug)]
 pub enum CollectStackSampleError {
@@ -40,6 +40,10 @@ pub enum CollectStackSampleError {
     BorrowMutError(#[from] std::cell::BorrowMutError),
     #[error(transparent)]
     TryReserveError(#[from] std::collections::TryReserveError),
+    #[error(transparent)]
+    SetError(#[from] SetError),
+    #[error(transparent)]
+    ArcOverflow(#[from] ArcOverflow),
 }
 
 /// Extract the "function name" component for the frame. This is a string which
@@ -146,62 +150,44 @@ unsafe fn extract_file_and_line(
     }
 }
 
+fn build_frame(
+    func: &zend_function,
+    execute_data: &zend_execute_data,
+    dict: &ProfilesDictionary,
+) -> Result<Option<ZendFrame>, SetError> {
+    let name_cow = extract_function_name(func);
+    let (file_cow, line) = unsafe { extract_file_and_line(execute_data) };
+
+    let name = match name_cow {
+        Some(ref s) if !s.is_empty() => dict.try_insert_str2(s)?,
+        _ => StringId2::EMPTY,
+    };
+    let file_name = match file_cow {
+        Some(ref s) if !s.is_empty() => dict.try_insert_str2(s)?,
+        _ => StringId2::EMPTY,
+    };
+
+    if !name.is_empty() || !file_name.is_empty() {
+        let f2 = Function2 {
+            name,
+            system_name: StringId2::EMPTY,
+            file_name,
+        };
+        let function_id = Some(dict.try_insert_function2(f2)?);
+        Ok(Some(ZendFrame { function_id, line }))
+    } else {
+        Ok(None)
+    }
+}
+
 #[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
-    use crate::string_set::StringSet;
-    use crate::thin_str::ThinStr;
-    use crate::{RefCellExt, RefCellExtError};
-    use log::{debug, trace};
+    use crate::RefCellExt;
+    use log::debug;
     use std::cell::RefCell;
-    use std::ptr::NonNull;
 
-    struct StringCache<'a> {
-        /// Refers to a function's run time cache reserved by this extension.
-        cache_slots: &'a mut [usize; 2],
-
-        /// Refers to the string set in the thread-local storage.
-        string_set: &'a mut StringSet,
-    }
-
-    impl StringCache<'_> {
-        /// Makes a copy of the string in the cache slot. If there isn't a
-        /// string in the slot currently, then create one by calling the
-        /// provided function, store it in the string cache and cache slot,
-        /// and return it.
-        fn get_or_insert<F>(&mut self, slot: usize, f: F) -> Option<String>
-        where
-            F: FnOnce() -> Option<String>,
-        {
-            debug_assert!(slot < self.cache_slots.len());
-            let cached = unsafe { self.cache_slots.get_unchecked_mut(slot) };
-
-            let ptr = *cached as *mut u8;
-            match NonNull::new(ptr) {
-                Some(non_null) => {
-                    // SAFETY: transmuting ThinStr from its repr.
-                    let thin_str: ThinStr = unsafe { core::mem::transmute(non_null) };
-                    // SAFETY: the string set is only reset between requests,
-                    // so this ThinStr points into the same string set that
-                    // created it.
-                    let str = unsafe { self.string_set.get_thin_str(thin_str) };
-                    Some(str.to_string())
-                }
-                None => {
-                    let string = f()?;
-                    let thin_str = self.string_set.insert(&string);
-                    // SAFETY: transmuting ThinStr into its repr.
-                    let non_null: NonNull<u8> = unsafe { core::mem::transmute(thin_str) };
-                    *cached = non_null.as_ptr() as usize;
-                    Some(string)
-                }
-            }
-        }
-    }
-
-    /// Used to help track the function run_time_cache hit rate. It glosses
-    /// over the fact that there are two cache slots used, and they don't have
-    /// to be in sync. However, they usually are, so we simplify.
+    /// Used to help track the function run_time_cache hit rate.
     #[derive(Debug, Default)]
     struct FunctionRunTimeCacheStats {
         hit: usize,
@@ -227,7 +213,6 @@ mod detail {
     }
 
     thread_local! {
-        static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
         static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
             const { RefCell::new(FunctionRunTimeCacheStats::new()) }
     }
@@ -245,42 +230,21 @@ mod detail {
             let hit_rate = stats.hit_rate();
             debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
         });
-
-        let result = CACHED_STRINGS.try_with_borrow_mut(|string_set| {
-            // A slow ramp up to 2 MiB is probably _not_ going to look like a
-            // memory leak. A higher threshold may make a user suspect a leak.
-            const THRESHOLD: usize = 2 * 1024 * 1024;
-
-            let used_bytes = string_set.arena_used_bytes();
-            if used_bytes > THRESHOLD {
-                debug!("string cache arena is using {used_bytes} bytes which exceeds the {THRESHOLD} byte threshold, resetting");
-                // Note that this cannot be done _during_ a request. The
-                // ThinStrs inside the run time cache need to remain valid
-                // during the request.
-                *string_set = StringSet::new();
-            } else {
-                trace!("string cache arena is using {used_bytes} bytes which is less than the {THRESHOLD} byte threshold");
-            }
-        });
-
-        if let Err(err) = result {
-            // Debug level because rshutdown could be quite spammy.
-            debug!("failed to borrow request locals in rshutdown: {err}");
-        }
     }
 
     /// Collects the stack trace, cached strings versions.
     ///
     /// # Errors
-    /// Returns [`CollectStackSampleError::TryReserveError`] if the vec holding the frames is
-    /// unable to allocate memory.
+    /// Returns [`CollectStackSampleError::TryReserveError`] if the vec holding
+    /// the frames is unable to allocate memory.
+    /// todo: document more errors
     #[inline]
     fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
-        string_set: &mut StringSet,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<CallStack, CollectStackSampleError> {
         let max_depth = 512;
         let mut samples = Vec::new();
+        let dict = dictionary::try_clone_tls_or_global()?;
         let mut execute_data_ptr = top_execute_data;
 
         samples.try_reserve(max_depth >> 3)?;
@@ -304,18 +268,18 @@ mod detail {
                                 let func = unsafe {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
-                                samples.try_push(ZendFrame {
-                                    function: extract_function_name(func).unwrap(),
-                                    file: None,
-                                    line: 0,
-                                })?;
+                                if let Some(frame) =
+                                    build_frame(func, execute_data, dict.dictionary())?
+                                {
+                                    samples.try_push(frame)?;
+                                }
                             }
                             _ => {}
                         }
                     }
                 }
 
-                let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
+                let maybe_frame = unsafe { collect_call_frame(execute_data, dict.dictionary()) }?;
                 if let Some(frame) = maybe_frame {
                     samples.try_push(frame)?;
 
@@ -325,8 +289,7 @@ mod detail {
                     // would be truncated!
                     if samples.len() == max_depth - 1 {
                         samples.try_push(ZendFrame {
-                            function: COW_TRUNCATED,
-                            file: None,
+                            function_id: Some(dict.known_funcs().truncated),
                             line: 0,
                         })?;
                         break;
@@ -336,114 +299,78 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(CallStack {
+            frames: samples,
+            dictionary: dict,
+        })
     }
 
     #[inline(never)]
     pub fn collect_stack_sample(
         execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<CallStack, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
-        CACHED_STRINGS
-            .try_with_borrow_mut(|set| collect_stack_sample_cached(execute_data, set))
-            .unwrap_or_else(|err| match err {
-                RefCellExtError::AccessError(e) => Err(e.into()),
-                RefCellExtError::BorrowError(e) => Err(e.into()),
-                RefCellExtError::BorrowMutError(e) => Err(e.into()),
-            })
+        collect_stack_sample_cached(execute_data)
     }
 
     unsafe fn collect_call_frame(
         execute_data: &zend_execute_data,
-        string_set: &mut StringSet,
-    ) -> Option<ZendFrame> {
+        dict: &ProfilesDictionary,
+    ) -> Result<Option<ZendFrame>, SetError> {
         #[cfg(not(feature = "stack_walking_tests"))]
         use crate::bindings::ddog_php_prof_function_run_time_cache;
         #[cfg(feature = "stack_walking_tests")]
         use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
-        let func = execute_data.func.as_ref()?;
-        let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
-            Some(slots) => {
-                let mut string_cache = StringCache {
-                    cache_slots: slots,
-                    string_set,
-                };
-                let function = handle_function_cache_slot(func, &mut string_cache);
-                let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
-
-                let cache_slots = string_cache.cache_slots;
+        let func = match execute_data.func.as_ref() {
+            Some(f) => f,
+            None => return Ok(None),
+        };
+        let frame = match ddog_php_prof_function_run_time_cache(func) {
+            Some(cache) => {
                 // If we cannot borrow the stats, then something has gone
                 // wrong, but it's not that important.
                 _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
-                    if cache_slots[0] == 0 {
+                    if cache.is_empty() {
                         stats.missed += 1;
                     } else {
                         stats.hit += 1;
                     }
                 });
 
-                (function, file.map(Cow::Owned), line)
+                handle_function_cache_slot(func, execute_data, cache, dict)?
             }
-
             None => {
                 // If we cannot borrow the stats, then something has gone
                 // wrong, but it's not that important.
                 _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
-                let function = extract_function_name(func);
-                let (file, line) = extract_file_and_line(execute_data);
-                (function, file, line)
+                build_frame(func, execute_data, dict)?
             }
         };
-
-        if function.is_some() || file.is_some() {
-            Some(ZendFrame {
-                function: function.unwrap_or(COW_PHP_OPEN_TAG),
-                file,
-                line,
-            })
-        } else {
-            None
-        }
+        Ok(frame)
     }
 
     fn handle_function_cache_slot(
         func: &zend_function,
-        string_cache: &mut StringCache,
-    ) -> Option<Cow<'static, str>> {
-        let fname =
-            string_cache.get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))?;
-        Some(Cow::Owned(fname))
-    }
-
-    unsafe fn handle_file_cache_slot(
         execute_data: &zend_execute_data,
-        string_cache: &mut StringCache,
-    ) -> (Option<String>, u32) {
-        let option = string_cache.get_or_insert(1, || -> Option<String> {
-            unsafe {
-                // Safety: if we have cache slots, we definitely have a func.
-                let func = &*execute_data.func;
-                if func.is_internal() {
-                    return None;
-                };
-
-                // SAFETY: calling C function with correct args.
-                let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
-                Some(file)
-            }
-        });
-        match option {
-            Some(filename) => {
-                let lineno = match safely_get_opline(execute_data) {
-                    Some(opline) => opline.lineno,
-                    None => 0,
-                };
-                (Some(filename), lineno)
-            }
-            None => (None, 0),
+        cache: &mut FunctionId2,
+        dict: &ProfilesDictionary,
+    ) -> Result<Option<ZendFrame>, SetError> {
+        if !cache.is_empty() {
+            let function_id = Some(*cache);
+            let line = match safely_get_opline(execute_data) {
+                Some(opline) => opline.lineno,
+                None => 0,
+            };
+            let frame = ZendFrame { function_id, line };
+            return Ok(Some(frame));
         }
+        let frame = build_frame(func, execute_data, dict)?;
+        if let Some(frame) = &frame {
+            *cache = frame.function_id.unwrap_or_default();
+        }
+        Ok(frame)
     }
 }
 
@@ -463,16 +390,18 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<CallStack, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
         let max_depth = 512;
-        let mut samples = Vec::with_capacity(max_depth >> 3);
+        let mut samples = Vec::new();
+        samples.try_reserve(max_depth >> 3)?;
+        let dict = dictionary::try_clone_tls_or_global()?;
         let mut execute_data_ptr = top_execute_data;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            let maybe_frame = unsafe { collect_call_frame(execute_data) };
+            let maybe_frame = unsafe { collect_call_frame(execute_data, dict.dictionary())? };
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;
 
@@ -481,9 +410,9 @@ mod detail {
                  * then ironically the [truncated] message would be truncated.
                  */
                 if samples.len() == max_depth - 1 {
+                    let trunc = dict.known_funcs().truncated;
                     samples.try_push(ZendFrame {
-                        function: COW_TRUNCATED,
-                        file: None,
+                        function_id: Some(trunc),
                         line: 0,
                     })?;
                     break;
@@ -492,26 +421,21 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(CallStack {
+            frames: samples,
+            dictionary: dict,
+        })
     }
 
-    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    unsafe fn collect_call_frame(
+        execute_data: &zend_execute_data,
+        dict: &ProfilesDictionary,
+    ) -> Result<Option<ZendFrame>, SetError> {
         if let Some(func) = execute_data.func.as_ref() {
-            let function = extract_function_name(func);
-            let (file, line) = extract_file_and_line(execute_data);
-
-            // Only create a new frame if there's file or function info.
-            if file.is_some() || function.is_some() {
-                // If there's no function name, use a fake name.
-                let function = function.unwrap_or(COW_PHP_OPEN_TAG);
-                return Some(ZendFrame {
-                    function,
-                    file,
-                    line,
-                });
-            }
+            build_frame(func, execute_data, dict)
+        } else {
+            Ok(None)
         }
-        None
     }
 }
 

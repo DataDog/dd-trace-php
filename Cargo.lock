@@ -135,6 +135,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
+
+[[package]]
 name = "assert-json-diff"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -367,6 +373,21 @@ dependencies = [
  "syn 2.0.96",
  "which",
 ]
+
+[[package]]
+name = "bit-set"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08807e080ed7f9d5433fa9b275196cfc35414f66a0c79d864dc51a0d825231a3"
+dependencies = [
+ "bit-vec",
+]
+
+[[package]]
+name = "bit-vec"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e764a1d40d510daf35e07be9eb06e75770908c27d411ee6c92109c9840eaaf7"
 
 [[package]]
 name = "bit_field"
@@ -1173,6 +1194,7 @@ dependencies = [
  "ahash",
  "allocator-api2",
  "anyhow",
+ "arrayvec",
  "bindgen",
  "cc",
  "cfg-if",
@@ -1185,13 +1207,14 @@ dependencies = [
  "env_logger 0.11.6",
  "lazy_static",
  "libc 0.2.177",
- "libdd-alloc 1.0.0 (git+https://github.com/DataDog/libdatadog?tag=v24.0.1)",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=v24.0.1)",
+ "libdd-alloc",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=a43f7bc361695cd271253e94aaf55e0acda8372e)",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
  "once_cell",
  "perfcnt",
+ "proptest",
  "rand 0.8.5",
  "rand_distr",
  "rustc-hash",
@@ -2441,17 +2464,7 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
-dependencies = [
- "allocator-api2",
- "libc 0.2.177",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "libdd-alloc"
-version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?rev=a43f7bc361695cd271253e94aaf55e0acda8372e#a43f7bc361695cd271253e94aaf55e0acda8372e"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
@@ -2496,7 +2509,7 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?rev=a43f7bc361695cd271253e94aaf55e0acda8372e#a43f7bc361695cd271253e94aaf55e0acda8372e"
 dependencies = [
  "anyhow",
  "cc",
@@ -2693,29 +2706,34 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?rev=a43f7bc361695cd271253e94aaf55e0acda8372e#a43f7bc361695cd271253e94aaf55e0acda8372e"
 dependencies = [
+ "allocator-api2",
  "anyhow",
  "bitmaps",
  "byteorder",
  "bytes",
  "chrono",
+ "crossbeam-utils",
  "futures",
+ "hashbrown 0.16.0",
  "http",
  "http-body-util",
  "hyper",
  "hyper-multipart-rfc7578",
  "indexmap 2.12.0",
- "libdd-alloc 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=v24.0.1)",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=v24.0.1)",
+ "libdd-alloc",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=a43f7bc361695cd271253e94aaf55e0acda8372e)",
  "libdd-profiling-protobuf",
  "lz4_flex",
  "mime",
+ "parking_lot",
  "prost",
  "rustc-hash",
  "serde",
  "serde_json",
  "target-triple",
+ "thiserror 2.0.12",
  "tokio",
  "tokio-util",
  "zstd",
@@ -2724,7 +2742,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?rev=a43f7bc361695cd271253e94aaf55e0acda8372e#a43f7bc361695cd271253e94aaf55e0acda8372e"
 dependencies = [
  "prost",
 ]
@@ -2877,6 +2895,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df1d3c3b53da64cf5760482273a98e575c651a67eec7f77df96b5b642de8f039"
+
+[[package]]
 name = "litemap"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2949,7 +2973,7 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2cffa4ad52c6f791f4f8b15f0c05f9824b2ced1160e88cc393d64fff9a8ac64"
 dependencies = [
- "rustix",
+ "rustix 0.38.43",
 ]
 
 [[package]]
@@ -3588,6 +3612,8 @@ version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14cae93065090804185d3b75f0bf93b8eeda30c7a9b4a33d3bdb3988d6229e50"
 dependencies = [
+ "bit-set",
+ "bit-vec",
  "bitflags 2.8.0",
  "lazy_static",
  "num-traits",
@@ -3595,6 +3621,8 @@ dependencies = [
  "rand_chacha 0.3.1",
  "rand_xorshift",
  "regex-syntax 0.8.5",
+ "rusty-fork",
+ "tempfile",
  "unarray",
 ]
 
@@ -3706,6 +3734,12 @@ name = "protoc-bin-vendored-win32"
 version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dc55d7dec32ecaf61e0bd90b3d2392d721a28b95cfd23c3e176eccefbeab2f2"
+
+[[package]]
+name = "quick-error"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quote"
@@ -4043,7 +4077,20 @@ dependencies = [
  "bitflags 2.8.0",
  "errno",
  "libc 0.2.177",
- "linux-raw-sys",
+ "linux-raw-sys 0.4.15",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "rustix"
+version = "1.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd15f8a2c5551a84d56efdc1cd049089e409ac19a3072d5037a17fd70719ff3e"
+dependencies = [
+ "bitflags 2.8.0",
+ "errno",
+ "libc 0.2.177",
+ "linux-raw-sys 0.11.0",
  "windows-sys 0.59.0",
 ]
 
@@ -4097,6 +4144,18 @@ name = "rustversion"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
+
+[[package]]
+name = "rusty-fork"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc6bf79ff24e648f6da1f8d1f011e9cac26491b619e6b9280f2b47f1774e6ee2"
+dependencies = [
+ "fnv",
+ "quick-error",
+ "tempfile",
+ "wait-timeout",
+]
 
 [[package]]
 name = "ruzstd"
@@ -4659,15 +4718,14 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.15.0"
+version = "3.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a8a559c81686f576e8cd0290cd2a24a2a9ad80c98b3478856500fcbd7acd704"
+checksum = "2d31c77bdf42a745371d260a26ca7163f1e0924b64afa0b688e61b5a9fa02f16"
 dependencies = [
- "cfg-if",
  "fastrand",
- "getrandom 0.2.15",
+ "getrandom 0.3.2",
  "once_cell",
- "rustix",
+ "rustix 1.1.2",
  "windows-sys 0.59.0",
 ]
 
@@ -5284,6 +5342,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
+name = "wait-timeout"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
+dependencies = [
+ "libc 0.2.177",
+]
+
+[[package]]
 name = "walkdir"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5403,7 +5470,7 @@ dependencies = [
  "either",
  "home",
  "once_cell",
- "rustix",
+ "rustix 0.38.43",
 ]
 
 [[package]]
