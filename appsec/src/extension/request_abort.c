@@ -375,12 +375,19 @@ void dd_request_abort_redirect(void)
                 ? ZSTR_VAL(_block_parameters->security_response_id)
                 : "");
     } else {
+        zend_string *security_response_id = NULL;
+        if (_block_parameters->security_response_id) {
+            security_response_id =
+                zend_string_dup(_block_parameters->security_response_id, 0);
+        }
         _emit_error("Datadog blocked the request and attempted a redirection "
                     "to %s. No action required. Security Response ID: %s",
             ZSTR_VAL(_block_parameters->redirection_location),
-            _block_parameters->security_response_id
-                ? ZSTR_VAL(_block_parameters->security_response_id)
-                : "");
+            security_response_id ? ZSTR_VAL(security_response_id) : "");
+        if (security_response_id) {
+            zend_string_release(security_response_id);
+            security_response_id = NULL;
+        }
     }
 }
 
@@ -462,11 +469,18 @@ void _request_abort_static_page(int response_code, int type)
                 ? ZSTR_VAL(_block_parameters->security_response_id)
                 : "");
     } else {
+        zend_string *security_response_id = NULL;
+        if (_block_parameters->security_response_id) {
+            security_response_id =
+                zend_string_dup(_block_parameters->security_response_id, 0);
+        }
         _emit_error("Datadog blocked the request and presented a static error "
                     "page. No action required. Security Response ID: %s",
-            _block_parameters->security_response_id
-                ? ZSTR_VAL(_block_parameters->security_response_id)
-                : "");
+            security_response_id ? ZSTR_VAL(security_response_id) : "");
+        if (security_response_id) {
+            zend_string_release(security_response_id);
+            security_response_id = NULL;
+        }
     }
 }
 
@@ -552,13 +566,20 @@ static bool _abort_prelude(void)
                     ? ZSTR_VAL(_block_parameters->security_response_id)
                     : "");
         } else {
+            zend_string *security_response_id = NULL;
+            if (_block_parameters->security_response_id) {
+                security_response_id =
+                    zend_string_dup(_block_parameters->security_response_id, 0);
+            }
             _emit_error(
                 "Datadog blocked the request, but the response has already "
                 "been partially committed. No action required. Security "
                 "Response ID: %s",
-                _block_parameters->security_response_id
-                    ? ZSTR_VAL(_block_parameters->security_response_id)
-                    : "");
+                security_response_id ? ZSTR_VAL(security_response_id) : "");
+            if (security_response_id) {
+                zend_string_release(security_response_id);
+                security_response_id = NULL;
+            }
         }
         return false;
     }
