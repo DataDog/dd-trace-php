@@ -151,14 +151,15 @@ thread_local! {
 /// Initializes the global dictionary if it has not been initialized yet.
 fn init_global_if_needed() -> Result<(), SetError> {
     // SAFETY: initialization (set) is idempotent; checking get is benign
-    if unsafe { GLOBAL_DICTIONARY.get().is_some() } {
+    // Use raw pointer to avoid creating shared reference to mutable static
+    if unsafe { (*core::ptr::addr_of!(GLOBAL_DICTIONARY)).get().is_some() } {
         return Ok(());
     }
 
     let arc = DdArc::try_new(PhpProfilesDictionary::try_new()?)?;
     // If another thread beat us to initialization, just drop ours.
     // SAFETY: once set, it remains initialized until mshutdown clears it.
-    let _ = unsafe { GLOBAL_DICTIONARY.set(RwLock::new(arc)) };
+    let _ = unsafe { (*core::ptr::addr_of_mut!(GLOBAL_DICTIONARY)).set(RwLock::new(arc)) };
     Ok(())
 }
 
@@ -166,8 +167,9 @@ fn init_global_if_needed() -> Result<(), SetError> {
 pub fn try_clone_global() -> Result<DdArc<PhpProfilesDictionary>, SetError> {
     init_global_if_needed()?;
     // SAFETY: OnceCell has been initialized above.
-    let lock =
-        unsafe { GLOBAL_DICTIONARY.get() }.expect("global profiles dictionary not initialized");
+    // Use raw pointer to avoid creating shared reference to mutable static
+    let lock = unsafe { (*core::ptr::addr_of!(GLOBAL_DICTIONARY)).get() }
+        .expect("global profiles dictionary not initialized");
 
     let guard = lock
         .read()
