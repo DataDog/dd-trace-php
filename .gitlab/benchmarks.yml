@@ -12,13 +12,84 @@ variables:
   # The Dockerfile to this image is located at:
   # https://github.com/DataDog/benchmarking-platform/tree/php/laravel-realworld
 
+workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
+.benchmarks-profiler-rules: &benchmarks-profiler-rules
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
+    changes:
+      paths:
+        - profiling/**/*
+      compare_to: "master"
+    when: on_success
+    interruptible: false
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME != "master"
+    changes:
+      paths:
+        - profiling/**/*
+      compare_to: "master"
+    when: on_success
+    interruptible: true
+  - if: $CI_COMMIT_REF_NAME == "master"
+    when: manual
+    interruptible: false
+  - when: manual
+    interruptible: true
+
+.benchmarks-appsec-rules: &benchmarks-appsec-rules
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
+    changes:
+      paths:
+        - appsec/src/**/*
+      compare_to: "master"
+    when: on_success
+    interruptible: false
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME != "master"
+    changes:
+      paths:
+        - appsec/src/**/*
+      compare_to: "master"
+    when: on_success
+    interruptible: true
+  - if: $CI_COMMIT_REF_NAME == "master"
+    when: manual
+    interruptible: false
+  - when: manual
+    interruptible: true
+
+.benchmarks-tracer-rules: &benchmarks-tracer-rules
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME == "master"
+    when: on_success
+    interruptible: false
+  - if: $CI_PIPELINE_SOURCE != "schedule" && $CI_COMMIT_REF_NAME != "master"
+    when: on_success
+    interruptible: true
+  - if: $CI_COMMIT_REF_NAME == "master"
+    when: manual
+    interruptible: false
+  - when: manual
+    interruptible: true
+
+.macrobenchmarks-rules: &macrobenchmarks-rules
+  - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
+    when: always
+    interruptible: false
+  - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
+    when: always
+    interruptible: false
+  - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
+    when: always
+    interruptible: false
+  - when: manual
+    interruptible: true
+
 .microbenchmarks:
   stage: benchmarks
   tags: ["runner:apm-k8s-tweaked-metal"]
   needs: []
   image:
     name: $BASE_CI_IMAGE
-  interruptible: true
   timeout: 90m
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && (mkdir "${ARTIFACTS_DIR}" || :)
@@ -53,27 +124,13 @@ variables:
 
 benchmarks-profiler:
   extends: .microbenchmarks
-  rules:
-    - if: $CI_PIPELINE_SOURCE != "schedule"
-      changes:
-        paths:
-          - profiling/**/*
-        compare_to: "master"
-      when: on_success
-    - when: manual
+  rules: *benchmarks-profiler-rules
   variables:
     SCENARIO: "profiler"
 
-.benchmarks-tracer-rules:
-  rules:
-    - if: $CI_PIPELINE_SOURCE != "schedule"
-      when: on_success
-    - when: manual
-
 benchmarks-tracer:
-  extends:
-    - .microbenchmarks
-    - .benchmarks-tracer-rules
+  extends: .microbenchmarks
+  rules: *benchmarks-tracer-rules
   artifacts:
     name: "reports"
     when: always
@@ -86,14 +143,7 @@ benchmarks-tracer:
 
 benchmarks-appsec:
   extends: .microbenchmarks
-  rules:
-    - if: $CI_PIPELINE_SOURCE != "schedule"
-      changes:
-        paths:
-          - appsec/src/**/*
-        compare_to: "master"
-      when: on_success
-    - when: manual
+  rules: *benchmarks-appsec-rules
   artifacts:
     name: "logs"
     paths:
@@ -104,9 +154,9 @@ benchmarks-appsec:
     SCENARIO: "appsec"
 
 check-big-regressions:
+  rules: *benchmarks-tracer-rules
   stage: gate
   needs: [ "benchmarks-tracer" ]
-  extends: .benchmarks-tracer-rules
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/benchmarking-platform-tools-ubuntu:latest
   script: |
@@ -130,25 +180,15 @@ check-big-regressions:
     # Gitlab and BP specific env vars. Do not modify.
     KUBERNETES_SERVICE_ACCOUNT_OVERWRITE: dd-trace-php
 
-.macrobenchmarks_rules: &macrobenchmarks_rules
-  - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
-    when: always
-  - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
-    when: always
-  - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
-    when: always
-  - when: manual
-
 .macrobenchmarks:
   stage: benchmarks
-  rules: *macrobenchmarks_rules
+  rules: *macrobenchmarks-rules
   tags: ["runner:apm-k8s-same-cpu"]
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  interruptible: true
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
