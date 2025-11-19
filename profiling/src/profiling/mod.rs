@@ -26,7 +26,7 @@ use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use libdd_profiling::api::{Period, UpscalingInfo, ValueType as ApiValueType};
+use libdd_profiling::api::{UpscalingInfo, ValueType as ApiValueType};
 use libdd_profiling::api2::{self, Location2, ValueType2};
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;

@@ -172,9 +172,9 @@ pub fn try_clone_global() -> Result<DdArc<PhpProfilesDictionary>, SetError> {
     let guard = lock
         .read()
         .expect("global profiles dictionary lock poisoned");
-    Ok((&*guard)
+    (*guard)
         .try_clone()
-        .map_err(|_| SetError::ReferenceCountOverflow)?)
+        .map_err(|_| SetError::ReferenceCountOverflow)
 }
 
 /// Returns whether two dictionary Arcs refer to the exact same allocation.
@@ -205,8 +205,7 @@ pub fn gshutdown() {
 pub fn try_clone_tls_or_global() -> Result<DdArc<PhpProfilesDictionary>, SetError> {
     if let Ok(Some(arc)) = TLS_DICTIONARY.try_with_borrow(|slot| {
         slot.as_ref().and_then(|arc| {
-            (&*arc)
-                .try_clone()
+            arc.try_clone()
                 .map_err(|_| SetError::ReferenceCountOverflow)
                 .ok()
         })
