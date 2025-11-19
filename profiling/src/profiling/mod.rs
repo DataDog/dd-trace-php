@@ -26,8 +26,8 @@ use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use libdd_profiling::api::{UpscalingInfo, ValueType as ApiValueType};
-use libdd_profiling::api2::{self, Location2, ValueType2};
+use libdd_profiling::api::{Period, UpscalingInfo, ValueType as ApiValueType};
+use libdd_profiling::api2::{self, Location2};
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use libdd_profiling::profiles::collections::{Arc as DdArc, ArcOverflow};
@@ -139,6 +139,15 @@ pub struct ValueType {
 impl ValueType {
     pub const fn new(r#type: &'static str, unit: &'static str) -> Self {
         Self { r#type, unit }
+    }
+}
+
+impl From<ValueType> for libdd_profiling::api::ValueType<'static> {
+    fn from(vt: ValueType) -> Self {
+        Self {
+            r#type: vt.r#type,
+            unit: vt.unit,
+        }
     }
 }
 
@@ -365,7 +374,7 @@ impl TimeCollector {
         // check if we have the `exception-samples` sample types
         let exception_samples_offset = get_offset("exception-samples");
 
-        // Build API2 ValueType2 using the profiles dictionary from the message's call stack
+        // Get the profiles dictionary from the message's call stack
         let dict_arc = message
             .value
             .call_stack
@@ -373,38 +382,15 @@ impl TimeCollector {
             .dictionary_arc()
             .expect("failed to clone profiles dictionary");
 
-        let sample_types2: Vec<ValueType2> = sample_types
-            .iter()
-            .map(|vt| {
-                let type_id = dict_arc
-                    .try_insert_str2(vt.r#type)
-                    .expect("failed to intern sample type");
-                let unit_id = dict_arc
-                    .try_insert_str2(vt.unit)
-                    .expect("failed to intern sample unit");
-                ValueType2 { type_id, unit_id }
-            })
-            .collect();
-
         let period = WALL_TIME_PERIOD.as_nanos();
-        let period2 = ValueType2 {
-            type_id: dict_arc
-                .try_insert_str2(WALL_TIME_PERIOD_TYPE.r#type)
-                .expect("failed to intern period type"),
-            unit_id: dict_arc
-                .try_insert_str2(WALL_TIME_PERIOD_TYPE.unit)
-                .expect("failed to intern period unit"),
-        };
+        let period_api = Some(Period {
+            r#type: WALL_TIME_PERIOD_TYPE.into(),
+            value: period.min(i64::MAX as u128) as i64,
+        });
 
-        let mut profile = InternalProfile::try_new2(
-            dict_arc,
-            &sample_types2,
-            Some(api2::Period2 {
-                r#type: period2,
-                value: period.min(i64::MAX as u128) as i64,
-            }),
-        )
-        .expect("failed to create a new InternalProfile object");
+        let mut profile =
+            InternalProfile::try_new_with_dictionary(&sample_types, period_api, dict_arc)
+                .expect("failed to create a new InternalProfile object");
         let _ = profile.set_start_time(started_at);
 
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
