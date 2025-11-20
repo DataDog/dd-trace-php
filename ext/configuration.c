@@ -170,7 +170,7 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_HEADER_TAGS, "datadog.trace.header_tags")
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_SAMPLE_RATE, "datadog.trace.sample_rate")
 INI_CHANGE_DYNAMIC_CONFIG(DD_TRACE_LOGS_ENABLED, "datadog.logs_injection")
-INI_CHANGE_DYNAMIC_CONFIG(DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "datadog.code_origins_for_spans_enabled")
+INI_CHANGE_DYNAMIC_CONFIG(DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "datadog.code_origin_for_spans_enabled")
 INI_CHANGE_DYNAMIC_CONFIG(DD_EXCEPTION_REPLAY_ENABLED, "datadog.exception_replay_enabled")
 
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},
