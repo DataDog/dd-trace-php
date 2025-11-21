@@ -6,11 +6,11 @@ use datadog_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluat
 use datadog_live_debugger_ffi::send_data::{
     ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
 };
+use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_remote_config::fetch::ConfigInvariants;
 use datadog_remote_config::{
     RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target,
 };
-use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};

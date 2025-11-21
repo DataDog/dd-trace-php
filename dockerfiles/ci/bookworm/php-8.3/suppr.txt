@@ -5,3 +5,5 @@ leak:_dl_map_object_deps
 leak:__res_context_send
 leak:_dl_make_tlsdesc_dynamic
 leak:_dl_catch_exception
+leak:__cxa_thread_atexit
+leak:CURRENT_PARKER
