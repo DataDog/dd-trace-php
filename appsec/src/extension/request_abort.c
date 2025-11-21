@@ -375,19 +375,12 @@ void dd_request_abort_redirect(void)
                 ? ZSTR_VAL(_block_parameters->security_response_id)
                 : "");
     } else {
-        zend_string *security_response_id = NULL;
-        if (_block_parameters->security_response_id) {
-            security_response_id =
-                zend_string_dup(_block_parameters->security_response_id, 0);
-        }
         _emit_error("Datadog blocked the request and attempted a redirection "
                     "to %s. No action required. Security Response ID: %s",
             ZSTR_VAL(_block_parameters->redirection_location),
-            security_response_id ? ZSTR_VAL(security_response_id) : "");
-        if (security_response_id) {
-            zend_string_release(security_response_id);
-            security_response_id = NULL;
-        }
+            _block_parameters->security_response_id
+                ? ZSTR_VAL(_block_parameters->security_response_id)
+                : "");
     }
 }
 
@@ -469,18 +462,11 @@ void _request_abort_static_page(int response_code, int type)
                 ? ZSTR_VAL(_block_parameters->security_response_id)
                 : "");
     } else {
-        zend_string *security_response_id = NULL;
-        if (_block_parameters->security_response_id) {
-            security_response_id =
-                zend_string_dup(_block_parameters->security_response_id, 0);
-        }
         _emit_error("Datadog blocked the request and presented a static error "
                     "page. No action required. Security Response ID: %s",
-            security_response_id ? ZSTR_VAL(security_response_id) : "");
-        if (security_response_id) {
-            zend_string_release(security_response_id);
-            security_response_id = NULL;
-        }
+            _block_parameters->security_response_id
+                ? ZSTR_VAL(_block_parameters->security_response_id)
+                : "");
     }
 }
 
@@ -566,20 +552,13 @@ static bool _abort_prelude(void)
                     ? ZSTR_VAL(_block_parameters->security_response_id)
                     : "");
         } else {
-            zend_string *security_response_id = NULL;
-            if (_block_parameters->security_response_id) {
-                security_response_id =
-                    zend_string_dup(_block_parameters->security_response_id, 0);
-            }
             _emit_error(
                 "Datadog blocked the request, but the response has already "
                 "been partially committed. No action required. Security "
                 "Response ID: %s",
-                security_response_id ? ZSTR_VAL(security_response_id) : "");
-            if (security_response_id) {
-                zend_string_release(security_response_id);
-                security_response_id = NULL;
-            }
+                _block_parameters->security_response_id
+                    ? ZSTR_VAL(_block_parameters->security_response_id)
+                    : "");
         }
         return false;
     }
@@ -621,6 +600,21 @@ static void _emit_error(const char *format, ...)
 
     va_list args;
     va_start(args, format);
+    char buf[0x100];
+    va_list args2;
+    va_copy(args2, args);
+    int len = vsnprintf(buf, sizeof(buf), format, args);
+    char *msg = NULL;
+    bool free_msg = false;
+    if (len > (int)sizeof(buf)) {
+        msg = emalloc(len + 1);
+        len = vsnprintf(msg, len + 1, format, args2);
+        free_msg = true;
+    } else {
+        msg = buf;
+    }
+    va_end(args2);
+
     if (PG(during_request_startup)) {
         /* if emitting error during startup, RSHUTDOWN will not run (except fpm)
          * so we need to run the same logic from here */
@@ -637,7 +631,10 @@ static void _emit_error(const char *format, ...)
             /* fpm children exit if we throw an error at this point. So emit
              * only warning and use other means to prevent the script from
              * executing */
-            php_verror(NULL, "", E_WARNING, format, args);
+            php_verror(NULL, "", E_WARNING, msg, args);
+            if (free_msg) {
+                efree(msg);
+            }
             va_end(args);
             // fpm doesn't try to run the script if it sees this null
             SG(request_info).request_method = NULL;
@@ -645,7 +642,7 @@ static void _emit_error(const char *format, ...)
         }
 #ifdef FRANKENPHP_SUPPORT
         if (strcmp(sapi_module.name, "frankenphp") == 0) {
-            php_verror(NULL, "", E_WARNING, format, args);
+            php_verror(NULL, "", E_WARNING, msg, args);
             va_end(args);
             _prepare_req_init_block();
             return;
@@ -676,14 +673,19 @@ static void _emit_error(const char *format, ...)
     {
         va_list args2;
         va_copy(args2, args);
-        php_verror(NULL, "", E_COMPILE_WARNING, format, args2);
+        php_verror(NULL, "", E_COMPILE_WARNING, msg, args2);
+        if (free_msg) {
+            efree(msg);
+        }
         va_end(args2);
     }
 
     // not enough: EG(error_handling) = EH_SUPPRESS;
     _suppress_error_reporting();
-    php_verror(NULL, "", E_ERROR, format, args);
-
+    php_verror(NULL, "", E_ERROR, msg, args);
+    if (free_msg) {
+        efree(msg);
+    }
     va_end(args);
     __builtin_unreachable();
 }
