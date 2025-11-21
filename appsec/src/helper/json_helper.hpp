@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "parameter.hpp"
 #include "parameter_view.hpp"
 #include <optional>
 #include <rapidjson/document.h>
