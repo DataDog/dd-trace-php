@@ -39,12 +39,12 @@ dd_php_array_type dd_php_determine_array_type(const zend_array *nonnull myht)
 zval *nullable dd_php_get_autoglobal(
     int track_var, const char *nonnull name, size_t len)
 {
+    assert(track_var >= 0);
+
     zval *var;
-    if (EXPECTED(track_var >= 0)) {
-        var = &PG(http_globals)[track_var];
-        if (Z_TYPE_P(var) == IS_ARRAY) {
-            return var;
-        }
+    var = &PG(http_globals)[track_var];
+    if (Z_TYPE_P(var) == IS_ARRAY) {
+        return var;
     }
 
     if (zend_is_auto_global_str((char *)name, len)) {

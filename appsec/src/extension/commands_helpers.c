@@ -80,7 +80,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
                 "Error serializing message for command %.*s: %s", NAME_L,
                 mpack_error_to_string(err));
             _omsg_destroy(&omsg);
-            return dd_error;
+            return dd_network;
         }
 
         res = _omsg_send(conn, &omsg);
