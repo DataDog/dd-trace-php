@@ -434,7 +434,7 @@ void _request_abort_static_page(int response_code, int type)
         content_type = JSON_CONTENT_TYPE;
         body = _get_json_blocking_template();
     } else {
-        mlog(dd_log_error, "unknown response type (bug) %d", response_type);
+        mlog(dd_log_error, " response type (bug) %d", response_type);
         return;
     }
 
@@ -592,6 +592,15 @@ static void _force_destroy_output_handlers(void)
 static void _run_rshutdowns(void);
 static void _suppress_error_reporting(void);
 
+ATTR_FORMAT(2, 3)
+static void _php_verror(int type, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    php_verror(NULL, "", type, format, args);
+    va_end(args);
+}
+
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...)
 {
@@ -600,20 +609,22 @@ static void _emit_error(const char *format, ...)
 
     va_list args;
     va_start(args, format);
-    char buf[0x100];
     va_list args2;
     va_copy(args2, args);
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+    char buf[512];
     int len = vsnprintf(buf, sizeof(buf), format, args);
     char *msg = NULL;
     bool free_msg = false;
-    if (len > (int)sizeof(buf)) {
-        msg = emalloc(len + 1);
-        len = vsnprintf(msg, len + 1, format, args2);
+    if (len >= (int)sizeof(buf)) {
+        msg = safe_emalloc(len + 1, 1, 0);
+        vsnprintf(msg, len + 1, format, args2);
         free_msg = true;
     } else {
         msg = buf;
     }
     va_end(args2);
+    va_end(args);
 
     if (PG(during_request_startup)) {
         /* if emitting error during startup, RSHUTDOWN will not run (except fpm)
@@ -631,19 +642,17 @@ static void _emit_error(const char *format, ...)
             /* fpm children exit if we throw an error at this point. So emit
              * only warning and use other means to prevent the script from
              * executing */
-            php_verror(NULL, "", E_WARNING, msg, args);
+            _php_verror(E_WARNING, "%s", msg);
             if (free_msg) {
                 efree(msg);
             }
-            va_end(args);
             // fpm doesn't try to run the script if it sees this null
             SG(request_info).request_method = NULL;
             return;
         }
 #ifdef FRANKENPHP_SUPPORT
         if (strcmp(sapi_module.name, "frankenphp") == 0) {
-            php_verror(NULL, "", E_WARNING, msg, args);
-            va_end(args);
+            _php_verror(E_WARNING, "%s", msg);
             _prepare_req_init_block();
             return;
         }
@@ -671,22 +680,15 @@ static void _emit_error(const char *format, ...)
      * be a possibility, but it bypasses the value of error_reporting and is
      * always logged */
     {
-        va_list args2;
-        va_copy(args2, args);
-        php_verror(NULL, "", E_COMPILE_WARNING, msg, args2);
-        if (free_msg) {
-            efree(msg);
-        }
-        va_end(args2);
+        _php_verror(E_COMPILE_WARNING, "%s", msg);
     }
 
     // not enough: EG(error_handling) = EH_SUPPRESS;
     _suppress_error_reporting();
-    php_verror(NULL, "", E_ERROR, msg, args);
+    _php_verror(E_ERROR, "%s", msg);
     if (free_msg) {
         efree(msg);
     }
-    va_end(args);
     __builtin_unreachable();
 }
 
