@@ -1,6 +1,25 @@
 include(FetchContent)
 
-option(MPACK_DEBUG "Compile mpack with MPACK_DEBUG=1 and min buffer size" OFF)
+# Enable MPACK_DEBUG by default is this is a Debug build or we're building
+# against a debug php release
+set(MPACK_DEBUG_DEFAULT OFF)
+if(DD_APPSEC_BUILD_EXTENSION)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(MPACK_DEBUG_DEFAULT ON)
+    endif()
+    if(PhpConfig_FOUND AND PhpConfig_EXECUTABLE)
+        execute_process(
+            COMMAND ${PhpConfig_EXECUTABLE} --configure-options
+            OUTPUT_VARIABLE PHP_CONFIGURE_OPTIONS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET)
+        if(PHP_CONFIGURE_OPTIONS MATCHES "--enable-debug")
+            set(MPACK_DEBUG_DEFAULT ON)
+        endif()
+    endif()
+endif()
+
+option(MPACK_DEBUG "Compile mpack with MPACK_DEBUG=1 and min buffer size" ${MPACK_DEBUG_DEFAULT})
 
 if(DD_APPSEC_BUILD_HELPER)
     set(LIBDDWAF_TESTING OFF)
