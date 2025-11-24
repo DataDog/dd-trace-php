@@ -118,6 +118,13 @@ void dd_req_lifecycle_rinit(bool force)
     if (!_cur_req_span) {
         mlog(dd_log_debug, "No root span available on request init");
     }
+
+    if (_client_ip) {
+        mlog(dd_log_warning, "Client IP not cleared on prev request. Value %p",
+            (void *)_client_ip);
+        _client_ip = NULL;
+    }
+
     _do_request_begin_php();
 }
 
