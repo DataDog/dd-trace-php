@@ -73,6 +73,28 @@ namespace {
     }
 
     @mkdir("/tmp/ddtrace-phpunit");
+
+    // Clean up stale locks older than 4 hours
+    $lock_dir = "/tmp/ddtrace-phpunit";
+    if (is_dir($lock_dir)) {
+        $now = time();
+        $stale_threshold = 14400; // 4 hours in seconds
+        foreach (glob("$lock_dir/*") as $lock_file) {
+            if (is_file($lock_file) && ($now - filemtime($lock_file) > $stale_threshold)) {
+                // Try to acquire lock to verify it's truly stale
+                $test_handle = @fopen($lock_file, "r+");
+                if ($test_handle && flock($test_handle, LOCK_EX | LOCK_NB)) {
+                    // Lock is not held, safe to delete
+                    flock($test_handle, LOCK_UN);
+                    fclose($test_handle);
+                    @unlink($lock_file);
+                } elseif ($test_handle) {
+                    fclose($test_handle);
+                }
+            }
+        }
+    }
+
     for ($i = 1; $i <= 50; ++$i) {
         $_global_portlock_file = fopen($path = "/tmp/ddtrace-phpunit/$i", "c+");
         if (flock($_global_portlock_file, LOCK_EX | LOCK_NB)) {

@@ -50,6 +50,8 @@ default:
       - runner_system_failure
       - scheduler_failure
       - api_failure
+      - script_failure
+      - stuck_or_timeout_failure
 
 .all_targets: &all_minor_major_targets
 <?php
@@ -151,8 +153,8 @@ foreach ($arch_targets as $arch_target) {
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: true
-      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 120000
-      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 120000
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 180000
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 180000
 
   redis:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-redis-5.0

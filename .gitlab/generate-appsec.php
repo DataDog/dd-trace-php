@@ -42,6 +42,7 @@ stages:
 
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
+  interruptible: false
   before_script:
 <?php unset_dd_runner_env_vars() ?>
     - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"

@@ -80,6 +80,7 @@ stages:
 .tea_test:
   tags: [ "arch:amd64" ]
   stage: test
+  interruptible: false
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5"
   after_script:
     - mkdir -p tmp/artifacts

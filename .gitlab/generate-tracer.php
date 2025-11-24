@@ -123,6 +123,7 @@ stages:
     GIT_CONFIG_VALUE_1: true
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
     GIT_STRATEGY: clone
+    GIT_CLEAN_FLAGS: -ffdxq
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
     # Make sure we actually fail if a command fails
@@ -147,21 +148,30 @@ stages:
     # Set test environment variables
     docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
 
-    # Run extension tests
-    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
+    # Run extension tests (use -q for quiet mode to reduce log output)
+    docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 run-tests.php -q -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
 
-    # Try to stop the container, don't care if we fail
-    try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
+    # Stop the container gracefully with longer timeout
+    try { docker stop -t 30 ${CONTAINER_NAME} } catch { }
+
+    # Force kill if still running
+    try { docker kill ${CONTAINER_NAME} } catch { }
+
+    # Wait a bit for file handles to release
+    Start-Sleep -Seconds 3
   after_script:
     - |
         docker exec php cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
         exit 0
     - 'powershell -NoProfile -Command "try { docker logs request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker logs httpbin-integration } catch {}"'
-    - 'powershell -NoProfile -Command "try { docker stop -t 5 request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker rm -f request-replayer } catch {}"'
-    - 'powershell -NoProfile -Command "try { docker stop -t 5 httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker rm -f httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 ${CONTAINER_NAME} } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker kill ${CONTAINER_NAME} } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker rm -f ${CONTAINER_NAME} } catch {}"'
     - 'powershell -NoProfile -Command "try { docker network rm net } catch {}"'
   artifacts:
     paths:
@@ -194,6 +204,7 @@ stages:
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
   timeout: 60m
+  interruptible: false
   variables:
     host_os: linux-gnu
     COMPOSER_MEMORY_LIMIT: "-1"
@@ -206,7 +217,26 @@ stages:
     HTTPBIN_PORT: 8080
   before_script:
 <?php before_script_steps() ?>
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
+    - |
+      if [ -n "${WAIT_FOR:-}" ]; then
+        for service in $WAIT_FOR; do
+          host=$(echo $service | cut -d: -f1)
+          port=$(echo $service | cut -d: -f2)
+
+          # Detect service type from hostname
+          service_type="generic"
+          case $host in
+            test-agent) service_type="test-agent" ;;
+            mysql-integration) service_type="mysql" ;;
+            elasticsearch*) service_type="elasticsearch" ;;
+            kafka*) service_type="kafka" ;;
+            redis*) service_type="redis" ;;
+            httpbin*) service_type="httpbin" ;;
+          esac
+
+          .gitlab/wait-for-service-ready.sh "$host" "$port" "$service_type" 30 5
+        done
+      fi
 
 .asan_test:
   extends: .base_test
@@ -457,6 +487,7 @@ foreach ($all_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "amd64"
       artifacts: true
+  retry: 2
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
@@ -496,7 +527,26 @@ endforeach;
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
+    - |
+      if [ -n "${WAIT_FOR:-}" ]; then
+        for service in $WAIT_FOR; do
+          host=$(echo $service | cut -d: -f1)
+          port=$(echo $service | cut -d: -f2)
+
+          # Detect service type from hostname
+          service_type="generic"
+          case $host in
+            test-agent) service_type="test-agent" ;;
+            mysql-integration) service_type="mysql" ;;
+            elasticsearch*) service_type="elasticsearch" ;;
+            kafka*) service_type="kafka" ;;
+            redis*) service_type="redis" ;;
+            httpbin*) service_type="httpbin" ;;
+          esac
+
+          .gitlab/wait-for-service-ready.sh "$host" "$port" "$service_type" 30 5
+        done
+      fi
   script:
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>

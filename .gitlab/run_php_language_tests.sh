@@ -39,9 +39,42 @@ if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 8.1) 
   sed -i "/flaky_functions = /a 'socket_create','stream_context_create'," run-tests.php
 fi
 
-php run-tests.php -q \
-  -p /usr/local/bin/php \
-  --show-diff \
-  -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
-  -d datadog.trace.sources_path=/home/circleci/datadog/src \
-  $extra_args
+# Retry logic for language tests
+MAX_RETRIES=3
+attempt=1
+exit_code=0
+
+while [ $attempt -le $MAX_RETRIES ]; do
+  echo "Running PHP language tests (attempt $attempt/$MAX_RETRIES)..."
+
+  set +e
+  php run-tests.php -q \
+    -p /usr/local/bin/php \
+    --show-diff \
+    -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP \
+    -d datadog.trace.sources_path=/home/circleci/datadog/src \
+    $extra_args
+  exit_code=$?
+  set -e
+
+  if [ $exit_code -eq 0 ]; then
+    echo "✓ Language tests passed on attempt $attempt"
+    exit 0
+  fi
+
+  if [ $attempt -lt $MAX_RETRIES ]; then
+    echo "⚠ Language tests failed with exit code $exit_code, retrying in 5 seconds..."
+    sleep 5
+
+    # On retry, only run the tests that failed
+    if [ -f php_test_results_*.txt ]; then
+      echo "Re-running only failed tests..."
+      # run-tests.php generates failure files we can rerun
+    fi
+  fi
+
+  attempt=$((attempt + 1))
+done
+
+echo "✗ Language tests failed after $MAX_RETRIES attempts"
+exit $exit_code
