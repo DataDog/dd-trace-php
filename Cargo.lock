@@ -1186,7 +1186,7 @@ dependencies = [
  "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?branch=florian/fix-observations-iter)",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?tag=v24.0.2)",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
@@ -2441,7 +2441,7 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/fix-observations-iter#a75421d758c2a00dfebd620c7067c55f7efd7013"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
@@ -2486,7 +2486,7 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/fix-observations-iter#a75421d758c2a00dfebd620c7067c55f7efd7013"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
  "anyhow",
  "cc",
@@ -2683,34 +2683,29 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/fix-observations-iter#a75421d758c2a00dfebd620c7067c55f7efd7013"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
- "allocator-api2",
  "anyhow",
  "bitmaps",
  "byteorder",
  "bytes",
  "chrono",
- "crossbeam-utils",
  "futures",
- "hashbrown 0.16.0",
  "http",
  "http-body-util",
  "hyper",
  "hyper-multipart-rfc7578",
  "indexmap 2.12.0",
  "libdd-alloc",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?branch=florian/fix-observations-iter)",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?tag=v24.0.2)",
  "libdd-profiling-protobuf",
  "lz4_flex",
  "mime",
- "parking_lot",
  "prost",
  "rustc-hash",
  "serde",
  "serde_json",
  "target-triple",
- "thiserror 2.0.12",
  "tokio",
  "tokio-util",
  "zstd",
@@ -2719,7 +2714,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?branch=florian/fix-observations-iter#a75421d758c2a00dfebd620c7067c55f7efd7013"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
  "prost",
 ]
