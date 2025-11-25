@@ -4,7 +4,6 @@ set -eo pipefail
 MAX_RETRIES=5
 RETRY_DELAY=3
 
-# Function to check test agent with retry
 check_test_agent_with_retry() {
   local endpoint=$1
   local output_file=$2
@@ -49,7 +48,7 @@ failures_code=$(check_test_agent_with_retry "/test/trace_check/failures" "respon
 if [[ $failures_code -eq 200 ]]; then
   echo "All APM Test Agent Check Traces returned successful! (HTTP 200)"
   echo "APM Test Agent Check Traces Summary Results:"
-  cat summary_response.txt | jq '.' || cat summary_response.txt
+  cat summary_response.txt | jq '.'
 elif [[ $failures_code -eq 404 ]]; then
   echo "Real APM Agent running in place of TestAgent, no checks to validate!"
 else
@@ -57,6 +56,6 @@ else
   echo "Failures:"
   cat response.txt
   echo "APM Test Agent Check Traces Summary Results:"
-  cat summary_response.txt | jq '.' || cat summary_response.txt
+  cat summary_response.txt | jq '.'
   exit 1
-fi  
+fi

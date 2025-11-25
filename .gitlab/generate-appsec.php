@@ -42,7 +42,11 @@ stages:
 
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
-  interruptible: false
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   before_script:
 <?php unset_dd_runner_env_vars() ?>
     - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
