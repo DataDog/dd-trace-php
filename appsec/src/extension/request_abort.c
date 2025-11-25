@@ -251,7 +251,14 @@ void dd_set_block_code_and_type(
 
 void dd_request_abort_rinit(void)
 {
-    _block_parameters_set(SECURITY_RESPONSE_ID_DEFAULT, DEFAULT_RESPONSE_TYPE,
+    if (_block_parameters) {
+        mlog(dd_log_warning,
+            "_block_parameters is not NULL when calling dd_request_abort_rinit "
+            "(shutdown did not run on prev request?)");
+        _block_parameters_free();
+    }
+
+    _block_parameters_set(NULL, DEFAULT_RESPONSE_TYPE,
         DEFAULT_BLOCKING_RESPONSE_CODE, NULL);
 }
 
@@ -272,7 +279,8 @@ void dd_set_redirect_code_and_location(
 
 static void _replace_security_response_id(zend_string **nonnull target_ptr_ptr)
 {
-    zend_string *security_response_id = _block_parameters->security_response_id;
+    zend_string *security_response_id =
+        _block_parameters ? _block_parameters->security_response_id : NULL;
     if (!security_response_id) {
         security_response_id = SECURITY_RESPONSE_ID_DEFAULT;
     }
@@ -626,6 +634,7 @@ static void _emit_error(const char *format, ...)
     va_end(args2);
     va_end(args);
 
+    _block_parameters_free();
     if (PG(during_request_startup)) {
         /* if emitting error during startup, RSHUTDOWN will not run (except fpm)
          * so we need to run the same logic from here */
