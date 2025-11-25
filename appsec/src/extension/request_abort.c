@@ -258,8 +258,8 @@ void dd_request_abort_rinit(void)
         _block_parameters_free();
     }
 
-    _block_parameters_set(NULL, DEFAULT_RESPONSE_TYPE,
-        DEFAULT_BLOCKING_RESPONSE_CODE, NULL);
+    _block_parameters_set(
+        NULL, DEFAULT_RESPONSE_TYPE, DEFAULT_BLOCKING_RESPONSE_CODE, NULL);
 }
 
 void dd_set_redirect_code_and_location(
