@@ -1208,9 +1208,9 @@ endef
 define run_tests_debug
 	$(eval TEST_EXTRA_ENV=$(TEST_EXTRA_ENV) DD_TRACE_DEBUG=1)
 	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
-		tee >(grep -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
-		{ ! (grep -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
-		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1)
+		tee >(grep --line-buffered -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
+		{ ! (grep --line-buffered -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
+		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1; wait)
 	$(eval TEST_EXTRA_ENV=)
 endef
 
