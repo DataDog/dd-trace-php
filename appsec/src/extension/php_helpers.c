@@ -64,7 +64,7 @@ const zend_array *nonnull dd_get_superglob_or_equiv(
     if (equiv) {
         ret = zend_hash_str_find(equiv, name, name_len);
     } else {
-        ret = dd_php_get_autoglobal(track, ZEND_STRL("_GET"));
+        ret = dd_php_get_autoglobal(track, name, name_len);
     }
 
     if (!ret || Z_TYPE_P(ret) != IS_ARRAY) {
