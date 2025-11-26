@@ -362,6 +362,8 @@ static void _do_request_finish_php(bool ignore_verdict)
         dd_trace_close_all_spans_and_flush();
         dd_request_abort_redirect();
     }
+
+    dd_request_abort_rshutdown();
 }
 
 static zend_array *_do_request_finish_user_req(bool ignore_verdict,
