@@ -60,9 +60,9 @@ static const char static_error_html[] =
     "target=\"_blank\">Datadog</a></p></footer></body></html>";
 
 static const char static_error_json[] =
-    "{\"errors\": [{\"title\": \"You've been blocked\", \"detail\": \"Sorry, yo"
+    "{\"errors\":[{\"title\":\"You've been blocked\",\"detail\":\"Sorry, yo"
     "u cannot access this page. Please contact the customer service team. Secur"
-    "ity provided by Datadog.\"}], \"security_response_id\": "
+    "ity provided by Datadog.\"}],\"security_response_id\":"
     "\"[security_response_id]\"}";
 
 static zend_string *_initial_cwd;
