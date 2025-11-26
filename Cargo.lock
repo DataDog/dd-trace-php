@@ -1185,8 +1185,8 @@ dependencies = [
  "env_logger 0.11.6",
  "lazy_static",
  "libc 0.2.177",
- "libdd-alloc 1.0.0 (git+https://github.com/DataDog/libdatadog?tag=v24.0.1)",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=v24.0.1)",
+ "libdd-alloc",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?tag=v24.0.2)",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
@@ -2441,17 +2441,7 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
-dependencies = [
- "allocator-api2",
- "libc 0.2.177",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "libdd-alloc"
-version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
@@ -2496,7 +2486,7 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
  "anyhow",
  "cc",
@@ -2693,7 +2683,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
  "anyhow",
  "bitmaps",
@@ -2706,8 +2696,8 @@ dependencies = [
  "hyper",
  "hyper-multipart-rfc7578",
  "indexmap 2.12.0",
- "libdd-alloc 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=v24.0.1)",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=v24.0.1)",
+ "libdd-alloc",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?tag=v24.0.2)",
  "libdd-profiling-protobuf",
  "lz4_flex",
  "mime",
@@ -2724,7 +2714,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=v24.0.1#26059cd130019c16e75232b06c298be4299697e9"
+source = "git+https://github.com/DataDog/libdatadog?tag=v24.0.2#d0393310c6e86ed7eb120c6cb6255f4f6eab1b9b"
 dependencies = [
  "prost",
 ]
