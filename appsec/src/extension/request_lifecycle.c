@@ -14,6 +14,7 @@
 #include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
+#include "rasp.h"
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
@@ -352,6 +353,7 @@ static void _do_request_finish_php(bool ignore_verdict)
         dd_tags_add_tags(_cur_req_span, NULL);
     }
     dd_tags_rshutdown();
+    dd_rasp_req_finish();
 
     _reset_globals();
 
@@ -402,6 +404,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     if (DDAPPSEC_G(active) && _cur_req_span) {
         dd_tags_add_tags(_cur_req_span, superglob_equiv);
     }
+    dd_rasp_req_finish();
 
     if (verdict == dd_should_block) {
         const zend_array *nonnull sv = _get_server_equiv(superglob_equiv);
@@ -439,6 +442,7 @@ static void _reset_globals(void)
 
     _shutdown_done_on_commit = false;
     dd_tags_rshutdown();
+    dd_rasp_reset_globals();
 }
 
 static zend_string *nullable _extract_ip_from_autoglobal(void)
