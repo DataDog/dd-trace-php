@@ -71,12 +71,21 @@ workflow:
   - when: manual
     interruptible: true
 
+.on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible: &on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
+  if: '($CI_COMMIT_REF_NAME == "master" && ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule")) || $CI_COMMIT_REF_NAME =~ /^ddtrace-/'
+  when: always
+  interruptible: false
+
 .macrobenchmarks-rules: &macrobenchmarks-rules
-  - if: '($CI_COMMIT_REF_NAME == "master" && ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule")) || $CI_COMMIT_REF_NAME =~ /^ddtrace-/'
-    when: always
-    interruptible: false
+  - <<: *on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
   - when: manual
     interruptible: true
+
+.pre-release-performance-quality-gates-rules: &pre-release-performance-quality-gates-rules
+  - <<: *on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
+  # Unlike on "master", on nightly benchmarks, or on release branches there's
+  # no strict requirement to run the check unconditionally with "when: always".
+  - interruptible: true
 
 .microbenchmarks:
   stage: benchmarks
