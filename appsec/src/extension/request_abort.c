@@ -255,7 +255,7 @@ void dd_request_abort_rinit(void)
         mlog(dd_log_warning,
             "_block_parameters is not NULL when calling dd_request_abort_rinit "
             "(shutdown did not run on prev request?)");
-        _block_parameters_free();
+        _block_parameters = NULL;
     }
 
     _block_parameters_set(
@@ -442,7 +442,7 @@ void _request_abort_static_page(int response_code, int type)
         content_type = JSON_CONTENT_TYPE;
         body = _get_json_blocking_template();
     } else {
-        mlog(dd_log_error, " response type (bug) %d", response_type);
+        mlog(dd_log_error, "unknown response type (bug) %d", response_type);
         return;
     }
 
@@ -634,7 +634,6 @@ static void _emit_error(const char *format, ...)
     va_end(args2);
     va_end(args);
 
-    _block_parameters_free();
     if (PG(during_request_startup)) {
         /* if emitting error during startup, RSHUTDOWN will not run (except fpm)
          * so we need to run the same logic from here */
@@ -695,9 +694,6 @@ static void _emit_error(const char *format, ...)
     // not enough: EG(error_handling) = EH_SUPPRESS;
     _suppress_error_reporting();
     _php_verror(E_ERROR, "%s", msg);
-    if (free_msg) {
-        efree(msg);
-    }
     __builtin_unreachable();
 }
 
