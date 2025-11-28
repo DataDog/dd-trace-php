@@ -14,7 +14,7 @@ services:
     cap_add:
       - SYS_PTRACE
   mysql:
-    image: mysql:5.7
+    image: registry.ddbuild.io/images/mirror/mysql:5.7
     environment:
       MYSQL_ROOT_PASSWORD: ""
       MYSQL_ALLOW_EMPTY_PASSWORD: 1

@@ -7,25 +7,25 @@ services:
 
   redis:
     container_name: redis
-    image: redis:latest
+    image: registry.ddbuild.io/images/mirror/redis:latest
 
   httpbin:
     container_name: httpbin
-    image: kong/httpbin:0.2.2
+    image: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2
 
   memcached:
     container_name: memcached
-    image: "memcached:1.5-alpine"
+    image: "registry.ddbuild.io/images/mirror/library/memcached:1.5-alpine"
 
   elasticsearch:
     container_name: elasticsearch
-    image: "elasticsearch:7.17.4"
+    image: "registry.ddbuild.io/images/mirror/elasticsearch:7.17.4"
     environment:
       - discovery.type=single-node
 
   mysql:
     container_name: mysql
-    image: mysql/mysql-server:8.0
+    image: registry.ddbuild.io/images/mirror/mysql/mysql-server:8.0
     command: --default-authentication-plugin=mysql_native_password
     environment:
       - MYSQL_ROOT_PASSWORD=test

@@ -16,11 +16,11 @@ services:
       - SYS_PTRACE
 
   redis:
-    image: redis:5.0.5
+    image: registry.ddbuild.io/images/mirror/redis:5.0.5
     expose:
       - 6379
   memcached:
-    image: memcached
+    image: registry.ddbuild.io/images/mirror/library/memcached:latest
     expose:
       - 11211
 

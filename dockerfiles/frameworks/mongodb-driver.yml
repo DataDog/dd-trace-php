@@ -20,7 +20,7 @@ services:
       - SYS_PTRACE
 
   mongodb:
-    image: "circleci/mongo:4"
+    image: "registry.ddbuild.io/images/mirror/circleci/mongo:4"
     ports:
       - "27017:27017"
 
