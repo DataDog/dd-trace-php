@@ -625,11 +625,18 @@ static void _emit_error(const char *format, ...)
     char *msg = NULL;
     bool free_msg = false;
     if (len >= (int)sizeof(buf)) {
-        msg = safe_emalloc(len + 1, 1, 0);
-        vsnprintf(msg, len + 1, format, args2);
-        free_msg = true;
-    } else {
+        msg = safe_emalloc(len, 1, 0);
+        if (vsnprintf(msg, len + 1, format, args2) < 0) {
+            char default_msg[] = "Datadog blocked the request.";
+            msg = default_msg;
+        } else {
+            free_msg = true;
+        }
+    } else if (len >= 0) {
         msg = buf;
+    } else {
+        char default_msg[] = "Datadog blocked the request.";
+        msg = default_msg;
     }
     va_end(args2);
     va_end(args);
@@ -661,6 +668,9 @@ static void _emit_error(const char *format, ...)
 #ifdef FRANKENPHP_SUPPORT
         if (strcmp(sapi_module.name, "frankenphp") == 0) {
             _php_verror(E_WARNING, "%s", msg);
+            if (free_msg) {
+                efree(msg);
+            }
             _prepare_req_init_block();
             return;
         }
