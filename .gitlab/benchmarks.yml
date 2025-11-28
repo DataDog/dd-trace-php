@@ -232,7 +232,7 @@ check-slo-breaches:
   extends: .check-slo-breaches
   stage: gate
   needs: ["macrobenchmarks"]
-  when: on_success
+  rules: *pre-release-performance-quality-gates-rules
   artifacts:
     name: "artifacts"
     when: always
@@ -248,6 +248,6 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  when: always
+  rules: *pre-release-performance-quality-gates-rules
   variables:
     CHANNEL: "guild-dd-php"
