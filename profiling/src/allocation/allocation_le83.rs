@@ -355,9 +355,12 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
         return ptr;
     }
 
-    if ALLOCATION_PROFILING_STATS
-        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
-    {
+    let should_collect = ALLOCATION_PROFILING_STATS.with(|stats| {
+        // Safety: ALLOCATION_PROFILING_STATS is thread-local and initialized in GINIT.
+        unsafe { (*stats.get()).should_collect_allocation(len) }
+    });
+
+    if should_collect {
         collect_allocation(len);
     }
 
@@ -414,9 +417,12 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
-    if ALLOCATION_PROFILING_STATS
-        .borrow_mut_or_false(|allocations| allocations.should_collect_allocation(len))
-    {
+    let should_collect = ALLOCATION_PROFILING_STATS.with(|stats| {
+        // Safety: ALLOCATION_PROFILING_STATS is thread-local and initialized in GINIT.
+        unsafe { (*stats.get()).should_collect_allocation(len) }
+    });
+
+    if should_collect {
         collect_allocation(len);
     }
 
