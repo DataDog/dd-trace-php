@@ -18,6 +18,7 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "request_abort.h"
+#include "request_lifecycle.h"
 #include "string_helpers.h"
 
 #include "attributes.h"
@@ -76,41 +77,6 @@ static zend_string *_content_length_zstr;
 static zend_string *_location_zstr;
 static zend_string *_content_type_html_zstr;
 static zend_string *_content_type_json_zstr;
-struct _block_parameters {
-    zend_string *nullable security_response_id;
-    dd_response_type response_type;
-    int response_code;
-    zend_string *nullable redirection_location;
-};
-
-static THREAD_LOCAL_ON_ZTS struct _block_parameters *nullable _block_parameters;
-
-static void _block_parameters_free(void)
-{
-    if (_block_parameters) {
-        if (_block_parameters->security_response_id) {
-            zend_string_release(_block_parameters->security_response_id);
-            _block_parameters->security_response_id = NULL;
-        }
-        efree(_block_parameters);
-        _block_parameters = NULL;
-    }
-}
-
-static void _block_parameters_set(
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    zend_string *nullable security_response_id, dd_response_type response_type,
-    int response_code, zend_string *nullable redirection_location)
-{
-    if (_block_parameters) {
-        _block_parameters_free();
-    }
-    _block_parameters = emalloc(sizeof(*_block_parameters));
-    _block_parameters->security_response_id = security_response_id;
-    _block_parameters->response_type = response_type;
-    _block_parameters->response_code = response_code;
-    _block_parameters->redirection_location = redirection_location;
-}
 
 #ifdef FRANKENPHP_SUPPORT
 static typeof(zend_compile_file) _orig_zend_compile_file;
@@ -120,12 +86,18 @@ static THREAD_LOCAL_ON_ZTS char *_saved_prepend_file;
 static THREAD_LOCAL_ON_ZTS char *_saved_append_file;
 #endif
 
-static bool _abort_prelude(void);
-void _request_abort_static_page(int response_code, int type);
+static bool _abort_prelude(struct block_params *nonnull block_params);
+static void _request_abort_static_page(
+    struct block_params *nonnull block_params);
 ATTR_FORMAT(1, 2)
 static void _emit_error(const char *format, ...);
 static zend_string *nonnull _get_json_blocking_template(void);
 static zend_string *nonnull _get_html_blocking_template(void);
+
+static inline bool _is_valid_redirect_code(int code)
+{
+    return code >= 300 && code < 400; // NOLINT
+}
 
 #ifdef FRANKENPHP_SUPPORT
 static zend_op_array *_req_init_block_zend_compile_file(
@@ -229,58 +201,11 @@ static dd_response_type _get_response_type_from_accept_header(
     return response_type_json;
 }
 
-void dd_set_block_code_and_type(
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    int code, dd_response_type type, zend_string *nullable security_response_id)
+static void _replace_security_response_id(
+    struct block_params *nonnull block_params,
+    zend_string **nonnull target_ptr_ptr)
 {
-    dd_response_type _type = type;
-    // Account for lack of enum type safety
-    switch (type) {
-    case response_type_auto:
-    case response_type_html:
-    case response_type_json:
-        _type = type;
-        break;
-    default:
-        _type = response_type_auto;
-        break;
-    }
-
-    _block_parameters_set(security_response_id, _type, code, NULL);
-}
-
-void dd_request_abort_rinit(void)
-{
-    if (_block_parameters) {
-        mlog(dd_log_warning,
-            "_block_parameters is not NULL when calling dd_request_abort_rinit "
-            "(shutdown did not run on prev request?)");
-        _block_parameters = NULL;
-    }
-
-    _block_parameters_set(
-        NULL, DEFAULT_RESPONSE_TYPE, DEFAULT_BLOCKING_RESPONSE_CODE, NULL);
-}
-
-void dd_set_redirect_code_and_location(
-    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-    int code, zend_string *nullable location,
-    zend_string *nullable security_response_id)
-{
-    int response_code = DEFAULT_REDIRECTION_RESPONSE_CODE;
-
-    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    if (code >= 300 && code < 400) {
-        response_code = code;
-    }
-    _block_parameters_set(
-        security_response_id, response_type_auto, response_code, location);
-}
-
-static void _replace_security_response_id(zend_string **nonnull target_ptr_ptr)
-{
-    zend_string *security_response_id =
-        _block_parameters ? _block_parameters->security_response_id : NULL;
+    zend_string *security_response_id = block_params->security_response_id;
     if (!security_response_id) {
         security_response_id = SECURITY_RESPONSE_ID_DEFAULT;
     }
@@ -332,38 +257,45 @@ static void _replace_security_response_id(zend_string **nonnull target_ptr_ptr)
     }
 }
 
-void dd_request_abort_redirect(void)
+void dd_request_abort_redirect(struct block_params *nonnull block_params)
 {
-    if (_block_parameters->redirection_location == NULL ||
-        ZSTR_LEN(_block_parameters->redirection_location) == 0) {
-        _request_abort_static_page(
-            DEFAULT_BLOCKING_RESPONSE_CODE, DEFAULT_RESPONSE_TYPE);
+    if (block_params->redirection_location == NULL ||
+        ZSTR_LEN(block_params->redirection_location) == 0) {
+        mlog(dd_log_debug,
+            "Invalid redirect parameters: no redirection location");
+        block_params->response_code = DEFAULT_BLOCKING_RESPONSE_CODE;
+        _request_abort_static_page(block_params);
         return;
     }
 
-    if (!_abort_prelude()) {
+    if (!_abort_prelude(block_params)) {
         mlog(dd_log_debug, "_abort_prelude has failed");
         return;
     }
 
-    if (_block_parameters->security_response_id) {
-        _replace_security_response_id(&_block_parameters->redirection_location);
+    if (block_params->security_response_id) {
+        _replace_security_response_id(
+            block_params, &block_params->redirection_location);
     }
 
     char *line;
-    uint line_len = (uint)spprintf(&line, 0, "Location: %s",
-        ZSTR_VAL(_block_parameters->redirection_location));
+    uint line_len = (uint)spprintf(
+        &line, 0, "Location: %s", ZSTR_VAL(block_params->redirection_location));
 
     mlog_g(dd_log_debug, "Will forward to %s with status %d",
-        ZSTR_VAL(_block_parameters->redirection_location),
-        _block_parameters->response_code);
+        ZSTR_VAL(block_params->redirection_location),
+        block_params->response_code);
 
-    SG(sapi_headers).http_response_code = _block_parameters->response_code;
+    SG(sapi_headers).http_response_code =
+        _is_valid_redirect_code(block_params->response_code)
+            ? block_params->response_code
+            : DEFAULT_REDIRECTION_RESPONSE_CODE;
+
     int res = sapi_header_op(SAPI_HEADER_REPLACE,
         &(sapi_header_line){.line = line, .line_len = line_len});
     if (res == FAILURE) {
         mlog(dd_log_warning, "Could not forward to %s",
-            ZSTR_VAL(_block_parameters->redirection_location));
+            ZSTR_VAL(block_params->redirection_location));
     }
 
     efree(line);
@@ -378,35 +310,49 @@ void dd_request_abort_redirect(void)
         mlog(dd_log_info,
             "Datadog blocked the request and attempted a redirection to %s. No "
             "action required. Security Response ID: %s",
-            ZSTR_VAL(_block_parameters->redirection_location),
-            _block_parameters->security_response_id
-                ? ZSTR_VAL(_block_parameters->security_response_id)
+            ZSTR_VAL(block_params->redirection_location),
+            block_params->security_response_id
+                ? ZSTR_VAL(block_params->security_response_id)
                 : "");
     } else {
         _emit_error("Datadog blocked the request and attempted a redirection "
                     "to %s. No action required. Security Response ID: %s",
-            ZSTR_VAL(_block_parameters->redirection_location),
-            _block_parameters->security_response_id
-                ? ZSTR_VAL(_block_parameters->security_response_id)
+            ZSTR_VAL(block_params->redirection_location),
+            block_params->security_response_id
+                ? ZSTR_VAL(block_params->security_response_id)
                 : "");
     }
 }
 
-zend_array *nonnull dd_request_abort_redirect_spec(void)
+zend_array *nonnull dd_request_abort_redirect_spec(
+    struct block_params *nonnull block_params, const zend_array *nonnull server)
 {
+    if (block_params->redirection_location == NULL ||
+        ZSTR_LEN(block_params->redirection_location) == 0) {
+        mlog(dd_log_debug,
+            "Invalid redirect parameters: no redirection location");
+        block_params->response_code = DEFAULT_BLOCKING_RESPONSE_CODE;
+        return dd_request_abort_static_page_spec(block_params, server);
+    }
+
     zend_array *arr = zend_new_array(2);
 
+    int response_code = _is_valid_redirect_code(block_params->response_code)
+                            ? block_params->response_code
+                            : DEFAULT_REDIRECTION_RESPONSE_CODE;
+
     zval status;
-    ZVAL_LONG(&status, _block_parameters->response_code);
+    ZVAL_LONG(&status, response_code);
     zend_hash_add_new(arr, _status_zstr, &status);
 
-    if (_block_parameters->security_response_id) {
-        _replace_security_response_id(&_block_parameters->redirection_location);
+    if (block_params->security_response_id) {
+        _replace_security_response_id(
+            block_params, &block_params->redirection_location);
     }
 
     zend_array *headers = zend_new_array(1);
     zval location;
-    ZVAL_STR(&location, _block_parameters->redirection_location);
+    ZVAL_STR_COPY(&location, block_params->redirection_location);
     zend_hash_add_new(headers, _location_zstr, &location);
     zval headers_zv;
     ZVAL_ARR(&headers_zv, headers);
@@ -416,11 +362,13 @@ zend_array *nonnull dd_request_abort_redirect_spec(void)
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void _request_abort_static_page(int response_code, int type)
+void _request_abort_static_page(struct block_params *nonnull block_params)
 {
-    SG(sapi_headers).http_response_code = response_code;
+    SG(sapi_headers).http_response_code = block_params->response_code
+                                              ? block_params->response_code
+                                              : DEFAULT_BLOCKING_RESPONSE_CODE;
 
-    dd_response_type response_type = type;
+    dd_response_type response_type = block_params->response_type;
     if (response_type == response_type_auto) {
         zval *server =
             dd_php_get_autoglobal(TRACK_VARS_SERVER, LSTRARG("_SERVER"));
@@ -446,9 +394,9 @@ void _request_abort_static_page(int response_code, int type)
         return;
     }
 
-    _replace_security_response_id(&body);
+    _replace_security_response_id(block_params, &body);
 
-    if (!_abort_prelude()) {
+    if (!_abort_prelude(block_params)) {
         mlog(dd_log_debug, "_abort_prelude has failed");
         zend_string_release(body);
         return;
@@ -466,35 +414,35 @@ void _request_abort_static_page(int response_code, int type)
         mlog(dd_log_info,
             "Datadog blocked the request and presented a static error page. No "
             "action required. Security Response ID: %s",
-            _block_parameters->security_response_id
-                ? ZSTR_VAL(_block_parameters->security_response_id)
+            block_params->security_response_id
+                ? ZSTR_VAL(block_params->security_response_id)
                 : "");
     } else {
         _emit_error("Datadog blocked the request and presented a static error "
                     "page. No action required. Security Response ID: %s",
-            _block_parameters->security_response_id
-                ? ZSTR_VAL(_block_parameters->security_response_id)
+            block_params->security_response_id
+                ? ZSTR_VAL(block_params->security_response_id)
                 : "");
     }
 }
 
-void dd_request_abort_static_page(void)
+void dd_request_abort_static_page(struct block_params *nonnull block_params)
 {
-    _request_abort_static_page(
-        _block_parameters->response_code, _block_parameters->response_type);
+    _request_abort_static_page(block_params);
 }
 
 zend_array *nonnull dd_request_abort_static_page_spec(
+    struct block_params *nonnull block_params,
     const zend_array *nonnull _server)
 {
     zend_array *arr = zend_new_array(3);
 
     zval status;
-    ZVAL_LONG(&status, _block_parameters->response_code);
+    ZVAL_LONG(&status, block_params->response_code);
     zend_hash_add_new(arr, _status_zstr, &status);
 
     zend_array *headers = zend_new_array(2);
-    dd_response_type response_type = _block_parameters->response_type;
+    dd_response_type response_type = block_params->response_type;
     if (response_type == response_type_auto) {
         response_type = _get_response_type_from_accept_header(_server);
     }
@@ -507,7 +455,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
         zend_hash_add_new(headers, _content_type_zstr, &content_type);
 
         zend_string *content = _get_html_blocking_template();
-        _replace_security_response_id(&content);
+        _replace_security_response_id(block_params, &content);
         body_len = content->len;
         ZVAL_STR(&body, content);
         zend_hash_add_new(arr, _body_zstr, &body);
@@ -516,7 +464,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
         zend_hash_add_new(headers, _content_type_zstr, &content_type);
 
         zend_string *content = _get_json_blocking_template();
-        _replace_security_response_id(&content);
+        _replace_security_response_id(block_params, &content);
         body_len = content->len;
         ZVAL_STR(&body, content);
         zend_hash_add_new(arr, _body_zstr, &body);
@@ -539,7 +487,7 @@ zend_array *nonnull dd_request_abort_static_page_spec(
 }
 
 static void _force_destroy_output_handlers(void);
-static bool _abort_prelude(void)
+static bool _abort_prelude(struct block_params *nonnull block_params)
 {
     if (OG(running)) {
         /* we were told to block from inside an output handler. In this case,
@@ -556,16 +504,16 @@ static bool _abort_prelude(void)
                 "Datadog blocked the request, but the response has already "
                 "been partially committed. No action required. Security "
                 "Response ID: %s",
-                _block_parameters->security_response_id
-                    ? ZSTR_VAL(_block_parameters->security_response_id)
+                block_params->security_response_id
+                    ? ZSTR_VAL(block_params->security_response_id)
                     : "");
         } else {
             _emit_error(
                 "Datadog blocked the request, but the response has already "
                 "been partially committed. No action required. Security "
                 "Response ID: %s",
-                _block_parameters->security_response_id
-                    ? ZSTR_VAL(_block_parameters->security_response_id)
+                block_params->security_response_id
+                    ? ZSTR_VAL(block_params->security_response_id)
                     : "");
         }
         return false;
@@ -759,7 +707,7 @@ static PHP_FUNCTION(datadog_appsec_testing_abort_static_page)
     if (zend_parse_parameters_none() == FAILURE) {
         return;
     }
-    dd_request_abort_static_page();
+    dd_request_abort_static_page(&(struct block_params){0});
 }
 
 // clang-format off
@@ -847,8 +795,6 @@ void dd_request_abort_shutdown(void)
     }
 #endif
 }
-
-void dd_request_abort_rshutdown(void) { _block_parameters_free(); }
 
 static zend_string *nonnull _get_json_blocking_template(void)
 {
