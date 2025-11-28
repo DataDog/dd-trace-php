@@ -29,6 +29,8 @@ void dd_request_abort_startup(void);
 void dd_request_abort_zend_ext_startup(void);
 void dd_request_abort_shutdown(void);
 
+// You generally don't want to call these functions directly.
+// See dd_req_lifecycle_abort instead.
 // noreturn unless called from rinit on fpm
 void dd_request_abort_static_page(struct block_params *nonnull block_params);
 zend_array *nonnull dd_request_abort_static_page_spec(
