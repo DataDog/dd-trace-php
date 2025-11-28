@@ -87,7 +87,7 @@ impl Uploader {
             self.create_profiler_info(),
         )?;
         debug!("Sending profile to: {agent_endpoint}");
-        let result = exporter.send(request, None)?;
+        let result = exporter.send(request)?;
         Ok(result.status().as_u16())
     }
 
