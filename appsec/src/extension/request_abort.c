@@ -515,8 +515,10 @@ zend_array *nonnull dd_request_abort_static_page_spec(
     }
 
     {
-        char buf[sizeof("18446744073709551615") - 1];
-        size_t len = sprintf(buf, "%zu", body_len);
+        // This magic number is the string representation of SIZE_MAX on 64 bit
+        // systems
+        char buf[sizeof("18446744073709551615")];
+        size_t len = snprintf(buf, sizeof(buf), "%zu", body_len);
         zend_string *s = zend_string_init(buf, len, 0);
         zval cont_len_zv;
         ZVAL_STR(&cont_len_zv, s);
