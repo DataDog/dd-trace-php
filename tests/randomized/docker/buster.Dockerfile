@@ -1,6 +1,6 @@
 ARG PHP_MAJOR_MINOR
 
-FROM datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+FROM registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
 
 USER root
 
