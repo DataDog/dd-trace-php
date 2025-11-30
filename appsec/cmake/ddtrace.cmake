@@ -100,6 +100,7 @@ if (PhpConfig_VERNUM GREATER_EQUAL 80000)
 else() # PHP 7
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_curl.c"
         "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_attributes.c"
+        "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_otel.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/interceptor.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c"

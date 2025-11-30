@@ -9,5 +9,11 @@
 #include <SAPI.h>
 #include <php.h>
 
-dd_result dd_request_exec(
-    dd_conn *nonnull conn, zval *nonnull data, zend_string *nullable rasp_rule);
+struct req_exec_opts {
+    zend_string *nullable rasp_rule;
+    zend_string *nullable subctx_id;
+    bool subctx_last_call;
+};
+
+dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,
+    const struct req_exec_opts *nonnull opts);

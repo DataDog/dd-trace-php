@@ -19,31 +19,31 @@ set(BOOST_COMPONENTS
 
 function(calculate_abi_hash OUT_HASH)
     set(ABI_COMPONENTS "")
-    
+
     list(APPEND ABI_COMPONENTS "${CMAKE_CXX_COMPILER_ID}")
-    
+
     list(APPEND ABI_COMPONENTS "${CMAKE_SYSTEM_PROCESSOR}")
     list(APPEND ABI_COMPONENTS "${CMAKE_SIZEOF_VOID_P}")
-    
+
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         list(APPEND ABI_COMPONENTS "debug")
     else()
         list(APPEND ABI_COMPONENTS "release")
     endif()
-    
+
     # Relevant compiler flags that might affect the ABI
     string(REGEX MATCHALL "-m[a-zA-Z0-9_-]+" MARCH_FLAGS "${CMAKE_CXX_FLAGS}")
     string(REGEX MATCHALL "-f[a-zA-Z0-9_-]+" FEATURE_FLAGS "${CMAKE_CXX_FLAGS}")
     string(REGEX MATCHALL "-std=[a-zA-Z0-9_+-]+" STD_FLAGS "${CMAKE_CXX_FLAGS}")
     string(REGEX MATCHALL "-D[a-zA-Z0-9_=]+" DEFINE_FLAGS "${CMAKE_CXX_FLAGS}")
     string(REGEX MATCHALL "-stdlib=[a-zA-Z0-9_+-]+" STDLIB_FLAGS "${CMAKE_CXX_FLAGS}")
-    
+
     list(APPEND ABI_COMPONENTS ${MARCH_FLAGS})
     list(APPEND ABI_COMPONENTS ${FEATURE_FLAGS})
     list(APPEND ABI_COMPONENTS ${STD_FLAGS})
     list(APPEND ABI_COMPONENTS ${DEFINE_FLAGS})
     list(APPEND ABI_COMPONENTS ${STDLIB_FLAGS})
-    
+
     # Platform-specific ABI settings
     if(WIN32)
         list(APPEND ABI_COMPONENTS "WIN32")
@@ -61,13 +61,13 @@ function(calculate_abi_hash OUT_HASH)
     else()
         list(APPEND ABI_COMPONENTS "UNIX")
     endif()
-    
+
     list(APPEND ABI_COMPONENTS "${BOOST_VERSION}")
-    
+
     string(JOIN ";" ABI_STRING ${ABI_COMPONENTS})
     string(SHA256 HASH_VALUE "${ABI_STRING}")
     string(SUBSTRING "${HASH_VALUE}" 0 12 SHORT_HASH)
-    
+
     set(${OUT_HASH} "${SHORT_HASH}" PARENT_SCOPE)
 endfunction()
 
@@ -88,7 +88,7 @@ if(EXISTS "${BOOST_BUILD_DIR}/lib" AND EXISTS "${BOOST_BUILD_DIR}/include")
             break()
         endif()
     endforeach()
-    
+
     if(ALL_LIBS_EXIST)
         set(BOOST_ALREADY_BUILT TRUE)
         message(STATUS "Found cached Boost build, skipping compilation")
@@ -199,10 +199,10 @@ endif()
 function(create_boost_target component_name)
     set(LIB_PREFIX "lib")
     set(LIB_SUFFIX ".a")
-    
+
     # Construct the expected library path
     set(EXPECTED_LIB_PATH "${BOOST_BUILD_DIR}/lib/${LIB_PREFIX}boost_${component_name}${LIB_SUFFIX}")
-    
+
     # Don't use an imported library, as it's not available at configuration time
     add_library(boost_${component_name} INTERFACE)
     message(STATUS "boost_${component_name} will be imported from ${EXPECTED_LIB_PATH}")
@@ -212,9 +212,9 @@ function(create_boost_target component_name)
     target_include_directories(boost_${component_name} INTERFACE
         $<BUILD_INTERFACE:${BOOST_BUILD_DIR}/include>
     )
-    
+
     add_dependencies(boost_${component_name} boost_build)
-    
+
     # Set up component-specific dependencies
     if(component_name STREQUAL "coroutine")
         target_link_libraries(boost_${component_name} INTERFACE boost_context boost_system)
@@ -242,8 +242,15 @@ foreach(component IN LISTS BOOST_COMPONENTS)
         create_boost_target("stacktrace_basic")
 
         if (UNIX AND NOT APPLE AND BOOST_TOOLSET STREQUAL "gcc")
-            create_boost_target("stacktrace_backtrace")
-            target_link_libraries(boost_stacktrace INTERFACE boost_stacktrace_backtrace)
+            find_library(BACKTRACE_LIBRARY NAMES backtrace)
+            if (BACKTRACE_LIBRARY)
+                message(STATUS "libbacktrace found: ${BACKTRACE_LIBRARY}")
+                create_boost_target("stacktrace_backtrace")
+                target_link_libraries(boost_stacktrace INTERFACE boost_stacktrace_backtrace)
+            else()
+                message(STATUS "libbacktrace not found, using stacktrace_addr2line instead")
+                target_link_libraries(boost_stacktrace INTERFACE boost_stacktrace_addr2line)
+            endif()
         else()
             target_link_libraries(boost_stacktrace INTERFACE boost_stacktrace_basic)
         endif()

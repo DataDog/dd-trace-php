@@ -410,8 +410,6 @@ zend_array *nonnull dd_request_abort_redirect_spec(void)
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void _request_abort_static_page(int response_code, int type)
 {
-    SG(sapi_headers).http_response_code = response_code;
-
     dd_response_type response_type = type;
     if (response_type == response_type_auto) {
         zval *server =
@@ -445,6 +443,8 @@ void _request_abort_static_page(int response_code, int type)
         zend_string_release(body);
         return;
     }
+
+    SG(sapi_headers).http_response_code = response_code;
 
     _set_content_type(content_type);
     _set_output_zstr(body);
