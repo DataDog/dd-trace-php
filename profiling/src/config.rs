@@ -4,8 +4,7 @@ use crate::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_get_memoized_config,
     zai_config_entry, zai_config_get_value, zai_config_minit, zai_config_name,
     zai_config_system_ini_change, zend_ini_entry, zend_long, zend_string, zend_write, zval,
-    StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_ENTRIES_COUNT_MAX,
-    ZEND_INI_DISPLAY_ORIG,
+    StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ, ZEND_INI_DISPLAY_ORIG,
 };
 use crate::zend::zai_str_from_zstr;
 use core::fmt::{Display, Formatter};
@@ -287,7 +286,7 @@ unsafe extern "C" fn env_to_ini_name(env_name: ZaiStr, ini_name: *mut zai_config
     // Env var name needs to fit.
     let projection = "datadog.".len() - "DD_".len();
     let null_byte = 1usize;
-    assert!(name.len() + projection + null_byte < ZAI_CONFIG_ENTRIES_COUNT_MAX as usize);
+    assert!(name.len() + projection + null_byte <= (ZAI_CONFIG_NAME_BUFSIZ as usize));
 
     let (dest_prefix, src_prefix) = if name.starts_with("DD_TRACE_") {
         ("datadog.trace.", "DD_TRACE_")
@@ -1275,6 +1274,10 @@ mod tests {
             (
                 b"DD_PROFILING_ALLOCATION_ENABLED\0",
                 "datadog.profiling.allocation_enabled",
+            ),
+            (
+                b"DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE\0",
+                "datadog.profiling.experimental_exception_sampling_distance",
             ),
             (
                 b"DD_PROFILING_EXPERIMENTAL_TIMELINE_ENABLED\0",
