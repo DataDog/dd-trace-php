@@ -161,3 +161,9 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data);
 
 void ddog_php_opcache_init_handle();
 bool ddog_php_jit_enabled();
+
+/**
+ * Detects if the current thread is a parallel extension thread.
+ * Returns true if the thread was spawned by the parallel extension.
+ */
+bool ddog_php_prof_is_parallel_thread();
