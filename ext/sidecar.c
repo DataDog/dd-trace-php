@@ -62,6 +62,7 @@ static void dd_free_endpoints(void) {
     ddog_endpoint_drop(ddtrace_endpoint);
     ddog_endpoint_drop(dogstatsd_endpoint);
     ddtrace_endpoint = NULL;
+    dogstatsd_endpoint = NULL;
 }
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
@@ -115,6 +116,10 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
 }
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
+    if (!ddtrace_endpoint || !dogstatsd_endpoint) {
+        return;
+    }
+
     char logpath[MAXPATHLEN];
     int error_fd = atomic_load(&ddtrace_error_log_fd);
     if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {

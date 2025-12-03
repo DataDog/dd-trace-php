@@ -46,7 +46,7 @@ trait WorkerStrategyTests {
         HttpRequest req = container.buildReq('/')
                 .header('X-Forwarded-For', '80.80.80.80').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-            assert re.body().contains('"title": "You\'ve been blocked"')
+            assert re.body().contains('"title":"You\'ve been blocked"')
             assert re.statusCode() == 403
             assert re.headers().firstValue('Content-type').get() == 'application/json'
         }
