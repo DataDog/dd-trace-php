@@ -71,18 +71,21 @@ workflow:
   - when: manual
     interruptible: true
 
+.on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible: &on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
+  if: '($CI_COMMIT_REF_NAME == "master" && ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule")) || $CI_COMMIT_REF_NAME =~ /^ddtrace-/'
+  when: always
+  interruptible: false
+
 .macrobenchmarks-rules: &macrobenchmarks-rules
-  - if: $CI_COMMIT_REF_NAME == "master" && $NIGHTLY_BENCHMARKS
-    when: always
-    interruptible: false
-  - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
-    when: always
-    interruptible: false
-  - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
-    when: always
-    interruptible: false
+  - <<: *on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
   - when: manual
     interruptible: true
+
+.pre-release-performance-quality-gates-rules: &pre-release-performance-quality-gates-rules
+  - <<: *on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
+  # Unlike on "master", on nightly benchmarks, or on release branches there's
+  # no strict requirement to run the check unconditionally with "when: always".
+  - interruptible: true
 
 .microbenchmarks:
   stage: benchmarks
@@ -182,13 +185,13 @@ check-big-regressions:
 
 .macrobenchmarks:
   stage: benchmarks
-  rules: *macrobenchmarks-rules
-  tags: ["runner:apm-k8s-same-cpu"]
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
+  rules: *macrobenchmarks-rules
+  tags: ["runner:apm-k8s-same-cpu"]
   timeout: 1h
   image: $MACROBENCHMARKS_CI_IMAGE
   script:
@@ -229,7 +232,7 @@ check-slo-breaches:
   extends: .check-slo-breaches
   stage: gate
   needs: ["macrobenchmarks"]
-  when: on_success
+  rules: *pre-release-performance-quality-gates-rules
   artifacts:
     name: "artifacts"
     when: always
@@ -245,6 +248,6 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  when: always
+  rules: *pre-release-performance-quality-gates-rules
   variables:
     CHANNEL: "guild-dd-php"

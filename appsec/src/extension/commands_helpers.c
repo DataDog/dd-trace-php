@@ -56,6 +56,17 @@ static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
     dd_imsg *nonnull imsg);
 static void _imsg_cleanup(dd_imsg *nullable *imsg);
 
+static void _set_redirect_code_and_location(
+    struct block_params *nonnull block_params,
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, zend_string *nullable location,
+    zend_string *nullable security_response_id);
+
+static void _set_block_code_and_type(struct block_params *nonnull block_params,
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, dd_response_type type,
+    zend_string *nullable security_response_id);
+
 static dd_result _dd_command_exec(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, void *unspecnull ctx)
 {
@@ -299,7 +310,8 @@ static void _imsg_cleanup(dd_imsg *nullable *imsg)
 static void _add_appsec_span_data_frag(mpack_node_t node);
 static void _set_appsec_span_data(mpack_node_t node);
 
-static void _command_process_block_parameters(mpack_node_t root)
+static void _command_process_block_parameters(
+    struct block_params *nonnull block_params, mpack_node_t root)
 {
     int status_code = DEFAULT_BLOCKING_RESPONSE_CODE;
     dd_response_type type = DEFAULT_RESPONSE_TYPE;
@@ -365,10 +377,12 @@ static void _command_process_block_parameters(mpack_node_t root)
         "Blocking parameters: status_code=%d, type=%d, security_response_id=%s",
         status_code, type,
         security_response_id ? ZSTR_VAL(security_response_id) : "NULL");
-    dd_set_block_code_and_type(status_code, type, security_response_id);
+    _set_block_code_and_type(
+        block_params, status_code, type, security_response_id);
 }
 
-static void _command_process_redirect_parameters(mpack_node_t root)
+static void _command_process_redirect_parameters(
+    struct block_params *nonnull block_params, mpack_node_t root)
 {
     int status_code = 0;
     zend_string *location = NULL;
@@ -423,9 +437,46 @@ static void _command_process_redirect_parameters(mpack_node_t root)
         "security_response_id=%s",
         status_code, location ? ZSTR_VAL(location) : "NULL",
         security_response_id ? ZSTR_VAL(security_response_id) : "NULL");
-    dd_set_redirect_code_and_location(
-        status_code, location, security_response_id);
+
+    _set_redirect_code_and_location(
+        block_params, status_code, location, security_response_id);
 }
+
+static void _set_block_code_and_type(struct block_params *nonnull block_params,
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, dd_response_type type, zend_string *nullable security_response_id)
+{
+    dd_response_type _type = type;
+    // Account for lack of enum type safety
+    switch (type) {
+    case response_type_auto:
+    case response_type_html:
+    case response_type_json:
+        _type = type;
+        break;
+    default:
+        _type = response_type_auto;
+        break;
+    }
+
+    block_params->security_response_id = security_response_id;
+    block_params->response_type = _type;
+    block_params->response_code = code;
+    block_params->redirection_location = NULL;
+}
+
+static void _set_redirect_code_and_location(
+    struct block_params *nonnull block_params,
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    int code, zend_string *nullable location,
+    zend_string *nullable security_response_id)
+{
+    block_params->security_response_id = security_response_id;
+    block_params->response_type = response_type_auto;
+    block_params->response_code = code;
+    block_params->redirection_location = location;
+}
+
 static void _command_process_stack_trace_parameters(mpack_node_t root)
 {
     size_t count = mpack_node_map_count(root);
@@ -540,13 +591,14 @@ static dd_result _command_process_actions(
         if (dd_mpack_node_lstr_eq(verdict, "block") && res != dd_should_block &&
             res != dd_should_redirect) { // Redirect take over block
             res = dd_should_block;
-            _command_process_block_parameters(mpack_node_array_at(action, 1));
+            _command_process_block_parameters(
+                &ctx->block_params, mpack_node_array_at(action, 1));
             dd_tags_add_blocked();
         } else if (dd_mpack_node_lstr_eq(verdict, "redirect") &&
                    res != dd_should_redirect) {
             res = dd_should_redirect;
             _command_process_redirect_parameters(
-                mpack_node_array_at(action, 1));
+                &ctx->block_params, mpack_node_array_at(action, 1));
             dd_tags_add_blocked();
         } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
                    res == dd_success) {
