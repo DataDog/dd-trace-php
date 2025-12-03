@@ -534,7 +534,7 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         }
     }
 
-    dd_req_lifecycle_abort(REQUEST_STAGE_REQUEST_END, res, &block_params);
+    dd_req_lifecycle_abort(REQUEST_STAGE_MID_REQUEST, res, &block_params);
     dd_request_abort_destroy_block_params(&block_params);
 }
 
