@@ -30,8 +30,8 @@ static const dd_command_spec _spec = {
     .config_features_cb = dd_command_process_config_features_unexpected,
 };
 
-dd_result dd_request_exec(
-    dd_conn *nonnull conn, zval *nonnull data, zend_string *nullable rasp_rule)
+dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data,
+    zend_string *nullable rasp_rule, struct block_params *nonnull block_params)
 {
     if (Z_TYPE_P(data) != IS_ARRAY) {
         mlog(dd_log_debug, "Invalid data provided to command request_exec, "
@@ -41,7 +41,11 @@ dd_result dd_request_exec(
 
     struct ctx ctx = {.rasp_rule = rasp_rule, .data = data};
 
-    return dd_command_exec_req_info(conn, &_spec, &ctx.req_info);
+    dd_result res = dd_command_exec_req_info(conn, &_spec, &ctx.req_info);
+
+    memcpy(block_params, &ctx.req_info.block_params, sizeof *block_params);
+
+    return res;
 }
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)

@@ -279,7 +279,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
     DDAPPSEC_G(skip_rshutdown) = false;
     dd_msgpack_helpers_rinit();
     dd_trace_rinit();
-    dd_request_abort_rinit();
 
     // Waf calls happen here. Not many rinits should go after this line.
     dd_req_lifecycle_rinit(false);
@@ -288,7 +287,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
         if (get_global_DD_APPSEC_TESTING_ABORT_RINIT()) {
             const char *pt = SG(request_info).path_translated;
             if (pt && !strstr(pt, "skip.php")) {
-                dd_request_abort_static_page();
+                dd_request_abort_static_page(&(struct block_params){0});
             }
         }
     }
@@ -475,11 +474,13 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
         RETURN_FALSE;
     }
 
-    if (dd_request_exec(conn, data, false) != dd_success) {
-        RETURN_FALSE;
+    struct block_params block_params = {0};
+    if (dd_request_exec(conn, data, false, &block_params) != dd_success) {
+        RETVAL_FALSE;
+    } else {
+        RETVAL_TRUE;
     }
-
-    RETURN_TRUE;
+    dd_request_abort_destroy_block_params(&block_params);
 }
 
 static PHP_FUNCTION(datadog_appsec_push_addresses)
@@ -517,7 +518,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    dd_result res = dd_request_exec(conn, addresses, rasp_rule);
+    struct block_params block_params = {0};
+    dd_result res = dd_request_exec(conn, addresses, rasp_rule, &block_params);
 
     if (rasp_rule && ZSTR_LEN(rasp_rule) > 0) {
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
@@ -532,17 +534,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         }
     }
 
-    if (dd_req_is_user_req()) {
-        if (res == dd_should_block || res == dd_should_redirect) {
-            dd_req_call_blocking_function(res);
-        }
-    } else {
-        if (res == dd_should_block) {
-            dd_request_abort_static_page();
-        } else if (res == dd_should_redirect) {
-            dd_request_abort_redirect();
-        }
-    }
+    dd_req_lifecycle_abort(REQUEST_STAGE_MID_REQUEST, res, &block_params);
+    dd_request_abort_destroy_block_params(&block_params);
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
