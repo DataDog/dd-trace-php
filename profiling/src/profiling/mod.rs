@@ -608,15 +608,20 @@ impl TimeCollector {
 
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
-        match profile.try_add_sample2(
-            locations.as_slice(),
-            values.as_slice(),
-            labels.into_iter(),
-            timestamp,
-        ) {
-            Ok(_id) => {}
-            Err(err) => {
-                warn!("Failed to add sample to the profile: {err}")
+        // SAFETY: all functions and strings are from the same dictionary.
+        // todo: this is because if we get a different one, we panic, which is
+        //       not prod-ready.
+        unsafe {
+            match profile.try_add_sample2(
+                locations.as_slice(),
+                values.as_slice(),
+                labels.into_iter(),
+                timestamp,
+            ) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add sample to the profile: {err}")
+                }
             }
         }
     }

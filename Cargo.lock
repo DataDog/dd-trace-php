@@ -1207,7 +1207,7 @@ dependencies = [
  "env_logger 0.11.6",
  "lazy_static",
  "libc 0.2.177",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5)",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=b38db9c7c0f548fd37ead677ba9dd39952e89607)",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
@@ -2463,7 +2463,7 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5#91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5"
+source = "git+https://github.com/DataDog/libdatadog?rev=b38db9c7c0f548fd37ead677ba9dd39952e89607#b38db9c7c0f548fd37ead677ba9dd39952e89607"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
@@ -2508,7 +2508,7 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5#91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5"
+source = "git+https://github.com/DataDog/libdatadog?rev=b38db9c7c0f548fd37ead677ba9dd39952e89607#b38db9c7c0f548fd37ead677ba9dd39952e89607"
 dependencies = [
  "anyhow",
  "cc",
@@ -2705,7 +2705,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5#91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5"
+source = "git+https://github.com/DataDog/libdatadog?rev=b38db9c7c0f548fd37ead677ba9dd39952e89607#b38db9c7c0f548fd37ead677ba9dd39952e89607"
 dependencies = [
  "allocator-api2",
  "anyhow",
@@ -2722,7 +2722,7 @@ dependencies = [
  "hyper-multipart-rfc7578",
  "indexmap 2.12.0",
  "libdd-alloc",
- "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5)",
+ "libdd-common 1.0.0 (git+https://github.com/DataDog/libdatadog?rev=b38db9c7c0f548fd37ead677ba9dd39952e89607)",
  "libdd-profiling-protobuf",
  "lz4_flex",
  "mime",
@@ -2741,7 +2741,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5#91d6ac3c687b1fac27a97b86aa6ec377ae9e27c5"
+source = "git+https://github.com/DataDog/libdatadog?rev=b38db9c7c0f548fd37ead677ba9dd39952e89607#b38db9c7c0f548fd37ead677ba9dd39952e89607"
 dependencies = [
  "prost",
 ]
