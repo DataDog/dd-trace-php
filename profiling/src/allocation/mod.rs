@@ -87,8 +87,8 @@ pub fn collect_allocation(len: size_t) {
 }
 
 thread_local! {
-    pub(crate) static ALLOCATION_PROFILING_STATS: MaybeUninit<UnsafeCell<AllocationProfilingStats>> =
-        const { MaybeUninit::uninit() };
+    pub(crate) static ALLOCATION_PROFILING_STATS: UnsafeCell<MaybeUninit<AllocationProfilingStats>> =
+        const { UnsafeCell::new(MaybeUninit::uninit()) };
 }
 
 pub fn alloc_prof_ginit() {
@@ -96,12 +96,11 @@ pub fn alloc_prof_ginit() {
     ALLOCATION_PROFILING_STATS.with(|slot| {
         unsafe {
             // SAFETY:
-            // - `thread_local!` guarantees `slot` is per-thread, so this cast is fine
-            //   as long as we respect “init exactly once per thread”.
+            // - `thread_local!` guarantees `slot` is per-thread, and `UnsafeCell::get()`
+            //   gives us a mutable pointer to the inner `MaybeUninit`.
             // - We must not call this twice on the same thread.
-            let slot_mut: *mut MaybeUninit<UnsafeCell<AllocationProfilingStats>> =
-                slot as *const _ as *mut _;
-            (*slot_mut).write(UnsafeCell::new(AllocationProfilingStats::new()));
+            let slot_ptr: *mut MaybeUninit<AllocationProfilingStats> = slot.get();
+            (*slot_ptr).write(AllocationProfilingStats::new());
         }
     });
 
