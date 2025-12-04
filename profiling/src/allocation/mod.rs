@@ -25,11 +25,13 @@ pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
 /// allocations, which seems big enough to ignore.
+#[cfg(feature = "debug_stats")]
 pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// This will store the accumulated size of all allocations in bytes during the
 /// profiling period. This will overflow when allocating more than 18 exabyte
 /// of memory (u64::MAX) which might not happen, so we can ignore this.
+#[cfg(feature = "debug_stats")]
 pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {

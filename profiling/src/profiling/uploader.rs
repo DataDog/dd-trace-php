@@ -1,6 +1,4 @@
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 use crate::config::AgentEndpoint;
-use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
@@ -10,8 +8,14 @@ use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
+
+#[cfg(feature = "debug_stats")]
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+#[cfg(feature = "debug_stats")]
+use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
+#[cfg(feature = "debug_stats")]
+use std::sync::atomic::Ordering;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -40,6 +44,7 @@ impl Uploader {
 
     /// This function will not only create the internal metadata JSON representation, but is also
     /// in charge to reset all those counters back to 0.
+    #[cfg(feature = "debug_stats")]
     fn create_internal_metadata() -> Option<serde_json::Value> {
         Some(json!({
             "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
@@ -83,7 +88,8 @@ impl Uploader {
             &[],
             &[],
             None,
-            Self::create_internal_metadata(),
+            #[cfg(feature = "debug_stats")] Self::create_internal_metadata(),
+            #[cfg(not(feature = "debug_stats"))] None,
             self.create_profiler_info(),
         )?;
         debug!("Sending profile to: {agent_endpoint}");
@@ -158,6 +164,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "debug_stats")]
     fn test_create_internal_metadata() {
         // Set up all counters with known values
         EXCEPTION_PROFILING_EXCEPTION_COUNT.store(42, Ordering::SeqCst);
