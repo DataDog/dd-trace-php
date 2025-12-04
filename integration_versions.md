@@ -2,7 +2,7 @@
 |-----------------------------|------------------------|------------------------|
 | cakephp/cakephp             | 3.10.5                 | 5.2.8                  |
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
-| elasticsearch/elasticsearch | 1.2.2                  | 9.1.0                  |
+| elasticsearch/elasticsearch | 7.17.3                 | 9.1.0                  |
 | ext-PDO                     | 7.0.33                 | 8.5.0                  |
 | ext-curl                    | 7.0.33                 | 8.5.0                  |
 | ext-memcache                | 4.0.5                  | 8.2                    |
@@ -12,7 +12,7 @@
 | ext-rdkafka                 | 6.0.5                  | 6.0.5                  |
 | ext-redis                   | 3.1.6                  | 5.3.7                  |
 | ext-sqlsrv                  | 5.3.0                  | 5.12.0                 |
-| ext-swoole                  | 5.1.6                  | 6.0.0                  |
+| ext-swoole                  | 6.0.0                  | 6.0.0                  |
 | google/cloud-spanner        | 1.105.0                | 1.105.0                |
 | guzzlehttp/guzzle           | 5.3.4                  | 7.10.0                 |
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
