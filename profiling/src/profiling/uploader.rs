@@ -88,8 +88,10 @@ impl Uploader {
             &[],
             &[],
             None,
-            #[cfg(feature = "debug_stats")] Self::create_internal_metadata(),
-            #[cfg(not(feature = "debug_stats"))] None,
+            #[cfg(feature = "debug_stats")]
+            Self::create_internal_metadata(),
+            #[cfg(not(feature = "debug_stats"))]
+            None,
             self.create_profiler_info(),
         )?;
         debug!("Sending profile to: {agent_endpoint}");
