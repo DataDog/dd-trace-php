@@ -26,6 +26,7 @@ pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 =
 /// This will store the number of exceptions thrown during a profiling period. It will overflow
 /// when throwing more then 4_294_967_295 exceptions during this period which we currently
 /// believe will bring down your application anyway, so accurate numbers are not a problem.
+#[cfg(feature = "debug_stats")]
 pub static EXCEPTION_PROFILING_EXCEPTION_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ExceptionProfilingStats {
@@ -184,6 +185,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(php7)] exception: *mut zend::zval,
     #[cfg(php8)] exception: *mut zend::zend_object,
 ) {
+    #[cfg(feature = "debug_stats")]
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
 
     let exception_enabled = REQUEST_LOCALS
