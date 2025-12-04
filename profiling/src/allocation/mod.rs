@@ -7,6 +7,7 @@ use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
 use std::cell::UnsafeCell;
 use std::ffi::c_void;
+use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
@@ -84,13 +85,23 @@ pub fn collect_allocation(len: size_t) {
 }
 
 thread_local! {
-    pub(crate) static ALLOCATION_PROFILING_STATS: UnsafeCell<AllocationProfilingStats> =
-        UnsafeCell::new(AllocationProfilingStats::new());
+    pub(crate) static ALLOCATION_PROFILING_STATS: MaybeUninit<UnsafeCell<AllocationProfilingStats>> =
+        const { MaybeUninit::uninit() };
 }
 
 pub fn alloc_prof_ginit() {
     // Eagerly initialize the allocation profiling stats before handling first request
-    ALLOCATION_PROFILING_STATS.with(|_| {});
+    ALLOCATION_PROFILING_STATS.with(|slot| {
+        unsafe {
+            // SAFETY:
+            // - `thread_local!` guarantees `slot` is per-thread, so this cast is fine
+            //   as long as we respect “init exactly once per thread”.
+            // - We must not call this twice on the same thread.
+            let slot_mut: *mut MaybeUninit<UnsafeCell<AllocationProfilingStats>> =
+                slot as *const _ as *mut _;
+            (*slot_mut).write(UnsafeCell::new(AllocationProfilingStats::new()));
+        }
+    });
 
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation_le83::alloc_prof_ginit();
