@@ -92,17 +92,19 @@ thread_local! {
 }
 
 pub fn alloc_prof_ginit() {
-    // Eagerly initialize the allocation profiling stats before handling first request
-    ALLOCATION_PROFILING_STATS.with(|slot| {
-        unsafe {
-            // SAFETY:
-            // - `thread_local!` guarantees `slot` is per-thread, and `UnsafeCell::get()`
-            //   gives us a mutable pointer to the inner `MaybeUninit`.
-            // - We must not call this twice on the same thread.
-            let slot_ptr: *mut MaybeUninit<AllocationProfilingStats> = slot.get();
-            (*slot_ptr).write(AllocationProfilingStats::new());
-        }
-    });
+    unsafe {
+        // Eagerly initialize the allocation profiling stats before handling first request
+        ALLOCATION_PROFILING_STATS
+            .try_with(|slot| {
+                // SAFETY:
+                // - `thread_local!` guarantees `slot` is per-thread, and `UnsafeCell::get()`
+                //   gives us a mutable pointer to the inner `MaybeUninit`.
+                // - We must not call this twice on the same thread.
+                let slot_ptr: *mut MaybeUninit<AllocationProfilingStats> = slot.get();
+                (*slot_ptr).write(AllocationProfilingStats::new());
+            })
+            .unwrap_unchecked();
+    }
 
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation_le83::alloc_prof_ginit();
