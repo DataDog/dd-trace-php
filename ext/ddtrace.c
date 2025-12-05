@@ -601,6 +601,11 @@ static PHP_GINIT_FUNCTION(ddtrace) {
 #endif
 #if ZTS
     ddtrace_thread_ginit();
+
+    // Remember things like ext/parallel need to run stuff on each thread,
+    // and they don't call minit/rinit on those threads. See:
+    // https://github.com/DataDog/dd-trace-php/issues/3511
+    ddtrace_log_ginit();
 #endif
     ddtrace_globals->sidecar_universal_service_tags_mutex = tsrm_mutex_alloc();
     zai_hook_ginit();
