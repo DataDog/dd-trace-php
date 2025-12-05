@@ -1,3 +1,5 @@
+use libdd_common_ffi::slice::AsBytes;
+use libdd_common_ffi::CharSlice;
 use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::ffi::c_char;
@@ -5,13 +7,11 @@ use std::fmt::Debug;
 use std::str::FromStr;
 use tracing::Level;
 use tracing_core::{Event, Field, LevelFilter, Subscriber};
-use tracing_subscriber::EnvFilter;
-use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::fmt::format::Writer;
+use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::util::SubscriberInitExt;
-use libdd_common_ffi::CharSlice;
-use libdd_common_ffi::slice::AsBytes;
+use tracing_subscriber::EnvFilter;
 
 pub const LOG_ONCE: isize = 1 << 3;
 
@@ -68,7 +68,10 @@ pub extern "C" fn ddog_shall_log(category: Log) -> bool {
     with_target!(category, tracing::event_enabled!())
 }
 
-pub fn log<S>(category: Log, msg: S) where S: AsRef<str> + tracing::Value {
+pub fn log<S>(category: Log, msg: S)
+where
+    S: AsRef<str> + tracing::Value,
+{
     let once = (category as isize & LOG_ONCE) != 0;
     if once {
         with_target!(category, tracing::event!(once = true, msg));
@@ -101,16 +104,20 @@ impl tracing_core::field::Visit for LogVisitor {
 }
 
 impl<S, N> FormatEvent<S, N> for LogFormatter
-    where
-        S: Subscriber + for<'a> LookupSpan<'a>,
-        N: for<'a> FormatFields<'a> + 'static {
+where
+    S: Subscriber + for<'a> LookupSpan<'a>,
+    N: for<'a> FormatFields<'a> + 'static,
+{
     fn format_event(
         &self,
         _ctx: &FmtContext<'_, S, N>,
         _writer: Writer<'_>,
-        event: &Event<'_>
+        event: &Event<'_>,
     ) -> core::fmt::Result {
-        let mut visitor = LogVisitor { msg: None, once: false };
+        let mut visitor = LogVisitor {
+            msg: None,
+            once: false,
+        };
         event.record(&mut visitor);
 
         fn fmt_msg(event: &Event<'_>, msg: &str, suffix: &str) -> String {
@@ -151,10 +158,14 @@ impl<S, N> FormatEvent<S, N> for LogFormatter
 
                 COUNTERS.with(|counter| {
                     let mut counter = counter.borrow_mut();
-                    *counter.entry(event.metadata().level().to_owned()).or_default() += 1;
+                    *counter
+                        .entry(event.metadata().level().to_owned())
+                        .or_default() += 1;
                 });
 
-                cb(unsafe { CharSlice::from_raw_parts(msg.as_ptr() as *const c_char, msg.len() - 1) });
+                cb(unsafe {
+                    CharSlice::from_raw_parts(msg.as_ptr() as *const c_char, msg.len() - 1)
+                });
             }
         }
         Ok(())
@@ -177,7 +188,10 @@ pub unsafe extern "C" fn ddog_set_log_level(level: CharSlice, once: bool) {
     set_log_subscriber(subscriber)
 }
 
-fn set_log_subscriber<S>(subscriber: S) where S: SubscriberInitExt {
+fn set_log_subscriber<S>(subscriber: S)
+where
+    S: SubscriberInitExt,
+{
     TRACING_GUARDS.replace(None); // drop first to avoid a prior guard to reset the thread local subscriber it upon replace()
     TRACING_GUARDS.replace(Some(subscriber.set_default()));
 }
@@ -185,7 +199,10 @@ fn set_log_subscriber<S>(subscriber: S) where S: SubscriberInitExt {
 #[no_mangle]
 pub unsafe extern "C" fn ddog_log(category: Log, once: bool, msg: CharSlice) {
     if once {
-        with_target!(category, tracing::event!(once = true, "{}", msg.to_utf8_lossy()));
+        with_target!(
+            category,
+            tracing::event!(once = true, "{}", msg.to_utf8_lossy())
+        );
     } else {
         with_target!(category, tracing::event!("{}", msg.to_utf8_lossy()));
     }
