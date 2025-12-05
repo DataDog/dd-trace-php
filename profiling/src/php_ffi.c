@@ -624,3 +624,75 @@ zval *ddog_php_prof_get_memoized_config(uint16_t config_id) {
 // dummy symbol for tests, so that they can be run without being linked into PHP
 __attribute__((weak)) zend_write_func_t zend_write;
 #endif
+
+/**
+ * Returns true if the thread was spawned by the parallel extension, false otherwise.
+ *
+ * This function is meant to be called in the GINIT phase of a PHP request, it is also safe to be
+ * called in RINIT or during request processing, but its outcome won't change anymore after GINIT.
+ * That being said, it being a costly function (module registry lookup, `dlsym()`,
+ * `__tls_get_addr()`), the best usage pattern is to call this in GINIT and cache the result in a
+ * thread local.
+ *
+ * Why not just `__attribute__((weak)) php_parallel_scheduler_context;`?
+ * This would work if we could enforce the order of `dlopen()` calls for extensions (which we
+ * can't). If the parallel extension is loaded before the profiler extension it works just nice
+ * but if the profiler gets loaded first this will not resolve correct. Luckily `dlsym()` behaves
+ * as a safe wrapper around this.
+ */
+bool ddog_php_prof_is_parallel_thread() {
+    // Check if parallel extension is loaded to retrieve it's dl handle
+    zend_module_entry *parallel_module = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("parallel"));
+
+    if (parallel_module == NULL || parallel_module->handle == NULL) {
+        return false;
+    }
+
+    void *tls_symbol = DL_FETCH_SYMBOL(parallel_module->handle, "php_parallel_scheduler_context");
+
+    if (tls_symbol == NULL) {
+        return false;
+    }
+
+    void **tls_ptr;
+#ifdef __APPLE__
+    // On macOS TLS variables accessed via dlsym return a descriptor structure containing a
+    // function pointer (thunk) that must be called to get the actual thread-local address.
+    // see https://github.com/apple-oss-distributions/dyld/blob/637911768f664e38e7e50b4fbf17e303e14fdc01/libdyld/ThreadLocalVariables.h#L110-L115
+    typedef struct {
+        void* (*thunk)(void* desc);
+        unsigned long key;
+        unsigned long offset;
+    } tls_descriptor;
+
+    tls_descriptor *desc = (tls_descriptor*)tls_symbol;
+
+    if (desc->thunk == NULL) {
+        return false;
+    }
+
+    tls_ptr = (void**)desc->thunk(desc);
+#else
+    // Linux (musl and glibc) are nice to us, `dlsym()` detects that this symbol is a STT_TLS
+    // (Symbol Table Type Thread-Local Storage) and calls `__tls_get_addr()` on it.
+    //
+    // musl implemenation at
+    // https://git.musl-libc.org/cgit/musl/tree/ldso/dynlink.c?h=v1.2.5#n2287
+    // glibc implementation at
+    // https://github.com/bminor/glibc/blob/56d0e2cca1e5ac4a9ed9332c46c64d7021ab011f/elf/dl-sym.c#L162-L165
+    //
+    // So in the end it just returns a pointer to the correct TLS variable for `this` thread we are
+    // in, which makes it an easy pointer deref to get the value.
+    tls_ptr = (void**)tls_symbol;
+#endif
+
+    if (tls_ptr == NULL) {
+        return false;
+    }
+
+    // The parallel context is non-NULL when this is a parallel thread, see the
+    // `php_parallel_scheduler_setup()` function in `src/scheduler.c` in the parallel extension.
+    // This inits the `php_parallel_scheduler_context` TLS to point to a `php_parallel_runtime_t`
+    // struct right before triggering `GINIT`.
+    return (*tls_ptr != NULL);
+}

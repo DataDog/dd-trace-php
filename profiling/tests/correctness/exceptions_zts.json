@@ -25,9 +25,7 @@
             },
             {
               "key": "thread name",
-              "values": [
-                "cli"
-              ]
+              "values_regex": "(cli|parallel worker)"
             }
           ]
         }
