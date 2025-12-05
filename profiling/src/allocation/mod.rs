@@ -45,7 +45,7 @@ impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
         // Safety: this will only error if lambda <= 0
         let poisson =
-            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
+            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64).unwrap();
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             poisson,
@@ -137,11 +137,11 @@ pub fn alloc_prof_first_rinit() {
         return;
     }
 
-    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
+    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::Relaxed);
 
     trace!(
         "Memory allocation profiling initialized with a sampling distance of {} bytes.",
-        ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst)
+        ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed)
     );
 }
 

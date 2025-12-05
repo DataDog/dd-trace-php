@@ -40,7 +40,7 @@ impl ExceptionProfilingStats {
     fn new() -> ExceptionProfilingStats {
         // Safety: this will only error if lambda <= 0
         let poisson =
-            Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
+            Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64).unwrap();
         let mut stats = ExceptionProfilingStats {
             next_sample: 0,
             poisson,
@@ -169,7 +169,7 @@ pub fn exception_profiling_first_rinit() {
         return;
     }
 
-    EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
+    EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::Relaxed);
 
     info!("Exception profiling initialized with sampling distance: {sampling_distance}");
 }
