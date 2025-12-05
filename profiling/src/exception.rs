@@ -186,7 +186,7 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(php8)] exception: *mut zend::zend_object,
 ) {
     #[cfg(feature = "debug_stats")]
-    EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
+    EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::Relaxed);
 
     let exception_enabled = REQUEST_LOCALS
         .borrow_or_false(|locals| locals.system_settings().profiling_exception_enabled);
