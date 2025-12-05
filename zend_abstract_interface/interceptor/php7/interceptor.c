@@ -67,8 +67,8 @@ typedef struct {
 ZEND_TLS HashTable zai_hook_memory;
 // execute_data is 16 byte aligned (except when it isn't, but it doesn't matter as zend_execute_data is big enough
 // our goal is to reduce conflicts
-static inline void zai_hook_memory_table_insert(zend_execute_data *index, zai_interceptor_frame_memory *inserting) {
-    zend_hash_index_update_mem(&zai_hook_memory, ((zend_ulong)index) >> 4, inserting, sizeof(*inserting));
+static inline zai_interceptor_frame_memory *zai_hook_memory_table_insert(zend_execute_data *index, zai_interceptor_frame_memory *inserting) {
+    return zend_hash_index_update_mem(&zai_hook_memory, ((zend_ulong)index) >> 4, inserting, sizeof(*inserting));
 }
 
 static inline void *zai_hook_memory_table_insert_generator(zend_execute_data *index, zai_interceptor_generator_frame_memory *inserting) {
@@ -497,7 +497,7 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
         }
         frame_memory.execute_data = execute_data;
         frame_memory.implicit = false;
-        zai_hook_memory_table_insert(execute_data, &frame_memory);
+        zai_interceptor_frame_memory *stored_frame_memory = zai_hook_memory_table_insert(execute_data, &frame_memory);
 
         // we do not use try / catch here as to preserve order of hooks, LIFO style, in bailout handler
         if (prev) {
@@ -506,7 +506,7 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
             func->internal_function.handler(execute_data, return_value);
         }
 
-        zai_hook_finish(execute_data, return_value, &frame_memory.hook_data);
+        zai_hook_finish(execute_data, return_value, &stored_frame_memory->hook_data);
         zai_hook_memory_table_del(execute_data);
     } else {
         skip: ;
