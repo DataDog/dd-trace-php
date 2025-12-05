@@ -5,8 +5,9 @@ use libc::size_t;
 use log::{debug, error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
-use std::cell::RefCell;
+use std::cell::UnsafeCell;
 use std::ffi::c_void;
+use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
@@ -24,11 +25,13 @@ pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
 /// allocations, which seems big enough to ignore.
+#[cfg(feature = "debug_stats")]
 pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// This will store the accumulated size of all allocations in bytes during the
 /// profiling period. This will overflow when allocating more than 18 exabyte
 /// of memory (u64::MAX) which might not happen, so we can ignore this.
+#[cfg(feature = "debug_stats")]
 pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {
@@ -42,7 +45,7 @@ impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
         // Safety: this will only error if lambda <= 0
         let poisson =
-            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
+            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64).unwrap();
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             poisson,
@@ -84,11 +87,25 @@ pub fn collect_allocation(len: size_t) {
 }
 
 thread_local! {
-    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> =
-        RefCell::new(AllocationProfilingStats::new());
+    pub(crate) static ALLOCATION_PROFILING_STATS: UnsafeCell<MaybeUninit<AllocationProfilingStats>> =
+        const { UnsafeCell::new(MaybeUninit::uninit()) };
 }
 
 pub fn alloc_prof_ginit() {
+    unsafe {
+        // Eagerly initialize the allocation profiling stats before handling first request
+        ALLOCATION_PROFILING_STATS
+            .try_with(|slot| {
+                // SAFETY:
+                // - `thread_local!` guarantees `slot` is per-thread, and `UnsafeCell::get()`
+                //   gives us a mutable pointer to the inner `MaybeUninit`.
+                // - We must not call this twice on the same thread.
+                let slot_ptr: *mut MaybeUninit<AllocationProfilingStats> = slot.get();
+                (*slot_ptr).write(AllocationProfilingStats::new());
+            })
+            .unwrap_unchecked();
+    }
+
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation_le83::alloc_prof_ginit();
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
@@ -120,11 +137,11 @@ pub fn alloc_prof_first_rinit() {
         return;
     }
 
-    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
+    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::Relaxed);
 
     trace!(
         "Memory allocation profiling initialized with a sampling distance of {} bytes.",
-        ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst)
+        ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed)
     );
 }
 
