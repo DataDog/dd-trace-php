@@ -21,16 +21,18 @@ using dds::network::request_shutdown;
 
 namespace {
 // NOLINTNEXTLINE(cert-err58-cpp,fuchsia-statically-constructed-objects)
-const std::map<std::string_view, request_id> mapping = {
-    {client_init::request::name, client_init::request::id},
+constexpr std::array<std::pair<std::string_view, request_id>, 5> mapping = {
+    std::pair{client_init::request::name, client_init::request::id},
     {request_init::request::name, request_init::request::id},
     {request_exec::request::name, request_exec::request::id},
     {config_sync::request::name, config_sync::request::id},
     {request_shutdown::request::name, request_shutdown::request::id}};
 
-request_id command_name_to_id(const std::string &str)
+request_id command_name_to_id(std::string_view str)
 {
-    auto it = mapping.find(str);
+    // NOLINTNEXTLINE(modernize-use-ranges,boost-use-ranges)
+    const auto *it = std::find_if(mapping.begin(), mapping.end(),
+        [str](const auto &p) { return p.first == str; });
     return (it == mapping.end() ? request_id::unknown : it->second);
 }
 

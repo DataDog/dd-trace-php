@@ -81,7 +81,7 @@ FetchContent_MakeAvailable(spdlog)
 set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
 # zlib
-set(ZLIB_VERSION v1.3)
+set(ZLIB_VERSION v1.3.1)
 FetchContent_Declare(
         zlib
         GIT_REPOSITORY https://github.com/madler/zlib.git
