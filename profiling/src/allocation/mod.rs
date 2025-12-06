@@ -1,3 +1,12 @@
+mod tls_allocation_profiling_stats;
+
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
+pub mod allocation_ge84;
+#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+pub mod allocation_le83;
+
+pub use tls_allocation_profiling_stats::*;
+
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
@@ -5,15 +14,8 @@ use libc::size_t;
 use log::{debug, error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
-use std::cell::UnsafeCell;
 use std::ffi::c_void;
-use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicU64, Ordering};
-
-#[cfg(php_zend_mm_set_custom_handlers_ex)]
-pub mod allocation_ge84;
-#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-pub mod allocation_le83;
 
 /// Default sampling interval in bytes (4MB)
 pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: u64 = 1024 * 4096;
@@ -84,37 +86,6 @@ pub fn collect_allocation(len: size_t) {
             )
         };
     }
-}
-
-thread_local! {
-    pub(crate) static ALLOCATION_PROFILING_STATS: UnsafeCell<MaybeUninit<AllocationProfilingStats>> =
-        const { UnsafeCell::new(MaybeUninit::uninit()) };
-}
-
-pub fn alloc_prof_ginit() {
-    unsafe {
-        // Eagerly initialize the allocation profiling stats before handling first request
-        ALLOCATION_PROFILING_STATS
-            .try_with(|slot| {
-                // SAFETY:
-                // - `thread_local!` guarantees `slot` is per-thread, and `UnsafeCell::get()`
-                //   gives us a mutable pointer to the inner `MaybeUninit`.
-                // - We must not call this twice on the same thread.
-                let slot_ptr: *mut MaybeUninit<AllocationProfilingStats> = slot.get();
-                (*slot_ptr).write(AllocationProfilingStats::new());
-            })
-            .unwrap_unchecked();
-    }
-
-    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-    allocation_le83::alloc_prof_ginit();
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_ginit();
-}
-
-pub fn alloc_prof_gshutdown() {
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_gshutdown();
 }
 
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]

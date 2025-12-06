@@ -1,4 +1,4 @@
-use crate::allocation::{collect_allocation, ALLOCATION_PROFILING_STATS};
+use crate::allocation::{allocation_profiling_stats_should_collect, collect_allocation};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
@@ -357,14 +357,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
         return ptr;
     }
 
-    let should_collect = ALLOCATION_PROFILING_STATS
-        .try_with(|stats| {
-            // Safety: ALLOCATION_PROFILING_STATS is thread-local and initialized in GINIT.
-            unsafe { (*(*stats.get()).as_mut_ptr()).should_collect_allocation(len) }
-        })
-        .unwrap_unchecked();
-
-    if should_collect {
+    if allocation_profiling_stats_should_collect(len) {
         collect_allocation(len);
     }
 
@@ -423,14 +416,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
-    let should_collect = ALLOCATION_PROFILING_STATS
-        .try_with(|stats| {
-            // Safety: ALLOCATION_PROFILING_STATS is thread-local and initialized in GINIT.
-            unsafe { (*(*stats.get()).as_mut_ptr()).should_collect_allocation(len) }
-        })
-        .unwrap_unchecked();
-
-    if should_collect {
+    if allocation_profiling_stats_should_collect(len) {
         collect_allocation(len);
     }
 
