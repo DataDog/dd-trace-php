@@ -41,9 +41,10 @@ where
 {
     let result = ALLOCATION_PROFILING_STATS.try_with(|cell| {
         let ptr: *mut MaybeUninit<AllocationProfilingStats> = cell.get();
-        // SAFETY: the cell is statically initialized to Maybe::uninit so the
+        // SAFETY: the cell is statically initialized to [`MaybeUninit::uninit`] so the
         // _cell_ is valid and initialized memory. As required by this own
-        // function's safety requirements, there should not
+        // function's safety requirements, there should not be any active borrows
+        // to [`ALLOCATION_PROFILING_STATS`], so this mutable dereference is sound.
         let uninit = unsafe { &mut *ptr };
         f(uninit)
     });
