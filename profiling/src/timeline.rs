@@ -5,8 +5,8 @@ use crate::zend::{
     InternalFunctionHandler,
 };
 use crate::{RefCellExt, REQUEST_LOCALS, SAPI};
-use ddcommon::cstr;
 use libc::c_char;
+use libdd_common::cstr;
 use log::{error, trace};
 #[cfg(php_zts)]
 use std::cell::Cell;

@@ -22,12 +22,9 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-
-# Use a libdatadog version after v23 to get a fix for cc_utils. Unfortunately,
-# it's also only halfway through the crate renaming migration.
-libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", rev = "aa2396efbb14b196e91de88a73bb4e1a7d06f74b" }
-datadog-profiling = {  git = "https://github.com/DataDog/libdatadog", rev = "aa2396efbb14b196e91de88a73bb4e1a7d06f74b" }
-ddcommon = {  git = "https://github.com/DataDog/libdatadog", rev = "aa2396efbb14b196e91de88a73bb4e1a7d06f74b" }
+libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", tag = "v24.0.2" }
+libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", tag = "v24.0.2" }
+libdd-common = {  git = "https://github.com/DataDog/libdatadog", tag = "v24.0.2" }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }

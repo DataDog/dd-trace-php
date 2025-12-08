@@ -367,7 +367,7 @@ class LaravelIntegration extends Integration
             static function ($This, $scope, $args) {
                 $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
                 if (
-                    !function_exists('\datadog\appsec\track_user_login_success_event_automated') ||
+                    !function_exists('datadog\appsec\track_user_login_success_event_automated') ||
                     !isset($args[1]) ||
                     !$args[1] ||
                     !($args[1] instanceof $authClass)
@@ -375,19 +375,30 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
+                $user = $args[1];
                 $metadata = [];
 
-                if (isset($args[1]['name'])) {
-                    $metadata['name'] = $args[1]['name'];
-                }
-
-                if (isset($args[1]['email'])) {
-                    $metadata['email'] = $args[1]['email'];
+                if (\method_exists($user, '__isset') && \method_exists($user, '__get')) {
+                    // Model methods have table columns as properties
+                    if (isset($user->name)) {
+                        $metadata['name'] = $user->name;
+                    }
+                    if (isset($user->email)) {
+                        $metadata['email'] = $user->email;
+                    }
+                } elseif ($user instanceof \ArrayAccess) {
+                    // Model also implements ArrayAccess
+                    if (isset($user['name'])) {
+                        $metadata['name'] = $user['name'];
+                    }
+                    if (isset($user['email'])) {
+                        $metadata['email'] = $user['email'];
+                    }
                 }
 
                 \datadog\appsec\track_user_login_success_event_automated(
-                    self::getLoginFromArgs($args[1]),
-                    \method_exists($args[1], 'getAuthIdentifier') ? $args[1]->getAuthIdentifier() : '',
+                    self::getLoginFromArgs($user),
+                    self::getAuthIdentifier($user),
                     $metadata
                 );
             }
@@ -420,7 +431,7 @@ class LaravelIntegration extends Integration
 
                 \datadog\appsec\track_user_login_success_event_automated(
                     self::getLoginFromArgs($args[0]),
-                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    self::getAuthIdentifier($args[0]),
                     $metadata
                 );
             }
@@ -454,13 +465,14 @@ class LaravelIntegration extends Integration
                 if (
                     !isset($user) ||
                     !$user ||
-                    !($user instanceof $authClass) ||
-                    !\method_exists($user, 'getAuthIdentifier')
+                    !($user instanceof $authClass)
                 ) {
                     return;
                 }
 
-                \datadog\appsec\track_authenticated_user_event_automated($user->getAuthIdentifier());
+                \datadog\appsec\track_authenticated_user_event_automated(
+                    self::getAuthIdentifier($user)
+                );
             }
         );
 
@@ -478,13 +490,14 @@ class LaravelIntegration extends Integration
                 if (
                     !isset($args[1]) ||
                     !$args[1] ||
-                    !($args[1] instanceof $authClass) ||
-                    !\method_exists($args[1], 'getAuthIdentifier')
+                    !($args[1] instanceof $authClass)
                 ) {
                     return;
                 }
 
-                \datadog\appsec\track_authenticated_user_event_automated($args[1]->getAuthIdentifier());
+                \datadog\appsec\track_authenticated_user_event_automated(
+                    self::getAuthIdentifier($args[1])
+                );
             }
         );
 
@@ -505,7 +518,7 @@ class LaravelIntegration extends Integration
 
                 \datadog\appsec\track_user_signup_event_automated(
                     self::getLoginFromArgs($args[0]),
-                    \method_exists($args[0], 'getAuthIdentifier') ? $args[0]->getAuthIdentifier() : '',
+                    self::getAuthIdentifier($args[0]),
                     []
                 );
             }
@@ -588,14 +601,49 @@ class LaravelIntegration extends Integration
      */
     public static function getLoginFromArgs($args)
     {
-        if (isset($args['email'])) {
-            return $args['email'];
+        if (\is_array($args) || $args instanceof \ArrayAccess) {
+            if (isset($args['email'])) {
+                return $args['email'];
+            }
+            if (isset($args['username'])) {
+                return $args['username'];
+            }
         }
-        if (isset($args['username'])) {
-            return $args['username'];
+
+        if (!\is_object($args)) {
+            return null;
+        }
+
+        if (isset($args->email)) {
+            return $args->email;
+        }
+
+        if (isset($args->username)) {
+            return $args->username;
+        }
+
+        $clazz = 'Illuminate\Auth\Passwords\CanResetPassword';
+        if ($args instanceof $clazz) {
+            return $args->getEmailForPasswordReset();
         }
 
         return null;
+    }
+
+    public static function getAuthIdentifier($user)
+    {
+        if (!\is_object($user) || !\method_exists($user, "getAuthIdentifier")) {
+            return '';
+        }
+
+        $identifier = $user->getAuthIdentifier();
+        if (\is_string($identifier)) {
+            return $identifier;
+        }
+        if (\is_int($identifier)) {
+            return (string)$identifier;
+        }
+        return ''; // could be an aggregate key?
     }
 
     /**

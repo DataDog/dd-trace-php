@@ -263,7 +263,8 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
             Z_ARRVAL(data_zv), "usr.id", sizeof("usr.id") - 1, &user_id_zv);
     }
 
-    dd_result res = dd_request_exec(conn, &data_zv, false);
+    struct block_params block_params = {0};
+    dd_result res = dd_request_exec(conn, &data_zv, false, &block_params);
     if (res == dd_network) {
         mlog_g(dd_log_info, "request_exec failed with dd_network; closing "
                             "connection to helper");
@@ -276,17 +277,8 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
         dd_tags_set_event_user_id(user_id);
     }
 
-    if (dd_req_is_user_req()) {
-        if (res == dd_should_block || res == dd_should_redirect) {
-            dd_req_call_blocking_function(res);
-        }
-    } else {
-        if (res == dd_should_block) {
-            dd_request_abort_static_page();
-        } else if (res == dd_should_redirect) {
-            dd_request_abort_redirect();
-        }
-    }
+    dd_req_lifecycle_abort(REQUEST_STAGE_MID_REQUEST, res, &block_params);
+    dd_request_abort_destroy_block_params(&block_params);
 }
 
 bool dd_parse_user_collection_mode(

@@ -30,8 +30,8 @@ bool(true)
 Array
 (
     [process_id] => %d
-    [_dd.appsec.rasp.duration_ext] => %d
     [_dd.appsec.enabled] => %d
+    [_dd.appsec.rasp.duration_ext] => %f
 )
 array(2) {
   [0]=>

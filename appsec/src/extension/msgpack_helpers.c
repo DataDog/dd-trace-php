@@ -446,21 +446,37 @@ static void _iovec_writer_flush(
     //   is extra data, data is not buffer)
     //   - flushing during teardown (used and count are both all flushed data,
     //   data is buffer)
+    //
+    // Unfortunately, this is ambiguous in the case we're flushing during
+    // writing, but count is zero.
 
     iovec_list_t *giovec = (iovec_list_t *)w->reserved;
 
+    if (w->buffer == NULL) {
+        mlog(dd_log_error, "w->buffer is NULL (flush called after teardown)");
+        return;
+    }
+
     if (data == w->buffer) {
         // in this case, we can use the buffer without copying
-        zend_llist_add_element(giovec->list, &(struct iovec){
-                                                 .iov_base = w->buffer,
-                                                 .iov_len = count,
-                                             });
+        if (count > 0) {
+            zend_llist_add_element(giovec->list, &(struct iovec){
+                                                     .iov_base = w->buffer,
+                                                     .iov_len = count,
+                                                 });
+        }
 
-        if (mpack_writer_buffer_used(w) == count) {
+        size_t used = mpack_writer_buffer_used(w);
+        if (used) {
             // teardown, no allocation of new buffer
             w->buffer = NULL;
             w->position = NULL;
             w->end = NULL;
+            return;
+        }
+
+        if (used == count && count == 0) {
+            // could be a teardown or a normal write... don't do anything
             return;
         }
 
@@ -475,7 +491,11 @@ static void _iovec_writer_flush(
         return;
     }
 
-    // else we need to allocate
+    // else we're flusing data not in w->buffer, so we need to allocate
+    if (count == 0) {
+        return;
+    }
+
     char *iovec_buffer = MPACK_MALLOC(count);
     if (!iovec_buffer) {
         mpack_writer_init_error(w, mpack_error_memory);
@@ -497,7 +517,9 @@ static void _iovec_writer_teardown(mpack_writer_t *w)
         zend_llist_clean(giovec->list);
     }
 
-    MPACK_FREE(w->buffer);
+    if (w->buffer) {
+        MPACK_FREE(w->buffer);
+    }
     w->buffer = NULL;
     w->context = NULL;
 }

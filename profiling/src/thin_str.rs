@@ -191,7 +191,7 @@ static EMPTY_INLINE_STRING: StaticInlineString<0> = StaticInlineString::<0> {
 mod tests {
     use super::*;
     use libdd_alloc::Global;
-    use datadog_profiling::collections::string_table::wordpress_test_data;
+    use libdd_profiling::collections::string_table::wordpress_test_data;
 
     // Not really, please manually de-allocate strings when done with them.
     impl ArenaAllocator for Global {}

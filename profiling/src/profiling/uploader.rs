@@ -5,7 +5,7 @@ use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use ddcommon::Endpoint;
+use libdd_common::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
@@ -67,7 +67,7 @@ impl Uploader {
         let endpoint = Endpoint::try_from(agent_endpoint)?;
 
         let tags = Some(Arc::unwrap_or_clone(index.tags));
-        let mut exporter = datadog_profiling::exporter::ProfileExporter::new(
+        let mut exporter = libdd_profiling::exporter::ProfileExporter::new(
             profiling_library_name,
             profiling_library_version,
             "php",
