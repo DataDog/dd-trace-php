@@ -15,7 +15,7 @@ if [[ ! "${XFAIL_LIST:-none}" == "none" ]]; then
 fi
 
 cd /usr/local/src/php
-mkdir -p /tmp/artifacts/tests
+mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
 # replace all hardcoded object ids in tests by %d as ddtrace creates its own objects
 php <<'PHP'
 <?php

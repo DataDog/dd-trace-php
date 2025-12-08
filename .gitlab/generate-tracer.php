@@ -23,6 +23,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
+    - .gitlab/upload-junit-to-datadog.sh "test.source.file:src"
 <?php
 }
 
@@ -246,7 +247,9 @@ foreach ($asan_minor_major_targets as $major_minor):
     MAX_TEST_PARALLELISM: 2
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
@@ -262,7 +265,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_internal_api_randomized
 <?php after_script(); ?>
 
@@ -288,7 +293,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_with_init_hook
 <?php after_script(); ?>
 
@@ -310,7 +317,9 @@ foreach ($asan_minor_major_targets as $major_minor):
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c_observer
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 <?php endif; ?>
@@ -327,7 +336,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_opcache
 <?php after_script(); ?>
 <?php
@@ -378,7 +389,7 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
   script:
-    - make test_unit <?= ASSERT_NO_MEMLEAKS ?>
+    - make test_unit PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
 "API unit tests: [<?= $major_minor ?>]":
@@ -393,7 +404,9 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_api_unit <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
@@ -409,6 +422,7 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_CPU_REQUEST: 8
     MAX_TEST_PARALLELISM: 16
@@ -417,6 +431,7 @@ foreach ($all_minor_major_targets as $major_minor):
   timeout: 40m
 <?php endif; ?>
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_c_disabled <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
@@ -432,7 +447,9 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_internal_api_randomized
 <?php after_script(); ?>
 
@@ -448,7 +465,9 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_opcache
 <?php after_script("tmp/build_extension"); ?>
 
@@ -471,7 +490,7 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
-    TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TEST: "1"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
@@ -504,7 +523,7 @@ endforeach;
     - make composer_tests_update
     - .gitlab/wait-for-service-ready.sh
   script:
-    - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
+    - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
@@ -685,7 +704,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
 <?php if ($xdebug != "2.7.2" && $xdebug != "2.9.2"): ?>
     - '# Run unit tests with xdebug'
-    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
+    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="test-results/php-unit/results_unit.xml"
 <?php endif; ?>
 <?php after_script(has_test_agent: true); ?>
 
