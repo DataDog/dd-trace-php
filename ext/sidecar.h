@@ -16,7 +16,7 @@ struct telemetry_rc_info {
     const char *rc_path;
     zend_string *service_name;
     zend_string *env_name;
-    // caller does not own the data
+    // caller owns the service_name and env_name (must release)
 };
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 

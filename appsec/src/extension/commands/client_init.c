@@ -121,6 +121,13 @@ static dd_result _pack_command(
 
     mpack_finish_map(w); // telemetry settings
 
+    if (tel_rc_info.service_name) {
+        zend_string_release(tel_rc_info.service_name);
+    }
+    if (tel_rc_info.env_name) {
+        zend_string_release(tel_rc_info.env_name);
+    }
+
     // Sidecar settings
     mpack_start_map(w, 2);
     {

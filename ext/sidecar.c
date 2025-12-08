@@ -73,10 +73,17 @@ DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
 }
 
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void) {
-    struct telemetry_rc_info info = {
-        .service_name = DDTRACE_G(last_service_name),
-        .env_name = DDTRACE_G(last_env_name),
-    };
+    struct telemetry_rc_info info = {0};
+
+    tsrm_mutex_lock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+    if (DDTRACE_G(last_service_name)) {
+        info.service_name = zend_string_copy(DDTRACE_G(last_service_name));
+    }
+    if (DDTRACE_G(last_env_name)) {
+        info.env_name = zend_string_copy(DDTRACE_G(last_env_name));
+    }
+    tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+
     if (DDTRACE_G(remote_config_state)) {
         info.rc_path = ddog_remote_config_get_path(DDTRACE_G(remote_config_state));
     }
