@@ -1,7 +1,6 @@
 <?php
 
-use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
-use OpenTelemetry\SDK\Resource\ResourceInfo;
+use DDTrace\OpenTelemetry\Detectors\DetectorHelper;
 
 \DDTrace\install_hook(
     'OpenTelemetry\SDK\Resource\Detectors\Host::getResource',
@@ -10,12 +9,13 @@ use OpenTelemetry\SDK\Resource\ResourceInfo;
         $attributes = [];
 
         if (\dd_trace_env_config('DD_TRACE_REPORT_HOSTNAME')) {
-            $attributes['host.name'] = \dd_trace_env_config('DD_HOSTNAME');
+            $ddHostname = \dd_trace_env_config('DD_HOSTNAME');
+            // Only override if DD_HOSTNAME is explicitly set to avoid
+            // clobbering the hostname detected by OTel's Host detector
+            if ($ddHostname !== '') {
+                $attributes['host.name'] = $ddHostname;
+            }
         }
 
-        $builder = (new AttributesFactory)->builder($attributes);
-        $newResource = ResourceInfo::create($builder->build());
-        $resource = $hook->returned;
-        $resource = $resource->merge($newResource);
-        $hook->overrideReturnValue($resource);
+        DetectorHelper::mergeAttributes($hook, $attributes);
     });

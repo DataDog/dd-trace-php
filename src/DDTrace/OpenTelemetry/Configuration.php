@@ -30,6 +30,7 @@ function track_otel_config_if_whitelisted(string $name, mixed $value): void
             is_bool($value) => $value ? 'true' : 'false',
             is_null($value) => '',
             is_array($value) => json_encode($value),
+            is_object($value) => get_class($value),
             default => (string)$value,
         };
 
@@ -37,114 +38,26 @@ function track_otel_config_if_whitelisted(string $name, mixed $value): void
     }
 }
 
-// Hook Configuration::getString
-\DDTrace\install_hook(
-    'OpenTelemetry\SDK\Common\Configuration\Configuration::getString',
-    function (\DDTrace\HookData $hook) {
-        $name = $hook->args[0] ?? null;
-        if ($name && is_string($name)) {
-            $hook->data = $name;
+// Helper function to install config tracking hooks
+function install_config_tracking_hook(string $methodName): void
+{
+    \DDTrace\install_hook(
+        "OpenTelemetry\\SDK\\Common\\Configuration\\Configuration::$methodName",
+        function (\DDTrace\HookData $hook) {
+            $name = $hook->args[0] ?? null;
+            if ($name && is_string($name)) {
+                $hook->data = $name;
+            }
+        },
+        function (\DDTrace\HookData $hook) {
+            if (isset($hook->data) && $hook->returned !== null) {
+                track_otel_config_if_whitelisted($hook->data, $hook->returned);
+            }
         }
-    },
-    function (\DDTrace\HookData $hook) {
-        if (isset($hook->data) && $hook->returned !== null) {
-            track_otel_config_if_whitelisted($hook->data, $hook->returned);
-        }
-    }
-);
+    );
+}
 
-// Hook Configuration::getInt
-\DDTrace\install_hook(
-    'OpenTelemetry\SDK\Common\Configuration\Configuration::getInt',
-    function (\DDTrace\HookData $hook) {
-        $name = $hook->args[0] ?? null;
-        if ($name && is_string($name)) {
-            $hook->data = $name;
-        }
-    },
-    function (\DDTrace\HookData $hook) {
-        if (isset($hook->data) && $hook->returned !== null) {
-            track_otel_config_if_whitelisted($hook->data, $hook->returned);
-        }
-    }
-);
-
-// Hook Configuration::getBoolean
-\DDTrace\install_hook(
-    'OpenTelemetry\SDK\Common\Configuration\Configuration::getBoolean',
-    function (\DDTrace\HookData $hook) {
-        $name = $hook->args[0] ?? null;
-        if ($name && is_string($name)) {
-            $hook->data = $name;
-        }
-    },
-    function (\DDTrace\HookData $hook) {
-        if (isset($hook->data) && $hook->returned !== null) {
-            track_otel_config_if_whitelisted($hook->data, $hook->returned);
-        }
-    }
-);
-
-// Hook Configuration::getMixed
-\DDTrace\install_hook(
-    'OpenTelemetry\SDK\Common\Configuration\Configuration::getMixed',
-    function (\DDTrace\HookData $hook) {
-        $name = $hook->args[0] ?? null;
-        if ($name && is_string($name)) {
-            $hook->data = $name;
-        }
-    },
-    function (\DDTrace\HookData $hook) {
-        if (isset($hook->data) && $hook->returned !== null) {
-            track_otel_config_if_whitelisted($hook->data, $hook->returned);
-        }
-    }
-);
-
-// Hook Configuration::getMap
-\DDTrace\install_hook(
-    'OpenTelemetry\SDK\Common\Configuration\Configuration::getMap',
-    function (\DDTrace\HookData $hook) {
-        $name = $hook->args[0] ?? null;
-        if ($name && is_string($name)) {
-            $hook->data = $name;
-        }
-    },
-    function (\DDTrace\HookData $hook) {
-        if (isset($hook->data) && $hook->returned !== null) {
-            track_otel_config_if_whitelisted($hook->data, $hook->returned);
-        }
-    }
-);
-
-// Hook Configuration::getList
-\DDTrace\install_hook(
-    'OpenTelemetry\SDK\Common\Configuration\Configuration::getList',
-    function (\DDTrace\HookData $hook) {
-        $name = $hook->args[0] ?? null;
-        if ($name && is_string($name)) {
-            $hook->data = $name;
-        }
-    },
-    function (\DDTrace\HookData $hook) {
-        if (isset($hook->data) && $hook->returned !== null) {
-            track_otel_config_if_whitelisted($hook->data, $hook->returned);
-        }
-    }
-);
-
-// Hook Configuration::getEnum
-\DDTrace\install_hook(
-    'OpenTelemetry\SDK\Common\Configuration\Configuration::getEnum',
-    function (\DDTrace\HookData $hook) {
-        $name = $hook->args[0] ?? null;
-        if ($name && is_string($name)) {
-            $hook->data = $name;
-        }
-    },
-    function (\DDTrace\HookData $hook) {
-        if (isset($hook->data) && $hook->returned !== null) {
-            track_otel_config_if_whitelisted($hook->data, $hook->returned);
-        }
-    }
-);
+// Install hooks for all Configuration getter methods
+foreach (['getString', 'getInt', 'getBoolean', 'getMixed', 'getMap', 'getList', 'getEnum'] as $method) {
+    install_config_tracking_hook($method);
+}

@@ -1,7 +1,6 @@
 <?php
 
-use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
-use OpenTelemetry\SDK\Resource\ResourceInfo;
+use DDTrace\OpenTelemetry\Detectors\DetectorHelper;
 
 \DDTrace\install_hook(
     'OpenTelemetry\SDK\Resource\Detectors\Service::getResource',
@@ -13,15 +12,12 @@ use OpenTelemetry\SDK\Resource\ResourceInfo;
         if ($rootSpan) {
             $attributes['service.name'] = $rootSpan->service;
         } else {
-            if (ddtrace_config_app_name() === '') {
+            $appName = \ddtrace_config_app_name();
+            if ($appName === '') {
                 return;
             }
-            $attributes['service.name'] = \ddtrace_config_app_name();
+            $attributes['service.name'] = $appName;
         }
-        
-        $builder = (new AttributesFactory)->builder($attributes);
-        $newResource = ResourceInfo::create($builder->build());
-        $resource = $hook->returned;
-        $resource = $resource->merge($newResource);
-        $hook->overrideReturnValue($resource);
+
+        DetectorHelper::mergeAttributes($hook, $attributes);
     });

@@ -1,7 +1,6 @@
 <?php
 
-use OpenTelemetry\SDK\Common\Attribute\AttributesFactory;
-use OpenTelemetry\SDK\Resource\ResourceInfo;
+use DDTrace\OpenTelemetry\Detectors\DetectorHelper;
 
 \DDTrace\install_hook(
     'OpenTelemetry\SDK\Resource\Detectors\Environment::getResource',
@@ -9,21 +8,19 @@ use OpenTelemetry\SDK\Resource\ResourceInfo;
     function (\DDTrace\HookData $hook) {
         $attributes = [];
 
-        if (\dd_trace_env_config('DD_ENV')!='') {
-            $attributes['deployment.environment.name'] = \dd_trace_env_config('DD_ENV');
+        $ddEnv = \dd_trace_env_config('DD_ENV');
+        if ($ddEnv !== '') {
+            $attributes['deployment.environment.name'] = $ddEnv;
         }
 
-        if (\dd_trace_env_config('DD_VERSION') != '') {
-            $attributes['service.version'] = \dd_trace_env_config('DD_VERSION');
+        $ddVersion = \dd_trace_env_config('DD_VERSION');
+        if ($ddVersion !== '') {
+            $attributes['service.version'] = $ddVersion;
         }
 
         foreach (\dd_trace_env_config('DD_TAGS') as $key => $value) {
             $attributes[$key] = $value;
         }
 
-        $builder = (new AttributesFactory)->builder($attributes);
-        $newResource = ResourceInfo::create($builder->build());
-        $resource = $hook->returned;
-        $resource = $resource->merge($newResource);
-        $hook->overrideReturnValue($resource);
+        DetectorHelper::mergeAttributes($hook, $attributes);
     });

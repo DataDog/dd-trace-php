@@ -23,6 +23,8 @@ final class MetricsTest extends BaseTestCase
             return [0, 0, 0];
         }
         $version = \OpenTelemetry\API\Common\Version::VERSION;
+        // Strip pre-release (-beta1, -RC1) and build metadata (+build.123) per semver spec
+        $version = preg_replace('/[-+].*$/', '', $version);
         $parts = explode('.', $version);
         return [
             (int)($parts[0] ?? 0),
