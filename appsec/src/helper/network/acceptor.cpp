@@ -46,7 +46,8 @@ acceptor::acceptor(const std::string_view &sv)
 
         res =
             // NOLINTNEXTLINE
-            ::bind(sock_, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
+            ::bind(sock_, reinterpret_cast<struct sockaddr *>(&addr),
+                sizeof(addr));
         if (res == -1) {
             SPDLOG_ERROR(
                 "Failed to bind socket to {}: errno {}", addr.sun_path, errno);
