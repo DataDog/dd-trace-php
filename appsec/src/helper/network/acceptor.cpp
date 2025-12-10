@@ -21,49 +21,54 @@ using namespace std::chrono_literals;
 namespace dds::network::local {
 
 acceptor::acceptor(const std::string_view &sv)
-    // NOLINTNEXTLINE(android-cloexec-socket)
-    : sock_(::socket(AF_UNIX, SOCK_STREAM, 0))
 {
+    // NOLINTNEXTLINE(android-cloexec-socket,cppcoreguidelines-prefer-member-initializer)
+    sock_ = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock_ == -1) {
         throw std::system_error(errno, std::generic_category());
     }
 
-    struct sockaddr_un addr {};
-    addr.sun_family = AF_UNIX;
-    if (sv.size() > sizeof(addr.sun_path) - 1) {
-        throw std::invalid_argument{"socket path too long"};
-    }
-    strcpy(static_cast<char *>(addr.sun_path), sv.data()); // NOLINT
+    try {
+        struct sockaddr_un addr {};
+        addr.sun_family = AF_UNIX;
+        if (sv.size() > sizeof(addr.sun_path) - 1) {
+            throw std::invalid_argument{"socket path too long"};
+        }
+        strcpy(static_cast<char *>(addr.sun_path), sv.data()); // NOLINT
 
-    // Remove the existing socket
-    int res = ::unlink(static_cast<char *>(addr.sun_path));
-    if (res == -1 && errno != ENOENT) {
-        SPDLOG_ERROR("Failed to unlink {}: errno {}", addr.sun_path, errno);
-        throw std::system_error(errno, std::generic_category());
-    }
-    SPDLOG_DEBUG("Unlinked {}", addr.sun_path);
+        // Remove the existing socket
+        int res = ::unlink(static_cast<char *>(addr.sun_path));
+        if (res == -1 && errno != ENOENT) {
+            SPDLOG_ERROR("Failed to unlink {}: errno {}", addr.sun_path, errno);
+            throw std::system_error(errno, std::generic_category());
+        }
+        SPDLOG_DEBUG("Unlinked {}", addr.sun_path);
 
-    res =
-        // NOLINTNEXTLINE
-        ::bind(sock_, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
-    if (res == -1) {
-        SPDLOG_ERROR(
-            "Failed to bind socket to {}: errno {}", addr.sun_path, errno);
-        throw std::system_error(errno, std::generic_category());
-    }
+        res =
+            // NOLINTNEXTLINE
+            ::bind(sock_, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
+        if (res == -1) {
+            SPDLOG_ERROR(
+                "Failed to bind socket to {}: errno {}", addr.sun_path, errno);
+            throw std::system_error(errno, std::generic_category());
+        }
 
-    res = ::chmod(sv.data(), 0777); // NOLINT
-    if (res == -1) {
-        SPDLOG_ERROR(
-            "Failed to chmod socket {}: errno {}", addr.sun_path, errno);
-        throw std::system_error(errno, std::generic_category());
-    }
+        res = ::chmod(sv.data(), 0777); // NOLINT
+        if (res == -1) {
+            SPDLOG_ERROR(
+                "Failed to chmod socket {}: errno {}", addr.sun_path, errno);
+            throw std::system_error(errno, std::generic_category());
+        }
 
-    static constexpr int backlog = 50;
-    if (::listen(sock_, backlog) == -1) {
-        throw std::system_error(errno, std::generic_category());
+        static constexpr int backlog = 50;
+        if (::listen(sock_, backlog) == -1) {
+            throw std::system_error(errno, std::generic_category());
+        }
+        SPDLOG_INFO("Started listening on {}", sv);
+    } catch (const std::exception &e) {
+        ::close(sock_);
+        throw;
     }
-    SPDLOG_INFO("Started listening on {}", sv);
 }
 
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)

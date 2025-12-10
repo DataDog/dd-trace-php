@@ -22,6 +22,9 @@ void work_handler(queue_consumer &&q, std::optional<runnable> &&opt_r)
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         opt_r.value()(q);
 
+        // Clear the optional to reclaim any "resources", such as file descriptors
+        opt_r.reset();
+
         opt_r = q.pop(consumer_timeout);
     }
 }
