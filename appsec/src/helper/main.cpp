@@ -98,7 +98,7 @@ bool ensure_unique_abstract_socket(std::string_view socket_path)
 
     // Try to connect to the socket. If successful, another helper is running
     // NOLINTNEXTLINE(android-cloexec-socket)
-    int sock = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    int const sock = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (sock == -1) {
         SPDLOG_INFO("Failed to create test socket: errno {}", errno);
         return false;
@@ -114,7 +114,7 @@ bool ensure_unique_abstract_socket(std::string_view socket_path)
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
     addr.sun_path[size + 1] = '\0';
 
-    int res = ::connect(
+    int const res = ::connect(
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
         sock, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
     ::close(sock);

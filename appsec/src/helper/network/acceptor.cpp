@@ -31,7 +31,7 @@ acceptor::acceptor(const std::string_view &sv)
     struct sockaddr_un addr {};
     std::size_t addr_size;
     addr.sun_family = AF_UNIX;
-    bool is_abstract = (!sv.empty() && sv[0] == '@');
+    bool const is_abstract = (!sv.empty() && sv[0] == '@');
 
     if (is_abstract) {
 #ifdef __linux__
@@ -57,7 +57,7 @@ acceptor::acceptor(const std::string_view &sv)
         addr_size = sizeof(addr);
 
         // Remove the existing socket
-        int res = ::unlink(static_cast<char *>(addr.sun_path));
+        int const res = ::unlink(static_cast<char *>(addr.sun_path));
         if (res == -1 && errno != ENOENT) {
             SPDLOG_ERROR("Failed to unlink {}: errno {}", addr.sun_path, errno);
             throw std::system_error(errno, std::generic_category());
@@ -65,10 +65,9 @@ acceptor::acceptor(const std::string_view &sv)
         SPDLOG_DEBUG("Unlinked {}", addr.sun_path);
     }
 
-    int res =
+    int res = ::bind(
         // NOLINTNEXTLINE
-        ::bind(
-            sock_.get(), reinterpret_cast<struct sockaddr *>(&addr), addr_size);
+        sock_.get(), reinterpret_cast<struct sockaddr *>(&addr), addr_size);
     if (res == -1) {
         if (is_abstract) {
             SPDLOG_ERROR("Failed to bind abstract socket: errno {}", errno);
