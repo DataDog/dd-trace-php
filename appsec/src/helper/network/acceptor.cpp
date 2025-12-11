@@ -67,7 +67,8 @@ acceptor::acceptor(const std::string_view &sv)
 
     int res =
         // NOLINTNEXTLINE
-        ::bind(sock_.get(), reinterpret_cast<struct sockaddr *>(&addr), addr_size);
+        ::bind(
+            sock_.get(), reinterpret_cast<struct sockaddr *>(&addr), addr_size);
     if (res == -1) {
         if (is_abstract) {
             SPDLOG_ERROR("Failed to bind abstract socket: errno {}", errno);
