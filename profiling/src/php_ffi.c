@@ -631,14 +631,8 @@ __attribute__((weak)) zend_write_func_t zend_write;
  * This function is meant to be called in the GINIT phase of a PHP request, it is also safe to be
  * called in RINIT or during request processing, but its outcome won't change anymore after GINIT.
  * That being said, it being a costly function (module registry lookup, `dlsym()`,
- * `__tls_get_addr()`), the best usage pattern is to call this in GINIT and cache the result in a
- * thread local.
- *
- * Why not just `__attribute__((weak)) php_parallel_scheduler_context;`?
- * This would work if we could enforce the order of `dlopen()` calls for extensions (which we
- * can't). If the parallel extension is loaded before the profiler extension it works just nice
- * but if the profiler gets loaded first this will not resolve correct. Luckily `dlsym()` behaves
- * as a safe wrapper around this.
+ * `__tls_get_addr()` in the fallback branch), the best usage pattern is to call this in GINIT and
+ * cache the result in a thread local.
  */
 bool ddog_php_prof_is_parallel_thread() {
     // Check if parallel extension is loaded to retrieve it's dl handle
@@ -648,6 +642,20 @@ bool ddog_php_prof_is_parallel_thread() {
         return false;
     }
 
+    // Try to find the new public API function first (available in parallel >= 1.2.9)
+    zend_bool (*is_worker)(void) = DL_FETCH_SYMBOL(parallel_module->handle, "php_parallel_is_parallel_worker_thread");
+    if (is_worker) {
+        return is_worker();
+    }
+
+    // Fallback: for older versions of parallel, we can access the TLS variable
+    // `php_parallel_scheduler_context` and do a NULL check.
+
+    // Why not just `__attribute__((weak)) php_parallel_scheduler_context;`?
+    // This would work if we could enforce the order of `dlopen()` calls for extensions (which we
+    // can't). If the parallel extension is loaded before the profiler extension it works just nice
+    // but if the profiler gets loaded first this will not resolve correct. Luckily `dlsym()`
+    // behaves as a safe wrapper around this.
     void *tls_symbol = DL_FETCH_SYMBOL(parallel_module->handle, "php_parallel_scheduler_context");
 
     if (tls_symbol == NULL) {
