@@ -179,6 +179,43 @@ static void dd_load_files(const char *files_file) {
 
 #define dd_load_files(file) EXPECTED(get_global_DD_AUTOLOAD_NO_COMPILE() == false) ? dd_load_file("bridge/_generated_" file) : dd_load_files("bridge/_files_" file)
 
+// Remove mixed return types for PHP 7.4 support. OpenTelemetry v2 now requires ": mixed" and drops PHP 7.4, but we fixup the AST here so that OpenTelemetry v1 still works with PHP 7.4.
+#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80000
+void dd_walk_ast_top_stmt(zend_ast *ast) {
+    if (ast->kind == ZEND_AST_STMT_LIST) {
+        zend_ast_list *list = zend_ast_get_list(ast);
+        uint32_t i;
+        for (i = 0; i < list->children; ++i) {
+            dd_walk_ast_top_stmt(list->child[i]);
+        }
+    } else if (ast->kind == ZEND_AST_FUNC_DECL || ast->kind == ZEND_AST_METHOD) {
+        zend_ast_decl *decl = (zend_ast_decl *) ast;
+        zend_ast *return_type_ast = decl->child[3];
+        if (return_type_ast && return_type_ast->kind != ZEND_AST_TYPE) {
+            if (zend_string_equals_literal(zend_ast_get_str(return_type_ast), "mixed")) {
+                decl->child[3] = NULL;
+                zend_ast_destroy(return_type_ast);
+            }
+        }
+    } else if (ast->kind == ZEND_AST_CLASS) {
+        zend_ast_decl *decl = (zend_ast_decl *) ast;
+        zend_ast *stmt_ast = decl->child[2];
+
+        dd_walk_ast_top_stmt(stmt_ast);
+    } else if (ast->kind == ZEND_AST_NAMESPACE && ast->child[1]) {
+        dd_walk_ast_top_stmt(ast->child[1]);
+    }
+}
+
+zend_ast_process_t dd_prev_ast_process = NULL;
+void dd_remove_mixed_return(zend_ast *ast) {
+    dd_walk_ast_top_stmt(ast);
+    if (dd_prev_ast_process) {
+        dd_prev_ast_process(ast);
+    }
+}
+#endif
+
 // We have, at this place, the luxury of knowing that we'll always be called before composers autoloader.
 // Note that this code will also be called during opcache.preload, allowing us to not consider that scenario separately.
 // The first time the autoloader gets invoked for ddtrace\\, we load the API
@@ -211,9 +248,16 @@ static zend_class_entry *dd_perform_autoload(zend_string *class_name, zend_strin
             }
         }
 
-        if (get_DD_TRACE_OTEL_ENABLED() && zend_string_starts_with_literal(lc_name, "opentelemetry\\") && !DDTRACE_G(otel_is_loaded)) {
+        if ((get_DD_TRACE_OTEL_ENABLED() || get_DD_METRICS_OTEL_ENABLED()) && zend_string_starts_with_literal(lc_name, "opentelemetry\\") && !DDTRACE_G(otel_is_loaded)) {
             DDTRACE_G(otel_is_loaded) = 1;
+#if PHP_VERSION_ID >= 70400 && PHP_VERSION_ID < 80000
+            dd_prev_ast_process = zend_ast_process;
+            zend_ast_process = dd_remove_mixed_return;
             dd_load_files("opentelemetry");
+            zend_ast_process = dd_prev_ast_process;
+#else
+            dd_load_files("opentelemetry");
+#endif
             if ((ce = zend_hash_find_ptr(EG(class_table), lc_name))) {
                 return ce;
             }
