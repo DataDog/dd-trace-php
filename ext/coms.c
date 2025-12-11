@@ -71,6 +71,21 @@ static void ddtrace_store_env(char **target, const char *value) {
     }
 }
 
+/* Snapshot the proxy-related environment variables curl itself consults.
+ *
+ * Generic pattern in libcurl (see url.c):
+ *  - For scheme-specific proxies, it looks up "<scheme>_proxy" in lowercase
+ *    first and, for most schemes, falls back to the uppercase variant
+ *    (e.g., "https_proxy" then "HTTPS_PROXY"). If no scheme-specific proxy
+ *    is found, it falls back to "all_proxy"/"ALL_PROXY".
+ *  - For the no-proxy list, it consults both "no_proxy" and "NO_PROXY".
+ *
+ * There is a special case in libcurl for HTTP: to avoid header-based
+ * injection in CGI/server contexts, it does *not* automatically fall back
+ * from "http_proxy" to "HTTP_PROXY". We still snapshot both here, but when
+ * we later configure our agent handle we only ever use the cached value
+ * explicitly, not libcurl's own HTTP_PROXY fallback.
+ */
 void ddtrace_coms_minit_proxy_env(void) {
     const char *v;
 
