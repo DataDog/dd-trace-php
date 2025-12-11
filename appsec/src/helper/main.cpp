@@ -80,6 +80,7 @@ bool ensure_unique(const std::string &lock_path)
     // If we fail to obtain the lock, for whichever reason, assume we can't
     // run for now.
     if (res == -1) {
+        ::close(fd);
         SPDLOG_INFO("Failed to get exclusive lock on file {}: errno {}",
             lock_path, errno);
         return false;

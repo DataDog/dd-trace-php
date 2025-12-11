@@ -65,4 +65,31 @@ inline std::string strerror_ts(int errnum)
     return buf;
 }
 
+class owned_fd {
+public:
+    owned_fd() = default;
+    explicit owned_fd(int fd) : fd_{fd} {}
+    owned_fd(const owned_fd &) = delete;
+    owned_fd &operator=(const owned_fd &) = delete;
+    owned_fd(owned_fd &&other) noexcept : fd_{other.fd_} { other.fd_ = -1; }
+    owned_fd &operator=(owned_fd &&other) noexcept
+    {
+        fd_ = other.fd_;
+        other.fd_ = -1;
+        return *this;
+    }
+    ~owned_fd()
+    {
+        if (fd_ != -1) {
+            ::close(fd_);
+        }
+    }
+
+    int get() const { return fd_; }
+    bool is_empty() const { return fd_ == -1; }
+
+private:
+    int fd_{-1};
+};
+
 } // namespace dds
