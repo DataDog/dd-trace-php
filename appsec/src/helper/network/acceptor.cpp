@@ -21,10 +21,10 @@ using namespace std::chrono_literals;
 namespace dds::network::local {
 
 acceptor::acceptor(const std::string_view &sv)
-    // NOLINTNEXTLINE(android-cloexec-socket)
-    : sock_(::socket(AF_UNIX, SOCK_STREAM, 0))
 {
-    if (sock_ == -1) {
+    // NOLINTNEXTLINE(android-cloexec-socket,cppcoreguidelines-prefer-member-initializer)
+    sock_ = owned_fd{::socket(AF_UNIX, SOCK_STREAM, 0)};
+    if (sock_.is_empty()) {
         throw std::system_error(errno, std::generic_category());
     }
 
@@ -45,7 +45,8 @@ acceptor::acceptor(const std::string_view &sv)
 
     res =
         // NOLINTNEXTLINE
-        ::bind(sock_, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
+        ::bind(sock_.get(), reinterpret_cast<struct sockaddr *>(&addr),
+            sizeof(addr));
     if (res == -1) {
         SPDLOG_ERROR(
             "Failed to bind socket to {}: errno {}", addr.sun_path, errno);
@@ -60,7 +61,7 @@ acceptor::acceptor(const std::string_view &sv)
     }
 
     static constexpr int backlog = 50;
-    if (::listen(sock_, backlog) == -1) {
+    if (::listen(sock_.get(), backlog) == -1) {
         throw std::system_error(errno, std::generic_category());
     }
     SPDLOG_INFO("Started listening on {}", sv);
@@ -69,7 +70,8 @@ acceptor::acceptor(const std::string_view &sv)
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 {
     struct timeval tv = {timeout.count(), 0};
-    int const res = setsockopt(sock_, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+    int const res =
+        setsockopt(sock_.get(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (res == -1) {
         throw std::system_error(errno, std::generic_category());
     }
@@ -80,8 +82,9 @@ std::unique_ptr<base_socket> acceptor::accept()
     struct sockaddr_un addr {};
     socklen_t len = sizeof(addr);
 
-    // NOLINTNEXTLINE
-    int s = ::accept(sock_, reinterpret_cast<struct sockaddr *>(&addr), &len);
+    int s =
+        // NOLINTNEXTLINE
+        ::accept(sock_.get(), reinterpret_cast<struct sockaddr *>(&addr), &len);
     if (s == -1) {
         if (errno == EINTR || errno == EAGAIN) {
             return {};

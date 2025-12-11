@@ -44,7 +44,7 @@ std::unique_ptr<network::base_acceptor> acceptor_from_config(
             throw std::invalid_argument{
                 "fd specified on config is invalid or no socket"};
         }
-        return std::make_unique<network::local::acceptor>(fd);
+        return std::make_unique<network::local::acceptor>(dds::owned_fd{fd});
     }
 
     return std::make_unique<network::local::acceptor>(sock_path);
