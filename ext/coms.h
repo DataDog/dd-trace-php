@@ -62,6 +62,8 @@ bool ddtrace_coms_minit(size_t initial_stack_size, size_t max_payload_size, size
 void ddtrace_coms_mshutdown(void);
 void ddtrace_coms_curl_shutdown(void);
 void ddtrace_coms_rshutdown(void);
+void ddtrace_coms_minit_proxy_env(void);
+void ddtrace_coms_mshutdown_proxy_env(void);
 uint32_t ddtrace_coms_next_group_id(void);
 void ddtrace_coms_set_test_session_token(const char *token, size_t token_len);
 
@@ -86,6 +88,7 @@ uint32_t ddtrace_coms_test_msgpack_consumer(void);
 
 /* exposed for diagnostics {{{ */
 void ddtrace_curl_set_hostname(CURL *curl);
+void ddtrace_curl_set_telemetry_url(CURL *curl);
 void ddtrace_curl_set_timeout(CURL *curl);
 void ddtrace_curl_set_connect_timeout(CURL *curl);
 /* }}} */
