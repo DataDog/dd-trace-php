@@ -36,3 +36,5 @@ ddog_Error_message
 ddog_Error_drop
 ddog_library_configurator_drop
 ddog_sidecar_enqueue_telemetry_log
+ddog_sidecar_enqueue_telemetry_point
+ddog_sidecar_enqueue_telemetry_metric

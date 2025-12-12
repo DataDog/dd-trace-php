@@ -95,15 +95,19 @@ class TelemetryTests {
         TelemetryHelpers.Metric wafInit
         TelemetryHelpers.Metric wafReq1
         TelemetryHelpers.Metric wafReq2
+        TelemetryHelpers.Metric workerCount
 
         waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
             wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
             wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
+            workerCount = allSeries.find { it.name == 'helper.service_worker_count' }
 
-            wafInit && wafReq1 && wafReq2
+            wafInit && wafReq1 && wafReq2 && workerCount
         }
+
+        assert workerCount != null
 
         assert wafInit != null
         assert wafInit.namespace == 'appsec'

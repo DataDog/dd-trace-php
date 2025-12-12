@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "common.h" // components-rs/common.h
 #include "engine.hpp"
 #include "remote_config/client_handler.hpp"
 #include "sampler.hpp"
@@ -123,7 +124,7 @@ protected:
                 logs.swap(pending_logs_);
             }
             for (auto &log : logs) {
-                submit_log(sc_settings, telemetry_settings, std::move(log));
+                submit_log(sc_settings, telemetry_settings, log);
             }
         }
 
@@ -140,8 +141,18 @@ protected:
         }
 
     private:
+        friend class service;
+
         static void submit_log(const sidecar_settings &sc_settings,
             const telemetry_settings &telemetry_settings, const tel_log &log);
+
+        static void submit_metric_ffi(const sidecar_settings &sc_settings,
+            const telemetry_settings &telemetry_settings, std::string_view name,
+            ddog_MetricType type);
+
+        static void submit_metric_point_ffi(const sidecar_settings &sc_settings,
+            const telemetry_settings &telemetry_settings, std::string_view name,
+            double value, std::optional<std::string> tags);
 
         std::vector<tel_metric> pending_metrics_;
         std::mutex pending_metrics_mutex_;
@@ -204,12 +215,7 @@ public:
         return service_config_;
     }
 
-    [[nodiscard]] const sidecar_settings &get_sidecar_settings() const
-    {
-        return sidecar_settings_;
-    }
-
-    [[nodiscard]] bool schema_extraction_enabled()
+    [[nodiscard]] bool schema_extraction_enabled() const
     {
         return schema_extraction_enabled_;
     }
@@ -250,6 +256,10 @@ public:
     void drain_logs(const sidecar_settings &sc_settings)
     {
         msubmitter_->drain_logs(sc_settings, telemetry_settings_);
+
+        // take this opportunity to submit internal worker count metrics too
+        // this could be done at any other time when sc_settings is available
+        handle_worker_count_metrics(sc_settings);
     }
 
     [[nodiscard]] std::map<std::string_view, double> drain_legacy_metrics()
@@ -271,17 +281,81 @@ public:
                 "remote_config.requests_before_running"sv, 1, {});
         }
     }
+    
+    void increment_num_workers() {
+        auto cur = num_workers_.load(std::memory_order_relaxed);
+        while (true) {
+            auto new_v = num_workers_t{
+                .metrics_registered = cur.metrics_registered,
+                .latest_count_sent = false,
+                .count = cur.count + 1};
+            if (num_workers_.compare_exchange_weak(cur, new_v, std::memory_order_relaxed)) {
+                break;
+            }
+        }
+    }
+    void decrement_num_workers() {
+        auto cur = num_workers_.load(std::memory_order_relaxed);
+        if (cur.count == 0) {
+            SPDLOG_WARN("Attempted to decrement num_workers_ below 0");
+            return;
+        }
+        while (true) {
+            auto new_v = num_workers_t{
+                .metrics_registered = cur.metrics_registered,
+                .latest_count_sent = cur.latest_count_sent,
+                .count = cur.count - 1};
+            if (num_workers_.compare_exchange_weak(cur, new_v, std::memory_order_relaxed)) {
+                break;
+            }
+        }
+    }
 
 protected:
-    std::shared_ptr<engine> engine_{};
-    std::shared_ptr<service_config> service_config_{};
-    std::unique_ptr<dds::remote_config::client_handler> client_handler_{};
+    std::shared_ptr<engine> engine_;
+    std::shared_ptr<service_config> service_config_;
+    std::unique_ptr<dds::remote_config::client_handler> client_handler_;
     bool schema_extraction_enabled_;
     std::optional<sampler> schema_sampler_;
     std::string rc_path_;
     telemetry_settings telemetry_settings_;
     std::shared_ptr<metrics_impl> msubmitter_;
-    sidecar_settings sidecar_settings_;
+
+    struct num_workers_t {
+        bool metrics_registered: 1;
+        bool latest_count_sent: 1;
+        uint64_t count: 62;
+        constexpr bool operator==(const num_workers_t &other) const
+        {
+            return count == other.count &&
+                   metrics_registered == other.metrics_registered &&
+                   latest_count_sent == other.latest_count_sent;
+        }
+    };
+    // required for value-initialization in default constructor of
+    // std::atomic<num_workers_t> in C++20
+    static_assert(std::is_default_constructible_v<num_workers_t>);
+    std::atomic<num_workers_t> num_workers_;
+    void handle_worker_count_metrics(const sidecar_settings &sc_settings);
 };
 
 } // namespace dds
+
+template <> struct fmt::formatter<ddog_MetricType> {
+    // NOLINTNEXTLINE
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
+    template <typename FormatContext>
+    auto format(
+        ddog_MetricType type, FormatContext &ctx) const -> decltype(ctx.out())
+    {
+        switch (type) {
+        case DDOG_METRIC_TYPE_GAUGE:
+            return fmt::format_to(ctx.out(), "GAUGE");
+        case DDOG_METRIC_TYPE_COUNT:
+            return fmt::format_to(ctx.out(), "COUNT");
+        case DDOG_METRIC_TYPE_DISTRIBUTION:
+            return fmt::format_to(ctx.out(), "DISTRIBUTION");
+        }
+        return fmt::format_to(ctx.out(), "UNKNOWN");
+    }
+};

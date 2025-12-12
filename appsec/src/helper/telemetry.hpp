@@ -83,7 +83,7 @@ struct fmt::formatter<dds::telemetry::telemetry_tags>
     : fmt::formatter<std::string_view> {
 
     auto format(
-        const dds::telemetry::telemetry_tags tags, format_context &ctx) const
+        const dds::telemetry::telemetry_tags& tags, format_context &ctx) const
     {
         return formatter<std::string_view>::format(
             std::string_view{tags.data_}, ctx);

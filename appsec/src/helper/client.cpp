@@ -195,7 +195,7 @@ bool client::handle_command(const network::client_init::request &command)
     response->status = has_errors ? "fail" : "ok";
     response->errors = std::move(errors);
 
-    if (service_) {
+    if (!service_.is_empty()) {
         // may be null in testing
         collect_metrics(*response, *service_, context_);
     }
@@ -218,7 +218,7 @@ bool client::handle_command(const network::client_init::request &command)
 
 template <typename T> bool client::service_guard()
 {
-    if (!service_) {
+    if (service_.is_empty()) {
         // This implies a failed client_init, we can't continue.
         SPDLOG_DEBUG("no service available on {}", T::name);
         send_error_response(*broker_);
@@ -349,7 +349,7 @@ bool client::compute_client_status()
         return request_enabled_;
     }
 
-    if (service_ == nullptr) {
+    if (service_.is_empty()) {
         request_enabled_ = false;
         return request_enabled_;
     }
@@ -503,8 +503,6 @@ void client::update_settings(
         rc_settings.shmem_path = std::string{rc_path};
     }
 
-    sidecar_settings const current_sc_settings =
-        service_->get_sidecar_settings();
     std::shared_ptr<service> new_service =
         service_manager_->get_or_create_service(
             *engine_settings_, rc_settings, telemetry_settings);
