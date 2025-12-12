@@ -27,9 +27,11 @@ namespace dds {
 namespace {
 
 void collect_metrics(network::request_shutdown::response &response,
-    service &service, std::optional<engine::context> &context, const sidecar_settings &sc_settings);
+    service &service, std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings);
 void collect_metrics(network::client_init::response &response, service &service,
-    std::optional<engine::context> &context, const sidecar_settings &sc_settings);
+    std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings);
 
 template <typename M, typename... Mrest>
 // NOLINTNEXTLINE(google-runtime-references)
@@ -469,7 +471,7 @@ bool client::handle_command(network::request_shutdown::request &command)
     if (!response) {
         return false;
     }
-    
+
     context_->set_input_truncated(command.input_truncated);
 
     collect_metrics(*response, *service_, context_, sc_settings_);
@@ -607,7 +609,8 @@ struct request_metrics_submitter : public telemetry::telemetry_submitter {
 
 template <typename Response>
 void collect_metrics_impl(Response &response, service &service,
-    std::optional<engine::context> &context, const sidecar_settings &sc_settings)
+    std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings)
 {
     request_metrics_submitter msubmitter{
         service, context ? context->get_input_truncated() : false};
@@ -625,12 +628,14 @@ void collect_metrics_impl(Response &response, service &service,
     response.metrics = std::move(msubmitter.span_metrics);
 }
 void collect_metrics(network::request_shutdown::response &response,
-    service &service, std::optional<engine::context> &context, const sidecar_settings &sc_settings)
+    service &service, std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings)
 {
     collect_metrics_impl(response, service, context, sc_settings);
 }
 void collect_metrics(network::client_init::response &response, service &service,
-    std::optional<engine::context> &context, const sidecar_settings &sc_settings)
+    std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings)
 {
     collect_metrics_impl(response, service, context, sc_settings);
 }

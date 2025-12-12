@@ -37,11 +37,14 @@ using ddog_sidecar_enqueue_telemetry_log_t =
     decltype(&ddog_sidecar_enqueue_telemetry_log);
 ddog_sidecar_enqueue_telemetry_log_t fn_ddog_sidecar_enqueue_telemetry_log;
 
-using ddog_sidecard_enqueue_telemetry_point_t = decltype(&ddog_sidecar_enqueue_telemetry_point);
+using ddog_sidecard_enqueue_telemetry_point_t =
+    decltype(&ddog_sidecar_enqueue_telemetry_point);
 ddog_sidecard_enqueue_telemetry_point_t fn_ddog_sidecar_enqueue_telemetry_point;
 
-using ddog_sidecar_enqueue_telemetry_metric_t = decltype(&ddog_sidecar_enqueue_telemetry_metric);
-ddog_sidecar_enqueue_telemetry_metric_t fn_ddog_sidecar_enqueue_telemetry_metric;
+using ddog_sidecar_enqueue_telemetry_metric_t =
+    decltype(&ddog_sidecar_enqueue_telemetry_metric);
+ddog_sidecar_enqueue_telemetry_metric_t
+    fn_ddog_sidecar_enqueue_telemetry_metric;
 
 using ddog_Error_message_t = decltype(&ddog_Error_message);
 ddog_Error_message_t fn_ddog_Error_message;
@@ -165,23 +168,21 @@ void service::metrics_impl::submit_log(const sidecar_settings &sc_settings,
 
 void service::metrics_impl::register_metric_ffi(
     const sidecar_settings &sc_settings,
-    const telemetry_settings &telemetry_settings,
-    std::string_view name, ddog_MetricType type)
+    const telemetry_settings &telemetry_settings, std::string_view name,
+    ddog_MetricType type)
 {
     SPDLOG_TRACE("register_metric_ffi: name: {}, type: {}", name, type);
 
     if (fn_ddog_sidecar_enqueue_telemetry_metric == nullptr) {
-        throw std::runtime_error("Failed to resolve ddog_sidecar_enqueue_telemetry_metric");
+        throw std::runtime_error(
+            "Failed to resolve ddog_sidecar_enqueue_telemetry_metric");
     }
     ddog_MaybeError result = fn_ddog_sidecar_enqueue_telemetry_metric(
         to_ffi_string(sc_settings.session_id),
         to_ffi_string(sc_settings.runtime_id),
         to_ffi_string(telemetry_settings.service_name),
-        to_ffi_string(telemetry_settings.env_name),
-        to_ffi_string(name),
-        type,
-        DDOG_METRIC_NAMESPACE_APPSEC
-    );
+        to_ffi_string(telemetry_settings.env_name), to_ffi_string(name), type,
+        DDOG_METRIC_NAMESPACE_APPSEC);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
         ddog_CharSlice const error_msg = fn_ddog_Error_message(&result.some);
@@ -193,17 +194,15 @@ void service::metrics_impl::register_metric_ffi(
 
 void service::metrics_impl::submit_metric_ffi(
     const sidecar_settings &sc_settings,
-    const telemetry_settings &telemetry_settings,
-    std::string_view name,
-    double value,
-    std::optional<std::string> tags)
+    const telemetry_settings &telemetry_settings, std::string_view name,
+    double value, std::optional<std::string> tags)
 {
-    SPDLOG_TRACE(
-        "submit_metric_ffi: name: {}, value: {}, tags: {}", name,
+    SPDLOG_TRACE("submit_metric_ffi: name: {}, value: {}, tags: {}", name,
         value, tags.has_value() ? tags.value() : "(none)"sv);
 
     if (fn_ddog_sidecar_enqueue_telemetry_point == nullptr) {
-        throw std::runtime_error("Failed to resolve ddog_sidecar_enqueue_telemetry_point");
+        throw std::runtime_error(
+            "Failed to resolve ddog_sidecar_enqueue_telemetry_point");
     }
     CharSlice tags_ffi;
     CharSlice *tags_ffi_ptr = nullptr;
@@ -215,11 +214,8 @@ void service::metrics_impl::submit_metric_ffi(
         to_ffi_string(sc_settings.session_id),
         to_ffi_string(sc_settings.runtime_id),
         to_ffi_string(telemetry_settings.service_name),
-        to_ffi_string(telemetry_settings.env_name),
-        to_ffi_string(name),
-        value,
-        tags_ffi_ptr
-    );
+        to_ffi_string(telemetry_settings.env_name), to_ffi_string(name), value,
+        tags_ffi_ptr);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
         ddog_CharSlice const error_msg = fn_ddog_Error_message(&result.some);
@@ -252,7 +248,7 @@ void service::handle_worker_count_metrics(const sidecar_settings &sc_settings)
     auto new_st = cur_st;
     new_st.latest_count_sent = true;
 
-    bool success = num_workers_.compare_exchange_strong(
+    bool const success = num_workers_.compare_exchange_strong(
         cur_st, new_st, std::memory_order_relaxed);
 
     if (!success) {

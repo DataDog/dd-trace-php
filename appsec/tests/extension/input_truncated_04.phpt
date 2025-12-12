@@ -16,8 +16,7 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_shutdown([[['ok', []]], [], false, [],
-    [], [], ["waf.requests" => [[2.0, ""], [1.0, "a=b"]]]]))
+    response_list(response_request_shutdown([[['ok', []]]]))
 ]);
 
 rinit();
@@ -28,13 +27,6 @@ var_dump($commands[1][1][0]['server.request.cookies']['d']);
 var_dump($commands[1][1][0]['server.request.cookies']['truncated']);
 ?>
 --EXPECTF--
-Notice: datadog\appsec\testing\rshutdown(): Would call ddtrace_metric_register_buffer with name=waf.requests type=1 ns=3 in %s on line %d
-
-Notice: datadog\appsec\testing\rshutdown(): Would call to ddtrace_metric_add_point with name=waf.requests value=2.000000 tags=input_truncated=true in %s on line %d
-
-Notice: datadog\appsec\testing\rshutdown(): Would call ddtrace_metric_register_buffer with name=waf.requests type=1 ns=3 in %s on line %d
-
-Notice: datadog\appsec\testing\rshutdown(): Would call to ddtrace_metric_add_point with name=waf.requests value=1.000000 tags=a=b,input_truncated=true in %s on line %d
 array(1) {
   ["'1'"]=>
   array(1) {

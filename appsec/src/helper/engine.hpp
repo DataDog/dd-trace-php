@@ -68,8 +68,14 @@ public:
             parameter &&param, const std::string &rasp_rule = "");
         // NOLINTNEXTLINE(google-runtime-references)
         void get_metrics(telemetry::telemetry_submitter &msubmitter);
-        [[nodiscard]] bool get_input_truncated() const { return input_truncated_; }
-        void set_input_truncated(bool input_truncated) { input_truncated_ = input_truncated; }
+        [[nodiscard]] bool get_input_truncated() const
+        {
+            return input_truncated_;
+        }
+        void set_input_truncated(bool input_truncated)
+        {
+            input_truncated_ = input_truncated;
+        }
 
     protected:
         std::shared_ptr<shared_state> common_;

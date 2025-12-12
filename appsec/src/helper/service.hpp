@@ -103,7 +103,6 @@ protected:
                     std::move(stack_trace), std::move(tags), is_sensitive});
         }
 
-
     private:
         friend class service;
 
@@ -299,29 +298,32 @@ public:
                 "remote_config.requests_before_running"sv, 1, {});
         }
     }
-    
-    void increment_num_workers() {
+
+    void increment_num_workers()
+    {
         auto cur = num_workers_.load(std::memory_order_relaxed);
         while (true) {
             auto new_v = num_workers_t{
-                .latest_count_sent = false,
-                .count = cur.count + 1};
-            if (num_workers_.compare_exchange_weak(cur, new_v, std::memory_order_relaxed)) {
+                .latest_count_sent = false, .count = cur.count + 1};
+            if (num_workers_.compare_exchange_weak(
+                    cur, new_v, std::memory_order_relaxed)) {
                 break;
             }
         }
     }
-    void decrement_num_workers() {
+    void decrement_num_workers()
+    {
         auto cur = num_workers_.load(std::memory_order_relaxed);
         if (cur.count == 0) {
             SPDLOG_WARN("Attempted to decrement num_workers_ below 0");
             return;
         }
         while (true) {
-            auto new_v = num_workers_t{
-                .latest_count_sent = cur.latest_count_sent,
-                .count = cur.count - 1};
-            if (num_workers_.compare_exchange_weak(cur, new_v, std::memory_order_relaxed)) {
+            auto new_v =
+                num_workers_t{.latest_count_sent = cur.latest_count_sent,
+                    .count = cur.count - 1};
+            if (num_workers_.compare_exchange_weak(
+                    cur, new_v, std::memory_order_relaxed)) {
                 break;
             }
         }
@@ -339,8 +341,8 @@ protected:
     std::shared_ptr<metrics_impl> msubmitter_;
 
     struct num_workers_t {
-        bool latest_count_sent: 1;
-        uint64_t count: 63;
+        bool latest_count_sent : 1;
+        uint64_t count : 63;
         constexpr bool operator==(const num_workers_t &other) const
         {
             return count == other.count &&
@@ -360,8 +362,8 @@ template <> struct fmt::formatter<ddog_MetricType> {
     // NOLINTNEXTLINE
     constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
     template <typename FormatContext>
-    auto format(
-        ddog_MetricType type, FormatContext &ctx) const -> decltype(ctx.out())
+    auto format(ddog_MetricType type, FormatContext &ctx) const
+        -> decltype(ctx.out())
     {
         switch (type) {
         case DDOG_METRIC_TYPE_GAUGE:

@@ -305,8 +305,7 @@ struct request_shutdown {
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
 
-        MSGPACK_DEFINE(
-            actions, triggers, force_keep, settings, meta, metrics)
+        MSGPACK_DEFINE(actions, triggers, force_keep, settings, meta, metrics)
     };
 };
 
