@@ -469,6 +469,8 @@ bool client::handle_command(network::request_shutdown::request &command)
     if (!response) {
         return false;
     }
+    
+    context_->set_input_truncated(command.input_truncated);
 
     collect_metrics(*response, *service_, context_, sc_settings_);
     service_->drain_logs(sc_settings_);
@@ -550,7 +552,9 @@ void client::run(worker::queue_consumer &q)
 namespace {
 
 struct request_metrics_submitter : public telemetry::telemetry_submitter {
-    request_metrics_submitter() = default;
+    request_metrics_submitter(service &svc, bool input_truncated)
+        : service_{svc}, input_truncated_{input_truncated}
+    {}
     ~request_metrics_submitter() override = default;
     request_metrics_submitter(const request_metrics_submitter &) = delete;
     request_metrics_submitter &operator=(
@@ -561,16 +565,18 @@ struct request_metrics_submitter : public telemetry::telemetry_submitter {
     void submit_metric(std::string_view name, double value,
         telemetry::telemetry_tags tags) override
     {
-        std::string tags_s = tags.consume();
+        if (input_truncated_ && name == metrics::waf_requests) {
+            tags.add("input_truncated", "true");
+        }
         SPDLOG_TRACE("submit_metric [req]: name={}, value={}, tags={}", name,
-            value, tags_s);
-        tel_metrics[name].emplace_back(value, std::move(tags_s));
+            value, tags);
+        service_.submit_request_metric(name, value, std::move(tags));
     };
     void submit_span_metric(std::string_view name, double value) override
     {
         SPDLOG_TRACE(
             "submit_span_metric [req]: name={}, value={}", name, value);
-        metrics[name] = value;
+        span_metrics[name] = value;
     };
     void submit_span_meta(std::string_view name, std::string value) override
     {
@@ -594,38 +600,29 @@ struct request_metrics_submitter : public telemetry::telemetry_submitter {
     }
 
     std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-    std::unordered_map<std::string_view,
-        std::vector<std::pair<double, std::string>>>
-        tel_metrics;
+    std::map<std::string_view, double> span_metrics;
+    service &service_; // NOLINT
+    bool input_truncated_;
 };
 
 template <typename Response>
 void collect_metrics_impl(Response &response, service &service,
     std::optional<engine::context> &context, const sidecar_settings &sc_settings)
 {
-    request_metrics_submitter msubmitter{};
+    request_metrics_submitter msubmitter{
+        service, context ? context->get_input_truncated() : false};
     if (context) {
+        // span metrics/meta go to msubmitter.span_metrics/meta and are sent to
+        // the extension; request telemetry metrics are routed to the service
+        // and sent to sidecar
         context->get_metrics(msubmitter);
     }
 
-    auto request_metrics = std::move(msubmitter.tel_metrics);
-    for (auto &metric : request_metrics) {
-        for (auto &[value, tags] : metric.second) {
-            service.submit_request_metric(metric.first, value,
-                telemetry::telemetry_tags::from_string(std::move(tags)));
-        }
-    }
-    service.drain_metrics(sc_settings,
-        // metrics for the extension are put back into the msubmitter
-        [&msubmitter](std::string_view name, double value, auto tags) {
-            msubmitter.submit_metric(name, value, std::move(tags));
-        });
-    msubmitter.metrics.merge(service.drain_legacy_metrics());
+    service.drain_metrics(sc_settings);
+    msubmitter.span_metrics.merge(service.drain_legacy_metrics());
     msubmitter.meta.merge(service.drain_legacy_meta());
-    response.tel_metrics = std::move(msubmitter.tel_metrics);
     response.meta = std::move(msubmitter.meta);
-    response.metrics = std::move(msubmitter.metrics);
+    response.metrics = std::move(msubmitter.span_metrics);
 }
 void collect_metrics(network::request_shutdown::response &response,
     service &service, std::optional<engine::context> &context, const sidecar_settings &sc_settings)

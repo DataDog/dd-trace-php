@@ -28,7 +28,7 @@ static const char *nullable _header_content_type_zend_array(
 static const dd_command_spec _spec = {
     .name = "request_shutdown",
     .name_len = sizeof("request_shutdown") - 1,
-    .num_args = 3, // a map, api sec sampling key, and sidecar queue id
+    .num_args = 4, // a map, api sec sampling key, sidecar queue id, and input_truncated
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,
@@ -100,6 +100,9 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
 
     // 3.
     mpack_write(w, dd_trace_get_sidecar_queue_id());
+
+    // 4.
+    mpack_write_bool(w, dd_msgpack_helpers_is_data_truncated());
 
     return dd_success;
 }

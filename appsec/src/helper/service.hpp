@@ -107,10 +107,8 @@ protected:
     private:
         friend class service;
 
-        template<typename Func>
         void drain_metrics(const sidecar_settings &sc_settings,
-            const telemetry_settings &telemetry_settings,
-            Func &&handle_metric_for_extension)
+            const telemetry_settings &telemetry_settings)
         {
             std::vector<tel_metric> metrics;
             {
@@ -118,17 +116,8 @@ protected:
                 metrics.swap(pending_metrics_);
             }
             for (auto &metric : metrics) {
-                // waf.requests must be handled by extension; modifies the tags
-                // TODO: the extension could send the information in the
-                // message so we could add the tag ourselves. That would allow
-                // some code to be removed from the extension
-                if (metric.name == dds::metrics::waf_requests) {
-                    std::invoke(std::forward<Func>(handle_metric_for_extension),
-                        metric.name, metric.value, std::move(metric.tags));
-                } else {
-                    submit_metric_ffi(sc_settings, telemetry_settings,
-                        metric.name, metric.value, metric.tags.consume());
-                }
+                submit_metric_ffi(sc_settings, telemetry_settings, metric.name,
+                    metric.value, metric.tags.consume());
             }
         }
 
@@ -265,16 +254,13 @@ public:
 
     void notify_of_rc_updates() { client_handler_->poll(); }
 
-    void submit_request_metric(
-        std::string_view metric_name, double value, telemetry::telemetry_tags tags
-    ) {
-       msubmitter_->submit_metric(metric_name, value, std::move(tags));
+    void submit_request_metric(std::string_view metric_name, double value,
+        telemetry::telemetry_tags tags)
+    {
+        msubmitter_->submit_metric(metric_name, value, std::move(tags));
     }
 
-    template <typename Func>
-    void drain_metrics(
-        const sidecar_settings &sc_settings,
-        Func &&handle_metric_for_extension)
+    void drain_metrics(const sidecar_settings &sc_settings)
     {
         auto registered = metrics_registered_.load(std::memory_order_relaxed);
         if (!registered && metrics_registered_.compare_exchange_strong(
@@ -282,8 +268,7 @@ public:
             register_known_metrics(sc_settings, telemetry_settings_);
         }
 
-        msubmitter_->drain_metrics(sc_settings, telemetry_settings_,
-            std::forward<Func>(handle_metric_for_extension));
+        msubmitter_->drain_metrics(sc_settings, telemetry_settings_);
     }
 
     void drain_logs(const sidecar_settings &sc_settings)
