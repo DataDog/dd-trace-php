@@ -5,13 +5,14 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "common.h" // components-rs/common.h
 #include "engine.hpp"
+#include "metrics.hpp"
 #include "remote_config/client_handler.hpp"
 #include "sampler.hpp"
 #include "service_config.hpp"
 #include "sidecar_settings.hpp"
 #include "telemetry_settings.hpp"
+#include <common.h> // components-rs/common.h
 #include <memory>
 #include <mutex>
 #include <spdlog/spdlog.h>
@@ -20,7 +21,7 @@ namespace dds {
 
 using namespace std::chrono_literals;
 
-using sampler = timed_set<4096, 8192>;
+using sampler = timed_set<4096, 8192>; // NOLINT
 
 class service {
 protected:
@@ -102,7 +103,14 @@ protected:
                     std::move(stack_trace), std::move(tags), is_sensitive});
         }
 
-        template <typename Func> void drain_metrics(Func &&func)
+
+    private:
+        friend class service;
+
+        template<typename Func>
+        void drain_metrics(const sidecar_settings &sc_settings,
+            const telemetry_settings &telemetry_settings,
+            Func &&handle_metric_for_extension)
         {
             std::vector<tel_metric> metrics;
             {
@@ -110,8 +118,17 @@ protected:
                 metrics.swap(pending_metrics_);
             }
             for (auto &metric : metrics) {
-                std::invoke(std::forward<Func>(func), metric.name, metric.value,
-                    std::move(metric.tags));
+                // waf.requests must be handled by extension; modifies the tags
+                // TODO: the extension could send the information in the
+                // message so we could add the tag ourselves. That would allow
+                // some code to be removed from the extension
+                if (metric.name == dds::metrics::waf_requests) {
+                    std::invoke(std::forward<Func>(handle_metric_for_extension),
+                        metric.name, metric.value, std::move(metric.tags));
+                } else {
+                    submit_metric_ffi(sc_settings, telemetry_settings,
+                        metric.name, metric.value, metric.tags.consume());
+                }
             }
         }
 
@@ -140,17 +157,14 @@ protected:
             return std::move(meta_);
         }
 
-    private:
-        friend class service;
-
         static void submit_log(const sidecar_settings &sc_settings,
             const telemetry_settings &telemetry_settings, const tel_log &log);
 
-        static void submit_metric_ffi(const sidecar_settings &sc_settings,
+        static void register_metric_ffi(const sidecar_settings &sc_settings,
             const telemetry_settings &telemetry_settings, std::string_view name,
             ddog_MetricType type);
 
-        static void submit_metric_point_ffi(const sidecar_settings &sc_settings,
+        static void submit_metric_ffi(const sidecar_settings &sc_settings,
             const telemetry_settings &telemetry_settings, std::string_view name,
             double value, std::optional<std::string> tags);
 
@@ -183,6 +197,9 @@ protected:
         return std::shared_ptr<service>(
             new service(std::forward<Args>(args)...));
     }
+
+    void register_known_metrics(const sidecar_settings &sc_settings,
+        const telemetry_settings &telemetry_settings);
 
 public:
     service(const service &) = delete;
@@ -248,9 +265,25 @@ public:
 
     void notify_of_rc_updates() { client_handler_->poll(); }
 
-    template <typename Func> void drain_metrics(Func &&func)
+    void submit_request_metric(
+        std::string_view metric_name, double value, telemetry::telemetry_tags tags
+    ) {
+       msubmitter_->submit_metric(metric_name, value, std::move(tags));
+    }
+
+    template <typename Func>
+    void drain_metrics(
+        const sidecar_settings &sc_settings,
+        Func &&handle_metric_for_extension)
     {
-        msubmitter_->drain_metrics(std::forward<Func>(func));
+        auto registered = metrics_registered_.load(std::memory_order_relaxed);
+        if (!registered && metrics_registered_.compare_exchange_strong(
+                               registered, true, std::memory_order_relaxed)) {
+            register_known_metrics(sc_settings, telemetry_settings_);
+        }
+
+        msubmitter_->drain_metrics(sc_settings, telemetry_settings_,
+            std::forward<Func>(handle_metric_for_extension));
     }
 
     void drain_logs(const sidecar_settings &sc_settings)
@@ -286,7 +319,6 @@ public:
         auto cur = num_workers_.load(std::memory_order_relaxed);
         while (true) {
             auto new_v = num_workers_t{
-                .metrics_registered = cur.metrics_registered,
                 .latest_count_sent = false,
                 .count = cur.count + 1};
             if (num_workers_.compare_exchange_weak(cur, new_v, std::memory_order_relaxed)) {
@@ -302,7 +334,6 @@ public:
         }
         while (true) {
             auto new_v = num_workers_t{
-                .metrics_registered = cur.metrics_registered,
                 .latest_count_sent = cur.latest_count_sent,
                 .count = cur.count - 1};
             if (num_workers_.compare_exchange_weak(cur, new_v, std::memory_order_relaxed)) {
@@ -319,16 +350,15 @@ protected:
     std::optional<sampler> schema_sampler_;
     std::string rc_path_;
     telemetry_settings telemetry_settings_;
+    std::atomic<bool> metrics_registered_;
     std::shared_ptr<metrics_impl> msubmitter_;
 
     struct num_workers_t {
-        bool metrics_registered: 1;
         bool latest_count_sent: 1;
-        uint64_t count: 62;
+        uint64_t count: 63;
         constexpr bool operator==(const num_workers_t &other) const
         {
             return count == other.count &&
-                   metrics_registered == other.metrics_registered &&
                    latest_count_sent == other.latest_count_sent;
         }
     };

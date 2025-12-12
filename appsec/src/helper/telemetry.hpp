@@ -6,7 +6,6 @@
 #include <string_view>
 
 namespace dds::telemetry {
-
 class telemetry_tags {
 public:
     telemetry_tags &add(std::string_view key, std::string_view value)

@@ -5,8 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "service.hpp"
-#include "common.h"
+#include "metrics.hpp"
 #include "sidecar_settings.hpp"
+#include <common.h>
 
 #include <utility>
 
@@ -162,12 +163,12 @@ void service::metrics_impl::submit_log(const sidecar_settings &sc_settings,
     }
 }
 
-void service::metrics_impl::submit_metric_ffi(
+void service::metrics_impl::register_metric_ffi(
     const sidecar_settings &sc_settings,
     const telemetry_settings &telemetry_settings,
     std::string_view name, ddog_MetricType type)
 {
-    SPDLOG_DEBUG("register_metric_ffi (ffi): name: {}, type: {}", name, type);
+    SPDLOG_TRACE("register_metric_ffi: name: {}, type: {}", name, type);
 
     if (fn_ddog_sidecar_enqueue_telemetry_metric == nullptr) {
         throw std::runtime_error("Failed to resolve ddog_sidecar_enqueue_telemetry_metric");
@@ -190,15 +191,15 @@ void service::metrics_impl::submit_metric_ffi(
     }
 }
 
-void service::metrics_impl::submit_metric_point_ffi(
+void service::metrics_impl::submit_metric_ffi(
     const sidecar_settings &sc_settings,
     const telemetry_settings &telemetry_settings,
     std::string_view name,
     double value,
     std::optional<std::string> tags)
 {
-    SPDLOG_DEBUG(
-        "enqueue_metric_point_ffi (ffi): name: {}, value: {}, tags: {}", name,
+    SPDLOG_TRACE(
+        "submit_metric_ffi: name: {}, value: {}, tags: {}", name,
         value, tags.has_value() ? tags.value() : "(none)"sv);
 
     if (fn_ddog_sidecar_enqueue_telemetry_point == nullptr) {
@@ -228,44 +229,32 @@ void service::metrics_impl::submit_metric_point_ffi(
     }
 }
 
+void service::register_known_metrics(const sidecar_settings &sc_settings,
+    const telemetry_settings &telemetry_settings)
+{
+    for (auto &&metric : metrics::known_metrics) {
+        msubmitter_->register_metric_ffi(
+            sc_settings, telemetry_settings, metric.name, metric.type);
+    }
+}
+
 void service::handle_worker_count_metrics(const sidecar_settings &sc_settings)
 {
-    static constexpr std::string_view METRIC_NAME =
-        "helper.service_worker_count";
-
     auto cur_st = num_workers_.load(std::memory_order_relaxed);
     if (cur_st.latest_count_sent) {
         return;
     }
 
+    msubmitter_->submit_metric_ffi(sc_settings, telemetry_settings_,
+        metrics::helper_worker_count, static_cast<double>(cur_st.count),
+        std::nullopt);
+
     auto new_st = cur_st;
-    if (!cur_st.metrics_registered) {
-        // it's not an error to register the metrics more than once
-        msubmitter_->submit_metric_ffi(
-            sc_settings,
-            telemetry_settings_,
-            METRIC_NAME,
-            DDOG_METRIC_TYPE_GAUGE
-        );
-        new_st.metrics_registered = true;
-    }
+    new_st.latest_count_sent = true;
 
-    if (!cur_st.latest_count_sent) {
-        msubmitter_->submit_metric_point_ffi(sc_settings, telemetry_settings_,
-            METRIC_NAME, static_cast<double>(cur_st.count), std::nullopt);
-
-        new_st.latest_count_sent = true;
-    }
-
-    if (cur_st == new_st) {
-        return;
-    }
-
-    bool success = num_workers_.compare_exchange_weak(
+    bool success = num_workers_.compare_exchange_strong(
         cur_st, new_st, std::memory_order_relaxed);
 
-    // if the CAS failed, it was because the count changed, so the metric
-    // point will need to be submitted again: don't mark latest_count_sent
     if (!success) {
         SPDLOG_DEBUG("Worker count changed while submitting metric point; "
                      "latest metric is not up to date");

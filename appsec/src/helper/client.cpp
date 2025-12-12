@@ -13,12 +13,12 @@
 #include "action.hpp"
 #include "client.hpp"
 #include "exception.hpp"
-#include "metrics.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "service.hpp"
 #include "service_config.hpp"
 #include "std_logging.hpp"
+#include "telemetry.hpp"
 
 using namespace std::chrono_literals;
 
@@ -27,9 +27,9 @@ namespace dds {
 namespace {
 
 void collect_metrics(network::request_shutdown::response &response,
-    service &service, std::optional<engine::context> &context);
+    service &service, std::optional<engine::context> &context, const sidecar_settings &sc_settings);
 void collect_metrics(network::client_init::response &response, service &service,
-    std::optional<engine::context> &context);
+    std::optional<engine::context> &context, const sidecar_settings &sc_settings);
 
 template <typename M, typename... Mrest>
 // NOLINTNEXTLINE(google-runtime-references)
@@ -197,7 +197,7 @@ bool client::handle_command(const network::client_init::request &command)
 
     if (!service_.is_empty()) {
         // may be null in testing
-        collect_metrics(*response, *service_, context_);
+        collect_metrics(*response, *service_, context_, sc_settings_);
     }
 
     try {
@@ -470,7 +470,7 @@ bool client::handle_command(network::request_shutdown::request &command)
         return false;
     }
 
-    collect_metrics(*response, *service_, context_);
+    collect_metrics(*response, *service_, context_, sc_settings_);
     service_->drain_logs(sc_settings_);
 
     return send_message<network::request_shutdown>(response);
@@ -602,13 +602,22 @@ struct request_metrics_submitter : public telemetry::telemetry_submitter {
 
 template <typename Response>
 void collect_metrics_impl(Response &response, service &service,
-    std::optional<engine::context> &context)
+    std::optional<engine::context> &context, const sidecar_settings &sc_settings)
 {
     request_metrics_submitter msubmitter{};
     if (context) {
         context->get_metrics(msubmitter);
     }
-    service.drain_metrics(
+
+    auto request_metrics = std::move(msubmitter.tel_metrics);
+    for (auto &metric : request_metrics) {
+        for (auto &[value, tags] : metric.second) {
+            service.submit_request_metric(metric.first, value,
+                telemetry::telemetry_tags::from_string(std::move(tags)));
+        }
+    }
+    service.drain_metrics(sc_settings,
+        // metrics for the extension are put back into the msubmitter
         [&msubmitter](std::string_view name, double value, auto tags) {
             msubmitter.submit_metric(name, value, std::move(tags));
         });
@@ -619,14 +628,14 @@ void collect_metrics_impl(Response &response, service &service,
     response.metrics = std::move(msubmitter.metrics);
 }
 void collect_metrics(network::request_shutdown::response &response,
-    service &service, std::optional<engine::context> &context)
+    service &service, std::optional<engine::context> &context, const sidecar_settings &sc_settings)
 {
-    collect_metrics_impl(response, service, context);
+    collect_metrics_impl(response, service, context, sc_settings);
 }
 void collect_metrics(network::client_init::response &response, service &service,
-    std::optional<engine::context> &context)
+    std::optional<engine::context> &context, const sidecar_settings &sc_settings)
 {
-    collect_metrics_impl(response, service, context);
+    collect_metrics_impl(response, service, context, sc_settings);
 }
 } // namespace
 

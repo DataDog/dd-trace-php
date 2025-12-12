@@ -837,6 +837,9 @@ bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
             if (mpack_node_error(metrics) != mpack_ok) {
                 break;
             }
+
+            // enrich tags for waf.requests with input_truncated=true if the
+            // data is truncated
             if (dd_msgpack_helpers_is_data_truncated() &&
                 WAF_REQUEST_METRIC_LEN == key_len &&
                 memcmp(WAF_REQUEST_METRIC, key_str, WAF_REQUEST_METRIC_LEN) ==
@@ -905,18 +908,6 @@ void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
     } while (0)
 
     HANDLE_METRIC("waf.requests", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("waf.updates", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("waf.init", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("waf.config_errors", DDTRACE_METRIC_TYPE_COUNT);
-
-    HANDLE_METRIC("remote_config.first_pull", DDTRACE_METRIC_TYPE_GAUGE);
-    HANDLE_METRIC("remote_config.last_success", DDTRACE_METRIC_TYPE_GAUGE);
-
-    // Rasp
-    HANDLE_METRIC("rasp.timeout", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("rasp.rule.match", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("rasp.rule.eval", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("rasp.error", DDTRACE_METRIC_TYPE_COUNT);
 
     mlog_g(dd_log_info, "Unknown telemetry metric %.*s", (int)key_len, key_str);
 }

@@ -107,8 +107,6 @@ class TelemetryTests {
             wafInit && wafReq1 && wafReq2 && workerCount
         }
 
-        assert workerCount != null
-
         assert wafInit != null
         assert wafInit.namespace == 'appsec'
         assert wafInit.points[0][1] == 1.0
@@ -127,6 +125,10 @@ class TelemetryTests {
         assert wafReq2 != null
         assert 'rule_triggered:true' in wafReq2.tags
         assert wafReq2.points[0][1] >= 1.0
+
+        assert workerCount != null
+        assert workerCount.namespace == 'appsec'
+        assert workerCount.points[0][1] >= 1.0
     }
 
     @Test
