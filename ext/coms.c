@@ -47,9 +47,87 @@ typedef uint32_t group_id_t;
 
 #define GROUP_ID_PROCESSED (1UL << 31UL)
 
+/* Snapshot of proxy-related environment variables taken during MINIT.
+ * These are later applied as explicit libcurl options on the Datadog
+ * writer handle so that libcurl does not call curl_getenv() from
+ * background threads.
+ *
+ * Lifetime: allocated once per module load and freed during MSHUTDOWN
+ * via ddtrace_coms_mshutdown_proxy_env() after all writer threads and
+ * curl handles have been torn down.
+ */
+static char *ddtrace_env_no_proxy = NULL;      /* no_proxy / NO_PROXY */
+static char *ddtrace_env_http_proxy = NULL;    /* http_proxy / HTTP_PROXY */
+static char *ddtrace_env_https_proxy = NULL;   /* https_proxy / HTTPS_PROXY */
+static char *ddtrace_env_all_proxy = NULL;     /* all_proxy / ALL_PROXY */
+
 ddtrace_coms_state_t ddtrace_coms_globals = {.stacks = NULL};
 static struct ddog_AgentRemoteConfigWriter_ShmHandle *dd_agent_config_writer;
 struct ddog_ShmHandle *ddtrace_coms_agent_config_handle;
+
+static void ddtrace_store_env(char **target, const char *value) {
+    if (!*target && value && value[0]) {
+        *target = strdup(value);
+    }
+}
+
+/* Snapshot the proxy-related environment variables curl itself consults.
+ *
+ * Generic pattern in libcurl (see url.c):
+ *  - For scheme-specific proxies, it looks up "<scheme>_proxy" in lowercase
+ *    first and, for most schemes, falls back to the uppercase variant
+ *    (e.g., "https_proxy" then "HTTPS_PROXY"). If no scheme-specific proxy
+ *    is found, it falls back to "all_proxy"/"ALL_PROXY".
+ *  - For the no-proxy list, it consults both "no_proxy" and "NO_PROXY".
+ *
+ * There is a special case in libcurl for HTTP: to avoid header-based
+ * injection in CGI/server contexts, it does *not* automatically fall back
+ * from "http_proxy" to "HTTP_PROXY". We still snapshot both here, but when
+ * we later configure our agent handle we only ever use the cached value
+ * explicitly, not libcurl's own HTTP_PROXY fallback.
+ */
+void ddtrace_coms_minit_proxy_env(void) {
+    const char *v;
+
+    /* no_proxy / NO_PROXY */
+    v = getenv("no_proxy");
+    if (!v || !v[0]) {
+        v = getenv("NO_PROXY");
+    }
+    ddtrace_store_env(&ddtrace_env_no_proxy, v);
+
+    /* http_proxy / HTTP_PROXY */
+    v = getenv("http_proxy");
+    if (!v || !v[0]) {
+        v = getenv("HTTP_PROXY");
+    }
+    ddtrace_store_env(&ddtrace_env_http_proxy, v);
+
+    /* https_proxy / HTTPS_PROXY */
+    v = getenv("https_proxy");
+    if (!v || !v[0]) {
+        v = getenv("HTTPS_PROXY");
+    }
+    ddtrace_store_env(&ddtrace_env_https_proxy, v);
+
+    /* all_proxy / ALL_PROXY */
+    v = getenv("all_proxy");
+    if (!v || !v[0]) {
+        v = getenv("ALL_PROXY");
+    }
+    ddtrace_store_env(&ddtrace_env_all_proxy, v);
+}
+
+void ddtrace_coms_mshutdown_proxy_env(void) {
+    free(ddtrace_env_no_proxy);
+    ddtrace_env_no_proxy = NULL;
+    free(ddtrace_env_http_proxy);
+    ddtrace_env_http_proxy = NULL;
+    free(ddtrace_env_https_proxy);
+    ddtrace_env_https_proxy = NULL;
+    free(ddtrace_env_all_proxy);
+    ddtrace_env_all_proxy = NULL;
+}
 
 static bool _dd_is_memory_pressure_high(void) {
     ddtrace_coms_stack_t *stack = atomic_load(&ddtrace_coms_globals.current_stack);
@@ -746,7 +824,46 @@ void ddtrace_curl_set_connect_timeout(CURL *curl) {
 
 static void ddtrace_curl_set_hostname_generic(CURL *curl, const char *path) {
     char *url = ddtrace_agent_url();
+
+    /* Prevent libcurl from reading no_proxy/NO_PROXY in worker threads:
+     * always set CURLOPT_NOPROXY on this handle. If the env had a value
+     * we cached it and reuse it; otherwise we set it to the empty string,
+     * which means "no entries", but still suppresses curl_getenv().
+     */
+    if (ddtrace_env_no_proxy) {
+        curl_easy_setopt(curl, CURLOPT_NOPROXY, ddtrace_env_no_proxy);
+    } else {
+        curl_easy_setopt(curl, CURLOPT_NOPROXY, "");
+    }
+
     if (url && url[0]) {
+        const char *proxy = NULL;
+
+        /* Choose a proxy based on the agent URL scheme, using the cached
+         * env values. This mirrors curl's detect_proxy() precedence:
+         *  - scheme-specific proxy if present
+         *  - otherwise all_proxy / ALL_PROXY
+         *
+         * This happens without calling getenv() in the worker thread.
+         */
+        if (strncmp(url, "http://", 7) == 0) {
+            if (ddtrace_env_http_proxy) {
+                proxy = ddtrace_env_http_proxy;
+            } else if (ddtrace_env_all_proxy) {
+                proxy = ddtrace_env_all_proxy;
+            }
+        } else if (strncmp(url, "https://", 8) == 0) {
+            if (ddtrace_env_https_proxy) {
+                proxy = ddtrace_env_https_proxy;
+            } else if (ddtrace_env_all_proxy) {
+                proxy = ddtrace_env_all_proxy;
+            }
+        }
+
+        if (proxy) {
+            curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
+        }
+
         char *http_url = url;
         if (strlen(url) > 7 && strncmp(url, "unix://", 7) == 0) {
             curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, url + 7);
