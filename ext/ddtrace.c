@@ -433,9 +433,6 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
-        bool appsec_activation = false;
-        bool appsec_config = false;
-
 #ifndef _WIN32
         // Only disable sidecar sender when explicitly disabled
         bool bgs_fallback = DD_SIDECAR_TRACE_SENDER_DEFAULT && get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_SIDECAR_TRACE_SENDER].name_index == ZAI_CONFIG_ORIGIN_DEFAULT && !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED();
@@ -451,16 +448,17 @@ static void dd_activate_once(void) {
                 bgs_service = ddtrace_default_service_name();
             }
         }
+#endif
 
-        // if we're to enable appsec, we need to enable sidecar
+        // If we're to enable appsec, we need to enable sidecar
+        bool appsec_activation = false;
+        bool appsec_config = false;
         bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
         if (!enable_sidecar) {
             enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
         }
 
-        if (enable_sidecar)
-#endif
-        {
+        if (enable_sidecar) {
             bool request_startup = PG(during_request_startup);
             PG(during_request_startup) = false;
             ddtrace_sidecar_setup(appsec_activation, appsec_config);
@@ -1556,6 +1554,8 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_signals_minit();
 #endif
 
+    ddtrace_sidecar_minit(false, false);
+
     return SUCCESS;
 }
 
@@ -1612,7 +1612,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_user_req_shutdown();
 
-    ddtrace_sidecar_shutdown();
+    // Only shutdown sidecar in MSHUTDOWN for non-CLI SAPIs.
+    // CLI SAPI shuts down in RSHUTDOWN to allow thread joins before ASAN checks.
+    if (strcmp(sapi_module.name, "cli") != 0) {
+        ddtrace_sidecar_shutdown();
+    }
 
     ddtrace_live_debugger_mshutdown();
 
@@ -2624,6 +2628,9 @@ PHP_FUNCTION(DDTrace_Internal_add_span_flag) {
 void dd_internal_handle_fork(void) {
     // CHILD PROCESS
 #ifndef _WIN32
+    ddtrace_pid_t current_pid = getpid();
+    bool is_child_process = (ddtrace_master_pid != 0 && current_pid != ddtrace_master_pid);
+
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_curl_shutdown();
         ddtrace_coms_clean_background_sender_after_fork();
@@ -2643,7 +2650,33 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar();
+
+#ifndef _WIN32
+    if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && ddtrace_sidecar) {
+        if (is_child_process) {
+            // Clear inherited listener state - child doesn't own the master listener thread
+            ddtrace_ffi_try("Failed clearing inherited listener state", ddog_sidecar_clear_inherited_listener());
+
+            ddtrace_force_new_instance_id();
+
+            if (ddtrace_sidecar_connect_worker_after_fork()) {
+                LOG(DEBUG, "Child process connected to master sidecar as worker (child_pid=%d, master_pid=%d)",
+                    current_pid, ddtrace_master_pid);
+
+                if (ddtrace_sidecar) {
+                    ddtrace_sidecar_submit_root_span_data();
+                }
+            } else {
+                LOG(WARN, "Failed to connect child process as worker to master sidecar (child_pid=%d, master_pid=%d)",
+                    current_pid, ddtrace_master_pid);
+                ddtrace_reset_sidecar();
+            }
+        }
+    } else
+#endif
+    {
+        ddtrace_reset_sidecar();
+    }
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
