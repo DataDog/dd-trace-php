@@ -76,7 +76,7 @@ stages:
 
       echo "Docker Hub user: $user"
       docker login -u "$user" -p "$token" docker.io
-    - apt update && apt install -y default-jre
+    - apt update && apt install -y openjdk-17-jre
 
 "test appsec extension":
   stage: test
@@ -142,7 +142,7 @@ stages:
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
   script:
-    - apt update && apt install -y default-jre
+    - apt update && apt install -y openjdk-17-jre
     - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
     - |
       cd appsec/tests/integration
