@@ -36,8 +36,6 @@ function download_php {
   local download_url
   if [[ $version_id -lt 50400 ]]; then
     download_url="http://museum.php.net/php5/php-${version}.tar.gz"
-  elif [[ $version_id -ge 80500 ]]; then
-    download_url="https://downloads.php.net/~daniels/php-8.5.0RC3.tar.gz"
   else
     download_url="https://www.php.net/distributions/php-${version}.tar.gz"
   fi
@@ -109,7 +107,7 @@ function get_xdebug_version {
   elif [[ $version_id -lt 80400 ]]; then
     echo '3.3.2'
   elif [[ $version_id -ge 80400 ]]; then
-    echo '3.4.0'
+    echo '3.5.0'
   fi
 }
 
@@ -199,7 +197,6 @@ function build_php {
     --enable-filter
     --enable-intl=shared
     --enable-mbstring=shared
-    --enable-opcache=shared
     "--enable-pdo=$([[ $(uname -o) != Darwin ]] && echo shared)"
     --enable-phar=shared
     --enable-xml
@@ -224,6 +221,10 @@ function build_php {
 
   if [[ $version_id -lt 80000 ]]; then
     options+=(--enable-json) # not shared to make it consistent with php 8
+  fi
+
+  if [[ $version_id -lt 85000 ]]; then
+    options+=(--enable-opcache=shared)
   fi
 
   if [[ $minimal -eq 0 ]]; then

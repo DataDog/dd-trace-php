@@ -29,42 +29,74 @@ acceptor::acceptor(const std::string_view &sv)
     }
 
     struct sockaddr_un addr {};
+    std::size_t addr_size;
     addr.sun_family = AF_UNIX;
-    if (sv.size() > sizeof(addr.sun_path) - 1) {
-        throw std::invalid_argument{"socket path too long"};
-    }
-    strcpy(static_cast<char *>(addr.sun_path), sv.data()); // NOLINT
+    bool const is_abstract = (!sv.empty() && sv[0] == '@');
 
-    // Remove the existing socket
-    int res = ::unlink(static_cast<char *>(addr.sun_path));
-    if (res == -1 && errno != ENOENT) {
-        SPDLOG_ERROR("Failed to unlink {}: errno {}", addr.sun_path, errno);
-        throw std::system_error(errno, std::generic_category());
-    }
-    SPDLOG_DEBUG("Unlinked {}", addr.sun_path);
+    if (is_abstract) {
+#ifdef __linux__
+        if (sv.size() > sizeof(addr.sun_path)) {
+            throw std::invalid_argument{"socket path too long"};
+        }
+        // Replace @ with null byte for abstract namespace
+        addr.sun_path[0] = '\0';
+        std::copy_n(sv.data() + 1, sv.size() - 1, &addr.sun_path[1]);
+        addr_size = sv.size() + offsetof(struct sockaddr_un, sun_path);
+#else
+        throw std::runtime_error{
+            "Abstract namespace sockets are only supported on Linux"};
+#endif
+    } else {
+        // Filesystem socket
+        if (sv.size() > sizeof(addr.sun_path) - 1) {
+            throw std::invalid_argument{"socket path too long"};
+        }
+        std::copy_n(sv.data(), sv.size(), &addr.sun_path[0]);
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+        addr.sun_path[sv.size()] = '\0';
+        addr_size = sizeof(addr);
 
-    res =
+        // Remove the existing socket
+        int const res = ::unlink(static_cast<char *>(addr.sun_path));
+        if (res == -1 && errno != ENOENT) {
+            SPDLOG_ERROR("Failed to unlink {}: errno {}", addr.sun_path, errno);
+            throw std::system_error(errno, std::generic_category());
+        }
+        SPDLOG_DEBUG("Unlinked {}", addr.sun_path);
+    }
+
+    int res = ::bind(
         // NOLINTNEXTLINE
-        ::bind(sock_.get(), reinterpret_cast<struct sockaddr *>(&addr),
-            sizeof(addr));
+        sock_.get(), reinterpret_cast<struct sockaddr *>(&addr), addr_size);
     if (res == -1) {
-        SPDLOG_ERROR(
-            "Failed to bind socket to {}: errno {}", addr.sun_path, errno);
+        if (is_abstract) {
+            SPDLOG_ERROR("Failed to bind abstract socket: errno {}", errno);
+        } else {
+            SPDLOG_ERROR(
+                "Failed to bind socket to {}: errno {}", addr.sun_path, errno);
+        }
         throw std::system_error(errno, std::generic_category());
     }
 
-    res = ::chmod(sv.data(), 0777); // NOLINT
-    if (res == -1) {
-        SPDLOG_ERROR(
-            "Failed to chmod socket {}: errno {}", addr.sun_path, errno);
-        throw std::system_error(errno, std::generic_category());
+    if (!is_abstract) {
+        res = ::chmod(sv.data(), 0777); // NOLINT
+        if (res == -1) {
+            SPDLOG_ERROR(
+                "Failed to chmod socket {}: errno {}", addr.sun_path, errno);
+            throw std::system_error(errno, std::generic_category());
+        }
     }
 
     static constexpr int backlog = 50;
     if (::listen(sock_.get(), backlog) == -1) {
         throw std::system_error(errno, std::generic_category());
     }
-    SPDLOG_INFO("Started listening on {}", sv);
+
+    if (is_abstract) {
+        SPDLOG_INFO("Started listening on abstract socket: {}", sv);
+    } else {
+        SPDLOG_INFO("Started listening on {}", sv);
+    }
 }
 
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)

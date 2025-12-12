@@ -40,8 +40,8 @@ typedef struct _dd_helper_mgr {
     bool connected_this_req;
     dd_helper_shared_state hss;
 
-    char *nonnull socket_path;
-    char *nonnull lock_path;
+    char *nonnull socket_path; // if abstract, starts with @
+    char *nonnull lock_path;   // set, but not used with abstract ns sockets
 } dd_helper_mgr;
 
 static _Atomic(dd_helper_shared_state) *_shared_state;
