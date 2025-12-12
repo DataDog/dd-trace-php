@@ -6,6 +6,8 @@ use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 #[cfg(php_zts)]
+use crate::bindings::ddog_php_prof_is_parallel_thread;
+#[cfg(php_zts)]
 use crate::sapi::Sapi;
 #[cfg(php_zts)]
 use libc::c_char;
@@ -93,14 +95,16 @@ thread_local! {
 
 pub fn get_current_thread_name() -> String {
     THREAD_NAME.with(|name| {
-        name.get_or_init(|| {
-            #[cfg(php_zts)]
-            let mut thread_name = SAPI.to_string();
+        name.get_or_init(|| -> String {
             #[cfg(not(php_zts))]
-            let thread_name = SAPI.to_string();
+            return SAPI.to_string();
 
             #[cfg(php_zts)]
             {
+                if unsafe { ddog_php_prof_is_parallel_thread() } {
+                    return "parallel worker".to_string();
+                }
+                let mut thread_name = SAPI.to_string();
                 // So far, only FrankenPHP sets meaningful thread names
                 if *SAPI == Sapi::FrankenPHP {
                     let mut name = [0u8; 32];
@@ -124,9 +128,8 @@ pub fn get_current_thread_name() -> String {
                         }
                     }
                 }
+                thread_name
             }
-
-            thread_name
         })
         .clone()
     })
