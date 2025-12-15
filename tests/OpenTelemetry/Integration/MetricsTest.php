@@ -19,18 +19,31 @@ final class MetricsTest extends BaseTestCase
 
     private static function getOtelVersion(): array
     {
-        if (!class_exists('OpenTelemetry\API\Common\Version')) {
-            return [0, 0, 0];
+        // Try Composer\InstalledVersions (modern way, used by OTel SDK 1.x)
+        if (class_exists('Composer\InstalledVersions')) {
+            foreach (['open-telemetry/sdk', 'open-telemetry/api', 'open-telemetry/opentelemetry'] as $package) {
+                if (\Composer\InstalledVersions::isInstalled($package)) {
+                    $version = \Composer\InstalledVersions::getPrettyVersion($package);
+                    if ($version !== null) {
+                        // Strip pre-release (-beta1, -RC1) and build metadata (+build.123) per semver spec
+                        $version = preg_replace('/[-+].*$/', '', $version);
+                        $parts = explode('.', $version);
+                        return [
+                            (int)($parts[0] ?? 0),
+                            (int)($parts[1] ?? 0),
+                            (int)($parts[2] ?? 0),
+                        ];
+                    }
+                }
+            }
         }
-        $version = \OpenTelemetry\API\Common\Version::VERSION;
-        // Strip pre-release (-beta1, -RC1) and build metadata (+build.123) per semver spec
-        $version = preg_replace('/[-+].*$/', '', $version);
-        $parts = explode('.', $version);
-        return [
-            (int)($parts[0] ?? 0),
-            (int)($parts[1] ?? 0),
-            (int)($parts[2] ?? 0),
-        ];
+
+        // Fallback: Check for SDK classes that only exist in 1.x
+        if (class_exists('OpenTelemetry\SDK\Trace\TracerProvider')) {
+            return [1, 0, 0]; // Assume 1.x if SDK classes exist
+        }
+
+        return [0, 0, 0];
     }
 
     private static function isOtelVersionSupported(): bool
@@ -125,7 +138,7 @@ final class MetricsTest extends BaseTestCase
         self::putEnvAndReloadConfig(['DD_METRICS_OTEL_ENABLED=true']);
 
         // Get the meter provider
-        $meterProvider = \OpenTelemetry\API\Metrics\Globals::meterProvider();
+        $meterProvider = \OpenTelemetry\API\Globals::meterProvider();
 
         $this->assertNotNull(
             $meterProvider,
@@ -154,7 +167,7 @@ final class MetricsTest extends BaseTestCase
         }
 
         // Get the meter provider - should be a proxy/noop when not enabled
-        $meterProvider = \OpenTelemetry\API\Metrics\Globals::meterProvider();
+        $meterProvider = \OpenTelemetry\API\Globals::meterProvider();
 
         // When not explicitly configured, should be null or a proxy provider
         $providerClass = get_class($meterProvider);
