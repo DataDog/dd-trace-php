@@ -1,38 +1,39 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
 ## All products
-- Add PHP 8.5 support #3400
+### Internal
+- bump tracing-core from 0.1.33 to 0.1.35 #3516
 
 ## Tracer
-### Added
-- Implement APM endpoint resource renaming #3415
-- Enable dynamic configuration for debugger-related products #3476
-
+### Internal
+- Const-ify some logging thread-local variables #3513
 ### Fixed
-- Collect incompletely fetched CurlMulti handles upon destruction #3469
-- Safeguard proc_get_span in case proc_assoc_span is not happening #3471
-- Skip SSI injector in installer for accurate ini-dir readings #3472
-- Make stub file compatible with php 8.4+ parser #3475
-- Fix function resolver on PHP 8.0 and PHP 8.1 for targets without HAVE_GCC_GLOBAL_REGS and with active JIT #3482
-- Support ENOENT as shm_open failure mode DataDog/libdatadog#1315
-  - This fixes a failure mode present on some serverless runtimes.
+- Avoid curl's `getenv` calls #3528
+- `code_origin_for_spans_enabled` naming inconsistency #3494
+- Add `NULL` guard clause in sidecar reconnect callback #3499
 
-### Internal
-- Add crashtracker support for the sidecar #3453
-- Strip error messages from hook telemetry #3449
-- Collect runtime crash frames #3479
-- Use a dedicated endpoint for enriched logs DataDog/libdatadog#1338
-
-## Profiling
-### Internal
-- Cleanup I/O profiling code #3406
-- Upgrade to libdatadog v23, profiling uses zstd now #3470
-- Switch panics to abort #3474
-
-## Application Security Management
+## Profiler
 ### Added
-- Print block_id #3444
-
+- Detect parallel threads #3515
 ### Changed
-- Upgrade libddwaf and rules #3438
-- Adapt security_response_id to latest #3480
+- Speedup hot path in allocator #3505
+### Fixed
+- Fixed asserting length of INI #3508
+
+## AppSec
+### Added
+- Minify blocking json message #3502
+- Add Custom Data Classification #3524
+- Add metrics for extension connections #3527
+### Fixed
+- Off by one #3506
+- Incorrectly hardcoded `$_GET` #3501
+- `security_response_id` being release before displaying it #3493
+- AppSec helper: add send timeouts #3518
+- Minor fixes and improvements to file descriptor reclamation #3526
+- Laravel: be more defensive #3503
+- Fix `duration_ext` metric #3507
+- Fix segfault iterating mapping #3517
+- Fix double end hook run/segfault when blocking in PHP 7.x #3490
+- Fix `_iovec_writer_flush` and enforce limits on `$_POST` #3495
+- Clear `client_ip` on `request_init` #3496
