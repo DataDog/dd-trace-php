@@ -175,9 +175,25 @@ pub unsafe extern "C" fn ddog_set_log_level(level: CharSlice, once: bool) {
     set_log_subscriber(subscriber)
 }
 
-fn set_log_subscriber<S>(subscriber: S) where S: SubscriberInitExt {
-    TRACING_GUARDS.replace(None); // drop first to avoid a prior guard to reset the thread local subscriber it upon replace()
-    TRACING_GUARDS.replace(Some(subscriber.set_default()));
+fn set_log_subscriber<S>(subscriber: S)
+where
+    S: SubscriberInitExt,
+{
+    // 1. Take out old guard without dropping it while RefCell is borrowed
+    let old_guard = TRACING_GUARDS.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        slot.take()
+    });
+    // 2. Drop outside of the borrow (no more nested TLS shenanigans)
+    drop(old_guard);
+
+    // 3. Install new subscriber and keep its guard
+    let new_guard = subscriber.set_default();
+
+    TRACING_GUARDS.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        *slot = Some(new_guard);
+    });
 }
 
 #[no_mangle]
