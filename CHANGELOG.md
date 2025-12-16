@@ -26,12 +26,12 @@ Changelog for older versions can be found in our [release page](https://github.c
 - Add Custom Data Classification #3524
 - Add metrics for extension connections #3527
 ### Fixed
-- Off by one #3506
-- Incorrectly hardcoded `$_GET` #3501
-- `security_response_id` being release before displaying it #3493
+- Amend string on request abort #3506
+- Fix accessing to incorrectly hardcoded `$_GET` #3501
+- Amend issue where `security_response_id` is being release before displaying it #3493
 - AppSec helper: add send timeouts #3518
 - Minor fixes and improvements to file descriptor reclamation #3526
-- Laravel: be more defensive #3503
+- LaravelIntegration: be more defensive #3503
 - Fix `duration_ext` metric #3507
 - Fix segfault iterating mapping #3517
 - Fix double end hook run/segfault when blocking in PHP 7.x #3490
