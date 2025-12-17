@@ -73,7 +73,7 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     let (has_module, has_class) = (!module_name.is_empty(), !class_name.is_empty());
     let module_len = has_module as usize * "|".len() + module_name.len();
     let class_name_len = has_class as usize * "::".len() + class_name.len();
-    buffer.reserve(module_len + class_name_len + method_name.len());
+    buffer.reserve_exact(module_len + class_name_len + method_name.len());
 
     if has_module {
         buffer.extend_from_slice(module_name);
