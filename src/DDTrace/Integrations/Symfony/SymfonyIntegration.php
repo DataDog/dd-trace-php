@@ -439,6 +439,57 @@ class SymfonyIntegration extends Integration
                 if (!\method_exists($cache, 'getItem')) {
                     return;
                 }
+
+                // Check if the cache adapter is actually accessible before trying to use it
+                if (\method_exists($cache, 'getAdapter')) {
+                    try {
+                        $adapter = $cache->getAdapter();
+
+                        if (
+                            $adapter instanceof \Symfony\Component\Cache\Adapter\RedisAdapter ||
+                            $adapter instanceof \Symfony\Component\Cache\Adapter\RedisTagAwareAdapter
+                        ) {
+                            $reflection = new \ReflectionClass($adapter);
+                            $redisProperty = $reflection->getProperty('redis');
+                            $redisProperty->setAccessible(true);
+                            $redis = $redisProperty->getValue($adapter);
+
+                            if (\method_exists($redis, 'ping')) {
+                                $pong = $redis->ping();
+                                // ping() returns false when Redis is unavailable
+                                if ($pong === false || $pong === null) {
+                                    return;
+                                }
+                            } else {
+                                return;
+                            }
+                        } elseif ($adapter instanceof \Symfony\Component\Cache\Adapter\MemcachedAdapter) {
+                            if (\method_exists($adapter, 'getClient')) {
+                                $client = $adapter->getClient();
+                                // getVersion() return false if the server is not reachable
+                                if (\method_exists($client, 'getVersion')) {
+                                    $version = $client->getVersion();
+                                    if ($version === false || empty($version)) {
+                                        return;
+                                    }
+                                }
+                            }
+                        } elseif ($adapter instanceof \Symfony\Component\Cache\Adapter\PdoAdapter) {
+                            if (\method_exists($adapter, 'getConnection')) {
+                                $pdo = $adapter->getConnection();
+                                // getAttribute() throws exception if connection is down
+                                if ($pdo instanceof \PDO) {
+                                    $version = $pdo->getAttribute(\PDO::ATTR_SERVER_VERSION);
+                                    if ($version === null || $version === false) {
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        return;
+                    }
+                }
                 $itemName = "_datadog.route.path.$route_name";
                 $locale = $request->get('_locale');
                 if ($locale !== null) {
