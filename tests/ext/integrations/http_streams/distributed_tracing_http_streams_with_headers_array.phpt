@@ -23,13 +23,22 @@ DDTrace\trace_function('file_get_contents', function (\DDTrace\SpanData $span) {
 
 function fetch_with_headers(array $headers)
 {
+    // Build a non-interned string so that its lifetime is tied to the stream context and this test can
+    // catch refcount/ownership bugs under ASAN.
+    $method = sprintf('%s%s%s', 'G', 'E', 'T');
     $ctx = stream_context_create([
         'http' => [
-            'method' => 'GET',
+            'method' => $method,
             'header' => $headers,
         ],
     ]);
-    return file_get_contents($GLOBALS['url'], false, $ctx);
+    $response = file_get_contents($GLOBALS['url'], false, $ctx);
+
+    // Ensure the context (and the method string) are released as early as possible.
+    unset($ctx, $method);
+    gc_collect_cycles();
+
+    return $response;
 }
 
 $responses = [];
