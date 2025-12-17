@@ -218,6 +218,7 @@ void ddtrace_extract_ip_from_headers(zval *server, zend_array *meta)
         return;
     }
     zval http_client_ip;
+    // `ddtrace_ip_extraction_find()` returns an owned zend_string; transfer ownership into span meta.
     ZVAL_STR(&http_client_ip, val);
     zend_hash_str_update(meta, ZEND_STRL("http.client_ip"), &http_client_ip);
 }

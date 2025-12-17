@@ -1,10 +1,11 @@
-use libdd_trace_utils::span::SpanBytes;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
+use libdd_trace_utils::span::SpanBytes;
+use std::collections::TryReserveError;
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
-use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
 
 /// cbindgen:no-export
 #[repr(C)]
@@ -117,15 +118,87 @@ fn convert_to_bytes(zend_str: &mut ZendString) -> Bytes {
     }
 }
 
-fn convert_zend_to_bytes_string(zend_str: &mut ZendString) -> BytesString {
-    unsafe {
-        match String::from_utf8_lossy(std::slice::from_raw_parts(
-            zend_str.val.as_ptr(),
-            zend_str.len,
-        )) {
-            Cow::Owned(s) => s.into(),
-            Cow::Borrowed(_) => BytesString::from_bytes_unchecked(convert_to_bytes(zend_str)),
+// This is copied from String::from_utf8_lossy and mutated to do fallible
+// allocations, and then return a Result accordingly.
+fn try_from_utf8_lossy(v: &[u8]) -> Result<Cow<'_, str>, TryReserveError> {
+    let mut iter = v.utf8_chunks();
+
+    let first_valid = if let Some(chunk) = iter.next() {
+        let valid = chunk.valid();
+        if chunk.invalid().is_empty() {
+            debug_assert_eq!(valid.len(), v.len());
+            return Ok(Cow::Borrowed(valid));
         }
+        valid
+    } else {
+        return Ok(Cow::Borrowed(""));
+    };
+
+    const REPLACEMENT: &str = "\u{FFFD}";
+    const REPLACEMENT_LEN: usize = REPLACEMENT.len();
+
+    let mut res = String::new();
+    res.try_reserve(v.len())?;
+    res.push_str(first_valid);
+    res.try_reserve(REPLACEMENT_LEN)?;
+    res.push_str(REPLACEMENT);
+
+    for chunk in iter {
+        let valid = chunk.valid();
+        res.try_reserve(valid.len())?;
+        res.push_str(valid);
+        if !chunk.invalid().is_empty() {
+            res.try_reserve(REPLACEMENT_LEN)?;
+            res.push_str(REPLACEMENT);
+        }
+    }
+
+    Ok(Cow::Owned(res))
+}
+
+fn convert_zend_to_bytes_string(zend_str: &mut ZendString) -> BytesString {
+    // We have had OOM reports from this function. Based on the crash reports
+    // coming in, it's not a problem in this function itself, and most likely
+    // the zend_string that's coming in is garbage.
+    // So we're adding defensive checks to get a better idea of which things
+    // are wrong.
+
+    // This would cause UB.
+    assert!(
+        zend_str.len <= isize::MAX as usize,
+        "Cannot convert zend_string of length {} to a Rust slice, as it is larger than isize::MAX {}",
+        zend_str.len,
+        isize::MAX
+    );
+
+    // SAFETY:
+    //  1. zend_str.val cannot be a null pointer, it's embedded data inside a
+    //     reference to a ZendString.
+    //  2. It also cannot be mis-aligned, as it's just bytes.
+    //  3. Checked above that the length is not above `isize::MAX`.
+    let slice: &[u8] = unsafe {
+        std::slice::from_raw_parts(
+            std::ptr::addr_of!(zend_str.val).cast(),
+            zend_str.len
+        )
+    };
+
+    match try_from_utf8_lossy(slice) {
+        Ok(Cow::Owned(s)) => s.into(),
+
+        // SAFETY: the string is valid utf-8 because it hit the Borrowed case.
+        Ok(Cow::Borrowed(_)) => unsafe {
+            BytesString::from_bytes_unchecked(convert_to_bytes(zend_str))
+        },
+
+        // If the length is "reasonable" e.g. less than 2 GiB, we might be in
+        // ordinary OOM territory.
+        Err(err) if slice.len() <= (i32::MAX as usize) => panic!("failed to allocate memory for non-UTF8 zend_string"),
+
+        // But if it's larger than that, its quite likely a use-after-free and
+        // the string is nonsense, which is also why it's not UTF-8 (memory is
+        // only allocated in try_from_utf8_lossy if it's not UTF-8).
+        Err(err) => panic!("failed to allocate memory for non-UTF8 zend_string of length {}, zend_string was likely corrupted", slice.len()),
     }
 }
 
