@@ -7,12 +7,22 @@ DD_TRACE_BAGGAGE_TAG_KEYS=*
 --FILE--
 <?php
 
-DDTrace\consume_distributed_tracing_headers(function ($header) {
+$root = DDTrace\start_span();
+
+$baggage = sprintf(
+    "user.id=%s,session.id=%s,region=%s,language=%s",
+    "123",
+    "abc",
+    "us-east1",
+    "php"
+);
+
+DDTrace\consume_distributed_tracing_headers(function ($header) use ($baggage) {
     return [
-            "baggage" => "user.id=123,session.id=abc,region=us-east1,language=php"
+            "baggage" => $baggage
         ][$header] ?? null;
 });
-var_dump(DDTrace\start_span()->meta);
+var_dump($root->meta);
 
 ?>
 --EXPECTF--
