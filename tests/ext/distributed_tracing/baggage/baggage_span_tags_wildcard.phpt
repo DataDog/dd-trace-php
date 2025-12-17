@@ -18,10 +18,13 @@ $baggage = sprintf(
 );
 
 DDTrace\consume_distributed_tracing_headers(function ($header) use ($baggage) {
-    return [
-            "baggage" => $baggage
-        ][$header] ?? null;
+    return ["baggage" => $baggage][$header] ?? null;
 });
+
+// Force an early destruction of the baggage table to surface any refcounting/ownership issues
+// where baggage values are also stored in span meta without a separate reference.
+$root->baggage = [];
+
 $meta = $root->meta;
 ksort($meta);
 var_dump($meta);
@@ -29,14 +32,14 @@ var_dump($meta);
 ?>
 --EXPECTF--
 array(5) {
-  ["baggage.user.id"]=>
-  string(3) "123"
-  ["baggage.session.id"]=>
-  string(3) "abc"
-  ["baggage.region"]=>
-  string(8) "us-east1"
   ["baggage.language"]=>
   string(3) "php"
+  ["baggage.region"]=>
+  string(8) "us-east1"
+  ["baggage.session.id"]=>
+  string(3) "abc"
+  ["baggage.user.id"]=>
+  string(3) "123"
   ["runtime-id"]=>
   string(36) "%s"
 }
