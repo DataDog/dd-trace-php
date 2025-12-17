@@ -63,6 +63,14 @@ foreach ($responses as $key => $response) {
     echo PHP_EOL;
 }
 
+echo "=== Spans ===\n";
+$spans = dd_trace_serialize_closed_spans();
+foreach ($spans as $span) {
+    if (($span['meta']['component'] ?? null) === 'php.stream') {
+        echo "http.method: " . ($span['meta']['http.method'] ?? '<missing>') . "\n";
+    }
+}
+
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
@@ -86,6 +94,10 @@ x-datadog-sampling-priority: 1
 x-datadog-tags: %s
 x-datadog-trace-id: %d
 x-foo: two
+
+=== Spans ===
+http.method: GET
+http.method: GET
 
 Done.
 [ddtrace] [info] Flushing trace of size 5 to send-queue for %s
