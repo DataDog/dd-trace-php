@@ -24,11 +24,11 @@ use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use datadog_profiling::api::{
+use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
 };
-use datadog_profiling::exporter::Tag;
-use datadog_profiling::internal::Profile as InternalProfile;
+use libdd_profiling::exporter::Tag;
+use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use once_cell::sync::OnceCell;
 use std::borrow::Cow;
@@ -333,7 +333,7 @@ impl TimeCollector {
         let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = InternalProfile::new(
+        let mut profile = InternalProfile::try_new(
             &sample_types,
             Some(Period {
                 r#type: ApiValueType {
@@ -342,7 +342,8 @@ impl TimeCollector {
                 },
                 value: period.min(i64::MAX as u128) as i64,
             }),
-        );
+        )
+        .expect("failed to create a new InternalProfile object");
         let _ = profile.set_start_time(started_at);
 
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
@@ -351,7 +352,7 @@ impl TimeCollector {
             let upscaling_info = UpscalingInfo::Poisson {
                 sum_value_offset: alloc_size_offset,
                 count_value_offset: alloc_samples_offset,
-                sampling_distance: ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed),
             };
             let values_offset = [alloc_size_offset, alloc_samples_offset];
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
@@ -391,7 +392,7 @@ impl TimeCollector {
                 &mut profile,
                 socket_read_time_offset,
                 socket_read_time_samples_offset,
-                SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "socket read time samples",
             );
 
@@ -399,7 +400,7 @@ impl TimeCollector {
                 &mut profile,
                 socket_write_time_offset,
                 socket_write_time_samples_offset,
-                SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "socket write time samples",
             );
 
@@ -407,7 +408,7 @@ impl TimeCollector {
                 &mut profile,
                 file_read_time_offset,
                 file_read_time_samples_offset,
-                FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file read time samples",
             );
 
@@ -415,7 +416,7 @@ impl TimeCollector {
                 &mut profile,
                 file_write_time_offset,
                 file_write_time_samples_offset,
-                FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file write time samples",
             );
 
@@ -423,7 +424,7 @@ impl TimeCollector {
                 &mut profile,
                 socket_read_size_offset,
                 socket_read_size_samples_offset,
-                SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "socket read size samples",
             );
 
@@ -431,7 +432,7 @@ impl TimeCollector {
                 &mut profile,
                 socket_write_size_offset,
                 socket_write_size_samples_offset,
-                SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "socket write size samples",
             );
 
@@ -439,7 +440,7 @@ impl TimeCollector {
                 &mut profile,
                 file_read_size_offset,
                 file_read_size_samples_offset,
-                FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file read size samples",
             );
 
@@ -447,13 +448,13 @@ impl TimeCollector {
                 &mut profile,
                 file_write_size_offset,
                 file_write_size_samples_offset,
-                FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst),
+                FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed),
                 "file write size samples",
             );
         }
         if let Some(exception_samples_offset) = exception_samples_offset {
             let upscaling_info = UpscalingInfo::Proportional {
-                scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+                scale: EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
             };
             let values_offset = [exception_samples_offset];
             match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
@@ -1527,7 +1528,7 @@ pub struct JoinError {
 mod tests {
     use super::*;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
-    use datadog_profiling::exporter::Uri;
+    use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {

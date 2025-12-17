@@ -1,6 +1,25 @@
 include(FetchContent)
 
-option(MPACK_DEBUG "Compile mpack with MPACK_DEBUG=1 and min buffer size" OFF)
+# Enable MPACK_DEBUG by default is this is a Debug build or we're building
+# against a debug php release
+set(MPACK_DEBUG_DEFAULT OFF)
+if(DD_APPSEC_BUILD_EXTENSION)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(MPACK_DEBUG_DEFAULT ON)
+    endif()
+    if(PhpConfig_FOUND AND PhpConfig_EXECUTABLE)
+        execute_process(
+            COMMAND ${PhpConfig_EXECUTABLE} --configure-options
+            OUTPUT_VARIABLE PHP_CONFIGURE_OPTIONS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET)
+        if(PHP_CONFIGURE_OPTIONS MATCHES "--enable-debug")
+            set(MPACK_DEBUG_DEFAULT ON)
+        endif()
+    endif()
+endif()
+
+option(MPACK_DEBUG "Compile mpack with MPACK_DEBUG=1 and min buffer size" ${MPACK_DEBUG_DEFAULT})
 
 if(DD_APPSEC_BUILD_HELPER)
     set(LIBDDWAF_TESTING OFF)
@@ -34,11 +53,22 @@ if(DD_APPSEC_BUILD_EXTENSION)
         POSITION_INDEPENDENT_CODE 1
         C_VISIBILITY_PRESET hidden)
 
-    target_include_directories(mpack PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/)
+    target_include_directories(mpack
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/extension/mpack/)
+    target_link_libraries(mpack PUBLIC PhpConfig) # for the allocation functions
+    target_compile_definitions(mpack PUBLIC MPACK_HAS_CONFIG=1)
     if(MPACK_DEBUG)
         target_compile_definitions(mpack PUBLIC MPACK_DEBUG=1 MPACK_BUFFER_SIZE=32)
     else()
         target_compile_definitions(mpack PUBLIC MPACK_STDIO=0 MPACK_WRITE_TRACKING=1 MPACK_BUFFER_SIZE=131072)
+    endif()
+
+    if(DD_APPSEC_TESTING)
+        add_library(mpack_malloc OBJECT ${MPACK_C_SOURCES})
+        target_include_directories(mpack_malloc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../ext/vendor/mpack/)
+        target_compile_definitions(mpack_malloc PUBLIC MPACK_STDIO=0 MPACK_WRITE_TRACKING=1 MPACK_BUFFER_SIZE=131072)
     endif()
 endif()
 
@@ -51,7 +81,7 @@ FetchContent_MakeAvailable(spdlog)
 set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
 # zlib
-set(ZLIB_VERSION v1.3)
+set(ZLIB_VERSION v1.3.1)
 FetchContent_Declare(
         zlib
         GIT_REPOSITORY https://github.com/madler/zlib.git

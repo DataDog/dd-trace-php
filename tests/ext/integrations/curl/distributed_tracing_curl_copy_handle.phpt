@@ -45,8 +45,8 @@ curl_setopt($ch2, CURLOPT_HTTPHEADER, [
 $responses[] = curl_exec($ch2);
 show_curl_error_on_fail($ch2);
 
-curl_close($ch);
-curl_close($ch2);
+if (PHP_VERSION_ID < 80000) { curl_close($ch); }
+if (PHP_VERSION_ID < 80000) { curl_close($ch2); }
 
 include 'distributed_tracing.inc';
 foreach ($responses as $key => $response) {

@@ -116,11 +116,14 @@ stages:
       - PHP_MAJOR_MINOR: <?= json_encode($windows_minor_major_targets) ?>
 
   variables:
-    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_COUNT: 2
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
+    GIT_CONFIG_KEY_1: core.symlinks
+    GIT_CONFIG_VALUE_1: true
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
     GIT_STRATEGY: clone
+    GIT_CLEAN_FLAGS: -ffdxq
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
     # Make sure we actually fail if a command fails
@@ -152,13 +155,13 @@ stages:
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
   after_script:
     - |
-        docker exec php cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
+        docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
         exit 0
     - 'powershell -NoProfile -Command "try { docker logs request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker logs httpbin-integration } catch {}"'
-    - 'powershell -NoProfile -Command "try { docker stop -t 5 request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker rm -f request-replayer } catch {}"'
-    - 'powershell -NoProfile -Command "try { docker stop -t 5 httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker rm -f httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker network rm net } catch {}"'
   artifacts:
@@ -192,6 +195,11 @@ stages:
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
   timeout: 60m
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     host_os: linux-gnu
     COMPOSER_MEMORY_LIMIT: "-1"
@@ -204,7 +212,7 @@ stages:
     HTTPBIN_PORT: 8080
   before_script:
 <?php before_script_steps() ?>
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
+    - .gitlab/wait-for-service-ready.sh
 
 .asan_test:
   extends: .base_test
@@ -494,7 +502,7 @@ endforeach;
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
+    - .gitlab/wait-for-service-ready.sh
   script:
     - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
@@ -511,7 +519,7 @@ $services["magento"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["deferred_loadin"] = "redis";
 $services["pdo"] = "mysql";
-$services["kafk"] = ["kafka", "zookeeper"];
+$services["kafka"] = ["kafka", "zookeeper"];  // Overwrite auto-generated entry
 
 $jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
@@ -652,6 +660,7 @@ $xdebug_test_matrix = [
     ["8.2", "3.2.2"],
     ["8.3", "3.3.2"],
     ["8.4", "3.4.0"],
+    // ["8.5", "3.5.0"], Xdebug not supported yet on 8.5
 ];
 foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 ?>

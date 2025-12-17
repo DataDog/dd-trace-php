@@ -103,6 +103,11 @@ class SlimIntegration extends Integration
                     $callableName = '{unknown callable}';
                     \is_callable($callable, false, $callableName);
 
+                    // PHP 8.5 changed closure naming format; normalize to Closure::__invoke
+                    if ($callable instanceof \Closure) {
+                        $callableName = 'Closure::__invoke';
+                    }
+
                     $span->resource = $callableName ?: 'controller';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);

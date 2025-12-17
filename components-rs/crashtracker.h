@@ -414,6 +414,16 @@ struct ddog_VoidResult ddog_crasht_CrashInfo_resolve_names(struct ddog_crasht_Ha
  * # Safety
  * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
  * which has not previously been dropped.
+ * This function will:
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfo_enrich_callstacks(struct ddog_crasht_Handle_CrashInfo *crash_info,
+                                                               uint32_t pid);
+
+/**
+ * # Safety
+ * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
  * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
@@ -633,27 +643,19 @@ struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_trace_id(struct ddog_cr
  * The CharSlice must be valid.
  */
 DDOG_CHECK_RETURN
-struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
-                                                              ddog_CharSlice uuid);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                 ddog_CharSlice message);
 
 /**
  * # Safety
  * The `builder` can be null, but if non-null it must point to a Builder made by this module,
  * which has not previously been dropped.
- * The CharSlice must be valid.
+ * All arguments must be valid.
+ * This method requires that the builder has a UUID, siginfo, and metadata set
  */
 DDOG_CHECK_RETURN
-struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_uuid_random(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
-
-/**
- * # Safety
- * The `crash_info` can be null, but if non-null it must point to a Builder made by this module,
- * which has not previously been dropped.
- * The CharSlice must be valid.
- */
-DDOG_CHECK_RETURN
-struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
-                                                                 ddog_CharSlice message);
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_upload_ping_to_endpoint(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                            const struct ddog_Endpoint *endpoint);
 
 /**
  * Create a new StackFrame, and returns an opaque reference to it.
@@ -873,6 +875,76 @@ DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_receiver_entry_point_stdin(
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_receiver_entry_point_unix_socket(ddog_CharSlice socket_path);
+
+/**
+ * Register a runtime stack collection callback
+ *
+ * # Arguments
+ * - `callback`: The callback function to invoke during crashes
+ *
+ * # Returns
+ * - `CallbackResult::Ok` if registration succeeds
+ * - `CallbackResult::Error` if registration fails
+ *
+ * # Safety
+ * - The callback must be signal-safe
+ * - Only one callback can be registered at a time
+ * - The callback must be registered once on CrashTracker initialization, before any crash occurs
+ *
+ * # Example Usage from C
+ * ```c
+ * static void my_runtime_callback(
+ *     void (*emit_frame)(const ddog_RuntimeStackFrameFFI*),
+ * ) {
+ *     // Collect runtime frames and call emit_frame for each one
+ *     const char* function_name = "my_function";
+ *     const char* file_name = "script.rb";
+ *     ddog_CharSlice type_name = DDOG_CHARSLICE_FROM_CSTR("MyModule.MyClass");
+ *     ddog_crasht_RuntimeStackFrameFFI frame = {
+ *         .type_name = type_name,
+ *         .function = DDOG_CHARSLICE_FROM_CSTR(function_name),
+ *         .file = DDOG_CHARSLICE_FROM_CSTR(file_name),
+ *         .line = 42,
+ *         .column = 10
+ *     };
+ *     emit_frame(&frame);
+ * }
+ */
+enum ddog_crasht_CallbackResult ddog_crasht_register_runtime_frame_callback(ddog_crasht_RuntimeStackFrameCallback callback);
+
+/**
+ * Register a runtime stacktrace string collection callback
+ *
+ * # Arguments
+ * - `callback`: The callback function to invoke during crashes
+ *
+ * # Returns
+ * - `CallbackResult::Ok` if registration succeeds (replaces any existing callback)
+ * - `CallbackResult::Error` if registration fails
+ *
+ * # Safety
+ * - The callback must be signal-safe
+ * - Only one callback can be registered at a time (this replaces any existing one)
+ */
+enum ddog_crasht_CallbackResult ddog_crasht_register_runtime_stacktrace_string_callback(ddog_crasht_RuntimeStacktraceStringCallback callback);
+
+/**
+ * Returns true if a callback is registered, false otherwise
+ *
+ * # Safety
+ * This function is safe to call at any time
+ */
+bool ddog_crasht_is_runtime_callback_registered(void);
+
+/**
+ * Get the callback type from the currently registered callback context
+ *
+ * # Safety
+ * - The returned pointer is valid only while the callback remains registered
+ * - The caller should not free the returned pointer
+ * - The returned string should be copied if it needs to persist beyond callback lifetime
+ */
+const char *ddog_crasht_get_registered_callback_type(void);
 
 #ifdef __cplusplus
 }  // extern "C"

@@ -48,7 +48,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJ
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{datadog-alloc,build-common,datadog-crashtracker,datadog-crashtracker-ffi,data-pipeline,ddcommon,ddcommon-ffi,ddsketch,ddtelemetry,ddtelemetry-ffi,dogstatsd-client,datadog-ipc,datadog-ipc-macros,datadog-library-config,datadog-library-config-ffi,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,spawn_worker,tinybytes,tools/{cc_utils,sidecar_mockgen},datadog-trace-*,Cargo.toml} -type f \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},datadog-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -176,7 +176,7 @@ test_c_observer: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-te
 	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d extension=zend_test.so -d zend_test.observer.enabled=1 -d zend_test.observer.observe_all=1 -d zend_test.observer.show_output=0 $(BUILD_DIR)/$(TESTS)
 
 test_opcache: $(SO_FILE) $(TEST_OPCACHE_FILES) $(BUILD_DIR)/run-tests.php
-	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -d zend_extension=opcache.so $(BUILD_DIR)/tests/opcache
+	$(if $(ASAN), USE_ZEND_ALLOC=0 USE_TRACKED_ALLOC=1) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) $(shell test $(PHP_MAJOR_MINOR) -lt 85 && echo "-d zend_extension=opcache.so") $(BUILD_DIR)/tests/opcache
 
 test_c_mem: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-tests.php
 	$(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m $(BUILD_DIR)/$(TESTS)
@@ -424,23 +424,23 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 			--config cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/ddtrace.h; \
 		cd libdatadog; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddcommon-ffi \
-			--config ddcommon-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-common-ffi \
+			--config libdd-common-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/common.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-live-debugger-ffi  \
 			--config datadog-live-debugger-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/live-debugger.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate ddtelemetry-ffi  \
-			--config ddtelemetry-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-telemetry-ffi  \
+			--config libdd-telemetry-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/telemetry.h; \
 		$(command rustup && echo run nightly --) cbindgen --crate datadog-sidecar-ffi  \
 			--config datadog-sidecar-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/sidecar.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-crashtracker-ffi  \
-			--config datadog-crashtracker-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-crashtracker-ffi  \
+			--config libdd-crashtracker-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/crashtracker.h; \
-		$(command rustup && echo run nightly --) cbindgen --crate datadog-library-config-ffi  \
-			--config datadog-library-config-ffi/cbindgen.toml \
+		$(command rustup && echo run nightly --) cbindgen --crate libdd-library-config-ffi  \
+			--config libdd-library-config-ffi/cbindgen.toml \
 			--output $(PROJECT_ROOT)/components-rs/library-config.h; \
 		if test -d $(PROJECT_ROOT)/tmp; then \
 			mkdir -pv "$(BUILD_DIR)"; \
@@ -1132,6 +1132,48 @@ TEST_WEB_84 := \
 	test_web_custom \
 	test_web_zend_1_21
 
+TEST_INTEGRATIONS_85 := \
+	test_integrations_amqp2 \
+	test_integrations_amqp_latest \
+	test_integrations_curl \
+	test_integrations_deferred_loading \
+	test_integrations_kafka \
+	test_integrations_laminaslog2 \
+	test_integrations_memcache \
+	test_integrations_memcached \
+	test_integrations_mongodb_latest \
+	test_integrations_monolog1 \
+	test_integrations_monolog2 \
+	test_integrations_monolog_latest \
+	test_integrations_mysqli \
+	test_integrations_openai_latest \
+	test_opentelemetry_1 \
+	test_integrations_guzzle_latest \
+	test_integrations_pcntl \
+	test_integrations_pdo \
+	test_integrations_elasticsearch7 \
+	test_integrations_elasticsearch8 \
+	test_integrations_elasticsearch_latest \
+	test_integrations_predis_2 \
+	test_integrations_predis_latest \
+	test_integrations_frankenphp \
+	test_integrations_ratchet \
+	test_integrations_sqlsrv \
+	test_opentracing_10
+
+TEST_WEB_85 := \
+	test_metrics \
+	test_web_cakephp_latest \
+	test_web_codeigniter_22 \
+	test_web_codeigniter_31 \
+	test_web_lumen_100 \
+	test_web_slim_312 \
+	test_web_symfony_latest \
+	test_web_wordpress_59 \
+	test_web_wordpress_61 \
+	test_web_custom \
+	test_web_zend_1_21
+
 # to check: test_web_drupal_95, test_web_laravel_latest, test_web_slim_latest, test_integrations_phpredis6
 
 FILTER ?= .
@@ -1166,9 +1208,10 @@ endef
 define run_tests_debug
 	$(eval TEST_EXTRA_ENV=$(TEST_EXTRA_ENV) DD_TRACE_DEBUG=1)
 	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
-		tee >(grep -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
-		{ ! (grep -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
-		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1)
+		tee >(grep --line-buffered -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
+		{ ! (grep --line-buffered -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
+		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1); \
+	timeout 10 bash -c 'wait' 2>/dev/null || true
 	$(eval TEST_EXTRA_ENV=)
 endef
 

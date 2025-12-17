@@ -1,5 +1,6 @@
 // Note: Not included on Windows
 #include "signals.h"
+#include "crashtracking_frames.h"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -271,6 +272,8 @@ static void dd_init_crashtracker() {
             ),
             "Cannot initialize CrashTracker"
     );
+
+    ddtrace_register_crashtracking_frames_collection();
 
     ddog_endpoint_drop(agent_endpoint);
     ddog_Vec_Tag_drop(tags);

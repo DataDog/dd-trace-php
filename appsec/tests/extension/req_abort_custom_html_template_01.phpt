@@ -23,4 +23,4 @@ Content-type: text/html;charset=UTF-8
 --EXPECTF--
 <html lang=\"en\"><head><title>You've been blocked</title></head><body><main><p>Sorry!</p></main><footer><p>Security provided</p></footer></body></html>
 
-Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page in %s on line %d
+Warning: datadog\appsec\testing\rinit(): Datadog blocked the request and presented a static error page. No action required. Security Response ID:  in %s on line %d

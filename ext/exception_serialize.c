@@ -267,7 +267,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
         case IS_RESOURCE: {
             const char *type_name = zend_rsrc_list_get_rsrc_type(Z_RES_P(zv));
             ddtrace_capture_long_value(Z_RES_P(zv)->handle, value);
-            value->type = (ddog_CharSlice){ .ptr = type_name, .len = strlen(type_name) };
+            value->type = type_name ? (ddog_CharSlice){ .ptr = type_name, .len = strlen(type_name) } : DDOG_CHARSLICE_C("<closed resource>");
             break;
         }
 
@@ -305,8 +305,9 @@ static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_
         ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARR_P(locals), key, val) {
             if (!zend_string_equals_literal(key, "GLOBALS")) {
                 struct ddog_CaptureValue capture_value = {0};
+                ddtrace_snapshot_redacted_name(&capture_value, dd_zend_string_to_CharSlice(key));
                 ddtrace_create_capture_value(val, &capture_value, capture_config, capture_config->max_reference_depth);
-                ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_LOCAL, (ddog_CharSlice) {.ptr = ZSTR_VAL(key), .len = ZSTR_LEN(key)}, capture_value);
+                ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_LOCAL, dd_zend_string_to_CharSlice(key), capture_value);
             }
         } ZEND_HASH_FOREACH_END();
     }

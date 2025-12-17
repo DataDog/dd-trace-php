@@ -40,7 +40,7 @@ Array
     [headers] => Array
         (
             [Content-Type] => text/html
-            [Content-Length] => 1460
+            [Content-Length] => 1604
         )
 
 )

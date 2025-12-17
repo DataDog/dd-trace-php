@@ -16,7 +16,7 @@
 #include "php_dd_library_loader.h"
 
 #define MIN_API_VERSION 320151012
-#define MAX_API_VERSION 420240924
+#define MAX_API_VERSION 420250925
 #define MAX_INI_API_VERSION MAX_API_VERSION + 1
 
 #define PHP_70_VERSION 20151012
@@ -25,7 +25,7 @@
 #define PHP_80_VERSION 20200930
 
 #define MIN_PHP_VERSION "7.0"
-#define MAX_PHP_VERSION "8.4"
+#define MAX_PHP_VERSION "8.5"
 
 extern zend_module_entry dd_library_loader_mod;
 
@@ -270,7 +270,7 @@ injected_ext ddloader_injected_ext_config[EXT_COUNT] = {
     [EXT_DATADOG_PROFILING] = DECLARE_INJECTED_EXT("datadog-profiling", "profiling", PHP_71_VERSION, NULL, profiling_pre_minit_hook,
                         ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("standard") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("datadog-profiling") ZEND_MOD_OPTIONAL("ev") ZEND_MOD_OPTIONAL("event") ZEND_MOD_OPTIONAL("libevent") ZEND_MOD_OPTIONAL("uv") ZEND_MOD_END})),
     [EXT_DDAPPSEC] = DECLARE_INJECTED_EXT("ddappsec", "appsec", PHP_70_VERSION, NULL, appsec_pre_minit_hook,
-                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("ddappsec") ZEND_MOD_END})),
+                        ((zend_module_dep[]){ZEND_MOD_OPTIONAL("json") ZEND_MOD_OPTIONAL("ddtrace") ZEND_MOD_OPTIONAL("ddtrace_injected") ZEND_MOD_OPTIONAL("ddappsec") ZEND_MOD_END})),
 };
 
 void ddloader_logv(injected_ext *config, log_level level, const char *format, va_list va) {

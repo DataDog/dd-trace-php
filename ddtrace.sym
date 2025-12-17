@@ -20,6 +20,7 @@ ddog_remote_config_reader_for_path
 ddog_remote_config_read
 ddog_remote_config_reader_drop
 get_module
+ddog_crashtracker_entry_point
 ddog_daemon_entry_point
 ddog_set_rc_notify_fn
 ddog_remote_config_path

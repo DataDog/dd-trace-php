@@ -42,6 +42,11 @@ stages:
 
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   before_script:
 <?php unset_dd_runner_env_vars() ?>
     - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
@@ -132,6 +137,8 @@ stages:
           - test8.3-release-zts
           - test8.4-release
           - test8.4-release-zts
+          - test8.5-release
+          - test8.5-release-zts
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
   script:

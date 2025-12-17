@@ -39,7 +39,7 @@ struct PACKED _dd_header { // NOLINT
 
 typedef struct PACKED _dd_header dd_header;
 
-static const int CONNECT_TIMEOUT = 2500;    // ms
+static const int CONNECT_TIMEOUT = 1500;    // ms
 static const int CONNECT_RETRY_PAUSE = 100; // ms
 static const uint32_t MAX_RECV_MESSAGE_SIZE = 4 * 1024 * 1024;
 
@@ -308,18 +308,14 @@ dd_result dd_conn_recv(dd_conn *nonnull conn, char *nullable *nonnull data,
 static dd_result _recv_message_body(int sock, char *nullable *nonnull data,
     size_t *nonnull data_len, size_t expected_size)
 {
-    char *buffer = malloc(expected_size);
-    if (!buffer) {
-        return dd_error;
-    }
-    *data = buffer;
-    *data_len = expected_size;
+    char *buffer = emalloc(expected_size);
 
     size_t remaining_bytes = expected_size;
     mlog(dd_log_debug, "Will receive message body. Expected size: %zu",
         expected_size);
+    char *w = buffer;
     while (remaining_bytes > 0) {
-        ssize_t recv_bytes = recv(sock, buffer, remaining_bytes, 0);
+        ssize_t recv_bytes = recv(sock, w, remaining_bytes, 0);
         if (recv_bytes == -1) {
             if (errno == EINTR) {
                 mlog(dd_log_debug, "recv() call interrupted. Retrying");
@@ -335,14 +331,17 @@ static dd_result _recv_message_body(int sock, char *nullable *nonnull data,
             goto error;
         }
 
-        buffer += recv_bytes;
+        w += recv_bytes;
         remaining_bytes -= recv_bytes;
     }
     mlog(dd_log_debug, "Got full response. Size %zu", expected_size);
 
+    *data = buffer;
+    *data_len = expected_size;
+
     return dd_success;
 error:
-    free(buffer);
+    efree(buffer);
     return dd_network;
 }
 

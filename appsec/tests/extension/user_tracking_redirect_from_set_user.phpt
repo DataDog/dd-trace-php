@@ -34,4 +34,4 @@ echo "SHOULD NOT BE REACHED\n";
 Status: 303 See Other
 Content-type: text/html; charset=UTF-8
 --EXPECTF--
-Warning: DDTrace\set_user(): Datadog blocked the request and attempted a redirection to https://datadoghq.com in %s on line %d
+Warning: DDTrace\set_user(): Datadog blocked the request and attempted a redirection to https://datadoghq.com. No action required. Security Response ID:  in %s on line %d

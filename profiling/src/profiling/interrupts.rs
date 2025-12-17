@@ -46,6 +46,12 @@ impl InterruptManager {
     pub(super) fn remove_interrupt(&self, interrupt: VmInterrupt) {
         let mut vm_interrupts = self.vm_interrupts.lock().unwrap();
         vm_interrupts.remove(&interrupt);
+        unsafe {
+            // Reset interrupt counter to prevent sampling during `mshutdown` (PHP 8.0 bug with
+            // userland destructors), but leave the interrupt flag unchanged as other extensions
+            // may have raised it.
+            (*interrupt.interrupt_count_ptr).store(0, Ordering::SeqCst);
+        }
     }
 
     #[inline]

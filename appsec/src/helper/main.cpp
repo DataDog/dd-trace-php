@@ -80,6 +80,7 @@ bool ensure_unique(const std::string &lock_path)
     // If we fail to obtain the lock, for whichever reason, assume we can't
     // run for now.
     if (res == -1) {
+        ::close(fd);
         SPDLOG_INFO("Failed to get exclusive lock on file {}: errno {}",
             lock_path, errno);
         return false;
@@ -224,11 +225,24 @@ appsec_helper_shutdown() noexcept
         // the helper shared library is unloaded by trampoline.c.
         // Wait for the joinable thread to actually exit (with a timeout).
         void *thr_exit_status;
+#ifdef __APPLE__
+        // macOS doesn't have pthread_tryjoin_np, so we check the deadline first
+        // and then do a blocking join if the thread has finished
+        if (had_finished) {
+            // Thread has signaled finished, do a blocking join
+            const int res = pthread_join(thread_handle, &thr_exit_status);
+            if (res == 0) {
+                SPDLOG_INFO("AppSec helper thread has exited");
+                break;
+            }
+        }
+#else
         const int res = pthread_tryjoin_np(thread_handle, &thr_exit_status);
         if (res == 0) {
             SPDLOG_INFO("AppSec helper thread has exited");
             break;
         }
+#endif
 
         if (std::chrono::steady_clock::now() >= deadline) {
             // we need to call _exit() to avoid a segfault in the still running

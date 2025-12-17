@@ -31,8 +31,8 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, c_void, CStr};
 use core::ptr;
-use ddcommon::{cstr, tag, tag::Tag};
 use lazy_static::lazy_static;
+use libdd_common::{cstr, tag, tag::Tag};
 use log::{debug, error, info, trace, warn};
 use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -214,14 +214,16 @@ unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     timeline::timeline_ginit();
 
-    allocation::alloc_prof_ginit();
+    // SAFETY: this is called in thread ginit as expected, and no other places.
+    allocation::ginit();
 }
 
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     timeline::timeline_gshutdown();
 
-    allocation::alloc_prof_gshutdown();
+    // SAFETY: this is called in thread gshutdown as expected, no other places.
+    allocation::gshutdown();
 }
 
 // Important note on the PHP lifecycle:
@@ -318,7 +320,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // and SSL_CERT_DIR environment variables safely before any threads are
     // spawned, avoiding potential getenv/setenv race conditions.
     {
-        let _connector = ddcommon::connector::Connector::default();
+        let _connector = libdd_common::connector::Connector::default();
     }
 
     // Use a hybrid extension hack to load as a module but have the
@@ -577,7 +579,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
         // SAFETY: we are in rinit on a PHP thread.
         locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
-        locals.interrupt_count.store(0, Ordering::SeqCst);
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {

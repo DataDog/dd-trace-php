@@ -275,18 +275,47 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
-
+        def appsecJsonMap = new groovy.json.JsonSlurper().parseText(span.meta."_dd.appsec.json")
+        assert appsecJsonMap.triggers.every { trigger ->
+            def securityResponseId = trigger.security_response_id
+            securityResponseId != null && securityResponseId ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        }
         return span
     }
 
     @Test
-    void 'test blocking'() {
+    void 'test blocking json'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/phpinfo.php')
+                .header('Content-type', 'application/json')
+                .header('Accept', 'application/json')
                 .header('X-Forwarded-For', '80.80.80.80').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 403
-            assert re.body().contains('blocked')
+            def body = new groovy.json.JsonSlurper().parseText(re.body())
+            assert body.errors[0].title == "You've been blocked"
+            assert body.errors[0].detail == "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."
+            assert body.security_response_id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        }
+
+        Span span = trace.first()
+
+        this.assert_blocked_span(span)
+    }
+
+    @Test
+    void 'test blocking html'() {
+        // Set ip which is blocked
+        HttpRequest req = container.buildReq('/phpinfo.php')
+                .header('Content-type', 'application/html')
+                .header('Accept', 'text/html')
+                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+
+            assert re.body().contains('You\'ve been blocked')
+            assert re.body().contains('Sorry, you cannot access this page. Please contact the customer service team.')
+            assert re.body() =~ /Security Response ID: ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/
         }
 
         Span span = trace.first()

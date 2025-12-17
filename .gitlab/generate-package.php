@@ -489,9 +489,11 @@ foreach ($windows_build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     GIT_STRATEGY: clone
-    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_COUNT: 2
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
+    GIT_CONFIG_KEY_1: core.symlinks
+    GIT_CONFIG_VALUE_1: true
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
     # Make sure we actually fail if a command fails
@@ -504,14 +506,17 @@ foreach ($windows_build_platforms as $platform) {
     # Start the container
     docker run -v ${pwd}:C:\Users\ContainerAdministrator\app -d --name ${CONTAINER_NAME} ${IMAGE} ping -t localhost
 
-    # Build nts
-    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}.dll; move x64\Release\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}.pdb"
+    # Build nts (fail fast on any step)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; cd app; switch-php nts; & 'C:\\php\\SDK\\phpize.bat'; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; .\\configure.bat --enable-debug-pack; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; nmake; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; Move-Item x64\\Release\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}.dll -ErrorAction Stop; Move-Item x64\\Release\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}.pdb -ErrorAction Stop"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    # Reuse libdatadog build
-    docker exec ${CONTAINER_NAME} powershell.exe "mkdir app\x64\Release_TS; mv app\x64\Release\target app\x64\Release_TS\target"
+    # Reuse libdatadog build (fail if move fails)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; New-Item -ItemType Directory -Force -Path 'app\\x64\\Release_TS' | Out-Null; Move-Item 'app\\x64\\Release\\target' 'app\\x64\\Release_TS\\target' -ErrorAction Stop"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    # Build zts
-    docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php zts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake; move x64\Release_TS\php_ddtrace.dll extensions_x86_64\php_ddtrace-${ABI_NO}-zts.dll; move x64\Release_TS\php_ddtrace.pdb extensions_x86_64_debugsymbols\php_ddtrace-${ABI_NO}-zts.pdb"
+    # Build zts (fail fast on any step)
+    docker exec ${CONTAINER_NAME} powershell.exe -Command "`$ErrorActionPreference='Stop'; `$PSNativeCommandUseErrorActionPreference=`$true; cd app; switch-php zts; & 'C:\\php\\SDK\\phpize.bat'; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; .\\configure.bat --enable-debug-pack; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; nmake; if (`$LASTEXITCODE -ne 0) { exit `$LASTEXITCODE }; Move-Item x64\\Release_TS\\php_ddtrace.dll extensions_x86_64\\php_ddtrace-${ABI_NO}-zts.dll -ErrorAction Stop; Move-Item x64\\Release_TS\\php_ddtrace.pdb extensions_x86_64_debugsymbols\\php_ddtrace-${ABI_NO}-zts.pdb -ErrorAction Stop"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # Try to stop the container, don't care if we fail
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
@@ -1054,9 +1059,11 @@ endforeach;
   stage: verify
   tags: [ "windows-v2:2019"]
   variables:
-    GIT_CONFIG_COUNT: 1
+    GIT_CONFIG_COUNT: 2
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
+    GIT_CONFIG_KEY_1: core.symlinks
+    GIT_CONFIG_VALUE_1: true
   needs:
     - job: "package extension windows"
       artifacts: true
@@ -1163,7 +1170,7 @@ endforeach;
 
       # Install system dependencies
       apt-get update -o dir::state::lists="$APT_CACHE/lists"
-      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" ca-certificates curl git
+      apt-get install -y --no-install-recommends -o dir::state::lists="$APT_CACHE/lists" -o dir::cache::archives="$APT_CACHE/archives" ca-certificates curl git build-essential
       mkdir -p /etc/apt/keyrings
       curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
@@ -1444,6 +1451,30 @@ deploy_to_reliability_env:
   variables:
     # Prevent token from appearing in logs
     GITHUB_TOKEN: "[MASKED]"
+
+"upload SSI debug symbols":
+  stage: pre-release
+  image: registry.ddbuild.io/ci/async-profiler-build:v71888475-datadog-ci
+  tags: [ "arch:amd64" ]
+  only:
+    - tags
+  needs:
+<?php
+foreach ($arch_targets as $arch) {
+?>
+    - job: "package loader: [<?= $arch ?>]"
+      artifacts: true
+<?php
+}
+?>
+  before_script:
+    - mkdir build
+    - find packages -name "*.tar.gz" -exec tar xzf {} -C build/ \;
+  script:
+    - export DATADOG_API_KEY_PROD=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_prod_us1 --with-decryption --query "Parameter.Value" --out text)
+    - export DATADOG_API_KEY_STAGING=$(aws ssm get-parameter --region us-east-1 --name ci.async-profiler-build.api_key_public_symbols_staging --with-decryption --query "Parameter.Value" --out text)
+    - DATADOG_API_KEY=$DATADOG_API_KEY_STAGING DATADOG_SITE=datad0g.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
+    - DATADOG_API_KEY=$DATADOG_API_KEY_PROD DATADOG_SITE=datadoghq.com DD_BETA_COMMANDS_ENABLED=1 datadog-ci elf-symbols upload --disable-git ./build
 
 "publish release to github":
   stage: release

@@ -20,6 +20,7 @@ CentOS:
     matrix:
       - PHP_VERSION:
         - base
+        - php-8.5
         - php-8.4
         - php-8.3
         - php-8.2
@@ -47,6 +48,7 @@ Alpine:
     matrix:
       - PHP_VERSION:
         - base-alpine
+        - 8.5-alpine
         - 8.4-alpine
         - 8.3-alpine
         - 8.2-alpine
@@ -74,6 +76,7 @@ Bookworm:
     matrix:
       - PHP_VERSION:
         - base
+        - php-8.5
         - php-8.4
         - php-8.3
         - php-8.2
@@ -103,6 +106,7 @@ Buster:
     matrix:
       - PHP_VERSION:
         - base
+        - php-8.5
         - php-8.4
         - php-8.3
         - php-8.2

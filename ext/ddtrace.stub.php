@@ -205,7 +205,7 @@ namespace DDTrace {
         /**
          * @var SpanData|null The parent span, or 'null' if there is none
          */
-        public readonly SpanData|null $parent = null;
+        public readonly SpanData|null $parent;
 
         /**
          * @var SpanStack The span's stack trace
@@ -321,7 +321,7 @@ namespace DDTrace {
         /**
          * @var SpanStack|null The parent stack, or 'null' if there is none
          */
-        public readonly SpanStack|null $parent = null;
+        public readonly SpanStack|null $parent;
 
         /**
          * @var SpanData|null The active span

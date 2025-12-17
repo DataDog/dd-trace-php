@@ -13,6 +13,7 @@ $php_versions_to_abi = [
     "8.2" => "20220829",
     "8.3" => "20230831",
     "8.4" => "20240924",
+    "8.5" => "20250925",
 ];
 
 $all_minor_major_targets = array_keys($php_versions_to_abi);
@@ -49,6 +50,9 @@ default:
       - runner_system_failure
       - scheduler_failure
       - api_failure
+      - script_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
 
 .all_targets: &all_minor_major_targets
 <?php

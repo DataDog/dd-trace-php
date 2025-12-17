@@ -26,6 +26,7 @@ pub static EXCEPTION_PROFILING_INTERVAL: AtomicU32 =
 /// This will store the number of exceptions thrown during a profiling period. It will overflow
 /// when throwing more then 4_294_967_295 exceptions during this period which we currently
 /// believe will bring down your application anyway, so accurate numbers are not a problem.
+#[cfg(feature = "debug_stats")]
 pub static EXCEPTION_PROFILING_EXCEPTION_COUNT: AtomicU32 = AtomicU32::new(0);
 
 pub struct ExceptionProfilingStats {
@@ -39,7 +40,7 @@ impl ExceptionProfilingStats {
     fn new() -> ExceptionProfilingStats {
         // Safety: this will only error if lambda <= 0
         let poisson =
-            Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
+            Poisson::new(EXCEPTION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64).unwrap();
         let mut stats = ExceptionProfilingStats {
             next_sample: 0,
             poisson,
@@ -168,7 +169,7 @@ pub fn exception_profiling_first_rinit() {
         return;
     }
 
-    EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::SeqCst);
+    EXCEPTION_PROFILING_INTERVAL.store(sampling_distance, Ordering::Relaxed);
 
     info!("Exception profiling initialized with sampling distance: {sampling_distance}");
 }
@@ -184,7 +185,8 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     #[cfg(php7)] exception: *mut zend::zval,
     #[cfg(php8)] exception: *mut zend::zend_object,
 ) {
-    EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::SeqCst);
+    #[cfg(feature = "debug_stats")]
+    EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::Relaxed);
 
     let exception_enabled = REQUEST_LOCALS
         .borrow_or_false(|locals| locals.system_settings().profiling_exception_enabled);

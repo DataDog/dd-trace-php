@@ -412,24 +412,69 @@ fn cfg_zts() {
         println!("cargo::rustc-check-cfg=cfg(php_zts)");
     }
 
-    let output = Command::new("php")
-        .arg("-n")
-        .arg("-r")
-        .arg("echo PHP_ZTS, PHP_EOL;")
+    let output = Command::new("php-config")
+        .arg("--include-dir")
         .output()
-        .expect("Unable to run `php`. Is it in your PATH?");
+        .expect("Unable to run `php-config`. Is it in your PATH?");
 
     if !output.status.success() {
         match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php failed: {stderr}"),
-            Err(err) => panic!("`php` failed, not utf8: {err}"),
+            Ok(stderr) => panic!("`php-config --include-dir` failed: {stderr}"),
+            Err(err) => panic!("`php-config --include-dir` failed, not utf8: {err}"),
         }
     }
 
-    let zts =
-        std::str::from_utf8(output.stdout.as_slice()).expect("`php`'s stdout to be valid utf8");
+    let include_dir = std::str::from_utf8(output.stdout.as_slice())
+        .expect("`php-config`'s stdout to be valid utf8")
+        .trim();
 
-    if zts.contains('1') {
+    // Create a temporary C file to probe ZTS
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let probe_path = Path::new(&out_dir).join("zts_probe.c");
+    fs::write(
+        &probe_path,
+        r#"
+#include "main/php_config.h"
+#include <stdio.h>
+int main() {
+#ifdef ZTS
+    printf("1");
+#else
+    printf("0");
+#endif
+    return 0;
+}
+"#,
+    )
+    .expect("Failed to write ZTS probe file");
+
+    // Get the C compiler from cc crate
+    let compiler = cc::Build::new().get_compiler();
+
+    // Compile the probe to an executable
+    let probe_exe = Path::new(&out_dir).join("zts_probe");
+    let compile_status = Command::new(compiler.path())
+        .arg(format!("-I{}", include_dir))
+        .arg(&probe_path)
+        .arg("-o")
+        .arg(&probe_exe)
+        .status()
+        .expect("Failed to compile ZTS probe");
+
+    if !compile_status.success() {
+        panic!("Failed to compile ZTS probe");
+    }
+
+    // Run the probe
+    let probe_output = Command::new(&probe_exe)
+        .output()
+        .expect("Failed to run ZTS probe");
+
+    let zts_value = std::str::from_utf8(&probe_output.stdout)
+        .expect("ZTS probe output not UTF-8")
+        .trim();
+
+    if zts_value == "1" {
         println!("cargo:rustc-cfg=php_zts");
     }
 }

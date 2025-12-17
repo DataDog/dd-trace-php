@@ -1,6 +1,4 @@
 struct _zend_string;
-
-
 #ifndef DDTRACE_PHP_H
 #define DDTRACE_PHP_H
 
@@ -82,7 +80,7 @@ bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remot
 
 bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
                                              ddog_CharSlice config,
-                                             ddog_CharSlice new_value);
+                                             ddog_OwnedZendString new_value);
 
 void ddog_setup_remote_config(ddog_DynamicConfigUpdate update_config,
                               const struct ddog_LiveDebuggerSetup *setup);
@@ -112,7 +110,8 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          const char *error_path,
                                          ddog_CharSlice log_level,
                                          bool enable_telemetry,
-                                         void (*on_reconnect)(struct ddog_SidecarTransport*));
+                                         void (*on_reconnect)(struct ddog_SidecarTransport*),
+                                         const struct ddog_Endpoint *crashtracker_endpoint);
 
 void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
@@ -182,8 +181,9 @@ ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 
-void ddog_init_span_func(void (*free_func)(struct _zend_string*),
-                         void (*addref_func)(struct _zend_string*));
+void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
+                         void (*addref_func)(struct _zend_string*),
+                         ddog_OwnedZendString (*init_func)(ddog_CharSlice));
 
 void ddog_set_span_service_zstr(ddog_SpanBytes *ptr, struct _zend_string *str);
 

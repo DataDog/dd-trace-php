@@ -6,6 +6,7 @@ A PHP request timeout does not leak/segfault (run with leak detection)
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 --INI--
 max_execution_time=1
+fatal_error_backtraces=0
 --FILE--
 <?php
 register_shutdown_function(function () {

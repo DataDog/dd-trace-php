@@ -5,6 +5,9 @@ edition = "2021"
 license = "Apache-2.0"
 rust-version = "1.84.1"
 
+[profile.release]
+panic = "abort"
+
 [lib]
 crate-type = ["cdylib"]
 bench = false # disables cargo build in libtest bench
@@ -19,13 +22,10 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
-
-# This libdatadog commit is to be compat with tracer for a given lib config
-# crash fix which is not yet on a release.
-datadog-alloc = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
-datadog-profiling = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
-ddcommon = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
-datadog-library-config-ffi = { git = "https://github.com/DataDog/libdatadog", rev = "0b59f64c4fc08105e5b73c5a0752ced3cf8f653e" }
+libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", tag = "v24.0.2" }
+libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", tag = "v24.0.2" }
+libdd-common = {  git = "https://github.com/DataDog/libdatadog", tag = "v24.0.2" }
+libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }
 libc = "0.2"
@@ -62,6 +62,7 @@ harness = false
 
 [features]
 default = ["io_profiling"]
+debug_stats = []
 io_profiling = []
 stack_walking_tests = []
 test = []
