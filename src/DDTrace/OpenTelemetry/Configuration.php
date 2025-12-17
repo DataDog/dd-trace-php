@@ -22,17 +22,21 @@ const OTEL_CONFIG_WHITELIST = [
 ];
 
 // Helper function to track config access
-function track_otel_config_if_whitelisted(string $name, mixed $value): void
+function track_otel_config_if_whitelisted(string $name, $value): void
 {
     if (in_array($name, OTEL_CONFIG_WHITELIST, true)) {
         // Convert value to string for telemetry
-        $value_str = match (true) {
-            is_bool($value) => $value ? 'true' : 'false',
-            is_null($value) => '',
-            is_array($value) => json_encode($value),
-            is_object($value) => get_class($value),
-            default => (string)$value,
-        };
+        if (is_bool($value)) {
+            $value_str = $value ? 'true' : 'false';
+        } elseif (is_null($value)) {
+            $value_str = '';
+        } elseif (is_array($value)) {
+            $value_str = json_encode($value);
+        } elseif (is_object($value)) {
+            $value_str = get_class($value);
+        } else {
+            $value_str = (string)$value;
+        }
 
         \dd_trace_internal_fn('track_otel_config', $name, $value_str);
     }
