@@ -22,7 +22,9 @@ DDTrace\consume_distributed_tracing_headers(function ($header) use ($baggage) {
             "baggage" => $baggage
         ][$header] ?? null;
 });
-var_dump($root->meta);
+$meta = $root->meta;
+ksort($meta);
+var_dump($meta);
 
 ?>
 --EXPECTF--
