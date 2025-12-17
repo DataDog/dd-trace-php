@@ -95,7 +95,7 @@ stages:
         - /rust/cargo/
   artifacts:
     paths:
-      - "VERSION"
+      - "VERSION.txt"
       - "modules/"
 
 "compile extension: debug-zts-asan":

@@ -17,4 +17,4 @@ compile_rust.sh @Datadog/libdatadog-apm
 # Release files
 Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/libdatadog-apm
 package.xml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
-VERSION @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php
+VERSION.txt @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php

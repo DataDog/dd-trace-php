@@ -17,7 +17,7 @@ if ($argc < 2) {
 
 $package_directory = $argv[1];
 $repository_root = __DIR__ . "/../..";
-$version = trim(file_get_contents("$repository_root/VERSION"));
+$version = trim(file_get_contents("$repository_root/VERSION.txt"));
 $changelog = trim(implode(array_slice(file("$repository_root/CHANGELOG.md"), 2)));
 
 if (!str_contains($target_branch, $version)) {

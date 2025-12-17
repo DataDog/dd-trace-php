@@ -11,7 +11,7 @@ make -d -j "${MAKE_JOBS}" "${TARGET}"
 cat package_sha256sums
 
 # Spot-check shape of library name
-version=$(cat VERSION)
+version=$(cat VERSION.txt)
 filename="dd-library-php-${version}-x86_64-linux-gnu.tar.gz"
 if ! [[ -f "build/packages/$filename" ]] ; then
   echo "Expected file 'build/packages/$filename' to exist!"

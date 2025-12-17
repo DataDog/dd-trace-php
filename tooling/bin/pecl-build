@@ -9,7 +9,7 @@ composer -dtooling/generation verify
 
 # PECL doesn't like the "+$gitsha1" part of the non-release version number.
 # Currently these aren't published, so truncating it is fine.
-dd_version=$(cat VERSION | grep -Eo '^[^+]*')
+dd_version=$(cat VERSION.txt | grep -Eo '^[^+]*')
 dd_changelog=$(tail -n +2 CHANGELOG.md)
 
 configuration_placeholder='

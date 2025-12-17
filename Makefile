@@ -35,7 +35,7 @@ ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
 ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000
 
-VERSION := $(shell cat VERSION)
+VERSION := $(shell cat VERSION.txt)
 
 INI_DIR := $(shell ASAN_OPTIONS=detect_leaks=0 php -d ddtrace.disable=1 -i | awk -F"=>" '/Scan this dir for additional .ini files/ {print $$2}')
 INI_FILE := $(INI_DIR)/ddtrace.ini
@@ -106,7 +106,7 @@ JUNIT_RESULTS_DIR := $(shell pwd)
 
 all: $(BUILD_DIR)/configure $(SO_FILE)
 
-$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION
+$(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/ddtrace.sym $(BUILD_DIR)/VERSION.txt
 	$(Q) (cd $(BUILD_DIR); phpize && $(SED_I) 's/\/FAILED/\/\\bFAILED/' $(BUILD_DIR)/run-tests.php) # Fix PHP 5.4 exit code bug when running selected tests (FAILED vs XFAILED)
 
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)

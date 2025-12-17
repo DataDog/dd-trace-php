@@ -35,7 +35,7 @@ add_custom_target(ddtrace_exports
 )
 endif()
 
-file(READ "${CMAKE_SOURCE_DIR}/../VERSION" VERSION_CONTENTS)
+file(READ "${CMAKE_SOURCE_DIR}/../VERSION.txt" VERSION_CONTENTS)
 string(STRIP "${VERSION_CONTENTS}" PHP_DDTRACE_VERSION)
 file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/gen_ddtrace/ext")
 set(VERSION_H_PATH "${CMAKE_BINARY_DIR}/gen_ddtrace/ext/version.h")
@@ -46,7 +46,7 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E remove -f "${VERSION_H_PATH}"
     COMMAND ${CMAKE_COMMAND} -E touch "${VERSION_H_PATH}"
     COMMAND printf "\\#ifndef PHP_DDTRACE_VERSION\\\\n\\#define PHP_DDTRACE_VERSION \"%s\"\\\\n\\#endif" "'\"${PHP_DDTRACE_VERSION}\"'" >> "${VERSION_H_PATH}"
-    DEPENDS "${CMAKE_SOURCE_DIR}/../VERSION"
+    DEPENDS "${CMAKE_SOURCE_DIR}/../VERSION.txt"
     COMMENT "Generating version.h"
 )
 add_custom_target(update_version_h ALL DEPENDS "${VERSION_H_PATH}")

@@ -278,7 +278,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   cat <<EOT >ext/version.h
 #ifndef PHP_DDTRACE_VERSION
-#define PHP_DDTRACE_VERSION "$(cat "$ext_srcdir/VERSION")"
+#define PHP_DDTRACE_VERSION "$(cat "$ext_srcdir/VERSION.txt")"
 #endif
 EOT
 

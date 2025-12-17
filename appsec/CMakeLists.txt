@@ -10,7 +10,7 @@ endforeach()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../cmake/Modules")
 
-file(READ "../VERSION" appsec_version)
+file(READ "../VERSION.txt" appsec_version)
 string(STRIP "${appsec_version}" appsec_version)
 set(CMAKE_APPSEC_VERSION ${appsec_version})
 string(REGEX MATCH "^[^+a-z]*" appsec_short_version "${appsec_version}")

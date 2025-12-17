@@ -139,7 +139,7 @@ requirements_json_test:
     - ls -al ${CI_PROJECT_DIR:-.}/src/bridge
   artifacts:
     paths:
-      - VERSION
+      - VERSION.txt
       - ./src/bridge/_generated*.php
 
 <?php
@@ -575,7 +575,7 @@ foreach ($build_platforms as $platform) {
   script:
     - make -j 4 <?= implode(' ', $platform['targets']) ?>
 
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION.txt) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
@@ -623,7 +623,7 @@ foreach ($build_platforms as $platform) {
     TRIPLET: "x86_64-pc-windows-msvc"
   script:
     - make -j 4 <?= implode(' ', $windows_build_platforms[0]['targets']), "\n" ?>
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION.txt) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
@@ -640,7 +640,7 @@ foreach ($windows_minor_major_targets as $major_minor) {
 "package extension asan":
   extends: .package_extension_base
   script:
-    - ./tooling/bin/generate-final-artifact.sh $(<VERSION) "build/packages" "${CI_PROJECT_DIR}"
+    - ./tooling/bin/generate-final-artifact.sh $(<VERSION.txt) "build/packages" "${CI_PROJECT_DIR}"
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
@@ -666,7 +666,7 @@ foreach ($asan_build_platforms as $platform) {
     ARCHITECTURE: "<?= ($arch == 'amd64') ? 'x86_64' : 'aarch64' ?>"
   script:
     - mkdir -p build/packages tmp/
-    - ./tooling/bin/generate-ssi-package.sh $(<VERSION) "build/packages"
+    - ./tooling/bin/generate-ssi-package.sh $(<VERSION.txt) "build/packages"
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
@@ -1366,8 +1366,8 @@ foreach ($arch_targets as $arch) {
     GIT_STRATEGY: none
   script: |
     set -e
-    VERSION="$(<VERSION)"
-    [[ -z "${VERSION}" ]] && echo "VERSION file is empty or not present" && exit 1
+    VERSION="$(<VERSION.txt)"
+    [[ -z "${VERSION}" ]] && echo "VERSION.txt file is empty or not present" && exit 1
     cd packages/ && aws s3 cp --recursive . "s3://dd-trace-php-builds/${VERSION}/"
     aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
     echo "https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/$(echo $VERSION | sed 's/+/%2B/')/datadog-setup.php"
@@ -1398,7 +1398,7 @@ foreach ($arch_targets as $arch) {
       if [ "$CI_COMMIT_REF_NAME" = "master" ]; then
         echo UPSTREAM_TRACER_VERSION=dev-master > upstream.env
       else
-        echo "UPSTREAM_TRACER_VERSION=$(<VERSION)" > upstream.env
+        echo "UPSTREAM_TRACER_VERSION=$(<VERSION.txt)" > upstream.env
       fi
     - mv packages/dd-library-php-*-x86_64-linux-gnu.tar.gz dd-library-php-x86_64-linux-gnu.tar.gz
     - tar -cf 'datadog-setup-x86_64-linux-gnu.tar' 'datadog-setup.php' 'dd-library-php-x86_64-linux-gnu.tar.gz'

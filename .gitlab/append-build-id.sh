@@ -14,7 +14,7 @@ fi
 if [[ "$CI_COMMIT_BRANCH" =~ "ddtrace-" ]] ; then
   echo "Release branch detected; not adding git sha1 to version number."
 else
-  version=$(cat VERSION)
+  version=$(cat VERSION.txt)
   # if we have e.g. a beta suffix, just strip it
   if [[ $version == *-* ]]; then
     version=${version%-*}
@@ -26,6 +26,6 @@ else
     version=$(export IFS=.; (echo "${parts[*]}"))
   fi
   version="$version+$githash"
-  echo -n "$version" > VERSION
+  echo -n "$version" > VERSION.txt
   echo "Set version number to $version."
 fi
