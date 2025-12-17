@@ -89,10 +89,12 @@ static php_stream *dd_stream_opener(
             if (http_context_zv && Z_TYPE_P(http_context_zv) == IS_ARRAY) {
                 zval *method_zv = zend_hash_str_find(Z_ARRVAL_P(http_context_zv), "method", sizeof("method") - 1);
                 if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
-                    // TEMPORARY (for ASAN validation): do not take an extra ref to the method string.
-                    // This is intentionally unsafe and is expected to produce ASAN issues if the stream context
-                    // is freed before span serialization reads the meta value.
-                    zend_hash_str_update(meta, ZEND_STRL("http.method"), method_zv);
+                    // `zend_hash_str_update()` moves the zval payload into the hashtable without adding a ref.
+                    // `method_zv` is owned by the stream context options array, so we must add a ref (via ZVAL_COPY)
+                    // to avoid leaving span meta with a dangling zend_string once the options array is destroyed.
+                    zval method_copy;
+                    ZVAL_COPY(&method_copy, method_zv);
+                    zend_hash_str_update(meta, ZEND_STRL("http.method"), &method_copy);
                 }
             }
 
