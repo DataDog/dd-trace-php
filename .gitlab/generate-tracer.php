@@ -33,7 +33,8 @@ function sidecar_logs() {
 <?php
 }
 
-function before_script_steps() {
+function before_script_steps($with_docker_auth = false) {
+    if ($with_docker_auth) dockerhub_login();
     unset_dd_runner_env_vars();
 ?>
 
@@ -211,7 +212,7 @@ stages:
     HTTPBIN_HOSTNAME: httpbin-integration
     HTTPBIN_PORT: 8080
   before_script:
-<?php before_script_steps() ?>
+<?php before_script_steps(true) ?>
     - .gitlab/wait-for-service-ready.sh
 
 .asan_test:
@@ -498,7 +499,7 @@ endforeach;
     SWITCH_PHP_VERSION: debug
     COMPOSER_VERSION: 2
   before_script:
-<?php before_script_steps() ?>
+<?php before_script_steps(true) ?>
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
