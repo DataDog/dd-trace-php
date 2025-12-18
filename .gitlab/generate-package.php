@@ -753,6 +753,7 @@ endforeach;
     RUST_BACKTRACE: 1
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
+<?php dockerhub_login() ?>
     - apt install -y php git make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
@@ -833,6 +834,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
   before_script:
+<?php dockerhub_login() ?>
     - apt install -y make
     - mkdir build
     - mv packages build
@@ -897,6 +899,7 @@ endforeach;
         # - symfony_no_ddtrace
         # - symfony
   before_script:
+<?php dockerhub_login() ?>
     - apt install -y make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
@@ -959,6 +962,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script: &verify_alpine_before_script
+<?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
     - apk add --no-cache ca-certificates # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
@@ -987,6 +991,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script:
+<?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
     - '# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore - https://serverfault.com/a/1161847'
@@ -1012,6 +1017,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script:
+<?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
     - apt update
@@ -1125,6 +1131,7 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   before_script:
+<?php dockerhub_login() ?>
     - switch-php debug
   script:
     - sudo dpkg -i packages/*amd64*.deb
@@ -1161,6 +1168,7 @@ endforeach;
     - job: "prepare code"
       artifacts: true
   before_script:
+<?php dockerhub_login() ?>
     - |
       # Setup cache dirs
       mkdir -p $PIP_CACHE_DIR
