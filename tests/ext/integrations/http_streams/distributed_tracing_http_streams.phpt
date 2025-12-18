@@ -22,7 +22,13 @@ DDTrace\trace_function('file_get_contents', function (\DDTrace\SpanData $span) {
     $span->name = 'httpstream';
 });
 
-$response = file_get_contents($url);
+$ctx = stream_context_create([
+    'http' => [
+        'method' => 'GET',
+    ],
+]);
+
+$response = file_get_contents($url, false, $ctx);
 
 include 'distributed_tracing.inc';
 $headers = dt_decode_headers_from_httpbin($response);
@@ -67,6 +73,7 @@ type: cli
 service: %s
 meta:
   component: php.stream
+  http.method: GET
   http.url: http://%s:%d/headers
   network.destination.name: %s
   span.kind: client
