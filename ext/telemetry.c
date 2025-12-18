@@ -144,10 +144,11 @@ void ddtrace_telemetry_finalize() {
     char module_name[261] = { 'e', 'x', 't', '-' };
     ZEND_HASH_FOREACH_PTR(&module_registry, module) {
         size_t namelen = strlen(module->name);
-        memcpy(module_name + 4, module->name, MIN(256, strlen(module->name)));
+        size_t copylen = MIN(256, namelen);
+        memcpy(module_name + 4, module->name, copylen);
         const char *version = module->version ? module->version : "";
         ddog_sidecar_telemetry_addDependency_buffer(buffer,
-                                                    (ddog_CharSlice) {.len = namelen + 4, .ptr = module_name},
+                                                    (ddog_CharSlice) {.len = copylen + 4, .ptr = module_name},
                                                     (ddog_CharSlice) {.len = strlen(version), .ptr = version});
     } ZEND_HASH_FOREACH_END();
 
