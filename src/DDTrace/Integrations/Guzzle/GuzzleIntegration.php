@@ -37,29 +37,33 @@ class GuzzleIntegration extends Integration
         \DDTrace\install_hook(
             'GuzzleHttp\Client::transfer',
             static function (HookData $hook) {
-                if (!isset($hook->args[0])) {
-                    return;
-                }
+                // Note: We must ALWAYS call overrideArguments() to prevent JIT compilation issues.
+                // See ext/hook/uhook.c: "hooks wishing to override args must do so unconditionally"
 
-                $request = $hook->args[0];
+                $modified = false;
 
-                if (!($request instanceof \Psr\Http\Message\RequestInterface)) {
-                    return;
-                }
+                if (isset($hook->args[0])) {
+                    $request = $hook->args[0];
 
-                $dtHeaders = \DDTrace\generate_distributed_tracing_headers();
+                    if ($request instanceof \Psr\Http\Message\RequestInterface) {
+                        $dtHeaders = \DDTrace\generate_distributed_tracing_headers();
 
-                if (empty($dtHeaders)) {
-                    return;
-                }
+                        if (!empty($dtHeaders)) {
+                            foreach ($dtHeaders as $name => $value) {
+                                if (!$request->hasHeader($name)) {
+                                    $request = $request->withHeader($name, $value);
+                                    $modified = true;
+                                }
+                            }
 
-                foreach ($dtHeaders as $name => $value) {
-                    if (!$request->hasHeader($name)) {
-                        $request = $request->withHeader($name, $value);
+                            if ($modified) {
+                                $hook->args[0] = $request;
+                            }
+                        }
                     }
                 }
 
-                $hook->args[0] = $request;
+                // CRITICAL: Always call overrideArguments to prevent JIT from breaking header injection
                 $hook->overrideArguments($hook->args);
             },
             static function (HookData $hook) {
