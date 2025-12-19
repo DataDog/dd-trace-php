@@ -21,6 +21,7 @@ The following tests are marked as skipped due to the test relying on a hard-code
 Many tests choose a random port to start up a service. Many of these tests have been updated to not used a random port in more recent PHP versions, but we skip these tests in older versions of PHP because they often choose a port that is already in use in CI.
 
 - `ext/sockets/tests/socket_connect_params.phpt` ([Fixed](https://github.com/php/php-src/commit/3e9dac2) in PHP 7.4)
+- `ext/sockets/tests/socket_sendto_params.phpt` (PHP 7.1 only)
 
 ## Fail even with no tracer installed
 
