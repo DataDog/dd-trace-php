@@ -82,9 +82,8 @@ static void ddtrace_store_env(char **target, const char *value) {
  *
  * There is a special case in libcurl for HTTP: to avoid header-based
  * injection in CGI/server contexts, it does *not* automatically fall back
- * from "http_proxy" to "HTTP_PROXY". We still snapshot both here, but when
- * we later configure our agent handle we only ever use the cached value
- * explicitly, not libcurl's own HTTP_PROXY fallback.
+ * from "http_proxy" to "HTTP_PROXY". To match libcurl behavior, we only
+ * snapshot "http_proxy" (lowercase) for HTTP.
  */
 void ddtrace_coms_minit_proxy_env(void) {
     const char *v;
@@ -96,11 +95,8 @@ void ddtrace_coms_minit_proxy_env(void) {
     }
     ddtrace_store_env(&ddtrace_env_no_proxy, v);
 
-    /* http_proxy / HTTP_PROXY */
+    /* http_proxy (note: intentionally no HTTP_PROXY fallback; matches curl) */
     v = getenv("http_proxy");
-    if (!v || !v[0]) {
-        v = getenv("HTTP_PROXY");
-    }
     ddtrace_store_env(&ddtrace_env_http_proxy, v);
 
     /* https_proxy / HTTPS_PROXY */
@@ -838,6 +834,14 @@ static void ddtrace_curl_set_hostname_generic(CURL *curl, const char *path) {
 
     if (url && url[0]) {
         const char *proxy = NULL;
+        const char *http_url = url;
+        bool is_unix_socket = false;
+
+        if (strlen(url) > 7 && strncmp(url, "unix://", 7) == 0) {
+            is_unix_socket = true;
+            curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, url + 7);
+            http_url = "http://localhost";
+        }
 
         /* Choose a proxy based on the agent URL scheme, using the cached
          * env values. This mirrors curl's detect_proxy() precedence:
@@ -846,13 +850,13 @@ static void ddtrace_curl_set_hostname_generic(CURL *curl, const char *path) {
          *
          * This happens without calling getenv() in the worker thread.
          */
-        if (strncmp(url, "http://", 7) == 0) {
+        if (strncmp(http_url, "http://", 7) == 0) {
             if (ddtrace_env_http_proxy) {
                 proxy = ddtrace_env_http_proxy;
             } else if (ddtrace_env_all_proxy) {
                 proxy = ddtrace_env_all_proxy;
             }
-        } else if (strncmp(url, "https://", 8) == 0) {
+        } else if (strncmp(http_url, "https://", 8) == 0) {
             if (ddtrace_env_https_proxy) {
                 proxy = ddtrace_env_https_proxy;
             } else if (ddtrace_env_all_proxy) {
@@ -860,15 +864,23 @@ static void ddtrace_curl_set_hostname_generic(CURL *curl, const char *path) {
             }
         }
 
-        if (proxy) {
-            curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
-        }
+        /* Prevent libcurl from consulting proxy-related environment variables
+         * (via curl_getenv()) in the background writer thread.
+         *
+         * This preserves the *startup-snapshotted* proxy behavior:
+         *  - if we cached a proxy value during MINIT, use it
+         *  - otherwise, use no proxy
+         *
+         * If CURLOPT_PROXY is left unset, libcurl may call detect_proxy()
+         * during curl_easy_perform(), which can hit curl_getenv() even when
+         * no proxy env vars are set. Setting it explicitly avoids that code
+         * path entirely.
+         *
+         * For unix:// agent URLs, proxying is not meaningful; we explicitly
+         * disable it as well.
+         */
+        curl_easy_setopt(curl, CURLOPT_PROXY, (!is_unix_socket && proxy) ? proxy : "");
 
-        char *http_url = url;
-        if (strlen(url) > 7 && strncmp(url, "unix://", 7) == 0) {
-            curl_easy_setopt(curl, CURLOPT_UNIX_SOCKET_PATH, url + 7);
-            http_url = "http://localhost";
-        }
         size_t agent_url_len = strlen(http_url) + strlen(path) + 1;
         char *agent_url = malloc(agent_url_len);
         sprintf(agent_url, "%s%s", http_url, path);
