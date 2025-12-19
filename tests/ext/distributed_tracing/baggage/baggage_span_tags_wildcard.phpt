@@ -7,24 +7,36 @@ DD_TRACE_BAGGAGE_TAG_KEYS=*
 --FILE--
 <?php
 
-DDTrace\consume_distributed_tracing_headers(function ($header) {
+$baggage = sprintf(
+    "user.id=%s,session.id=%s,region=%s,language=%s",
+    "123", "abc", "us-east1", "php"
+);
+
+DDTrace\consume_distributed_tracing_headers(function ($header) use ($baggage) {
     return [
-            "baggage" => "user.id=123,session.id=abc,region=us-east1,language=php"
-        ][$header] ?? null;
+        "baggage" => $baggage,
+    ][$header] ?? null;
 });
-var_dump(DDTrace\start_span()->meta);
+
+$root = DDTrace\start_span();
+// Force an early destruction of the baggage table to surface any refcounting/ownership issues where
+// baggage values are also stored in span meta without a separate reference.
+$root->baggage = [];
+$meta = $root->meta;
+ksort($meta);
+var_dump($meta);
 
 ?>
 --EXPECTF--
 array(5) {
-  ["baggage.user.id"]=>
-  string(3) "123"
-  ["baggage.session.id"]=>
-  string(3) "abc"
-  ["baggage.region"]=>
-  string(8) "us-east1"
   ["baggage.language"]=>
   string(3) "php"
+  ["baggage.region"]=>
+  string(8) "us-east1"
+  ["baggage.session.id"]=>
+  string(3) "abc"
+  ["baggage.user.id"]=>
+  string(3) "123"
   ["runtime-id"]=>
   string(36) "%s"
 }
