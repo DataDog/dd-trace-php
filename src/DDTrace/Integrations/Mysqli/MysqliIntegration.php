@@ -152,7 +152,8 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             self::setDefaultAttributes($span, 'mysqli_prepare', $query);
 
-            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            // For prepared statements, downgrade to service mode
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1, \DDTrace\DBM_PROPAGATION_SERVICE);
             self::handleRasp($span);
         }, static function (HookData $hook) {
             list($mysqli, $query) = $hook->args;
@@ -222,7 +223,8 @@ class MysqliIntegration extends Integration
             $span = $hook->span();
             self::setDefaultAttributes($span, 'mysqli.prepare', $query);
 
-            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
+            // For prepared statements, downgrade to service mode
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 0, \DDTrace\DBM_PROPAGATION_SERVICE);
             self::handleRasp($span);
         }, static function (HookData $hook) {
             list($query) = $hook->args;

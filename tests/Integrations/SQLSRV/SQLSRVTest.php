@@ -323,6 +323,53 @@ class SQLSRVTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPreparedStatementUsesServiceModeForDBM()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+        });
+
+        // Get the raw spans
+        $spans = $traces[0];
+
+        // Find prepare and execute spans
+        $connectSpan = null;
+        $prepareSpan = null;
+        $executeSpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'sqlsrv_connect') {
+                $connectSpan = $span;
+            } elseif ($span['name'] === 'sqlsrv_prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'sqlsrv_execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($connectSpan, 'sqlsrv_connect span should exist');
+        $this->assertNotNull($prepareSpan, 'sqlsrv_prepare span should exist');
+        $this->assertNotNull($executeSpan, 'sqlsrv_execute span should exist');
+
+        // Verify that execute and prepare span are siblings
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'sqlsrv_execute should be a sibling of sqlsrv_prepare'
+        );
+
+        // Verify that SERVICE mode is used for the prepare span
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['meta'] ?? [],
+            'sqlsrv_prepare should use SERVICE mode'
+        );
+    }
+
     public function testExecError()
     {
         $query = "SELECT * FROM non_existing_table";
