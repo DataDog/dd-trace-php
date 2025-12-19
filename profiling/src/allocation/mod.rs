@@ -1,11 +1,7 @@
-mod tls_allocation_profiling_stats;
-
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
-
-pub use tls_allocation_profiling_stats::*;
 
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
@@ -14,6 +10,7 @@ use libc::size_t;
 use log::{debug, error, trace};
 use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
+use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -86,6 +83,23 @@ pub fn collect_allocation(len: size_t) {
             )
         };
     }
+}
+
+thread_local! {
+    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> =
+        RefCell::new(AllocationProfilingStats::new());
+}
+
+pub fn alloc_prof_ginit() {
+    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+    allocation_le83::alloc_prof_ginit();
+    #[cfg(php_zend_mm_set_custom_handlers_ex)]
+    allocation_ge84::alloc_prof_ginit();
+}
+
+pub fn alloc_prof_gshutdown() {
+    #[cfg(php_zend_mm_set_custom_handlers_ex)]
+    allocation_ge84::alloc_prof_gshutdown();
 }
 
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
