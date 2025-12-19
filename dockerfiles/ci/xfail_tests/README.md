@@ -218,3 +218,9 @@ Disabled on versions: `8.5+`.
 
 PHP 8.5 completely removed the `disable_classes` INI directive (see [RFC](https://wiki.php.net/rfc/remove_disable_classes)).
 
+## `ext/soap/tests/soap_qname_crash.phpt`
+
+Disabled on versions: `8.5+`.
+
+This test checks PHP's handling of excessively large QName prefix in SoapVar (a stress test for edge cases). With ddtrace loaded, the additional memory overhead causes the test to be killed (Termsig=9) before it can complete, likely due to hitting memory limits during the stress test.
+
