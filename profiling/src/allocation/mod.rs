@@ -1,11 +1,11 @@
-mod tls_allocation_profiling_stats;
+mod profiling_stats;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
 
-pub use tls_allocation_profiling_stats::*;
+pub use profiling_stats::*;
 
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
