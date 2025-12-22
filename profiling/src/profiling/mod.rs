@@ -3,6 +3,7 @@ mod sample_type_filter;
 pub mod stack_walking;
 mod thread_utils;
 mod uploader;
+mod signals;
 
 pub use interrupts::*;
 pub use sample_type_filter::*;
@@ -232,7 +233,6 @@ pub struct Profiler {
 
 struct TimeCollector {
     fork_barrier: Arc<Barrier>,
-    interrupt_manager: Arc<InterruptManager>,
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
@@ -560,9 +560,7 @@ impl TimeCollector {
             UPLOAD_PERIOD.as_secs(),
             WALL_TIME_PERIOD.as_millis());
 
-        let wall_timer = crossbeam_channel::tick(WALL_TIME_PERIOD);
         let upload_tick = crossbeam_channel::tick(self.upload_period);
-        let never = crossbeam_channel::never();
         let mut running = true;
 
         while running {
@@ -572,11 +570,6 @@ impl TimeCollector {
             // iteration instead, keeping the code structure of the recvs the
             // same. Since the never channel will never be ready, this
             // effectively makes that branch optional for that loop iteration.
-            let timer = if self.interrupt_manager.has_interrupts() {
-                &wall_timer
-            } else {
-                &never
-            };
 
             crossbeam_channel::select! {
 
@@ -613,15 +606,6 @@ impl TimeCollector {
                             break;
                         }
                     }
-                },
-
-                recv(timer) -> message => match message {
-                    Ok(_) => self.interrupt_manager.trigger_interrupts(),
-
-                    Err(err) => {
-                        warn!("{err}");
-                        break;
-                    },
                 },
 
                 recv(upload_tick) -> message => {
@@ -669,13 +653,15 @@ impl Profiler {
     }
 
     pub fn new(system_settings: &mut SystemSettings) -> Self {
+        // Start the signal-based profiling mechanism (Phase 1)
+        signals::start_profiling_mechanism();
+
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
-            interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,

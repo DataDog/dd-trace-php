@@ -53,17 +53,4 @@ impl InterruptManager {
             (*interrupt.interrupt_count_ptr).store(0, Ordering::SeqCst);
         }
     }
-
-    #[inline]
-    pub(super) fn has_interrupts(&self) -> bool {
-        !self.vm_interrupts.lock().unwrap().is_empty()
-    }
-
-    pub(super) fn trigger_interrupts(&self) {
-        let vm_interrupts = self.vm_interrupts.lock().unwrap();
-        vm_interrupts.iter().for_each(|obj| unsafe {
-            (*obj.interrupt_count_ptr).fetch_add(1, Ordering::SeqCst);
-            (*obj.engine_ptr).store(true, Ordering::SeqCst);
-        });
-    }
 }
