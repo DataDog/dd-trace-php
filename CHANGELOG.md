@@ -1,5 +1,5 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
-## Tracer
+## Profiler
 ### Fixed
-- Fix panic after bailout in previous request #3537
+- Revert unsafe optimization (#3541)
