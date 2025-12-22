@@ -5,14 +5,17 @@
 
 use super::AllocationProfilingStats;
 use libc::size_t;
-use std::cell::UnsafeCell;
 use std::mem::MaybeUninit;
+
+#[cfg(php_zts)]
+use std::cell::UnsafeCell;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use super::allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 use super::allocation_le83;
 
+#[cfg(php_zts)]
 thread_local! {
     /// This is initialized in ginit, before any memory allocator hooks are
     /// installed. During a request, all accesses will be initialized.
@@ -21,6 +24,10 @@ thread_local! {
     static ALLOCATION_PROFILING_STATS: UnsafeCell<MaybeUninit<AllocationProfilingStats>> =
         const { UnsafeCell::new(MaybeUninit::uninit()) };
 }
+
+#[cfg(not(php_zts))]
+static mut ALLOCATION_PROFILING_STATS: MaybeUninit<AllocationProfilingStats> =
+    const { MaybeUninit::uninit() };
 
 /// Accesses the thread-local [`AllocationProfilingStats`], passing a mutable
 /// reference to the contained `MaybeUninit` to `F`.
@@ -39,21 +46,35 @@ unsafe fn allocation_profiling_stats_mut<F, R>(f: F) -> R
 where
     F: FnOnce(&mut MaybeUninit<AllocationProfilingStats>) -> R,
 {
-    let result = ALLOCATION_PROFILING_STATS.try_with(|cell| {
-        let ptr: *mut MaybeUninit<AllocationProfilingStats> = cell.get();
-        // SAFETY: the cell is statically initialized to [`MaybeUninit::uninit`] so the
-        // _cell_ is valid and initialized memory. As required by this own
-        // function's safety requirements, there should not be any active borrows
-        // to [`ALLOCATION_PROFILING_STATS`], so this mutable dereference is sound.
-        let uninit = unsafe { &mut *ptr };
-        f(uninit)
-    });
-    unsafe {
+    #[cfg(php_zts)]
+    {
+        let result = ALLOCATION_PROFILING_STATS.try_with(|cell| {
+            let ptr: *mut MaybeUninit<AllocationProfilingStats> = cell.get();
+            // SAFETY: the cell is statically initialized to [`MaybeUninit::uninit`] so the
+            // _cell_ is valid and initialized memory. As required by this own
+            // function's safety requirements, there should not be any active borrows
+            // to [`ALLOCATION_PROFILING_STATS`], so this mutable dereference is sound.
+            let uninit = unsafe { &mut *ptr };
+            f(uninit)
+        });
         // SAFETY: this function is not called in a destructor, therefore it
         // cannot return an AccessError:
         // > If the key has been destroyed (which may happen if this is called
         // > in a destructor), this function will return an AccessError.
-        result.unwrap_unchecked()
+        unsafe { result.unwrap_unchecked() }
+    }
+
+    #[cfg(not(php_zts))]
+    {
+        // SAFETY: For non-ZTS builds, ALLOCATION_PROFILING_STATS is a static variable.
+        // As required by this function's safety requirements, there should not be any
+        // active borrows to ALLOCATION_PROFILING_STATS, so this mutable reference is sound.
+        let uninit = unsafe {
+            let ptr: *mut MaybeUninit<AllocationProfilingStats> =
+                std::ptr::addr_of_mut!(ALLOCATION_PROFILING_STATS);
+            &mut *ptr
+        };
+        f(uninit)
     }
 }
 
