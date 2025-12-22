@@ -215,7 +215,7 @@ unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     timeline::timeline_ginit();
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
-    allocation::alloc_prof_ginit();
+    allocation::ginit();
 }
 
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
@@ -223,7 +223,7 @@ unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     timeline::timeline_gshutdown();
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
-    allocation::alloc_prof_gshutdown();
+    allocation::gshutdown();
 }
 
 // Important note on the PHP lifecycle:
