@@ -375,7 +375,7 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
-    let heap = zend::zend_mm_get_heap();
+    let heap = tls_zend_mm_state_get!(heap).unwrap();
     let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
@@ -400,7 +400,7 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
 }
 
 unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
-    let heap = zend::zend_mm_get_heap();
+    let heap = tls_zend_mm_state_get!(heap).unwrap();
     zend::_zend_mm_free(heap, ptr);
 }
 
@@ -436,7 +436,7 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    let heap = zend::zend_mm_get_heap();
+    let heap = tls_zend_mm_state_get!(heap).unwrap();
     let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
