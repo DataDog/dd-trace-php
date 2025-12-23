@@ -4,6 +4,27 @@ stages:
   - deploy
   - ci-build
 
+playing:
+  stage: build
+  tags: ["runner:apm-k8s-same-cpu"]
+  timeout: 2h
+  needs: []
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  retry:
+    max: 2
+    when:
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+  script: |
+    git clone --branch main https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/dd-trace-doe dd-trace-doe && cd dd-trace-doe
+    go run ./cmd/doe run archetype=idle language=go tracing=false,true profiling=false,true duration=180 -f -v -n 5
+    go run ./cmd/doe run archetype=enterprise language=go tracing=false,true profiling=false,true duration=180 -f -v -n 5
+    go run ./cmd/doe run archetype=latency language=go tracing=false,true profiling=false,true duration=180 -f -v -n 5
+    go run ./cmd/doe run archetype=throughput language=go tracing=false,true profiling=false,true duration=180 -f -v -n 5
+
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone libdatadog submodule by default
