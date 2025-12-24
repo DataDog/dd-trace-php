@@ -2858,6 +2858,25 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             if (Z_TYPE_P(name) == IS_STRING && Z_TYPE_P(version) == IS_STRING) {
                 ddtrace_telemetry_notify_integration_version(Z_STRVAL_P(name), Z_STRLEN_P(name), Z_STRVAL_P(version), Z_STRLEN_P(version));
             }
+        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("track_otel_config")) {
+            zval *config_name = ZVAL_VARARG_PARAM(params, 0);
+            zval *config_value = ZVAL_VARARG_PARAM(params, 1);
+            if (Z_TYPE_P(config_name) == IS_STRING) {
+                // Store the config name and value in the HashTable
+                zval value_copy;
+                ZVAL_COPY(&value_copy, config_value);
+                zend_hash_update(&DDTRACE_G(otel_config_telemetry), Z_STR_P(config_name), &value_copy);
+                RETVAL_TRUE;
+            }
+        } else if (params_count == 3 && FUNCTION_NAME_MATCHES("track_telemetry_metrics")) {
+            zval *metric_name = ZVAL_VARARG_PARAM(params, 0);
+            zval *metric_value = ZVAL_VARARG_PARAM(params, 1);
+            zval *tags = ZVAL_VARARG_PARAM(params, 2);
+            if (Z_TYPE_P(metric_name) == IS_STRING && Z_TYPE_P(tags) == IS_STRING) {
+                ddtrace_metric_register_buffer(Z_STR_P(metric_name), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+                ddtrace_metric_add_point(Z_STR_P(metric_name), zval_get_double(metric_value), Z_STR_P(tags));
+                RETVAL_TRUE;
+            }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {
                 RETURN_FALSE;
