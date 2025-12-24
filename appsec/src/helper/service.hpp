@@ -6,11 +6,13 @@
 #pragma once
 
 #include "engine.hpp"
+#include "metrics.hpp"
 #include "remote_config/client_handler.hpp"
 #include "sampler.hpp"
 #include "service_config.hpp"
 #include "sidecar_settings.hpp"
 #include "telemetry_settings.hpp"
+#include <common.h> // components-rs/common.h
 #include <memory>
 #include <mutex>
 #include <spdlog/spdlog.h>
@@ -19,7 +21,7 @@ namespace dds {
 
 using namespace std::chrono_literals;
 
-using sampler = timed_set<4096, 8192>;
+using sampler = timed_set<4096, 8192>; // NOLINT
 
 class service {
 protected:
@@ -101,7 +103,11 @@ protected:
                     std::move(stack_trace), std::move(tags), is_sensitive});
         }
 
-        template <typename Func> void drain_metrics(Func &&func)
+    private:
+        friend class service;
+
+        void drain_metrics(const sidecar_settings &sc_settings,
+            const telemetry_settings &telemetry_settings)
         {
             std::vector<tel_metric> metrics;
             {
@@ -109,8 +115,8 @@ protected:
                 metrics.swap(pending_metrics_);
             }
             for (auto &metric : metrics) {
-                std::invoke(std::forward<Func>(func), metric.name, metric.value,
-                    std::move(metric.tags));
+                submit_metric_ffi(sc_settings, telemetry_settings, metric.name,
+                    metric.value, metric.tags.consume());
             }
         }
 
@@ -123,7 +129,7 @@ protected:
                 logs.swap(pending_logs_);
             }
             for (auto &log : logs) {
-                submit_log(sc_settings, telemetry_settings, std::move(log));
+                submit_log(sc_settings, telemetry_settings, log);
             }
         }
 
@@ -139,9 +145,16 @@ protected:
             return std::move(meta_);
         }
 
-    private:
         static void submit_log(const sidecar_settings &sc_settings,
             const telemetry_settings &telemetry_settings, const tel_log &log);
+
+        static void register_metric_ffi(const sidecar_settings &sc_settings,
+            const telemetry_settings &telemetry_settings, std::string_view name,
+            ddog_MetricType type);
+
+        static void submit_metric_ffi(const sidecar_settings &sc_settings,
+            const telemetry_settings &telemetry_settings, std::string_view name,
+            double value, std::optional<std::string> tags);
 
         std::vector<tel_metric> pending_metrics_;
         std::mutex pending_metrics_mutex_;
@@ -172,6 +185,9 @@ protected:
         return std::shared_ptr<service>(
             new service(std::forward<Args>(args)...));
     }
+
+    void register_known_metrics(const sidecar_settings &sc_settings,
+        const telemetry_settings &telemetry_settings);
 
 public:
     service(const service &) = delete;
@@ -204,12 +220,7 @@ public:
         return service_config_;
     }
 
-    [[nodiscard]] const sidecar_settings &get_sidecar_settings() const
-    {
-        return sidecar_settings_;
-    }
-
-    [[nodiscard]] bool schema_extraction_enabled()
+    [[nodiscard]] bool schema_extraction_enabled() const
     {
         return schema_extraction_enabled_;
     }
@@ -242,14 +253,30 @@ public:
 
     void notify_of_rc_updates() { client_handler_->poll(); }
 
-    template <typename Func> void drain_metrics(Func &&func)
+    void submit_request_metric(std::string_view metric_name, double value,
+        telemetry::telemetry_tags tags)
     {
-        msubmitter_->drain_metrics(std::forward<Func>(func));
+        msubmitter_->submit_metric(metric_name, value, std::move(tags));
+    }
+
+    void drain_metrics(const sidecar_settings &sc_settings)
+    {
+        auto registered = metrics_registered_.load(std::memory_order_relaxed);
+        if (!registered && metrics_registered_.compare_exchange_strong(
+                               registered, true, std::memory_order_relaxed)) {
+            register_known_metrics(sc_settings, telemetry_settings_);
+        }
+
+        msubmitter_->drain_metrics(sc_settings, telemetry_settings_);
     }
 
     void drain_logs(const sidecar_settings &sc_settings)
     {
         msubmitter_->drain_logs(sc_settings, telemetry_settings_);
+
+        // take this opportunity to submit internal worker count metrics too
+        // this could be done at any other time when sc_settings is available
+        handle_worker_count_metrics(sc_settings);
     }
 
     [[nodiscard]] std::map<std::string_view, double> drain_legacy_metrics()
@@ -272,16 +299,80 @@ public:
         }
     }
 
+    void increment_num_workers()
+    {
+        auto cur = num_workers_.load(std::memory_order_relaxed);
+        while (true) {
+            auto new_v = num_workers_t{
+                .latest_count_sent = false, .count = cur.count + 1};
+            if (num_workers_.compare_exchange_weak(
+                    cur, new_v, std::memory_order_relaxed)) {
+                break;
+            }
+        }
+    }
+    void decrement_num_workers()
+    {
+        auto cur = num_workers_.load(std::memory_order_relaxed);
+        if (cur.count == 0) {
+            SPDLOG_WARN("Attempted to decrement num_workers_ below 0");
+            return;
+        }
+        while (true) {
+            auto new_v =
+                num_workers_t{.latest_count_sent = cur.latest_count_sent,
+                    .count = cur.count - 1};
+            if (num_workers_.compare_exchange_weak(
+                    cur, new_v, std::memory_order_relaxed)) {
+                break;
+            }
+        }
+    }
+
 protected:
-    std::shared_ptr<engine> engine_{};
-    std::shared_ptr<service_config> service_config_{};
-    std::unique_ptr<dds::remote_config::client_handler> client_handler_{};
+    std::shared_ptr<engine> engine_;
+    std::shared_ptr<service_config> service_config_;
+    std::unique_ptr<dds::remote_config::client_handler> client_handler_;
     bool schema_extraction_enabled_;
     std::optional<sampler> schema_sampler_;
     std::string rc_path_;
     telemetry_settings telemetry_settings_;
+    std::atomic<bool> metrics_registered_;
     std::shared_ptr<metrics_impl> msubmitter_;
-    sidecar_settings sidecar_settings_;
+
+    struct num_workers_t {
+        bool latest_count_sent : 1;
+        uint64_t count : 63;
+        constexpr bool operator==(const num_workers_t &other) const
+        {
+            return count == other.count &&
+                   latest_count_sent == other.latest_count_sent;
+        }
+    };
+    // required for value-initialization in default constructor of
+    // std::atomic<num_workers_t> in C++20
+    static_assert(std::is_default_constructible_v<num_workers_t>);
+    std::atomic<num_workers_t> num_workers_;
+    void handle_worker_count_metrics(const sidecar_settings &sc_settings);
 };
 
 } // namespace dds
+
+template <> struct fmt::formatter<ddog_MetricType> {
+    // NOLINTNEXTLINE
+    constexpr auto parse(fmt::format_parse_context &ctx) { return ctx.begin(); }
+    template <typename FormatContext>
+    auto format(ddog_MetricType type, FormatContext &ctx) const
+        -> decltype(ctx.out())
+    {
+        switch (type) {
+        case DDOG_METRIC_TYPE_GAUGE:
+            return fmt::format_to(ctx.out(), "GAUGE");
+        case DDOG_METRIC_TYPE_COUNT:
+            return fmt::format_to(ctx.out(), "COUNT");
+        case DDOG_METRIC_TYPE_DISTRIBUTION:
+            return fmt::format_to(ctx.out(), "DISTRIBUTION");
+        }
+        return fmt::format_to(ctx.out(), "UNKNOWN");
+    }
+};

@@ -61,8 +61,28 @@ __attribute__((visibility("default"))) ddog_CharSlice ddog_Error_message(
     return ddog_CharSlice{nullptr, 0};
 }
 
+__attribute__((visibility("default"))) ddog_MaybeError
+ddog_sidecar_enqueue_telemetry_point(ddog_CharSlice /*session_id_ffi*/,
+    ddog_CharSlice /*runtime_id_ffi*/, ddog_CharSlice /*service_name_ffi*/,
+    ddog_CharSlice /*env_name_ffi*/, ddog_CharSlice /*metric_name_ffi*/,
+    double /*value*/, ddog_CharSlice * /*tags_ffi*/)
+{
+    return ddog_MaybeError{.tag = DDOG_OPTION_ERROR_NONE_ERROR};
+}
+
+__attribute__((visibility("default"))) ddog_MaybeError
+ddog_sidecar_enqueue_telemetry_metric(ddog_CharSlice /*session_id_ffi*/,
+    ddog_CharSlice /*runtime_id_ffi*/, ddog_CharSlice /*service_name_ffi*/,
+    ddog_CharSlice /*env_name_ffi*/, ddog_CharSlice /*metric_name_ffi*/,
+    enum ddog_MetricType /*metric_type*/,
+    enum ddog_MetricNamespace /*metric_namespace*/)
+{
+    return ddog_MaybeError{.tag = DDOG_OPTION_ERROR_NONE_ERROR};
+}
+
 __attribute__((constructor)) void resolve_symbols()
 {
     dds::remote_config::resolve_symbols();
+    dds::service::resolve_symbols();
 }
 }

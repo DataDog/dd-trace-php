@@ -7,7 +7,6 @@
 
 #include <cstdint>
 
-#include "config.hpp"
 #include "engine.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
@@ -17,6 +16,55 @@
 #include <optional>
 
 namespace dds {
+
+class service_holder {
+public:
+    service_holder() = default;
+    service_holder(const service_holder &) = delete;
+    service_holder &operator=(const service_holder &) = delete;
+    service_holder(service_holder &&) = delete;
+    service_holder &operator=(service_holder &&) = delete;
+    ~service_holder()
+    {
+        if (service_) {
+            service_->decrement_num_workers();
+        }
+    }
+    auto operator->() const { return service_.get(); }
+    auto &operator*() const { return *service_; }
+    service_holder &operator=(std::shared_ptr<service> new_service)
+    {
+        if (service_ == new_service) {
+            return *this;
+        }
+        if (service_) {
+            service_->decrement_num_workers();
+        }
+        service_ = std::move(new_service);
+        if (service_) {
+            service_->increment_num_workers();
+        }
+        return *this;
+    }
+
+    void reset()
+    {
+        if (service_) {
+            service_->decrement_num_workers();
+        }
+        service_.reset();
+    }
+
+    [[nodiscard]] bool is_empty() const { return service_ == nullptr; }
+
+    [[nodiscard]] std::shared_ptr<service> get_shared_ptr() const
+    {
+        return service_;
+    }
+
+private:
+    std::shared_ptr<service> service_;
+};
 
 class client {
 public:
@@ -54,7 +102,7 @@ public:
 
     [[nodiscard]] std::shared_ptr<service> get_service() const
     {
-        return service_;
+        return service_.get_shared_ptr();
     }
 
     // NOLINTNEXTLINE(google-runtime-references)
@@ -93,7 +141,7 @@ protected:
     std::shared_ptr<service_manager> service_manager_;
     std::optional<dds::engine_settings> engine_settings_;
 
-    std::shared_ptr<service> service_;
+    service_holder service_;
     std::unique_ptr<sampler::table_accessor> sample_acc_; // depends on service_
 
     std::optional<engine::context> context_;
