@@ -400,6 +400,10 @@ def runMainTask = { String phpVersion, String variant ->
         systemProperty 'PHP_VERSION', phpVersion
         systemProperty 'VARIANT', variant
 
+        if (project.hasProperty('overrideHelper')) {
+            systemProperty 'OVERRIDE_HELPER', project.getProperty('overrideHelper')
+        }
+
         dependsOn "buildTracer-$phpVersion-$variant"
         dependsOn "buildAppsec-$phpVersion-$variant"
     }
@@ -434,6 +438,9 @@ testMatrix.each { spec ->
         it.systemProperty 'VARIANT', variant
         if (project.hasProperty('XDEBUG')) {
             it.systemProperty 'XDEBUG', '1'
+        }
+        if (project.hasProperty('overrideHelper')) {
+            systemProperty 'OVERRIDE_HELPER', project.getProperty('overrideHelper')
         }
 
         it.systemProperty 'DOCKER_MIRROR', dockerMirror
