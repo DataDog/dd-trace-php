@@ -62,6 +62,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withCreateContainerCmdModifier(cmd -> {
             cmd.hostConfig.withInit(true)
         })
+        withEnv 'DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE', '1.0'
         withExposedPorts(80)
     }
 
@@ -327,6 +328,13 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
         withFileSystemBind('src/test/bin/enable_extensions.sh',
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
+        if (System.getProperty('OVERRIDE_HELPER')) {
+            def libs = System.getProperty('OVERRIDE_HELPER').split(':')
+            withFileSystemBind(libs[0],
+                    '/appsec/libddappsec-helper.so', BindMode.READ_ONLY)
+            withFileSystemBind(libs[1],
+                    '/appsec/libddwaf.so', BindMode.READ_ONLY)
+        }
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
         addVolumeMount("php-tracer-$phpVersion-$phpVariant", '/project/tmp')
 
