@@ -21,6 +21,7 @@
 #include "network.h"
 #include "php_compat.h"
 #include "php_objects.h"
+#include "telemetry.h"
 #include "version.h"
 
 #define MAX_WAIT_TIME_MS (1ULL << 55)
@@ -151,11 +152,13 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
 
     _mgr.connected_this_req = true;
     _release_shared_state_lock(&_mgr.hss);
+    dd_telemetry_helper_conn_success(_mgr.socket_path);
 
     return conn;
 
 error:
     _inc_failed_counter(&_mgr.hss);
+    dd_telemetry_helper_conn_error(_mgr.socket_path);
     return NULL;
 }
 
@@ -261,6 +264,8 @@ void dd_helper_close_conn(void)
     if (res == -1) {
         mlog_err(dd_log_warning, "Error closing connection to helper");
     }
+
+    dd_telemetry_helper_conn_close(_mgr.socket_path);
 
     /* we treat closing the connection on the request it was opened a failure
      * for the purposes of the connection backoff */

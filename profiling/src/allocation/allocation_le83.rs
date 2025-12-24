@@ -1,7 +1,4 @@
-use crate::allocation::{
-    collect_allocation, ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE,
-    ALLOCATION_PROFILING_STATS,
-};
+use crate::allocation::{collect_allocation, ALLOCATION_PROFILING_STATS};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
@@ -11,7 +8,10 @@ use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, error, trace, warn};
-use std::sync::atomic::Ordering::{Relaxed, SeqCst};
+use std::sync::atomic::Ordering::Relaxed;
+
+#[cfg(feature = "debug_stats")]
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 
 static mut GC_MEM_CACHES_HANDLER: zend::InternalFunctionHandler = None;
 
@@ -344,8 +344,10 @@ unsafe extern "C" fn alloc_prof_gc_mem_caches(
 }
 
 unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
-    ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
-    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
     let ptr = tls_zend_mm_state_get!(alloc)(len);
 
@@ -403,8 +405,10 @@ unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
 }
 
 unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    ALLOCATION_PROFILING_COUNT.fetch_add(1, SeqCst);
-    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, SeqCst);
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
 
     let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
 

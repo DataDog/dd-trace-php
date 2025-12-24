@@ -67,13 +67,20 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
 
     // User functions do not have a "module". Maybe one day use composer info?
     let module_name = func.module_name().unwrap_or(b"");
-    if !module_name.is_empty() {
+    let class_name = func.scope_name().unwrap_or(b"");
+
+    // Pre-reserving here avoids growing the vec in practice.
+    let (has_module, has_class) = (!module_name.is_empty(), !class_name.is_empty());
+    let module_len = has_module as usize * "|".len() + module_name.len();
+    let class_name_len = has_class as usize * "::".len() + class_name.len();
+    buffer.reserve_exact(module_len + class_name_len + method_name.len());
+
+    if has_module {
         buffer.extend_from_slice(module_name);
         buffer.push(b'|');
     }
 
-    let class_name = func.scope_name().unwrap_or(b"");
-    if !class_name.is_empty() {
+    if has_class {
         buffer.extend_from_slice(class_name);
         buffer.extend_from_slice(b"::");
     }

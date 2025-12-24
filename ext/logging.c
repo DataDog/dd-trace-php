@@ -194,13 +194,29 @@ static void ddtrace_log_callback(ddog_CharSlice msg) {
     if (error_log_fd != -1) {
         ddtrace_log_with_time(error_log_fd, message, (int)msg.len);
     } else {
-        if (msg.ptr[msg.len]) {
-            message = zend_strndup(msg.ptr, msg.len);
-            php_log_err(message);
-            free(message);
-        } else {
-            php_log_err(message);
-        }
+        // Temporarily disable user abort to prevent zend_bailout() from being
+        // called inside php_log_err(). This callback is invoked from Rust while
+        // a RefCell borrow is held. A bailout (longjmp) would skip Rust
+        // destructors, leaving the RefCell<Option<Dispatch>> permanently
+        // borrowed and causing a panic on the following request.
+        // If we STILL have a bailout, ... The safest thing to is probably to
+        // catch it. We shouldn't log though, or risk a new bailout.
+        bool orig_ignore_user_abort = PG(ignore_user_abort);
+        PG(ignore_user_abort) = 1;
+        volatile char *allocated_msg = NULL;
+        zend_try {
+            if (msg.ptr[msg.len]) {
+                message = zend_strndup(msg.ptr, msg.len);
+                allocated_msg = message;
+                php_log_err(message);
+                free(message);
+            } else {
+                php_log_err(message);
+            }
+        } zend_catch {
+            free((void*)allocated_msg);
+        } zend_end_try();
+        PG(ignore_user_abort) = orig_ignore_user_abort;
     }
 }
 
