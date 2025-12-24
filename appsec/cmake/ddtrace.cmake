@@ -121,6 +121,8 @@ list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows
 find_package(CURL REQUIRED)
 message(STATUS "CURL version: ${CURL_VERSION_STRING}")
 
+include(cmake/pcre2.cmake)
+
 add_library(ddtrace SHARED ${FILES_DDTRACE})
 set_target_properties(ddtrace PROPERTIES
     C_VISIBILITY_PRESET hidden
@@ -136,7 +138,7 @@ elseif(APPLE)
 else()
     message(FATAL_ERROR "Only Linux and Apple supported")
 endif()
-target_link_libraries(ddtrace PRIVATE PhpConfig components_rs ${CURL_LIBRARIES})
+target_link_libraries(ddtrace PRIVATE PhpConfig components_rs ${CURL_LIBRARIES} PCRE2::pcre2)
 if(CURL_DEFINITIONS)
     target_compile_definitions(ddtrace PRIVATE ${CURL_DEFINITIONS})
 endif()

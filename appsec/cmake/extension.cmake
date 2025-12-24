@@ -2,6 +2,15 @@ configure_file(src/extension/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/extens
 
 set(EXT_SOURCE_DIR src/extension)
 
+# Create controlled include directory with symlinks to avoid accidentally including
+# unrelated files from the root directory
+set(EXT_ROOT_INCLUDES ${CMAKE_BINARY_DIR}/ext_root_includes)
+file(MAKE_DIRECTORY ${EXT_ROOT_INCLUDES})
+file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/../zend_abstract_interface
+    ${EXT_ROOT_INCLUDES}/zend_abstract_interface SYMBOLIC)
+file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/../components-rs
+    ${EXT_ROOT_INCLUDES}/components-rs SYMBOLIC)
+
 file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
  ../zend_abstract_interface/json/*.c ../zend_abstract_interface/env/*.c
  ../zend_abstract_interface/zai_string/*.c)
@@ -9,8 +18,10 @@ file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
 add_library(zai STATIC ${ZAI_SOURCE})
 
 target_link_libraries(zai PRIVATE PhpConfig)
-target_include_directories(zai PUBLIC ../zend_abstract_interface ..)
+target_include_directories(zai PUBLIC ../zend_abstract_interface ${EXT_ROOT_INCLUDES})
 set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
+
+include(cmake/pcre2.cmake)
 
 file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
 add_library(extension SHARED ${EXT_SOURCE})
@@ -30,8 +41,8 @@ if(ZAI_INCLUDE_DIRS)
 endif()
 target_link_libraries(extension PRIVATE zai)
 
-target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec)
-target_include_directories(extension PRIVATE ..)
+target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec PCRE2::pcre2)
+target_include_directories(extension PRIVATE ${EXT_ROOT_INCLUDES})
 
 # gnu unique prevents shared libraries from being unloaded from memory by dlclose
 check_cxx_compiler_flag("-fno-gnu-unique" COMPILER_HAS_NO_GNU_UNIQUE)
