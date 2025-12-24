@@ -15,6 +15,7 @@ class PDOIntegration extends Integration
     const NAME = 'pdo';
 
     const CONNECTION_TAGS_KEY = 'connection_tags';
+    const PREPARE_SPAN_KEY = 'prepare_span';
 
     const DB_DRIVER_TO_SYSTEM = [
         'cubrid' => 'other_sql',
@@ -129,6 +130,10 @@ class PDOIntegration extends Integration
             PDOIntegration::handleRasp($instance, $span);
         }, static function (HookData $hook) {
             ObjectKVStore::propagate($hook->instance, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
+            // Store the prepare span so execute can use it as parent
+            if ($hook->returned instanceof \PDOStatement) {
+                ObjectKVStore::put($hook->returned, PDOIntegration::PREPARE_SPAN_KEY, $hook->span());
+            }
         });
 
         // public bool PDO::commit ( void )
@@ -143,7 +148,9 @@ class PDOIntegration extends Integration
         \DDTrace\install_hook(
             'PDOStatement::execute',
             static function (HookData $hook) {
-                $hook->span();
+                // If this statement was prepared with PDO::prepare, use that span as parent
+                $prepareSpan = ObjectKVStore::get($hook->instance, PDOIntegration::PREPARE_SPAN_KEY);
+                $hook->span($prepareSpan);
             },
             static function (HookData $hook) {
                 $span = $hook->span();
