@@ -10,9 +10,6 @@ use std::sync::atomic::Ordering::Relaxed;
 #[cfg(feature = "debug_stats")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 
-type ZendHeapPrepareFn = unsafe fn(heap: *mut zend::_zend_mm_heap) -> c_int;
-type ZendHeapRestoreFn = unsafe fn(heap: *mut zend::_zend_mm_heap, custom_heap: c_int);
-
 #[derive(Copy, Clone)]
 struct ZendMMState {
     /// The heap installed in ZendMM at the time we install our custom
@@ -30,7 +27,6 @@ struct ZendMMState {
     prev_custom_mm_gc: Option<zend::VmMmCustomGcFn>,
     /// The engine's previous custom shutdown function, if there is one.
     prev_custom_mm_shutdown: Option<zend::VmMmCustomShutdownFn>,
-    prepare_restore_zend_heap: (ZendHeapPrepareFn, ZendHeapRestoreFn),
     /// Safety: this function pointer is only allowed to point to
     /// `alloc_prof_prev_alloc()` when at the same time the
     /// `ZEND_MM_STATE.prev_custom_mm_alloc` is initialised to a valid function
@@ -75,7 +71,6 @@ impl ZendMMState {
             prev_custom_mm_free: None,
             prev_custom_mm_gc: None,
             prev_custom_mm_shutdown: None,
-            prepare_restore_zend_heap: (prepare_zend_heap, restore_zend_heap),
             alloc: super::alloc_prof_panic_alloc,
             realloc: super::alloc_prof_panic_realloc,
             free: super::alloc_prof_panic_free,
@@ -193,15 +188,12 @@ pub fn alloc_prof_rinit() {
             zend_mm_state.realloc = alloc_prof_prev_realloc;
             zend_mm_state.gc = alloc_prof_prev_gc;
             zend_mm_state.shutdown = alloc_prof_prev_shutdown;
-            zend_mm_state.prepare_restore_zend_heap =
-                (prepare_zend_heap_none, restore_zend_heap_none);
         } else {
             zend_mm_state.alloc = alloc_prof_orig_alloc;
             zend_mm_state.free = alloc_prof_orig_free;
             zend_mm_state.realloc = alloc_prof_orig_realloc;
             zend_mm_state.gc = alloc_prof_orig_gc;
             zend_mm_state.shutdown = alloc_prof_orig_shutdown;
-            zend_mm_state.prepare_restore_zend_heap = (prepare_zend_heap, restore_zend_heap);
 
             // Reset previous handlers to None. There might be a chaotic neighbor that
             // registered custom handlers in an earlier request, but it doesn't do so for this
@@ -334,16 +326,10 @@ unsafe fn prepare_zend_heap(heap: *mut zend::_zend_mm_heap) -> c_int {
     custom_heap
 }
 
-fn prepare_zend_heap_none(_heap: *mut zend::_zend_mm_heap) -> c_int {
-    0
-}
-
 /// Restore the ZendMM heap's `use_custom_heap` flag, see `prepare_zend_heap` for details
 unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) {
     ptr::write(heap as *mut c_int, custom_heap);
 }
-
-fn restore_zend_heap_none(_heap: *mut zend::_zend_mm_heap, _custom_heap: c_int) {}
 
 unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
@@ -450,10 +436,9 @@ unsafe fn alloc_prof_prev_gc() -> size_t {
 
 unsafe fn alloc_prof_orig_gc() -> size_t {
     let heap = tls_zend_mm_state_get!(heap).unwrap();
-    let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
-    let custom_heap = prepare(heap);
+    let custom_heap = prepare_zend_heap(heap);
     let size = zend::zend_mm_gc(heap);
-    restore(heap, custom_heap);
+    restore_zend_heap(heap, custom_heap);
     size
 }
 
@@ -471,10 +456,9 @@ unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
 
 unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
-    let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
-    let custom_heap = prepare(heap);
+    let custom_heap = prepare_zend_heap(heap);
     zend::zend_mm_shutdown(heap, full, silent);
-    restore(heap, custom_heap);
+    restore_zend_heap(heap, custom_heap);
 }
 
 /// safe wrapper for `zend::is_zend_mm()`.
