@@ -98,8 +98,8 @@ pub fn alloc_prof_ginit() {
 }
 
 pub fn alloc_prof_gshutdown() {
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_gshutdown();
+    // #[cfg(php_zend_mm_set_custom_handlers_ex)]
+    // allocation_ge84::alloc_prof_gshutdown();
 }
 
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
