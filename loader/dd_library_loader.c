@@ -301,7 +301,11 @@ void ddloader_logv(injected_ext *config, log_level level, const char *format, va
 
     char full[512];
     snprintf(full, sizeof(full), "[dd_library_loader][%s] %s", level_str, msg);
+#if PHP_VERSION_ID < 70100
+    _php_error_log(0, full, NULL, NULL);
+#else
     php_log_err(full);
+#endif
 }
 
 void ddloader_logf(injected_ext *config, log_level level, const char *format, ...) {
