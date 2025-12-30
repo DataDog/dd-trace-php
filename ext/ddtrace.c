@@ -1902,6 +1902,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         zend_string_release(DDTRACE_G(last_env_name));
         DDTRACE_G(last_env_name) = NULL;
     }
+    if (DDTRACE_G(last_version)) {
+        zend_string_release(DDTRACE_G(last_version));
+        DDTRACE_G(last_version) = NULL;
+    }
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();

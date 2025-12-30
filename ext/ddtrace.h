@@ -154,6 +154,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *agent_rate_by_service;
     zend_string *last_service_name;
     zend_string *last_env_name;
+    zend_string *last_version;
     ddog_Vec_Tag active_global_tags;
 
     bool request_initialized;
