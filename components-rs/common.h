@@ -264,34 +264,6 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
-typedef enum ddog_ConfigurationOrigin {
-  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
-  DDOG_CONFIGURATION_ORIGIN_CODE,
-  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
-  DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
-} ddog_ConfigurationOrigin;
-
-typedef enum ddog_DynamicConfigUpdateMode {
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
-} ddog_DynamicConfigUpdateMode;
-
-typedef enum ddog_EvaluateAt {
-  DDOG_EVALUATE_AT_ENTRY,
-  DDOG_EVALUATE_AT_EXIT,
-} ddog_EvaluateAt;
-
-typedef enum ddog_InBodyLocation {
-  DDOG_IN_BODY_LOCATION_NONE,
-  DDOG_IN_BODY_LOCATION_START,
-  DDOG_IN_BODY_LOCATION_END,
-} ddog_InBodyLocation;
-
 typedef enum ddog_Log {
   DDOG_LOG_ERROR = 1,
   DDOG_LOG_WARN = 2,
@@ -305,6 +277,13 @@ typedef enum ddog_Log {
   DDOG_LOG_SPAN_TRACE = (5 | (3 << 4)),
   DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
 } ddog_Log;
+
+typedef enum ddog_DynamicConfigUpdateMode {
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
+} ddog_DynamicConfigUpdateMode;
 
 typedef enum ddog_InBodyLocation {
   DDOG_IN_BODY_LOCATION_NONE,
@@ -346,6 +325,7 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_DEFAULT,
   DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_CALCULATED,
 } ddog_ConfigurationOrigin;
 
 typedef enum ddog_MetricType {
@@ -461,11 +441,11 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
  */
-typedef struct ddog_Vec_CharSlice {
-  const ddog_CharSlice *ptr;
+typedef struct ddog_Vec_CChar {
+  const char *ptr;
   uintptr_t len;
   uintptr_t capacity;
-} ddog_Vec_CharSlice;
+} ddog_Vec_CChar;
 
 typedef struct ddog_Tag {
   ddog_CharSlice name;
@@ -477,20 +457,6 @@ typedef struct _zend_string *ddog_OwnedZendString;
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
                                                          enum ddog_DynamicConfigUpdateMode mode);
-
-/**
- * Holds the raw parts of a Rust Vec; it should only be created from Rust,
- * never from C.
- */
-typedef struct ddog_Vec_CChar {
-  const char *ptr;
-  uintptr_t len;
-  uintptr_t capacity;
-} ddog_Vec_CChar;
-
-typedef struct ddog_Vec_CChar *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
-                                                           ddog_CharSlice value,
-                                                           bool return_old);
 
 typedef enum ddog_IntermediateValue_Tag {
   DDOG_INTERMEDIATE_VALUE_STRING,
@@ -817,6 +783,7 @@ typedef enum ddog_FieldType {
 
 typedef enum ddog_DebuggerType {
   DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
+  DDOG_DEBUGGER_TYPE_SNAPSHOTS,
   DDOG_DEBUGGER_TYPE_LOGS,
 } ddog_DebuggerType;
 
@@ -989,6 +956,20 @@ typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
  */
 typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
 
+typedef enum ddog_Option_U64_Tag {
+  DDOG_OPTION_U64_SOME_U64,
+  DDOG_OPTION_U64_NONE_U64,
+} ddog_Option_U64_Tag;
+
+typedef struct ddog_Option_U64 {
+  ddog_Option_U64_Tag tag;
+  union {
+    struct {
+      uint64_t some;
+    };
+  };
+} ddog_Option_U64;
+
 typedef enum ddog_Option_Bool_Tag {
   DDOG_OPTION_BOOL_SOME_BOOL,
   DDOG_OPTION_BOOL_NONE_BOOL,
@@ -1014,11 +995,6 @@ typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
 typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
-typedef enum ddog_DynamicInstrumentationConfigState {
-  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
-  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
-  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
-} ddog_DynamicInstrumentationConfigState;
 
 typedef enum ddog_Method {
   DDOG_METHOD_GET = 0,
@@ -1032,6 +1008,12 @@ typedef enum ddog_Method {
   DDOG_METHOD_CONNECT = 8,
   DDOG_METHOD_OTHER = 9,
 } ddog_Method;
+
+typedef enum ddog_DynamicInstrumentationConfigState {
+  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
+  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
+  DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
+} ddog_DynamicInstrumentationConfigState;
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
@@ -1112,37 +1094,28 @@ typedef struct ddog_SenderParameters {
   ddog_CharSlice url;
 } ddog_SenderParameters;
 
-typedef enum ddog_crasht_BuildIdType {
-  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
-  DDOG_CRASHT_BUILD_ID_TYPE_GO,
-  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
-  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
-} ddog_crasht_BuildIdType;
-
 /**
- * Result type for runtime callback registration
+ * Stacktrace collection occurs in the context of a crashing process.
+ * If the stack is sufficiently corruputed, it is possible (but unlikely),
+ * for stack trace collection itself to crash.
+ * We recommend fully enabling stacktrace collection, but having an environment
+ * variable to allow downgrading the collector.
  */
-typedef enum ddog_crasht_CallbackResult {
-  DDOG_CRASHT_CALLBACK_RESULT_OK,
-  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
-} ddog_crasht_CallbackResult;
-
-typedef enum ddog_crasht_DemangleOptions {
-  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
-  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
-} ddog_crasht_DemangleOptions;
-
-typedef enum ddog_crasht_ErrorKind {
-  DDOG_CRASHT_ERROR_KIND_PANIC,
-  DDOG_CRASHT_ERROR_KIND_UNHANDLED_EXCEPTION,
-  DDOG_CRASHT_ERROR_KIND_UNIX_SIGNAL,
-} ddog_crasht_ErrorKind;
-
-typedef enum ddog_crasht_FileType {
-  DDOG_CRASHT_FILE_TYPE_APK,
-  DDOG_CRASHT_FILE_TYPE_ELF,
-  DDOG_CRASHT_FILE_TYPE_PE,
-} ddog_crasht_FileType;
+typedef enum ddog_crasht_StacktraceCollection {
+  /**
+   * Stacktrace collection occurs in the
+   */
+  DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
+  /**
+   * This option uses `backtrace::resolve_frame_unsynchronized()` to gather symbol information
+   * and also unwind inlined functions. Enabling this feature will not only provide symbolic
+   * details, but may also yield additional or less stack frames compared to other
+   * configurations.
+   */
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
+} ddog_crasht_StacktraceCollection;
 
 /**
  * This enum represents operations a the tracked library might be engaged in.
@@ -1263,6 +1236,14 @@ typedef enum ddog_crasht_DemangleOptions {
   DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
 } ddog_crasht_DemangleOptions;
 
+/**
+ * Result type for runtime callback registration
+ */
+typedef enum ddog_crasht_CallbackResult {
+  DDOG_CRASHT_CALLBACK_RESULT_OK,
+  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
+} ddog_crasht_CallbackResult;
+
 typedef struct ddog_crasht_CrashInfo ddog_crasht_CrashInfo;
 
 typedef struct ddog_crasht_CrashInfoBuilder ddog_crasht_CrashInfoBuilder;
@@ -1339,7 +1320,7 @@ typedef struct ddog_crasht_Config {
   /**
    * Timeout in milliseconds before the signal handler starts tearing things down to return.
    * If 0, uses the default timeout as specified in
-   * `datadog_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
+   * `libdd_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
    * the specified timeout value.
    * This is given as a uint32_t, but the actual timeout needs to fit inside of an i32 (max
    * 2^31-1). This is a limitation of the various interfaces used to guarantee the timeout.
@@ -1459,13 +1440,17 @@ typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
   };
 }  ddog_crasht_CrashInfoBuilder_NewResult;
 
-typedef enum ddog_crasht_CrashInfo_NewResult_Tag {
-  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
-  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
-} ddog_crasht_CrashInfo_NewResult_Tag;
+/**
+ * A generic result type for when an operation may fail,
+ * or may return <T> in case of success.
+ */
+typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
+  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
+  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_ERR_HANDLE_CRASH_INFO,
+} ddog_crasht_Result_HandleCrashInfo_Tag;
 
-typedef struct ddog_crasht_CrashInfo_NewResult {
-  ddog_crasht_CrashInfo_NewResult_Tag tag;
+typedef struct ddog_crasht_Result_HandleCrashInfo {
+  ddog_crasht_Result_HandleCrashInfo_Tag tag;
   union {
     struct {
       struct ddog_crasht_Handle_CrashInfo ok;
@@ -1474,7 +1459,9 @@ typedef struct ddog_crasht_CrashInfo_NewResult {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_CrashInfo_NewResult;
+} ddog_crasht_Result_HandleCrashInfo;
+
+typedef struct ddog_crasht_Result_HandleCrashInfo ddog_crasht_CrashInfo_NewResult;
 
 typedef struct ddog_crasht_OsInfo {
   ddog_CharSlice architecture;
