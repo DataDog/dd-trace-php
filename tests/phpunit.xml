@@ -94,6 +94,7 @@
             <directory>./OpenTelemetry/Integration/SDK</directory>
             <file>./OpenTelemetry/Integration/InteroperabilityTest.php</file>
             <file>./OpenTelemetry/Integration/InternalTelemetryTest.php</file>
+            <file>./OpenTelemetry/Integration/MetricsTest.php</file>
         </testsuite>
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>

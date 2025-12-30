@@ -89,6 +89,7 @@ void ddtrace_telemetry_first_init(void) {
 
 void ddtrace_telemetry_rinit(void) {
     zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
+    zend_hash_init(&DDTRACE_G(otel_config_telemetry), 8, unused, ZVAL_PTR_DTOR, 0);
     DDTRACE_G(baggage_extract_count) = 0;
     DDTRACE_G(baggage_inject_count) = 0;
     DDTRACE_G(baggage_malformed_count) = 0;
@@ -98,6 +99,7 @@ void ddtrace_telemetry_rinit(void) {
 
 void ddtrace_telemetry_rshutdown(void) {
     zend_hash_destroy(&DDTRACE_G(telemetry_spans_created_per_integration));
+    zend_hash_destroy(&DDTRACE_G(otel_config_telemetry));
 }
 
 // Register in the sidecar services not bound to the request lifetime
@@ -196,6 +198,18 @@ void ddtrace_telemetry_finalize() {
         if (injection_enabled) {
             ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_injection_enabled"), (ddog_CharSlice) {.ptr = injection_enabled, .len = strlen(injection_enabled)}, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
         }
+
+        // Send OTel configuration telemetry
+        zend_string *config_name;
+        zval *config_value;
+        ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(otel_config_telemetry), config_name, config_value) {
+            if (config_name && Z_TYPE_P(config_value) == IS_STRING) {
+                ddog_CharSlice name = dd_zend_string_to_CharSlice(config_name);
+                ddog_CharSlice value = dd_zend_string_to_CharSlice(Z_STR_P(config_value));
+                // OTel configurations are from environment variables
+                ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, value, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
+            }
+        } ZEND_HASH_FOREACH_END();
     }
 
     // Send information about explicitly disabled integrations
