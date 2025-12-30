@@ -62,21 +62,8 @@ stages:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
-    - |
-      echo "Logging in to Docker Hub"
-      if [ "$CI_REGISTRY_USER" = "" ]; then
-        echo "Fetching Docker Hub credentials from vault"
-        vaultoutput=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/dockerhub)
-        user=$(echo "$vaultoutput" | jq -r .data.data.user)
-        token=$(echo "$vaultoutput" | jq -r .data.data.token)
-      else
-        user="$CI_REGISTRY_USER"
-        token="$CI_REGISTRY_TOKEN"
-      fi
-
-      echo "Docker Hub user: $user"
-      docker login -u "$user" -p "$token" docker.io
-    - apt update && apt install -y default-jre
+<?php dockerhub_login() ?>
+    - apt update && apt install -y openjdk-17-jre
 
 "test appsec extension":
   stage: test
@@ -141,8 +128,9 @@ stages:
           - test8.5-release-zts
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
+<?php dockerhub_login() ?>
   script:
-    - apt update && apt install -y default-jre
+    - apt update && apt install -y openjdk-17-jre
     - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
     - |
       cd appsec/tests/integration

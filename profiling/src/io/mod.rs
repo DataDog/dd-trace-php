@@ -545,42 +545,42 @@ impl IOProfilingStats {
 thread_local! {
     static SOCKET_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            SOCKET_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
     static SOCKET_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            SOCKET_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
     static FILE_READ_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            FILE_READ_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
     static FILE_WRITE_TIME_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            FILE_WRITE_TIME_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
     static SOCKET_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            SOCKET_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
     static SOCKET_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            SOCKET_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
     static FILE_READ_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            FILE_READ_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
     static FILE_WRITE_SIZE_PROFILING_STATS: RefCell<IOProfilingStats> = RefCell::new(
         IOProfilingStats::new(
-            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64,
+            FILE_WRITE_SIZE_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64,
         )
     );
 }

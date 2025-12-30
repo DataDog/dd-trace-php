@@ -13,3 +13,7 @@ void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
 
 void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len);
 void dd_telemetry_startup(void);
+
+void dd_telemetry_helper_conn_error(const char *nonnull socket_path);
+void dd_telemetry_helper_conn_success(const char *nonnull socket_path);
+void dd_telemetry_helper_conn_close(const char *nonnull socket_path);
