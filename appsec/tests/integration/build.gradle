@@ -42,6 +42,7 @@ dependencies {
     implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.16'
     implementation 'org.junit.jupiter:junit-jupiter-engine:5.12.2'
     implementation 'org.junit.jupiter:junit-jupiter-params:5.12.2'
+    implementation 'org.junit.platform:junit-platform-launcher'
 
     testRuntimeOnly 'com.mysql:mysql-connector-j:9.3.0'
 }
@@ -424,6 +425,9 @@ testMatrix.each { spec ->
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
         }
+
+        it.testClassesDirs = sourceSets.test.output.classesDirs
+        it.classpath = sourceSets.test.runtimeClasspath
 
         it.systemProperty 'PHP_VERSION', phpVersion
         it.systemProperty 'VARIANT', variant
