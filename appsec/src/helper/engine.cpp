@@ -82,19 +82,20 @@ void engine::update(const rapidjson::Document &doc,
 }
 
 std::optional<engine::result> engine::context::publish(
-    parameter &&param, const std::string &rasp_rule)
+    parameter &&param, const network::request_exec_options &options)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
+    // XXX: this unnecessarily keeps transient data
     prev_published_params_.push_back(std::move(param));
 
-    parameter_view data(prev_published_params_.back());
+    parameter_view data{*&prev_published_params_.back()};
     if (!data.is_map()) {
         throw invalid_object(".", "not a map");
     }
 
-    for (const auto &entry : data) {
-        DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, entry.key());
+    for (const auto &[key, value] : data.map_iterable()) {
+        DD_STDLOG(DD_STDLOG_IG_DATA_PUSHED, key);
     }
 
     event event;
@@ -113,7 +114,7 @@ std::optional<engine::result> engine::context::publish(
         }
         try {
             const auto &listener = it->second;
-            listener->call(data, event, rasp_rule);
+            listener->call(data, event, options);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }

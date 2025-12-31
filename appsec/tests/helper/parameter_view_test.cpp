@@ -7,13 +7,16 @@
 #include <exception.hpp>
 #include <iostream>
 #include <limits>
+#include <parameter.hpp>
 #include <parameter_view.hpp>
 
 namespace dds {
 
 TEST(ParameterViewTest, EmptyConstructor)
 {
-    parameter_view p;
+    ddwaf_object obj;
+    ddwaf_object_set_invalid(&obj);
+    parameter_view p(obj);
     EXPECT_EQ(p.type(), parameter_type::invalid);
     EXPECT_FALSE(p.is_valid());
 
@@ -24,7 +27,8 @@ TEST(ParameterViewTest, EmptyConstructor)
 
     EXPECT_THROW(
         [&] {
-            for (auto value : p) { EXPECT_FALSE(value.is_valid()); }
+            auto arr_it = p.array_iterable();
+            for (auto value : arr_it) { EXPECT_FALSE(value.is_valid()); }
         }(),
         invalid_type);
 }
@@ -34,7 +38,7 @@ TEST(ParameterViewTest, FromStringParameter)
     std::string value("thisisastring");
     parameter p = parameter::string(value);
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     EXPECT_EQ(p.type(), pv.type());
     EXPECT_EQ(p.length(), pv.length());
     EXPECT_EQ(p.size(), pv.size());
@@ -46,7 +50,8 @@ TEST(ParameterViewTest, FromStringParameter)
 
     EXPECT_THROW(
         [&] {
-            for (auto value : pv) { EXPECT_FALSE(value.is_valid()); }
+            auto arr_it = pv.array_iterable();
+            for (auto value : arr_it) { EXPECT_FALSE(value.is_valid()); }
         }(),
         invalid_type);
 
@@ -59,13 +64,14 @@ TEST(ParameterViewTest, FromArrayParameter)
     parameter p = parameter::array();
     for (i = 0; i < 5; i++) { p.add(parameter::string(std::to_string(i))); }
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     EXPECT_EQ(pv.type(), p.type());
     EXPECT_EQ(pv.length(), p.length());
     EXPECT_EQ(pv.size(), p.size());
 
     i = 0;
-    for (auto value : pv) {
+    auto arr_it = pv.array_iterable();
+    for (auto value : arr_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
         EXPECT_STREQ(std::string_view(value).data(), std::to_string(i).c_str());
@@ -89,25 +95,19 @@ TEST(ParameterViewTest, FromMapParameter)
         p.add(std::to_string(i), parameter::string("value"sv));
     }
 
-    parameter_view pv(p);
+    parameter_view pv{*&p};
     EXPECT_EQ(pv.type(), p.type());
     EXPECT_EQ(pv.length(), p.length());
     EXPECT_EQ(pv.size(), p.size());
 
     i = 0;
-    for (auto value : pv) {
+    auto map_it = pv.map_iterable();
+    for (const auto &[key, value] : map_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
-        EXPECT_STREQ(value.key().data(), std::to_string(i).c_str());
+        EXPECT_STREQ(key.data(), std::to_string(i).c_str());
         EXPECT_STREQ(std::string_view(value).data(), "value");
         i++;
-    }
-
-    for (i = 0; i < 5; i++) {
-        EXPECT_TRUE(pv[i].is_valid());
-        EXPECT_TRUE(pv[i].is_string());
-        EXPECT_STREQ(pv[i].key().data(), std::to_string(i).c_str());
-        EXPECT_STREQ(std::string_view(pv[i]).data(), "value");
     }
 
     EXPECT_THROW(pv[i], std::out_of_range);
@@ -117,7 +117,8 @@ TEST(ParameterViewTest, FromStringObject)
 {
     std::string value("thisisastring");
     ddwaf_object obj;
-    ddwaf_object_stringl(&obj, value.data(), value.size());
+    auto alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_string(&obj, value.data(), value.size(), alloc);
 
     parameter_view pv(obj);
     EXPECT_EQ(pv.type(), parameter_type::string);
@@ -131,18 +132,19 @@ TEST(ParameterViewTest, FromStringObject)
 
     EXPECT_THROW(
         [&] {
-            for (auto value : pv) { EXPECT_FALSE(value.is_valid()); }
+            auto arr_it = pv.array_iterable();
+            for (auto value : arr_it) { EXPECT_FALSE(value.is_valid()); }
         }(),
         invalid_type);
 
     EXPECT_THROW(auto &pv0 = pv[0], invalid_type);
-    ddwaf_object_free(&obj);
+    ddwaf_object_destroy(&obj, alloc);
 }
 
 TEST(ParameterViewTest, FromUint64Object)
 {
     ddwaf_object obj;
-    ddwaf_object_unsigned(&obj, std::numeric_limits<uint64_t>::max());
+    ddwaf_object_set_unsigned(&obj, std::numeric_limits<uint64_t>::max());
 
     parameter_view pv(obj);
     EXPECT_EQ(pv.type(), parameter_type::uint64);
@@ -156,7 +158,8 @@ TEST(ParameterViewTest, FromUint64Object)
 
     EXPECT_THROW(
         [&] {
-            for (auto value : pv) { EXPECT_FALSE(value.is_valid()); }
+            auto arr_it = pv.array_iterable();
+            for (auto value : arr_it) { EXPECT_FALSE(value.is_valid()); }
         }(),
         invalid_type);
 
@@ -166,7 +169,7 @@ TEST(ParameterViewTest, FromUint64Object)
 TEST(ParameterViewTest, FromInt64Object)
 {
     ddwaf_object obj;
-    ddwaf_object_signed(&obj, std::numeric_limits<int64_t>::min());
+    ddwaf_object_set_signed(&obj, std::numeric_limits<int64_t>::min());
 
     parameter_view pv(obj);
     EXPECT_EQ(pv.type(), parameter_type::int64);
@@ -180,7 +183,8 @@ TEST(ParameterViewTest, FromInt64Object)
 
     EXPECT_THROW(
         [&] {
-            for (auto value : pv) { EXPECT_FALSE(value.is_valid()); }
+            auto arr_it = pv.array_iterable();
+            for (auto value : arr_it) { EXPECT_FALSE(value.is_valid()); }
         }(),
         invalid_type);
 
@@ -191,11 +195,13 @@ TEST(ParameterViewTest, FromArrayObject)
 {
     int i;
     int size = 40;
-    ddwaf_object obj, tmp;
-    ddwaf_object_array(&obj);
+    ddwaf_object obj;
+    auto alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_array(&obj, size, alloc);
     for (i = 0; i < size; i++) {
-        ddwaf_object_array_add(
-            &obj, ddwaf_object_string(&tmp, std::to_string(i).c_str()));
+        auto str = std::to_string(i);
+        ddwaf_object *elem = ddwaf_object_insert(&obj, alloc);
+        ddwaf_object_set_string(elem, str.c_str(), str.length(), alloc);
     }
 
     parameter_view pv(obj);
@@ -204,7 +210,8 @@ TEST(ParameterViewTest, FromArrayObject)
     EXPECT_EQ(pv.size(), size);
 
     i = 0;
-    for (auto value : pv) {
+    auto arr_it = pv.array_iterable();
+    for (auto value : arr_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
         EXPECT_STREQ(std::string_view(value).data(), std::to_string(i).c_str());
@@ -219,18 +226,21 @@ TEST(ParameterViewTest, FromArrayObject)
 
     EXPECT_THROW(pv[i], std::out_of_range);
 
-    ddwaf_object_free(&obj);
+    ddwaf_object_destroy(&obj, alloc);
 }
 
 TEST(ParameterViewTest, FromMapObject)
 {
     int i;
     int size = 40;
-    ddwaf_object obj, tmp;
-    ddwaf_object_map(&obj);
+    ddwaf_object obj;
+    auto alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_map(&obj, size, alloc);
     for (i = 0; i < size; i++) {
-        ddwaf_object_map_add(&obj, std::to_string(i).c_str(),
-            ddwaf_object_string(&tmp, "value"));
+        auto key = std::to_string(i);
+        ddwaf_object *elem =
+            ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
+        ddwaf_object_set_string(elem, "value", 5, alloc);
     }
 
     parameter_view pv(obj);
@@ -239,73 +249,65 @@ TEST(ParameterViewTest, FromMapObject)
     EXPECT_EQ(pv.size(), size);
 
     i = 0;
-    for (auto value : pv) {
+    auto map_it = pv.map_iterable();
+    for (const auto &[key, value] : map_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
-        EXPECT_STREQ(value.key().data(), std::to_string(i).c_str());
+        EXPECT_STREQ(key.data(), std::to_string(i).c_str());
         EXPECT_STREQ(std::string_view(value).data(), "value");
         i++;
     }
 
-    for (i = 0; i < size; i++) {
-        EXPECT_TRUE(pv[i].is_valid());
-        EXPECT_TRUE(pv[i].is_string());
-        EXPECT_STREQ(pv[i].key().data(), std::to_string(i).c_str());
-        EXPECT_STREQ(std::string_view(pv[i]).data(), "value");
-    }
+    EXPECT_THROW(pv[size], std::out_of_range);
 
-    EXPECT_THROW(pv[i], std::out_of_range);
-
-    ddwaf_object_free(&obj);
+    ddwaf_object_destroy(&obj, alloc);
 }
 
 TEST(ParameterViewTest, StaticCastFromMapObject)
 {
     int i;
     int size = 40;
-    ddwaf_object obj, tmp;
-    ddwaf_object_map(&obj);
+    ddwaf_object obj;
+    auto alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_map(&obj, size, alloc);
     for (i = 0; i < size; i++) {
-        ddwaf_object_map_add(&obj, std::to_string(i).c_str(),
-            ddwaf_object_string(&tmp, "value"));
+        auto key = std::to_string(i);
+        ddwaf_object *elem =
+            ddwaf_object_insert_key(&obj, key.c_str(), key.length(), alloc);
+        ddwaf_object_set_string(elem, "value", 5, alloc);
     }
 
     parameter_view pv = static_cast<parameter_view>(obj);
-    ;
     EXPECT_EQ(pv.type(), parameter_type::map);
     EXPECT_EQ(pv.length(), 0);
     EXPECT_EQ(pv.size(), size);
 
     i = 0;
-    for (auto value : pv) {
+    auto map_it = pv.map_iterable();
+    for (const auto &[key, value] : map_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
-        EXPECT_STREQ(value.key().data(), std::to_string(i).c_str());
+        EXPECT_STREQ(key.data(), std::to_string(i).c_str());
         EXPECT_STREQ(std::string_view(value).data(), "value");
         i++;
     }
 
-    for (i = 0; i < size; i++) {
-        EXPECT_TRUE(pv[i].is_valid());
-        EXPECT_TRUE(pv[i].is_string());
-        EXPECT_STREQ(pv[i].key().data(), std::to_string(i).c_str());
-        EXPECT_STREQ(std::string_view(pv[i]).data(), "value");
-    }
+    EXPECT_THROW(pv[size], std::out_of_range);
 
-    EXPECT_THROW(pv[i], std::out_of_range);
-
-    ddwaf_object_free(&obj);
+    ddwaf_object_destroy(&obj, alloc);
 }
 
 TEST(ParameterViewTest, StaticCastFromArrayObject)
 {
     int i;
     int size = 40;
-    ddwaf_object obj, tmp;
-    ddwaf_object_array(&obj);
+    ddwaf_object obj;
+    auto alloc = ddwaf_get_default_allocator();
+    ddwaf_object_set_array(&obj, size, alloc);
     for (i = 0; i < size; i++) {
-        ddwaf_object_array_add(
-            &obj, ddwaf_object_string(&tmp, std::to_string(i).c_str()));
+        auto str = std::to_string(i);
+        ddwaf_object *elem = ddwaf_object_insert(&obj, alloc);
+        ddwaf_object_set_string(elem, str.c_str(), str.length(), alloc);
     }
 
     parameter_view pv = static_cast<parameter_view>(obj);
@@ -314,7 +316,8 @@ TEST(ParameterViewTest, StaticCastFromArrayObject)
     EXPECT_EQ(pv.size(), size);
 
     i = 0;
-    for (auto value : pv) {
+    auto arr_it = pv.array_iterable();
+    for (auto value : arr_it) {
         EXPECT_TRUE(value.is_valid());
         EXPECT_TRUE(value.is_string());
         EXPECT_STREQ(std::string_view(value).data(), std::to_string(i).c_str());
@@ -329,7 +332,7 @@ TEST(ParameterViewTest, StaticCastFromArrayObject)
 
     EXPECT_THROW(pv[size], std::out_of_range);
 
-    ddwaf_object_free(&obj);
+    ddwaf_object_destroy(&obj, alloc);
 }
 
 } // namespace dds

@@ -42,6 +42,7 @@ dependencies {
     implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.16'
     implementation 'org.junit.jupiter:junit-jupiter-engine:5.12.2'
     implementation 'org.junit.jupiter:junit-jupiter-params:5.12.2'
+    implementation 'org.junit.platform:junit-platform-launcher'
 
     testRuntimeOnly 'com.mysql:mysql-connector-j:9.3.0'
 }
@@ -352,7 +353,8 @@ def buildAppSecTask = { String version, String variant ->
                         cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
                               -DCMAKE_INSTALL_PREFIX=/appsec \\
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
-                              -DDD_APPSEC_TESTING=ON /project/appsec
+                              -DDD_APPSEC_TESTING=ON \\
+                              -DBOOST_CACHE_PREFIX=/root/.boost /project/appsec
                     make -j extension ddappsec-helper && \\
                         touch ddappsec.so libddappsec-helper.so
                 '''
@@ -424,6 +426,9 @@ testMatrix.each { spec ->
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
         }
+
+        it.testClassesDirs = sourceSets.test.output.classesDirs
+        it.classpath = sourceSets.test.runtimeClasspath
 
         it.systemProperty 'PHP_VERSION', phpVersion
         it.systemProperty 'VARIANT', variant
