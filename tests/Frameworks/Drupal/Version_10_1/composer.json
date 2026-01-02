@@ -22,7 +22,7 @@
         "composer/composer": "^2.4",
         "drupal/coder": "^8.3.10",
         "instaclick/php-webdriver": "^1.4.1",
-        "justinrainbow/json-schema": "^5.2",
+        "justinrainbow/json-schema": "^6.5.1",
         "mglaman/phpstan-drupal": "^1.1.34",
         "mikey179/vfsstream": "^1.6.11",
         "phpspec/prophecy-phpunit": "^2",

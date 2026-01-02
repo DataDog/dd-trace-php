@@ -22,8 +22,8 @@ services:
       args:
         <<: *build-base
         phpVersion: "8.5"
-        phpTarGzUrl: https://downloads.php.net/~daniels/php-8.5.0RC3.tar.gz
-        phpSha256Hash: "937e544d72ee1eb28d2190cadaadf8e5e8d7d8c365b5c1f6a99b4f979a1f3a1b"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.5.1.tar.gz
+        phpSha256Hash: "915492958081409a5e3ef99df969bcfa5b33bdf9517bd077991747e17fa2c1b7"
 
   php-8.4:
     image: datadog/dd-trace-ci:php-8.4_bookworm-$BOOKWORM_NEXT_VERSION
@@ -34,8 +34,8 @@ services:
       args:
         <<: *build-base
         phpVersion: "8.4"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.4.6.tar.gz
-        phpSha256Hash: "49be0f2f45c9b07c9b921d023bf28b1fc781700c829869725681300e72e3faa8"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.4.16.tar.gz
+        phpSha256Hash: "8e35d24f148ea7c2a93e9b9bcc329e8bf78b5bb922f3723a727c74c19d184e98"
 
   php-8.3:
     image: datadog/dd-trace-ci:php-8.3_bookworm-$BOOKWORM_NEXT_VERSION
@@ -46,8 +46,8 @@ services:
       args:
         <<: *build-base
         phpVersion: "8.3"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.3.20.tar.gz
-        phpSha256Hash: "515ed37529df6b7f569ba68d505713bce23a93a58471dedac4ecfd17c44e5650"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.3.29.tar.gz
+        phpSha256Hash: "8565fa8733c640b60da5ab4944bf2d4081f859915b39e29b3af26cf23443ed97"
 
   php-8.2:
     image: datadog/dd-trace-ci:php-8.2_bookworm-$BOOKWORM_NEXT_VERSION
