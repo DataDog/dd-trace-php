@@ -35,6 +35,23 @@ class WordPressIntegration extends Integration
         });
 
         \DDTrace\hook_method('WP', 'main', null, function ($This, $scope, $args) {
+            if (class_exists('WP_Query') && !\DDTrace\are_endpoints_collected()) {
+                $args = array('post_type' => 'any', 'posts_per_page' => -1);
+                $query = new \WP_Query($args);
+                foreach ($query->posts as $post) {
+                    $path = property_exists($post, 'guid') ? $post->guid : '';
+                    $parsed = parse_url($path);
+                    if (isset($parsed['path'])) {
+                        $path = $parsed['path'];
+                    }
+                    if (isset($parsed['query'])) {
+                        $path .= '?' . $parsed['query'];
+                    }
+                    $method = 'GET';
+                    $resourceName = $method . ' ' . $path;
+                    \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
+                }
+            }
             if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
                 if (
                     function_exists('\datadog\appsec\push_addresses') &&
