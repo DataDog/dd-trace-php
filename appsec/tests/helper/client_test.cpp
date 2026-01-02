@@ -4,10 +4,12 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "common.hpp"
+#include "engine_settings.hpp"
 #include "parameter.hpp"
 #include "service_config.hpp"
 #include "sidecar_settings.hpp"
 #include "subscriber/waf.hpp"
+#include "tel_subm_mock.hpp"
 #include <base64.h>
 #include <client.hpp>
 #include <compression.hpp>
@@ -47,11 +49,23 @@ public:
 
 class service : public dds::service {
 public:
+    static std::shared_ptr<dds::service::metrics_impl> create_metrics()
+    {
+        return dds::service::create_shared_metrics();
+    }
+
     service(std::shared_ptr<engine> engine,
         std::shared_ptr<service_config> service_config,
         dds::sidecar_settings sc_settings)
         : dds::service{std::move(engine), std::move(service_config), {},
               dds::service::create_shared_metrics(), "/rc_path", {}}
+    {}
+
+    service(std::shared_ptr<engine> engine,
+        std::shared_ptr<service_config> service_config,
+        std::shared_ptr<dds::service::metrics_impl> msubmitter)
+        : dds::service{std::move(engine), std::move(service_config), {},
+              std::move(msubmitter), "/rc_path", {}}
     {}
 };
 
@@ -132,12 +146,12 @@ constexpr bool EXTENSION_CONFIGURATION_DISABLED = false;
 
 TEST(ClientTest, ClientInit)
 {
-    auto smanager = std::make_shared<service_manager>();
+    auto fn = create_sample_rules_ok();
+
+    auto smanager = std::make_shared<mock::service_manager>();
     auto broker = new mock::broker();
 
     client c(smanager, std::unique_ptr<mock::broker>(broker));
-
-    auto fn = create_sample_rules_ok();
 
     network::client_init::request msg;
     msg.pid = 1729;
@@ -153,6 +167,19 @@ TEST(ClientTest, ClientInit)
         send(testing::An<const std::shared_ptr<network::base_response> &>()))
         .WillOnce(DoAll(testing::SaveArg<0>(&res), Return(true)));
 
+    // create service and return it
+    engine_settings eng_settings;
+    eng_settings.rules_file = fn;
+    auto msubmitter = mock::service::create_metrics();
+    std::shared_ptr<engine> engine{
+        engine::from_settings(eng_settings, *msubmitter)};
+    auto service_config = std::make_shared<dds::service_config>();
+    auto service =
+        std::make_shared<mock::service>(engine, service_config, msubmitter);
+    EXPECT_CALL(*smanager, get_or_create_service(_, _, _))
+        .Times(1)
+        .WillOnce(Return(service));
+
     EXPECT_TRUE(c.run_client_init());
 
     auto msg_res = dynamic_cast<network::client_init::response *>(res.get());
@@ -165,8 +192,6 @@ TEST(ClientTest, ClientInit)
         msg_res->meta[std::string(metrics::event_rules_errors)].c_str(), "{}");
 
     EXPECT_EQ(msg_res->metrics.size(), 2);
-    // For small enough integers this comparison should work, otherwise replace
-    // with EXPECT_NEAR.
     EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 5.0);
     EXPECT_EQ(msg_res->metrics[metrics::event_rules_failed], 0.0);
 }
