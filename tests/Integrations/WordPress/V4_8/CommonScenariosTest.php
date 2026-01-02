@@ -66,7 +66,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
     public function testScenarioGetReturnString()
     {
-        var_dump("Alex 1");
         $this->call(
             GetSpec::create(
                 'A simple GET request returning a string',
@@ -74,7 +73,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
             )
         );
 
-        usleep(600000);
         $found_app_endpoints = false;
         $until = function ($request) use (&$found_app_endpoints) {
             if (strpos($request["body"] ?? "", "app-endpoints") !== false) {
@@ -83,8 +81,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
             return $found_app_endpoints;
         };
         $response = $this->retrieveDumpedData($until);
-
-        var_dump("Alex 2");
 
         $endpoints = $this->readEndpointsTelemetry($response);
         $endpoints = isset($endpoints[0]) ? $endpoints[0] : [];
