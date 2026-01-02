@@ -15,6 +15,7 @@ class PDOIntegration extends Integration
     const NAME = 'pdo';
 
     const CONNECTION_TAGS_KEY = 'connection_tags';
+    const PREPARE_SPAN_KEY = 'prepare_span';
 
     const DB_DRIVER_TO_SYSTEM = [
         'cubrid' => 'other_sql',
@@ -118,17 +119,37 @@ class PDOIntegration extends Integration
         \DDTrace\install_hook('PDO::prepare', static function (HookData $hook) {
             list($query) = $hook->args;
 
-            $span = $hook->span();
-            Integration::handleOrphan($span);
-            $span->name = 'PDO.prepare';
-            $span->resource = Integration::toString($query);
+            // Create the prepare span
+            $prepareSpan = $hook->span();
+            Integration::handleOrphan($prepareSpan);
+            $prepareSpan->name = 'PDO.prepare';
+            $prepareSpan->resource = Integration::toString($query);
             $instance = $hook->instance;
-            PDOIntegration::setCommonSpanInfo($instance, $span);
+            PDOIntegration::setCommonSpanInfo($instance, $prepareSpan);
 
+            // Create the execute span as a child of prepare for DBM injection
+            // This ensures traceparent points to the execute span
+            $executeSpan = \DDTrace\start_span();
+            $executeSpan->name = 'PDOStatement.execute';
+            $executeSpan->resource = Integration::toString($query);
+            PDOIntegration::setCommonSpanInfo($instance, $executeSpan);
+
+            // Inject DBM with the execute span's ID
             PDOIntegration::injectDBIntegration($instance, $hook);
-            PDOIntegration::handleRasp($instance, $span);
+            PDOIntegration::handleRasp($instance, $executeSpan);
+
+            // Close the execute span (removes from stack) but don't finish it yet
+            // It will be resumed during execute
+            \DDTrace\close_span();
+
+            // Store the execute span to be resumed by execute
+            $hook->data = ['execute_span' => $executeSpan];
         }, static function (HookData $hook) {
             ObjectKVStore::propagate($hook->instance, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
+            // Store the execute span in the PDOStatement for later use
+            if ($hook->returned instanceof \PDOStatement && !$hook->exception && isset($hook->data['execute_span'])) {
+                ObjectKVStore::put($hook->returned, PDOIntegration::PREPARE_SPAN_KEY, $hook->data['execute_span']);
+            }
         });
 
         // public bool PDO::commit ( void )
@@ -143,12 +164,29 @@ class PDOIntegration extends Integration
         \DDTrace\install_hook(
             'PDOStatement::execute',
             static function (HookData $hook) {
-                $hook->span();
+                // Check if we have a stored execute span from prepare
+                $storedSpan = ObjectKVStore::get($hook->instance, PDOIntegration::PREPARE_SPAN_KEY);
+                if (!$storedSpan) {
+                    // No stored span (e.g., from PDO::query()), create normally
+                    $hook->span();
+                }
+                // If we have a stored span, don't create a new one - we'll use the stored one
+                // The stored span was already created during prepare with the correct traceparent
             },
             static function (HookData $hook) {
-                $span = $hook->span();
                 $instance = $hook->instance;
+                $storedSpan = ObjectKVStore::get($instance, PDOIntegration::PREPARE_SPAN_KEY);
+
+                if ($storedSpan) {
+                    // Use the execute span that was created during prepare
+                    $span = $storedSpan;
+                } else {
+                    // No stored span (e.g., from PDO::query()), use the hook's span
+                    $span = $hook->span();
+                }
+
                 Integration::handleOrphan($span);
+                // Update span properties now that execute has completed
                 $span->name = 'PDOStatement.execute';
                 Integration::handleInternalSpanServiceName($span, PDOIntegration::NAME);
                 $span->type = Type::SQL;
