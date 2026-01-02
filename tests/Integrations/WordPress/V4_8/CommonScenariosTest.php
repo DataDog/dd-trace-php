@@ -34,6 +34,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_AGENT_HOST' => 'request-replayer',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 1,
             'DD_LOGS_INJECTION' => 'false',
+            'DD_TELEMETRY_HEARTBEAT_INTERVAL' => 10,
         ]);
     }
 
@@ -88,19 +89,19 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
         $first_endpoint = $endpoints[0];
         $second_endpoint = $endpoints[1];
-        if ($first_endpoint['path'] !== 'http://localhost/?p=1') {
+        if ($first_endpoint['path'] !== '/?p=1') {
             $first_endpoint = $endpoints[1];
             $second_endpoint = $endpoints[0];
         }
 
-        $this->assertSame('http://localhost/?p=1', $first_endpoint['path']);
+        $this->assertSame('/?p=1', $first_endpoint['path']);
         $this->assertSame('GET', $first_endpoint['method']);
         $this->assertSame('http.request', $first_endpoint['operation_name']);
-        $this->assertSame('GET http://localhost/?p=1', $first_endpoint['resource_name']);
-        $this->assertSame('http://localhost/?page_id=2', $second_endpoint['path']);
+        $this->assertSame('GET /?p=1', $first_endpoint['resource_name']);
+        $this->assertSame('/?page_id=2', $second_endpoint['path']);
         $this->assertSame('GET', $second_endpoint['method']);
         $this->assertSame('http.request', $second_endpoint['operation_name']);
-        $this->assertSame('GET http://localhost/?page_id=2', $second_endpoint['resource_name']);
+        $this->assertSame('GET /?page_id=2', $second_endpoint['resource_name']);
     }
 
     public function testScenarioGetWithView()

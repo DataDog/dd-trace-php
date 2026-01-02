@@ -59,7 +59,6 @@ class TelemetryTest extends WebFrameworkTestCase
         $this->resetRequestDumper();
 
         $this->call(GetSpec::create("autoloaded", "/telemetry"));
-        usleep(500000);
         $response = $this->retrieveDumpedData($this->untilTelemetryRequest("app-endpoints"), true);
         $payloads = $this->readTelemetryPayloads($response);
         $endpointsPayloads = array_values(array_filter($payloads, function ($p) { return $p["request_type"] == "app-endpoints"; }));
