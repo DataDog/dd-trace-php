@@ -55,7 +55,6 @@ default:
       - runner_system_failure
       - scheduler_failure
       - api_failure
-      - script_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
 

@@ -211,7 +211,7 @@ static zend_class_entry *dd_perform_autoload(zend_string *class_name, zend_strin
             }
         }
 
-        if (get_DD_TRACE_OTEL_ENABLED() && zend_string_starts_with_literal(lc_name, "opentelemetry\\") && !DDTRACE_G(otel_is_loaded)) {
+        if ((get_DD_TRACE_OTEL_ENABLED() || get_DD_METRICS_OTEL_ENABLED()) && zend_string_starts_with_literal(lc_name, "opentelemetry\\") && !DDTRACE_G(otel_is_loaded)) {
             DDTRACE_G(otel_is_loaded) = 1;
             dd_load_files("opentelemetry");
             if ((ce = zend_hash_find_ptr(EG(class_table), lc_name))) {
