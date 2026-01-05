@@ -74,13 +74,29 @@ impl AllocationProfilingStats {
 #[cold]
 pub fn collect_allocation(len: size_t) {
     if let Some(profiler) = Profiler::get() {
+        // Check if there's a pending time interrupt that we can piggyback on
+        let interrupt_count = REQUEST_LOCALS
+            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::SeqCst))
+            .unwrap_or(0);
+
         // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
         unsafe {
-            profiler.collect_allocations(
-                zend::ddog_php_prof_get_current_execute_data(),
-                1_i64,
-                len as i64,
-            )
+            if interrupt_count > 0 {
+                // Piggyback time sample onto allocation sample
+                profiler.collect_allocation_and_time(
+                    zend::ddog_php_prof_get_current_execute_data(),
+                    1_i64,
+                    len as i64,
+                    interrupt_count,
+                )
+            } else {
+                // Normal allocation-only sample
+                profiler.collect_allocations(
+                    zend::ddog_php_prof_get_current_execute_data(),
+                    1_i64,
+                    len as i64,
+                )
+            }
         };
     }
 }

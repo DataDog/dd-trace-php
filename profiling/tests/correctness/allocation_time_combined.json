@@ -1,0 +1,54 @@
+{
+  "args": {
+    "DD_PROFILING_ENABLED": "yes",
+    "DD_PROFILING_ALLOCATION_ENABLED": "yes",
+    "DD_PROFILING_WALL_TIME_ENABLED": "yes",
+    "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": "no",
+    "DD_PROFILING_ENDPOINT_COLLECTION_ENABLED": "no",
+    "DD_PROFILING_LOG_LEVEL": "debug",
+    "EXECUTION_TIME": "5"
+  },
+  "flaky": false,
+  "skip-asan": false,
+  "todo": "",
+  "checks": [
+    {
+      "type": "regex",
+      "path": "$.sample_types[?(@.type=='samples')].unit",
+      "match": "^count$"
+    },
+    {
+      "type": "regex",
+      "path": "$.sample_types[?(@.type=='wall-time')].unit",
+      "match": "^nanoseconds$"
+    },
+    {
+      "type": "regex",
+      "path": "$.sample_types[?(@.type=='alloc-samples')].unit",
+      "match": "^count$"
+    },
+    {
+      "type": "regex",
+      "path": "$.sample_types[?(@.type=='alloc-space')].unit",
+      "match": "^bytes$"
+    },
+    {
+      "comment": "Verify we have samples with both allocation and time data (piggybacked samples)",
+      "type": "jq-minimum",
+      "path": ".samples | map(select(.values[0] > 0 and .values[1] > 0 and .values[2] > 0 and .values[3] > 0)) | length",
+      "match": 1
+    },
+    {
+      "comment": "Verify allocate_large appears in the profile",
+      "type": "jq-minimum",
+      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"allocate_large\")))) | length",
+      "match": 1
+    },
+    {
+      "comment": "Verify allocate_medium appears in the profile",
+      "type": "jq-minimum",
+      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"allocate_medium\")))) | length",
+      "match": 1
+    }
+  ]
+}
