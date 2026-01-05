@@ -52,7 +52,7 @@ class TelemetryTestSuite extends AppsecTestCase
 
         $this->resetRequestDumper();
 
-        $this->call(GetSpec::create("telemetry", "/app.php/telemetry"));
+        $this->call(GetSpec::create("telemetry", $this->getBase() . "/telemetry"));
 
         usleep(500000);
         $response = $this->retrieveDumpedData($this->untilTelemetryRequest("app-endpoints"), true);
@@ -70,5 +70,10 @@ class TelemetryTestSuite extends AppsecTestCase
             $this->assertEquals("http.request", $endpoint["operation_name"]);
             $this->assertEquals($endpoint["method"] . " " . $endpoint["path"], $endpoint["resource_name"]);
         }
+    }
+
+    protected function getBase()
+    {
+        return '/';
     }
 }

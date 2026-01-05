@@ -19,5 +19,10 @@ class TelemetryTest extends TelemetryTestSuite
     protected static function getTestedVersion($testedLibrary)
     {
         return '2.3.42';
-    }    
+    }
+
+    protected function getBase()
+    {
+        return '/app.php';
+    }
 }

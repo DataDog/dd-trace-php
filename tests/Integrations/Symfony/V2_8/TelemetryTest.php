@@ -16,4 +16,9 @@ class TelemetryTest extends TelemetryTestSuite
     {
         return 'symfony/framework-bundle';
     }
+
+    protected function getBase()
+    {
+        return '/app.php';
+    }
 }
