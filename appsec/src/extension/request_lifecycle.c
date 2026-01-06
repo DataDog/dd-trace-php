@@ -50,12 +50,17 @@ static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
+static THREAD_LOCAL_ON_ZTS bool _request_blocked;
 #define MAX_LENGTH_OF_REM_CFG_PATH 31
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req(void) { return _enabled_user_req; }
+
+void dd_req_lifecycle_set_blocked(void) { _request_blocked = true; }
+
+bool dd_req_lifecycle_is_blocked(void) { return _request_blocked; }
 
 void dd_req_lifecycle_startup(void)
 {
@@ -427,6 +432,7 @@ static void _reset_globals(void)
     ZVAL_UNDEF(&_blocking_function);
 
     _shutdown_done_on_commit = false;
+    _request_blocked = false;
     dd_tags_rshutdown();
     dd_rasp_reset_globals();
 }
@@ -921,6 +927,12 @@ static inline uint64_t _hash_zend_string(
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
 {
     if (!get_DD_API_SECURITY_ENABLED()) {
+        return 0;
+    }
+
+    if (_request_blocked) {
+        mlog_g(
+            dd_log_debug, "Request was blocked; not sampling for API security");
         return 0;
     }
 
