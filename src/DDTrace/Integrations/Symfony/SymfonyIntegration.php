@@ -589,7 +589,7 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                if (self::$frameworkPrefix === SymfonyIntegration::NAME && self::$kernel !== null && !\DDTrace\are_endpoints_collected())
+                if (strpos(self::$kernel::VERSION, '4.') !== 0 && self::$frameworkPrefix === SymfonyIntegration::NAME && self::$kernel !== null && !\DDTrace\are_endpoints_collected())
                 {
                     /** @var ContainerInterface $container */
                     $container = self::$kernel->getContainer();

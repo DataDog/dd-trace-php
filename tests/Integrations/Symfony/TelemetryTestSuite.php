@@ -16,7 +16,7 @@ class TelemetryTestSuite extends AppsecTestCase
         return array_merge(parent::getEnvs(), [
             'APP_NAME' => 'symfony_test_app',
             'DD_TRACE_DEBUG' => 'true',
-            'DD_SERVICE' => 'test_symfony_23',
+            'DD_SERVICE' => 'test_symfony',
             'DD_TRACE_AGENT_PORT' => 80,
             'DD_AGENT_HOST' => 'request-replayer',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 1,
@@ -74,6 +74,6 @@ class TelemetryTestSuite extends AppsecTestCase
 
     protected function getBase()
     {
-        return '/';
+        return '';
     }
 }
