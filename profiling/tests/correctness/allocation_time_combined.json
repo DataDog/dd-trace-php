@@ -35,7 +35,7 @@
     {
       "comment": "Verify we have samples with both allocation and time data (piggybacked samples)",
       "type": "jq-minimum",
-      "path": ".samples | map(select(.values[0] > 0 and .values[1] > 0 and .values[2] > 0 and .values[3] > 0)) | length",
+      "path": ". as $root | (.sample_types | to_entries | map({(.value.type): .key}) | add) as $indices | .samples | map(select(.values[$indices.samples] > 0 and .values[$indices.\"wall-time\"] > 0 and .values[$indices.\"alloc-samples\"] > 0 and .values[$indices.\"alloc-space\"] > 0)) | length",
       "match": 1
     },
     {
