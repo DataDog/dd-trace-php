@@ -21,7 +21,7 @@ class TelemetryTestSuite extends WebFrameworkTestCase
         ]);
     }
 
-    private function readEndpointsTelemetry($response)
+    protected function readEndpointsTelemetry($response)
     {
         $telemetryPayloads = [];
         foreach ($response as $request) {
@@ -38,6 +38,28 @@ class TelemetryTestSuite extends WebFrameworkTestCase
         return $telemetryPayloads;
     }
 
+    protected function expectedEndpoints() {
+        return [
+            [
+                "method" => "GET",
+                "operation_name" => "http.request",
+                "path" => "/?page_id=2",
+                "resource_name" => "GET /?page_id=2",
+            ],
+            [
+                "method" => "GET",
+                "operation_name" => "http.request",
+                "path" => "/?p=1",
+                "resource_name" => "GET /?p=1",
+            ],
+            [
+                "method" => "GET",
+                "operation_name" => "http.request",
+                "path" => "/?p=5",
+                "resource_name" => "GET /?p=5",
+            ]
+        ];
+    }
     public function testAppEndpointsAreSent()
     {
         $this->call(
@@ -58,22 +80,13 @@ class TelemetryTestSuite extends WebFrameworkTestCase
 
         $endpoints = $this->readEndpointsTelemetry($response);
         $endpoints = isset($endpoints[0]) ? $endpoints[0] : [];
-        $this->assertCount(2, $endpoints);
 
-        $first_endpoint = $endpoints[0];
-        $second_endpoint = $endpoints[1];
-        if ($first_endpoint['path'] !== '/?p=1') {
-            $first_endpoint = $endpoints[1];
-            $second_endpoint = $endpoints[0];
+        $expected_endpoints = $this->expectedEndpoints();
+
+        $this->assertCount(count($expected_endpoints), $endpoints);
+
+        foreach ($expected_endpoints as $expected_endpoint) {
+            $this->assertContains($expected_endpoint, $endpoints);
         }
-
-        $this->assertSame('/?p=1', $first_endpoint['path']);
-        $this->assertSame('GET', $first_endpoint['method']);
-        $this->assertSame('http.request', $first_endpoint['operation_name']);
-        $this->assertSame('GET /?p=1', $first_endpoint['resource_name']);
-        $this->assertSame('/?page_id=2', $second_endpoint['path']);
-        $this->assertSame('GET', $second_endpoint['method']);
-        $this->assertSame('http.request', $second_endpoint['operation_name']);
-        $this->assertSame('GET /?page_id=2', $second_endpoint['resource_name']);
     }
 }
