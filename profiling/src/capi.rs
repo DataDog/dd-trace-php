@@ -46,10 +46,8 @@ extern "C" fn ddog_php_prof_trigger_time_sample() {
         if locals.system_settings().profiling_enabled {
             // Safety: only vm interrupts are stored there, or possibly null (edges only).
             if let Some(vm_interrupt) = unsafe { locals.vm_interrupt_addr.as_ref() } {
-                // Release: synchronizes-with the Acquire load in swap() on the same variable.
-                locals.interrupt_count.fetch_add(1, Ordering::Release);
-                // Release: signals the PHP engine to check for interrupts.
-                vm_interrupt.store(true, Ordering::Release);
+                locals.interrupt_count.fetch_add(1, Ordering::SeqCst);
+                vm_interrupt.store(true, Ordering::SeqCst);
             }
         }
     });

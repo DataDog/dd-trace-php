@@ -77,11 +77,8 @@ pub fn collect_allocation(len: size_t) {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
         // accurate and efficient, win-win.
-        // Acquire: synchronizes-with the Release store to vm_interrupt,
-        // ensuring we see all increments that happened before the interrupt
-        // was triggered.
         let interrupt_count = REQUEST_LOCALS
-            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::Acquire))
+            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::SeqCst))
             .unwrap_or(0);
 
         // Safety: execute_data was provided by the engine, and the profiler
