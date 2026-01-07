@@ -1,5 +1,7 @@
 configure_file(src/extension/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/extension/version.h)
 
+include(cmake/libxml2.cmake)
+
 set(EXT_SOURCE_DIR src/extension)
 
 # Create controlled include directory with symlinks to avoid accidentally including
@@ -41,7 +43,7 @@ if(ZAI_INCLUDE_DIRS)
 endif()
 target_link_libraries(extension PRIVATE zai)
 
-target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec PCRE2::pcre2)
+target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec libxml2_static PCRE2::pcre2)
 target_include_directories(extension PRIVATE ${EXT_ROOT_INCLUDES})
 
 # gnu unique prevents shared libraries from being unloaded from memory by dlclose
