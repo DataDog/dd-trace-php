@@ -100,6 +100,7 @@ if (PhpConfig_VERNUM GREATER_EQUAL 80000)
 else() # PHP 7
     list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/handlers_curl.c"
         "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_attributes.c"
+        "${CMAKE_SOURCE_DIR}/../ext/hook/uhook_otel.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/interceptor.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver.c"
         "${CMAKE_SOURCE_DIR}/../zend_abstract_interface/interceptor/php8/resolver_pre-8_2.c"
@@ -120,6 +121,8 @@ list(REMOVE_ITEM FILES_DDTRACE "${CMAKE_SOURCE_DIR}/../ext/crashtracking_windows
 find_package(CURL REQUIRED)
 message(STATUS "CURL version: ${CURL_VERSION_STRING}")
 
+include(cmake/pcre2.cmake)
+
 add_library(ddtrace SHARED ${FILES_DDTRACE})
 set_target_properties(ddtrace PROPERTIES
     C_VISIBILITY_PRESET hidden
@@ -135,7 +138,7 @@ elseif(APPLE)
 else()
     message(FATAL_ERROR "Only Linux and Apple supported")
 endif()
-target_link_libraries(ddtrace PRIVATE PhpConfig components_rs ${CURL_LIBRARIES})
+target_link_libraries(ddtrace PRIVATE PhpConfig components_rs ${CURL_LIBRARIES} PCRE2::pcre2)
 if(CURL_DEFINITIONS)
     target_compile_definitions(ddtrace PRIVATE ${CURL_DEFINITIONS})
 endif()

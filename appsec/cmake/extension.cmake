@@ -2,6 +2,15 @@ configure_file(src/extension/version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/extens
 
 set(EXT_SOURCE_DIR src/extension)
 
+# Create controlled include directory with symlinks to avoid accidentally including
+# unrelated files from the root directory
+set(EXT_ROOT_INCLUDES ${CMAKE_BINARY_DIR}/ext_root_includes)
+file(MAKE_DIRECTORY ${EXT_ROOT_INCLUDES})
+file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/../zend_abstract_interface
+    ${EXT_ROOT_INCLUDES}/zend_abstract_interface SYMBOLIC)
+file(CREATE_LINK ${CMAKE_CURRENT_SOURCE_DIR}/../components-rs
+    ${EXT_ROOT_INCLUDES}/components-rs SYMBOLIC)
+
 file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
  ../zend_abstract_interface/json/*.c ../zend_abstract_interface/env/*.c
  ../zend_abstract_interface/zai_string/*.c)
@@ -9,10 +18,12 @@ file(GLOB_RECURSE ZAI_SOURCE ../zend_abstract_interface/config/*.c
 add_library(zai STATIC ${ZAI_SOURCE})
 
 target_link_libraries(zai PRIVATE PhpConfig)
-target_include_directories(zai PUBLIC ../zend_abstract_interface ..)
+target_include_directories(zai PUBLIC ../zend_abstract_interface ${EXT_ROOT_INCLUDES})
 set_target_properties(zai PROPERTIES POSITION_INDEPENDENT_CODE 1)
 
-file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c)
+include(cmake/pcre2.cmake)
+
+file(GLOB_RECURSE EXT_SOURCE ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
 add_library(extension SHARED ${EXT_SOURCE})
 set_target_properties(extension PROPERTIES
     C_VISIBILITY_PRESET hidden
@@ -30,20 +41,22 @@ if(ZAI_INCLUDE_DIRS)
 endif()
 target_link_libraries(extension PRIVATE zai)
 
-target_link_libraries(extension PRIVATE mpack PhpConfig zai)
-target_include_directories(extension PRIVATE ..)
+target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec PCRE2::pcre2)
+target_include_directories(extension PRIVATE ${EXT_ROOT_INCLUDES})
 
-# we don't have any C++ now, but just so we don't forget in the future...
+# gnu unique prevents shared libraries from being unloaded from memory by dlclose
 check_cxx_compiler_flag("-fno-gnu-unique" COMPILER_HAS_NO_GNU_UNIQUE)
 if(COMPILER_HAS_NO_GNU_UNIQUE)
 target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)
 endif()
-target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti -fno-exceptions>)
+target_compile_options(extension PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-std=c++17 -fno-rtti -fno-exceptions>)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
   target_compile_options(extension PRIVATE -Wall)
 else()
-  target_compile_options(extension PRIVATE -Wall -Wextra -pedantic -Werror -Wno-nullability-extension
-    -Wno-gnu-zero-variadic-macro-arguments -Wno-gnu-auto-type -Wno-language-extension-token)
+  target_compile_options(extension PRIVATE -Wall -Wextra $<$<COMPILE_LANGUAGE:C>:-pedantic>
+    -Werror -Wno-nullability-extension -Wno-gnu-zero-variadic-macro-arguments
+    -Wno-gnu-auto-type -Wno-language-extension-token
+    $<$<COMPILE_LANGUAGE:CXX>:-Wno-missing-field-initializers>)
 endif()
 # our thread local variables are only used by ourselves
 target_compile_options(extension PRIVATE -ftls-model=local-dynamic)
@@ -59,6 +72,10 @@ target_linker_flag_conditional(extension "-Wl,--version-script=${CMAKE_CURRENT_S
 # Mac OS
 target_linker_flag_conditional(extension -flat_namespace "-undefined suppress")
 target_linker_flag_conditional(extension -Wl,-exported_symbol -Wl,_get_module)
+
+if(DD_APPSEC_EXTENSION_STATIC_LIBSTDCXX AND NOT APPLE)
+    target_link_options(extension PRIVATE -static-libstdc++)
+endif()
 
 patch_away_libc(extension)
 

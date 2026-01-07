@@ -59,6 +59,8 @@ static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 
 static struct telemetry_rc_info (*_ddtrace_get_telemetry_rc_info)(void);
 static void *(*nullable _ddtrace_emit_asm_event)(void);
+static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
+    const char *nonnull url, size_t url_len);
 
 static void _test_ddtrace_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
@@ -115,6 +117,8 @@ static void dd_trace_load_symbols(zend_module_entry *module)
         ddtrace_metric_register_buffer, "ddtrace_metric_register_buffer");
     ASSIGN_DLSYM(ddtrace_metric_add_point, "ddtrace_metric_add_point");
     ASSIGN_DLSYM(_ddtrace_emit_asm_event, "ddtrace_emit_asm_event");
+    ASSIGN_DLSYM(
+        _ddtrace_guess_endpoint_from_url, "ddtrace_guess_endpoint_from_url");
 
     if (manually_opened) {
         dlclose(handle);
@@ -460,6 +464,16 @@ void dd_trace_emit_asm_event(void)
 
     _ddtrace_emit_asm_event();
     _asm_event_emitted = true;
+}
+
+zend_string *dd_trace_guess_endpoint_from_url(
+    const char *nonnull url, size_t url_len)
+{
+    if (UNEXPECTED(_ddtrace_guess_endpoint_from_url == NULL)) {
+        return NULL;
+    }
+
+    return _ddtrace_guess_endpoint_from_url(url, url_len);
 }
 
 static PHP_FUNCTION(datadog_appsec_testing_ddtrace_rshutdown)

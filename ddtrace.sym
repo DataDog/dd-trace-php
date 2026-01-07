@@ -16,6 +16,7 @@ ddtrace_metric_add_point
 ddtrace_emit_asm_event
 ddtrace_loaded_by_ssi
 ddtrace_ssi_forced_injection_enabled
+ddtrace_guess_endpoint_from_url
 ddog_remote_config_reader_for_path
 ddog_remote_config_read
 ddog_remote_config_reader_drop
