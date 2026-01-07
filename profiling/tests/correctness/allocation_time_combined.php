@@ -1,8 +1,13 @@
 <?php
 
-// Test to verify that allocation and time samples can be combined
-// This exercises the piggybacking optimization where time samples
-// are taken during allocation samples when interrupt_count > 0
+// Test to verify that allocation and time profiling can coexist and that
+// the piggybacking optimization works (where time samples are taken during
+// allocation samples when interrupt_count > 0).
+//
+// Note: Piggybacking is opportunistic and happens when an allocation sample
+// occurs while a time interrupt is pending. PHP checks interrupts frequently
+// (at loop boundaries, function calls, etc.), so the window is narrow. This
+// test just verifies the mechanism works, not that it happens often.
 
 function allocate_large() {
     // Large allocation to trigger sampling
@@ -16,36 +21,16 @@ function allocate_medium() {
     return strlen($data);
 }
 
-function consume_cpu() {
-    // CPU-intensive work to ensure time passes
-    $sum = 0;
-    for ($i = 0; $i < 100000; $i++) {
-        $sum += $i * $i;
-    }
-    return $sum;
-}
-
 function main() {
     $duration = $_ENV["EXECUTION_TIME"] ?? 10;
     $end = microtime(true) + $duration;
 
     while (microtime(true) < $end) {
-        $start = microtime(true);
-
-        // Mix allocations with CPU work
+        // Just allocate repeatedly. Over time, some allocations will happen
+        // to occur while a time interrupt is pending (set by the profiler
+        // thread every ~10ms), exercising the piggybacking code path.
         allocate_large();
-        consume_cpu();
         allocate_medium();
-        consume_cpu();
-
-        $elapsed = microtime(true) - $start;
-
-        // Sleep to allow time interrupts to accumulate
-        // This increases the likelihood of piggybacking
-        $sleep = 0.02 - $elapsed; // Target 50 iterations per second
-        if ($sleep > 0.0) {
-            usleep((int) ($sleep * 1_000_000));
-        }
     }
 }
 
