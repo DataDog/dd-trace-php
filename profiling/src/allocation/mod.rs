@@ -81,7 +81,7 @@ pub fn collect_allocation(len: size_t) {
             .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::SeqCst))
             .unwrap_or(0);
 
-        // Safety: execute_data was provided by the engine, and the profiler
+        // SAFETY: execute_data was provided by the engine, and the profiler
         // doesn't mutate it.
         unsafe {
             profiler.collect_allocations(
