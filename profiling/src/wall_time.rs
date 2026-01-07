@@ -121,7 +121,9 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
          *  1. Track how many interrupts there were.
          *  2. Ensure we don't collect on someone else's interrupt.
          */
-        let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
+        // Acquire: synchronizes-with the Release store to vm_interrupt, ensuring
+        // we see all increments that happened before the interrupt was triggered.
+        let interrupt_count = locals.interrupt_count.swap(0, Ordering::Acquire);
         if interrupt_count == 0 {
             return;
         }

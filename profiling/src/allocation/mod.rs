@@ -74,29 +74,25 @@ impl AllocationProfilingStats {
 #[cold]
 pub fn collect_allocation(len: size_t) {
     if let Some(profiler) = Profiler::get() {
-        // Check if there's a pending time interrupt that we can piggyback on
+        // Check if there's a pending time interrupt that we can handle now
+        // instead of waiting for an interrupt handler. This is slightly more
+        // accurate and efficient, win-win.
+        // Acquire: synchronizes-with the Release store to vm_interrupt,
+        // ensuring we see all increments that happened before the interrupt
+        // was triggered.
         let interrupt_count = REQUEST_LOCALS
-            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::SeqCst))
+            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::Acquire))
             .unwrap_or(0);
 
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+        // Safety: execute_data was provided by the engine, and the profiler
+        // doesn't mutate it.
         unsafe {
-            if interrupt_count > 0 {
-                // Piggyback time sample onto allocation sample
-                profiler.collect_allocation_and_time(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    1_i64,
-                    len as i64,
-                    interrupt_count,
-                )
-            } else {
-                // Normal allocation-only sample
-                profiler.collect_allocations(
-                    zend::ddog_php_prof_get_current_execute_data(),
-                    1_i64,
-                    len as i64,
-                )
-            }
+            profiler.collect_allocations(
+                zend::ddog_php_prof_get_current_execute_data(),
+                1_i64,
+                len as i64,
+                (interrupt_count > 0).then_some(interrupt_count),
+            )
         };
     }
 }
