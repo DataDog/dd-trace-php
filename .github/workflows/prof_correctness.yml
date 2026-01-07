@@ -103,6 +103,15 @@ jobs:
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
           php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
+          mkdir -p profiling/tests/correctness/allocation_time_combined/
+          export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocation_time_combined/test.pprof
+          export DD_PROFILING_ALLOCATION_ENABLED=yes
+          export DD_PROFILING_WALL_TIME_ENABLED=yes
+          export DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
+          export DD_PROFILING_ENDPOINT_COLLECTION_ENABLED=no
+          export EXECUTION_TIME=5
+          php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocation_time_combined.php
+          unset DD_PROFILING_ALLOCATION_ENABLED DD_PROFILING_WALL_TIME_ENABLED DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED DD_PROFILING_ENDPOINT_COLLECTION_ENABLED EXECUTION_TIME
 
       - name: Run ZTS tests
         if: matrix.phpts == 'zts'
@@ -148,6 +157,12 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/timeline.json
           pprof_path: profiling/tests/correctness/timeline/
+
+      - name: Check profiler correctness for allocation_time_combined
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/allocation_time_combined.json
+          pprof_path: profiling/tests/correctness/allocation_time_combined/
 
       - name: Check profiler correctness for exceptions ZTS
         if: matrix.phpts == 'zts'

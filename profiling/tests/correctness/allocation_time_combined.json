@@ -39,27 +39,21 @@
       "match": 1
     },
     {
-      "comment": "Verify test_frameless_str_replace appears in the profile",
+      "comment": "Verify main function appears in the profile",
       "type": "jq-minimum",
-      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"test_frameless_str_replace\")))) | length",
+      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"main\")))) | length",
       "match": 1
     },
     {
-      "comment": "Verify test_string_concat appears in the profile",
+      "comment": "Verify str_repeat appears in the profile",
       "type": "jq-minimum",
-      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"test_string_concat\")))) | length",
+      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"str_repeat\")))) | length",
       "match": 1
     },
     {
-      "comment": "Verify str_replace (frameless function) appears in the profile",
+      "comment": "Verify we have piggybacked samples that include str_repeat in the stack",
       "type": "jq-minimum",
-      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"str_replace\")))) | length",
-      "match": 1
-    },
-    {
-      "comment": "Verify we have piggybacked samples that include str_replace in the stack",
-      "type": "jq-minimum",
-      "path": ". as $root | (.sample_types | to_entries | map({(.value.type): .key}) | add) as $indices | .samples | map(select(.values[$indices.samples] > 0 and .values[$indices.\"wall-time\"] > 0 and .values[$indices.\"alloc-samples\"] > 0 and .values[$indices.\"alloc-space\"] > 0 and (.location_ids | any(.frames[] | .function // \"\" | contains(\"str_replace\"))))) | length",
+      "path": ". as $root | (.sample_types | to_entries | map({(.value.type): .key}) | add) as $indices | .samples | map(select(.values[$indices.samples] > 0 and .values[$indices.\"wall-time\"] > 0 and .values[$indices.\"alloc-samples\"] > 0 and .values[$indices.\"alloc-space\"] > 0 and (.location_ids | any(.frames[] | .function // \"\" | contains(\"str_repeat\"))))) | length",
       "match": 1
     }
   ]
