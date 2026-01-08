@@ -68,8 +68,14 @@ include(cmake/cond_flag.cmake)
 target_linker_flag_conditional(extension -Wl,--as-needed)
 # ld doesn't necessarily respect the visibility of hidden symbols if
 # they're inside static libraries, so use a linker script only exporting
-# ddappsec.version as a safeguard
-target_linker_flag_conditional(extension "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/extension/ddappsec.version")
+# symbols listed in ddappsec.version as a safeguard
+# Test with --version-script support first (not the actual file which references undefined symbols)
+include(CheckLinkerFlag)
+check_linker_flag(C "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_version_script.version" LINKER_SUPPORTS_VERSION_SCRIPT)
+if(LINKER_SUPPORTS_VERSION_SCRIPT)
+    target_link_options(extension PRIVATE "-Wl,--version-script=${CMAKE_CURRENT_SOURCE_DIR}/src/extension/ddappsec.version")
+    message(STATUS "Linker has flag -Wl,--version-script")
+endif()
 
 # Mac OS
 target_linker_flag_conditional(extension -flat_namespace "-undefined suppress")
