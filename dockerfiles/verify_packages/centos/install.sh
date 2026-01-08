@@ -6,26 +6,30 @@ OS_VERSION=$(source /etc/os-release; echo $VERSION_ID)
 
 function do_retry() {
   RETRIES=3
+  ATTEMPT=1
   while
     ! "$@"
   do
     if ! ((--RETRIES)); then
       return 1
     fi
+    echo "Retry attempt $ATTEMPT failed, waiting 5 seconds before retry $((ATTEMPT + 1))..."
+    sleep 5
+    ATTEMPT=$((ATTEMPT + 1))
   done
 }
 
 # Enable epel repo
-do_retry yum install -y epel-release
+do_retry yum install -y --setopt=timeout=300 epel-release
 
 # Installing pre-requisites
-do_retry yum install -y wget nginx httpd
+do_retry yum install -y --setopt=timeout=300 wget nginx httpd
 # Nginx listens on 8080, apache on 8081
 sed -i "s/Listen 80/Listen 127.0.0.1:8081/" /etc/httpd/conf/httpd.conf
 
 # Installing php
 do_retry rpm -Uvh http://rpms.famillecollet.com/enterprise/remi-release-${OS_VERSION}.rpm
-do_retry yum --enablerepo=remi-php${PHP_MINOR_MAJOR} install -y \
+do_retry yum --enablerepo=remi-php${PHP_MINOR_MAJOR} install -y --setopt=timeout=300 \
     php-cli \
     php-fpm \
     php-opcache \
