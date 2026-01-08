@@ -143,6 +143,7 @@ foreach ($arch_targets as $arch_target) {
       ZOOKEEPER_TICK_TIME: 2000
       ALLOW_ANONYMOUS_LOGIN: "yes"
       ZOOKEEPER_ADMIN_ENABLE_SERVER: "false"
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=srvr,ruok"
 
   kafka:
     name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0

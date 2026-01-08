@@ -52,7 +52,7 @@ wait_for_single_service() {
       kafka)
         # Kafka readiness via nc check + settle time
         if timeout 5 nc -z "${HOST}" "${PORT}" 2>/dev/null; then
-          sleep 5  # Additional settle time for Kafka to fully connect to Zookeeper
+          sleep 5  # Additional settle time for Kafka
           echo "Kafka is ready"
           return 0
         fi
@@ -72,7 +72,7 @@ wait_for_single_service() {
         ;;
       zookeeper)
         # Zookeeper readiness via "ruok" four-letter-word command
-        if echo "ruok" | nc "${HOST}" "${PORT}" 2>/dev/null | grep -q "imok"; then
+        if echo "ruok" | nc -w1 -q1 "${HOST}" "${PORT}" 2>/dev/null | grep -q "imok"; then
           echo "Zookeeper is ready"
           return 0
         fi
