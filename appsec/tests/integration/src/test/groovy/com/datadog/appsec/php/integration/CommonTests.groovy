@@ -110,7 +110,7 @@ trait CommonTests {
         def trace = container.traceFromRequest('/user_login_success_v2.php?login=Admin&id=user_id') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
-        
+
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
         assert span.meta."appsec.events.users.login.success.usr.login" == "Admin"
@@ -178,7 +178,7 @@ trait CommonTests {
 
     @Test
     void 'authenticated user event automated'() {
-        def trace = container.traceFromRequest('/behind_auth.php?id=userID') { HttpResponse<InputStream> resp ->
+        def trace = container.traceFromRequest('/behind_auth.php?id=userID&disable_schema=1') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
 
@@ -733,7 +733,7 @@ trait CommonTests {
 
     @Test
     void 'tagging rule with attributes, no keep and no event'() {
-        HttpRequest req = container.buildReq('/hello.php')
+        HttpRequest req = container.buildReq('/hello.php?disable_schema=1')
                 .header('User-Agent', 'TraceTagging/v1').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
             resp.body() == 'Hello world!'

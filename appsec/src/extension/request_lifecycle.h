@@ -8,6 +8,8 @@
 extern ddtrace_user_req_listeners dd_user_req_listeners;
 
 bool dd_req_is_user_req(void);
+void dd_req_lifecycle_set_blocked(void);
+bool dd_req_lifecycle_is_blocked(void);
 void dd_req_lifecycle_startup(void);
 void dd_req_lifecycle_rinit(bool force);
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force);

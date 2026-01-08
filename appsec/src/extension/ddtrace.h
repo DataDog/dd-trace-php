@@ -98,6 +98,9 @@ struct telemetry_rc_info {
 };
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void);
 
+zend_string *nullable dd_trace_guess_endpoint_from_url(
+    const char *nonnull url, size_t url_len);
+
 typedef enum {
     DDTRACE_METRIC_TYPE_GAUGE,
     DDTRACE_METRIC_TYPE_COUNT,

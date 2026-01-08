@@ -864,7 +864,12 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         zend_execute_data *execute_data = EG(current_execute_data);
         ddtrace_maybe_add_code_origin_information(span, execute_data && EX(func) && !ZEND_USER_CODE(EX(func)->type));
 
-        if (get_DD_TRACE_RESOURCE_RENAMING_ENABLED()) {
+        // Enable resource renaming if:
+        // - DD_TRACE_RESOURCE_RENAMING_ENABLED is explicitly set to true, OR
+        // - DD_APPSEC_ENABLED is true and DD_TRACE_RESOURCE_RENAMING_ENABLED is not explicitly set
+        bool resource_renaming_at_default = zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_RESOURCE_RENAMING_ENABLED].name_index == ZAI_CONFIG_ORIGIN_DEFAULT;
+        bool enable_resource_renaming = resource_renaming_at_default ? get_DD_APPSEC_ENABLED() : get_DD_TRACE_RESOURCE_RENAMING_ENABLED();
+        if (enable_resource_renaming) {
             ddtrace_maybe_add_guessed_endpoint_tag(ROOTSPANDATA(&span->std));
         }
     }

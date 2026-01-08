@@ -50,12 +50,17 @@ static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
+static THREAD_LOCAL_ON_ZTS bool _request_blocked;
 #define MAX_LENGTH_OF_REM_CFG_PATH 31
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req(void) { return _enabled_user_req; }
+
+void dd_req_lifecycle_set_blocked(void) { _request_blocked = true; }
+
+bool dd_req_lifecycle_is_blocked(void) { return _request_blocked; }
 
 void dd_req_lifecycle_startup(void)
 {
@@ -427,6 +432,7 @@ static void _reset_globals(void)
     ZVAL_UNDEF(&_blocking_function);
 
     _shutdown_done_on_commit = false;
+    _request_blocked = false;
     dd_tags_rshutdown();
     dd_rasp_reset_globals();
 }
@@ -924,6 +930,12 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
         return 0;
     }
 
+    if (_request_blocked) {
+        mlog_g(
+            dd_log_debug, "Request was blocked; not sampling for API security");
+        return 0;
+    }
+
     if (!root_span) {
         return 0;
     }
@@ -942,24 +954,67 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
         return 0;
     }
 
+    zend_string *route_or_endpoint = NULL;
+    bool free_route_or_endpoint = false;
+
     zval *route = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.route"));
-    if (!route || Z_TYPE_P(route) != IS_STRING) {
-        mlog_g(dd_log_debug, "No http.route tag; not sampling");
-        return 0;
+    const bool has_http_route = route && Z_TYPE_P(route) == IS_STRING;
+    if (has_http_route) {
+        route_or_endpoint = Z_STR_P(route);
+    } else {
+        // http.route is absent, check for http.endpoint
+        zval *endpoint =
+            zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.endpoint"));
+        const bool has_http_endpoint =
+            endpoint && Z_TYPE_P(endpoint) == IS_STRING;
+        if (has_http_endpoint) {
+            // http.endpoint is already computed
+            // Use it unless status code is 404
+#define HTTP_NOT_FOUND 404
+            if (status_code == HTTP_NOT_FOUND) {
+                mlog_g(dd_log_debug,
+                    "http.endpoint present but status is 404; not sampling");
+            } else {
+                route_or_endpoint = Z_STR_P(endpoint);
+            }
+        } else {
+            // http.endpoint not computed, compute it now without setting the
+            // tag
+            zval *url =
+                zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.url"));
+            const bool has_http_url = url && Z_TYPE_P(url) == IS_STRING;
+            if (has_http_url) {
+                route_or_endpoint = dd_trace_guess_endpoint_from_url(
+                    Z_STRVAL_P(url), Z_STRLEN_P(url));
+                if (route_or_endpoint) {
+                    free_route_or_endpoint = true;
+                } else {
+                    mlog_g(dd_log_debug,
+                        "Failed to compute http.endpoint; not sampling");
+                }
+            } else {
+                mlog_g(dd_log_debug,
+                    "No http.route, http.endpoint, or http.url; not sampling");
+            }
+        }
+    }
+
+    if (!route_or_endpoint) {
+        goto error;
     }
 
     zval *method =
         zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
     if (!method || Z_TYPE_P(method) != IS_STRING) {
         mlog_g(dd_log_debug, "No http.method tag; not sampling");
-        return 0;
+        goto error;
     }
 
-    // use fnv-1a hash with: <http.route tag> NULL <http.method tag> NULL
+    // use fnv-1a hash with: <route_or_endpoint> NULL <http.method tag> NULL
     // status_code
 
     uint64_t hash = FNV_OFFSET_BASIS;
-    hash = _hash_zend_string(hash, Z_STR_P(route));
+    hash = _hash_zend_string(hash, route_or_endpoint);
     hash *= FNV_PRIME; // hash NUL byte
     hash = _hash_zend_string(hash, Z_STR_P(method));
     hash *= FNV_PRIME; // hash NUL byte
@@ -970,7 +1025,22 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
         snprintf(status_str, sizeof(status_str), "%d", status_code);
     hash = _hash_string(hash, status_str, status_len);
 
+    mlog_g(dd_log_debug,
+        "Will use sampling key: %" PRIu64
+        " for route/endpoint %.*s, method %.*s, status %d",
+        hash, (int)ZSTR_LEN(route_or_endpoint), ZSTR_VAL(route_or_endpoint),
+        (int)ZSTR_LEN(Z_STR_P(method)), ZSTR_VAL(Z_STR_P(method)), status_code);
+
+    if (free_route_or_endpoint) {
+        zend_string_release(route_or_endpoint);
+    }
     return hash;
+
+error:
+    if (free_route_or_endpoint) {
+        zend_string_release(route_or_endpoint);
+    }
+    return 0;
 }
 
 PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)

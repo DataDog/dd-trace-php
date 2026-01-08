@@ -92,6 +92,7 @@ Array
     [_dd.p.tid] => %s
     [_dd.runtime_family] => php
     [appsec.event] => true
+    [http.endpoint] => /foo
     [http.method] => GET
     [http.request.headers.user-agent] => my user agent
     [http.response.headers.content-type] => text/html; charset=UTF-8

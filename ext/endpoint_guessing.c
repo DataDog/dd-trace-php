@@ -185,6 +185,11 @@ static zend_string* guess_endpoint(const char* orig_url, size_t orig_url_len) {
     return smart_str_extract(&result);
 }
 
+DDTRACE_PUBLIC zend_string* ddtrace_guess_endpoint_from_url(const char* url, size_t url_len)
+{
+    return guess_endpoint(url, url_len);
+}
+
 void ddtrace_maybe_add_guessed_endpoint_tag(ddtrace_root_span_data *span)
 {
     zval *span_type = &span->property_type;
