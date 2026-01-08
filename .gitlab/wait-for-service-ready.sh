@@ -72,7 +72,7 @@ wait_for_single_service() {
         ;;
       zookeeper)
         # Zookeeper readiness via "ruok" four-letter-word command
-        if echo "ruok" | nc "${HOST}" "${PORT}" 2>/dev/null | grep -q "imok"; then
+        if echo "ruok" | nc -w1 -q1 "${HOST}" "${PORT}" 2>/dev/null | grep -q "imok"; then
           echo "Zookeeper is ready"
           return 0
         fi
