@@ -8,6 +8,7 @@ detect_service_type() {
     test-agent) echo "test-agent" ;;
     mysql-integration) echo "mysql" ;;
     elasticsearch*) echo "elasticsearch" ;;
+    zookeeper*) echo "zookeeper" ;;
     kafka*) echo "kafka" ;;
     redis*) echo "redis" ;;
     httpbin*) echo "httpbin" ;;
@@ -51,7 +52,7 @@ wait_for_single_service() {
       kafka)
         # Kafka readiness via nc check + settle time
         if timeout 5 nc -z "${HOST}" "${PORT}" 2>/dev/null; then
-          sleep 2  # Additional settle time for Kafka
+          sleep 5  # Additional settle time for Kafka to fully connect to Zookeeper
           echo "Kafka is ready"
           return 0
         fi
@@ -66,6 +67,13 @@ wait_for_single_service() {
         # httpbin-specific check
         if curl -sf "http://${HOST}:${PORT}/status/200" > /dev/null 2>&1; then
           echo "httpbin is ready"
+          return 0
+        fi
+        ;;
+      zookeeper)
+        # Zookeeper readiness via "ruok" four-letter-word command
+        if echo "ruok" | nc "${HOST}" "${PORT}" 2>/dev/null | grep -q "imok"; then
+          echo "Zookeeper is ready"
           return 0
         fi
         ;;
