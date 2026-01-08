@@ -28,3 +28,7 @@ Route::group(array('before' => 'auth'), function()
    Route::get('/behind_auth', 'LoginTestController@behind_auth');
 });
 Route::get('rasp', 'RaspTestController@rasp');
+Route::get('/telemetry', function () {
+   dd_trace_internal_fn("finalize_telemetry");
+   return response('Done');
+});
