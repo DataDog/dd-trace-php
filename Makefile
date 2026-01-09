@@ -550,7 +550,8 @@ TESTS_ROOT = ./tests
 COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 composer --no-interaction
 DDPROF_IDENTIFIER ?=
 PHPUNIT_OPTS ?=
-PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) --config=$(TESTS_ROOT)/phpunit.xml
+PHPUNIT_JUNIT ?=
+PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) $(if $(PHPUNIT_JUNIT),--log-junit $(PHPUNIT_JUNIT)) --config=$(TESTS_ROOT)/phpunit.xml
 PHPUNIT_COVERAGE ?=
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json

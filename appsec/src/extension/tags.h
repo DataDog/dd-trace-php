@@ -18,7 +18,6 @@ void dd_tags_shutdown(void);
 void dd_tags_rinit(void);
 void dd_tags_rshutdown(void);
 void dd_tags_add_tags(zend_object *nonnull span, zend_array *nullable superglob_equiv);
-void dd_tags_add_blocked(void);
 void dd_tags_set_user_event_triggered(void);
 
 // Copies (or increases refcount) of zstr

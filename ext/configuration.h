@@ -151,6 +151,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_SYMFONY_HTTP_ROUTE, "true")                                                          \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE, "true")                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER, "true")                                          \
+    CONFIG(BOOL, DD_APPSEC_ENABLED, "false", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                              \
     CONFIG(BOOL, DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS, "false")                                         \
     CONFIG(SET, DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX, "")                                                      \
