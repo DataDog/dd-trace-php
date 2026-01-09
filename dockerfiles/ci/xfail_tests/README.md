@@ -218,3 +218,6 @@ Disabled on versions: `8.5+`.
 
 PHP 8.5 completely removed the `disable_classes` INI directive (see [RFC](https://wiki.php.net/rfc/remove_disable_classes)).
 
+## `ext/uri/tests/whatwg/parsing/*_null_byte.phpt`
+
+These tests use object ids, and %00; changing the EXPECT to EXPECTF will cause the %00 to be matched as literal NULL-Bytes, breaking the test.
