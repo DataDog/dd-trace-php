@@ -1,0 +1,51 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_allocation_time_combined",
+  "stacks": [
+    {
+      "profile-type": "alloc-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;standard\\|str_replace$",
+          "percent": 40,
+          "error_margin": 30
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|str_repeat$",
+          "percent": 40,
+          "error_margin": 30
+        }
+      ]
+    },
+    {
+      "profile-type": "alloc-samples",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;standard\\|str_replace$",
+          "percent": 40,
+          "error_margin": 30
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|str_repeat$",
+          "percent": 40,
+          "error_margin": 30
+        }
+      ]
+    },
+    {
+      "profile-type": "wall-time",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main$",
+          "percent": 80,
+          "error_margin": 30
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|str_replace$",
+          "percent": 1.0,
+          "error_margin": 0.9
+        }
+      ]
+    }
+  ]
+}

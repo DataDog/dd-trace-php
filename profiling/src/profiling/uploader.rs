@@ -161,12 +161,11 @@ impl Uploader {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "debug_stats"))]
 mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "debug_stats")]
     fn test_create_internal_metadata() {
         // Set up all counters with known values
         EXCEPTION_PROFILING_EXCEPTION_COUNT.store(42, Ordering::Relaxed);
