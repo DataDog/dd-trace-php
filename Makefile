@@ -1211,8 +1211,8 @@ define run_tests_debug
 	(set -o pipefail; { $(call run_tests,$(1)) 2>&1 >&3 | \
 		tee >(grep --line-buffered -vE '\[ddtrace\] \[debug\]|\[ddtrace\] \[info\]' >&2) | \
 		{ ! (grep --line-buffered -E '\[error\]|\[warning\]|\[deprecated\]' >/dev/null && \
-		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1); \
-	timeout 10 bash -c 'wait' 2>/dev/null || true
+		echo $$'\033[41m'"ERROR: Found debug log errors in the output."$$'\033[0m'); }; } 3>&1 \
+	) && ([ -n "${DD_TRACE_DOCKER_DEBUG}" ] || timeout 10 bash -c 'wait' 2>/dev/null || true) \
 	$(eval TEST_EXTRA_ENV=)
 endef
 

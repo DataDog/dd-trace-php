@@ -10,7 +10,7 @@
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0",
-        "laravel/octane": "2.12.3",
+        "laravel/octane": "2.13.3",
         "laravel/tinker": "^2.9"
     },
     "require-dev": {

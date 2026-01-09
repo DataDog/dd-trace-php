@@ -10,7 +10,7 @@ jobs:
       matrix:
         php-version: [8.3, 8.4]
     container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-5
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-6
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root --privileged
 

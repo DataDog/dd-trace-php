@@ -255,7 +255,7 @@
      {
        "name": "PDO.prepare",
        "service": "pdo",
-       "resource": "UPDATE messenger_messages SET delivered_at = ? WHERE id = ?",
+       "resource": "DELETE FROM messenger_messages WHERE id = ?",
        "trace_id": 0,
        "span_id": 5,
        "parent_id": 1,
@@ -280,7 +280,7 @@
      {
        "name": "PDOStatement.execute",
        "service": "pdo",
-       "resource": "UPDATE messenger_messages SET delivered_at = ? WHERE id = ?",
+       "resource": "DELETE FROM messenger_messages WHERE id = ?",
        "trace_id": 0,
        "span_id": 6,
        "parent_id": 1,

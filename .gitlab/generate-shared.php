@@ -21,7 +21,7 @@ stages:
       - IMAGE:
         - "datadog/dd-trace-ci:centos-7"
         - "datadog/dd-trace-ci:php-compile-extension-alpine"
-        - "datadog/dd-trace-ci:bookworm-5"
+        - "datadog/dd-trace-ci:bookworm-6"
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
@@ -45,7 +45,7 @@ stages:
 "C components UBSAN":
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-5"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6"
   needs: []
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
@@ -69,7 +69,7 @@ stages:
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *no_asan_minor_major_targets
@@ -98,7 +98,7 @@ stages:
 .tea_test:
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6"
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"

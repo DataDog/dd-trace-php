@@ -1,9 +1,13 @@
 --TEST--
 Bailout during hook END should not cause double-clear of span (internal function)
---SKIPIF--
-<?php if (PHP_VERSION_ID >= 80000) die('skip: PHP 7 only'); ?>
 --FILE--
 <?php
+
+DDTrace\trace_function('array_sum', [
+    'posthook' => function(\DDTrace\SpanData $data, $args, $retval) {
+        echo "Hook 0 END\n";
+    }
+]);
 
 DDTrace\trace_function('array_sum', [
     'prehook' => function (\DDTrace\SpanData $data, $args) {
