@@ -22,8 +22,6 @@
 #define TYPE_SCRIPT "script"
 #define TYPE_EXECUTABLE "executable"
 
-#define MAX_TAG_VALUE_LENGTH  100
-
 typedef struct {
     const char *key;
     const char *value;
@@ -51,21 +49,28 @@ static inline const char *get_basename(const char *path) {
 }
 
 static void get_basedir(const char* script_path, char *out, size_t out_size) {
-    if (!script_path || !*script_path || !out || out_size == 0) return;
-
-    const char *last_slash = strrchr(script_path, '/');
-    if (!last_slash) {
+    if (!script_path || !*script_path || !out || out_size == 0) {
         out[0] = '\0';
         return;
     }
 
-    const char *prev_slash = NULL;
-    for (const char *p = script_path; p < last_slash; p++) {
-        if (*p == '/') prev_slash = p;
+    const char *last_sep = NULL;
+    for (const char *p = script_path; *p; p++) {
+        if (*p == '/' || *p == '\\') last_sep = p;
     }
 
-    const char *start = prev_slash ? prev_slash + 1 : script_path;
-    size_t len = last_slash - start;
+    if (!last_sep) {
+        out[0] = '\0';
+        return;
+    }
+
+    const char *prev_sep = NULL;
+    for (const char *p = script_path; p < last_sep; p++) {
+        if (*p == '/' || *p == '\\') prev_sep = p;
+    }
+
+    const char *start = prev_sep ? prev_sep + 1 : script_path;
+    size_t len = last_sep - start;
 
     if (len >= out_size) len = out_size - 1;
     memcpy(out, start, len);
@@ -103,6 +108,7 @@ static void add_process_tag(const char* tag_key, const char* tag_value) {
             process_tags.capacity * sizeof(process_tag_entry_t)
         );
         if (!bigger_list) {
+            ddog_free_normalized_tag_value(normalized_value);
             process_tags.capacity /= 2;
             return;
         }
@@ -116,7 +122,6 @@ static void add_process_tag(const char* tag_key, const char* tag_value) {
 }
 
 static void collect_process_tags(void) {
-    // entrypoint.workdir
     char cwd[PATH_MAX];
     if (VCWD_GETCWD(cwd, sizeof(cwd))) {
         const char* entrypoint_workdir = get_basename(cwd);
@@ -125,19 +130,14 @@ static void collect_process_tags(void) {
         }
     }
 
-    // entrypoint.name
-    const char *entrypoint_name = NULL;
-    const char *base_dir = NULL;
     const char *script = NULL;
-
     if (SG(request_info).path_translated && *SG(request_info).path_translated) {
         script = SG(request_info).path_translated;
     } else if (SG(request_info).argv && SG(request_info).argc > 0 && SG(request_info).argv[0]) {
         script = SG(request_info).argv[0];
     }
 
-
-    entrypoint_name = get_basename(script);
+    const char *entrypoint_name = get_basename(script);
     if (entrypoint_name) {
         char name_without_ext[PATH_MAX];
         strip_extension(entrypoint_name, name_without_ext, sizeof(name_without_ext));
@@ -151,7 +151,7 @@ static void collect_process_tags(void) {
 
     char basedir_buffer[PATH_MAX];
     get_basedir(script, basedir_buffer, sizeof(basedir_buffer));
-    base_dir = basedir_buffer[0] ? basedir_buffer : NULL;
+    const char *base_dir = basedir_buffer[0] ? basedir_buffer : NULL;
 
     if (base_dir) {
         add_process_tag(TAG_ENTRYPOINT_BASEDIR, base_dir);
@@ -160,7 +160,7 @@ static void collect_process_tags(void) {
     add_process_tag(TAG_RUNTIME_SAPI, sapi_module.name);
 }
 
-int cmp_process_tag_by_key(const void *tag1, const void* tag2) {
+static int cmp_process_tag_by_key(const void *tag1, const void* tag2) {
     const process_tag_entry_t *tag_entry_1 = tag1;
     const process_tag_entry_t *tag_entry_2 = tag2;
 
@@ -172,16 +172,16 @@ static void serialize_process_tags(void) {
         return;
     }
 
-    // sort process_tags by alphabetical order on the value
+    // sort process_tags by key alphabetical order
     qsort(process_tags.tag_list, process_tags.count, sizeof(process_tag_entry_t), cmp_process_tag_by_key);
 
     smart_str buf = {0};
-    for (int i = 0; i < process_tags.count; i++) {
+    for (size_t i = 0; i < process_tags.count; i++) {
         smart_str_appends(&buf, process_tags.tag_list[i].key);
-        smart_str_appendl(&buf, ":", 1);
+        smart_str_appendc(&buf, ':');
         smart_str_appends(&buf, process_tags.tag_list[i].value);
         if (i < process_tags.count - 1) {
-            smart_str_appendl(&buf, ",", 1);
+            smart_str_appendc(&buf, ',');
         }
     }
     if (buf.s) {
@@ -217,7 +217,7 @@ void ddtrace_process_tags_first_rinit(void) {
 
 void ddtrace_process_tags_mshutdown(void) {
     for (size_t i = 0; i < process_tags.count; i++) {
-        free((void*)process_tags.tag_list[i].value);
+        ddog_free_normalized_tag_value(process_tags.tag_list[i].value);
     }
     free(process_tags.tag_list);
 

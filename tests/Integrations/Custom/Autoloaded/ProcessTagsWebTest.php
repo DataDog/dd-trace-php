@@ -48,9 +48,9 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
         }
 
         $this->assertArrayHasKey('entrypoint.workdir', $tags, 'entrypoint.workdir should be present');
-        $this->assertArrayHasKey('entrypoint.name', $tags, 'entrypoint.name should not be present for web SAPI');
-        $this->assertArrayHasKey('entrypoint.basedir', $tags, 'entrypoint.basedir should not be present for web SAPI');
-        $this->assertArrayHasKey('entrypoint.type', $tags, 'entrypoint.type should not be present for web SAPI');
+        $this->assertArrayHasKey('entrypoint.name', $tags, 'entrypoint.name should be present for web SAPI');
+        $this->assertArrayHasKey('entrypoint.basedir', $tags, 'entrypoint.basedir should be present for web SAPI');
+        $this->assertArrayHasKey('entrypoint.type', $tags, 'entrypoint.type should be present for web SAPI');
 
         // Verify server.type is one of the expected SAPIs tested in CI
         $expectedSapis = ['cli-server', 'cgi-fcgi', 'apache2handler', 'fpm-fcgi'];

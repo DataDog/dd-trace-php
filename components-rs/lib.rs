@@ -139,7 +139,7 @@ const MAX_TAG_VALUE_LENGTH: usize = 100;
 pub extern "C" fn ddog_normalize_process_tag_value(
     tag_value: CharSlice,
 ) -> *const c_char {
-    let value = tag_value.try_to_utf8().unwrap().to_string();
+    let value = tag_value.to_utf8_lossy();
 
     let mut out = String::new();
     let mut prev_underscore = false;
@@ -164,8 +164,22 @@ pub extern "C" fn ddog_normalize_process_tag_value(
         out.pop();
     }
 
-    let c_string = std::ffi::CString::new(out).unwrap();
-    let out_ptr = c_string.as_ptr();
-    std::mem::forget(c_string);
-    out_ptr
+    match std::ffi::CString::new(out) {
+        Ok(c_string) => {
+            let out_ptr = c_string.as_ptr();
+            std::mem::forget(c_string);
+            out_ptr
+        }
+        Err(_) => std::ptr::null(),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        drop(std::ffi::CString::from_raw(ptr as *mut c_char));
+    }
 }
