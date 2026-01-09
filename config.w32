@@ -49,6 +49,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " logging.c";
 	DDTRACE_EXT_SOURCES += " memory_limit.c";
 	DDTRACE_EXT_SOURCES += " otel_config.c";
+	DDTRACE_EXT_SOURCES += " process_tags.c";
 	DDTRACE_EXT_SOURCES += " profiling.c";
 	DDTRACE_EXT_SOURCES += " random.c";
 	DDTRACE_EXT_SOURCES += " remote_config.c";

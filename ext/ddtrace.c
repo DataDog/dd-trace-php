@@ -68,6 +68,7 @@
 #include "limiter/limiter.h"
 #include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
+#include "process_tags.h"
 #include "random.h"
 #include "autoload_php_files.h"
 #include "remote_config.h"
@@ -1636,6 +1637,12 @@ static void dd_rinit_once(void) {
      * TODO Audit/remove config usages before RINIT and move config init to RINIT.
      */
     ddtrace_startup_logging_first_rinit();
+
+    // Collect process tags now that script path is available
+    if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
+        ddtrace_process_tags_first_rinit();
+    }
+
 
     // Uses config, cannot run earlier
 #ifndef _WIN32
