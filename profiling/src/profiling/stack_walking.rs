@@ -77,7 +77,7 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     let len = module_len + class_name_len + method_name.len();
 
     // Rather than fail, we use a short string to represent a long string.
-    if len > STR_LEN_LIMIT {
+    if len >= STR_LEN_LIMIT {
         return Some(COW_LARGE_STRING);
     }
 
@@ -142,7 +142,7 @@ unsafe fn extract_file_and_line(
         Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
             let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
-            let file = if bytes.len() <= STR_LEN_LIMIT {
+            let file = if bytes.len() < STR_LEN_LIMIT {
                 Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
             } else {
                 COW_LARGE_STRING
