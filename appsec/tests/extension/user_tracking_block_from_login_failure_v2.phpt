@@ -35,5 +35,5 @@ echo "SHOULD NOT BE REACHED\n";
 Status: 404 Not Found
 Content-type: application/json
 --EXPECTF--
-{"errors": [{"title": "You've been blocked", "detail": "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog.", "security_response_id": ""}]}
+{"errors":[{"title":"You've been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}],"security_response_id":""}
 Warning: datadog\appsec\v2\track_user_login_failure(): Datadog blocked the request and presented a static error page. No action required. Security Response ID:  in %s on line %d

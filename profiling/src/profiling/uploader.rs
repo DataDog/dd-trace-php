@@ -1,17 +1,21 @@
-use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 use crate::config::AgentEndpoint;
-use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
 use crate::profiling::{UploadMessage, UploadRequest};
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
 use crossbeam_channel::{select, Receiver};
-use ddcommon::Endpoint;
+use libdd_common::Endpoint;
 use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
-use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
+
+#[cfg(feature = "debug_stats")]
+use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
+#[cfg(feature = "debug_stats")]
+use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
+#[cfg(feature = "debug_stats")]
+use std::sync::atomic::Ordering;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -40,11 +44,12 @@ impl Uploader {
 
     /// This function will not only create the internal metadata JSON representation, but is also
     /// in charge to reset all those counters back to 0.
+    #[cfg(feature = "debug_stats")]
     fn create_internal_metadata() -> Option<serde_json::Value> {
         Some(json!({
-            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::SeqCst),
-            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::SeqCst),
-            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::SeqCst),
+            "exceptions_count": EXCEPTION_PROFILING_EXCEPTION_COUNT.swap(0, Ordering::Relaxed),
+            "allocations_count": ALLOCATION_PROFILING_COUNT.swap(0, Ordering::Relaxed),
+            "allocations_size": ALLOCATION_PROFILING_SIZE.swap(0, Ordering::Relaxed),
         }))
     }
 
@@ -67,7 +72,7 @@ impl Uploader {
         let endpoint = Endpoint::try_from(agent_endpoint)?;
 
         let tags = Some(Arc::unwrap_or_clone(index.tags));
-        let mut exporter = datadog_profiling::exporter::ProfileExporter::new(
+        let mut exporter = libdd_profiling::exporter::ProfileExporter::new(
             profiling_library_name,
             profiling_library_version,
             "php",
@@ -83,7 +88,10 @@ impl Uploader {
             &[],
             &[],
             None,
+            #[cfg(feature = "debug_stats")]
             Self::create_internal_metadata(),
+            #[cfg(not(feature = "debug_stats"))]
+            None,
             self.create_profiler_info(),
         )?;
         debug!("Sending profile to: {agent_endpoint}");
@@ -158,11 +166,12 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "debug_stats")]
     fn test_create_internal_metadata() {
         // Set up all counters with known values
-        EXCEPTION_PROFILING_EXCEPTION_COUNT.store(42, Ordering::SeqCst);
-        ALLOCATION_PROFILING_COUNT.store(100, Ordering::SeqCst);
-        ALLOCATION_PROFILING_SIZE.store(1024, Ordering::SeqCst);
+        EXCEPTION_PROFILING_EXCEPTION_COUNT.store(42, Ordering::Relaxed);
+        ALLOCATION_PROFILING_COUNT.store(100, Ordering::Relaxed);
+        ALLOCATION_PROFILING_SIZE.store(1024, Ordering::Relaxed);
 
         // Call the function under test
         let metadata = Uploader::create_internal_metadata();

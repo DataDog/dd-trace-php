@@ -680,6 +680,104 @@ final class PDOTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPreparedStatementUsesServiceModeForDBM()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $stmt = $pdo->prepare($query);
+            $stmt->execute([1]);
+            $results = $stmt->fetchAll();
+            $this->assertEquals('Tom', $results[0]['name']);
+            $stmt->closeCursor();
+            $stmt = null;
+            $pdo = null;
+        });
+
+        // Get the raw spans
+        $spans = $traces[0];
+
+        // Find prepare and execute spans
+        $constructSpan = null;
+        $prepareSpan = null;
+        $executeSpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'PDO.__construct') {
+                $constructSpan = $span;
+            } elseif ($span['name'] === 'PDO.prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'PDOStatement.execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($constructSpan, 'PDO.__construct span should exist');
+        $this->assertNotNull($prepareSpan, 'PDO.prepare span should exist');
+        $this->assertNotNull($executeSpan, 'PDOStatement.execute span should exist');
+
+        // Verify that execute and prepare span are siblings
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'PDOStatement.execute should be a sibling of PDO.prepare'
+        );
+
+        // Verify that SERVICE mode is used for the prepare span
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['meta'] ?? [],
+            'PDO.prepare should use SERVICE mode'
+        );
+    }
+
+    public function testDirectQueryHasNoParentIssues()
+    {
+        $query = "SELECT * FROM tests WHERE id=1";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $pdo->query($query);
+            $pdo = null;
+        });
+
+        // Get the raw spans
+        $spans = $traces[0];
+
+        // Find construct and query spans
+        $constructSpan = null;
+        $querySpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'PDO.__construct') {
+                $constructSpan = $span;
+            } elseif ($span['name'] === 'PDO.query') {
+                $querySpan = $span;
+            }
+        }
+
+        $this->assertNotNull($constructSpan, 'PDO.__construct span should exist');
+        $this->assertNotNull($querySpan, 'PDO.query span should exist');
+
+        // Verify that query span has a parent (should be root or construct)
+        $this->assertTrue(
+            isset($querySpan['parent_id']),
+            'PDO.query should have a parent_id'
+        );
+
+        // Verify spans are created correctly with proper structure
+        $this->assertSpans($traces, [
+            SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::build('PDO.query', 'pdo', 'sql', $query)
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.agent_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
+        ]);
+    }
+
     public function testLimitedTracerPDO()
     {
         $query = "SELECT * FROM tests WHERE id = ?";

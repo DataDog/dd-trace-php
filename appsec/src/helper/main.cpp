@@ -25,8 +25,10 @@ extern "C" {
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
 }
 
 namespace {
@@ -60,7 +62,7 @@ void *pthread_wrapper(void *arg)
     return reinterpret_cast<void *>(ret);
 }
 
-bool ensure_unique(const std::string &lock_path)
+bool ensure_unique_lock(const std::string &lock_path)
 {
     // do not acquire the lock / assume we inherited it
     if (lock_path == "-") {
@@ -80,10 +82,49 @@ bool ensure_unique(const std::string &lock_path)
     // If we fail to obtain the lock, for whichever reason, assume we can't
     // run for now.
     if (res == -1) {
+        ::close(fd);
         SPDLOG_INFO("Failed to get exclusive lock on file {}: errno {}",
             lock_path, errno);
         return false;
     }
+    return true;
+}
+
+bool ensure_unique_abstract_socket(std::string_view socket_path)
+{
+    if (socket_path.empty() || socket_path[0] != '@') {
+        return true;
+    }
+
+    // Try to connect to the socket. If successful, another helper is running
+    // NOLINTNEXTLINE(android-cloexec-socket)
+    int const sock = ::socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock == -1) {
+        SPDLOG_INFO("Failed to create test socket: errno {}", errno);
+        return false;
+    }
+
+    struct sockaddr_un addr {};
+    addr.sun_family = AF_UNIX;
+    addr.sun_path[0] = '\0';
+
+    std::size_t const size =
+        std::min(socket_path.size() - 1, sizeof(addr.sun_path) - 2);
+    std::copy_n(socket_path.data() + 1, size, &addr.sun_path[1]);
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+    addr.sun_path[size + 1] = '\0';
+
+    int const res = ::connect(
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        sock, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr));
+    ::close(sock);
+
+    if (res == 0) {
+        SPDLOG_INFO("Another helper is already running on {}", socket_path);
+        return false;
+    }
+
+    SPDLOG_DEBUG("No helper running on socket {}, proceeding", socket_path);
     return true;
 }
 
@@ -123,10 +164,18 @@ int appsec_helper_main_impl()
 
     dds::waf::initialise_logging(level);
 
-    if (!ensure_unique(std::string{config.lock_file_path()})) {
-        logger->warn("helper launched, but not unique, exiting");
-        // There's another helper running
-        return 1;
+    if (config.is_abstract_socket()) {
+        if (!ensure_unique_abstract_socket(config.socket_file_path())) {
+            logger->warn("helper launched, but not unique (abstract socket "
+                         "exists), exiting");
+            return 1;
+        }
+    } else {
+        if (!ensure_unique_lock(std::string{config.lock_file_path()})) {
+            logger->warn(
+                "helper launched, but not unique (lock file exists), exiting");
+            return 1;
+        }
     }
 
     // block SIGUSR1 (only used to interrupt the runner)
@@ -224,11 +273,24 @@ appsec_helper_shutdown() noexcept
         // the helper shared library is unloaded by trampoline.c.
         // Wait for the joinable thread to actually exit (with a timeout).
         void *thr_exit_status;
+#ifdef __APPLE__
+        // macOS doesn't have pthread_tryjoin_np, so we check the deadline first
+        // and then do a blocking join if the thread has finished
+        if (had_finished) {
+            // Thread has signaled finished, do a blocking join
+            const int res = pthread_join(thread_handle, &thr_exit_status);
+            if (res == 0) {
+                SPDLOG_INFO("AppSec helper thread has exited");
+                break;
+            }
+        }
+#else
         const int res = pthread_tryjoin_np(thread_handle, &thr_exit_status);
         if (res == 0) {
             SPDLOG_INFO("AppSec helper thread has exited");
             break;
         }
+#endif
 
         if (std::chrono::steady_clock::now() >= deadline) {
             // we need to call _exit() to avoid a segfault in the still running

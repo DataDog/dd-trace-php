@@ -19,7 +19,7 @@ import static org.testcontainers.containers.Container.ExecResult
 @Testcontainers
 @Slf4j
 @DisabledIf('isZts')
-class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
+class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallbackSamplingTests {
     static boolean zts = variant.contains('zts')
 
     @Container
@@ -92,6 +92,39 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
                 'bash', '-c',
                 '''kill -9 `pgrep php-fpm`;
                php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini''')
+    }
+
+    @Test
+    void 'resource renaming auto-enabled with appsec'() {
+        // By default, DD_APPSEC_ENABLED=true is set but DD_TRACE_RESOURCE_RENAMING_ENABLED is not set.
+        def req = container.buildReq('/hello.php').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body() == 'Hello world!'
+        }
+
+        def span = trace.first()
+        assert span.metrics."_dd.appsec.enabled" == 1.0d : "AppSec should be enabled"
+        assert span.meta."http.endpoint" == '/hello.php' : "http.endpoint tag should be set when AppSec is enabled"
+    }
+
+    @Test
+    void 'resource renaming disabled when explicitly set to false'() {
+        // When DD_TRACE_RESOURCE_RENAMING_ENABLED=false is explicitly set, resource renaming should be disabled
+        // even when AppSec is enabled
+        disableEndpointRenaming()
+
+        try {
+            def req = container.buildReq('/hello.php').GET().build()
+            def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+
+            def span = trace.first()
+            assert span.metrics."_dd.appsec.enabled" == 1.0d : "AppSec should still be enabled"
+            assert span.meta."http.endpoint" == null : "http.endpoint tag should NOT be set when resource renaming is explicitly disabled"
+        } finally {
+            resetFpm()
+        }
     }
 
     @Test

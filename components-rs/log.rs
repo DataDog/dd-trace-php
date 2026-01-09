@@ -10,8 +10,8 @@ use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields};
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::util::SubscriberInitExt;
-use ddcommon_ffi::CharSlice;
-use ddcommon_ffi::slice::AsBytes;
+use libdd_common_ffi::CharSlice;
+use libdd_common_ffi::slice::AsBytes;
 
 pub const LOG_ONCE: isize = 1 << 3;
 
@@ -38,8 +38,10 @@ pub static mut ddog_log_callback: Option<extern "C" fn(CharSlice)> = None;
 
 // Avoid RefCell for performance
 std::thread_local! {
-    static LOGGED_MSGS: RefCell<BTreeSet<String>> = RefCell::default();
-    static TRACING_GUARDS: RefCell<Option<tracing_core::dispatcher::DefaultGuard>> = RefCell::default();
+    static LOGGED_MSGS: RefCell<BTreeSet<String>> = const { RefCell::new(BTreeSet::new()) };
+    static TRACING_GUARDS: RefCell<Option<tracing_core::dispatcher::DefaultGuard>> = const { RefCell::new(None) };
+
+    // todo: MSRV 1.85+ make this const with HashMap::with_hasher
     static COUNTERS: RefCell<HashMap<Level, u32>> = RefCell::default();
 }
 

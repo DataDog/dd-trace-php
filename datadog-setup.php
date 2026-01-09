@@ -42,6 +42,9 @@ define('EXTENSION_SUFFIX', IS_WINDOWS ? "dll" : "so");
 
 define('DEFAULT_INSTALL_DIR', IS_WINDOWS ? getenv('ProgramW6432') . '\Datadog\PHP Tracer' : '/opt/datadog');
 
+// Prevent injection, because php will only report the injected ini directories, even though it preserves the compiled one.
+putenv("DD_INSTRUMENT_SERVICE_WITH_APM=false");
+
 /**
  * The number of items to shift off `get_ini_settings` for config commands.
  */
@@ -1538,6 +1541,7 @@ function download($url, $destination, $retry = false)
     // file_get_contents
     if (is_truthy(ini_get('allow_url_fopen')) && extension_loaded('openssl')) {
         ini_set("memory_limit", "2G"); // increase memory limit otherwise we may run OOM here.
+        $http_response_header = []; // Initialize to avoid deprecation on PHP 8.5
         $data = @file_get_contents($url);
         // PHP doesn't like too long location headers, and on PHP 7.3 and older they weren't read at all.
         // But this only really matters for CircleCI artifacts, so not too bad.

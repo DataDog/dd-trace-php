@@ -81,9 +81,21 @@ static php_stream *dd_stream_opener(
             ZVAL_STRING(&zv, filename);
             zend_hash_str_update(meta, ZEND_STRL("http.url"), &zv);
 
-            zval *method_zv = zend_hash_str_find(Z_ARRVAL_P(options_zv), "method", sizeof("method") - 1);
-            if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
-                zend_hash_str_update(meta, ZEND_STRL("http.method"), method_zv);
+            // Stream context options store HTTP wrapper options under the "http" subarray, e.g.
+            // stream_context_create(['http' => ['method' => 'GET', ...]]).
+            zval *http_context_zv = Z_TYPE_P(options_zv) == IS_ARRAY
+                ? zend_hash_str_find_deref(Z_ARRVAL_P(options_zv), "http", sizeof("http") - 1)
+                : NULL;
+            if (http_context_zv && Z_TYPE_P(http_context_zv) == IS_ARRAY) {
+                zval *method_zv = zend_hash_str_find(Z_ARRVAL_P(http_context_zv), "method", sizeof("method") - 1);
+                if (method_zv && Z_TYPE_P(method_zv) == IS_STRING) {
+                    // `zend_hash_str_update()` moves the zval payload into the hashtable without adding a ref.
+                    // `method_zv` is owned by the stream context options array, so we must add a ref (via ZVAL_COPY)
+                    // to avoid leaving span meta with a dangling zend_string once the options array is destroyed.
+                    zval method_copy;
+                    ZVAL_COPY(&method_copy, method_zv);
+                    zend_hash_str_update(meta, ZEND_STRL("http.method"), &method_copy);
+                }
             }
 
             const char *host_start = strstr(filename, "://");

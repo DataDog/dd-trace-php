@@ -125,7 +125,7 @@ class PDOIntegration extends Integration
             $instance = $hook->instance;
             PDOIntegration::setCommonSpanInfo($instance, $span);
 
-            PDOIntegration::injectDBIntegration($instance, $hook);
+            PDOIntegration::injectDBIntegration($instance, $hook, \DDTrace\DBM_PROPAGATION_SERVICE);
             PDOIntegration::handleRasp($instance, $span);
         }, static function (HookData $hook) {
             ObjectKVStore::propagate($hook->instance, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
@@ -265,7 +265,7 @@ REGEX;
         return $tags;
     }
 
-    public static function injectDBIntegration($pdo, $hook)
+    public static function injectDBIntegration($pdo, $hook, $forcedMode = null)
     {
         $driver = $pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
         if ($driver === "odbc") {
@@ -275,7 +275,7 @@ REGEX;
                 return;
             }
         }
-        DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver);
+        DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, $driver, 0, $forcedMode);
     }
 
     public static function extractConnectionMetadata(array $constructorArgs)

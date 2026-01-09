@@ -110,7 +110,7 @@ trait CommonTests {
         def trace = container.traceFromRequest('/user_login_success_v2.php?login=Admin&id=user_id') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
-        
+
         Span span = trace.first()
         assert span.metrics._sampling_priority_v1 == 2.0d
         assert span.meta."appsec.events.users.login.success.usr.login" == "Admin"
@@ -178,7 +178,7 @@ trait CommonTests {
 
     @Test
     void 'authenticated user event automated'() {
-        def trace = container.traceFromRequest('/behind_auth.php?id=userID') { HttpResponse<InputStream> resp ->
+        def trace = container.traceFromRequest('/behind_auth.php?id=userID&disable_schema=1') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
 
@@ -275,7 +275,11 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
         assert span.meta."appsec.blocked" == "true"
-
+        def appsecJsonMap = new groovy.json.JsonSlurper().parseText(span.meta."_dd.appsec.json")
+        assert appsecJsonMap.triggers.every { trigger ->
+            def securityResponseId = trigger.security_response_id
+            securityResponseId != null && securityResponseId ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        }
         return span
     }
 
@@ -291,7 +295,7 @@ trait CommonTests {
             def body = new groovy.json.JsonSlurper().parseText(re.body())
             assert body.errors[0].title == "You've been blocked"
             assert body.errors[0].detail == "Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."
-            assert body.errors[0].security_response_id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+            assert body.security_response_id ==~ /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
         }
 
         Span span = trace.first()
@@ -729,7 +733,7 @@ trait CommonTests {
 
     @Test
     void 'tagging rule with attributes, no keep and no event'() {
-        HttpRequest req = container.buildReq('/hello.php')
+        HttpRequest req = container.buildReq('/hello.php?disable_schema=1')
                 .header('User-Agent', 'TraceTagging/v1').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
             resp.body() == 'Hello world!'

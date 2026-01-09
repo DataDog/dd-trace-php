@@ -1,3 +1,8 @@
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
+pub mod allocation_ge84;
+#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+pub mod allocation_le83;
+
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
@@ -9,11 +14,6 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-#[cfg(php_zend_mm_set_custom_handlers_ex)]
-pub mod allocation_ge84;
-#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-pub mod allocation_le83;
-
 /// Default sampling interval in bytes (4MB)
 pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: u64 = 1024 * 4096;
 
@@ -24,11 +24,13 @@ pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
 /// allocations, which seems big enough to ignore.
+#[cfg(feature = "debug_stats")]
 pub static ALLOCATION_PROFILING_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// This will store the accumulated size of all allocations in bytes during the
 /// profiling period. This will overflow when allocating more than 18 exabyte
 /// of memory (u64::MAX) which might not happen, so we can ignore this.
+#[cfg(feature = "debug_stats")]
 pub static ALLOCATION_PROFILING_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub struct AllocationProfilingStats {
@@ -42,7 +44,7 @@ impl AllocationProfilingStats {
     fn new() -> AllocationProfilingStats {
         // Safety: this will only error if lambda <= 0
         let poisson =
-            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst) as f64).unwrap();
+            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64).unwrap();
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             poisson,
@@ -120,11 +122,11 @@ pub fn alloc_prof_first_rinit() {
         return;
     }
 
-    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::SeqCst);
+    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::Relaxed);
 
     trace!(
         "Memory allocation profiling initialized with a sampling distance of {} bytes.",
-        ALLOCATION_PROFILING_INTERVAL.load(Ordering::SeqCst)
+        ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed)
     );
 }
 

@@ -5,9 +5,11 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../network.h"
 #include <SAPI.h>
 #include <php.h>
 
-dd_result dd_request_exec(
-    dd_conn *nonnull conn, zval *nonnull data, zend_string *nullable rasp_rule);
+#include "../network.h"
+#include "../request_abort.h"
+
+dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data,
+    zend_string *nullable rasp_rule, struct block_params *nonnull block_params);

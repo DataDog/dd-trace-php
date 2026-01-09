@@ -39,12 +39,12 @@ dd_php_array_type dd_php_determine_array_type(const zend_array *nonnull myht)
 zval *nullable dd_php_get_autoglobal(
     int track_var, const char *nonnull name, size_t len)
 {
+    assert(track_var >= 0);
+
     zval *var;
-    if (EXPECTED(track_var >= 0)) {
-        var = &PG(http_globals)[track_var];
-        if (Z_TYPE_P(var) == IS_ARRAY) {
-            return var;
-        }
+    var = &PG(http_globals)[track_var];
+    if (Z_TYPE_P(var) == IS_ARRAY) {
+        return var;
     }
 
     if (zend_is_auto_global_str((char *)name, len)) {
@@ -64,7 +64,7 @@ const zend_array *nonnull dd_get_superglob_or_equiv(
     if (equiv) {
         ret = zend_hash_str_find(equiv, name, name_len);
     } else {
-        ret = dd_php_get_autoglobal(track, ZEND_STRL("_GET"));
+        ret = dd_php_get_autoglobal(track, name, name_len);
     }
 
     if (!ret || Z_TYPE_P(ret) != IS_ARRAY) {

@@ -3,7 +3,8 @@
     "require": {
         "open-telemetry/sdk": "^1.0",
         "open-telemetry/extension-propagator-b3": "^1.0",
-        "open-telemetry/opentelemetry-logger-monolog": "^1.0"
+        "open-telemetry/opentelemetry-logger-monolog": "^1.0",
+        "open-telemetry/exporter-otlp": "^1.0"
     },
     "minimum-stability": "stable"
 }

@@ -7365,6 +7365,19 @@
             "type": "boolean",
             "value": true
           }
+        },
+        {
+          "operator": "!exists",
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.query",
+                "key_path": [
+                  "disable_schema"
+                ]
+              }
+            ]
+          }
         }
       ],
       "parameters": {

@@ -1,4 +1,5 @@
 #include "telemetry.h"
+#include "configuration.h"
 #include "ddtrace.h"
 #include "logging.h"
 #include "php_compat.h"
@@ -8,9 +9,19 @@
 #define DD_SDK_EVENT "sdk.event"
 static zend_string *_dd_sdk_event_zstr;
 
+static zend_string *_dd_helper_conn_error_zstr;
+static zend_string *_dd_helper_conn_success_zstr;
+static zend_string *_dd_helper_conn_close_zstr;
+
 void dd_telemetry_startup(void)
 {
     _dd_sdk_event_zstr = zend_string_init_interned(LSTRARG(DD_SDK_EVENT), 1);
+    _dd_helper_conn_error_zstr =
+        zend_string_init_interned(LSTRARG("helper.connection_error"), 1);
+    _dd_helper_conn_success_zstr =
+        zend_string_init_interned(LSTRARG("helper.connection_success"), 1);
+    _dd_helper_conn_close_zstr =
+        zend_string_init_interned(LSTRARG("helper.connection_close"), 1);
 }
 
 void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
@@ -36,4 +47,34 @@ void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len)
     zend_string_release(tags_zstr);
 
     free(tags);
+}
+
+static void _add_helper_conn_metric(
+    zend_string *nonnull name_zstr, const char *nonnull socket_path)
+{
+    if (get_global_DD_APPSEC_TESTING() &&
+        !get_global_DD_APPSEC_TESTING_HELPER_METRICS()) {
+        return;
+    }
+    char *tags = NULL;
+    size_t tags_len = spprintf(&tags, 0, "socket:%s", socket_path);
+    zend_string *tags_zstr = zend_string_init(tags, tags_len, 0);
+    dd_telemetry_add_metric(name_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
+    zend_string_release(tags_zstr);
+    efree(tags);
+}
+
+void dd_telemetry_helper_conn_error(const char *nonnull socket_path)
+{
+    _add_helper_conn_metric(_dd_helper_conn_error_zstr, socket_path);
+}
+
+void dd_telemetry_helper_conn_success(const char *nonnull socket_path)
+{
+    _add_helper_conn_metric(_dd_helper_conn_success_zstr, socket_path);
+}
+
+void dd_telemetry_helper_conn_close(const char *nonnull socket_path)
+{
+    _add_helper_conn_metric(_dd_helper_conn_close_zstr, socket_path);
 }

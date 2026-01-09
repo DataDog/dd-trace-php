@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "../utils.hpp"
 #include "socket.hpp"
 #include <chrono>
 #include <string_view>
@@ -28,35 +29,16 @@ namespace local {
 
 class acceptor : public base_acceptor {
 public:
-    explicit acceptor(int fd) : sock_{fd} {};
+    explicit acceptor(owned_fd fd) : sock_{std::move(fd)} {};
     explicit acceptor(const std::string_view &sv);
     acceptor(const acceptor &) = delete;
     acceptor &operator=(const acceptor &) = delete;
-
-    acceptor(acceptor &&other) noexcept : sock_(other.sock_)
-    {
-        other.sock_ = -1;
-    }
-
-    acceptor &operator=(acceptor &&other) noexcept
-    {
-        sock_ = other.sock_;
-        other.sock_ = -1;
-        return *this;
-    }
-
-    ~acceptor() override
-    {
-        if (sock_ != -1) {
-            close(sock_);
-        }
-    }
 
     void set_accept_timeout(std::chrono::seconds timeout) override;
     [[nodiscard]] std::unique_ptr<base_socket> accept() override;
 
 private:
-    int sock_{-1};
+    owned_fd sock_;
 };
 
 } // namespace local

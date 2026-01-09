@@ -1,5 +1,9 @@
 --TEST--
 _convert_xml function (external entity)
+--DESCRIPTION--
+External SYSTEM entities are blocked for security (XXE prevention).
+The internal entity &test; resolves normally, but the external entity
+&myentity; is preserved as a literal reference since it can't be loaded.
 --SKIPIF--
 <?php
 if (PHP_VERSION_ID < 70100) {
@@ -24,6 +28,6 @@ echo(json_encode($result, JSON_PRETTY_PRINT));
 --EXPECT--
 {
     "test": [
-        "test"
+        "test&myentity;"
     ]
 }

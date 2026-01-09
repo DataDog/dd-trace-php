@@ -14,6 +14,7 @@
 #include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
+#include "rasp.h"
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
@@ -25,8 +26,7 @@
 #include "attributes.h"
 
 static void _do_request_finish_php(bool ignore_verdict);
-static zend_array *nullable _do_request_begin(
-    zval *nullable rbe_zv, bool user_req);
+static zend_array *nullable _do_request_begin(zval *nullable rbe_zv);
 static void _do_request_begin_php(void);
 static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     zend_array *nonnull superglob_equiv, int status_code,
@@ -50,12 +50,17 @@ static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
+static THREAD_LOCAL_ON_ZTS bool _request_blocked;
 #define MAX_LENGTH_OF_REM_CFG_PATH 31
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req(void) { return _enabled_user_req; }
+
+void dd_req_lifecycle_set_blocked(void) { _request_blocked = true; }
+
+bool dd_req_lifecycle_is_blocked(void) { return _request_blocked; }
 
 void dd_req_lifecycle_startup(void)
 {
@@ -118,6 +123,13 @@ void dd_req_lifecycle_rinit(bool force)
     if (!_cur_req_span) {
         mlog(dd_log_debug, "No root span available on request init");
     }
+
+    if (_client_ip) {
+        mlog(dd_log_warning, "Client IP not cleared on prev request. Value %p",
+            (void *)_client_ip);
+        _client_ip = NULL;
+    }
+
     _do_request_begin_php();
 }
 
@@ -127,7 +139,7 @@ static void _do_request_begin_php(void)
         dd_request_body_buffered(get_DD_APPSEC_MAX_BODY_BUFF_SIZE());
     zval req_body_zv;
     ZVAL_STR(&req_body_zv, req_body);
-    (void)_do_request_begin(&req_body_zv, false);
+    UNUSED(_do_request_begin(&req_body_zv));
 }
 
 static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv)
@@ -135,7 +147,7 @@ static zend_array *nullable _do_request_begin_user_req(zval *nullable rbe_zv)
     if (rbe_zv) {
         Z_TRY_ADDREF_P(rbe_zv);
     }
-    return _do_request_begin(rbe_zv, true);
+    return _do_request_begin(rbe_zv);
 }
 
 static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
@@ -174,7 +186,7 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
 }
 
 static zend_array *nullable _do_request_begin(
-    zval *nullable rbe_zv /* needs free */, bool user_req)
+    zval *nullable rbe_zv /* needs free */)
 {
     // do this even on user req because frankenphp uses normal php output
     dd_entity_body_rinit();
@@ -227,34 +239,27 @@ static zend_array *nullable _do_request_begin(
 
     // we might have been disabled by request_init
 
+    zend_array *spec = NULL;
     if (res == dd_network) {
         mlog_g(dd_log_info,
             "request_init/config_sync failed with dd_network; closing "
             "connection to helper");
         dd_helper_close_conn();
-    } else if (res == dd_should_block) {
-        if (user_req) {
-            const zend_array *nonnull sv = _get_server_equiv(_superglob_equiv);
-            return dd_request_abort_static_page_spec(sv);
-        }
-        dd_request_abort_static_page();
-    } else if (res == dd_should_redirect) {
-        if (user_req) {
-            return dd_request_abort_redirect_spec();
-        }
-        dd_request_abort_redirect();
+    } else if (res == dd_should_block || res == dd_should_redirect) {
+        spec = dd_req_lifecycle_abort(
+            REQUEST_STAGE_REQUEST_BEGIN, res, &req_info.req_info.block_params);
     } else if (res != dd_success && res != dd_should_record) {
         mlog_g(
             dd_log_info, "request init failed: %s", dd_result_to_string(res));
     }
 
-    return NULL;
+    dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
+
+    return spec;
 }
 
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
-    dd_request_abort_rshutdown();
-
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         mlog_g(dd_log_debug, "Skipping all request shutdown actions because "
                              "appsec is fully disabled");
@@ -312,10 +317,11 @@ static void _do_request_finish_php(bool ignore_verdict)
 {
     int verdict = dd_success;
     dd_conn *conn = dd_helper_mgr_cur_conn();
+    struct req_shutdown_info ctx = {0};
 
     if (conn && DDAPPSEC_G(active)) {
         const int status_code = SG(sapi_headers).http_response_code;
-        struct req_shutdown_info ctx = {
+        ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
             .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
             .status_code = status_code,
@@ -345,17 +351,13 @@ static void _do_request_finish_php(bool ignore_verdict)
         dd_tags_add_tags(_cur_req_span, NULL);
     }
     dd_tags_rshutdown();
+    dd_rasp_req_finish();
 
     _reset_globals();
 
-    // TODO when blocking on shutdown, let the tracer handle flushing
-    if (verdict == dd_should_block) {
-        dd_trace_close_all_spans_and_flush();
-        dd_request_abort_static_page();
-    } else if (verdict == dd_should_redirect) {
-        dd_trace_close_all_spans_and_flush();
-        dd_request_abort_redirect();
-    }
+    dd_req_lifecycle_abort(
+        REQUEST_STAGE_REQUEST_END, verdict, &ctx.req_info.block_params);
+    dd_request_abort_destroy_block_params(&ctx.req_info.block_params);
 }
 
 static zend_array *_do_request_finish_user_req(bool ignore_verdict,
@@ -364,9 +366,10 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
 {
     int verdict = dd_success;
     dd_conn *conn = dd_helper_mgr_cur_conn();
+    struct req_shutdown_info ctx = {0};
 
     if (conn && DDAPPSEC_G(active)) {
-        struct req_shutdown_info ctx = {
+        ctx = (struct req_shutdown_info){
             .req_info.root_span = dd_req_lifecycle_get_cur_span(),
             .req_info.client_ip = dd_req_lifecycle_get_client_ip(),
             .status_code = status_code,
@@ -395,16 +398,14 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     if (DDAPPSEC_G(active) && _cur_req_span) {
         dd_tags_add_tags(_cur_req_span, superglob_equiv);
     }
+    dd_rasp_req_finish();
 
-    if (verdict == dd_should_block) {
-        const zend_array *nonnull sv = _get_server_equiv(superglob_equiv);
-        return dd_request_abort_static_page_spec(sv);
-    }
-    if (verdict == dd_should_redirect) {
-        return dd_request_abort_redirect_spec();
-    }
+    zend_array *spec = dd_req_lifecycle_abort(
+        REQUEST_STAGE_REQUEST_END, verdict, &ctx.req_info.block_params);
 
-    return NULL;
+    dd_request_abort_destroy_block_params(&ctx.req_info.block_params);
+
+    return spec;
 }
 
 static void _reset_globals(void)
@@ -431,7 +432,9 @@ static void _reset_globals(void)
     ZVAL_UNDEF(&_blocking_function);
 
     _shutdown_done_on_commit = false;
+    _request_blocked = false;
     dd_tags_rshutdown();
+    dd_rasp_reset_globals();
 }
 
 static zend_string *nullable _extract_ip_from_autoglobal(void)
@@ -785,7 +788,8 @@ static void _set_blocking_function(ddtrace_user_req_listeners *nonnull self,
     ZVAL_COPY(&_blocking_function, blocking_function);
 }
 
-void dd_req_call_blocking_function(dd_result res)
+void _call_blocking_function(
+    dd_result res, struct block_params *nonnull block_params)
 {
     if (Z_TYPE(_blocking_function) == IS_UNDEF) {
         mlog(dd_log_debug, "dd_req_call_blocking_function called with no "
@@ -809,9 +813,9 @@ void dd_req_call_blocking_function(dd_result res)
     const zend_array *nonnull sv = _get_server_equiv(_superglob_equiv);
     zend_array *spec = NULL;
     if (res == dd_should_block) {
-        spec = dd_request_abort_static_page_spec(sv);
+        spec = dd_request_abort_static_page_spec(block_params, sv);
     } else if (res == dd_should_redirect) {
-        spec = dd_request_abort_redirect_spec();
+        spec = dd_request_abort_redirect_spec(block_params, sv);
     } else {
         mlog(dd_log_warning,
             "dd_req_call_blocking_function called with "
@@ -856,6 +860,53 @@ ddtrace_user_req_listeners dd_user_req_listeners = {
     .finish_user_req = _finish_user_req,
 };
 
+zend_array *nullable dd_req_lifecycle_abort(enum request_stage stage,
+    dd_result result, struct block_params *nonnull block_params)
+{
+    if (result != dd_should_block && result != dd_should_redirect) {
+        return NULL;
+    }
+
+    const bool user_req = dd_req_is_user_req();
+
+    zend_array *spec = NULL;
+    if (user_req) {
+        if (stage == REQUEST_STAGE_REQUEST_BEGIN ||
+            stage == REQUEST_STAGE_REQUEST_END) {
+            const zend_array *nonnull server =
+                _get_server_equiv(_superglob_equiv);
+            if (result == dd_should_block) {
+                spec = dd_request_abort_static_page_spec(block_params, server);
+            } else if (result == dd_should_redirect) {
+                spec = dd_request_abort_redirect_spec(block_params, server);
+            }
+        } else {
+            assert(stage == REQUEST_STAGE_MID_REQUEST);
+            _call_blocking_function(result, block_params);
+        }
+    } else { // non-user req
+        if (stage == REQUEST_STAGE_REQUEST_END) {
+            dd_trace_close_all_spans_and_flush();
+        }
+        if (result == dd_should_block) {
+            dd_request_abort_static_page(block_params);
+        } else if (result == dd_should_redirect) {
+            dd_request_abort_redirect(block_params);
+        }
+    }
+
+    if (block_params->security_response_id) {
+        zend_string_release(block_params->security_response_id);
+        block_params->security_response_id = NULL;
+    }
+    if (block_params->redirection_location) {
+        zend_string_release(block_params->redirection_location);
+        block_params->redirection_location = NULL;
+    }
+
+    return spec;
+}
+
 #define FNV_PRIME 1099511628211ULL
 #define FNV_OFFSET_BASIS 14695981039346656037ULL
 static inline uint64_t _hash_string(
@@ -879,6 +930,12 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
         return 0;
     }
 
+    if (_request_blocked) {
+        mlog_g(
+            dd_log_debug, "Request was blocked; not sampling for API security");
+        return 0;
+    }
+
     if (!root_span) {
         return 0;
     }
@@ -897,24 +954,67 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
         return 0;
     }
 
+    zend_string *route_or_endpoint = NULL;
+    bool free_route_or_endpoint = false;
+
     zval *route = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.route"));
-    if (!route || Z_TYPE_P(route) != IS_STRING) {
-        mlog_g(dd_log_debug, "No http.route tag; not sampling");
-        return 0;
+    const bool has_http_route = route && Z_TYPE_P(route) == IS_STRING;
+    if (has_http_route) {
+        route_or_endpoint = Z_STR_P(route);
+    } else {
+        // http.route is absent, check for http.endpoint
+        zval *endpoint =
+            zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.endpoint"));
+        const bool has_http_endpoint =
+            endpoint && Z_TYPE_P(endpoint) == IS_STRING;
+        if (has_http_endpoint) {
+            // http.endpoint is already computed
+            // Use it unless status code is 404
+#define HTTP_NOT_FOUND 404
+            if (status_code == HTTP_NOT_FOUND) {
+                mlog_g(dd_log_debug,
+                    "http.endpoint present but status is 404; not sampling");
+            } else {
+                route_or_endpoint = Z_STR_P(endpoint);
+            }
+        } else {
+            // http.endpoint not computed, compute it now without setting the
+            // tag
+            zval *url =
+                zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.url"));
+            const bool has_http_url = url && Z_TYPE_P(url) == IS_STRING;
+            if (has_http_url) {
+                route_or_endpoint = dd_trace_guess_endpoint_from_url(
+                    Z_STRVAL_P(url), Z_STRLEN_P(url));
+                if (route_or_endpoint) {
+                    free_route_or_endpoint = true;
+                } else {
+                    mlog_g(dd_log_debug,
+                        "Failed to compute http.endpoint; not sampling");
+                }
+            } else {
+                mlog_g(dd_log_debug,
+                    "No http.route, http.endpoint, or http.url; not sampling");
+            }
+        }
+    }
+
+    if (!route_or_endpoint) {
+        goto error;
     }
 
     zval *method =
         zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("http.method"));
     if (!method || Z_TYPE_P(method) != IS_STRING) {
         mlog_g(dd_log_debug, "No http.method tag; not sampling");
-        return 0;
+        goto error;
     }
 
-    // use fnv-1a hash with: <http.route tag> NULL <http.method tag> NULL
+    // use fnv-1a hash with: <route_or_endpoint> NULL <http.method tag> NULL
     // status_code
 
     uint64_t hash = FNV_OFFSET_BASIS;
-    hash = _hash_zend_string(hash, Z_STR_P(route));
+    hash = _hash_zend_string(hash, route_or_endpoint);
     hash *= FNV_PRIME; // hash NUL byte
     hash = _hash_zend_string(hash, Z_STR_P(method));
     hash *= FNV_PRIME; // hash NUL byte
@@ -925,7 +1025,22 @@ static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
         snprintf(status_str, sizeof(status_str), "%d", status_code);
     hash = _hash_string(hash, status_str, status_len);
 
+    mlog_g(dd_log_debug,
+        "Will use sampling key: %" PRIu64
+        " for route/endpoint %.*s, method %.*s, status %d",
+        hash, (int)ZSTR_LEN(route_or_endpoint), ZSTR_VAL(route_or_endpoint),
+        (int)ZSTR_LEN(Z_STR_P(method)), ZSTR_VAL(Z_STR_P(method)), status_code);
+
+    if (free_route_or_endpoint) {
+        zend_string_release(route_or_endpoint);
+    }
     return hash;
+
+error:
+    if (free_route_or_endpoint) {
+        zend_string_release(route_or_endpoint);
+    }
+    return 0;
 }
 
 PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)

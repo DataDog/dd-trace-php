@@ -12,7 +12,6 @@ use function datadog\appsec\push_addresses;
 
 include __DIR__ . '/inc/mock_helper.php';
 
-\datadog\appsec\testing\stop_for_debugger();
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
     response_list(response_request_exec([[['ok', []]]])),  // Test 1
@@ -26,7 +25,6 @@ rinit();
 
 // Test 1: Flat array over limit
 $data_over = array_fill(0, 2047, 'y');
-//\datadog\appsec\testing\stop_for_debugger();
 push_addresses(["test1" => $data_over]);
 
 // Test 2: two arrays -- the second is clipped

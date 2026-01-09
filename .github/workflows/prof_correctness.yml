@@ -55,7 +55,7 @@ jobs:
           cd profiling
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
-          cargo rustc --features="trigger_time_sample" --release --crate-type=cdylib
+          cargo rustc --features="trigger_time_sample" --profile profiler-release --crate-type=cdylib
 
       - name: Cache build dependencies
         uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
@@ -74,13 +74,13 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
+          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
-              if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.zst ]; then
-                echo "File $DD_PROFILING_OUTPUT_PPROF.1.zst should not exist!"
+              php -d extension="${PWD}/target/profiler-release/libdatadog_php_profiling.so" "profiling/tests/correctness/${test_case}.php"
+              if [ -f "$DD_PROFILING_OUTPUT_PPROF".1.lz4 ]; then
+                echo "File $DD_PROFILING_OUTPUT_PPROF.1.lz4 should not exist!"
                 exit 1;
               fi
           done
@@ -92,16 +92,16 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
+          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
           done
           mkdir -p profiling/tests/correctness/allocations_1byte/
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
-          php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run ZTS tests
@@ -112,11 +112,11 @@ jobs:
           export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
-          php -d extension=target/release/libdatadog_php_profiling.so --ri datadog-profiling
+          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
           for test_case in "exceptions_zts"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
-              php -d extension=$PWD/target/release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
+              php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
           done
 
       - name: Check profiler correctness for allocations

@@ -97,12 +97,18 @@ bool broker::send(
     // TODO: Add check to ensure buffer.size() fits in uint32_t
     header_t h = {"dds", (uint32_t)buffer.size()};
 
+    static constexpr auto timeout_header{std::chrono::milliseconds{100}};
+    socket_->set_send_timeout(timeout_header);
+
     // NOLINTNEXTLINE
     auto res = socket_->send(reinterpret_cast<char *>(&h), sizeof(header_t));
 
     if (res != sizeof(header_t)) {
         return false;
     }
+
+    static constexpr auto timeout_msg_body{std::chrono::milliseconds{300}};
+    socket_->set_send_timeout(timeout_msg_body);
 
     res = socket_->send(buffer.c_str(), buffer.size());
 

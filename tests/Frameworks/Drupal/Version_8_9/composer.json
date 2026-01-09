@@ -46,6 +46,9 @@
             "dealerdirect/phpcodesniffer-composer-installer": true,
             "drupal/core-project-message": true,
             "drupal/core-vendor-hardening": true
+        },
+        "audit": {
+            "block-insecure": false
         }
     },
     "extra": {

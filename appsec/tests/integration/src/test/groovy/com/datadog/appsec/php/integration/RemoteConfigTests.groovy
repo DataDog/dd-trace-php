@@ -93,6 +93,8 @@ class RemoteConfigTests {
                 Capability.ASM_SESSION_FINGERPRINT,
                 Capability.ASM_NETWORK_FINGERPRINT,
                 Capability.ASM_HEADER_FINGERPRINT,
+                Capability.ASM_PROCESSOR_OVERRIDES,
+                Capability.ASM_CUSTOM_DATA_SCANNERS,
         ].each { assert it in capSet }
 
         doReq.call(403)

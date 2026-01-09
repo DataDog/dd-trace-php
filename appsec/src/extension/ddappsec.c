@@ -35,6 +35,7 @@
 #include "network.h"
 #include "php_compat.h"
 #include "php_objects.h"
+#include "rasp.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
@@ -219,6 +220,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_user_tracking_startup();
     dd_request_abort_startup();
     dd_tags_startup();
+    dd_rasp_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
@@ -237,6 +239,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
+    dd_rasp_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
     dd_user_tracking_shutdown();
@@ -244,6 +247,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     dd_helper_shutdown();
 
     dd_phpobj_shutdown();
+    dd_entity_body_shutdown();
 
     return SUCCESS;
 }
@@ -279,7 +283,6 @@ static PHP_RINIT_FUNCTION(ddappsec)
     DDAPPSEC_G(skip_rshutdown) = false;
     dd_msgpack_helpers_rinit();
     dd_trace_rinit();
-    dd_request_abort_rinit();
 
     // Waf calls happen here. Not many rinits should go after this line.
     dd_req_lifecycle_rinit(false);
@@ -288,7 +291,7 @@ static PHP_RINIT_FUNCTION(ddappsec)
         if (get_global_DD_APPSEC_TESTING_ABORT_RINIT()) {
             const char *pt = SG(request_info).path_translated;
             if (pt && !strstr(pt, "skip.php")) {
-                dd_request_abort_static_page();
+                dd_request_abort_static_page(&(struct block_params){0});
             }
         }
     }
@@ -475,19 +478,19 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
         RETURN_FALSE;
     }
 
-    if (dd_request_exec(conn, data, false) != dd_success) {
-        RETURN_FALSE;
+    struct block_params block_params = {0};
+    if (dd_request_exec(conn, data, false, &block_params) != dd_success) {
+        RETVAL_FALSE;
+    } else {
+        RETVAL_TRUE;
     }
-
-    RETURN_TRUE;
+    dd_request_abort_destroy_block_params(&block_params);
 }
 
 static PHP_FUNCTION(datadog_appsec_push_addresses)
 {
     struct timespec start;
-    struct timespec end;
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-    long elapsed = 0;
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
         mlog(dd_log_debug, "Trying to access to push_addresses "
@@ -517,32 +520,23 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    dd_result res = dd_request_exec(conn, addresses, rasp_rule);
+    struct block_params block_params = {0};
+    dd_result res = dd_request_exec(conn, addresses, rasp_rule, &block_params);
 
     if (rasp_rule && ZSTR_LEN(rasp_rule) > 0) {
+        struct timespec end;
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-        elapsed =
-            ((int64_t)end.tv_sec - (int64_t)start.tv_sec) *
+        double elapsed_us =
+            ((double)(end.tv_sec - start.tv_sec) *
+                    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                    (int64_t)1000000 +
                 // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                (int64_t)1000000000 +
-            ((int64_t)end.tv_nsec - (int64_t)start.tv_nsec);
-        zend_object *span = dd_trace_get_active_root_span();
-        if (span) {
-            dd_tags_add_rasp_duration_ext(span, elapsed);
-        }
+                (double)(end.tv_nsec - start.tv_nsec) / 1000.0);
+        dd_rasp_account_duration_us(elapsed_us);
     }
 
-    if (dd_req_is_user_req()) {
-        if (res == dd_should_block || res == dd_should_redirect) {
-            dd_req_call_blocking_function(res);
-        }
-    } else {
-        if (res == dd_should_block) {
-            dd_request_abort_static_page();
-        } else if (res == dd_should_redirect) {
-            dd_request_abort_redirect();
-        }
-    }
+    dd_req_lifecycle_abort(REQUEST_STAGE_MID_REQUEST, res, &block_params);
+    dd_request_abort_destroy_block_params(&block_params);
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(

@@ -319,7 +319,7 @@ static void _pack_request_body(mpack_writer_t *nonnull w,
     const zend_array *post = dd_get_superglob_or_equiv(
         ZEND_STRL("_POST"), TRACK_VARS_POST, ctx->superglob_equiv);
     if (zend_hash_num_elements(post) != 0) {
-        dd_mpack_write_array(w, post);
+        dd_mpack_write_array_lim(w, post, limits);
         return;
     }
 

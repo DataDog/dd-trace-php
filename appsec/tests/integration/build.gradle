@@ -1,46 +1,55 @@
 import java.nio.file.Files
 import java.nio.file.Path
+import javax.inject.Inject
+import org.gradle.process.ExecOperations
+
+interface InjectedExecOps {
+    @Inject ExecOperations getExecOps()
+}
 
 plugins {
     id 'groovy'
     id 'application'
-    id 'de.undercouch.download' version '4.0.4'
+    id 'de.undercouch.download' version '5.6.0'
 }
 
 repositories {
     mavenCentral()
 }
 
-sourceCompatibility = '11'
-targetCompatibility = '11'
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
 
 dependencies {
-    implementation 'ch.qos.logback:logback-classic:1.5.6'
-    implementation 'org.slf4j:jul-to-slf4j:1.7.36'
+    implementation 'ch.qos.logback:logback-classic:1.5.18'
+    implementation 'org.slf4j:jul-to-slf4j:2.0.17'
 
-    implementation 'org.apache.groovy:groovy:4.0.21'
-    implementation 'org.apache.groovy:groovy-json:4.0.21'
-    implementation 'com.google.guava:guava:33.2.1-jre'
-    implementation 'org.msgpack:msgpack-core:0.9.8'
-    implementation 'io.javalin:javalin:6.1.4'
+    implementation 'org.apache.groovy:groovy:4.0.29'
+    implementation 'org.apache.groovy:groovy-json:4.0.29'
+    implementation 'com.google.guava:guava:33.4.8-jre'
+    implementation 'org.msgpack:msgpack-core:0.9.9'
+    implementation 'io.javalin:javalin:6.7.0'
 
-    implementation platform('org.testcontainers:testcontainers-bom:1.19.8')
+    implementation platform('org.testcontainers:testcontainers-bom:1.21.3')
     implementation 'org.testcontainers:mysql'
     implementation "org.testcontainers:junit-jupiter"
     implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.16'
-    implementation 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
-    implementation 'org.junit.jupiter:junit-jupiter-params:5.9.2'
+    implementation 'org.junit.jupiter:junit-jupiter-engine:5.12.2'
+    implementation 'org.junit.jupiter:junit-jupiter-params:5.12.2'
+    implementation 'org.junit.platform:junit-platform-launcher'
 
-    testRuntimeOnly 'mysql:mysql-connector-java:8.0.28'
+    testRuntimeOnly 'com.mysql:mysql-connector-j:9.3.0'
 }
 
 test {
 }
-tasks['test'].enabled(false)
+tasks['test'].enabled = false
 
 ext.testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'].collectMany {
     [[it, 'release'], [it, 'debug'], [it, 'release-zts']]
@@ -91,6 +100,7 @@ def createVolumeTask = { String volumeName ->
         return tasks[taskName]
     }
     tasks.register(taskName, Exec) { Exec it ->
+        def injected = project.objects.newInstance(InjectedExecOps)
         onlyIf {
             Process proc = ['docker', 'volume', 'inspect', volumeName].execute()
             proc.waitForOrKill(5_000)
@@ -98,7 +108,7 @@ def createVolumeTask = { String volumeName ->
         }
         it.commandLine 'docker', 'volume', 'create', volumeName
         doLast {
-            exec {
+            injected.execOps.exec {
                 commandLine 'docker', 'run', '--rm', '-v', "${volumeName}:/vol",
                         "$dockerMirror/library/busybox",
                         'sh', '-c', "chown -R ${uuid} /vol"
@@ -108,22 +118,24 @@ def createVolumeTask = { String volumeName ->
 }
 
 task downloadComposerOld(type: Download) {
+    def injected = project.objects.newInstance(InjectedExecOps)
     src 'https://getcomposer.org/download/latest-2.2.x/composer.phar'
     dest 'build/composer-2.2.x.phar'
     overwrite false
     doLast {
-        exec {
+        injected.execOps.exec {
             commandLine 'chmod', '+x', outputFiles.first().toString()
         }
     }
 }
 
 task downloadComposer(type: Download) {
+    def injected = project.objects.newInstance(InjectedExecOps)
     src 'https://getcomposer.org/download/2.8.6/composer.phar'
     dest 'build/composer-2.8.6.phar'
     overwrite false
     doLast {
-        exec {
+        injected.execOps.exec {
             commandLine 'chmod', '+x', outputFiles.first().toString()
         }
     }
@@ -413,6 +425,9 @@ testMatrix.each { spec ->
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
         }
+
+        it.testClassesDirs = sourceSets.test.output.classesDirs
+        it.classpath = sourceSets.test.runtimeClasspath
 
         it.systemProperty 'PHP_VERSION', phpVersion
         it.systemProperty 'VARIANT', variant

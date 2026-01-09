@@ -23,6 +23,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
+    - .gitlab/upload-junit-to-datadog.sh "test.source.file:src"
 <?php
 }
 
@@ -33,7 +34,8 @@ function sidecar_logs() {
 <?php
 }
 
-function before_script_steps() {
+function before_script_steps($with_docker_auth = false) {
+    if ($with_docker_auth) dockerhub_login();
     unset_dd_runner_env_vars();
 ?>
 
@@ -123,6 +125,7 @@ stages:
     GIT_CONFIG_VALUE_1: true
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
     GIT_STRATEGY: clone
+    GIT_CLEAN_FLAGS: -ffdxq
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
     # Make sure we actually fail if a command fails
@@ -154,13 +157,13 @@ stages:
     try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
   after_script:
     - |
-        docker exec php cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
+        docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
         exit 0
     - 'powershell -NoProfile -Command "try { docker logs request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker logs httpbin-integration } catch {}"'
-    - 'powershell -NoProfile -Command "try { docker stop -t 5 request-replayer } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker rm -f request-replayer } catch {}"'
-    - 'powershell -NoProfile -Command "try { docker stop -t 5 httpbin-integration } catch {}"'
+    - 'powershell -NoProfile -Command "try { docker stop -t 15 httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker rm -f httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker network rm net } catch {}"'
   artifacts:
@@ -194,6 +197,11 @@ stages:
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
   timeout: 60m
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
   variables:
     host_os: linux-gnu
     COMPOSER_MEMORY_LIMIT: "-1"
@@ -205,8 +213,8 @@ stages:
     HTTPBIN_HOSTNAME: httpbin-integration
     HTTPBIN_PORT: 8080
   before_script:
-<?php before_script_steps() ?>
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
+<?php before_script_steps(true) ?>
+    - .gitlab/wait-for-service-ready.sh
 
 .asan_test:
   extends: .base_test
@@ -240,7 +248,9 @@ foreach ($asan_minor_major_targets as $major_minor):
     MAX_TEST_PARALLELISM: 2
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
@@ -256,7 +266,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_internal_api_randomized
 <?php after_script(); ?>
 
@@ -282,7 +294,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_with_init_hook
 <?php after_script(); ?>
 
@@ -304,7 +318,9 @@ foreach ($asan_minor_major_targets as $major_minor):
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c_observer
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 <?php endif; ?>
@@ -321,7 +337,9 @@ foreach ($asan_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_opcache
 <?php after_script(); ?>
 <?php
@@ -372,7 +390,7 @@ foreach ($all_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
   script:
-    - make test_unit <?= ASSERT_NO_MEMLEAKS ?>
+    - make test_unit PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
 "API unit tests: [<?= $major_minor ?>]":
@@ -387,7 +405,9 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_api_unit <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
@@ -403,6 +423,7 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_CPU_REQUEST: 8
     MAX_TEST_PARALLELISM: 16
@@ -411,6 +432,7 @@ foreach ($all_minor_major_targets as $major_minor):
   timeout: 40m
 <?php endif; ?>
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_c_disabled <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
@@ -426,7 +448,9 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/tests"
     - make test_internal_api_randomized
 <?php after_script(); ?>
 
@@ -442,7 +466,9 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
   script:
+    - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_opcache
 <?php after_script("tmp/build_extension"); ?>
 
@@ -465,13 +491,24 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_TRACE_WARN_LEGACY_DD_TRACE: "0"
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
-    TEST_PHP_JUNIT: "/tmp/artifacts/tests/php-tests.xml"
+    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TEST: "1"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
 <?php sidecar_logs(); ?>
   timeout: 40m
+  retry:
+    max: 2
+    when:
+      - script_failure
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"
@@ -492,13 +529,13 @@ endforeach;
     SWITCH_PHP_VERSION: debug
     COMPOSER_VERSION: 2
   before_script:
-<?php before_script_steps() ?>
+<?php before_script_steps(true) ?>
     - if [[ "$MAKE_TARGET" != "test_composer" ]] || ! [[ "$PHP_MAJOR_MINOR" =~ 8.[01] ]]; then sudo composer self-update --$COMPOSER_VERSION --no-interaction; fi
     - COMPOSER_MEMORY_LIMIT=-1 composer update --no-interaction # disable composer memory limit completely
     - make composer_tests_update
-    - for host in ${WAIT_FOR:-}; do wait-for $host --timeout=180; done
+    - .gitlab/wait-for-service-ready.sh
   script:
-    - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
+    - DD_TRACE_AGENT_TIMEOUT=1000 make $MAKE_TARGET RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="artifacts/tests/results.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(".", true); ?>
     - find tests -type f \( -name 'phpunit_error.log' -o -name 'nginx_*.log' -o -name 'apache_*.log' -o -name 'php_fpm_*.log' -o -name 'dd_php_error.log' \) -exec cp --parents '{}' artifacts \;
     - make tested_versions && cp tests/tested_versions/tested_versions.json artifacts/tested_versions_${MAKE_TARGET}_${PHP_MAJOR_MINOR}_${DD_TRACE_TEST_SAPI:-cli}.json
@@ -513,7 +550,7 @@ $services["magento"] = "elasticsearch7";
 $services["deferred_loading"] = "mysql";
 $services["deferred_loadin"] = "redis";
 $services["pdo"] = "mysql";
-$services["kafk"] = ["kafka", "zookeeper"];
+$services["kafka"] = ["kafka", "zookeeper"];  // Overwrite auto-generated entry
 
 $jobs = [];
 preg_match_all('(^TEST_(?<type>INTEGRATIONS|WEB)_(?<major>\d+)(?<minor>\d)[^\n]+(?<targets>.*?)^(?!\t))ms', file_get_contents(__DIR__ . "/../Makefile"), $matches, PREG_SET_ORDER);
@@ -679,7 +716,7 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     - php /usr/local/src/php/run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP -p $(which php) --show-all -d zend_extension=xdebug-<?= $xdebug ?>.so "tests/xdebug/<?= $xdebug[0] == 2 ? $xdebug : "3.0.0" ?>"
 <?php if ($xdebug != "2.7.2" && $xdebug != "2.9.2"): ?>
     - '# Run unit tests with xdebug'
-    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_OPTS="--log-junit test-results/php-unit/results_unit.xml"
+    - TEST_EXTRA_INI='-d zend_extension=xdebug-<?= $xdebug ?>.so' make test_unit RUST_DEBUG_BUILD=1 PHPUNIT_JUNIT="test-results/php-unit/results_unit.xml"
 <?php endif; ?>
 <?php after_script(has_test_agent: true); ?>
 

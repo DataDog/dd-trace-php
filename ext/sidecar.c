@@ -10,6 +10,7 @@
 #include <components-rs/sidecar.h>
 #include <zend_string.h>
 #include "sidecar.h"
+#include "live_debugger.h"
 #include "telemetry.h"
 #include "serializer.h"
 #include "remote_config.h"
@@ -61,6 +62,7 @@ static void dd_free_endpoints(void) {
     ddog_endpoint_drop(ddtrace_endpoint);
     ddog_endpoint_drop(dogstatsd_endpoint);
     ddtrace_endpoint = NULL;
+    dogstatsd_endpoint = NULL;
 }
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
@@ -114,6 +116,10 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
 }
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
+    if (!ddtrace_endpoint || !dogstatsd_endpoint) {
+        return;
+    }
+
     char logpath[MAXPATHLEN];
     int error_fd = atomic_load(&ddtrace_error_log_fd);
     if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
@@ -136,10 +142,11 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
         if (DDTRACE_G(sidecar_queue_id) && DDTRACE_G(last_service_name)) {
             ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
             ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+            ddog_CharSlice version = dd_zend_string_to_CharSlice(DDTRACE_G(last_version));
 
             ddtrace_ffi_try("Failed sending config data",
                             ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
-                                                                    env_name, dd_zend_string_to_CharSlice(get_DD_VERSION()), &DDTRACE_G(active_global_tags)));
+                                                                    env_name, version, &DDTRACE_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
         }
 
         tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
@@ -474,18 +481,22 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
     }
     ddog_CharSlice env_slice = dd_zend_string_to_CharSlice(env_string);
 
-    ddog_CharSlice version_slice = DDOG_CHARSLICE_C("");
+    zend_string *version_string = NULL;
     if (root) {
         zval *version = zend_hash_str_find(ddtrace_property_array(&root->property_meta), ZEND_STRL("version"));
         if (!version) {
             version = &root->property_version;
         }
         if (version && Z_TYPE_P(version) == IS_STRING && Z_STRLEN_P(version) > 0) {
-            version_slice = dd_zend_string_to_CharSlice(Z_STR_P(version));
+            version_string = zend_string_copy(Z_STR_P(version));
         }
     } else if (ZSTR_LEN(cfg_version)) {
-        version_slice = dd_zend_string_to_CharSlice(cfg_version);
+        version_string = zend_string_copy(cfg_version);
     }
+    if (!version_string) {
+        version_string = ZSTR_EMPTY_ALLOC();
+    }
+    ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(version_string);
 
     bool changed = true;
     if (DDTRACE_G(remote_config_state)) {
@@ -508,14 +519,19 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
             zend_string_release(DDTRACE_G(last_env_name));
         }
         DDTRACE_G(last_env_name) = env_string;
+        if (DDTRACE_G(last_version)) {
+            zend_string_release(DDTRACE_G(last_version));
+        }
+        DDTRACE_G(last_version) = version_string;
         tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
 
         // This must not be in mutex, as a reconnect may happen here
         ddtrace_ffi_try("Failed sending config data",
-                        ddog_sidecar_set_universal_service_tags(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags)));
+                        ddog_sidecar_set_universal_service_tags(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
     } else {
         zend_string_release(service_string);
         zend_string_release(env_string);
+        zend_string_release(version_string);
     }
 
     if ((changed || !root) && DDTRACE_G(telemetry_buffer)) {

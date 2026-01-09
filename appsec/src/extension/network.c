@@ -49,7 +49,13 @@ static long _timespec_delta_ms(struct timespec *ts1, struct timespec *ts2);
 int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
     dd_conn *nonnull conn, const char *nonnull path, size_t path_len)
 {
-    if (path_len > sizeof(conn->addr.sun_path) - 1) {
+    if (path_len < 1) {
+        mlog(dd_log_error, "Socket path is too short");
+        return dd_error;
+    }
+    const bool is_abstract = path[0] == '@';
+
+    if (path_len > sizeof(conn->addr.sun_path) - (is_abstract ? 0 : 1)) {
         mlog(dd_log_error, "Socket path is too long");
         return dd_error;
     }
@@ -64,9 +70,19 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
 
     conn->addr.sun_family = AF_UNIX;
 
-    // NOLINTNEXTLINE
-    strncpy(conn->addr.sun_path, path, sizeof(conn->addr.sun_path) - 1);
-    conn->addr.sun_path[sizeof(conn->addr.sun_path) - 1] = '\0';
+    size_t addr_size;
+    if (is_abstract) {
+        // abstract namespace socket; replace @ with NUL byte
+        conn->addr.sun_path[0] = '\0';
+        strncpy(
+            conn->addr.sun_path + 1, path + 1, sizeof(conn->addr.sun_path) - 2);
+        conn->addr.sun_path[sizeof(conn->addr.sun_path) - 1] = '\0';
+        addr_size = path_len + offsetof(struct sockaddr_un, sun_path);
+    } else {
+        strncpy(conn->addr.sun_path, path, sizeof(conn->addr.sun_path) - 1);
+        conn->addr.sun_path[sizeof(conn->addr.sun_path) - 1] = '\0';
+        addr_size = sizeof(conn->addr);
+    }
 
     int flags_before = fcntl(conn->socket, F_GETFL, 0);
     if (flags_before == -1) {
@@ -82,19 +98,18 @@ int dd_conn_init( // NOLINT(readability-function-cognitive-complexity)
 
     mlog(dd_log_info, "Attempting to connect to UNIX socket %s", path);
     struct timespec deadline;
-    clock_gettime(CLOCK_MONOTONIC, &deadline);
+    UNUSED(clock_gettime(CLOCK_MONOTONIC, &deadline));
     _timespec_add_ms(&deadline, CONNECT_TIMEOUT);
 
 try_again:
-    res = connect(
-        conn->socket, (struct sockaddr *)&conn->addr, sizeof(conn->addr));
+    res = connect(conn->socket, (struct sockaddr *)&conn->addr, addr_size);
     if (res == -1) {
         int errno_copy = errno;
         if (errno_copy == EINPROGRESS) {
             struct pollfd pfds[] = {
                 {.fd = conn->socket, .events = POLLIN | POLLOUT}};
             struct timespec now;
-            clock_gettime(CLOCK_MONOTONIC, &now);
+            UNUSED(clock_gettime(CLOCK_MONOTONIC, &now));
             long time_left = _timespec_delta_ms(&deadline, &now);
             if (time_left <= 0) {
                 dd_conn_destroy(conn);
@@ -131,7 +146,7 @@ try_again:
             if (errno_copy == ENOENT || errno_copy == ECONNREFUSED) {
                 // the socket does not exist or is not being listened on. Retry
                 struct timespec now;
-                clock_gettime(CLOCK_MONOTONIC, &now);
+                UNUSED(clock_gettime(CLOCK_MONOTONIC, &now));
                 long time_left = _timespec_delta_ms(&deadline, &now);
                 if (time_left <= 0) {
                     dd_conn_destroy(conn);
