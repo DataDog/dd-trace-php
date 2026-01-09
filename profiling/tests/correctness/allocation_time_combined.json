@@ -1,60 +1,51 @@
 {
-  "args": {
-    "DD_PROFILING_ENABLED": "yes",
-    "DD_PROFILING_ALLOCATION_ENABLED": "yes",
-    "DD_PROFILING_WALL_TIME_ENABLED": "yes",
-    "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": "no",
-    "DD_PROFILING_ENDPOINT_COLLECTION_ENABLED": "no",
-    "DD_PROFILING_LOG_LEVEL": "debug",
-    "EXECUTION_TIME": "5"
-  },
-  "flaky": false,
-  "skip-asan": false,
-  "todo": "",
-  "checks": [
+  "scale_by_duration": true,
+  "test_name": "php_allocation_time_combined",
+  "stacks": [
     {
-      "type": "regex",
-      "path": "$.sample_types[?(@.type=='samples')].unit",
-      "match": "^count$"
+      "profile-type": "alloc-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;standard\\|str_replace$",
+          "percent": 40,
+          "error_margin": 30
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|str_repeat$",
+          "percent": 40,
+          "error_margin": 30
+        }
+      ]
     },
     {
-      "type": "regex",
-      "path": "$.sample_types[?(@.type=='wall-time')].unit",
-      "match": "^nanoseconds$"
+      "profile-type": "alloc-samples",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;standard\\|str_replace$",
+          "percent": 40,
+          "error_margin": 30
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|str_repeat$",
+          "percent": 40,
+          "error_margin": 30
+        }
+      ]
     },
     {
-      "type": "regex",
-      "path": "$.sample_types[?(@.type=='alloc-samples')].unit",
-      "match": "^count$"
-    },
-    {
-      "type": "regex",
-      "path": "$.sample_types[?(@.type=='alloc-space')].unit",
-      "match": "^bytes$"
-    },
-    {
-      "comment": "Verify we have samples with both allocation and time data (piggybacked samples)",
-      "type": "jq-minimum",
-      "path": ". as $root | (.sample_types | to_entries | map({(.value.type): .key}) | add) as $indices | .samples | map(select(.values[$indices.samples] > 0 and .values[$indices.\"wall-time\"] > 0 and .values[$indices.\"alloc-samples\"] > 0 and .values[$indices.\"alloc-space\"] > 0)) | length",
-      "match": 1
-    },
-    {
-      "comment": "Verify main function appears in the profile",
-      "type": "jq-minimum",
-      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"main\")))) | length",
-      "match": 1
-    },
-    {
-      "comment": "Verify str_repeat appears in the profile",
-      "type": "jq-minimum",
-      "path": ".samples | map(select(.location_ids | any(.frames[] | .function // \"\" | contains(\"str_repeat\")))) | length",
-      "match": 1
-    },
-    {
-      "comment": "Verify we have piggybacked samples that include str_repeat in the stack",
-      "type": "jq-minimum",
-      "path": ". as $root | (.sample_types | to_entries | map({(.value.type): .key}) | add) as $indices | .samples | map(select(.values[$indices.samples] > 0 and .values[$indices.\"wall-time\"] > 0 and .values[$indices.\"alloc-samples\"] > 0 and .values[$indices.\"alloc-space\"] > 0 and (.location_ids | any(.frames[] | .function // \"\" | contains(\"str_repeat\"))))) | length",
-      "match": 1
+      "profile-type": "wall-time",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main$",
+          "percent": 80,
+          "error_margin": 30
+        },
+        {
+          "regular_expression": "<?php;main;standard\\|str_replace$",
+          "percent": 1.0,
+          "error_margin": 0.9
+        }
+      ]
     }
   ]
 }
