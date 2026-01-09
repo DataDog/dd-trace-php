@@ -16,7 +16,10 @@ struct sidecar_settings {
     std::string session_id;
     std::string runtime_id;
 
-    bool is_valid() const { return !session_id.empty() && !runtime_id.empty(); }
+    [[nodiscard]] bool is_valid() const
+    {
+        return !session_id.empty() && !runtime_id.empty();
+    }
 
     bool operator==(const sidecar_settings &other) const
     {
