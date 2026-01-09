@@ -577,6 +577,58 @@ class MysqliTest extends IntegrationTestCase
         ]);
     }
 
+    public function testPreparedStatementUsesServiceModeForDBM()
+    {
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $stmt = $mysqli->prepare($query);
+            $id = 1;
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $results = $result->fetch_all();
+            $this->assertNotEmpty($results);
+            $mysqli->close();
+        });
+
+        // Get the raw spans
+        $spans = $traces[0];
+
+        // Find prepare and execute spans
+        $constructSpan = null;
+        $prepareSpan = null;
+        $executeSpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'mysqli.__construct') {
+                $constructSpan = $span;
+            } elseif ($span['name'] === 'mysqli.prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'mysqli_stmt.execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($constructSpan, 'mysqli.__construct span should exist');
+        $this->assertNotNull($prepareSpan, 'mysqli.prepare span should exist');
+        $this->assertNotNull($executeSpan, 'mysqli_stmt.execute span should exist');
+
+        // Verify that execute and prepare span are siblings
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'mysqli_stmt.execute should be a sibling of mysqli.prepare'
+        );
+
+        // Verify that SERVICE mode is used for the prepare span
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['meta'] ?? [],
+            'mysqli.prepare should use SERVICE mode'
+        );
+    }
+
     public function testConstructorConnectError()
     {
         $traces = $this->isolateTracer(function () {

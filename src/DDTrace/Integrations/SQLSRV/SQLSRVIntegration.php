@@ -69,7 +69,8 @@ class SQLSRVIntegration extends Integration
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_prepare', $query);
 
-            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1);
+            // For prepared statements, downgrade to service mode
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1, \DDTrace\DBM_PROPAGATION_SERVICE);
         }, static function (HookData $hook) {
             list($conn, $query) = $hook->args;
             $span = $hook->span();
