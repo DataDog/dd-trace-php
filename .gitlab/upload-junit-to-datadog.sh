@@ -123,6 +123,14 @@ echo "${junit_files}"
 
 mapfile -t files_array <<< "${junit_files}"
 
+# Normalize absolute paths to relative paths in JUnit XML files
+echo "Normalizing file paths in JUnit XML files..."
+for file in "${files_array[@]}"; do
+  if [[ -f "${file}" ]]; then
+    sed -i "s|${CI_PROJECT_DIR}/||g" "${file}"
+  fi
+done
+
 echo "Uploading ${#files_array[@]} JUnit file(s) to Datadog..."
 
 cd "${CI_PROJECT_DIR}" && pwd
@@ -134,9 +142,9 @@ if [[ -n "${TAGS}" ]]; then
 fi
 
 echo "Current directory: $(pwd)"
-echo "Running command: ${datadog_ci_cmd} junit upload --service \"${DD_SERVICE}\" --max-concurrency 20 --verbose ${tags_args} ${files_array[*]}"
+echo "Running command: ${datadog_ci_cmd} junit upload --service \"${DD_SERVICE}\" --max-concurrency 20 --verbose --tags git.repository_url:https://github.com/DataDog/dd-trace-php ${tags_args} ${files_array[*]}"
 
-if ! ${datadog_ci_cmd} junit upload --service "${DD_SERVICE}" --max-concurrency 20 --verbose ${tags_args} "${files_array[@]}"; then
+if ! ${datadog_ci_cmd} junit upload --service "${DD_SERVICE}" --max-concurrency 20 --verbose --tags "git.repository_url:https://github.com/DataDog/dd-trace-php" ${tags_args} "${files_array[@]}"; then
   echo "Warning: Failed to upload JUnit files" >&2
   exit 0
 fi
