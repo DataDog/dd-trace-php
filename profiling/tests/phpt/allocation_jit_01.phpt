@@ -11,6 +11,8 @@ where we assume we are hooked into, while we are not.
 <?php
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires datadog-profiling", PHP_EOL;
+if (PHP_VERSION_ID < 80000)
+    echo "skip: JIT requires PHP >= 8.0", PHP_EOL;
 ?>
 --ENV--
 USE_ZEND_ALLOC=0
