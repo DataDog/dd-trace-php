@@ -1644,7 +1644,6 @@ static void dd_rinit_once(void) {
         ddtrace_process_tags_first_rinit();
     }
 
-
     // Uses config, cannot run earlier
 #ifndef _WIN32
     ddtrace_signals_first_rinit();

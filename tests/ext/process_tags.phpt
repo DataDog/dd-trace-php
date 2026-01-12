@@ -47,6 +47,6 @@ if (isset($spans[1]['meta']['_dd.process_tags'])) {
 ?>
 --EXPECTF--
 Process tags present in root span: YES
-Process tags: entrypoint.basedir:ext,entrypoint.name:process_tags,entrypoint.type:script,entrypoint.workdir:app,runtime.sapi:cli
+Process tags: entrypoint.basedir:ext,entrypoint.name:process_tags,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli
 Keys sorted: YES
 Process tags present in child span: NO
