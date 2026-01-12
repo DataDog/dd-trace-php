@@ -603,6 +603,44 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_trigger_time_sample, 0, 0, 0)
 ZEND_END_ARG_INFO()
 #endif
 
+#if CFG_TEST && !defined(ZTS)
+#include <pthread.h>
+
+static void* native_thread_alloc_func(void* arg) {
+    (void)arg;
+
+    // Allocate 2x default sampling distance to make sure we trigger the
+    // allocation profiler
+    void* ptr = emalloc(8 * 1024 * 1024);
+    if (ptr) {
+        efree(ptr);
+    }
+
+    return NULL;
+}
+
+// Test function to simulate what ext-grpc does: create a native thread (not a
+// PHP thread) and trigger memory allocation on it. This tests that the
+// allocation profiler correctly handles allocations from non-PHP threads in NTS
+// builds. This not something anyone should do, but ext-grpc does it anyway.
+static ZEND_FUNCTION(Datadog_Profiling_run_alloc_on_native_thread) {
+    zend_parse_parameters_none();
+
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, native_thread_alloc_func, NULL) != 0) {
+        php_error_docref(NULL, E_WARNING, "Failed to create native thread");
+        RETURN_FALSE;
+    }
+
+    pthread_join(thread, NULL);
+
+    RETURN_TRUE;
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_run_alloc_on_native_thread, 0, 0, 0)
+ZEND_END_ARG_INFO()
+#endif
+
 static const zend_function_entry functions[] = {
 #if CFG_TRIGGER_TIME_SAMPLE
     ZEND_NS_NAMED_FE(
@@ -610,6 +648,14 @@ static const zend_function_entry functions[] = {
         trigger_time_sample,
         ZEND_FN(Datadog_Profiling_trigger_time_sample),
         arginfo_Datadog_Profiling_trigger_time_sample
+    )
+#endif
+#if CFG_TEST && !defined(ZTS)
+    ZEND_NS_NAMED_FE(
+        "Datadog\\Profiling",
+        run_alloc_on_native_thread,
+        ZEND_FN(Datadog_Profiling_run_alloc_on_native_thread),
+        arginfo_Datadog_Profiling_run_alloc_on_native_thread
     )
 #endif
     ZEND_FE_END
