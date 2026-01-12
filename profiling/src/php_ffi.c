@@ -390,7 +390,7 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
 }
 #endif
 
-#if CFG_STACK_WALKING_TESTS
+#if CFG_STACK_WALKING_TESTS || defined(CFG_TEST)
 static int (*og_snprintf)(char *, size_t, const char *, ...);
 
 // "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
@@ -463,7 +463,33 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 
     free(execute_data);
 }
-#endif
+
+zend_function *ddog_php_test_create_fake_zend_function_with_name_len(size_t len) {
+    zend_op_array *op_array = calloc(1, sizeof(zend_function));
+    if (!op_array) return NULL;
+
+    op_array->type = ZEND_USER_FUNCTION;
+
+    if (len > 0) {
+        op_array->function_name = zend_string_alloc(len, true);
+        if (!op_array->function_name) {
+            free(op_array);
+            return NULL;
+        }
+        memset(ZSTR_VAL(op_array->function_name), 'x', len);
+        ZSTR_VAL(op_array->function_name)[len] = '\0';
+    }
+
+    return (zend_function *)op_array;
+}
+
+void ddog_php_test_free_fake_zend_function(zend_function *func) {
+    if (!func) return;
+
+    free(func->common.function_name);
+    free(func);
+}
+#endif // CFG_STACK_WALKING_TESTS || CFG_TEST
 
 void *opcache_handle = NULL;
 
