@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        php-version: [8.0, 8.1, 8.2, 8.3, 8.4, 8.5]
+        php-version: ['8.0', '8.1', '8.2', '8.3', '8.4', '8.5']
         phpts: [nts, zts]
         include:
           - phpts: zts
@@ -103,6 +103,16 @@ jobs:
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
           php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
+
+      - name: Run allocation_time_combined test (PHP 8.4+)
+        if: fromJSON(matrix.php-version) >= 8.4
+        run: |
+          export DD_PROFILING_LOG_LEVEL=trace
+          export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
+          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
+          export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
+          php -v
+          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
           mkdir -p profiling/tests/correctness/allocation_time_combined/
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocation_time_combined/test.pprof
           export DD_PROFILING_ALLOCATION_ENABLED=yes
@@ -159,6 +169,7 @@ jobs:
           pprof_path: profiling/tests/correctness/timeline/
 
       - name: Check profiler correctness for allocation_time_combined
+        if: fromJSON(matrix.php-version) >= 8.4
         uses: Datadog/prof-correctness/analyze@main
         with:
           expected_json: profiling/tests/correctness/allocation_time_combined.json
