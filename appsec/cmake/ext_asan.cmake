@@ -16,7 +16,7 @@ endif()
 
 if(ENABLE_ASAN)
     message(STATUS "Enabling ASAN")
-    target_compile_options(PhpConfig INTERFACE -fsanitize=address)
+    target_compile_options(PhpConfig INTERFACE -fsanitize=address -fno-omit-frame-pointer -g)
     target_compile_definitions(PhpConfig INTERFACE ZEND_TRACK_ARENA_ALLOC)
     target_link_options(PhpConfig INTERFACE -fsanitize=address)
 else()

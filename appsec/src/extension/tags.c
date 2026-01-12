@@ -142,7 +142,6 @@ static THREAD_LOCAL_ON_ZTS bool _user_event_triggered;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
-static THREAD_LOCAL_ON_ZTS bool _blocked;
 
 static void _init_relevant_headers(void);
 static zend_string *_concat_json_fragments(void);
@@ -352,7 +351,6 @@ void dd_tags_rinit(void)
 
     // Just in case...
     _event_user_id = NULL;
-    _blocked = false;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
@@ -439,8 +437,6 @@ void dd_tags_add_tags(
         }
     }
 }
-
-void dd_tags_add_blocked(void) { _blocked = true; }
 
 static void _zend_string_release_indirect(void *s)
 {
@@ -830,7 +826,7 @@ static void _dd_event_user_id(zend_array *meta_ht)
 
 static void _dd_appsec_blocked(zend_array *meta_ht)
 {
-    if (_blocked) {
+    if (dd_req_lifecycle_is_blocked()) {
         _add_new_zstr_to_meta(
             meta_ht, _dd_tag_blocked_zstr, _true_zstr, true, false);
     }

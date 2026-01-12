@@ -19,7 +19,7 @@ import static org.testcontainers.containers.Container.ExecResult
 @Testcontainers
 @Slf4j
 @DisabledIf('isZts')
-class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
+class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallbackSamplingTests {
     static boolean zts = variant.contains('zts')
 
     @Container
@@ -111,12 +111,7 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm {
     void 'resource renaming disabled when explicitly set to false'() {
         // When DD_TRACE_RESOURCE_RENAMING_ENABLED=false is explicitly set, resource renaming should be disabled
         // even when AppSec is enabled
-        def res = container.execInContainer(
-                'bash', '-c',
-                '''kill -9 `pgrep php-fpm`;
-               export DD_TRACE_RESOURCE_RENAMING_ENABLED=false;
-               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini''')
-        assert res.exitCode == 0
+        disableEndpointRenaming()
 
         try {
             def req = container.buildReq('/hello.php').GET().build()

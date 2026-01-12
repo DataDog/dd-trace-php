@@ -1,5 +1,8 @@
 --TEST--
 _convert_xml function (external dtd)
+--DESCRIPTION--
+When an external DTD is referenced but blocked (for security), parsing continues
+and unresolved entities are preserved as literal text in the output.
 --FILE--
 <?php
 $entity = <<<XML
@@ -9,10 +12,14 @@ XML;
 
 $content_type = "application/xml";
 
-// unfortunately, this fails (entity not resolved)
-// PHP does not provide a way around it
+// External DTD is blocked for security. The &test; entity which would be
+// defined in that DTD cannot be resolved, so it appears literally.
 $result = datadog\appsec\testing\convert_xml($entity, $content_type);
 
 echo(json_encode($result, JSON_PRETTY_PRINT));
 --EXPECT--
-null
+{
+    "test": [
+        "&test;"
+    ]
+}

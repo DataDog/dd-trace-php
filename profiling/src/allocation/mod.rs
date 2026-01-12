@@ -1,18 +1,27 @@
+mod profiling_stats;
+
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub mod allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub mod allocation_le83;
+
+pub use profiling_stats::*;
 
 use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
 use libc::size_t;
 use log::{debug, error, trace};
-use rand::rngs::ThreadRng;
 use rand_distr::{Distribution, Poisson};
-use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::atomic::{AtomicU64, Ordering};
+
+#[cfg(not(php_zts))]
+use rand::rngs::StdRng;
+#[cfg(php_zts)]
+use rand::rngs::ThreadRng;
+#[cfg(not(php_zts))]
+use rand::SeedableRng;
 
 /// Default sampling interval in bytes (4MB)
 pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: u64 = 1024 * 4096;
@@ -37,7 +46,10 @@ pub struct AllocationProfilingStats {
     /// number of bytes until next sample collection
     next_sample: i64,
     poisson: Poisson<f64>,
+    #[cfg(php_zts)]
     rng: ThreadRng,
+    #[cfg(not(php_zts))]
+    rng: StdRng,
 }
 
 impl AllocationProfilingStats {
@@ -48,7 +60,10 @@ impl AllocationProfilingStats {
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             poisson,
+            #[cfg(php_zts)]
             rng: rand::thread_rng(),
+            #[cfg(not(php_zts))]
+            rng: StdRng::from_entropy(),
         };
         stats.next_sampling_interval();
         stats
@@ -92,23 +107,6 @@ pub fn collect_allocation(len: size_t) {
             )
         };
     }
-}
-
-thread_local! {
-    static ALLOCATION_PROFILING_STATS: RefCell<AllocationProfilingStats> =
-        RefCell::new(AllocationProfilingStats::new());
-}
-
-pub fn alloc_prof_ginit() {
-    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-    allocation_le83::alloc_prof_ginit();
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_ginit();
-}
-
-pub fn alloc_prof_gshutdown() {
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_gshutdown();
 }
 
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
