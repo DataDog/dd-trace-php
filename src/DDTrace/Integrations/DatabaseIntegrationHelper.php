@@ -21,7 +21,7 @@ class DatabaseIntegrationHelper
         Tag::TARGET_HOST,
     ];
 
-    public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0, $forcedMode = null)
+    public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0, $preventFullMode = false)
     {
         $allowedBackends = [
             "sqlsrv" => true,
@@ -32,14 +32,14 @@ class DatabaseIntegrationHelper
             "odbc" => true,
         ];
 
-        $propagationMode = $forcedMode ?? dd_trace_env_config("DD_DBM_PROPAGATION_MODE");
+        $propagationMode = dd_trace_env_config("DD_DBM_PROPAGATION_MODE");
         if ($propagationMode != \DDTrace\DBM_PROPAGATION_DISABLED && isset($allowedBackends[$backend])) {
             $fullPropagationBackends = [
                 "mysql" => true,
                 "pgsql" => true,
             ];
 
-            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && !isset($fullPropagationBackends[$backend])) {
+            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && (!isset($fullPropagationBackends[$backend]) || $preventFullMode)) {
                 $propagationMode = \DDTrace\DBM_PROPAGATION_SERVICE;
             }
 
