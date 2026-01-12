@@ -17,7 +17,7 @@ class DatadogResolver implements ResolverInterface
     private const DEFAULT_HOST = 'localhost';
     private const DEFAULT_SCHEME = 'http';
 
-    public function retrieveValue(string $name)
+    public function retrieveValue(string $name): mixed
     {
         if (!$this->isMetricsEnabled($name)) {
             return null;
