@@ -7,13 +7,13 @@
       "stack-content": [
         {
           "regular_expression": "<?php;main;standard\\|str_replace$",
-          "percent": 40,
-          "error_margin": 30
+          "percent": 50,
+          "error_margin": 2
         },
         {
           "regular_expression": "<?php;main;standard\\|str_repeat$",
-          "percent": 40,
-          "error_margin": 30
+          "percent": 50,
+          "error_margin": 2
         }
       ]
     },
@@ -22,13 +22,13 @@
       "stack-content": [
         {
           "regular_expression": "<?php;main;standard\\|str_replace$",
-          "percent": 40,
-          "error_margin": 30
+          "percent": 50,
+          "error_margin": 2
         },
         {
           "regular_expression": "<?php;main;standard\\|str_repeat$",
-          "percent": 40,
-          "error_margin": 30
+          "percent": 50,
+          "error_margin": 2
         }
       ]
     },
