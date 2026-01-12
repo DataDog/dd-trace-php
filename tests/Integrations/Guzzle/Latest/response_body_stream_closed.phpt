@@ -33,7 +33,9 @@ for ($i = 1; $i <= 3; $i++) {
 --EXPECT--
 Request 1
 stream destructed
+stream destructed
 Request 2
+stream destructed
 stream destructed
 Request 3
 stream destructed
