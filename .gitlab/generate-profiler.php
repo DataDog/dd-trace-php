@@ -56,7 +56,12 @@ foreach ($profiler_minor_major_targets as $version) {
     - cargo build --profile profiler-release
     - (cd tests; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
   after_script:
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:profiling"
+    - |
+      if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
+        .gitlab/upload-junit-to-datadog.sh "test.source.file:profiling"
+      else
+        echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
+      fi
   artifacts:
     reports:
       junit: "artifacts/profiler-tests/*.xml"
