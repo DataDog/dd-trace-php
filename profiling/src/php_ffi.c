@@ -635,6 +635,10 @@ __attribute__((weak)) zend_write_func_t zend_write;
  * cache the result in a thread local.
  */
 bool ddog_php_prof_is_parallel_thread() {
+#if defined(CFG_TEST)
+    // In test mode, we don't have a real module_registry, so just return false
+    return false;
+#else
     // Check if parallel extension is loaded to retrieve it's dl handle
     zend_module_entry *parallel_module = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("parallel"));
 
@@ -703,4 +707,5 @@ bool ddog_php_prof_is_parallel_thread() {
     // This inits the `php_parallel_scheduler_context` TLS to point to a `php_parallel_runtime_t`
     // struct right before triggering `GINIT`.
     return (*tls_ptr != NULL);
+#endif // CFG_TEST
 }
