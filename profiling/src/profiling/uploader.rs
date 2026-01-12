@@ -88,6 +88,7 @@ impl Uploader {
             &[],
             &[],
             None,
+            None,
             #[cfg(feature = "debug_stats")]
             Self::create_internal_metadata(),
             #[cfg(not(feature = "debug_stats"))]
