@@ -5,6 +5,8 @@ namespace DDTrace\Tests\Integrations\Mysqli;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 
 class MysqliTest extends IntegrationTestCase
 {
@@ -33,6 +35,7 @@ class MysqliTest extends IntegrationTestCase
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
             'DD_SERVICE_MAPPING',
+            'DD_DBM_PROPAGATION_MODE',
         ];
     }
 
@@ -579,8 +582,12 @@ class MysqliTest extends IntegrationTestCase
 
     public function testPreparedStatementUsesServiceModeForDBM()
     {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full']);
+
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
             $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
             $stmt = $mysqli->prepare($query);
             $id = 1;
@@ -590,6 +597,8 @@ class MysqliTest extends IntegrationTestCase
             $results = $result->fetch_all();
             $this->assertNotEmpty($results);
             $mysqli->close();
+
+            close_span();
         });
 
         // Get the raw spans
@@ -620,6 +629,9 @@ class MysqliTest extends IntegrationTestCase
             $executeSpan['parent_id'],
             'mysqli_stmt.execute should be a sibling of mysqli.prepare'
         );
+
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
 
         // Verify that SERVICE mode is used for the prepare span
         $this->assertArrayNotHasKey(

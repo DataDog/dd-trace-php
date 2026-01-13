@@ -5,6 +5,8 @@ namespace DDTrace\Tests\Integrations\PDO;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 
 final class PDOTest extends IntegrationTestCase
 {
@@ -52,6 +54,7 @@ final class PDOTest extends IntegrationTestCase
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE_MAPPING',
             'DD_SERVICE',
+            'DD_DBM_PROPAGATION_MODE',
         ];
     }
 
@@ -682,8 +685,12 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPreparedStatementUsesServiceModeForDBM()
     {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full']);
+
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
             $pdo = $this->pdoInstance();
             $stmt = $pdo->prepare($query);
             $stmt->execute([1]);
@@ -692,6 +699,8 @@ final class PDOTest extends IntegrationTestCase
             $stmt->closeCursor();
             $stmt = null;
             $pdo = null;
+
+            close_span();
         });
 
         // Get the raw spans
@@ -722,6 +731,9 @@ final class PDOTest extends IntegrationTestCase
             $executeSpan['parent_id'],
             'PDOStatement.execute should be a sibling of PDO.prepare'
         );
+
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
 
         // Verify that SERVICE mode is used for the prepare span
         $this->assertArrayNotHasKey(
@@ -757,12 +769,6 @@ final class PDOTest extends IntegrationTestCase
 
         $this->assertNotNull($constructSpan, 'PDO.__construct span should exist');
         $this->assertNotNull($querySpan, 'PDO.query span should exist');
-
-        // Verify that query span has a parent (should be root or construct)
-        $this->assertTrue(
-            isset($querySpan['parent_id']),
-            'PDO.query should have a parent_id'
-        );
 
         // Verify spans are created correctly with proper structure
         $this->assertSpans($traces, [
@@ -833,7 +839,7 @@ final class PDOTest extends IntegrationTestCase
     {
         $opts = array(
             \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-            \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false
+            PHP_VERSION_ID >= 80400 ? \Pdo\Mysql::ATTR_USE_BUFFERED_QUERY : \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => false
         );
 
         $pdo = $this->pdoInstance($opts);

@@ -479,9 +479,13 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
+        dyn->hook_data->execute_data = execute_data;
         keep_span = dd_uhook_call_hook(execute_data, &def->end, dyn->hook_data);
+        dyn->hook_data->execute_data = NULL;
         dyn->hook_data->retval_ptr = NULL;
         def->running = false;
+
+        span = dyn->hook_data->span; // end hook might allocate a new span; we need to free it
     }
 
     if (span) {
