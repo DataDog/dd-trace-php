@@ -103,16 +103,11 @@ static void add_process_tag(const char* tag_key, const char* tag_value) {
     size_t count = process_tags.count;
     if (count == process_tags.capacity) {
         process_tags.capacity *= 2;
-        process_tag_entry_t* bigger_list = realloc(
+        process_tags.tag_list = perealloc(
             process_tags.tag_list,
-            process_tags.capacity * sizeof(process_tag_entry_t)
+            process_tags.capacity * sizeof(process_tag_entry_t),
+            1
         );
-        if (!bigger_list) {
-            ddog_free_normalized_tag_value(normalized_value);
-            process_tags.capacity /= 2;
-            return;
-        }
-        process_tags.tag_list = bigger_list;
     }
 
     process_tags.tag_list[count].key = tag_key;
@@ -122,6 +117,8 @@ static void add_process_tag(const char* tag_key, const char* tag_value) {
 }
 
 static void collect_process_tags(void) {
+    bool is_cli = (strcmp(sapi_module.name, "cli") == 0 || strcmp(sapi_module.name, "phpdbg") == 0);
+
     char cwd[PATH_MAX];
     if (VCWD_GETCWD(cwd, sizeof(cwd))) {
         const char* entrypoint_workdir = get_basename(cwd);
@@ -129,6 +126,8 @@ static void collect_process_tags(void) {
             add_process_tag(TAG_ENTRYPOINT_WORKDIR, entrypoint_workdir);
         }
     }
+
+    add_process_tag(TAG_RUNTIME_SAPI, sapi_module.name);
 
     const char *script = NULL;
     if (SG(request_info).path_translated && *SG(request_info).path_translated) {
@@ -139,25 +138,26 @@ static void collect_process_tags(void) {
 
     const char *entrypoint_name = get_basename(script);
     if (entrypoint_name) {
-        char name_without_ext[PATH_MAX];
-        strip_extension(entrypoint_name, name_without_ext, sizeof(name_without_ext));
-
-        add_process_tag(TAG_ENTRYPOINT_NAME, name_without_ext);
+        if (is_cli) {
+            char name_without_ext[PATH_MAX];
+            strip_extension(entrypoint_name, name_without_ext, sizeof(name_without_ext));
+            add_process_tag(TAG_ENTRYPOINT_NAME, name_without_ext);
+        }
         add_process_tag(TAG_ENTRYPOINT_TYPE, TYPE_SCRIPT);
     } else {
         add_process_tag(TAG_ENTRYPOINT_NAME, "php");
         add_process_tag(TAG_ENTRYPOINT_TYPE, TYPE_EXECUTABLE);
     }
 
-    char basedir_buffer[PATH_MAX];
-    get_basedir(script, basedir_buffer, sizeof(basedir_buffer));
-    const char *base_dir = basedir_buffer[0] ? basedir_buffer : NULL;
+    if (is_cli) {
+        char basedir_buffer[PATH_MAX];
+        get_basedir(script, basedir_buffer, sizeof(basedir_buffer));
+        const char *base_dir = basedir_buffer[0] ? basedir_buffer : NULL;
 
-    if (base_dir) {
-        add_process_tag(TAG_ENTRYPOINT_BASEDIR, base_dir);
+        if (base_dir) {
+            add_process_tag(TAG_ENTRYPOINT_BASEDIR, base_dir);
+        }
     }
-
-    add_process_tag(TAG_RUNTIME_SAPI, sapi_module.name);
 }
 
 static int cmp_process_tag_by_key(const void *tag1, const void* tag2) {
@@ -204,7 +204,7 @@ void ddtrace_process_tags_first_rinit(void) {
     // process_tags struct initializations
     process_tags.count = 0;
     process_tags.capacity = 4;
-    process_tags.tag_list = malloc(process_tags.capacity * sizeof(process_tag_entry_t));
+    process_tags.tag_list = pemalloc(process_tags.capacity * sizeof(process_tag_entry_t), 1);
 
     if (!process_tags.tag_list) {
         process_tags.capacity = 0;
@@ -219,7 +219,7 @@ void ddtrace_process_tags_mshutdown(void) {
     for (size_t i = 0; i < process_tags.count; i++) {
         ddog_free_normalized_tag_value(process_tags.tag_list[i].value);
     }
-    free(process_tags.tag_list);
+    pefree(process_tags.tag_list, 1);
 
     if (process_tags.serialized) {
         zend_string_release(process_tags.serialized);
