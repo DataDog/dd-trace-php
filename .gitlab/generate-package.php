@@ -998,7 +998,20 @@ endforeach;
     - sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
     - sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
     - sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
-    - yum update -y --nogpgcheck
+    - |
+      # Retry yum update as vault.centos.org can be slow/unreliable
+      for i in 1 2 3; do
+        if yum update -y; then
+          echo "yum update succeeded on attempt $i"
+          break
+        fi
+        echo "yum update failed (attempt $i/3), retrying in 5 seconds..."
+        sleep 5
+        if [ $i -eq 3 ]; then
+          echo "yum update failed after 3 attempts, exiting"
+          exit 1
+        fi
+      done
 
 "verify debian":
   extends: .verify_job

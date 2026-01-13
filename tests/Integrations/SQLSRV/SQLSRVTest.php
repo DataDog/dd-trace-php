@@ -502,15 +502,39 @@ class SQLSRVTest extends IntegrationTestCase
 
     private function createConnection()
     {
-        $conn = sqlsrv_connect(
-            self::$host . ', ' . self::$port,
-            [
-                'PWD' => self::$password,
-                'Database' => self::$db,
-                'UID' => self::$user,
-                'TrustServerCertificate' => true
-            ]
-        );
+        // Retry connection to handle SQL Server container startup time
+        $maxAttempts = 30;
+        $attempt = 0;
+        $conn = false;
+        $lastError = null;
+
+        while ($attempt < $maxAttempts && $conn === false) {
+            $attempt++;
+            $conn = sqlsrv_connect(
+                self::$host . ', ' . self::$port,
+                [
+                    'PWD' => self::$password,
+                    'Database' => self::$db,
+                    'UID' => self::$user,
+                    'TrustServerCertificate' => true,
+                ]
+            );
+
+            if ($conn === false) {
+                $errors = sqlsrv_errors();
+                $lastError = $errors ? json_encode($errors) : 'Unknown error';
+
+                if ($attempt < $maxAttempts) {
+                    usleep(500000);
+                }
+            }
+        }
+
+        if ($conn === false) {
+            throw new \RuntimeException(
+                "Failed to connect to SQL Server after {$maxAttempts} attempts. Last error: {$lastError}"
+            );
+        }
 
         return $conn;
     }
