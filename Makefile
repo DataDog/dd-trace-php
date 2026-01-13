@@ -500,9 +500,7 @@ $(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
 		$(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
-	BUILD_DIR='$(BUILD_DIR)/'; \
-	FILES="$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock"; \
-	tooling/bin/pecl-build $${FILES//$${BUILD_DIR}/}
+	echo $(subst $(BUILD_DIR)/,,$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock) | tooling/bin/pecl-build
 
 dbgsym.tar.gz: $(PACKAGES_BUILD_DIR)
 	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_x86_64_debugsymbols --owner=0 --group=0)
