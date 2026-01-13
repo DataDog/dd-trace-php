@@ -68,7 +68,7 @@ stages:
 "test appsec extension":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -160,7 +160,7 @@ stages:
 "appsec code coverage":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -263,7 +263,7 @@ stages:
 "appsec lint":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 9Gi
@@ -285,7 +285,7 @@ stages:
 "test appsec helper asan":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -311,7 +311,7 @@ stages:
 #"fuzz appsec helper":
 #  stage: test
 #  extends: .appsec_test
-#  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-5
+#  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6
 #  variables:
 #    KUBERNETES_CPU_REQUEST: 3
 #    KUBERNETES_MEMORY_REQUEST: 5Gi

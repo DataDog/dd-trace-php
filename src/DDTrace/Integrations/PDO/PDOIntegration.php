@@ -117,6 +117,7 @@ class PDOIntegration extends Integration
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
         \DDTrace\install_hook('PDO::prepare', static function (HookData $hook) {
             list($query) = $hook->args;
+            $hook->data = $query;
 
             $span = $hook->span();
             Integration::handleOrphan($span);
@@ -125,10 +126,14 @@ class PDOIntegration extends Integration
             $instance = $hook->instance;
             PDOIntegration::setCommonSpanInfo($instance, $span);
 
-            PDOIntegration::injectDBIntegration($instance, $hook, \DDTrace\DBM_PROPAGATION_SERVICE);
+            PDOIntegration::injectDBIntegration($instance, $hook, true);
             PDOIntegration::handleRasp($instance, $span);
         }, static function (HookData $hook) {
-            ObjectKVStore::propagate($hook->instance, $hook->returned, PDOIntegration::CONNECTION_TAGS_KEY);
+            $pdo = $hook->returned;
+            ObjectKVStore::propagate($hook->instance, $pdo, PDOIntegration::CONNECTION_TAGS_KEY);
+            if ($pdo instanceof \PDOStatement) {
+                \dd_trace_internal_fn("force_overwrite_property", $pdo, "queryString", $hook->data); // Restore the query string minus the DBM injected stuff
+            }
         });
 
         // public bool PDO::commit ( void )

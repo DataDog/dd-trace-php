@@ -6,6 +6,8 @@ use DDTrace\Integrations\SQLSRV\SQLSRVIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 
 class SQLSRVTest extends IntegrationTestCase
 {
@@ -58,6 +60,7 @@ class SQLSRVTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_DBM_PROPAGATION_MODE',
         ];
     }
 
@@ -325,12 +328,18 @@ class SQLSRVTest extends IntegrationTestCase
 
     public function testPreparedStatementUsesServiceModeForDBM()
     {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full']);
+
         $query = "SELECT * FROM tests WHERE id = ?";
         $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
             $conn = $this->createConnection();
             $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
             sqlsrv_execute($stmt);
             sqlsrv_close($conn);
+
+            close_span();
         });
 
         // Get the raw spans
@@ -361,6 +370,9 @@ class SQLSRVTest extends IntegrationTestCase
             $executeSpan['parent_id'],
             'sqlsrv_execute should be a sibling of sqlsrv_prepare'
         );
+
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
 
         // Verify that SERVICE mode is used for the prepare span
         $this->assertArrayNotHasKey(

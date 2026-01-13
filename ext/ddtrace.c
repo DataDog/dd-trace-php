@@ -2852,6 +2852,20 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             DDTRACE_G(sidecar_queue_id) = queueId; // usually we want to stop using it, except here
             ddtrace_telemetry_lifecycle_end();
             RETVAL_TRUE;
+        } else if (params_count == 3 && FUNCTION_NAME_MATCHES("force_overwrite_property")) {
+            zval *obj = ZVAL_VARARG_PARAM(params, 0);
+            zval *name = ZVAL_VARARG_PARAM(params, 1);
+            zval *value = ZVAL_VARARG_PARAM(params, 2);
+            if (Z_TYPE_P(obj) == IS_OBJECT && Z_TYPE_P(name) == IS_STRING) {
+#if PHP_VERSION_ID < 80000
+                zend_std_write_property(obj, name, value, NULL);
+                RETVAL_TRUE;
+#else
+                if (&EG(error_zval) != zend_std_write_property(Z_OBJ_P(obj), Z_STR_P(name), value, NULL)) {
+                    RETVAL_TRUE;
+                }
+#endif
+            }
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
             ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
