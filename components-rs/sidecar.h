@@ -92,6 +92,44 @@ void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
  */
 ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
+/**
+ * Start master listener thread for thread-based connections (Unix only).
+ *
+ * This spawns a listener thread that accepts worker connections.
+ */
+#if !defined(_WIN32)
+ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
+#endif
+
+/**
+ * Connect as worker to master listener thread (Unix only).
+ */
+#if !defined(_WIN32)
+ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid,
+                                             struct ddog_SidecarTransport **connection);
+#endif
+
+/**
+ * Shutdown the master listener thread (Unix only).
+ */
+#if !defined(_WIN32)
+ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
+#endif
+
+/**
+ * Check if master listener is active for the given PID (Unix only).
+ */
+#if !defined(_WIN32)
+bool ddog_sidecar_is_master_listener_active(int32_t pid);
+#endif
+
+/**
+ * Clear inherited master listener state in child after fork (Unix only).
+ */
+#if !defined(_WIN32)
+ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
+#endif
+
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);
