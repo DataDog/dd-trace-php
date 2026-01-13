@@ -1530,6 +1530,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 #endif
     ddshared_minit();
     ddtrace_autoload_minit();
+    ddtrace_sidecar_minit();
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
@@ -1613,7 +1614,11 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_user_req_shutdown();
 
-    ddtrace_sidecar_shutdown();
+    // Only shutdown sidecar in MSHUTDOWN for non-CLI SAPIs
+    // CLI SAPI shuts down in RSHUTDOWN to allow thread joins before ASAN checks
+    if (strcmp(sapi_module.name, "cli") != 0) {
+        ddtrace_sidecar_shutdown();
+    }
 
     ddtrace_live_debugger_mshutdown();
     ddtrace_process_tags_mshutdown();
@@ -2659,6 +2664,21 @@ void dd_internal_handle_fork(void) {
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_curl_shutdown();
         ddtrace_coms_clean_background_sender_after_fork();
+    }
+
+    // Handle thread mode after fork
+    int32_t current_pid = (int32_t)getpid();
+    bool is_child_process = (ddtrace_sidecar_master_pid != 0 &&
+                             current_pid != ddtrace_sidecar_master_pid);
+
+    if (is_child_process && ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
+        // Clear inherited master listener state (child doesn't own it)
+        ddtrace_ffi_try("Failed clearing inherited listener state",
+                        ddog_sidecar_clear_inherited_listener());
+
+        // Don't try to reconnect in thread mode after fork
+        // Let sidecar stay unavailable
+        LOG(WARN, "Child process after fork with thread mode: sidecar unavailable");
     }
 #endif
     if (DDTRACE_G(agent_config_reader)) {

@@ -7,9 +7,18 @@
 #include "ddtrace.h"
 #include "zend_string.h"
 
+// Connection mode tracking
+typedef enum {
+    DD_SIDECAR_CONNECTION_NONE = 0,
+    DD_SIDECAR_CONNECTION_SUBPROCESS = 1,
+    DD_SIDECAR_CONNECTION_THREAD = 2
+} dd_sidecar_active_mode_t;
+
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+extern dd_sidecar_active_mode_t ddtrace_sidecar_active_mode;
+extern int32_t ddtrace_sidecar_master_pid;
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
 struct telemetry_rc_info {
@@ -20,6 +29,13 @@ struct telemetry_rc_info {
 };
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 
+// Connection functions
+ddog_SidecarTransport *ddtrace_sidecar_connect_subprocess(void);
+ddog_SidecarTransport *ddtrace_sidecar_connect_thread(void);
+ddog_SidecarTransport *ddtrace_sidecar_connect_with_fallback(void);
+
+// Lifecycle functions
+void ddtrace_sidecar_minit(void);
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
