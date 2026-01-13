@@ -42,19 +42,19 @@ foreach ($profiler_minor_major_targets as $version) {
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests
     - unset DD_SERVICE; unset DD_ENV
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 
     - '# NTS'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}"
-    - cargo build --profile profiler-release
-    - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
-    - (cd tests; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
+    - cargo build --profile profiler-release --all-features
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
     - touch build.rs #make sure `build.rs` gets executed after `switch-php` call
 
     - '# ZTS'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}-zts"
-    - cargo build --profile profiler-release
-    - (cd tests; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "phpt")
+    - cargo build --profile profiler-release --all-features
+    - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
