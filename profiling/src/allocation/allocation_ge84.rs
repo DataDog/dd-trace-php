@@ -130,13 +130,11 @@ macro_rules! tls_zend_mm_state_set {
 }
 
 const NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT: bool =
-    zend::PHP_VERSION_ID >= 80000 && zend::PHP_VERSION_ID < 80300 || zend::PHP_VERSION_ID >= 80400;
+    zend::PHP_VERSION_ID >= 80400 && zend::PHP_VERSION_ID < 80500;
 
 fn alloc_prof_needs_disabled_for_jit(version: u32) -> bool {
     // see https://github.com/php/php-src/pull/11380
-    (80000..80121).contains(&version)
-        || (80200..80208).contains(&version)
-        || (80400..80407).contains(&version)
+    (80400..80407).contains(&version)
 }
 
 lazy_static! {
@@ -152,11 +150,7 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
         && alloc_prof_needs_disabled_for_jit(crate::RUNTIME_PHP_VERSION_ID.load(Relaxed))
         && *JIT_ENABLED
     {
-        if zend::PHP_VERSION_ID >= 80400 {
-            error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
-        } else {
-            error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
-        }
+        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
         true
     } else {
         false
@@ -479,18 +473,11 @@ mod tests {
     #[test]
     fn check_versions_that_allocation_profiling_needs_disabled_with_active_jit() {
         // versions that need disabled allocation profiling with active jit
-        assert!(alloc_prof_needs_disabled_for_jit(80000));
-        assert!(alloc_prof_needs_disabled_for_jit(80100));
-        assert!(alloc_prof_needs_disabled_for_jit(80120));
-        assert!(alloc_prof_needs_disabled_for_jit(80200));
-        assert!(alloc_prof_needs_disabled_for_jit(80207));
+        assert!(alloc_prof_needs_disabled_for_jit(80400));
+        assert!(alloc_prof_needs_disabled_for_jit(80406));
 
         // versions that DO NOT need disabled allocation profiling with active jit
-        assert!(!alloc_prof_needs_disabled_for_jit(70421));
-        assert!(!alloc_prof_needs_disabled_for_jit(80121));
-        assert!(!alloc_prof_needs_disabled_for_jit(80122));
-        assert!(!alloc_prof_needs_disabled_for_jit(80208));
-        assert!(!alloc_prof_needs_disabled_for_jit(80209));
-        assert!(!alloc_prof_needs_disabled_for_jit(80300));
+        assert!(!alloc_prof_needs_disabled_for_jit(80407));
+        assert!(!alloc_prof_needs_disabled_for_jit(80501));
     }
 }
