@@ -164,7 +164,7 @@ pub fn alloc_prof_rinit() {
 
         zend_mm_state.heap = Some(heap);
 
-        if !is_zend_mm() {
+        if unsafe { !zend::is_zend_mm() } {
             // Neighboring custom memory handlers found
             debug!("Found another extension using the ZendMM custom handler hook");
             unsafe {
@@ -218,7 +218,7 @@ pub fn alloc_prof_rinit() {
     tls_zend_mm_state_set!(zend_mm_state_init(mm_state));
 
     // `is_zend_mm()` should be false now, as we installed our custom handlers
-    if is_zend_mm() {
+    if unsafe { zend::is_zend_mm() } {
         // Can't proceed with it being disabled, because that's a system-wide
         // setting, not per-request.
         panic!("Memory allocation profiling could not be enabled. Please feel free to fill an issue stating the PHP version and installed modules. Most likely the reason is your PHP binary was compiled with `ZEND_MM_CUSTOM` being disabled.");
@@ -232,7 +232,7 @@ pub fn alloc_prof_rshutdown() {
     // to `None`. This is unexpected, therefore we will not touch the ZendMM
     // handlers anymore as resetting to prev handlers might result in segfaults
     // and other undefined behavior.
-    if is_zend_mm() {
+    if unsafe { zend::is_zend_mm() } {
         return;
     }
 
@@ -355,7 +355,9 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
-    let heap = zend::zend_mm_get_heap();
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     zend::_zend_mm_alloc(heap, len)
 }
 
@@ -376,7 +378,9 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
 }
 
 unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
-    let heap = zend::zend_mm_get_heap();
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     zend::_zend_mm_free(heap, ptr);
 }
 
@@ -410,7 +414,9 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    let heap = zend::zend_mm_get_heap();
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     zend::_zend_mm_realloc(heap, prev_ptr, len)
 }
 
@@ -426,7 +432,9 @@ unsafe fn alloc_prof_prev_gc() -> size_t {
 }
 
 unsafe fn alloc_prof_orig_gc() -> size_t {
-    let heap = tls_zend_mm_state_get!(heap).unwrap();
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let custom_heap = prepare_zend_heap(heap);
     let size = zend::zend_mm_gc(heap);
     restore_zend_heap(heap, custom_heap);
@@ -438,32 +446,18 @@ unsafe extern "C" fn alloc_prof_shutdown(full: bool, silent: bool) {
 }
 
 unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
-    // Safety: `ZEND_MM_STATE.prev_custom_mm_shutdown` will be initialised in
-    // `alloc_prof_rinit()` and only point to this function when
-    // `prev_custom_mm_shutdown` is also initialised
-    let shutdown = tls_zend_mm_state_get!(prev_custom_mm_shutdown).unwrap();
-    shutdown(full, silent)
+    if let Some(shutdown) = tls_zend_mm_state_get!(prev_custom_mm_shutdown) {
+        shutdown(full, silent)
+    }
 }
 
 unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let custom_heap = prepare_zend_heap(heap);
     zend::zend_mm_shutdown(heap, full, silent);
     restore_zend_heap(heap, custom_heap);
-}
-
-/// safe wrapper for `zend::is_zend_mm()`.
-/// `true` means the internal ZendMM is being used, `false` means that a custom memory manager is
-/// installed. Upstream returns a `c_bool` as of PHP 8.0. PHP 7 returns a `c_int`
-fn is_zend_mm() -> bool {
-    #[cfg(php7)]
-    unsafe {
-        zend::is_zend_mm() == 1
-    }
-    #[cfg(php8)]
-    unsafe {
-        zend::is_zend_mm()
-    }
 }
 
 #[cfg(test)]
