@@ -32,7 +32,7 @@ DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 // Connection functions
 ddog_SidecarTransport *ddtrace_sidecar_connect_subprocess(void);
 ddog_SidecarTransport *ddtrace_sidecar_connect_thread(void);
-ddog_SidecarTransport *ddtrace_sidecar_connect_with_fallback(void);
+ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork);
 
 // Lifecycle functions
 void ddtrace_sidecar_minit(void);
