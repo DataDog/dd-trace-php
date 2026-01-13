@@ -1,6 +1,6 @@
 use crate::allocation::{allocation_profiling_stats_should_collect, collect_allocation};
 use crate::bindings as zend;
-use crate::{RefCellExt, PROFILER_NAME};
+use crate::PROFILER_NAME;
 use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
@@ -362,8 +362,7 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
-    ptr
+    zend::_zend_mm_alloc(heap, len)
 }
 
 /// This function exists because when calling `zend_mm_set_custom_handlers()`,
@@ -418,8 +417,7 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     let heap = zend::zend_mm_get_heap();
-    let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
-    ptr
+    zend::_zend_mm_realloc(heap, prev_ptr, len)
 }
 
 unsafe extern "C" fn alloc_prof_gc() -> size_t {
@@ -427,11 +425,10 @@ unsafe extern "C" fn alloc_prof_gc() -> size_t {
 }
 
 unsafe fn alloc_prof_prev_gc() -> size_t {
-    let gc = tls_zend_mm_state_get!(prev_custom_mm_gc);
-    if let Some(gc) = gc {
-        return gc();
+    match tls_zend_mm_state_get!(prev_custom_mm_gc) {
+        Some(gc) => gc(),
+        None => 0,
     }
-    0
 }
 
 unsafe fn alloc_prof_orig_gc() -> size_t {
