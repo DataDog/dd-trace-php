@@ -65,14 +65,16 @@ class SQLSRVIntegration extends Integration
         // sqlsrv_prepare ( resource $conn , string $query [, array $params [, array $options ]] ) : resource
         \DDTrace\install_hook('sqlsrv_prepare', static function (HookData $hook) {
             list($conn, $query) = $hook->args;
+            $hook->data = $query;
 
             $span = $hook->span();
             self::setDefaultAttributes($conn, $span, 'sqlsrv_prepare', $query);
 
             // For prepared statements, downgrade to service mode
-            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1, \DDTrace\DBM_PROPAGATION_SERVICE);
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'sqlsrv', 1, true);
         }, static function (HookData $hook) {
-            list($conn, $query) = $hook->args;
+            list($conn) = $hook->args;
+            $query = $hook->data; // store actual query without DBM injected comment
             $span = $hook->span();
             if (\is_resource($hook->returned)) {
                 resource_weak_store($hook->returned, self::CONNECTION_TAGS_KEY, resource_weak_get($conn, self::CONNECTION_TAGS_KEY));
