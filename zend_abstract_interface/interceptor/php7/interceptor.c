@@ -506,7 +506,8 @@ static inline void zai_interceptor_execute_internal_impl(zend_execute_data *exec
             func->internal_function.handler(execute_data, return_value);
         }
 
-        zai_hook_finish(execute_data, return_value, &stored_frame_memory->hook_data);
+        stored_frame_memory->implicit = true; // prevent double-finish on bailout
+        zai_hook_finish(execute_data, return_value, &frame_memory.hook_data);
         zai_hook_memory_table_del(execute_data);
     } else {
         skip: ;

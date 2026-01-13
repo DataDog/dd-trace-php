@@ -155,7 +155,7 @@ class PDOBench
         $defaultOpts = [
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC, // Fetch associative array
             \PDO::ATTR_EMULATE_PREPARES => false, // Use real prepared statements
-            \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // Consistent buffering
+            PHP_VERSION_ID >= 80400 ? \Pdo\Mysql::ATTR_USE_BUFFERED_QUERY : \PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true, // Consistent buffering
         ];
 
         if ($opts) {

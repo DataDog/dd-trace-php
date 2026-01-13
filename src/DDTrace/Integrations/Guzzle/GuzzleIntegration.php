@@ -37,41 +37,7 @@ class GuzzleIntegration extends Integration
         \DDTrace\install_hook(
             'GuzzleHttp\Client::transfer',
             static function (HookData $hook) {
-                // Note: We must ALWAYS call overrideArguments() to prevent JIT compilation issues.
-                // See ext/hook/uhook.c: "hooks wishing to override args must do so unconditionally"
-
-                $modified = false;
-
-                if (isset($hook->args[0])) {
-                    $request = $hook->args[0];
-
-                    if ($request instanceof \Psr\Http\Message\RequestInterface) {
-                        $dtHeaders = \DDTrace\generate_distributed_tracing_headers();
-
-                        if (!empty($dtHeaders)) {
-                            foreach ($dtHeaders as $name => $value) {
-                                if (!$request->hasHeader($name)) {
-                                    $request = $request->withHeader($name, $value);
-                                    $modified = true;
-                                }
-                            }
-
-                            if ($modified) {
-                                $hook->args[0] = $request;
-                            }
-                        }
-                    }
-                }
-
-                // CRITICAL: Always call overrideArguments to prevent JIT from breaking header injection
-                $hook->overrideArguments($hook->args);
-            },
-            static function (HookData $hook) {
                 $span = $hook->span();
-                if (!$span) {
-                    return;
-                }
-
                 $span->resource = 'transfer';
                 $span->name = 'GuzzleHttp\Client.transfer';
                 Integration::handleInternalSpanServiceName($span, self::NAME);
@@ -84,10 +50,42 @@ class GuzzleIntegration extends Integration
                     self::addRequestInfo($span, $hook->args[0]);
                 }
 
+                // Note: We must ALWAYS call overrideArguments() to prevent JIT compilation issues.
+                // See ext/hook/uhook.c: "hooks wishing to override args must do so unconditionally"
+
+                if (\ddtrace_config_distributed_tracing_enabled() !== false) {
+                    if (isset($hook->args[0])) {
+                        $request = $hook->args[0];
+
+                        if ($request instanceof \Psr\Http\Message\RequestInterface) {
+                            $dtHeaders = \DDTrace\generate_distributed_tracing_headers();
+
+                            if (!empty($dtHeaders)) {
+                                $modified = false;
+
+                                foreach ($dtHeaders as $name => $value) {
+                                    if (!$request->hasHeader($name)) {
+                                        $request = $request->withHeader($name, $value);
+                                        $modified = true;
+                                    }
+                                }
+
+                                if ($modified) {
+                                    $hook->args[0] = $request;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // CRITICAL: Always call overrideArguments to prevent JIT from breaking header injection
+                $hook->overrideArguments($hook->args);
+            },
+            static function (HookData $hook) {
                 if (isset($hook->returned)) {
                     $response = $hook->returned;
                     if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        self::handlePromiseResponse($response, $span);
+                        self::handlePromiseResponse($response, $hook->span());
                     }
                 }
             }

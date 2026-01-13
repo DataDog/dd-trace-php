@@ -53,14 +53,17 @@ static void _ctx_destroy(_xml_parse_ctx *ctx);
 static void _ctx_flush_text(_xml_parse_ctx *ctx);
 static void _zend_string_release_cleanup(zend_string **str);
 
-// Forward declarations - SAX callbacks
+// Forward declarations - SAX2 callbacks
 static xmlParserInputPtr _sax_resolve_entity(
     void *user_ctx, const xmlChar *publicId, const xmlChar *systemId);
 static xmlEntityPtr _sax_get_entity(void *user_ctx, const xmlChar *name);
 static void _sax_reference(void *user_ctx, const xmlChar *name);
-static void _sax_start_element(
-    void *user_ctx, const xmlChar *name, const xmlChar **atts);
-static void _sax_end_element(void *user_ctx, const xmlChar *name);
+static void _sax_start_element_ns(void *user_ctx, const xmlChar *localname,
+    const xmlChar *prefix, const xmlChar *URI, int nb_namespaces,
+    const xmlChar **namespaces, int nb_attributes, int nb_defaulted,
+    const xmlChar **attributes);
+static void _sax_end_element_ns(void *user_ctx, const xmlChar *localname,
+    const xmlChar *prefix, const xmlChar *URI);
 static void _sax_characters(void *user_ctx, const xmlChar *ch, int len);
 static void _sax_cdata_block(void *user_ctx, const xmlChar *value, int len);
 
@@ -177,11 +180,11 @@ zval dd_parse_xml_truncated(
         .initialized = XML_SAX2_MAGIC,
         .resolveEntity = _sax_resolve_entity,
         .getEntity = _sax_get_entity,
-        .startElement = _sax_start_element,
-        .endElement = _sax_end_element,
         .reference = _sax_reference,
         .characters = _sax_characters,
         .cdataBlock = _sax_cdata_block,
+        .startElementNs = _sax_start_element_ns,
+        .endElementNs = _sax_end_element_ns,
     };
 
     __attribute__((cleanup(_ctx_destroy))) _xml_parse_ctx ctx;
@@ -356,10 +359,51 @@ static void _ctx_stack_push(_xml_parse_ctx *ctx, zval *container);
 static zval *_ctx_stack_pop(_xml_parse_ctx *ctx);
 static zval *nullable _ctx_stack_top(_xml_parse_ctx *ctx);
 
-// SAX callback: start element
-static void _sax_start_element(
-    void *user_ctx, const xmlChar *tag_name, const xmlChar **atts)
+// Build qualified name with optional leading char and ns prefix
+// e.g., lead='@', prefix="ns", localname="attr" -> "@ns:attr"
+// e.g., lead=0, prefix=NULL, localname="elem" -> "elem"
+static zend_string *_build_qname(
+    char lead, const xmlChar *localname, const xmlChar *ns_prefix)
 {
+    size_t local_len = xmlStrlen(localname);
+    size_t lead_len = lead ? 1 : 0;
+    size_t prefix_len = ns_prefix ? xmlStrlen(ns_prefix) : 0;
+    size_t colon_len = ns_prefix ? 1 : 0;
+    size_t total_len = lead_len + prefix_len + colon_len + local_len;
+
+    zend_string *qname = zend_string_alloc(total_len, 0);
+    char *p = ZSTR_VAL(qname);
+
+    if (lead) {
+        *p++ = lead;
+    }
+    if (ns_prefix) {
+        memcpy(p, ns_prefix, prefix_len);
+        p += prefix_len;
+        *p++ = ':';
+    }
+    memcpy(p, localname, local_len);
+    p += local_len;
+    *p = '\0';
+
+    return qname;
+}
+
+// SAX2 callback: start element with namespaces
+// attributes array format: 5 values per attribute:
+//   [0] localname, [1] prefix, [2] URI, [3] value start, [4] value end
+// NOLINTBEGIN(bugprone-easily-swappable-parameters)
+static void _sax_start_element_ns(void *user_ctx, const xmlChar *localname,
+    const xmlChar *prefix, const xmlChar *URI, int nb_namespaces,
+    const xmlChar **namespaces, int nb_attributes, int nb_defaulted,
+    const xmlChar **attributes)
+// NOLINTEND(bugprone-easily-swappable-parameters)
+{
+    UNUSED(URI);
+    UNUSED(nb_namespaces);
+    UNUSED(namespaces);
+    UNUSED(nb_defaulted);
+
     _xml_parse_ctx *ctx = (_xml_parse_ctx *)user_ctx;
 
     _ctx_flush_text(ctx);
@@ -369,7 +413,8 @@ static void _sax_start_element(
         return;
     }
 
-    const size_t tag_len = xmlStrlen(tag_name);
+    // Build qualified tag name (prefix:localname or just localname)
+    zend_string *tag_name = _build_qname(0, localname, prefix);
 
     // Create element wrapper: {<tag>: [...]}
     zval elem_wrapper;
@@ -381,44 +426,50 @@ static void _sax_start_element(
         zval elem_content;
         array_init(&elem_content);
         // add it to the wrapper with tag name as key
-        elem_content_p = zend_hash_str_add_new(Z_ARRVAL(elem_wrapper),
-            (const char *)tag_name, tag_len, &elem_content);
+        elem_content_p =
+            zend_hash_add_new(Z_ARRVAL(elem_wrapper), tag_name, &elem_content);
         assert(elem_content_p != NULL);
     }
+    zend_string_release(tag_name);
 
     // Add attributes with @ prefix if present
-    if (atts != NULL) {
+    if (nb_attributes > 0 && attributes != NULL) {
+        // SAX2 attributes array: 5 pointers per attribute
+        struct {
+            const xmlChar *localname;
+            const xmlChar *prefix;
+            const xmlChar *uri;
+            const xmlChar *value_start;
+            const xmlChar *value_end;
+        } attr;
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+        _Static_assert(sizeof(attr) == 5 * sizeof(const xmlChar *),
+            "attr struct size must match 5 pointers");
+        _Static_assert(_Alignof(typeof(attr)) == _Alignof(const xmlChar *),
+            "attr struct alignment must match pointer alignment");
+
         zval attr_obj;
         array_init(&attr_obj);
-        bool has_attrs = false;
 
-        for (int i = 0; atts[i] != NULL; i += 2) {
-            const xmlChar *attr_name = atts[i];
-            const xmlChar *attr_value = atts[i + 1];
-            if (attr_value == NULL) {
-                attr_value = BAD_CAST "";
-            }
+        for (int i = 0; i < nb_attributes; i++) {
+            // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+            memcpy(&attr, &attributes[(ptrdiff_t)i * 5], sizeof(attr));
 
-            // Create key with @ prefix
-            size_t attr_name_len = xmlStrlen(attr_name);
-            char *prefixed_name = safe_emalloc(attr_name_len, 1, 2);
-            prefixed_name[0] = '@';
-            memcpy(prefixed_name + 1, attr_name, attr_name_len + 1);
+            // Build qualified attribute name with @ prefix
+            zend_string *prefixed_name =
+                _build_qname('@', attr.localname, attr.prefix);
 
+            size_t value_len = (attr.value_end && attr.value_start)
+                                   ? (size_t)(attr.value_end - attr.value_start)
+                                   : 0;
             zval attr_val;
-            ZVAL_STRINGL(
-                &attr_val, (const char *)attr_value, xmlStrlen(attr_value));
-            zend_hash_str_add_new(Z_ARRVAL(attr_obj), prefixed_name,
-                attr_name_len + 1, &attr_val);
-            efree(prefixed_name);
-            has_attrs = true;
+            ZVAL_STRINGL(&attr_val, (const char *)attr.value_start, value_len);
+
+            zend_hash_add_new(Z_ARRVAL(attr_obj), prefixed_name, &attr_val);
+            zend_string_release(prefixed_name);
         }
 
-        if (has_attrs) {
-            zend_hash_next_index_insert(Z_ARRVAL_P(elem_content_p), &attr_obj);
-        } else {
-            zval_ptr_dtor(&attr_obj);
-        }
+        zend_hash_next_index_insert(Z_ARRVAL_P(elem_content_p), &attr_obj);
     }
 
     // Add to current container or set as root
@@ -450,10 +501,15 @@ static void _sax_start_element(
     }
 }
 
-// SAX callback: end element
-static void _sax_end_element(void *user_ctx, const xmlChar *name)
+// SAX2 callback: end element with namespaces
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+static void _sax_end_element_ns(void *user_ctx, const xmlChar *localname,
+    const xmlChar *prefix, const xmlChar *URI)
 {
-    (void)name;
+    UNUSED(localname);
+    UNUSED(prefix);
+    UNUSED(URI);
+
     _xml_parse_ctx *ctx = (_xml_parse_ctx *)user_ctx;
 
     _ctx_flush_text(ctx);
