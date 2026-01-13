@@ -52,6 +52,8 @@ dd_dump_startup_logs($logs, [
 ]);
 ?>
 --EXPECT--
+[ddtrace] [debug] Sidecar connection mode: auto (trying subprocess first)
+[ddtrace] [debug] Connected to sidecar via subprocess
 Sanity check
 env: "my-env"
 service: "my-service"

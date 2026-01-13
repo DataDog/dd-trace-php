@@ -799,10 +799,13 @@ static void dd_agent_headers_free(struct curl_slist *list) {
 
 void ddtrace_coms_curl_shutdown(void) {
     dd_agent_headers_free(dd_agent_curl_headers);
+    dd_agent_curl_headers = NULL;  // Prevent double-free
 
     if (dd_agent_config_writer) {
         ddog_agent_remote_config_writer_drop(dd_agent_config_writer);
         ddog_drop_anon_shm_handle(ddtrace_coms_agent_config_handle);
+        dd_agent_config_writer = NULL;  // Prevent double-free
+        ddtrace_coms_agent_config_handle = NULL;  // Prevent double-free
     }
 }
 
@@ -1500,6 +1503,12 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
 
 bool ddtrace_coms_synchronous_flush(uint32_t timeout) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
+
+    // Check if writer thread exists before attempting to use it
+    if (!writer->thread) {
+        return false;
+    }
+
     uint32_t previous_writer_cycle = atomic_load(&writer->writer_cycle);
     uint32_t previous_processed_stacks_total = atomic_load(&writer->flush_processed_stacks_total);
     int64_t old_flush_interval = atomic_load(&writer->flush_interval);

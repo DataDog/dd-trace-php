@@ -1587,7 +1587,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 #ifndef _WIN32
     ddtrace_signals_mshutdown();
 
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+    // For CLI SAPI, background sender is already shut down in RSHUTDOWN
+    // For non-CLI SAPIs, shut it down here in MSHUTDOWN
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && strcmp(sapi_module.name, "cli") != 0) {
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
