@@ -143,10 +143,27 @@ foreach ($arch_targets as $arch_target) {
       ZOOKEEPER_TICK_TIME: 2000
       ALLOW_ANONYMOUS_LOGIN: "yes"
       ZOOKEEPER_ADMIN_ENABLE_SERVER: "false"
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=srvr,ruok"
 
   kafka:
     name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
     alias: kafka-integration
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - |
+        # Wait for Zookeeper to be ready before starting Kafka
+        echo "Waiting for Zookeeper to be ready..."
+        for i in $(seq 1 30); do
+          if echo "ruok" | nc zookeeper 2181 2>/dev/null | grep -q "imok"; then
+            echo "Zookeeper is ready, starting Kafka..."
+            break
+          fi
+          echo "Waiting for Zookeeper... attempt $i/30"
+          sleep 2
+        done
+        # Start Kafka with original entrypoint
+        exec /etc/confluent/docker/run
     variables:
       KAFKA_BROKER_ID: 111
       KAFKA_CREATE_TOPICS: test-lowlevel:1:1,test-highlevel:1:1
