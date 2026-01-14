@@ -356,3 +356,52 @@ stages:
 #  artifacts:
 #    paths:
 #     - appsec/fuzzer-coverage.html
+
+"check libxml2 version":
+  stage: test
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  tags: [ "arch:amd64" ]
+  needs: []
+  allow_failure: true
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  script:
+    - |
+      python3 - <<'EOF'
+      import urllib.request
+      import json
+      import re
+      import sys
+
+      # Read local version
+      with open("appsec/third_party/libxml2/VERSION") as f:
+          local_version = f.read().strip()
+      print(f"Local libxml2 version: {local_version}")
+
+      # Fetch latest version from GNOME GitLab
+      url = "https://gitlab.gnome.org/api/v4/projects/GNOME%2Flibxml2/repository/tags?per_page=100&order_by=updated&sort=desc"
+      with urllib.request.urlopen(url) as response:
+          tags = json.load(response)
+
+      # Extract version numbers and find the latest
+      versions = []
+      for tag in tags:
+          match = re.match(r"v(\d+\.\d+\.\d+)$", tag["name"])
+          if match:
+              versions.append(match.group(1))
+
+      # Sort by version number
+      versions.sort(key=lambda v: tuple(map(int, v.split("."))))
+      latest_version = versions[-1] if versions else None
+
+      print(f"Latest libxml2 version: {latest_version}")
+
+      if local_version != latest_version:
+          print("ERROR: libxml2 version mismatch!")
+          print(f"Local version:  {local_version}")
+          print(f"Latest version: {latest_version}")
+          print("Please update appsec/third_party/libxml2 to the latest version.")
+          sys.exit(1)
+
+      print("libxml2 version is up to date.")
+      EOF
