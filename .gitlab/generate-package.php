@@ -1168,7 +1168,6 @@ endforeach;
     - job: "prepare code"
       artifacts: true
   before_script:
-<?php dockerhub_login() ?>
     - |
       # Setup cache dirs
       mkdir -p $PIP_CACHE_DIR
@@ -1187,6 +1186,7 @@ endforeach;
 
       # Install Python dependencies
       pip install -U pip virtualenv
+<?php dockerhub_login() ?>
     - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests

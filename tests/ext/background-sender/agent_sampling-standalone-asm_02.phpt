@@ -17,6 +17,7 @@ datadog.trace.agent_test_session_token=background-sender/agent_samplingb
 include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
+$rr->maxIteration = 2000;
 
 $get_sampling = function() use ($rr) {
     $root = json_decode($rr->waitForDataAndReplay()["body"], true);
