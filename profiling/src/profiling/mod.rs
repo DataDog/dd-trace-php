@@ -1601,7 +1601,7 @@ mod tests {
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_timeline_enabled = true;
 
-        let profiler = Profiler::new(&mut settings);
+        let profiler = Profiler::new(&settings);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
