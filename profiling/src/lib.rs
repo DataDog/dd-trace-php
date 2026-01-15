@@ -576,7 +576,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_rinit() };
 
-    let mut system_settings = SystemSettings::get();
+    // Needs to come after config::first_rinit, because that's what sets the
+    // values to the ones in the configuration.
+    let system_settings = SystemSettings::get();
 
     // initialize the thread local storage and cache some items
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
@@ -648,8 +650,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         return ZendResult::Success;
     }
 
-    // SAFETY: still safe to access in rinit after first_rinit.
-    let system_settings = unsafe { system_settings.as_mut() };
+    // SAFETY: safe to dereference in rinit after first_rinit. It's important
+    // that this is a non-mut reference because in ZTS there's nothing which
+    // enforces mutual exclusion.
+    let system_settings = unsafe { system_settings.as_ref() };
 
     // SAFETY: the once control is not mutable during request.
     let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };

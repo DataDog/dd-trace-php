@@ -227,6 +227,9 @@ pub struct Profiler {
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
     sample_types_filter: SampleTypeFilter,
+
+    /// Don't modify the SystemSettings through this pointer (but you can swap
+    /// it to a different pointer).
     system_settings: AtomicPtr<SystemSettings>,
 }
 
@@ -654,7 +657,7 @@ const DDPROF_UPLOAD: &str = "ddprof_upload";
 
 impl Profiler {
     /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
-    pub fn init(system_settings: &mut SystemSettings) {
+    pub fn init(system_settings: &SystemSettings) {
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
         //minit/mshutdown.
@@ -668,7 +671,7 @@ impl Profiler {
         unsafe { (*ptr::addr_of!(PROFILER)).get() }
     }
 
-    pub fn new(system_settings: &mut SystemSettings) -> Self {
+    pub fn new(system_settings: &SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
@@ -705,7 +708,7 @@ impl Profiler {
             }),
             should_join: AtomicBool::new(true),
             sample_types_filter,
-            system_settings: AtomicPtr::new(system_settings),
+            system_settings: AtomicPtr::new(system_settings as *const _ as *mut _),
         }
     }
 
@@ -904,7 +907,7 @@ impl Profiler {
 
                 let mut timestamp = NO_TIMESTAMP;
                 {
-                    let system_settings = self.system_settings.load(Ordering::SeqCst);
+                    let system_settings = self.system_settings.load(Ordering::Relaxed);
                     // SAFETY: system settings are stable during a request.
                     if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
                         if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
@@ -1007,7 +1010,7 @@ impl Profiler {
 
                 let mut timestamp = NO_TIMESTAMP;
                 {
-                    let system_settings = self.system_settings.load(Ordering::SeqCst);
+                    let system_settings = self.system_settings.load(Ordering::Relaxed);
                     // SAFETY: system settings are stable during a request.
                     if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
                         if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
