@@ -143,6 +143,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
         value: config_value.to_utf8_lossy().into_owned(),
         origin,
         config_id,
+        seq_id: None,
     });
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
