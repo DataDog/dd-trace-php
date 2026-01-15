@@ -110,6 +110,10 @@ impl SystemSettings {
             }
         }
 
+        // Initialize the lazy lock holding the env var for new origin
+        // detection in a safe place.
+        _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
+
         // Work around version-specific issues.
         #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
         if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {

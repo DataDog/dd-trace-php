@@ -19,7 +19,7 @@ configuration_placeholder='
 '
 
 codefiles=""
-for file in "$@"; do
+for file in $(cat); do # cat to read from STDIN
   codefiles="${codefiles}"$'\n            <file name="'"${file}"'" role="'"$([[ $file == tests/* ]] && echo test || echo src)"'" '"$([[ $file == */configuration.h ]] && echo ">$configuration_placeholder" || echo "/>")"
 done
 
