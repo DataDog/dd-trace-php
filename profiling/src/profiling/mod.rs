@@ -228,8 +228,9 @@ pub struct Profiler {
     should_join: AtomicBool,
     sample_types_filter: SampleTypeFilter,
 
-    /// Don't modify the SystemSettings through this pointer (but you can swap
-    /// it to a different pointer).
+    /// An atomic pointer is used to make this Send and Sync, not because we
+    /// need the atomicity specifically. Don't modify the SystemSettings
+    /// through this pointer.
     system_settings: AtomicPtr<SystemSettings>,
 }
 
@@ -890,6 +891,17 @@ impl Profiler {
         }
     }
 
+    /// Returns true if the timeline sample type is enabled.
+    #[inline]
+    fn is_timeline_enabled(&self) -> bool {
+        // Relaxed is fine, atomicity used for Send/Sync, this pointer is not
+        // used for syncronization, no happens-before relationship is needed.
+        let system_settings = self.system_settings.load(Ordering::Relaxed);
+
+        // SAFETY: system settings are valid while the Profiler is alive.
+        unsafe { (*system_settings).profiling_timeline_enabled }
+    }
+
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
@@ -907,9 +919,7 @@ impl Profiler {
 
                 let mut timestamp = NO_TIMESTAMP;
                 {
-                    let system_settings = self.system_settings.load(Ordering::Relaxed);
-                    // SAFETY: system settings are stable during a request.
-                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                    if self.is_timeline_enabled() {
                         if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                             timestamp = now.as_nanos() as i64;
                         }
@@ -1010,9 +1020,7 @@ impl Profiler {
 
                 let mut timestamp = NO_TIMESTAMP;
                 {
-                    let system_settings = self.system_settings.load(Ordering::Relaxed);
-                    // SAFETY: system settings are stable during a request.
-                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                    if self.is_timeline_enabled() {
                         if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                             timestamp = now.as_nanos() as i64;
                         }
