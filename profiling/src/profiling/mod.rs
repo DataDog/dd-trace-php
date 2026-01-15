@@ -1541,6 +1541,7 @@ mod tests {
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
+    use crate::config::SystemSettingsState;
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
@@ -1552,6 +1553,7 @@ mod tests {
 
     pub fn get_system_settings() -> SystemSettings {
         SystemSettings {
+            state: SystemSettingsState::ConfigAware,
             profiling_enabled: true,
             profiling_experimental_features_enabled: false,
             profiling_endpoint_collection_enabled: false,

@@ -14,13 +14,30 @@ use core::str::FromStr;
 use libc::{c_char, c_int};
 use libdd_common::tag::{parse_tags, Tag};
 pub use libdd_profiling::exporter::Uri;
-use log::{warn, LevelFilter};
+use log::{debug, warn, LevelFilter};
 use std::borrow::Cow;
 use std::ffi::CString;
 use std::path::{Path, PathBuf};
 
+#[derive(Copy, Clone, Debug, Default)]
+pub enum SystemSettingsState {
+    /// Indicates the system settings are not aware of the configuration at
+    /// the moment.
+    #[default]
+    ConfigUnaware,
+
+    /// Indicates the system settings _are_ aware of configuration at the
+    /// moment.
+    ConfigAware,
+
+    /// Expressly disabled, such as a child process post-fork (forks are not
+    /// currently profiled, except certain forks made by SAPIs).
+    Disabled,
+}
+
 #[derive(Clone, Debug)]
 pub struct SystemSettings {
+    pub state: SystemSettingsState,
     pub profiling_enabled: bool,
     pub profiling_experimental_features_enabled: bool,
     pub profiling_endpoint_collection_enabled: bool,
@@ -44,6 +61,7 @@ impl SystemSettings {
     /// Provides "initial" settings, which are all "off"-like values.
     pub const fn initial() -> SystemSettings {
         SystemSettings {
+            state: SystemSettingsState::ConfigUnaware,
             profiling_enabled: false,
             profiling_experimental_features_enabled: false,
             profiling_endpoint_collection_enabled: false,
@@ -73,6 +91,7 @@ impl SystemSettings {
         let trace_agent_url = trace_agent_url();
         let uri = detect_uri_from_config(trace_agent_url, agent_host, trace_agent_port);
         Self {
+            state: SystemSettingsState::ConfigAware,
             profiling_enabled: profiling_enabled(),
             profiling_experimental_features_enabled: profiling_experimental_features_enabled(),
             profiling_endpoint_collection_enabled: profiling_endpoint_collection_enabled(),
@@ -130,7 +149,16 @@ impl SystemSettings {
             system_settings.profiling_allocation_enabled = false;
         }
 
+        SystemSettings::log_state(
+            (*ptr::addr_of!(SYSTEM_SETTINGS)).state,
+            system_settings.state,
+            "the first request was received",
+        );
         ptr::addr_of_mut!(SYSTEM_SETTINGS).swap(&mut system_settings);
+    }
+
+    fn log_state(from: SystemSettingsState, to: SystemSettingsState, reason: &str) {
+        debug!("SystemSettings state transitioned from {from:?} to {to:?} because {reason}.");
     }
 
     /// # Safety
@@ -138,12 +166,30 @@ impl SystemSettings {
     /// shutdown, before zai config is shutdown.
     unsafe fn on_shutdown() {
         let system_settings = &mut *ptr::addr_of_mut!(SYSTEM_SETTINGS);
-        *system_settings = SystemSettings::initial();
+        let state = SystemSettingsState::ConfigUnaware;
+        SystemSettings::log_state(
+            system_settings.state,
+            state,
+            "a shutdown command was received",
+        );
+        *system_settings = SystemSettings {
+            state,
+            ..SystemSettings::initial()
+        };
     }
 
     unsafe fn on_fork_in_child() {
         let system_settings = &mut *ptr::addr_of_mut!(SYSTEM_SETTINGS);
-        *system_settings = SystemSettings::initial();
+        let state = SystemSettingsState::Disabled;
+        SystemSettings::log_state(
+            system_settings.state,
+            state,
+            "the processed forked, and child processes are not profiled",
+        );
+        *system_settings = SystemSettings {
+            state,
+            ..SystemSettings::initial()
+        };
     }
 }
 
@@ -423,6 +469,7 @@ impl ConfigId {
 
 /// Keep these in sync with the INI defaults.
 static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
+    state: SystemSettingsState::ConfigUnaware,
     profiling_enabled: true,
     profiling_experimental_features_enabled: false,
     profiling_endpoint_collection_enabled: true,
