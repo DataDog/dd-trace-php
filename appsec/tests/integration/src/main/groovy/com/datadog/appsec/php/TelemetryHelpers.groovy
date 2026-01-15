@@ -1,6 +1,7 @@
 package com.datadog.appsec.php
 
 import groovy.transform.Canonical
+import groovy.transform.ToString
 
 /**
  * @link https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md
@@ -22,6 +23,7 @@ class TelemetryHelpers {
         }
     }
 
+    @ToString
     static class Metric {
         String namespace
         String name
