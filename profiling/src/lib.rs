@@ -22,7 +22,7 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
-use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
+use crate::config::SystemSettings;
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
@@ -323,6 +323,9 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         let _connector = libdd_common::connector::Connector::default();
     }
 
+    // Initialize the lazy lock holding the env var for new origin detection.
+    _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
+
     // Use a hybrid extension hack to load as a module but have the
     // zend_extension hooks available:
     // https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
@@ -423,7 +426,7 @@ pub struct RequestLocals {
     /// conditions such as in mshutdown when there were no requests served,
     /// then the settings are still memory safe, but they may not have the
     /// real configuration. Instead, they have a best-effort values such as
-    /// INITIAL_SYSTEM_SETTINGS, or possibly the values which were available
+    /// the initial settings, or possibly the values which were available
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
 
@@ -434,8 +437,9 @@ pub struct RequestLocals {
 impl RequestLocals {
     #[track_caller]
     pub fn system_settings(&self) -> &SystemSettings {
-        // SAFETY: it should always be valid, either set to the
-        // INITIAL_SYSTEM_SETTINGS or to the SYSTEM_SETTINGS.
+        // SAFETY: it should always be valid, just maybe "stale", such as
+        // having only the initial values, or only the ones available in minit,
+        // rather than the fully configured values.
         unsafe { self.system_settings.as_ref() }
     }
 }
@@ -449,7 +453,7 @@ impl Default for RequestLocals {
             git_commit_sha: None,
             git_repository_url: None,
             tags: vec![],
-            system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
+            system_settings: SystemSettings::get(),
             interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
@@ -572,8 +576,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_rinit() };
 
-    // SAFETY: We are after first rinit and before config mshutdown.
-    let mut system_settings = unsafe { SystemSettings::get() };
+    let mut system_settings = SystemSettings::get();
 
     // initialize the thread local storage and cache some items
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
