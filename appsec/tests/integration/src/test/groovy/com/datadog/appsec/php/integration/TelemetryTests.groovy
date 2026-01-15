@@ -68,13 +68,19 @@ class TelemetryTests {
                 ]
         ])
 
-        // first request to start helper
+        // first request to start helper - triggers WAF init with legacy span metrics
         // Generally won't be covered by appsec because it doesn't receive RC data in time
         // for the response to config_sync
         Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
         assert trace.traceId != null
+
+        // Check legacy span metrics from WAF init are present
+        def initSpan = trace[0]
+        assert initSpan.metrics.'_dd.appsec.event_rules.loaded' > 0
+        assert initSpan.metrics.'_dd.appsec.event_rules.error_count' == 0.0d
+        assert initSpan.meta.'_dd.appsec.event_rules.errors' == '{}'
 
         RemoteConfigRequest rcReq = requestSup.get()
         assert rcReq != null, 'No RC request received'
@@ -83,6 +89,10 @@ class TelemetryTests {
         trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
+
+        // Check legacy span meta is present (metrics only on init)
+        def span = trace[0]
+        assert span.meta.'_dd.appsec.event_rules.version' =~ /\d+\.\d+\.\d+/
 
         // now do an attack
         HttpRequest req = CONTAINER.buildReq('/hello.php')
@@ -210,17 +220,23 @@ class TelemetryTests {
                         ]
         ])
 
+        TelemetryHelpers.Metric wafUpdates
         def messages = waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
-            def allSeries = messages
-                    .collectMany { it.series }
-                    .findAll {
-                        it.name == 'waf.config_errors'
-                    }
+            def allSeries = messages.collectMany { it.series }
+            def configErrors = allSeries.findAll { it.name == 'waf.config_errors' }
+            wafUpdates = allSeries.find { it.name == 'waf.updates' }
 
-            allSeries.size() >= 4
+            configErrors.size() >= 4 && wafUpdates
         }
 
        assert requestSup.get() != null
+
+       // Make a request after RC is confirmed applied, check span has new version
+       def trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+           assert resp.statusCode() == 200
+       }
+       def span = trace[0]
+       assert span.meta.'_dd.appsec.event_rules.version' == '1.1.1'
 
        def series = messages
                 .collectMany { it.series }
@@ -254,6 +270,14 @@ class TelemetryTests {
         assert customRules.points[0][1] == 1.0d
         assert rules.points[0][1] == 1.0d
         assert data.points[0][1] == 1.0d
+
+        assert wafUpdates != null
+        assert wafUpdates.namespace == 'appsec'
+        assert wafUpdates.points[0][1] >= 1.0d
+        assert 'success:true' in wafUpdates.tags
+        assert 'event_rules_version:1.1.1' in wafUpdates.tags
+        assert wafUpdates.tags.find { it.startsWith('waf_version:') } != null
+        assert wafUpdates.type == 'count'
     }
 
     @Test
