@@ -74,6 +74,7 @@ Array
             [value] => file://%s/config-telemetry.out
             [origin] => env_var
             [config_id] => 
+            [seq_id] => 
         )
 
     [1] => Array
@@ -82,6 +83,7 @@ Array
             [value] => 1
             [origin] => env_var
             [config_id] => 
+            [seq_id] => 
         )
 
     [2] => Array
@@ -90,6 +92,7 @@ Array
             [value] => 1
             [origin] => env_var
             [config_id] => 
+            [seq_id] => 
         )
 
     [3] => Array
@@ -98,6 +101,7 @@ Array
             [value] => 0
             [origin] => env_var
             [config_id] => 
+            [seq_id] => 
         )
 
     [4] => Array
@@ -106,6 +110,7 @@ Array
             [value] => 0
             [origin] => env_var
             [config_id] => 
+            [seq_id] => 
         )
 
     [5] => Array
@@ -114,6 +119,7 @@ Array
             [value] => False
             [origin] => env_var
             [config_id] => 
+            [seq_id] => 
         )
 
 )

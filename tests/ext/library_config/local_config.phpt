@@ -76,7 +76,7 @@ DD_DYNAMIC_INSTRUMENTATION_ENABLED: true
 ------ Telemetry ------
 array(5) {
   [0]=>
-  array(4) {
+  array(5) {
     ["name"]=>
     string(3) "env"
     ["value"]=>
@@ -85,9 +85,11 @@ array(5) {
     string(19) "local_stable_config"
     ["config_id"]=>
     string(15) "42_local_config"
+    ["seq_id"]=>
+    NULL
   }
   [1]=>
-  array(4) {
+  array(5) {
     ["name"]=>
     string(7) "service"
     ["value"]=>
@@ -96,9 +98,11 @@ array(5) {
     string(19) "local_stable_config"
     ["config_id"]=>
     string(15) "42_local_config"
+    ["seq_id"]=>
+    NULL
   }
   [2]=>
-  array(4) {
+  array(5) {
     ["name"]=>
     string(24) "trace.generate_root_span"
     ["value"]=>
@@ -107,9 +111,11 @@ array(5) {
     string(7) "default"
     ["config_id"]=>
     NULL
+    ["seq_id"]=>
+    NULL
   }
   [3]=>
-  array(4) {
+  array(5) {
     ["name"]=>
     string(17) "trace.spans_limit"
     ["value"]=>
@@ -118,9 +124,11 @@ array(5) {
     string(7) "env_var"
     ["config_id"]=>
     NULL
+    ["seq_id"]=>
+    NULL
   }
   [4]=>
-  array(4) {
+  array(5) {
     ["name"]=>
     string(31) "dynamic_instrumentation.enabled"
     ["value"]=>
@@ -129,6 +137,8 @@ array(5) {
     string(19) "local_stable_config"
     ["config_id"]=>
     string(15) "42_local_config"
+    ["seq_id"]=>
+    NULL
   }
 }
 --CLEAN--
