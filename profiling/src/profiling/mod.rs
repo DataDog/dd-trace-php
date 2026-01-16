@@ -1538,10 +1538,10 @@ pub struct JoinError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::SystemSettingsState;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
-    use crate::config::SystemSettingsState;
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
@@ -1559,7 +1559,7 @@ mod tests {
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
-            profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32,
+            profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,

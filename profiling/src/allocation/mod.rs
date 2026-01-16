@@ -11,11 +11,13 @@ use crate::bindings::{self as zend};
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
 use libc::size_t;
-use log::{debug, error, trace};
+use log::{debug, trace};
 use rand_distr::{Distribution, Poisson};
 use std::ffi::c_void;
+use std::num::{NonZero, NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::config::SystemSettings;
 #[cfg(not(php_zts))]
 use rand::rngs::StdRng;
 #[cfg(php_zts)]
@@ -23,12 +25,14 @@ use rand::rngs::ThreadRng;
 #[cfg(not(php_zts))]
 use rand::SeedableRng;
 
-/// Default sampling interval in bytes (4MB)
-pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: u64 = 1024 * 4096;
+/// Default sampling interval in bytes (4 MiB).
+// SAFETY: value is > 0.
+pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 =
+    unsafe { NonZero::new_unchecked(1024 * 4096) };
 
-/// Sampling distance feed into poison sampling algo
+/// Sampling distance feed into poison sampling algo. This must be > 0.
 pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
-    AtomicU64::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL);
+    AtomicU64::new(DEFAULT_ALLOCATION_SAMPLING_INTERVAL.get() as u64);
 
 /// This will store the count of allocations (including reallocations) during
 /// a profiling period. This will overflow when doing more than u64::MAX
@@ -53,10 +57,9 @@ pub struct AllocationProfilingStats {
 }
 
 impl AllocationProfilingStats {
-    fn new() -> AllocationProfilingStats {
-        // Safety: this will only error if lambda <= 0
-        let poisson =
-            Poisson::new(ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed) as f64).unwrap();
+    fn new(sampling_distance: NonZeroU64) -> AllocationProfilingStats {
+        // SAFETY: this will only error if lambda <= 0, and it's NonZeroU64.
+        let poisson = unsafe { Poisson::new(sampling_distance.get() as f64).unwrap_unchecked() };
         let mut stats = AllocationProfilingStats {
             next_sample: 0,
             poisson,
@@ -105,30 +108,35 @@ pub fn alloc_prof_startup() {
     allocation_le83::alloc_prof_startup();
 }
 
-pub fn alloc_prof_first_rinit() {
-    let (allocation_enabled, sampling_distance) = REQUEST_LOCALS
-        .try_with_borrow(|locals| {
-            let settings = locals.system_settings();
-            (settings.profiling_allocation_enabled, settings.profiling_allocation_sampling_distance)
-        })
-        .unwrap_or_else(|err| {
-            error!("Allocation profiling first rinit failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
-            (false, DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32)
-        });
-
-    if !allocation_enabled {
+pub fn first_rinit(settings: &SystemSettings) {
+    if !settings.profiling_allocation_enabled {
         return;
     }
 
-    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance as u64, Ordering::Relaxed);
+    let sampling_distance = settings.profiling_allocation_sampling_distance;
+    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance.get() as u64, Ordering::Relaxed);
 
-    trace!(
-        "Memory allocation profiling initialized with a sampling distance of {} bytes.",
-        ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed)
-    );
+    trace!("Memory allocation profiling initialized with a sampling distance of {sampling_distance} bytes.");
 }
 
-pub fn alloc_prof_rinit() {
+/// # Safety
+///
+/// Must be called exactly once per extension minit.
+pub unsafe fn minit(settings: &SystemSettings) {
+    if !settings.profiling_allocation_enabled {
+        return;
+    }
+
+    let sampling_distance = settings.profiling_allocation_sampling_distance;
+    ALLOCATION_PROFILING_INTERVAL.store(sampling_distance.get() as u64, Ordering::Relaxed);
+
+    // SAFETY: called in minit.
+    unsafe { profiling_stats::minit(sampling_distance.into()) };
+
+    trace!("Memory allocation profiling initialized with a sampling distance of {sampling_distance} bytes.");
+}
+
+pub fn rinit() {
     let allocation_enabled = REQUEST_LOCALS
         .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
         .unwrap_or_else(|err| {
