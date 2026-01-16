@@ -22,6 +22,8 @@
 #include <SAPI.h>
 #include <exceptions/exceptions.h>
 #include <json/json.h>
+
+#include "process_tags.h"
 #ifndef _WIN32
 #include <stdatomic.h>
 #else
@@ -1544,6 +1546,7 @@ void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, 
 }
 
 ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace) {
+    bool is_first_span = ddog_get_trace_size(trace) == 0;
     ddog_SpanBytes *rust_span = ddog_trace_new_span(trace);
 
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
@@ -1606,6 +1609,13 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
             zval_ptr_dtor(&status_code_as_string);
         }
         zend_hash_str_del(metrics, ZEND_STRL("http.status_code"));
+    }
+
+    if (is_first_span) {
+        zend_string *process_tags = ddtrace_process_tags_get_serialized();
+        if (process_tags) {
+            ddog_add_str_span_meta_zstr(rust_span, "_dd.process_tags", process_tags);
+        }
     }
 
     // SpanData::$name defaults to fully qualified called name (set at span close)
