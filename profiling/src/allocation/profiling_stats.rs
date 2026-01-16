@@ -128,9 +128,6 @@ pub unsafe fn ginit() {
 ///
 /// Must be called once per PHP thread gshutdown.
 pub unsafe fn gshutdown() {
-    // #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    // allocation_ge84::alloc_prof_gshutdown();
-
     // SAFETY:
     //  1. During gshutdown, there will not be any other borrows.
     //  2. This closure will not make new borrows.
