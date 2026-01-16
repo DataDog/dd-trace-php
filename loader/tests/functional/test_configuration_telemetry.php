@@ -19,6 +19,6 @@ assertMatchesFormat($output, '%A"loaded_by_ssi":true%s%A');
 usleep(10000);
 
 $content = file_get_contents($telemetryLogPath);
-assertContains($content, '{"name":"instrumentation_source","value":"ssi","origin":"default","config_id":null}');
-assertContains($content, '{"name":"ssi_injection_enabled","value":"tracer","origin":"env_var","config_id":null}');
-assertContains($content, '{"name":"ssi_forced_injection_enabled","value":"True","origin":"env_var","config_id":null}');
+assertContains($content, '{"name":"instrumentation_source","value":"ssi","origin":"default","config_id":null,"seq_id":null}');
+assertContains($content, '{"name":"ssi_injection_enabled","value":"tracer","origin":"env_var","config_id":null,"seq_id":null}');
+assertContains($content, '{"name":"ssi_forced_injection_enabled","value":"True","origin":"env_var","config_id":null,"seq_id":null}');
