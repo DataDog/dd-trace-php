@@ -1542,6 +1542,7 @@ mod tests {
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
+    use crate::config::SystemSettingsState;
 
     fn get_frames() -> Vec<ZendFrame> {
         vec![ZendFrame {
