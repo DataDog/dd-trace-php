@@ -1,4 +1,3 @@
-use crate::allocation;
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
     datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_get_memoized_config,
@@ -7,26 +6,45 @@ use crate::bindings::{
     StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ, ZEND_INI_DISPLAY_ORIG,
 };
 use crate::zend::zai_str_from_zstr;
+use crate::{allocation, bindings, zend};
 use core::fmt::{Display, Formatter};
-use core::mem::{swap, transmute, MaybeUninit};
+use core::mem::transmute;
 use core::ptr;
 use core::str::FromStr;
 use libc::{c_char, c_int};
 use libdd_common::tag::{parse_tags, Tag};
 pub use libdd_profiling::exporter::Uri;
-use log::{warn, LevelFilter};
+use log::{debug, error, warn, LevelFilter};
 use std::borrow::Cow;
 use std::ffi::CString;
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+
+#[derive(Copy, Clone, Debug, Default)]
+pub enum SystemSettingsState {
+    /// Indicates the system settings are not aware of the configuration at
+    /// the moment.
+    #[default]
+    ConfigUnaware,
+
+    /// Indicates the system settings _are_ aware of configuration at the
+    /// moment.
+    ConfigAware,
+
+    /// Expressly disabled, such as a child process post-fork (forks are not
+    /// currently profiled, except certain forks made by SAPIs).
+    Disabled,
+}
 
 #[derive(Clone, Debug)]
 pub struct SystemSettings {
+    pub state: SystemSettingsState,
     pub profiling_enabled: bool,
     pub profiling_experimental_features_enabled: bool,
     pub profiling_endpoint_collection_enabled: bool,
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
-    pub profiling_allocation_sampling_distance: u32,
+    pub profiling_allocation_sampling_distance: NonZeroU32,
     pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
     pub profiling_exception_message_enabled: bool,
@@ -41,22 +59,31 @@ pub struct SystemSettings {
 }
 
 impl SystemSettings {
-    pub fn disable_all(&mut self) {
-        self.profiling_enabled = false;
-        self.profiling_experimental_features_enabled = false;
-        self.profiling_endpoint_collection_enabled = false;
-        self.profiling_experimental_cpu_time_enabled = false;
-        self.profiling_allocation_enabled = false;
-        self.profiling_timeline_enabled = false;
-        self.profiling_exception_enabled = false;
-        self.profiling_exception_message_enabled = false;
-        self.profiling_io_enabled = false;
+    /// Provides "initial" settings, which are all "off"-like values.
+    pub const fn initial() -> SystemSettings {
+        SystemSettings {
+            state: SystemSettingsState::ConfigUnaware,
+            profiling_enabled: false,
+            profiling_experimental_features_enabled: false,
+            profiling_endpoint_collection_enabled: false,
+            profiling_experimental_cpu_time_enabled: false,
+            profiling_allocation_enabled: false,
+            profiling_allocation_sampling_distance: NonZeroU32::MAX,
+            profiling_timeline_enabled: false,
+            profiling_exception_enabled: false,
+            profiling_exception_message_enabled: false,
+            profiling_wall_time_enabled: false,
+            profiling_io_enabled: false,
+            output_pprof: None,
+            profiling_exception_sampling_distance: u32::MAX,
+            profiling_log_level: LevelFilter::Off,
+            uri: AgentEndpoint::Socket(Cow::Borrowed(AgentEndpoint::DEFAULT_UNIX_SOCKET_PATH)),
+        }
     }
 
     /// # Safety
     /// This function must only be called after ZAI config has been
-    /// initialized in first rinit, and before config is uninitialized in
-    /// shutdown.
+    /// initialized, and before config is uninitialized in shutdown.
     unsafe fn new() -> SystemSettings {
         // Select agent URI/UDS.
         let agent_host = agent_host();
@@ -64,6 +91,7 @@ impl SystemSettings {
         let trace_agent_url = trace_agent_url();
         let uri = detect_uri_from_config(trace_agent_url, agent_host, trace_agent_port);
         Self {
+            state: SystemSettingsState::ConfigAware,
             profiling_enabled: profiling_enabled(),
             profiling_experimental_features_enabled: profiling_experimental_features_enabled(),
             profiling_endpoint_collection_enabled: profiling_endpoint_collection_enabled(),
@@ -83,15 +111,16 @@ impl SystemSettings {
     }
 }
 
-static mut SYSTEM_SETTINGS: MaybeUninit<SystemSettings> = MaybeUninit::uninit();
+static mut SYSTEM_SETTINGS: SystemSettings = SystemSettings::initial();
 
 impl SystemSettings {
-    /// # Safety
-    /// Must be called after [first_rinit] and before [shutdown].
-    pub unsafe fn get() -> ptr::NonNull<SystemSettings> {
-        // SAFETY: required by this function's own safety requirements.
-        let addr = unsafe { (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut() };
-        ptr::NonNull::from(addr)
+    /// Returns the "current" system settings, which are always memory-safe
+    /// but may point to "initial" values rather than the configured ones,
+    /// depending on what point in the lifecycle we're at.
+    pub const fn get() -> ptr::NonNull<SystemSettings> {
+        let addr = ptr::addr_of_mut!(SYSTEM_SETTINGS);
+        // SAFETY: it's derived from a static variable, it's not null.
+        unsafe { ptr::NonNull::new_unchecked(addr) }
     }
 
     /// # Safety
@@ -101,76 +130,63 @@ impl SystemSettings {
     unsafe fn on_first_request() {
         let mut system_settings = SystemSettings::new();
 
-        // Initialize logging before allocation's rinit, as it logs.
-        cfg_if::cfg_if! {
-            if #[cfg(debug_assertions)] {
-                log::set_max_level(system_settings.profiling_log_level);
-            } else {
-                crate::logging::log_init(system_settings.profiling_log_level);
-            }
-        }
-
-        // Initialize the lazy lock holding the env var for new origin
-        // detection in a safe place.
-        _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
-
         // Work around version-specific issues.
         #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
         if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {
+            if zend::PHP_VERSION_ID >= 80400 {
+                error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
+            } else {
+                error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
+            }
             system_settings.profiling_allocation_enabled = false;
         }
         #[cfg(php_zend_mm_set_custom_handlers_ex)]
         if allocation::allocation_ge84::first_rinit_should_disable_due_to_jit() {
+            error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
             system_settings.profiling_allocation_enabled = false;
         }
-        swap(
-            &mut system_settings,
-            (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut(),
+
+        SystemSettings::log_state(
+            (*ptr::addr_of!(SYSTEM_SETTINGS)).state,
+            system_settings.state,
+            "the first request was received",
         );
+        ptr::addr_of_mut!(SYSTEM_SETTINGS).swap(&mut system_settings);
     }
 
-    /// # Safety
-    /// Must be called exactly once each startup in either minit or startup,
-    /// whether profiling is enabled or not.
-    unsafe fn on_startup() {
-        (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).write(INITIAL_SYSTEM_SETTINGS.clone());
+    fn log_state(from: SystemSettingsState, to: SystemSettingsState, reason: &str) {
+        debug!("SystemSettings state transitioned from {from:?} to {to:?} because {reason}.");
     }
 
     /// # Safety
     /// Must be called exactly once per shutdown in either mshutdown or
     /// shutdown, before zai config is shutdown.
     unsafe fn on_shutdown() {
-        let system_settings = (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut();
+        let system_settings = &mut *ptr::addr_of_mut!(SYSTEM_SETTINGS);
+        let state = SystemSettingsState::ConfigUnaware;
+        SystemSettings::log_state(
+            system_settings.state,
+            state,
+            "a shutdown command was received",
+        );
         *system_settings = SystemSettings {
-            profiling_enabled: false,
-            profiling_experimental_features_enabled: false,
-            profiling_endpoint_collection_enabled: false,
-            profiling_experimental_cpu_time_enabled: false,
-            profiling_allocation_enabled: false,
-            profiling_allocation_sampling_distance: 0,
-            profiling_timeline_enabled: false,
-            profiling_exception_enabled: false,
-            profiling_exception_message_enabled: false,
-            profiling_wall_time_enabled: false,
-            profiling_io_enabled: false,
-            output_pprof: None,
-            profiling_exception_sampling_distance: 0,
-            profiling_log_level: LevelFilter::Off,
-            uri: Default::default(),
+            state,
+            ..SystemSettings::initial()
         };
     }
 
     unsafe fn on_fork_in_child() {
-        let system_settings = (*ptr::addr_of_mut!(SYSTEM_SETTINGS)).assume_init_mut();
-        system_settings.profiling_enabled = false;
-        system_settings.profiling_experimental_features_enabled = false;
-        system_settings.profiling_endpoint_collection_enabled = false;
-        system_settings.profiling_experimental_cpu_time_enabled = false;
-        system_settings.profiling_allocation_enabled = false;
-        system_settings.profiling_timeline_enabled = false;
-        system_settings.profiling_exception_enabled = false;
-        system_settings.profiling_exception_message_enabled = false;
-        system_settings.profiling_io_enabled = false;
+        let system_settings = &mut *ptr::addr_of_mut!(SYSTEM_SETTINGS);
+        let state = SystemSettingsState::Disabled;
+        SystemSettings::log_state(
+            system_settings.state,
+            state,
+            "the processed forked, and child processes are not profiled",
+        );
+        *system_settings = SystemSettings {
+            state,
+            ..SystemSettings::initial()
+        };
     }
 }
 
@@ -448,55 +464,26 @@ impl ConfigId {
     }
 }
 
-lazy_static::lazy_static! {
-    /// In some SAPIs, full configuration is not known until the first request
-    /// is served. This is ripe for edge cases. Consider this order of events:
-    ///  1. Worker is created.
-    ///  2. No requests are served.
-    ///  3. As the worker shuts down, the timeline profiler will attempt to
-    ///     add idle time to timeline.
-    /// What state should the configuration be in?
-    ///
-    /// Since the real configuration was never learned, assume everything is
-    /// disabled, which should cause fewer issues for customers than assuming
-    /// defaults.
-    pub static ref INITIAL_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
-        profiling_enabled: false,
-        profiling_experimental_features_enabled: false,
-        profiling_endpoint_collection_enabled: false,
-        profiling_experimental_cpu_time_enabled: false,
-        profiling_allocation_enabled: false,
-        profiling_allocation_sampling_distance: u32::MAX,
-        profiling_timeline_enabled: false,
-        profiling_exception_enabled: false,
-        profiling_exception_message_enabled: false,
-        profiling_wall_time_enabled: false,
-        profiling_io_enabled: false,
-        output_pprof: None,
-        profiling_exception_sampling_distance: u32::MAX,
-        profiling_log_level: LevelFilter::Off,
-        uri: Default::default(),
-    };
-
-    /// Keep these in sync with the INI defaults.
-    static ref DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
-        profiling_enabled: true,
-        profiling_experimental_features_enabled: false,
-        profiling_endpoint_collection_enabled: true,
-        profiling_experimental_cpu_time_enabled: true,
-        profiling_allocation_enabled: true,
-        profiling_allocation_sampling_distance: 1024 * 4096,
-        profiling_timeline_enabled: true,
-        profiling_exception_enabled: true,
-        profiling_exception_message_enabled: false,
-        profiling_wall_time_enabled: true,
-        profiling_io_enabled: false,
-        output_pprof: None,
-        profiling_exception_sampling_distance: 100,
-        profiling_log_level: LevelFilter::Off,
-        uri: Default::default(),
-    };
-}
+/// Keep these in sync with the INI defaults.
+static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
+    state: SystemSettingsState::ConfigUnaware,
+    profiling_enabled: true,
+    profiling_experimental_features_enabled: false,
+    profiling_endpoint_collection_enabled: true,
+    profiling_experimental_cpu_time_enabled: true,
+    profiling_allocation_enabled: true,
+    // SAFETY: value is > 0.
+    profiling_allocation_sampling_distance: unsafe { NonZeroU32::new_unchecked(1024 * 4096) },
+    profiling_timeline_enabled: true,
+    profiling_exception_enabled: true,
+    profiling_exception_message_enabled: false,
+    profiling_wall_time_enabled: true,
+    profiling_io_enabled: false,
+    output_pprof: None,
+    profiling_exception_sampling_distance: 100,
+    profiling_log_level: LevelFilter::Off,
+    uri: AgentEndpoint::Socket(Cow::Borrowed(AgentEndpoint::DEFAULT_UNIX_SOCKET_PATH)),
+};
 
 /// # Safety
 /// This function must only be called after config has been initialized in
@@ -553,11 +540,16 @@ unsafe fn profiling_allocation_enabled() -> bool {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-unsafe fn profiling_allocation_sampling_distance() -> u32 {
-    get_system_uint32(
+unsafe fn profiling_allocation_sampling_distance() -> NonZeroU32 {
+    let int = get_system_uint32(
         ProfilingAllocationSamplingDistance,
-        DEFAULT_SYSTEM_SETTINGS.profiling_allocation_sampling_distance,
-    )
+        DEFAULT_SYSTEM_SETTINGS
+            .profiling_allocation_sampling_distance
+            .get(),
+    );
+    // SAFETY: ProfilingAllocationSamplingDistance uses parser that ensures a
+    // non-zero value.
+    unsafe { NonZeroU32::new_unchecked(int) }
 }
 
 /// # Safety
@@ -1244,7 +1236,31 @@ pub(crate) fn minit(module_number: libc::c_int) {
         );
         assert!(tmp); // It's literally return true in the source.
 
-        SystemSettings::on_startup();
+        // We set this so that we can access config for system INI settings during
+        // minit, for example for allocation_sampling_distance.
+        let in_request = false;
+        bindings::zai_config_first_time_rinit(in_request);
+
+        // SAFETY: just initialized zai config.
+        let mut system_settings = SystemSettings::new();
+
+        // Initialize logging before allocation's rinit, as it logs.
+        cfg_if::cfg_if! {
+            if #[cfg(debug_assertions)] {
+                log::set_max_level(system_settings.profiling_log_level);
+            } else {
+                crate::logging::log_init(system_settings.profiling_log_level);
+            }
+        }
+
+        SystemSettings::log_state(
+            (*ptr::addr_of!(SYSTEM_SETTINGS)).state,
+            system_settings.state,
+            "the module was initialized",
+        );
+        ptr::addr_of_mut!(SYSTEM_SETTINGS).swap(&mut system_settings);
+
+        allocation::minit(&*ptr::addr_of!(SYSTEM_SETTINGS))
     }
 }
 
@@ -1268,6 +1284,7 @@ pub(crate) unsafe fn on_fork_in_child() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use core::mem::MaybeUninit;
     use libc::memcmp;
 
     #[test]

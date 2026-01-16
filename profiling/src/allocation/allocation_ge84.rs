@@ -146,15 +146,9 @@ pub fn alloc_prof_ginit() {
 }
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
-    if NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
+    NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
         && alloc_prof_needs_disabled_for_jit(crate::RUNTIME_PHP_VERSION_ID.load(Relaxed))
         && *JIT_ENABLED
-    {
-        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
-        true
-    } else {
-        false
-    }
 }
 
 pub fn alloc_prof_rinit() {
