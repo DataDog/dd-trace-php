@@ -4,7 +4,7 @@ use crate::PROFILER_NAME;
 use core::{cell::Cell, ptr};
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
-use log::{debug, error, trace, warn};
+use log::{debug, trace, warn};
 use std::sync::atomic::Ordering::Relaxed;
 
 #[cfg(feature = "debug_stats")]
