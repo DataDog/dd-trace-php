@@ -298,7 +298,6 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
     switch (mode) {
     case DD_TRACE_SIDECAR_CONNECTION_MODE_SUBPROCESS:
         // Force subprocess only
-        LOG(DEBUG, "Sidecar connection mode: subprocess (forced)");
         transport = ddtrace_sidecar_connect_subprocess();
         if (!transport) {
             LOG(ERROR, "Subprocess connection failed (mode=subprocess, no fallback)");
@@ -307,7 +306,6 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
 
     case DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD:
         // Force thread only
-        LOG(DEBUG, "Sidecar connection mode: thread (forced)");
         transport = ddtrace_sidecar_connect_thread();
         if (!transport) {
             LOG(ERROR, "Thread connection failed (mode=thread, no fallback)");
@@ -317,23 +315,22 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
     case DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO:
     default:
         // Try subprocess first, fallback to thread if needed
-        LOG(DEBUG, "Sidecar connection mode: auto (trying subprocess first)");
         transport = ddtrace_sidecar_connect_subprocess();
 
-        if (transport) {
-            LOG(DEBUG, "Connected to sidecar via subprocess");
-        } else if (!ddtrace_endpoint) {
-            // Don't try fallback if endpoint is invalid - both modes need a valid endpoint
-            // The "Invalid DD_TRACE_AGENT_URL" error was already logged during endpoint creation
-        } else {
-            // Subprocess failed but endpoint is valid - try thread mode fallback
-            LOG(WARN, "Subprocess connection failed, falling back to thread mode");
-            transport = ddtrace_sidecar_connect_thread();
-
-            if (transport) {
-                LOG(INFO, "Connected to sidecar via thread (fallback)");
+        if (!transport) {
+            if (!ddtrace_endpoint) {
+                // Don't try fallback if endpoint is invalid - both modes need a valid endpoint
+                // The "Invalid DD_TRACE_AGENT_URL" error was already logged during endpoint creation
             } else {
-                LOG(ERROR, "Both subprocess and thread connections failed, sidecar unavailable");
+                // Subprocess failed but endpoint is valid - try thread mode fallback
+                LOG(WARN, "Subprocess connection failed, falling back to thread mode");
+                transport = ddtrace_sidecar_connect_thread();
+
+                if (transport) {
+                    LOG(INFO, "Connected to sidecar via thread (fallback)");
+                } else {
+                    LOG(ERROR, "Both subprocess and thread connections failed, sidecar unavailable");
+                }
             }
         }
         break;

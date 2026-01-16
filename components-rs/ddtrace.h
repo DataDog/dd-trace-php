@@ -120,16 +120,6 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
 void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
 
-// Thread-based sidecar connection (Unix only)
-#if !defined(_WIN32)
-ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
-ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid,
-                                             struct ddog_SidecarTransport **connection);
-ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
-bool ddog_sidecar_is_master_listener_active(int32_t pid);
-ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
-#endif
-
 bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t limit);
 
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
