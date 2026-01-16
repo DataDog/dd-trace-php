@@ -6,7 +6,7 @@ use crate::bindings::{
     StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ, ZEND_INI_DISPLAY_ORIG,
 };
 use crate::zend::zai_str_from_zstr;
-use crate::{allocation, bindings, zend};
+use crate::{allocation, bindings};
 use core::fmt::{Display, Formatter};
 use core::mem::transmute;
 use core::ptr;
@@ -133,7 +133,7 @@ impl SystemSettings {
         // Work around version-specific issues.
         #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
         if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {
-            if zend::PHP_VERSION_ID >= 80400 {
+            if bindings::PHP_VERSION_ID >= 80400 {
                 error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
             } else {
                 error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
