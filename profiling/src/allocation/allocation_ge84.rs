@@ -146,15 +146,9 @@ lazy_static! {
 }
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
-    if *JIT_ENABLED
+    *JIT_ENABLED
         && zend::PHP_VERSION_ID >= 80400
         && (80400..80406).contains(&crate::RUNTIME_PHP_VERSION_ID.load(Relaxed))
-    {
-        error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
-        true
-    } else {
-        false
-    }
 }
 
 /// This initializes the thread locale variable `ZEND_MM_STATE` with respect to the currently

@@ -692,7 +692,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         io::io_prof_first_rinit();
 
-        allocation::alloc_prof_first_rinit();
+        allocation::first_rinit(system_settings);
     });
 
     Profiler::init(system_settings);
@@ -742,7 +742,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         TAGS.set(Arc::default());
     }
 
-    allocation::alloc_prof_rinit();
+    allocation::rinit();
 
     // SAFETY: called after config is initialized.
     unsafe { timeline::timeline_rinit() };
