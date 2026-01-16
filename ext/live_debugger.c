@@ -13,6 +13,7 @@
 #include "zend_hrtime.h"
 #include "components-rs/common.h"
 #include "zend_generators.h"
+#include "process_tags.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -390,8 +391,16 @@ static void dd_log_probe_ensure_payload(dd_log_probe_dyn *dyn, dd_log_probe_def 
     if (dyn->payload) {
         ddog_update_payload_message(dyn->payload, *msg);
     } else {
+        zend_string *process_tags = ddtrace_process_tags_get_serialized();
+
         dyn->service = ddtrace_active_service_name();
-        dyn->payload = ddog_create_log_probe_snapshot(&def->parent.probe, msg, dd_zend_string_to_CharSlice(dyn->service), DDOG_CHARSLICE_C("php"), ddtrace_nanoseconds_realtime() / 1000000);
+        dyn->payload = ddog_create_log_probe_snapshot(
+            &def->parent.probe,
+            msg,
+            dd_zend_string_to_CharSlice(dyn->service),
+            DDOG_CHARSLICE_C("php"),
+            ddtrace_nanoseconds_realtime() / 1000000,
+            process_tags ? dd_zend_string_to_CharSlice(process_tags) : DDOG_CHARSLICE_C(""));
     }
 }
 
