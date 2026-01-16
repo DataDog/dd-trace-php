@@ -177,7 +177,30 @@ impl SystemSettings {
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum AgentEndpoint {
     Uri(Uri),
-    Socket(PathBuf),
+    Socket(Cow<'static, Path>),
+}
+
+impl AgentEndpoint {
+    /// This is the "default" path for the Unix domain socket for the agent.
+    #[cfg(unix)]
+    pub const DEFAULT_UNIX_SOCKET_PATH: &Path = {
+        // The unsafe stuff is just because it's in a const context and
+        // `Path::new` isn't const on stable yet.
+        //
+        // SAFETY: `Path` is `repr(transparent)` with `OsStr`, which is
+        // transparent with a `Slice` type that is transparent with `[u8]` on
+        // Unix platforms. We can cast from `*const [u8]` to `*const Path`
+        // using unsized pointer-to-pointer casts and Rust guarantees that the
+        // length of the metadata is preserved, and this cast is valid because
+        // of the `repr(transparent)`s. The last piece is ensuring all the
+        // bytes in the `[u8]` are valid for an `OsStr`, but on Unix the
+        // implementation of `OsStrExt` for `OsStr` just transmutes the bytes
+        // from `&[u8]` to `&OsStr`, so all the bytes must be valid.
+        unsafe { &*("/var/run/datadog/apm.socket".as_bytes() as *const [u8] as *const Path) }
+    };
+
+    /// This is the "default" URI for the agent.
+    pub const DEFAULT_URI_STR: &str = "http://localhost:8126";
 }
 
 impl Default for AgentEndpoint {
@@ -185,11 +208,11 @@ impl Default for AgentEndpoint {
     /// it returns http://localhost:8126/. This does not consult environment
     /// variables.
     fn default() -> Self {
-        let path = Path::new("/var/run/datadog/apm.socket");
+        let path = AgentEndpoint::DEFAULT_UNIX_SOCKET_PATH;
         if path.exists() {
             return AgentEndpoint::Socket(path.into());
         }
-        AgentEndpoint::Uri(Uri::from_static("http://localhost:8126"))
+        AgentEndpoint::Uri(Uri::from_static(AgentEndpoint::DEFAULT_URI_STR))
     }
 }
 
@@ -243,7 +266,7 @@ fn detect_uri_from_config(
         if let Some(path) = trace_agent_url.strip_prefix("unix://") {
             let path = PathBuf::from(path);
             if path.exists() {
-                return AgentEndpoint::Socket(path);
+                return AgentEndpoint::Socket(Cow::Owned(path));
             } else {
                 warn!(
                     "Unix socket specified in DD_TRACE_AGENT_URL does not exist: {} ",
