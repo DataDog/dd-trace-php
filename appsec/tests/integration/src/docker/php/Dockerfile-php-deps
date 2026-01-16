@@ -16,11 +16,14 @@ RUN apt-get update && apt-get install -y \
     procps \
     python3-dev \
     vim \
+    libclang-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ADD build_dev_php.sh /build/php/
 RUN USER=root /build/php/build_dev_php.sh deps
 
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.84.1 -y
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --default-toolchain 1.84.1 -y \
+    && /root/.cargo/bin/rustup component add llvm-tools-preview \
+    && chmod -R a+rX /root /root/.cargo /root/.rustup
 ENV PATH="/root/.cargo/bin:${PATH}"
 

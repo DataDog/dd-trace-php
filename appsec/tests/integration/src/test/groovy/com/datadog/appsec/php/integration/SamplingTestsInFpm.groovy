@@ -102,6 +102,7 @@ trait SamplingTestsInFpm {
     }
 
     void setSamplingPeriod(String period) {
+        flushProfilingData()
         def res = container.execInContainer(
                 'bash', '-c',
                 """kill -9 `pgrep php-fpm`;
@@ -111,9 +112,14 @@ trait SamplingTestsInFpm {
     }
 
     private void resetFpm() {
+        flushProfilingData()
         container.execInContainer(
                 'bash', '-c',
                 '''kill -9 `pgrep php-fpm`;
                php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini''')
+    }
+
+    void flushProfilingData() {
+        container.flushProfilingData()
     }
 }
