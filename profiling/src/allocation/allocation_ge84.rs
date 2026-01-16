@@ -349,14 +349,18 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
 unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
     // Safety: `ZEND_MM_STATE.prev_custom_mm_alloc` will be initialised in
     // `alloc_prof_rinit()` and only point to this function when
-    // `prev_custom_mm_alloc` is also initialised
+    // `prev_custom_mm_alloc` is also initialised.
+    // Note: We use `.unwrap()` instead of `.unwrap_unchecked()` here because a
+    // neighboring extension could misbehave. If that happens, we want a proper
+    // panic with backtrace for debugging rather than undefined behavior.
     let alloc = tls_zend_mm_state_get!(prev_custom_mm_alloc).unwrap();
     alloc(len)
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers are only installed and pointing to this function if initialization was succesful.
+    // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
+    // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     zend::_zend_mm_alloc(heap, len)
 }
@@ -372,14 +376,18 @@ unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
 unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
     // Safety: `ZEND_MM_STATE.prev_custom_mm_free` will be initialised in
     // `alloc_prof_rinit()` and only point to this function when
-    // `prev_custom_mm_free` is also initialised
+    // `prev_custom_mm_free` is also initialised.
+    // Note: We use `.unwrap()` instead of `.unwrap_unchecked()` here because a
+    // neighboring extension could misbehave. If that happens, we want a proper
+    // panic with backtrace for debugging rather than undefined behavior.
     let free = tls_zend_mm_state_get!(prev_custom_mm_free).unwrap();
     free(ptr)
 }
 
 unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers are only installed and pointing to this function if initialization was succesful.
+    // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
+    // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     zend::_zend_mm_free(heap, ptr);
 }
@@ -408,14 +416,18 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     // Safety: `ZEND_MM_STATE.prev_custom_mm_realloc` will be initialised in
     // `alloc_prof_rinit()` and only point to this function when
-    // `prev_custom_mm_realloc` is also initialised
+    // `prev_custom_mm_realloc` is also initialised.
+    // Note: We use `.unwrap()` instead of `.unwrap_unchecked()` here because a
+    // neighboring extension could misbehave. If that happens, we want a proper
+    // panic with backtrace for debugging rather than undefined behavior.
     let realloc = tls_zend_mm_state_get!(prev_custom_mm_realloc).unwrap();
     realloc(prev_ptr, len)
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers are only installed and pointing to this function if initialization was succesful.
+    // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
+    // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     zend::_zend_mm_realloc(heap, prev_ptr, len)
 }
@@ -433,7 +445,8 @@ unsafe fn alloc_prof_prev_gc() -> size_t {
 
 unsafe fn alloc_prof_orig_gc() -> size_t {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers are only installed and pointing to this function if initialization was succesful.
+    // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
+    // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let custom_heap = prepare_zend_heap(heap);
     let size = zend::zend_mm_gc(heap);
@@ -453,7 +466,8 @@ unsafe fn alloc_prof_prev_shutdown(full: bool, silent: bool) {
 
 unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
-    // handlers are only installed and pointing to this function if initialization was succesful.
+    // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
+    // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let custom_heap = prepare_zend_heap(heap);
     zend::zend_mm_shutdown(heap, full, silent);
