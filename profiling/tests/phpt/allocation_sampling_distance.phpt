@@ -13,7 +13,6 @@ datadog.profiling.enabled=1
 datadog.profiling.allocation_enabled=1
 datadog.profiling.allocation_sampling_distance=1
 datadog.profiling.log_level=trace
-datadog.profiling.output_pprof=/tmp/profiling-data/pprof
 zend.assertions=1
 assert.exception=1
 --FILE--
