@@ -46,6 +46,7 @@ class TelemetryTests {
 
     @BeforeAll
     static void beforeAll() {
+        CONTAINER.flushProfilingData()
         org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
                 'bash', '-c',
                 '''sed -e '/appsec.enabled/d' -e '/appsec.rules=/d' /etc/php/php.ini > /etc/php/php-rc.ini;

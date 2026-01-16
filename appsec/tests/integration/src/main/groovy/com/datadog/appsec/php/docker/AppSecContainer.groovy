@@ -232,7 +232,32 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
     }
 
+    void flushProfilingData() {
+        if (!System.getProperty('USE_HELPER_RUST_COVERAGE')) {
+            return
+        }
+
+        try {
+            ExecResult res = execInContainer('/bin/bash', '-c',
+                    '''
+                    pid=$(pgrep -f '[d]atadog-ipc-helper' || true)
+                    if [ -n "$pid" ]; then
+                        echo "Sending SIGUSR1 to helper/sidecar process to flush coverage: $pid" >&2
+                        kill -USR1 $pid
+                        # Give it a moment to flush coverage
+                        sleep 0.5
+                    fi
+                    ''')
+            if (res.exitCode != 0) {
+                log.warn("Failed to cleanup helper: ${res.stderr}")
+            }
+        } catch (Exception e) {
+            log.warn("Exception during helper cleanup: ${e.message}")
+        }
+    }
+
     void close() {
+        flushProfilingData()
         copyLogs()
         super.close()
     }
@@ -372,6 +397,17 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
         addVolumeMount("php-tracer-$phpVersion-$phpVariant", '/project/tmp')
+        if (System.getProperty('USE_HELPER_RUST')) {
+            addVolumeMount('php-libddwaf', '/libddwaf')
+            String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
+                'php-helper-rust-coverage' : 'php-helper-rust'
+            addVolumeMount(helperVolume, '/helper-rust')
+            withEnv 'USE_HELPER_RUST', '1'
+            if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
+                // Enable LLVM coverage profiling for the helper binary
+                withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
+            }
+        }
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"
 

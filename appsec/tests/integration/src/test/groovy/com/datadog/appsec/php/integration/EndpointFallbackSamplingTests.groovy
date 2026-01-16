@@ -1,7 +1,6 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
-import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
 
 import java.net.http.HttpResponse
@@ -111,6 +110,7 @@ trait EndpointFallbackSamplingTests extends SamplingTestsInFpm {
     }
 
     void disableEndpointRenaming() {
+        flushProfilingData()
         def res = container.execInContainer(
                 'bash', '-c',
                 '''kill -9 `pgrep php-fpm`;
