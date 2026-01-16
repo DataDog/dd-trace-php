@@ -17,8 +17,6 @@ x();
 
 ?>
 --EXPECTF--
-[ddtrace] [debug] Sidecar connection mode: auto (trying subprocess first)
-[ddtrace] [debug] Connected to sidecar via subprocess
 [ddtrace] [warning] UnwindExit thrown in ddtrace's closure defined at %s:%d for x(): <exit> in Unknown on line 0
 [ddtrace] [span] Encoding span: Span { service: die_in_sandbox.php, name: die_in_sandbox.php, resource: die_in_sandbox.php, type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
 [ddtrace] [span] Encoding span: Span { service: die_in_sandbox.php, name: x, resource: x, type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }

@@ -24,8 +24,6 @@ $span->onClose = [
 
 ?>
 --EXPECTF--
-[ddtrace] [debug] Sidecar connection mode: auto (trying subprocess first)
-[ddtrace] [debug] Connected to sidecar via subprocess
 Second
 First
 [ddtrace] [span] Encoding span: Span { service: %s, name: root span, resource: root span, type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
