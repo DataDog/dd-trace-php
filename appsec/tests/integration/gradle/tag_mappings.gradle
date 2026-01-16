@@ -82,7 +82,7 @@ ext.tag_mappings = [
     'nginx-fpm-php-7.2-release-zts': 'sha256:40b1171928cb1a8be69c3f571d6bdd57ab22f8ef6cf88fe34e3c68971fdd4ad9',
     'nginx-fpm-php-7.1-release-zts': 'sha256:eb5e55128f9e91e93a9d4cd918777eceb163a88343db1d2679b73e0463769ce4',
     'nginx-fpm-php-7.0-release-zts': 'sha256:e2ae077387dc8af90ea4722df2558cbc90a76f04c01b65ed064151493e56ef81',
-    'php-deps': 'sha256:ba5c6d1cfeb82a7552ba57d24cca1c905c72b170e71f730c752f7b8bed35d82c',
+    'php-deps': 'sha256:b9601fa1937c745403f65a0f4919acf3883b812b843c0b7cd8e0ae817f217a52',
     'nginx-fpm-php-7.1-release': 'sha256:e7e42bb9410aee145bae2827a4d242e17dcd692ec8a4486bc5712788c4b3005c',
     'nginx-fpm-php-7.2-debug': 'sha256:20e284b3936a45547a60d7090d40aa1e57caea85fbc8ada666a97a959a863a0b',
     'apache2-mod-php-7.4-debug': 'sha256:2b76e1949737fd52ebea0227099b5a6821ea675008ea9091d8d8274ab8c47873',

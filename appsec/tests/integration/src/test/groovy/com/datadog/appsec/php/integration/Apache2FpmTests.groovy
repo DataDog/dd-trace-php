@@ -79,6 +79,7 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallba
     }
 
     void setRateLimit(String limit) {
+        flushProfilingData()
         def res = container.execInContainer(
                 'bash', '-c',
                 """kill -9 `pgrep php-fpm`;
@@ -88,6 +89,7 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallba
     }
 
     private void resetFpm() {
+        flushProfilingData()
         container.execInContainer(
                 'bash', '-c',
                 '''kill -9 `pgrep php-fpm`;
