@@ -102,6 +102,10 @@ jobs:
           export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte/test.pprof
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
           php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
+          mkdir -p profiling/tests/correctness/allocations_1byte_no_zend_alloc/
+          export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocations_1byte_no_zend_alloc/test.pprof
+          export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
+          USE_ZEND_ALLOC=0 php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run allocation_time_combined test (PHP 8.4+)
@@ -150,6 +154,12 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/allocations.json
           pprof_path: profiling/tests/correctness/allocations_1byte/
+
+      - name: Check profiler correctness for allocations with 1 byte sampling distance and `USE_ZEND_ALLOC=0`
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/allocations.json
+          pprof_path: profiling/tests/correctness/allocations_1byte_no_zend_alloc/
 
       - name: Check profiler correctness for time
         uses: Datadog/prof-correctness/analyze@main

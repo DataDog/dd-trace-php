@@ -3,17 +3,18 @@
 //! performance sensitive. It is encapsulated so that some unsafe techniques
 //! can be used but expose a relatively safe API.
 
-use super::AllocationProfilingStats;
+use super::{AllocationProfilingStats, ALLOCATION_PROFILING_INTERVAL};
 use libc::size_t;
 use std::mem::MaybeUninit;
-
-#[cfg(php_zts)]
-use std::cell::UnsafeCell;
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use super::allocation_ge84;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 use super::allocation_le83;
+#[cfg(php_zts)]
+use std::cell::UnsafeCell;
+use std::num::NonZeroU64;
+use std::sync::atomic::Ordering;
 
 #[cfg(php_zts)]
 thread_local! {
@@ -107,12 +108,15 @@ pub fn allocation_profiling_stats_should_collect(len: size_t) -> bool {
 /// Must be called once per PHP thread ginit.
 pub unsafe fn ginit() {
     // SAFETY:
-    //  1. During ginit, there will not be any other borrows.
-    //  2. This closure will not make new borrows.
+    //  1. During ginit, there will not be any other borrows to stats.
+    //  2. This closure will not make new borrows to stats.
     //  3. This is not during the thread-local destructor.
     unsafe {
         allocation_profiling_stats_mut(|uninit| {
-            uninit.write(AllocationProfilingStats::new());
+            let interval = ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed);
+            // SAFETY: ALLOCATION_PROFILING_INTERVAL must always be > 0.
+            let nonzero = NonZeroU64::new_unchecked(interval);
+            uninit.write(AllocationProfilingStats::new(nonzero));
         })
     };
 
@@ -122,15 +126,33 @@ pub unsafe fn ginit() {
     allocation_ge84::alloc_prof_ginit();
 }
 
+/// Initializes the allocation profiler's globals with the provided sampling
+/// distance.
+///
+/// # Safety
+///
+/// Must be called once per PHP thread minit, unless the allocation profiling
+/// is disabled, in which case it can be skipped.
+pub unsafe fn minit(sampling_distance: NonZeroU64) {
+    // SAFETY:
+    //  1. During minit, there will not be any other borrows.
+    //  2. This closure will not make new borrows.
+    //  3. This is not during the thread-local destructor.
+    unsafe {
+        allocation_profiling_stats_mut(|uninit| {
+            // SAFETY: previously initialized in ginit, we're just
+            // re-initializing it because we now have config
+            *uninit.assume_init_mut() = AllocationProfilingStats::new(sampling_distance);
+        })
+    };
+}
+
 /// Shuts down the allocation profiler's globals.
 ///
 /// # Safety
 ///
 /// Must be called once per PHP thread gshutdown.
 pub unsafe fn gshutdown() {
-    #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_gshutdown();
-
     // SAFETY:
     //  1. During gshutdown, there will not be any other borrows.
     //  2. This closure will not make new borrows.

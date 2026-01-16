@@ -17,10 +17,12 @@ datadog.trace.agent_test_session_token=background-sender/agent_samplingc
 include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
+$rr->maxIteration = 2000;
 
 $picked = 0;
 $notPicked = 0;
-for ($i = 0; $i < 5; $i++)
+$maxIterations = 10;
+for ($i = 0; $i < $maxIterations; $i++)
 {
     //Do call and get sampling
     \DDTrace\start_span();
