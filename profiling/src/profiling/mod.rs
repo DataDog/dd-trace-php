@@ -1443,15 +1443,11 @@ impl Profiler {
     /// Gets a timestamp for timeline profiling if timeline is enabled.
     /// Returns NO_TIMESTAMP if timeline is disabled or if getting the time fails.
     fn get_timeline_timestamp(&self) -> i64 {
-        if self.is_timeline_enabled() {
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .ok()
-                .map(|now| now.as_nanos() as i64)
-                .unwrap_or(NO_TIMESTAMP)
-        } else {
-            NO_TIMESTAMP
-        }
+        self.is_timeline_enabled()
+            .then(|| SystemTime::now().duration_since(UNIX_EPOCH).ok())
+            .flatten()
+            .map(|now| now.as_nanos() as i64)
+            .unwrap_or(NO_TIMESTAMP)
     }
 
     /// Creates the common message labels for all samples.
