@@ -176,17 +176,13 @@ fn frameless_opline_or_prev(execute_data: &zend_execute_data) -> Option<&zend_op
             | ZEND_FRAMELESS_ICALL_2
             | ZEND_FRAMELESS_ICALL_3
     ) {
-        // Best-effort decode of the frameless function name for debugging.
-        let flf_name = unsafe {
-            let func = &**zend_flf_functions.offset(opline.extended_value as isize);
-            extract_function_name(func).unwrap_or_else(|| Cow::Borrowed("<no name>"))
-        };
         // Debug aid: crash hard when we observe a frameless icall as the current opline.
         // If this never triggers in CI, then allocation sampling is not observing the
         // frameless opcode as the current execute_data->opline at sample time.
         panic!(
-            "Observed FRAMELESS_ICALL opcode ({}) as current opline at execute_data={execute_data:p} opline={:p} extended_value={} flf_func={flf_name}",
+            "Observed FRAMELESS_ICALL opcode ({}) as current opline at execute_data={:p} opline={:p} extended_value={}",
             opline.opcode as u32,
+            execute_data,
             execute_data.opline,
             opline.extended_value
         );
@@ -227,8 +223,10 @@ fn frameless_opline_or_prev(execute_data: &zend_execute_data) -> Option<&zend_op
             // This is intended to prove whether allocation sampling ever sees the OP_DATA
             // adjacency case in CI.
             panic!(
-                "Observed OP_DATA ({ZEND_OP_DATA}) with preceding FRAMELESS_ICALL opcode ({}) at execute_data={execute_data:p} opline={:p} prev_opline={:p}",
+                "Observed OP_DATA ({}) with preceding FRAMELESS_ICALL opcode ({}) at execute_data={:p} opline={:p} prev_opline={:p}",
+                ZEND_OP_DATA,
                 prev.opcode as u32,
+                execute_data,
                 execute_data.opline,
                 prev_ptr
             );
