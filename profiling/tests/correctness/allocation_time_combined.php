@@ -15,9 +15,10 @@ function main() {
 
     while (microtime(true) < $end) {
         // str_replace is frameless in PHP 8.4+ and allocates a new string
-        $s = str_repeat("x", 10_000_000); // 10MB source
-        $result = str_replace("x", "y", $s); // 10MB allocation in frameless function
-        strlen($result); // Use the result to prevent optimization
+        $xs = str_repeat("x", 10_000_000); // 10MB source
+        $ys = str_replace("x", "y", $xs); // 10MB allocation in frameless function
+        $zs = str_replace("y", "z", $ys); // 10MB allocation in frameless function
+        strlen($zs); // Use the result to prevent optimization
     }
 }
 
