@@ -10,7 +10,6 @@ use crate::bindings::zend_flf_functions;
 #[cfg(php_frameless)]
 use crate::bindings::{
     ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
-    ZEND_OP_DATA,
 };
 
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
@@ -155,66 +154,6 @@ unsafe fn extract_file_and_line(
             (Some(file), lineno)
         }
         _ => (None, 0),
-    }
-}
-
-/// Returns the opline for frameless-call detection.
-///
-/// For frameless calls like `FRAMELESS_ICALL_3`, PHP uses a trailing `OP_DATA`
-/// instruction to carry the additional argument(s). In practice, sampling may
-/// observe either the `FRAMELESS_ICALL_*` or the adjacent `OP_DATA` as the
-/// current opline. If we see `OP_DATA`, we conservatively peek one opline
-/// earlier and treat it as the callsite iff it's a frameless icall.
-#[cfg(php_frameless)]
-#[inline]
-fn frameless_opline_or_prev(execute_data: &zend_execute_data) -> Option<&zend_op> {
-    let opline = safely_get_opline(execute_data)?;
-    if opline.opcode as u32 != ZEND_OP_DATA {
-        return Some(opline);
-    }
-
-    let func = unsafe { execute_data.func.as_ref()? };
-    let op_array = func.op_array()?;
-
-    let opcodes_start = op_array.opcodes;
-    if opcodes_start.is_null() || execute_data.opline.is_null() {
-        return None;
-    }
-
-    let begin = opcodes_start as usize;
-    let cur = execute_data.opline as usize;
-    let op_size = core::mem::size_of::<zend_op>();
-    if cur < begin + op_size {
-        return Some(opline);
-    }
-
-    // SAFETY: we validated bounds and only move by one opcode.
-    let prev_ptr = unsafe { execute_data.opline.sub(1) };
-    if !opline_in_bounds(op_array, prev_ptr) {
-        return Some(opline);
-    }
-
-    // SAFETY: prev_ptr is in bounds of op_array opcodes.
-    let prev = unsafe { &*prev_ptr };
-    match prev.opcode as u32 {
-        ZEND_FRAMELESS_ICALL_0
-        | ZEND_FRAMELESS_ICALL_1
-        | ZEND_FRAMELESS_ICALL_2
-        | ZEND_FRAMELESS_ICALL_3 => {
-            // Debug aid: crash hard when we observe OP_DATA with a preceding frameless icall.
-            // This is intended to prove whether allocation sampling ever sees the OP_DATA
-            // adjacency case in CI.
-            panic!(
-                "Observed OP_DATA ({}) with preceding FRAMELESS_ICALL opcode ({}) at execute_data={:p} opline={:p} prev_opline={:p}",
-                ZEND_OP_DATA,
-                prev.opcode as u32,
-                execute_data,
-                execute_data.opline,
-                prev_ptr
-            );
-            Some(prev)
-        }
-        _ => Some(opline),
     }
 }
 
@@ -367,7 +306,7 @@ mod detail {
                 // we can check for null.
                 #[cfg(php_frameless)]
                 if !func.is_internal() {
-                    if let Some(opline) = frameless_opline_or_prev(execute_data) {
+                    if let Some(opline) = safely_get_opline(execute_data) {
                         match opline.opcode as u32 {
                             ZEND_FRAMELESS_ICALL_0
                             | ZEND_FRAMELESS_ICALL_1
