@@ -44,5 +44,5 @@ $str = \str_repeat('a', 87);
 Done.
 --EXPECTREGEX--
 .* Memory allocation profiling initialized with a sampling distance of 1 bytes.*
-.* Sent stack sample of [0-9]* frames, .* labels, 11[2,9] bytes allocated, 1 allocations, and .* time interrupts to profiler.*
+.* Sent stack sample with leaf frame .* of [0-9]* frames, .* labels, 11[2,9] bytes allocated, 1 allocations, and .* time interrupts to profiler.*
 .*Done\..*
