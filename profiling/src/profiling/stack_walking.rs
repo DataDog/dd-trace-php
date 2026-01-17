@@ -169,24 +169,6 @@ unsafe fn extract_file_and_line(
 #[inline]
 fn frameless_opline_or_prev(execute_data: &zend_execute_data) -> Option<&zend_op> {
     let opline = safely_get_opline(execute_data)?;
-    if matches!(
-        opline.opcode as u32,
-        ZEND_FRAMELESS_ICALL_0
-            | ZEND_FRAMELESS_ICALL_1
-            | ZEND_FRAMELESS_ICALL_2
-            | ZEND_FRAMELESS_ICALL_3
-    ) {
-        // Debug aid: crash hard when we observe a frameless icall as the current opline.
-        // If this never triggers in CI, then allocation sampling is not observing the
-        // frameless opcode as the current execute_data->opline at sample time.
-        panic!(
-            "Observed FRAMELESS_ICALL opcode ({}) as current opline at execute_data={:p} opline={:p} extended_value={}",
-            opline.opcode as u32,
-            execute_data,
-            execute_data.opline,
-            opline.extended_value
-        );
-    }
     if opline.opcode as u32 != ZEND_OP_DATA {
         return Some(opline);
     }
@@ -230,6 +212,7 @@ fn frameless_opline_or_prev(execute_data: &zend_execute_data) -> Option<&zend_op
                 execute_data.opline,
                 prev_ptr
             );
+            Some(prev)
         }
         _ => Some(opline),
     }
