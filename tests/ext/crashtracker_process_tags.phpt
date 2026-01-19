@@ -63,8 +63,6 @@ $rr->waitForRequest(function ($request) {
             "library_name": "dd-trace-php",
             "library_version": "%s",
             "family": "php",
-            "tags": [
-                "php.opcache.enable:0",
-                "process_tags:entrypoint.name:standard_input_code,entrypoint.type:script,entrypoint.workdir:app,runtime.sapi:cli",
-%A
+            "tags": [%A
+                "process_tags:entrypoint.name:standard_input_code,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli"%A
 }%A

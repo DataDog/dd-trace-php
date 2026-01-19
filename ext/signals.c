@@ -21,7 +21,6 @@
 #include "ext/version.h"
 #include <components/log/log.h>
 #include "logging.h"
-#include "process_tags.h"
 #undef ddtrace_bgs_logf
 
 #include <components-rs/common.h>
@@ -263,19 +262,6 @@ static void dd_init_crashtracker() {
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
     dd_crasht_add_opcache_inis(&tags);
-
-    // Add process_tags if available
-    zend_string *process_tags_serialized = ddtrace_process_tags_get_serialized();
-    if (process_tags_serialized) {
-        dd_crasht_push_tag(
-            &tags,
-            DDOG_CHARSLICE_C("process_tags"),
-            (ddog_CharSlice) {
-                .ptr = ZSTR_VAL(process_tags_serialized),
-                .len = ZSTR_LEN(process_tags_serialized)
-            }
-        );
-    }
 
     const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
 
