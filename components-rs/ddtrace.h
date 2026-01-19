@@ -239,4 +239,8 @@ void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
 
+const char *ddog_normalize_process_tag_value(ddog_CharSlice val);
+
+void ddog_free_normalized_tag_value(const char* normalized_val);
+
 #endif  /* DDTRACE_PHP_H */
