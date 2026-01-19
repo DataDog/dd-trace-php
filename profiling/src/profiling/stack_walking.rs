@@ -528,14 +528,20 @@ mod detail {
 
 pub use detail::*;
 
-// todo: this should be feature = "stack_walking_tests" but it seemed to
-//       cause a failure in CI to migrate it.
-#[cfg(all(test, stack_walking_tests))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::bindings as zend;
 
+    extern "C" {
+        fn ddog_php_test_create_fake_zend_function_with_name_len(
+            len: libc::size_t,
+        ) -> *mut zend::zend_function;
+        fn ddog_php_test_free_fake_zend_function(func: *mut zend::zend_function);
+    }
+
     #[test]
+    #[cfg(stack_walking_tests)]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
@@ -558,6 +564,59 @@ mod tests {
 
             // Free the allocated memory
             zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_short_string() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(10);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name, "xxxxxxxxxx");
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_at_limit_minus_one() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT - 1);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name.len(), STR_LEN_LIMIT - 1);
+            assert_ne!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_at_limit() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should return large string marker");
+            assert_eq!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_over_limit() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT + 1000);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should return large string marker");
+            assert_eq!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
         }
     }
 }
