@@ -26,7 +26,7 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
     /**
      * @var WebServer|null
      */
-    private static $appServer;
+    protected static $appServer;
     protected $checkWebserverErrors = true;
     protected $cookiesFile;
     protected $maintainSession = false;
