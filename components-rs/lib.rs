@@ -132,3 +132,54 @@ pub unsafe extern "C" fn posix_spawn_file_actions_addchdir_np(
         -libc::ENOSYS
     }
 }
+
+const MAX_TAG_VALUE_LENGTH: usize = 100;
+
+#[no_mangle]
+pub extern "C" fn ddog_normalize_process_tag_value(
+    tag_value: CharSlice,
+) -> *const c_char {
+    let value = tag_value.to_utf8_lossy();
+
+    let mut out = String::new();
+    let mut prev_underscore = false;
+    let mut started = false;
+    for c in value.chars().take(MAX_TAG_VALUE_LENGTH) {
+        if c.is_alphanumeric() || matches!(c, '/' | '.' | '-') {
+            for lc in c.to_lowercase() {
+                out.push(lc);
+            }
+            started = true;
+            prev_underscore = false;
+        } else {
+            if started && !prev_underscore {
+                out.push('_');
+                prev_underscore = true;
+            }
+        }
+    }
+
+    // trim trailing underscores
+    if out.ends_with('_') {
+        out.pop();
+    }
+
+    match std::ffi::CString::new(out) {
+        Ok(c_string) => {
+            let out_ptr = c_string.as_ptr();
+            std::mem::forget(c_string);
+            out_ptr
+        }
+        Err(_) => std::ptr::null(),
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
+    if ptr.is_null() {
+        return;
+    }
+    unsafe {
+        drop(std::ffi::CString::from_raw(ptr as *mut c_char));
+    }
+}

@@ -227,6 +227,10 @@ pub struct Profiler {
     uploader_handle: JoinHandle<()>,
     should_join: AtomicBool,
     sample_types_filter: SampleTypeFilter,
+
+    /// An atomic pointer is used to make this Send and Sync, not because we
+    /// need the atomicity specifically. Don't modify the SystemSettings
+    /// through this pointer.
     system_settings: AtomicPtr<SystemSettings>,
 }
 
@@ -654,7 +658,7 @@ const DDPROF_UPLOAD: &str = "ddprof_upload";
 
 impl Profiler {
     /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
-    pub fn init(system_settings: &mut SystemSettings) {
+    pub fn init(system_settings: &SystemSettings) {
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
         //minit/mshutdown.
@@ -668,7 +672,7 @@ impl Profiler {
         unsafe { (*ptr::addr_of!(PROFILER)).get() }
     }
 
-    pub fn new(system_settings: &mut SystemSettings) -> Self {
+    pub fn new(system_settings: &SystemSettings) -> Self {
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
@@ -705,7 +709,7 @@ impl Profiler {
             }),
             should_join: AtomicBool::new(true),
             sample_types_filter,
-            system_settings: AtomicPtr::new(system_settings),
+            system_settings: AtomicPtr::new(system_settings as *const _ as *mut _),
         }
     }
 
@@ -887,6 +891,17 @@ impl Profiler {
         }
     }
 
+    /// Returns true if the timeline sample type is enabled.
+    #[inline]
+    fn is_timeline_enabled(&self) -> bool {
+        // Relaxed is fine, atomicity used for Send/Sync, this pointer is not
+        // used for syncronization, no happens-before relationship is needed.
+        let system_settings = self.system_settings.load(Ordering::Relaxed);
+
+        // SAFETY: system settings are valid while the Profiler is alive.
+        unsafe { (*system_settings).profiling_timeline_enabled }
+    }
+
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
@@ -904,9 +919,7 @@ impl Profiler {
 
                 let mut timestamp = NO_TIMESTAMP;
                 {
-                    let system_settings = self.system_settings.load(Ordering::SeqCst);
-                    // SAFETY: system settings are stable during a request.
-                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                    if self.is_timeline_enabled() {
                         if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                             timestamp = now.as_nanos() as i64;
                         }
@@ -1007,9 +1020,7 @@ impl Profiler {
 
                 let mut timestamp = NO_TIMESTAMP;
                 {
-                    let system_settings = self.system_settings.load(Ordering::SeqCst);
-                    // SAFETY: system settings are stable during a request.
-                    if unsafe { *ptr::addr_of!((*system_settings).profiling_timeline_enabled) } {
+                    if self.is_timeline_enabled() {
                         if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
                             timestamp = now.as_nanos() as i64;
                         }
@@ -1527,6 +1538,7 @@ pub struct JoinError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::SystemSettingsState;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
@@ -1541,12 +1553,13 @@ mod tests {
 
     pub fn get_system_settings() -> SystemSettings {
         SystemSettings {
+            state: SystemSettingsState::ConfigAware,
             profiling_enabled: true,
             profiling_experimental_features_enabled: false,
             profiling_endpoint_collection_enabled: false,
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
-            profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL as u32,
+            profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
@@ -1598,7 +1611,7 @@ mod tests {
         settings.profiling_experimental_cpu_time_enabled = true;
         settings.profiling_timeline_enabled = true;
 
-        let profiler = Profiler::new(&mut settings);
+        let profiler = Profiler::new(&settings);
 
         let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
 
