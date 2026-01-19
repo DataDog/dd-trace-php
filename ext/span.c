@@ -25,7 +25,6 @@
 #include "standalone_limiter.h"
 #include "code_origins.h"
 #include "endpoint_guessing.h"
-#include "process_tags.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -1114,14 +1113,7 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown
                 do {
                     ddtrace_span_data *tmp = span;
                     span = tmp->next;
-                    bool is_first_span = (ddog_get_trace_size(trace) == 0);
-                    ddog_SpanBytes *rust_span = ddtrace_serialize_span_to_rust_span(tmp, trace);
-                    if (is_first_span) {
-                        zend_string *process_tags = ddtrace_process_tags_get_serialized();
-                        if (process_tags) {
-                            ddog_add_str_span_meta_zstr(rust_span, "_dd.process_tags", process_tags);
-                        }
-                    }
+                    ddtrace_serialize_span_to_rust_span(tmp, trace);
 #if PHP_VERSION_ID < 70400
                     // remove the artificially increased RC while closing again
                     GC_SET_REFCOUNT(&tmp->std, GC_REFCOUNT(&tmp->std) - DD_RC_CLOSED_MARKER);
