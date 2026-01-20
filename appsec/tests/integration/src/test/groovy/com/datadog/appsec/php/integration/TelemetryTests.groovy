@@ -95,14 +95,16 @@ class TelemetryTests {
         TelemetryHelpers.Metric wafInit
         TelemetryHelpers.Metric wafReq1
         TelemetryHelpers.Metric wafReq2
+        TelemetryHelpers.Metric connSuccess
 
         waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
             wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
             wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
+            connSuccess = allSeries.find { it.name == 'helper.connection_success' }
 
-            wafInit && wafReq1 && wafReq2
+            wafInit && wafReq1 && wafReq2 && connSuccess
         }
 
         assert wafInit != null
@@ -123,6 +125,12 @@ class TelemetryTests {
         assert wafReq2 != null
         assert 'rule_triggered:true' in wafReq2.tags
         assert wafReq2.points[0][1] >= 1.0
+
+        assert connSuccess != null
+        assert connSuccess.namespace == 'appsec'
+        assert connSuccess.points[0][1] >= 1.0
+        assert connSuccess.tags.find { it.startsWith('runtime_path:') } != null
+        assert connSuccess.type == 'count'
     }
 
     @Test

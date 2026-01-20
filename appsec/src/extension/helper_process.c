@@ -152,13 +152,13 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
 
     _mgr.connected_this_req = true;
     _release_shared_state_lock(&_mgr.hss);
-    dd_telemetry_helper_conn_success(_mgr.socket_path);
+    dd_telemetry_helper_conn_success();
 
     return conn;
 
 error:
     _inc_failed_counter(&_mgr.hss);
-    dd_telemetry_helper_conn_error(_mgr.socket_path);
+    dd_telemetry_helper_conn_error();
     return NULL;
 }
 
@@ -265,7 +265,7 @@ void dd_helper_close_conn(void)
         mlog_err(dd_log_warning, "Error closing connection to helper");
     }
 
-    dd_telemetry_helper_conn_close(_mgr.socket_path);
+    dd_telemetry_helper_conn_close();
 
     /* we treat closing the connection on the request it was opened a failure
      * for the purposes of the connection backoff */
