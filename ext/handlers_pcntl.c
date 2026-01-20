@@ -38,14 +38,6 @@ static void dd_prefork() {
 static void dd_handle_fork(zval *return_value) {
     if (Z_LVAL_P(return_value) == 0) {
         // CHILD PROCESS
-
-        // Warn if thread mode is active
-        if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
-            LOG(WARN, "pcntl_fork() detected with thread-based sidecar connection. "
-                      "Thread mode is incompatible with fork and may cause instability. "
-                      "Consider using subprocess mode (DD_TRACE_SIDECAR_CONNECTION_MODE=subprocess).");
-        }
-
         dd_internal_handle_fork();
     } else {
 #if JOIN_BGS_BEFORE_FORK
