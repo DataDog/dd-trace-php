@@ -7,14 +7,22 @@
       "stack-content": [
         {
           "regular_expression": "<?php;main;a;standard\\|str_repeat$",
-          "percent": 66,
-          "value": 1248240336,
+          "percent": 33,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;a;standard\\|str_replace$",
+          "percent": 33,
           "error_margin": 5
         },
         {
           "regular_expression": "<?php;main;b;standard\\|str_repeat$",
-          "percent": 33,
-          "value": 613620616,
+          "percent": 16,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;b;standard\\|str_replace$",
+          "percent": 16,
           "error_margin": 5
         }
       ]
@@ -24,12 +32,22 @@
       "stack-content": [
         {
           "regular_expression": "<?php;main;a;standard\\|str_repeat$",
-          "percent": 50,
+          "percent": 25,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;a;standard\\|str_replace$",
+          "percent": 25,
           "error_margin": 5
         },
         {
           "regular_expression": "<?php;main;b;standard\\|str_repeat$",
-          "percent": 50,
+          "percent": 25,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;b;standard\\|str_replace$",
+          "percent": 25,
           "error_margin": 5
         }
       ]
