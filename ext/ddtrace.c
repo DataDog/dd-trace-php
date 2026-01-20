@@ -2678,9 +2678,17 @@ void dd_internal_handle_fork(void) {
         ddtrace_ffi_try("Failed clearing inherited listener state",
                         ddog_sidecar_clear_inherited_listener());
 
-        // Don't try to reconnect in thread mode after fork
-        // Let sidecar stay unavailable
-        LOG(WARN, "Child process after fork with thread mode: sidecar unavailable");
+        // Attempt to reconnect child to parent's master listener
+        bool appsec_activation = false;
+        bool appsec_config = false;
+        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
+        if (!enable_sidecar) {
+            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
+        }
+
+        if (enable_sidecar && !ddtrace_sidecar_reconnect_after_fork(appsec_activation, appsec_config)) {
+            LOG(WARN, "Child process after fork with thread mode: failed to reconnect to parent's listener");
+        }
     }
 #endif
     if (DDTRACE_G(agent_config_reader)) {
@@ -2697,7 +2705,11 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar();
+    // Thread mode already handled sidecar reconnection above (lines 2648-2664)
+    // Only reset for subprocess mode
+    if (ddtrace_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD) {
+        ddtrace_reset_sidecar();
+    }
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }

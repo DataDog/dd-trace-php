@@ -140,7 +140,7 @@ void ddtrace_sidecar_update_process_tags(void) {
 }
 
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork);
-static ddog_SidecarTransport *dd_sidecar_connection_factory_ex_non_fork(void);
+static ddog_SidecarTransport *dd_sidecar_connection_factory_thread(void);
 static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_config);
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
@@ -261,14 +261,15 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
 
     dd_sidecar_post_connect(&sidecar_transport, is_fork, logpath);
 
-    ddtrace_sidecar_reconnect(&sidecar_transport, dd_sidecar_connection_factory_ex_non_fork);
+    ddtrace_sidecar_reconnect(&sidecar_transport, dd_sidecar_connection_factory_thread);
 
     ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
 
     return sidecar_transport;
 }
 
-static ddog_SidecarTransport *dd_sidecar_connection_factory_ex_non_fork(void) {
+// Connection factory for thread mode - connects as worker to master listener
+static ddog_SidecarTransport *dd_sidecar_connection_factory_thread(void) {
     return dd_sidecar_connection_factory_ex(false);
 }
 
@@ -307,7 +308,7 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
         dd_sidecar_post_connect(&sidecar_transport, false, logpath);
         ddtrace_sidecar = sidecar_transport;
 
-        ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_ex_non_fork);
+        ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_thread);
 
         ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
 
@@ -354,7 +355,7 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
     dd_sidecar_post_connect(&sidecar_transport, false, logpath);
     ddtrace_sidecar = sidecar_transport;
 
-    ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_ex_non_fork);
+    ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_thread);
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddtrace_telemetry_first_init();
@@ -368,10 +369,8 @@ ddog_SidecarTransport *ddtrace_sidecar_connect_thread(void) {
 }
 
 ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
-    if (is_fork && ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
-        LOG(WARN, "Thread mode sidecar cannot be reset after fork, sidecar unavailable");
-        return NULL;
-    }
+    // Thread mode fork is handled by ddtrace_sidecar_reconnect_after_fork() in ddtrace.c
+    // This function is only used for subprocess mode or initial connections
 
     if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
         return ddtrace_sidecar_connect_subprocess();
@@ -495,6 +494,57 @@ void ddtrace_sidecar_minit(void) {
         ddtrace_ffi_try("Starting sidecar master listener in MINIT",
                        ddog_sidecar_connect_master(ddtrace_sidecar_master_pid));
     }
+#endif
+}
+
+// Reconnect to parent's master listener after fork in thread mode
+bool ddtrace_sidecar_reconnect_after_fork(bool appsec_activation, bool appsec_config) {
+#ifndef _WIN32
+    // Check if there's a master listener available to connect to
+    if (!ddog_sidecar_is_master_listener_active(ddtrace_sidecar_master_pid)) {
+        return false;
+    }
+
+    // Set up endpoints and configuration
+    ddtrace_set_non_resettable_sidecar_globals();
+    ddtrace_set_resettable_sidecar_globals();
+
+    ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
+
+    if (!ddtrace_endpoint) {
+        LOG(WARN, "Cannot reconnect to sidecar after fork: endpoint not available");
+        return false;
+    }
+
+    // Attempt to connect as a worker to parent's listener
+    ddog_SidecarTransport *sidecar_transport = NULL;
+    if (!ddtrace_ffi_try("Failed connecting child to parent's sidecar listener after fork",
+            ddog_sidecar_connect_worker(ddtrace_sidecar_master_pid, &sidecar_transport))) {
+        LOG(WARN, "Failed to connect child to parent's sidecar listener (child PID=%d, parent=%d)",
+            (int32_t)getpid(), ddtrace_sidecar_master_pid);
+        return false;
+    }
+
+    // Set up the connection
+    char logpath[MAXPATHLEN];
+    int error_fd = atomic_load(&ddtrace_error_log_fd);
+    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
+        *logpath = 0;
+    }
+
+    dd_sidecar_post_connect(&sidecar_transport, true, logpath);  // is_fork=true: this IS a fork scenario
+    ddtrace_sidecar = sidecar_transport;
+
+    ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_thread);
+
+    ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
+
+    LOG(INFO, "Child process reconnected to parent's sidecar listener after fork (child PID=%d, parent=%d)",
+        (int32_t)getpid(), ddtrace_sidecar_master_pid);
+
+    return true;
+#else
+    return false;
 #endif
 }
 
