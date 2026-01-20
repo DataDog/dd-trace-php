@@ -494,12 +494,14 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     env: CharSlice,
     version: CharSlice,
     tags: &libdd_common_ffi::Vec<Tag>,
+    process_tags: &libdd_common_ffi::Vec<Tag>,
 ) -> bool {
     let new_target = Target {
         service: service.to_utf8_lossy().to_string(),
         env: env.to_utf8_lossy().to_string(),
         app_version: version.to_utf8_lossy().to_string(),
         tags: tags.as_slice().to_vec(),
+        process_tags: process_tags.as_slice().to_vec(),
     };
 
     if let Some(target) = remote_config.manager.get_target() {

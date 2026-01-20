@@ -515,9 +515,11 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
     }
     ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(version_string);
 
+    const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
+
     bool changed = true;
     if (DDTRACE_G(remote_config_state)) {
-        changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags));
+        changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags), process_tags);
         if (!changed && root) {
             // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
             // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.

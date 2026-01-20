@@ -80,7 +80,8 @@ bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remot
                                             ddog_CharSlice service,
                                             ddog_CharSlice env,
                                             ddog_CharSlice version,
-                                            const struct ddog_Vec_Tag *tags);
+                                            const struct ddog_Vec_Tag *tags,
+                                            const struct ddog_Vec_Tag *process_tags);
 
 bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
                                              ddog_CharSlice config,
