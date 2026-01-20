@@ -257,6 +257,17 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .blocklist_item("zend_result")
         .blocklist_item("zend_register_extension")
         .blocklist_item("_zend_string")
+        // Block typedefs that use __attribute__((preserve_none)) calling convention.
+        // PHP 8.5.1+ on macOS enables TAILCALL VM when compiled with Clang 18+,
+        // which uses preserve_none for opcode handlers. Bindgen doesn't support
+        // CXCallingConv_PreserveNone (CC 20) and panics. We use opaque pointers
+        // instead of the actual function signatures because: 1) we never call
+        // these opcode handlers from Rust, and 2) Rust cannot express the
+        // preserve_none calling convention anyway.
+        .blocklist_item("zend_vm_opcode_handler_t")
+        .blocklist_item("zend_vm_opcode_handler_func_t")
+        .raw_line("pub type zend_vm_opcode_handler_t = *const ::std::ffi::c_void;")
+        .raw_line("pub type zend_vm_opcode_handler_func_t = *const ::std::ffi::c_void;")
         // Block a few of functions that we'll provide defs for manually
         .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
         // I had to block these for some reason *shrug*

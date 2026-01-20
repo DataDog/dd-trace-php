@@ -68,6 +68,7 @@
 #include "limiter/limiter.h"
 #include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
+#include "process_tags.h"
 #include "random.h"
 #include "autoload_php_files.h"
 #include "remote_config.h"
@@ -1615,6 +1616,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_sidecar_shutdown();
 
     ddtrace_live_debugger_mshutdown();
+    ddtrace_process_tags_mshutdown();
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // See dd_register_span_data_ce for explanation
@@ -1636,6 +1638,11 @@ static void dd_rinit_once(void) {
      * TODO Audit/remove config usages before RINIT and move config init to RINIT.
      */
     ddtrace_startup_logging_first_rinit();
+
+    // Collect process tags now that script path is available
+    if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
+        ddtrace_process_tags_first_rinit();
+    }
 
     // Uses config, cannot run earlier
 #ifndef _WIN32
@@ -2607,6 +2614,26 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
         default:
             LOG_LINE(WARN, "Invalid error type specified: %i", level);
             break;
+    }
+}
+
+PHP_FUNCTION(DDTrace_Testing_normalize_tag_value) {
+    ddtrace_string value;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &value.ptr, &value.len) != SUCCESS) {
+        RETURN_EMPTY_STRING();
+    }
+
+    const char* normalized = ddog_normalize_process_tag_value((ddog_CharSlice){
+        .ptr = value.ptr,
+        .len = value.len
+    });
+
+    if (normalized) {
+        zend_string *result = zend_string_init(normalized, strlen(normalized), 0);
+        ddog_free_normalized_tag_value(normalized);
+        RETURN_STR(result);
+    } else {
+        RETURN_EMPTY_STRING();
     }
 }
 
