@@ -52,6 +52,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 
 ### Fixed
 - Use abstract namespace on linux #3525
+- Fix spurious munmaps in ZTS mode #3590
 
 ### Internal
 - Improvements for appsec libxml2 usage #3564
