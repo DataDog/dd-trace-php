@@ -390,17 +390,66 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
 }
 #endif
 
-#if CFG_STACK_WALKING_TESTS
+#if CFG_STACK_WALKING_TESTS || defined(CFG_TEST)
 static int (*og_snprintf)(char *, size_t, const char *, ...);
 
-// "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
-void *__attribute__((weak)) __zend_malloc(size_t len) {
-    void *tmp = malloc(len);
-    if (EXPECTED(tmp || !len)) {
-        return tmp;
-    }
+static ZEND_COLD ZEND_NORETURN void out_of_memory(void) {
     fprintf(stderr, "Out of memory\n");
     exit(1);
+}
+
+static zend_string *test_zend_string_alloc(size_t len) {
+    // We don't need to handle large strings.
+    if (len > INT32_MAX) {
+        out_of_memory();
+    }
+
+    // zend_string logically has a flexible array member val, but it uses the
+    // so-called "struct hack" instead. So we calculate the number of bytes
+    // needed to get to `val`, then add the `len` plus 1 (for a null byte).
+    uint32_t alloc_len = offsetof(zend_string, val) + len + 1;
+
+    // Need to round up to 8 bytes on 64-bit platforms, won't overflow because
+    // of above large string check.
+    uint32_t rounded = (alloc_len + UINT32_C(7)) & ~UINT32_C(7);
+    zend_string *zs = calloc(rounded, 1);
+    if (!zs) {
+        out_of_memory();
+    }
+
+    // Initialize the refcounted header
+#if PHP_VERSION_ID < 70299
+    GC_REFCOUNT(zs) = 1;
+#else
+    GC_SET_REFCOUNT(zs, 1);
+#endif
+
+#if PHP_VERSION_ID < 70200
+#undef GC_FLAGS_SHIFT
+#define GC_FLAGS_SHIFT 8
+#endif
+
+#if PHP_VERSION_ID < 80000
+#undef GC_STRING
+#define GC_STRING IS_STRING
+#endif
+
+    // IS_STR_PERSISTENT means it's allocated with malloc, not emalloc.
+    GC_TYPE_INFO(zs) = GC_STRING | (IS_STR_PERSISTENT << GC_FLAGS_SHIFT);
+
+    zs->h = 0;
+    zs->len = len;
+    ZSTR_VAL(zs)[len] = '\0';
+
+    return zs;
+}
+
+// Manually create a zend_string without using zend_string_init(), since we
+// do not link against PHP at test time
+static zend_string *test_zend_string_create(const char *str, size_t len) {
+    zend_string *zstr = test_zend_string_alloc(len);
+    memcpy(ZSTR_VAL(zstr), str, len);
+    return zstr;
 }
 
 static zend_execute_data *create_fake_frame(int depth) {
@@ -412,11 +461,11 @@ static zend_execute_data *create_fake_frame(int depth) {
     char buffer[64] = {0};
     int len = og_snprintf(buffer, sizeof buffer, "function name %03d", depth) + 1;
     ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
-    op_array->function_name = zend_string_init(buffer, len - 1, true);
+    op_array->function_name = test_zend_string_create(buffer, len - 1);
 
     len = og_snprintf(buffer, sizeof buffer, "filename-%03d.php", depth) + 1;
     ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
-    op_array->filename = zend_string_init(buffer, len - 1, true);
+    op_array->filename = test_zend_string_create(buffer, len - 1);
 
     return execute_data;
 }
@@ -463,7 +512,29 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 
     free(execute_data);
 }
-#endif
+
+zend_function *ddog_php_test_create_fake_zend_function_with_name_len(size_t len) {
+    zend_op_array *op_array = calloc(1, sizeof(zend_function));
+    if (!op_array) return NULL;
+
+    op_array->type = ZEND_USER_FUNCTION;
+
+    if (len > 0) {
+        zend_string *zstr = test_zend_string_alloc(len);
+        memset(ZSTR_VAL(zstr), 'x', len);
+        op_array->function_name = zstr;
+    }
+
+    return (zend_function *)op_array;
+}
+
+void ddog_php_test_free_fake_zend_function(zend_function *func) {
+    if (!func) return;
+
+    free(func->common.function_name);
+    free(func);
+}
+#endif // CFG_STACK_WALKING_TESTS || CFG_TEST
 
 void *opcache_handle = NULL;
 
