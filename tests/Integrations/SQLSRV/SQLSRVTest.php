@@ -6,6 +6,8 @@ use DDTrace\Integrations\SQLSRV\SQLSRVIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 
 class SQLSRVTest extends IntegrationTestCase
 {
@@ -58,6 +60,7 @@ class SQLSRVTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_DBM_PROPAGATION_MODE',
         ];
     }
 
@@ -321,6 +324,62 @@ class SQLSRVTest extends IntegrationTestCase
                     '_sampling_priority_v1' => 1.0,
                 ])
         ]);
+    }
+
+    public function testPreparedStatementUsesServiceModeForDBM()
+    {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $conn = $this->createConnection();
+            $stmt = sqlsrv_prepare($conn, $query, [1], ['Scrollable' => 'buffered']);
+            sqlsrv_execute($stmt);
+            sqlsrv_close($conn);
+
+            close_span();
+        });
+
+        // Get the raw spans
+        $spans = $traces[0];
+
+        // Find prepare and execute spans
+        $connectSpan = null;
+        $prepareSpan = null;
+        $executeSpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'sqlsrv_connect') {
+                $connectSpan = $span;
+            } elseif ($span['name'] === 'sqlsrv_prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'sqlsrv_execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($connectSpan, 'sqlsrv_connect span should exist');
+        $this->assertNotNull($prepareSpan, 'sqlsrv_prepare span should exist');
+        $this->assertNotNull($executeSpan, 'sqlsrv_execute span should exist');
+
+        // Verify that execute and prepare span are siblings
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'sqlsrv_execute should be a sibling of sqlsrv_prepare'
+        );
+
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
+
+        // Verify that SERVICE mode is used for the prepare span
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['meta'] ?? [],
+            'sqlsrv_prepare should use SERVICE mode'
+        );
     }
 
     public function testExecError()

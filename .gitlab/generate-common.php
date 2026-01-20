@@ -31,12 +31,17 @@ if (getenv('GITLAB_CI') === 'true') {
 
 function unset_dd_runner_env_vars() {
 ?>
-
     # DD env vars auto-added to GitLab runners for infra purposes
     - unset DD_SERVICE
     - unset DD_ENV
     - unset DD_TAGS
     - unset DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+<?php
+}
+
+function dockerhub_login() {
+?>
+    - if command -v docker > /dev/null 2>&1; then .gitlab/dockerhub-login.sh; fi
 <?php
 }
 
@@ -50,7 +55,6 @@ default:
       - runner_system_failure
       - scheduler_failure
       - api_failure
-      - script_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
 
@@ -139,10 +143,27 @@ foreach ($arch_targets as $arch_target) {
       ZOOKEEPER_TICK_TIME: 2000
       ALLOW_ANONYMOUS_LOGIN: "yes"
       ZOOKEEPER_ADMIN_ENABLE_SERVER: "false"
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=srvr,ruok"
 
   kafka:
     name: registry.ddbuild.io/images/mirror/confluentinc/cp-kafka:7.8.0
     alias: kafka-integration
+    entrypoint: ["/bin/bash"]
+    command:
+      - -c
+      - |
+        # Wait for Zookeeper to be ready before starting Kafka
+        echo "Waiting for Zookeeper to be ready..."
+        for i in $(seq 1 30); do
+          if echo "ruok" | nc zookeeper 2181 2>/dev/null | grep -q "imok"; then
+            echo "Zookeeper is ready, starting Kafka..."
+            break
+          fi
+          echo "Waiting for Zookeeper... attempt $i/30"
+          sleep 2
+        done
+        # Start Kafka with original entrypoint
+        exec /etc/confluent/docker/run
     variables:
       KAFKA_BROKER_ID: 111
       KAFKA_CREATE_TOPICS: test-lowlevel:1:1,test-highlevel:1:1

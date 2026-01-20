@@ -5,8 +5,6 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <boost/lexical_cast.hpp>
-#include <chrono>
 #include <optional>
 #include <spdlog/spdlog.h>
 #include <string_view>
@@ -24,6 +22,15 @@ public:
     [[nodiscard]] std::string_view socket_file_path() const
     {
         return kv_.at(env_socket_file_path);
+    }
+
+    [[nodiscard]] bool is_abstract_socket() const
+    {
+        std::string_view const sfp = socket_file_path();
+        if (sfp.empty()) {
+            return false;
+        }
+        return sfp[0] == '@';
     }
 
     [[nodiscard]] std::string_view lock_file_path() const

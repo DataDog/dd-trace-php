@@ -247,6 +247,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     dd_helper_shutdown();
 
     dd_phpobj_shutdown();
+    dd_entity_body_shutdown();
 
     return SUCCESS;
 }

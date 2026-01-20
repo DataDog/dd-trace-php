@@ -904,6 +904,13 @@ namespace DDTrace\Testing {
      * Emits an asm event
      */
     function emit_asm_event(): void {}
+    /**
+     * Normalizes a process tag value
+     *
+     * @param string $value The tag value to normalize
+     * @return string The normalized tag value
+     */
+    function normalize_tag_value(string $value): string {}
 }
 
 namespace DDTrace\Internal {
@@ -939,24 +946,24 @@ namespace DDTrace\Internal {
 
 namespace datadog\appsec\v2 {
     /**
- * Track a user login success event.
- *
- * @param string $login is the data used by the user to authenticate
- * @param string|array $user when string, it represents the user id. When array it represents the user information.
- *  The array should at least contain the following keys:
- * - id: string, Unique identifier of the user. Should be the same id and format used on set_user
- * @param array $metadata User metadata added to the root span
- */
-function track_user_login_success(string $login, string|array|null $user = null, array $metadata = []): void {}
+     * Track a user login success event.
+     *
+     * @param string $login is the data used by the user to authenticate
+     * @param string|array $user when string, it represents the user id. When array it represents the user information.
+     *  The array should at least contain the following keys:
+     * - id: string, Unique identifier of the user. Should be the same id and format used on set_user
+     * @param array $metadata User metadata added to the root span
+     */
+    function track_user_login_success(string $login, string|array|null $user = null, array $metadata = []): void {}
 
-/**
- * Track a user login failure event.
- *
- * @param string $login is the data used by the user to authenticate
- * @param bool $exists Whether the user exists in the system
- * @param array $metadata User metadata added to the root span
- */
-function track_user_login_failure(string $login, bool $exists, array $metadata = []): void {}
+    /**
+     * Track a user login failure event.
+     *
+     * @param string $login is the data used by the user to authenticate
+     * @param bool $exists Whether the user exists in the system
+     * @param array $metadata User metadata added to the root span
+     */
+    function track_user_login_failure(string $login, bool $exists, array $metadata = []): void {}
 }
 
 namespace {

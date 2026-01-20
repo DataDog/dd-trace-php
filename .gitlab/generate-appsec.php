@@ -62,26 +62,13 @@ stages:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
-    - |
-      echo "Logging in to Docker Hub"
-      if [ "$CI_REGISTRY_USER" = "" ]; then
-        echo "Fetching Docker Hub credentials from vault"
-        vaultoutput=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/dockerhub)
-        user=$(echo "$vaultoutput" | jq -r .data.data.user)
-        token=$(echo "$vaultoutput" | jq -r .data.data.token)
-      else
-        user="$CI_REGISTRY_USER"
-        token="$CI_REGISTRY_TOKEN"
-      fi
-
-      echo "Docker Hub user: $user"
-      docker login -u "$user" -p "$token" docker.io
-    - apt update && apt install -y default-jre
+<?php dockerhub_login() ?>
+    - apt update && apt install -y openjdk-17-jre
 
 "test appsec extension":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -141,8 +128,9 @@ stages:
           - test8.5-release-zts
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
+<?php dockerhub_login() ?>
   script:
-    - apt update && apt install -y default-jre
+    - apt update && apt install -y openjdk-17-jre
     - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
     - |
       cd appsec/tests/integration
@@ -154,6 +142,16 @@ stages:
 
       TERM=dumb ./gradlew $targets --info -Pbuildscan --scan
       TERM=dumb ./gradlew saveCaches --info
+  after_script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts"
+    - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \;
+    - .gitlab/upload-junit-to-datadog.sh "test.source.file:appsec"
+  artifacts:
+    reports:
+      junit: "artifacts/**/test-results/**/TEST-*.xml"
+    paths:
+      - "artifacts/"
+    when: "always"
   cache:
     - key: "appsec int test cache"
       paths:
@@ -162,7 +160,7 @@ stages:
 "appsec code coverage":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -265,7 +263,7 @@ stages:
 "appsec lint":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 9Gi
@@ -287,7 +285,7 @@ stages:
 "test appsec helper asan":
   stage: test
   extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -313,7 +311,7 @@ stages:
 #"fuzz appsec helper":
 #  stage: test
 #  extends: .appsec_test
-#  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-5
+#  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6
 #  variables:
 #    KUBERNETES_CPU_REQUEST: 3
 #    KUBERNETES_MEMORY_REQUEST: 5Gi
@@ -358,3 +356,52 @@ stages:
 #  artifacts:
 #    paths:
 #     - appsec/fuzzer-coverage.html
+
+"check libxml2 version":
+  stage: test
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
+  tags: [ "arch:amd64" ]
+  needs: []
+  allow_failure: true
+  variables:
+    GIT_SUBMODULE_STRATEGY: none
+  script:
+    - |
+      python3 - <<'EOF'
+      import urllib.request
+      import json
+      import re
+      import sys
+
+      # Read local version
+      with open("appsec/third_party/libxml2/VERSION") as f:
+          local_version = f.read().strip()
+      print(f"Local libxml2 version: {local_version}")
+
+      # Fetch latest version from GNOME GitLab
+      url = "https://gitlab.gnome.org/api/v4/projects/GNOME%2Flibxml2/repository/tags?per_page=100&order_by=updated&sort=desc"
+      with urllib.request.urlopen(url) as response:
+          tags = json.load(response)
+
+      # Extract version numbers and find the latest
+      versions = []
+      for tag in tags:
+          match = re.match(r"v(\d+\.\d+\.\d+)$", tag["name"])
+          if match:
+              versions.append(match.group(1))
+
+      # Sort by version number
+      versions.sort(key=lambda v: tuple(map(int, v.split("."))))
+      latest_version = versions[-1] if versions else None
+
+      print(f"Latest libxml2 version: {latest_version}")
+
+      if local_version != latest_version:
+          print("ERROR: libxml2 version mismatch!")
+          print(f"Local version:  {local_version}")
+          print(f"Latest version: {latest_version}")
+          print("Please update appsec/third_party/libxml2 to the latest version.")
+          sys.exit(1)
+
+      print("libxml2 version is up to date.")
+      EOF

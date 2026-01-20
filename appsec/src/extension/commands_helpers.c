@@ -11,6 +11,7 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "request_abort.h"
+#include "request_lifecycle.h"
 #include "tags.h"
 #include "telemetry.h"
 #include "user_tracking.h"
@@ -578,13 +579,13 @@ static dd_result _command_process_actions(
             res = dd_should_block;
             _command_process_block_parameters(
                 &ctx->block_params, mpack_node_array_at(action, 1));
-            dd_tags_add_blocked();
+            dd_req_lifecycle_set_blocked();
         } else if (dd_mpack_node_lstr_eq(verdict, "redirect") &&
                    res != dd_should_redirect) {
             res = dd_should_redirect;
             _command_process_redirect_parameters(
                 &ctx->block_params, mpack_node_array_at(action, 1));
-            dd_tags_add_blocked();
+            dd_req_lifecycle_set_blocked();
         } else if (dd_mpack_node_lstr_eq(verdict, "record") &&
                    res == dd_success) {
             res = dd_should_record;

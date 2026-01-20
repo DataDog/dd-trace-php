@@ -154,6 +154,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     HashTable *agent_rate_by_service;
     zend_string *last_service_name;
     zend_string *last_env_name;
+    zend_string *last_version;
     ddog_Vec_Tag active_global_tags;
 
     bool request_initialized;
@@ -179,6 +180,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
 
     HashTable resource_weak_storage;
     dtor_func_t resource_dtor_func;
+
+    HashTable otel_config_telemetry;
 ZEND_END_MODULE_GLOBALS(ddtrace)
 // clang-format on
 

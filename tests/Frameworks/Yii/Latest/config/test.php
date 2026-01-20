@@ -9,7 +9,7 @@ return [
     'id' => 'basic-tests',
     'basePath' => dirname(__DIR__),
     'aliases' => [
-        '@bower' => '@vendor/bower-asset',
+        '@bower' => '@vendor/yidas/yii2-bower-asset/bower',
         '@npm'   => '@vendor/npm-asset',
     ],
     'language' => 'en-US',

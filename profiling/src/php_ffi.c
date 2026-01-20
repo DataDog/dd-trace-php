@@ -390,17 +390,66 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
 }
 #endif
 
-#if CFG_STACK_WALKING_TESTS
+#if CFG_STACK_WALKING_TESTS || defined(CFG_TEST)
 static int (*og_snprintf)(char *, size_t, const char *, ...);
 
-// "weak" let's us polyfill, needed by zend_string_init(..., persistent: 1).
-void *__attribute__((weak)) __zend_malloc(size_t len) {
-    void *tmp = malloc(len);
-    if (EXPECTED(tmp || !len)) {
-        return tmp;
-    }
+static ZEND_COLD ZEND_NORETURN void out_of_memory(void) {
     fprintf(stderr, "Out of memory\n");
     exit(1);
+}
+
+static zend_string *test_zend_string_alloc(size_t len) {
+    // We don't need to handle large strings.
+    if (len > INT32_MAX) {
+        out_of_memory();
+    }
+
+    // zend_string logically has a flexible array member val, but it uses the
+    // so-called "struct hack" instead. So we calculate the number of bytes
+    // needed to get to `val`, then add the `len` plus 1 (for a null byte).
+    uint32_t alloc_len = offsetof(zend_string, val) + len + 1;
+
+    // Need to round up to 8 bytes on 64-bit platforms, won't overflow because
+    // of above large string check.
+    uint32_t rounded = (alloc_len + UINT32_C(7)) & ~UINT32_C(7);
+    zend_string *zs = calloc(rounded, 1);
+    if (!zs) {
+        out_of_memory();
+    }
+
+    // Initialize the refcounted header
+#if PHP_VERSION_ID < 70299
+    GC_REFCOUNT(zs) = 1;
+#else
+    GC_SET_REFCOUNT(zs, 1);
+#endif
+
+#if PHP_VERSION_ID < 70200
+#undef GC_FLAGS_SHIFT
+#define GC_FLAGS_SHIFT 8
+#endif
+
+#if PHP_VERSION_ID < 80000
+#undef GC_STRING
+#define GC_STRING IS_STRING
+#endif
+
+    // IS_STR_PERSISTENT means it's allocated with malloc, not emalloc.
+    GC_TYPE_INFO(zs) = GC_STRING | (IS_STR_PERSISTENT << GC_FLAGS_SHIFT);
+
+    zs->h = 0;
+    zs->len = len;
+    ZSTR_VAL(zs)[len] = '\0';
+
+    return zs;
+}
+
+// Manually create a zend_string without using zend_string_init(), since we
+// do not link against PHP at test time
+static zend_string *test_zend_string_create(const char *str, size_t len) {
+    zend_string *zstr = test_zend_string_alloc(len);
+    memcpy(ZSTR_VAL(zstr), str, len);
+    return zstr;
 }
 
 static zend_execute_data *create_fake_frame(int depth) {
@@ -412,11 +461,11 @@ static zend_execute_data *create_fake_frame(int depth) {
     char buffer[64] = {0};
     int len = og_snprintf(buffer, sizeof buffer, "function name %03d", depth) + 1;
     ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
-    op_array->function_name = zend_string_init(buffer, len - 1, true);
+    op_array->function_name = test_zend_string_create(buffer, len - 1);
 
     len = og_snprintf(buffer, sizeof buffer, "filename-%03d.php", depth) + 1;
     ZEND_ASSERT(len >= 0 && sizeof buffer > (size_t)len);
-    op_array->filename = zend_string_init(buffer, len - 1, true);
+    op_array->filename = test_zend_string_create(buffer, len - 1);
 
     return execute_data;
 }
@@ -463,7 +512,29 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
 
     free(execute_data);
 }
-#endif
+
+zend_function *ddog_php_test_create_fake_zend_function_with_name_len(size_t len) {
+    zend_op_array *op_array = calloc(1, sizeof(zend_function));
+    if (!op_array) return NULL;
+
+    op_array->type = ZEND_USER_FUNCTION;
+
+    if (len > 0) {
+        zend_string *zstr = test_zend_string_alloc(len);
+        memset(ZSTR_VAL(zstr), 'x', len);
+        op_array->function_name = zstr;
+    }
+
+    return (zend_function *)op_array;
+}
+
+void ddog_php_test_free_fake_zend_function(zend_function *func) {
+    if (!func) return;
+
+    free(func->common.function_name);
+    free(func);
+}
+#endif // CFG_STACK_WALKING_TESTS || CFG_TEST
 
 void *opcache_handle = NULL;
 
@@ -603,6 +674,44 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_trigger_time_sample, 0, 0, 0)
 ZEND_END_ARG_INFO()
 #endif
 
+#if CFG_TEST && !defined(ZTS)
+#include <pthread.h>
+
+static void* native_thread_alloc_func(void* arg) {
+    (void)arg;
+
+    // Allocate 2x default sampling distance to make sure we trigger the
+    // allocation profiler
+    void* ptr = emalloc(8 * 1024 * 1024);
+    if (ptr) {
+        efree(ptr);
+    }
+
+    return NULL;
+}
+
+// Test function to simulate what ext-grpc does: create a native thread (not a
+// PHP thread) and trigger memory allocation on it. This tests that the
+// allocation profiler correctly handles allocations from non-PHP threads in NTS
+// builds. This not something anyone should do, but ext-grpc does it anyway.
+static ZEND_FUNCTION(Datadog_Profiling_run_alloc_on_native_thread) {
+    zend_parse_parameters_none();
+
+    pthread_t thread;
+    if (pthread_create(&thread, NULL, native_thread_alloc_func, NULL) != 0) {
+        php_error_docref(NULL, E_WARNING, "Failed to create native thread");
+        RETURN_FALSE;
+    }
+
+    pthread_join(thread, NULL);
+
+    RETURN_TRUE;
+}
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_Datadog_Profiling_run_alloc_on_native_thread, 0, 0, 0)
+ZEND_END_ARG_INFO()
+#endif
+
 static const zend_function_entry functions[] = {
 #if CFG_TRIGGER_TIME_SAMPLE
     ZEND_NS_NAMED_FE(
@@ -610,6 +719,14 @@ static const zend_function_entry functions[] = {
         trigger_time_sample,
         ZEND_FN(Datadog_Profiling_trigger_time_sample),
         arginfo_Datadog_Profiling_trigger_time_sample
+    )
+#endif
+#if CFG_TEST && !defined(ZTS)
+    ZEND_NS_NAMED_FE(
+        "Datadog\\Profiling",
+        run_alloc_on_native_thread,
+        ZEND_FN(Datadog_Profiling_run_alloc_on_native_thread),
+        arginfo_Datadog_Profiling_run_alloc_on_native_thread
     )
 #endif
     ZEND_FE_END
@@ -624,3 +741,88 @@ zval *ddog_php_prof_get_memoized_config(uint16_t config_id) {
 // dummy symbol for tests, so that they can be run without being linked into PHP
 __attribute__((weak)) zend_write_func_t zend_write;
 #endif
+
+/**
+ * Returns true if the thread was spawned by the parallel extension, false otherwise.
+ *
+ * This function is meant to be called in the GINIT phase of a PHP request, it is also safe to be
+ * called in RINIT or during request processing, but its outcome won't change anymore after GINIT.
+ * That being said, it being a costly function (module registry lookup, `dlsym()`,
+ * `__tls_get_addr()` in the fallback branch), the best usage pattern is to call this in GINIT and
+ * cache the result in a thread local.
+ */
+bool ddog_php_prof_is_parallel_thread() {
+#if defined(CFG_TEST)
+    // In test mode, we don't have a real module_registry, so just return false
+    return false;
+#else
+    // Check if parallel extension is loaded to retrieve it's dl handle
+    zend_module_entry *parallel_module = zend_hash_str_find_ptr(&module_registry, ZEND_STRL("parallel"));
+
+    if (parallel_module == NULL || parallel_module->handle == NULL) {
+        return false;
+    }
+
+    // Try to find the new public API function first (available in parallel >= 1.2.9)
+    zend_bool (*is_worker)(void) = DL_FETCH_SYMBOL(parallel_module->handle, "php_parallel_is_parallel_worker_thread");
+    if (is_worker) {
+        return is_worker();
+    }
+
+    // Fallback: for older versions of parallel, we can access the TLS variable
+    // `php_parallel_scheduler_context` and do a NULL check.
+
+    // Why not just `__attribute__((weak)) php_parallel_scheduler_context;`?
+    // This would work if we could enforce the order of `dlopen()` calls for extensions (which we
+    // can't). If the parallel extension is loaded before the profiler extension it works just nice
+    // but if the profiler gets loaded first this will not resolve correct. Luckily `dlsym()`
+    // behaves as a safe wrapper around this.
+    void *tls_symbol = DL_FETCH_SYMBOL(parallel_module->handle, "php_parallel_scheduler_context");
+
+    if (tls_symbol == NULL) {
+        return false;
+    }
+
+    void **tls_ptr;
+#ifdef __APPLE__
+    // On macOS TLS variables accessed via dlsym return a descriptor structure containing a
+    // function pointer (thunk) that must be called to get the actual thread-local address.
+    // see https://github.com/apple-oss-distributions/dyld/blob/637911768f664e38e7e50b4fbf17e303e14fdc01/libdyld/ThreadLocalVariables.h#L110-L115
+    typedef struct {
+        void* (*thunk)(void* desc);
+        unsigned long key;
+        unsigned long offset;
+    } tls_descriptor;
+
+    tls_descriptor *desc = (tls_descriptor*)tls_symbol;
+
+    if (desc->thunk == NULL) {
+        return false;
+    }
+
+    tls_ptr = (void**)desc->thunk(desc);
+#else
+    // Linux (musl and glibc) are nice to us, `dlsym()` detects that this symbol is a STT_TLS
+    // (Symbol Table Type Thread-Local Storage) and calls `__tls_get_addr()` on it.
+    //
+    // musl implemenation at
+    // https://git.musl-libc.org/cgit/musl/tree/ldso/dynlink.c?h=v1.2.5#n2287
+    // glibc implementation at
+    // https://github.com/bminor/glibc/blob/56d0e2cca1e5ac4a9ed9332c46c64d7021ab011f/elf/dl-sym.c#L162-L165
+    //
+    // So in the end it just returns a pointer to the correct TLS variable for `this` thread we are
+    // in, which makes it an easy pointer deref to get the value.
+    tls_ptr = (void**)tls_symbol;
+#endif
+
+    if (tls_ptr == NULL) {
+        return false;
+    }
+
+    // The parallel context is non-NULL when this is a parallel thread, see the
+    // `php_parallel_scheduler_setup()` function in `src/scheduler.c` in the parallel extension.
+    // This inits the `php_parallel_scheduler_context` TLS to point to a `php_parallel_runtime_t`
+    // struct right before triggering `GINIT`.
+    return (*tls_ptr != NULL);
+#endif // CFG_TEST
+}

@@ -10,13 +10,13 @@
 #include "../remote_config/settings.hpp"
 #include "../sidecar_settings.hpp"
 #include "../telemetry_settings.hpp"
-#include "../version.hpp"
 #include "msgpack_helpers.hpp"
 #include <msgpack.hpp>
 #include <optional>
 #include <sstream>
 #include <type_traits>
 #include <typeinfo>
+#include <version.hpp>
 
 using stream_packer = msgpack::packer<std::stringstream>;
 

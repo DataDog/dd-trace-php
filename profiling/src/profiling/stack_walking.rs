@@ -19,7 +19,7 @@ const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 /// function name exceeds this size, it will fail in some manner, or be
 /// replaced by a shorter string, etc.
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
-const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[large string]");
+const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
 #[derive(Default, Debug)]
 pub struct ZendFrame {
@@ -67,29 +67,40 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
 
     // User functions do not have a "module". Maybe one day use composer info?
     let module_name = func.module_name().unwrap_or(b"");
-    if !module_name.is_empty() {
+    let class_name = func.scope_name().unwrap_or(b"");
+
+    // Pre-reserving here avoids growing the vec in practice, observed with
+    // whole-host profiler.
+    let (has_module, has_class) = (!module_name.is_empty(), !class_name.is_empty());
+    let module_len = has_module as usize * "|".len() + module_name.len();
+    let class_name_len = has_class as usize * "::".len() + class_name.len();
+    let len = module_len + class_name_len + method_name.len();
+
+    // Rather than fail, we use a short string to represent a long string.
+    if len >= STR_LEN_LIMIT {
+        return Some(COW_LARGE_STRING);
+    }
+
+    // When refactoring, make sure large str len is checked before allocating.
+    buffer.reserve_exact(len);
+
+    if has_module {
         buffer.extend_from_slice(module_name);
         buffer.push(b'|');
     }
 
-    let class_name = func.scope_name().unwrap_or(b"");
-    if !class_name.is_empty() {
+    if has_class {
         buffer.extend_from_slice(class_name);
         buffer.extend_from_slice(b"::");
     }
 
     buffer.extend_from_slice(method_name);
 
-    // Rather than fail, we use a short string to represent a long string.
-    if buffer.len() <= STR_LEN_LIMIT {
-        // When replacing the string to make it valid utf-8, it may get a bit
-        // longer, but this usually doesn't happen. This limit is a soft-limit
-        // at the moment anyway, so this is okay.
-        let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
-        Some(Cow::Owned(string))
-    } else {
-        Some(COW_LARGE_STRING)
-    }
+    // When replacing the string to make it valid utf-8, it may get a bit
+    // longer, but this usually doesn't happen. This limit is a soft-limit
+    // at the moment anyway, so this is okay.
+    let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
+    Some(Cow::Owned(string))
 }
 
 /// Gets an opline reference after doing bounds checking to prevent segfaults
@@ -131,7 +142,7 @@ unsafe fn extract_file_and_line(
         Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
             let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
-            let file = if bytes.len() <= STR_LEN_LIMIT {
+            let file = if bytes.len() < STR_LEN_LIMIT {
                 Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
             } else {
                 COW_LARGE_STRING
@@ -517,14 +528,20 @@ mod detail {
 
 pub use detail::*;
 
-// todo: this should be feature = "stack_walking_tests" but it seemed to
-//       cause a failure in CI to migrate it.
-#[cfg(all(test, stack_walking_tests))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::bindings as zend;
 
+    extern "C" {
+        fn ddog_php_test_create_fake_zend_function_with_name_len(
+            len: libc::size_t,
+        ) -> *mut zend::zend_function;
+        fn ddog_php_test_free_fake_zend_function(func: *mut zend::zend_function);
+    }
+
     #[test]
+    #[cfg(stack_walking_tests)]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
@@ -547,6 +564,59 @@ mod tests {
 
             // Free the allocated memory
             zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_short_string() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(10);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name, "xxxxxxxxxx");
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_at_limit_minus_one() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT - 1);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name.len(), STR_LEN_LIMIT - 1);
+            assert_ne!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_at_limit() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should return large string marker");
+            assert_eq!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_over_limit() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT + 1000);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should return large string marker");
+            assert_eq!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
         }
     }
 }

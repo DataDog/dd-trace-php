@@ -148,14 +148,17 @@ class MysqliIntegration extends Integration
 
         \DDTrace\install_hook('mysqli_prepare', static function (HookData $hook) {
             list(, $query) = $hook->args;
+            $hook->data = $query;
 
             $span = $hook->span();
             self::setDefaultAttributes($span, 'mysqli_prepare', $query);
 
-            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            // For prepared statements, downgrade to service mode
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1, true);
             self::handleRasp($span);
         }, static function (HookData $hook) {
-            list($mysqli, $query) = $hook->args;
+            list($mysqli) = $hook->args;
+            $query = $hook->data; // unmodified query
             $span = $hook->span();
             self::setConnectionInfo($span, $mysqli);
 
@@ -218,14 +221,16 @@ class MysqliIntegration extends Integration
 
         \DDTrace\install_hook('mysqli::prepare', static function (HookData $hook) {
             list($query) = $hook->args;
+            $hook->data = $query;
 
             $span = $hook->span();
             self::setDefaultAttributes($span, 'mysqli.prepare', $query);
 
-            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql');
+            // For prepared statements, downgrade to service mode
+            DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 0, true);
             self::handleRasp($span);
         }, static function (HookData $hook) {
-            list($query) = $hook->args;
+            $query = $hook->data; // unmodified query
             $span = $hook->span();
             $instance = $hook->instance;
             MysqliIntegration::setConnectionInfo($span, $instance);

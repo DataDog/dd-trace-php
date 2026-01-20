@@ -203,6 +203,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/memory_limit.c \
     ext/otel_config.c \
     ext/priority_sampling/priority_sampling.c \
+    ext/process_tags.c \
     ext/profiling.c \
     ext/random.c \
     ext/remote_config.c \

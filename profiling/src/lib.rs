@@ -22,7 +22,7 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
-use crate::config::{SystemSettings, INITIAL_SYSTEM_SETTINGS};
+use crate::config::SystemSettings;
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
@@ -214,14 +214,16 @@ unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     timeline::timeline_ginit();
 
-    allocation::alloc_prof_ginit();
+    // SAFETY: this is called in thread ginit as expected, and no other places.
+    allocation::ginit();
 }
 
 unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     timeline::timeline_gshutdown();
 
-    allocation::alloc_prof_gshutdown();
+    // SAFETY: this is called in thread gshutdown as expected, no other places.
+    allocation::gshutdown();
 }
 
 // Important note on the PHP lifecycle:
@@ -320,6 +322,9 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     {
         let _connector = libdd_common::connector::Connector::default();
     }
+
+    // Initialize the lazy lock holding the env var for new origin detection.
+    _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
 
     // Use a hybrid extension hack to load as a module but have the
     // zend_extension hooks available:
@@ -421,7 +426,7 @@ pub struct RequestLocals {
     /// conditions such as in mshutdown when there were no requests served,
     /// then the settings are still memory safe, but they may not have the
     /// real configuration. Instead, they have a best-effort values such as
-    /// INITIAL_SYSTEM_SETTINGS, or possibly the values which were available
+    /// the initial settings, or possibly the values which were available
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
 
@@ -432,8 +437,9 @@ pub struct RequestLocals {
 impl RequestLocals {
     #[track_caller]
     pub fn system_settings(&self) -> &SystemSettings {
-        // SAFETY: it should always be valid, either set to the
-        // INITIAL_SYSTEM_SETTINGS or to the SYSTEM_SETTINGS.
+        // SAFETY: it should always be valid, just maybe "stale", such as
+        // having only the initial values, or only the ones available in minit,
+        // rather than the fully configured values.
         unsafe { self.system_settings.as_ref() }
     }
 }
@@ -447,7 +453,7 @@ impl Default for RequestLocals {
             git_commit_sha: None,
             git_repository_url: None,
             tags: vec![],
-            system_settings: ptr::NonNull::from(INITIAL_SYSTEM_SETTINGS.deref()),
+            system_settings: SystemSettings::get(),
             interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
@@ -570,8 +576,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
     unsafe { bindings::zai_config_rinit() };
 
-    // SAFETY: We are after first rinit and before config mshutdown.
-    let mut system_settings = unsafe { SystemSettings::get() };
+    // Needs to come after config::first_rinit, because that's what sets the
+    // values to the ones in the configuration.
+    let system_settings = SystemSettings::get();
 
     // initialize the thread local storage and cache some items
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
@@ -643,8 +650,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         return ZendResult::Success;
     }
 
-    // SAFETY: still safe to access in rinit after first_rinit.
-    let system_settings = unsafe { system_settings.as_mut() };
+    // SAFETY: safe to dereference in rinit after first_rinit. It's important
+    // that this is a non-mut reference because in ZTS there's nothing which
+    // enforces mutual exclusion.
+    let system_settings = unsafe { system_settings.as_ref() };
 
     // SAFETY: the once control is not mutable during request.
     let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
@@ -683,7 +692,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         #[cfg(all(feature = "io_profiling", target_os = "linux"))]
         io::io_prof_first_rinit();
 
-        allocation::alloc_prof_first_rinit();
+        allocation::first_rinit(system_settings);
     });
 
     Profiler::init(system_settings);
@@ -733,7 +742,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         TAGS.set(Arc::default());
     }
 
-    allocation::alloc_prof_rinit();
+    allocation::rinit();
 
     // SAFETY: called after config is initialized.
     unsafe { timeline::timeline_rinit() };

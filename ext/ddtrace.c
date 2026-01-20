@@ -68,6 +68,7 @@
 #include "limiter/limiter.h"
 #include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
+#include "process_tags.h"
 #include "random.h"
 #include "autoload_php_files.h"
 #include "remote_config.h"
@@ -1518,9 +1519,13 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_limiter_create();
     ddtrace_standalone_limiter_create();
 
+#ifndef _WIN32
+    /* Snapshot proxy-related env vars once at startup to avoid getenv()
+     * from the background writer thread inside libcurl. */
+    ddtrace_coms_minit_proxy_env();
+
     ddtrace_log_minit();
 
-#ifndef _WIN32
     ddtrace_dogstatsd_client_minit();
 #endif
     ddshared_minit();
@@ -1586,6 +1591,9 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
         }
+        /* All writer threads and curl handles are gone at this point, so
+         * it is safe to free the cached proxy env strings for ASan. */
+        ddtrace_coms_mshutdown_proxy_env();
     } else /* ! part of the if outside the ifdef */
 #endif
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && ddtrace_sidecar) {
@@ -1608,6 +1616,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     ddtrace_sidecar_shutdown();
 
     ddtrace_live_debugger_mshutdown();
+    ddtrace_process_tags_mshutdown();
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
     // See dd_register_span_data_ce for explanation
@@ -1629,6 +1638,11 @@ static void dd_rinit_once(void) {
      * TODO Audit/remove config usages before RINIT and move config init to RINIT.
      */
     ddtrace_startup_logging_first_rinit();
+
+    // Collect process tags now that script path is available
+    if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
+        ddtrace_process_tags_first_rinit();
+    }
 
     // Uses config, cannot run earlier
 #ifndef _WIN32
@@ -1894,6 +1908,10 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
     if (DDTRACE_G(last_env_name)) {
         zend_string_release(DDTRACE_G(last_env_name));
         DDTRACE_G(last_env_name) = NULL;
+    }
+    if (DDTRACE_G(last_version)) {
+        zend_string_release(DDTRACE_G(last_version));
+        DDTRACE_G(last_version) = NULL;
     }
 
     ddtrace_clean_git_object();
@@ -2599,6 +2617,26 @@ PHP_FUNCTION(DDTrace_Testing_trigger_error) {
     }
 }
 
+PHP_FUNCTION(DDTrace_Testing_normalize_tag_value) {
+    ddtrace_string value;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &value.ptr, &value.len) != SUCCESS) {
+        RETURN_EMPTY_STRING();
+    }
+
+    const char* normalized = ddog_normalize_process_tag_value((ddog_CharSlice){
+        .ptr = value.ptr,
+        .len = value.len
+    });
+
+    if (normalized) {
+        zend_string *result = zend_string_init(normalized, strlen(normalized), 0);
+        ddog_free_normalized_tag_value(normalized);
+        RETURN_STR(result);
+    } else {
+        RETURN_EMPTY_STRING();
+    }
+}
+
 PHP_FUNCTION(DDTrace_Internal_add_span_flag) {
     zend_object *span;
     zend_long flag;
@@ -2841,6 +2879,20 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             DDTRACE_G(sidecar_queue_id) = queueId; // usually we want to stop using it, except here
             ddtrace_telemetry_lifecycle_end();
             RETVAL_TRUE;
+        } else if (params_count == 3 && FUNCTION_NAME_MATCHES("force_overwrite_property")) {
+            zval *obj = ZVAL_VARARG_PARAM(params, 0);
+            zval *name = ZVAL_VARARG_PARAM(params, 1);
+            zval *value = ZVAL_VARARG_PARAM(params, 2);
+            if (Z_TYPE_P(obj) == IS_OBJECT && Z_TYPE_P(name) == IS_STRING) {
+#if PHP_VERSION_ID < 80000
+                zend_std_write_property(obj, name, value, NULL);
+                RETVAL_TRUE;
+#else
+                if (&EG(error_zval) != zend_std_write_property(Z_OBJ_P(obj), Z_STR_P(name), value, NULL)) {
+                    RETVAL_TRUE;
+                }
+#endif
+            }
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
             ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
@@ -2850,6 +2902,25 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             zval *version = ZVAL_VARARG_PARAM(params, 1);
             if (Z_TYPE_P(name) == IS_STRING && Z_TYPE_P(version) == IS_STRING) {
                 ddtrace_telemetry_notify_integration_version(Z_STRVAL_P(name), Z_STRLEN_P(name), Z_STRVAL_P(version), Z_STRLEN_P(version));
+            }
+        } else if (params_count == 2 && FUNCTION_NAME_MATCHES("track_otel_config")) {
+            zval *config_name = ZVAL_VARARG_PARAM(params, 0);
+            zval *config_value = ZVAL_VARARG_PARAM(params, 1);
+            if (Z_TYPE_P(config_name) == IS_STRING) {
+                // Store the config name and value in the HashTable
+                zval value_copy;
+                ZVAL_COPY(&value_copy, config_value);
+                zend_hash_update(&DDTRACE_G(otel_config_telemetry), Z_STR_P(config_name), &value_copy);
+                RETVAL_TRUE;
+            }
+        } else if (params_count == 3 && FUNCTION_NAME_MATCHES("track_telemetry_metrics")) {
+            zval *metric_name = ZVAL_VARARG_PARAM(params, 0);
+            zval *metric_value = ZVAL_VARARG_PARAM(params, 1);
+            zval *tags = ZVAL_VARARG_PARAM(params, 2);
+            if (Z_TYPE_P(metric_name) == IS_STRING && Z_TYPE_P(tags) == IS_STRING) {
+                ddtrace_metric_register_buffer(Z_STR_P(metric_name), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
+                ddtrace_metric_add_point(Z_STR_P(metric_name), zval_get_double(metric_value), Z_STR_P(tags));
+                RETVAL_TRUE;
             }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {

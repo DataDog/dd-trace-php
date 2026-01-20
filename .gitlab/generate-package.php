@@ -48,13 +48,13 @@ $build_platforms = [
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-5",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-6",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-5",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-6",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -282,7 +282,7 @@ if ($suffix == "-alpine") {
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-5"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -332,7 +332,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-5"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -753,6 +753,7 @@ endforeach;
     RUST_BACKTRACE: 1
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
+<?php dockerhub_login() ?>
     - apt install -y php git make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
@@ -833,6 +834,7 @@ endforeach;
     KUBERNETES_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
   before_script:
+<?php dockerhub_login() ?>
     - apt install -y make
     - mkdir build
     - mv packages build
@@ -897,6 +899,7 @@ endforeach;
         # - symfony_no_ddtrace
         # - symfony
   before_script:
+<?php dockerhub_login() ?>
     - apt install -y make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
@@ -959,6 +962,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script: &verify_alpine_before_script
+<?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
     - apk add --no-cache ca-certificates # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
@@ -987,6 +991,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script:
+<?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
     - '# Fix yum config, as centos 7 is EOL and mirrorlist.centos.org does not resolve anymore - https://serverfault.com/a/1161847'
@@ -1012,6 +1017,7 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   before_script:
+<?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
     - apt update
@@ -1078,7 +1084,7 @@ endforeach;
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-5"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-6"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1125,6 +1131,7 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   before_script:
+<?php dockerhub_login() ?>
     - switch-php debug
   script:
     - sudo dpkg -i packages/*amd64*.deb
@@ -1179,6 +1186,7 @@ endforeach;
 
       # Install Python dependencies
       pip install -U pip virtualenv
+<?php dockerhub_login() ?>
     - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
@@ -1227,7 +1235,7 @@ endforeach;
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-5
+    CONTAINER_SUFFIX: bookworm-6
   needs:
     - job: "package loader: [<?= $arch ?>]"
       artifacts: true

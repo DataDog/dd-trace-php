@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Guzzle;
 
+use DDTrace\HookData;
 use DDTrace\Http\Urls;
 use DDTrace\Integrations\HttpClientIntegrationHelper;
 use DDTrace\Integrations\Integration;
@@ -33,10 +34,63 @@ class GuzzleIntegration extends Integration
 
     public static function init(): int
     {
-        /* Until we support both pre- and post- hooks on the same function, do
-         * not send distributed tracing headers; curl will almost guaranteed do
-         * it for us anyway. Just do a post-hook to get the response.
-         */
+        \DDTrace\install_hook(
+            'GuzzleHttp\Client::transfer',
+            static function (HookData $hook) {
+                $span = $hook->span();
+                $span->resource = 'transfer';
+                $span->name = 'GuzzleHttp\Client.transfer';
+                Integration::handleInternalSpanServiceName($span, self::NAME);
+                $span->type = Type::HTTP_CLIENT;
+                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
+                $span->meta[Tag::COMPONENT] = self::NAME;
+                $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
+
+                if (isset($hook->args[0])) {
+                    self::addRequestInfo($span, $hook->args[0]);
+                }
+
+                // Note: We must ALWAYS call overrideArguments() to prevent JIT compilation issues.
+                // See ext/hook/uhook.c: "hooks wishing to override args must do so unconditionally"
+
+                if (\ddtrace_config_distributed_tracing_enabled() !== false) {
+                    if (isset($hook->args[0])) {
+                        $request = $hook->args[0];
+
+                        if ($request instanceof \Psr\Http\Message\RequestInterface) {
+                            $dtHeaders = \DDTrace\generate_distributed_tracing_headers();
+
+                            if (!empty($dtHeaders)) {
+                                $modified = false;
+
+                                foreach ($dtHeaders as $name => $value) {
+                                    if (!$request->hasHeader($name)) {
+                                        $request = $request->withHeader($name, $value);
+                                        $modified = true;
+                                    }
+                                }
+
+                                if ($modified) {
+                                    $hook->args[0] = $request;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // CRITICAL: Always call overrideArguments to prevent JIT from breaking header injection
+                $hook->overrideArguments($hook->args);
+            },
+            static function (HookData $hook) {
+                if (isset($hook->returned)) {
+                    $response = $hook->returned;
+                    if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
+                        self::handlePromiseResponse($response, $hook->span());
+                    }
+                }
+            }
+        );
+
         \DDTrace\trace_method(
             'GuzzleHttp\Client',
             'send',
@@ -52,8 +106,6 @@ class GuzzleIntegration extends Integration
                     \defined('GuzzleHttp\ClientInterface::VERSION')
                     && substr(\GuzzleHttp\ClientInterface::VERSION, 0, 2) === '5.'
                 ) {
-                    // On Guzzle 6+, we do not need to generate peer.service for the send span,
-                    // as the terminal span is 'transfer'
                     $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
                 }
 
@@ -74,30 +126,6 @@ class GuzzleIntegration extends Integration
                         $span->meta[Tag::HTTP_STATUS_CODE] = $statusCode;
                         HttpClientIntegrationHelper::setClientError($span, $statusCode, $response->getReasonPhrase());
                     } elseif (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
-                        self::handlePromiseResponse($response, $span);
-                    }
-                }
-            }
-        );
-
-        \DDTrace\trace_method(
-            'GuzzleHttp\Client',
-            'transfer',
-            static function (SpanData $span, $args, $retval) {
-                $span->resource = 'transfer';
-                $span->name = 'GuzzleHttp\Client.transfer';
-                Integration::handleInternalSpanServiceName($span, self::NAME);
-                $span->type = Type::HTTP_CLIENT;
-                $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
-                $span->meta[Tag::COMPONENT] = self::NAME;
-                $span->peerServiceSources = HttpClientIntegrationHelper::PEER_SERVICE_SOURCES;
-
-                if (isset($args[0])) {
-                    self::addRequestInfo($span, $args[0]);
-                }
-                if (isset($retval)) {
-                    $response = $retval;
-                    if (\is_a($response, 'GuzzleHttp\Promise\PromiseInterface')) {
                         self::handlePromiseResponse($response, $span);
                     }
                 }

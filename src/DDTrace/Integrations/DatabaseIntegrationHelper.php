@@ -21,7 +21,7 @@ class DatabaseIntegrationHelper
         Tag::TARGET_HOST,
     ];
 
-    public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0)
+    public static function injectDatabaseIntegrationData(HookData $hook, $backend, $argNum = 0, $preventFullMode = false)
     {
         $allowedBackends = [
             "sqlsrv" => true,
@@ -39,7 +39,7 @@ class DatabaseIntegrationHelper
                 "pgsql" => true,
             ];
 
-            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && !isset($fullPropagationBackends[$backend])) {
+            if ($propagationMode == \DDTrace\DBM_PROPAGATION_FULL && (!isset($fullPropagationBackends[$backend]) || $preventFullMode)) {
                 $propagationMode = \DDTrace\DBM_PROPAGATION_SERVICE;
             }
 

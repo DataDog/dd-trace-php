@@ -5,6 +5,8 @@ namespace DDTrace\Tests\Integrations\Mysqli;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use function DDTrace\close_span;
+use function DDTrace\start_trace_span;
 
 class MysqliTest extends IntegrationTestCase
 {
@@ -33,6 +35,7 @@ class MysqliTest extends IntegrationTestCase
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
             'DD_SERVICE_MAPPING',
+            'DD_DBM_PROPAGATION_MODE',
         ];
     }
 
@@ -575,6 +578,67 @@ class MysqliTest extends IntegrationTestCase
             SpanAssertion::build('mysqli_stmt_execute', 'mysqli', 'sql', 'INSERT INTO tests (id, name) VALUES (?, ?)')
                 ->withExactTags(self::baseTags(true, true)),
         ]);
+    }
+
+    public function testPreparedStatementUsesServiceModeForDBM()
+    {
+        $this->putEnvAndReloadConfig(['DD_DBM_PROPAGATION_MODE=full']);
+
+        $query = "SELECT * FROM tests WHERE id = ?";
+        $traces = $this->isolateTracer(function () use ($query) {
+            start_trace_span();
+
+            $mysqli = new \mysqli(self::$host, self::$user, self::$password, self::$database);
+            $stmt = $mysqli->prepare($query);
+            $id = 1;
+            $stmt->bind_param('i', $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $results = $result->fetch_all();
+            $this->assertNotEmpty($results);
+            $mysqli->close();
+
+            close_span();
+        });
+
+        // Get the raw spans
+        $spans = $traces[0];
+
+        // Find prepare and execute spans
+        $constructSpan = null;
+        $prepareSpan = null;
+        $executeSpan = null;
+
+        foreach ($spans as $span) {
+            if ($span['name'] === 'mysqli.__construct') {
+                $constructSpan = $span;
+            } elseif ($span['name'] === 'mysqli.prepare') {
+                $prepareSpan = $span;
+            } elseif ($span['name'] === 'mysqli_stmt.execute') {
+                $executeSpan = $span;
+            }
+        }
+
+        $this->assertNotNull($constructSpan, 'mysqli.__construct span should exist');
+        $this->assertNotNull($prepareSpan, 'mysqli.prepare span should exist');
+        $this->assertNotNull($executeSpan, 'mysqli_stmt.execute span should exist');
+
+        // Verify that execute and prepare span are siblings
+        $this->assertEquals(
+            $prepareSpan['parent_id'],
+            $executeSpan['parent_id'],
+            'mysqli_stmt.execute should be a sibling of mysqli.prepare'
+        );
+
+        $this->assertEquals($query, $prepareSpan['resource']);
+        $this->assertEquals($query, $executeSpan['resource']);
+
+        // Verify that SERVICE mode is used for the prepare span
+        $this->assertArrayNotHasKey(
+            '_dd.dbm_trace_injected',
+            $prepareSpan['meta'] ?? [],
+            'mysqli.prepare should use SERVICE mode'
+        );
     }
 
     public function testConstructorConnectError()
