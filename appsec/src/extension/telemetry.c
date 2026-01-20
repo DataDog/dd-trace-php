@@ -49,32 +49,33 @@ void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len)
     free(tags);
 }
 
-static void _add_helper_conn_metric(
-    zend_string *nonnull name_zstr, const char *nonnull socket_path)
+static void _add_helper_conn_metric(zend_string *nonnull name_zstr)
 {
     if (get_global_DD_APPSEC_TESTING() &&
         !get_global_DD_APPSEC_TESTING_HELPER_METRICS()) {
         return;
     }
+    zend_string *runtime_path = get_DD_APPSEC_HELPER_RUNTIME_PATH();
     char *tags = NULL;
-    size_t tags_len = spprintf(&tags, 0, "socket:%s", socket_path);
+    size_t tags_len =
+        spprintf(&tags, 0, "runtime_path:%s", ZSTR_VAL(runtime_path));
     zend_string *tags_zstr = zend_string_init(tags, tags_len, 0);
     dd_telemetry_add_metric(name_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
     zend_string_release(tags_zstr);
     efree(tags);
 }
 
-void dd_telemetry_helper_conn_error(const char *nonnull socket_path)
+void dd_telemetry_helper_conn_error(void)
 {
-    _add_helper_conn_metric(_dd_helper_conn_error_zstr, socket_path);
+    _add_helper_conn_metric(_dd_helper_conn_error_zstr);
 }
 
-void dd_telemetry_helper_conn_success(const char *nonnull socket_path)
+void dd_telemetry_helper_conn_success(void)
 {
-    _add_helper_conn_metric(_dd_helper_conn_success_zstr, socket_path);
+    _add_helper_conn_metric(_dd_helper_conn_success_zstr);
 }
 
-void dd_telemetry_helper_conn_close(const char *nonnull socket_path)
+void dd_telemetry_helper_conn_close(void)
 {
-    _add_helper_conn_metric(_dd_helper_conn_close_zstr, socket_path);
+    _add_helper_conn_metric(_dd_helper_conn_close_zstr);
 }
