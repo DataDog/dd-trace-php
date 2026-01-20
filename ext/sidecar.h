@@ -37,6 +37,7 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork);
 // Lifecycle functions
 void ddtrace_sidecar_minit(void);
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
+bool ddtrace_sidecar_reconnect_after_fork(bool appsec_activation, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_update_process_tags(void);
