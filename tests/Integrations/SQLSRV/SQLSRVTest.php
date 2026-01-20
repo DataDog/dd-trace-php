@@ -34,6 +34,43 @@ class SQLSRVTest extends IntegrationTestCase
     {
         parent::ddSetUpBeforeClass();
         self::putenv('DD_SQLSRV_ANALYTICS_ENABLED=true');
+        self::waitForSqlServerReady();
+    }
+
+    private static function waitForSqlServerReady()
+    {
+        $maxAttempts = 30;
+        $attempt = 0;
+        $conn = false;
+
+        while ($attempt < $maxAttempts && $conn === false) {
+            $attempt++;
+            $conn = @sqlsrv_connect(
+                self::$host . ', ' . self::$port,
+                [
+                    'PWD' => self::$password,
+                    'Database' => self::$db,
+                    'UID' => self::$user,
+                    'TrustServerCertificate' => true,
+                ]
+            );
+
+            if ($conn === false) {
+                if ($attempt < $maxAttempts) {
+                    usleep(500000);
+                }
+            }
+        }
+
+        if ($conn === false) {
+            $errors = sqlsrv_errors();
+            $lastError = $errors ? json_encode($errors) : 'Unknown error';
+            throw new \RuntimeException(
+                "SQL Server not ready after {$maxAttempts} attempts. Last error: {$lastError}"
+            );
+        }
+
+        sqlsrv_close($conn);
     }
 
     public static function ddTearDownAfterClass()
@@ -502,39 +539,15 @@ class SQLSRVTest extends IntegrationTestCase
 
     private function createConnection()
     {
-        // Retry connection to handle SQL Server container startup time
-        $maxAttempts = 30;
-        $attempt = 0;
-        $conn = false;
-        $lastError = null;
-
-        while ($attempt < $maxAttempts && $conn === false) {
-            $attempt++;
-            $conn = sqlsrv_connect(
-                self::$host . ', ' . self::$port,
-                [
-                    'PWD' => self::$password,
-                    'Database' => self::$db,
-                    'UID' => self::$user,
-                    'TrustServerCertificate' => true,
-                ]
-            );
-
-            if ($conn === false) {
-                $errors = sqlsrv_errors();
-                $lastError = $errors ? json_encode($errors) : 'Unknown error';
-
-                if ($attempt < $maxAttempts) {
-                    usleep(500000);
-                }
-            }
-        }
-
-        if ($conn === false) {
-            throw new \RuntimeException(
-                "Failed to connect to SQL Server after {$maxAttempts} attempts. Last error: {$lastError}"
-            );
-        }
+        $conn = sqlsrv_connect(
+            self::$host . ', ' . self::$port,
+            [
+                'PWD' => self::$password,
+                'Database' => self::$db,
+                'UID' => self::$user,
+                'TrustServerCertificate' => true,
+            ]
+        );
 
         return $conn;
     }
