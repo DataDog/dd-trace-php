@@ -652,6 +652,7 @@ pub enum UploadMessage {
 }
 
 const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+const COW_PROFILER_STACK_WALK: Cow<str> = Cow::Borrowed("[profiler stack walk]");
 
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
@@ -908,12 +909,10 @@ impl Profiler {
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
-        let result = collect_stack_sample(execute_data);
+        let (result, wall_time, cpu_time) = self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
-
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
@@ -959,7 +958,8 @@ impl Profiler {
         alloc_samples: i64,
         alloc_size: i64,
     ) {
-        let result = collect_stack_sample(execute_data);
+        let (result, _wall_time, _cpu_time) =
+            self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -998,7 +998,8 @@ impl Profiler {
         exception: String,
         message: Option<String>,
     ) {
-        let result = collect_stack_sample(execute_data);
+        let (result, _wall_time, _cpu_time) =
+            self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1405,7 +1406,8 @@ impl Profiler {
     where
         F: FnOnce(&mut SampleValues),
     {
-        let result = collect_stack_sample(execute_data);
+        let (result, _wall_time, _cpu_time) =
+            self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1528,6 +1530,46 @@ impl Profiler {
                 timestamp,
             },
         }
+    }
+
+    fn collect_stack_sample_with_timeline(
+        &self,
+        execute_data: *mut zend_execute_data,
+    ) -> (Result<Vec<ZendFrame>, CollectStackSampleError>, i64, i64) {
+        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+        let result = collect_stack_sample(execute_data);
+        let (stack_walk_wall_time, _stack_walk_cpu_time) =
+            CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+
+        if self.is_timeline_enabled() {
+            if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
+                let timestamp = now.as_nanos() as i64;
+                let labels = Profiler::common_labels(0);
+                let n_labels = labels.len();
+                match self.prepare_and_send_message(
+                    vec![ZendFrame {
+                        function: COW_PROFILER_STACK_WALK,
+                        file: None,
+                        line: 0,
+                    }],
+                    SampleValues {
+                        timeline: stack_walk_wall_time,
+                        ..Default::default()
+                    },
+                    labels,
+                    timestamp,
+                ) {
+                    Ok(_) => {
+                        trace!("Sent stack walk timeline event with {n_labels} labels to profiler.")
+                    }
+                    Err(err) => warn!(
+                        "Failed to send stack walk timeline event with {n_labels} labels to profiler: {err}"
+                    ),
+                }
+            }
+        }
+
+        (result, wall_time, cpu_time)
     }
 }
 
