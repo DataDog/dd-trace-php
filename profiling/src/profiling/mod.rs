@@ -1538,7 +1538,7 @@ impl Profiler {
     ) -> (Result<Vec<ZendFrame>, CollectStackSampleError>, i64, i64) {
         let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
         let result = collect_stack_sample(execute_data);
-        let (stack_walk_wall_time, _stack_walk_cpu_time) =
+        let (stack_walk_wall_time, stack_walk_cpu_time) =
             CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
         if self.is_timeline_enabled() {
@@ -1553,17 +1553,18 @@ impl Profiler {
                         line: 0,
                     }],
                     SampleValues {
-                        timeline: stack_walk_wall_time,
+                        wall_time: stack_walk_wall_time,
+                        cpu_time: stack_walk_cpu_time,
                         ..Default::default()
                     },
                     labels,
                     timestamp,
                 ) {
                     Ok(_) => {
-                        trace!("Sent stack walk timeline event with {n_labels} labels to profiler.")
+                        trace!("Sent stack walk sample with {n_labels} labels to profiler.")
                     }
                     Err(err) => warn!(
-                        "Failed to send stack walk timeline event with {n_labels} labels to profiler: {err}"
+                        "Failed to send stack walk sample with {n_labels} labels to profiler: {err}"
                     ),
                 }
             }
