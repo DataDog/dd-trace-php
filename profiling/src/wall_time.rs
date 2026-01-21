@@ -189,6 +189,9 @@ mod frameless {
                 );
             }
 
+            // Allocate enough space for all frameless_function_infos including trailing NULLs
+            let mut infos = Vec::with_capacity(originals.len() * 2);
+
             let buffer = assembler.finalize().unwrap();
             for (i, offset) in offsets.iter().enumerate() {
                 let wrapper = buffer.as_ptr().add(offset.0) as *mut c_void;
@@ -196,8 +199,8 @@ mod frameless {
                 let func = &mut **zend_flf_functions.add(i);
 
                 // We need to do copies of frameless_function_infos as they may be readonly memory
+                let info_size = infos.len();
                 let original_info = func.internal_function.frameless_function_infos;
-                let mut infos = Vec::new();
                 let mut ptr = original_info;
                 loop {
                     let info = *ptr;
@@ -212,10 +215,9 @@ mod frameless {
                         info.handler = wrapper;
                     }
                 }
-                let new_infos = infos.into_boxed_slice();
-                func.internal_function.frameless_function_infos = new_infos.as_ptr() as *mut _;
-                std::mem::forget(new_infos); // TODO: leaks memory
+                func.internal_function.frameless_function_infos = infos.as_ptr().add(info_size) as *mut _;
             }
+            std::mem::forget(infos); // TODO: leaks memory
             std::mem::forget(buffer); // TODO: leaks memory
         }
 
