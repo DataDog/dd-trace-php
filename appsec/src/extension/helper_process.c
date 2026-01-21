@@ -88,15 +88,17 @@ void dd_helper_startup(void)
 #endif
 }
 
-void dd_helper_shutdown(void) {}
+void dd_helper_shutdown(void)
+{
+    if (_shared_state) {
+        munmap(_shared_state, sizeof(dd_helper_shared_state));
+    }
+}
 
 void dd_helper_gshutdown(void)
 {
     pefree(_mgr.socket_path, 1);
     pefree(_mgr.lock_path, 1);
-    if (_shared_state) {
-        munmap(_shared_state, sizeof(dd_helper_shared_state));
-    }
 }
 
 void dd_helper_rshutdown(void)

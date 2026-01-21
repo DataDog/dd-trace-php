@@ -35,6 +35,16 @@ final class PhpFpm implements Sapi
     private $logFile;
 
     /**
+     * @var string
+     */
+    private $host;
+
+    /**
+     * @var int
+     */
+    private $port;
+
+    /**
      * @param string $rootPath
      * @param string $host
      * @param int $port
@@ -45,6 +55,8 @@ final class PhpFpm implements Sapi
     {
         $this->envs = $envs;
         $this->inis = $inis;
+        $this->host = $host;
+        $this->port = $port;
 
         $logPath = $rootPath . '/' . self::ERROR_LOG;
 
@@ -88,6 +100,27 @@ final class PhpFpm implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        if (!$this->waitUntilServerRunning()) {
+            error_log("[php-fpm] Server never came up...");
+            return;
+        }
+        error_log("[php-fpm] Server is up and responding...");
+    }
+
+    public function waitUntilServerRunning()
+    {
+        //Let's wait until PHP-FPM is accepting connections
+        for ($try = 0; $try < 40; $try++) {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                fclose($socket);
+                return true;
+            }
+            usleep(50000);
+        }
+
+        return false;
     }
 
     public function stop()
