@@ -955,8 +955,7 @@ impl Profiler {
         alloc_size: i64,
         interrupt_count: Option<u32>,
     ) {
-        let (result, _wall_time, _cpu_time) =
-            self.collect_stack_sample_with_timeline(execute_data);
+        let (result, _wall_time, _cpu_time) = self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1009,8 +1008,7 @@ impl Profiler {
         exception: String,
         message: Option<String>,
     ) {
-        let (result, _wall_time, _cpu_time) =
-            self.collect_stack_sample_with_timeline(execute_data);
+        let (result, _wall_time, _cpu_time) = self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1410,8 +1408,7 @@ impl Profiler {
     where
         F: FnOnce(&mut SampleValues),
     {
-        let (result, _wall_time, _cpu_time) =
-            self.collect_stack_sample_with_timeline(execute_data);
+        let (result, _wall_time, _cpu_time) = self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1555,32 +1552,28 @@ impl Profiler {
         let (stack_walk_wall_time, stack_walk_cpu_time) =
             CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
-        if self.is_timeline_enabled() {
-            if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                let timestamp = now.as_nanos() as i64;
-                let labels = Profiler::common_labels(0);
-                let n_labels = labels.len();
-                match self.prepare_and_send_message(
-                    vec![ZendFrame {
-                        function: COW_PROFILER_STACK_WALK,
-                        file: None,
-                        line: 0,
-                    }],
-                    SampleValues {
-                        wall_time: stack_walk_wall_time,
-                        cpu_time: stack_walk_cpu_time,
-                        ..Default::default()
-                    },
-                    labels,
-                    timestamp,
-                ) {
-                    Ok(_) => {
-                        trace!("Sent stack walk sample with {n_labels} labels to profiler.")
-                    }
-                    Err(err) => warn!(
-                        "Failed to send stack walk sample with {n_labels} labels to profiler: {err}"
-                    ),
-                }
+        let timestamp = self.get_timeline_timestamp();
+        let labels = Profiler::common_labels(0);
+        let n_labels = labels.len();
+        match self.prepare_and_send_message(
+            vec![ZendFrame {
+                function: COW_PROFILER_STACK_WALK,
+                file: None,
+                line: 0,
+            }],
+            SampleValues {
+                wall_time: stack_walk_wall_time,
+                cpu_time: stack_walk_cpu_time,
+                ..Default::default()
+            },
+            labels,
+            timestamp,
+        ) {
+            Ok(_) => {
+                trace!("Sent stack walk sample with {n_labels} labels to profiler.")
+            }
+            Err(err) => {
+                warn!("Failed to send stack walk sample with {n_labels} labels to profiler: {err}")
             }
         }
 
