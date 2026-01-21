@@ -77,7 +77,7 @@ jobs:
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
-          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "allocation_time_combined"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension="${PWD}/target/profiler-release/libdatadog_php_profiling.so" "profiling/tests/correctness/${test_case}.php"
@@ -95,7 +95,7 @@ jobs:
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
-          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions"; do
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "allocation_time_combined"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
@@ -109,25 +109,6 @@ jobs:
           export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
           USE_ZEND_ALLOC=0 php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocations.php
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
-
-      - name: Run allocation_time_combined test (PHP 8.4+)
-        run: |
-          export DD_PROFILING_LOG_LEVEL=trace
-          export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
-          export DD_PROFILING_EXPERIMENTAL_EXCEPTION_SAMPLING_DISTANCE=1
-          export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
-          php -v
-          php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
-          mkdir -p profiling/tests/correctness/allocation_time_combined/
-          export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/allocation_time_combined/test.pprof
-          export DD_PROFILING_ALLOCATION_ENABLED=yes
-          export DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE=1
-          export DD_PROFILING_WALL_TIME_ENABLED=yes
-          export DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
-          export DD_PROFILING_ENDPOINT_COLLECTION_ENABLED=no
-          export EXECUTION_TIME=5
-          php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/allocation_time_combined.php
-          unset DD_PROFILING_ALLOCATION_ENABLED DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE DD_PROFILING_WALL_TIME_ENABLED DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED DD_PROFILING_ENDPOINT_COLLECTION_ENABLED EXECUTION_TIME
 
       - name: Run ZTS tests
         if: matrix.phpts == 'zts'
