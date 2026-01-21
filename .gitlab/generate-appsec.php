@@ -145,7 +145,7 @@ stages:
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \;
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:appsec"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:appsec"
   artifacts:
     reports:
       junit: "artifacts/**/test-results/**/TEST-*.xml"

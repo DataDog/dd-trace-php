@@ -58,7 +58,7 @@ foreach ($profiler_minor_major_targets as $version) {
   after_script:
     - |
       if [ "${IMAGE_SUFFIX}" != "_centos-7" ]; then
-        .gitlab/upload-junit-to-datadog.sh "test.source.file:profiling"
+        .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:profiling"
       else
         echo "Skipping JUnit upload on CentOS 7 (old glibc/OpenSSL incompatible with datadog-ci)"
       fi
