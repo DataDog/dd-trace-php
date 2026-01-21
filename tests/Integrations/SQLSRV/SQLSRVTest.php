@@ -564,7 +564,6 @@ class SQLSRVTest extends IntegrationTestCase
         $conn = $this->createConnection();
         $sql = 'DROP TABLE IF EXISTS tests';
         sqlsrv_query($conn, $sql);
-        sqlsrv_commit($conn);
         sqlsrv_close($conn);
     }
 
@@ -575,7 +574,6 @@ class SQLSRVTest extends IntegrationTestCase
         sqlsrv_query($conn, $sql1);
         $sql2 = "INSERT INTO tests (id, name) VALUES (1, 'Tom')";
         sqlsrv_query($conn, $sql2);
-        sqlsrv_commit($conn);
         sqlsrv_close($conn);
     }
 }
