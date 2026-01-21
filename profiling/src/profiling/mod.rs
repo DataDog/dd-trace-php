@@ -916,14 +916,7 @@ impl Profiler {
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                let mut timestamp = NO_TIMESTAMP;
-                {
-                    if self.is_timeline_enabled() {
-                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                            timestamp = now.as_nanos() as i64;
-                        }
-                    }
-                }
+                let timestamp = self.get_timeline_timestamp();
 
                 match self.prepare_and_send_message(
                     frames,
@@ -950,34 +943,52 @@ impl Profiler {
         }
     }
 
-    /// Collect a stack sample with memory allocations.
+    /// Collect a stack sample with memory allocations, and optionally time data.
+    ///
+    /// When `interrupt_count` is provided, this piggybacks time sampling onto
+    /// allocation sampling to avoid redundant stack walks.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
         alloc_samples: i64,
         alloc_size: i64,
+        interrupt_count: Option<u32>,
     ) {
         let (result, _wall_time, _cpu_time) =
             self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
+
+                // Optionally collect time data when interrupt_count is provided
+                let (interrupt_count, wall_time, cpu_time, timestamp) =
+                    if let Some(count) = interrupt_count {
+                        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+                        let timestamp = self.get_timeline_timestamp();
+                        (count as i64, wall_time, cpu_time, timestamp)
+                    } else {
+                        (0, 0, 0, NO_TIMESTAMP)
+                    };
+
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
                 match self.prepare_and_send_message(
                     frames,
                     SampleValues {
-                        alloc_size,
+                        interrupt_count,
+                        wall_time,
+                        cpu_time,
                         alloc_samples,
+                        alloc_size,
                         ..Default::default()
                     },
                     labels,
-                    NO_TIMESTAMP,
+                    timestamp,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
+                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
                     ),
                     Err(err) => warn!(
                         "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
@@ -1019,14 +1030,7 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                let mut timestamp = NO_TIMESTAMP;
-                {
-                    if self.is_timeline_enabled() {
-                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                            timestamp = now.as_nanos() as i64;
-                        }
-                    }
-                }
+                let timestamp = self.get_timeline_timestamp();
 
                 match self.prepare_and_send_message(
                     frames,
@@ -1436,6 +1440,16 @@ impl Profiler {
                 warn!("Failed to collect stack sample: {err}")
             }
         }
+    }
+
+    /// Gets a timestamp for timeline profiling if timeline is enabled.
+    /// Returns NO_TIMESTAMP if timeline is disabled or if getting the time fails.
+    fn get_timeline_timestamp(&self) -> i64 {
+        self.is_timeline_enabled()
+            .then(|| SystemTime::now().duration_since(UNIX_EPOCH).ok())
+            .flatten()
+            .map(|now| now.as_nanos() as i64)
+            .unwrap_or(NO_TIMESTAMP)
     }
 
     /// Creates the common message labels for all samples.
