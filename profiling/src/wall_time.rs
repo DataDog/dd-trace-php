@@ -140,8 +140,6 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
 #[cfg(php_frameless)]
 mod frameless {
     #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-
-    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     mod trampoline {
         #[cfg(target_arch = "aarch64")]
         use dynasmrt::aarch64::Assembler;
@@ -175,15 +173,20 @@ mod frameless {
                 // Calls original function, then calls interrupt function.
                 #[cfg(target_arch = "aarch64")]
                 dynasm!(assembler
+                    ; stp x29, x30, [sp, -16]! // save link register and allow clobber of x29
+                    ; mov x29, sp // store stack pointer
                     ; mov x16, *orig as u64
                     ; blr x16
+                    ; ldp x29, x30, [sp], 16 // restore link register and x29
                     ; mov x16, interrupt_addr as u64
                     ; br x16  // tail call
                 );
                 #[cfg(target_arch = "x86_64")]
                 dynasm!(assembler
+                    ; push rbp  // align stack
                     ; mov rax, QWORD *orig as i64
                     ; call rax
+                    ; pop rbp  // restore stack
                     ; mov rax, QWORD interrupt_addr as i64
                     ; jmp rax  // tail call
                 );
