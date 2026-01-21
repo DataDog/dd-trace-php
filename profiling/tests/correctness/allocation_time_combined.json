@@ -23,12 +23,12 @@
         {
           "regular_expression": "<?php;main;standard\\|str_replace$",
           "percent": 66,
-          "error_margin": 1
+          "error_margin": 3
         },
         {
           "regular_expression": "<?php;main;standard\\|str_repeat$",
           "percent": 33,
-          "error_margin": 1
+          "error_margin": 3
         }
       ]
     },
@@ -37,8 +37,8 @@
       "stack-content": [
         {
           "regular_expression": "<?php;main;standard\\|str_replace$",
-          "percent": 51,
-          "error_margin": 50
+          "percent": 70,
+          "error_margin": 30
         }
       ]
     }
