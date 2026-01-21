@@ -154,6 +154,7 @@ mod frameless {
         use crate::zend;
 
         pub unsafe fn generate_wrapper(original: *mut c_void) -> *mut c_void {
+            // Calls original function, then calls interrupt function.
             let mut assembler = Assembler::new().unwrap();
             let interrupt_addr = ddog_php_prof_icall_trampoline_target as *const ();
             #[cfg(target_arch = "aarch64")]
@@ -161,16 +162,14 @@ mod frameless {
                 ; mov x16, original as u64
                 ; blr x16
                 ; mov x16, interrupt_addr as u64
-                ; blr x16
-                ; ret
+                ; br x16  // tail call
             );
             #[cfg(target_arch = "x86_64")]
             dynasm!(assembler
                 ; mov rax, QWORD original as i64
                 ; call rax
                 ; mov rax, QWORD interrupt_addr as i64
-                ; call rax
-                ; ret
+                ; jmp rax  // tail call
             );
             let buffer = assembler.finalize().unwrap();
             let ptr = buffer.as_ptr() as *mut c_void;
@@ -181,6 +180,7 @@ mod frameless {
         #[no_mangle]
         #[inline(never)]
         pub unsafe extern "C" fn ddog_php_prof_icall_trampoline_target() {
+            // TODO: First check for REQUEST_LOCALS.interrupt_count before fetching execute data to make this less expensive
             ddog_php_prof_interrupt_function(zend::ddog_php_prof_get_current_execute_data());
         }
     }
@@ -198,6 +198,8 @@ mod frameless {
                 let wrapper = trampoline::generate_wrapper(original);
                 *zend_flf_handlers.add(i) = wrapper;
                 let func = &mut **zend_flf_functions.add(i);
+
+                // We need to do copies of frameless_function_infos as they may be readonly memory
                 let original_info = func.internal_function.frameless_function_infos;
                 let mut infos = Vec::new();
                 let mut ptr = original_info;
@@ -214,7 +216,6 @@ mod frameless {
                         info.handler = wrapper;
                     }
                 }
-                infos.push(crate::bindings::zend_frameless_function_info { handler: std::ptr::null_mut(), num_args: 0 });
                 let new_infos = infos.into_boxed_slice();
                 func.internal_function.frameless_function_infos = new_infos.as_ptr() as *mut _;
                 std::mem::forget(new_infos); // TODO: leaks memory
