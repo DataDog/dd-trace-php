@@ -18,7 +18,6 @@ function main() {
         $xs = str_repeat("x", 10_000_000); // 10MB source
         $ys = str_replace("x", "y", $xs); // 10MB allocation in frameless function
         $zs = str_replace("y", "z", $ys); // 10MB allocation in frameless function
-        strlen($zs); // Use the result to prevent optimization
     }
 }
 
