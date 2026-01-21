@@ -111,7 +111,6 @@ jobs:
           unset DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE
 
       - name: Run allocation_time_combined test (PHP 8.4+)
-        if: fromJSON(matrix.php-version) >= 8.4
         run: |
           export DD_PROFILING_LOG_LEVEL=trace
           export DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED=1
@@ -182,7 +181,6 @@ jobs:
           pprof_path: profiling/tests/correctness/timeline/
 
       - name: Check profiler correctness for allocation_time_combined
-        if: fromJSON(matrix.php-version) >= 8.4
         uses: Datadog/prof-correctness/analyze@main
         with:
           expected_json: profiling/tests/correctness/allocation_time_combined.json

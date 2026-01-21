@@ -37,8 +37,8 @@
       "stack-content": [
         {
           "regular_expression": "<?php;main;standard\\|str_replace$",
-          "percent": 51,
-          "error_margin": 50
+          "percent": 70,
+          "error_margin": 30
         }
       ]
     }
