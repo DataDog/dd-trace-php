@@ -959,14 +959,7 @@ impl Profiler {
         let result = collect_stack_sample(execute_data);
         match result {
             Ok(frames) => {
-                use core::ops::Deref;
                 let depth = frames.len();
-
-                let first_frame = frames
-                    .first()
-                    .map(|frame| frame.function.deref())
-                    .unwrap_or("[empty frame]")
-                    .to_string();
 
                 // Optionally collect time data when interrupt_count is provided
                 let (interrupt_count, wall_time, cpu_time, timestamp) =
@@ -995,7 +988,7 @@ impl Profiler {
                     timestamp,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample with leaf frame \"{first_frame}\" of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
+                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
                     ),
                     Err(err) => warn!(
                         "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
