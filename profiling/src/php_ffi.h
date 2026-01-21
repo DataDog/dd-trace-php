@@ -147,6 +147,10 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 
 zend_execute_data* ddog_php_prof_get_current_execute_data();
 
+#if CFG_FRAMELESS
+void ddog_php_prof_post_startup();
+#endif
+
 #if CFG_FIBERS
 zend_fiber* ddog_php_prof_get_active_fiber();
 zend_fiber* ddog_php_prof_get_active_fiber_test();

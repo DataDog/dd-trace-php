@@ -37,6 +37,7 @@ fn main() {
     let post_startup_cb = cfg_post_startup_cb(vernum);
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
+    let frameless = cfg_frameless(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
     let trigger_time_sample = cfg_trigger_time_sample();
     let zend_error_observer = cfg_zend_error_observer(vernum);
@@ -48,6 +49,7 @@ fn main() {
         preload,
         run_time_cache,
         fibers,
+        frameless,
         trigger_time_sample,
         zend_error_observer,
     );
@@ -103,6 +105,7 @@ fn build_zend_php_ffis(
     preload: bool,
     run_time_cache: bool,
     fibers: bool,
+    frameless: bool,
     trigger_time_sample: bool,
     zend_error_observer: bool,
 ) {
@@ -143,6 +146,7 @@ fn build_zend_php_ffis(
     let post_startup_cb = if post_startup_cb { "1" } else { "0" };
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
+    let frameless = if frameless { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
     let zend_error_observer = if zend_error_observer { "1" } else { "0" };
@@ -159,6 +163,7 @@ fn build_zend_php_ffis(
         .define("CFG_POST_STARTUP_CB", post_startup_cb)
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
+        .define("CFG_FRAMELESS", frameless)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
@@ -394,6 +399,18 @@ fn cfg_fibers(vernum: u64) -> bool {
     }
 }
 
+fn cfg_frameless(vernum: u64) -> bool {
+    if has_check_cfg() {
+        println!("cargo::rustc-check-cfg=cfg(php_frameless)");
+    }
+    if vernum >= 80400 {
+        println!("cargo:rustc-cfg=php_frameless");
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_php_feature_flags(vernum: u64) {
     if has_check_cfg() {
         println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex)");
@@ -409,7 +426,6 @@ fn cfg_php_feature_flags(vernum: u64) {
         println!("cargo:rustc-cfg=php_gc_status_extended");
     }
     if vernum >= 80400 {
-        println!("cargo:rustc-cfg=php_frameless");
         println!("cargo:rustc-cfg=php_opcache_restart_hook");
         println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
     }

@@ -390,7 +390,7 @@ dependencies = [
  "cpp_demangle",
  "gimli 0.32.0",
  "libc 0.2.177",
- "memmap2",
+ "memmap2 0.9.5",
  "miniz_oxide",
  "rustc-demangle",
 ]
@@ -1245,6 +1245,7 @@ dependencies = [
  "criterion-perf-events",
  "crossbeam-channel",
  "datadog-php-profiling",
+ "dynasmrt",
  "env_logger 0.11.6",
  "lazy_static",
  "libc 0.2.177",
@@ -1505,6 +1506,33 @@ name = "dyn-clone"
 version = "1.0.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d6ef0072f8a535281e4876be788938b528e9a1d43900b82c2569af7da799125"
+
+[[package]]
+name = "dynasm"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33dc03612f42465a8ed7f5e354bc2b79ba54cedefa81d5bd3a064f1835adaba8"
+dependencies = [
+ "bitflags 1.3.2",
+ "byteorder",
+ "lazy_static",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "dynasmrt"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7dccc31a678058996aef614f6bd418ced384da70f284e83e2b7bf29b27b6a28"
+dependencies = [
+ "byteorder",
+ "dynasm",
+ "fnv",
+ "memmap2 0.5.10",
+]
 
 [[package]]
 name = "educe"
@@ -3040,6 +3068,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2cffa4ad52c6f791f4f8b15f0c05f9824b2ced1160e88cc393d64fff9a8ac64"
 dependencies = [
  "rustix",
+]
+
+[[package]]
+name = "memmap2"
+version = "0.5.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83faa42c0a078c393f6b29d5db232d8be22776a891f8f56e5284faee4a20b327"
+dependencies = [
+ "libc 0.2.177",
 ]
 
 [[package]]
@@ -4650,7 +4687,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13a4dfe4bbeef59c1f32fc7524ae7c95b9e1de5e79a43ce1604e181081d71b0c"
 dependencies = [
  "debugid",
- "memmap2",
+ "memmap2 0.9.5",
  "stable_deref_trait",
  "uuid",
 ]

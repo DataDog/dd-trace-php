@@ -117,6 +117,10 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
             return FAILURE;
         }
     }
+    
+#if CFG_FRAMELESS
+    ddog_php_prof_post_startup();
+#endif
 
     _is_post_startup = true;
 
