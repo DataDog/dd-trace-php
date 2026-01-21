@@ -23,7 +23,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:src"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src"
 <?php
 }
 
