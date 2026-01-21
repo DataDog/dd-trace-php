@@ -143,6 +143,8 @@ mod frameless {
     mod trampoline {
         #[cfg(target_arch = "aarch64")]
         use dynasmrt::aarch64::Assembler;
+        #[cfg(target_arch = "aarch64")]
+        use dynasmrt::DynasmLabelApi;
         #[cfg(target_arch = "x86_64")]
         use dynasmrt::x64::Assembler;
         use dynasmrt::{dynasm, DynasmApi};
@@ -172,15 +174,19 @@ mod frameless {
                 offsets.push(assembler.offset());
                 // Calls original function, then calls interrupt function.
                 #[cfg(target_arch = "aarch64")]
-                dynasm!(assembler
-                    ; stp x29, x30, [sp, -16]! // save link register and allow clobber of x29
-                    ; mov x29, sp // store stack pointer
-                    ; mov x16, *orig as u64
-                    ; blr x16
-                    ; ldp x29, x30, [sp], 16 // restore link register and x29
-                    ; mov x16, interrupt_addr as u64
-                    ; br x16  // tail call
-                );
+                {
+                    // We need labels on aarch64 as immediates cannot be more than 16 bits
+                    dynasm!(assembler
+                        ; stp x29, x30, [sp, -16]! // save link register and allow clobber of x29
+                        ; mov x29, sp // store stack pointer
+                        ; ldr x16, >label
+                        ; blr x16
+                        ; ldp x29, x30, [sp], 16 // restore link register and x29
+                        ; ldr x16, >interrupt_label
+                        ; br x16  // tail call
+                        ; label: ; .qword *orig as i64
+                    );
+                }
                 #[cfg(target_arch = "x86_64")]
                 dynasm!(assembler
                     ; push rbp  // align stack
@@ -191,6 +197,9 @@ mod frameless {
                     ; jmp rax  // tail call
                 );
             }
+            #[cfg(target_arch = "aarch64")]
+            dynasm!(assembler
+                ; interrupt_label: ; .qword interrupt_addr as i64 );
 
             // Allocate enough space for all frameless_function_infos including trailing NULLs
             let mut infos = Vec::with_capacity(originals.len() * 2);
