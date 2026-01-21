@@ -261,11 +261,7 @@ public:
 
     void drain_metrics(const sidecar_settings &sc_settings)
     {
-        auto registered = metrics_registered_.load(std::memory_order_relaxed);
-        if (!registered && metrics_registered_.compare_exchange_strong(
-                               registered, true, std::memory_order_relaxed)) {
-            register_known_metrics(sc_settings, telemetry_settings_);
-        }
+        register_known_metrics(sc_settings, telemetry_settings_);
 
         msubmitter_->drain_metrics(sc_settings, telemetry_settings_);
     }
@@ -274,8 +270,7 @@ public:
     {
         msubmitter_->drain_logs(sc_settings, telemetry_settings_);
 
-        // take this opportunity to submit internal worker count metrics too
-        // this could be done at any other time when sc_settings is available
+        register_known_metrics(sc_settings, telemetry_settings_);
         handle_worker_count_metrics(sc_settings);
     }
 
@@ -337,7 +332,8 @@ protected:
     std::optional<sampler> schema_sampler_;
     std::string rc_path_;
     telemetry_settings telemetry_settings_;
-    std::atomic<bool> metrics_registered_;
+    std::atomic<std::chrono::time_point<std::chrono::steady_clock>>
+        metrics_registered_at_;
     std::shared_ptr<metrics_impl> msubmitter_;
 
     struct num_workers_t {

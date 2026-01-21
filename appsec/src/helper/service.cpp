@@ -162,7 +162,9 @@ void service::metrics_impl::submit_log(const sidecar_settings &sc_settings,
         SPDLOG_INFO("Failed to enqueue telemetry log, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
         fn_ddog_Error_drop(&result.some);
-        return;
+    } else {
+        SPDLOG_DEBUG("Sent telemetry log via sidecar-ffi: {}: {}",
+            log.identifier, log.message);
     }
 }
 
@@ -189,6 +191,9 @@ void service::metrics_impl::register_metric_ffi(
         SPDLOG_INFO("Failed to register telemetry metric, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
         fn_ddog_Error_drop(&result.some);
+    } else {
+        SPDLOG_DEBUG(
+            "Sent telemetry metric via sidecar-ffi: {} of type {}", name, type);
     }
 }
 
@@ -222,14 +227,32 @@ void service::metrics_impl::submit_metric_ffi(
         SPDLOG_INFO("Failed to enqueue telemetry point, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
         fn_ddog_Error_drop(&result.some);
+    } else {
+        SPDLOG_DEBUG("Sent telemetry point via sidecar-ffi: {} of value {}",
+            name, value);
     }
 }
 
 void service::register_known_metrics(const sidecar_settings &sc_settings,
     const telemetry_settings &telemetry_settings)
 {
+    static constexpr std::chrono::minutes kRegisterInterval = 25min;
+    // register known metrics every 25 minutes
+    // libdatadog has a cleanup task that deletes TelemetryCachedClients
+    // if they are 30 minutes without being used
+    auto registered = metrics_registered_at_.load(std::memory_order_relaxed);
+    auto now = std::chrono::steady_clock::now();
+    if (registered + kRegisterInterval > now) {
+        return;
+    }
+    if (!metrics_registered_at_.compare_exchange_strong(
+            registered, now, std::memory_order_relaxed)) {
+        SPDLOG_DEBUG("Metrics concurrent registration attempt");
+        return;
+    }
+
     for (auto &&metric : metrics::known_metrics) {
-        msubmitter_->register_metric_ffi(
+        metrics_impl::register_metric_ffi(
             sc_settings, telemetry_settings, metric.name, metric.type);
     }
 }
@@ -241,7 +264,7 @@ void service::handle_worker_count_metrics(const sidecar_settings &sc_settings)
         return;
     }
 
-    msubmitter_->submit_metric_ffi(sc_settings, telemetry_settings_,
+    metrics_impl::submit_metric_ffi(sc_settings, telemetry_settings_,
         metrics::helper_worker_count, static_cast<double>(cur_st.count),
         std::nullopt);
 
