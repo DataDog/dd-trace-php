@@ -140,7 +140,6 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
 #[cfg(php_frameless)]
 mod frameless {
     #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-    use crate::bindings::{zend_flf_functions, zend_flf_handlers};
 
     #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     mod trampoline {
@@ -151,51 +150,48 @@ mod frameless {
         use dynasmrt::{dynasm, DynasmApi};
         use std::ffi::c_void;
         use super::super::ddog_php_prof_interrupt_function;
+        use crate::bindings::{zend_flf_functions, zend_flf_handlers};
         use crate::zend;
 
-        pub unsafe fn generate_wrapper(original: *mut c_void) -> *mut c_void {
-            // Calls original function, then calls interrupt function.
-            let mut assembler = Assembler::new().unwrap();
-            let interrupt_addr = ddog_php_prof_icall_trampoline_target as *const ();
-            #[cfg(target_arch = "aarch64")]
-            dynasm!(assembler
-                ; mov x16, original as u64
-                ; blr x16
-                ; mov x16, interrupt_addr as u64
-                ; br x16  // tail call
-            );
-            #[cfg(target_arch = "x86_64")]
-            dynasm!(assembler
-                ; mov rax, QWORD original as i64
-                ; call rax
-                ; mov rax, QWORD interrupt_addr as i64
-                ; jmp rax  // tail call
-            );
-            let buffer = assembler.finalize().unwrap();
-            let ptr = buffer.as_ptr() as *mut c_void;
-            std::mem::forget(buffer); // TODO: leaks memory
-            ptr
-        }
-
-        #[no_mangle]
-        #[inline(never)]
-        pub unsafe extern "C" fn ddog_php_prof_icall_trampoline_target() {
-            // TODO: First check for REQUEST_LOCALS.interrupt_count before fetching execute data to make this less expensive
-            ddog_php_prof_interrupt_function(zend::ddog_php_prof_get_current_execute_data());
-        }
-    }
-
-    #[no_mangle]
-    pub unsafe extern "C" fn ddog_php_prof_post_startup() {
-        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-        {
+        pub unsafe fn install() {
+            // Collect frameless functions ahead of time to batch-process them.
+            // Otherwise we get a new memory page per function.
+            let mut originals = Vec::new();
             let mut i = 0;
             loop {
                 let original = *zend_flf_handlers.add(i);
                 if original.is_null() {
                     break;
                 }
-                let wrapper = trampoline::generate_wrapper(original);
+                originals.push(original);
+                i += 1;
+            }
+
+            let mut assembler = Assembler::new().unwrap();
+            let interrupt_addr = ddog_php_prof_icall_trampoline_target as *const ();
+            let mut offsets = Vec::new();  // keep function offsets
+            for orig in originals.iter() {
+                offsets.push(assembler.offset());
+                // Calls original function, then calls interrupt function.
+                #[cfg(target_arch = "aarch64")]
+                dynasm!(assembler
+                    ; mov x16, *orig as u64
+                    ; blr x16
+                    ; mov x16, interrupt_addr as u64
+                    ; br x16  // tail call
+                );
+                #[cfg(target_arch = "x86_64")]
+                dynasm!(assembler
+                    ; mov rax, QWORD *orig as i64
+                    ; call rax
+                    ; mov rax, QWORD interrupt_addr as i64
+                    ; jmp rax  // tail call
+                );
+            }
+
+            let buffer = assembler.finalize().unwrap();
+            for (i, offset) in offsets.iter().enumerate() {
+                let wrapper = buffer.as_ptr().add(offset.0) as *mut c_void;
                 *zend_flf_handlers.add(i) = wrapper;
                 let func = &mut **zend_flf_functions.add(i);
 
@@ -212,16 +208,29 @@ mod frameless {
                     ptr = ptr.add(1);
                 }
                 for info in infos.iter_mut() {
-                    if info.handler == original {
+                    if info.handler == originals[i] {
                         info.handler = wrapper;
                     }
                 }
                 let new_infos = infos.into_boxed_slice();
                 func.internal_function.frameless_function_infos = new_infos.as_ptr() as *mut _;
                 std::mem::forget(new_infos); // TODO: leaks memory
-                i += 1;
             }
+            std::mem::forget(buffer); // TODO: leaks memory
         }
+
+        #[no_mangle]
+        #[inline(never)]
+        pub unsafe extern "C" fn ddog_php_prof_icall_trampoline_target() {
+            // TODO: First check for REQUEST_LOCALS.interrupt_count before fetching execute data to make this less expensive
+            ddog_php_prof_interrupt_function(zend::ddog_php_prof_get_current_execute_data());
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn ddog_php_prof_post_startup() {
+        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+        trampoline::install();
     }
 }
 
