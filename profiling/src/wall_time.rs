@@ -196,29 +196,35 @@ mod frameless {
             let mut infos = Vec::with_capacity(originals.len() * 2);
 
             let buffer = assembler.finalize().unwrap();
+            let mut last_infos = std::ptr::null_mut();
             for (i, offset) in offsets.iter().enumerate() {
                 let wrapper = buffer.as_ptr().add(offset.0) as *mut c_void;
                 *zend_flf_handlers.add(i) = wrapper;
                 let func = &mut **zend_flf_functions.add(i);
 
                 // We need to do copies of frameless_function_infos as they may be readonly memory
-                let info_size = infos.len();
                 let original_info = func.internal_function.frameless_function_infos;
+                if original_info == last_infos {
+                    continue;
+                }
+
+                let info_size = infos.len();
                 let mut ptr = original_info;
                 loop {
+                    let idx = infos.len();
                     let info = *ptr;
                     infos.push(info);
                     if info.handler.is_null() {
                         break;
                     }
-                    ptr = ptr.add(1);
-                }
-                for info in infos.iter_mut() {
+                    let info = &mut infos[idx];
                     if info.handler == originals[i] {
                         info.handler = wrapper;
                     }
+                    ptr = ptr.add(1);
                 }
-                func.internal_function.frameless_function_infos = infos.as_ptr().add(info_size) as *mut _;
+                last_infos = infos.as_ptr().add(info_size) as *mut _;
+                func.internal_function.frameless_function_infos = last_infos;
             }
             std::mem::forget(infos); // TODO: leaks memory
             std::mem::forget(buffer); // TODO: leaks memory
