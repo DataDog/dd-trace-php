@@ -179,12 +179,12 @@ mod frameless {
                     dynasm!(assembler
                         ; stp x29, x30, [sp, -16]! // save link register and allow clobber of x29
                         ; mov x29, sp // store stack pointer
-                        ; ldr x16, >label
+                        ; ldr x16, >orig_label
                         ; blr x16
                         ; ldp x29, x30, [sp], 16 // restore link register and x29
                         ; ldr x16, >interrupt_label
                         ; br x16  // tail call
-                        ; label: ; .qword *orig as i64
+                        ; orig_label: ; .qword *orig as i64
                     );
                 }
                 #[cfg(target_arch = "x86_64")]
@@ -213,27 +213,31 @@ mod frameless {
 
                 // We need to do copies of frameless_function_infos as they may be readonly memory
                 let original_info = func.internal_function.frameless_function_infos;
-                if original_info == last_infos {
-                    continue;
+                if original_info != last_infos {
+                    let info_size = infos.len();
+                    let mut ptr = original_info;
+                    loop {
+                        let info = *ptr;
+                        infos.push(info);
+                        if info.handler.is_null() {
+                            break;
+                        }
+                        ptr = ptr.add(1);
+                    }
+                    last_infos = infos.as_ptr().add(info_size) as *mut _;
+                    func.internal_function.frameless_function_infos = last_infos;
                 }
-
-                let info_size = infos.len();
-                let mut ptr = original_info;
+                let mut ptr = last_infos;
                 loop {
-                    let idx = infos.len();
-                    let info = *ptr;
-                    infos.push(info);
+                    let info = &mut *ptr;
                     if info.handler.is_null() {
                         break;
                     }
-                    let info = &mut infos[idx];
                     if info.handler == originals[i] {
                         info.handler = wrapper;
                     }
                     ptr = ptr.add(1);
                 }
-                last_infos = infos.as_ptr().add(info_size) as *mut _;
-                func.internal_function.frameless_function_infos = last_infos;
             }
             std::mem::forget(infos); // TODO: leaks memory
             std::mem::forget(buffer); // TODO: leaks memory
