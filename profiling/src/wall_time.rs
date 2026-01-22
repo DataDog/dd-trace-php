@@ -147,11 +147,16 @@ mod frameless {
         use dynasmrt::DynasmLabelApi;
         #[cfg(target_arch = "x86_64")]
         use dynasmrt::x64::Assembler;
-        use dynasmrt::{dynasm, DynasmApi};
+        use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
         use std::ffi::c_void;
-        use super::super::ddog_php_prof_interrupt_function;
-        use crate::bindings::{zend_flf_functions, zend_flf_handlers};
-        use crate::zend;
+        use std::sync::atomic::Ordering;
+        use log::debug;
+        use crate::bindings::{zend_flf_functions, zend_flf_handlers, zend_frameless_function_info};
+        use crate::{profiling::Profiler, RefCellExt, REQUEST_LOCALS, zend};
+
+        // This ensures that the memory stays reachable and is replaced on apache reload for example
+        static mut INFOS: Vec<zend_frameless_function_info> = Vec::new();
+        static mut BUFFER: Option<ExecutableBuffer> = None;
 
         pub unsafe fn install() {
             // Collect frameless functions ahead of time to batch-process them.
@@ -239,15 +244,35 @@ mod frameless {
                     ptr = ptr.add(1);
                 }
             }
-            std::mem::forget(infos); // TODO: leaks memory
-            std::mem::forget(buffer); // TODO: leaks memory
+
+            INFOS = infos;
+            BUFFER = Some(buffer);
         }
 
         #[no_mangle]
         #[inline(never)]
-        pub unsafe extern "C" fn ddog_php_prof_icall_trampoline_target() {
-            // TODO: First check for REQUEST_LOCALS.interrupt_count before fetching execute data to make this less expensive
-            ddog_php_prof_interrupt_function(zend::ddog_php_prof_get_current_execute_data());
+        pub extern "C" fn ddog_php_prof_icall_trampoline_target() {
+            let result = REQUEST_LOCALS.try_with_borrow(|locals| {
+                if !locals.system_settings().profiling_enabled {
+                    return;
+                }
+
+                // Check whether we are actually wanting an interrupt to be handled.
+                let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
+                if interrupt_count == 0 {
+                    return;
+                }
+
+                if let Some(profiler) = Profiler::get() {
+                    // SAFETY: profiler doesn't mutate execute_data
+                    let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
+                    profiler.collect_time(execute_data, interrupt_count);
+                }
+            });
+
+            if let Err(err) = result {
+                debug!("ddog_php_prof_icall_trampoline_target failed to borrow request locals: {err}");
+            }
         }
     }
 

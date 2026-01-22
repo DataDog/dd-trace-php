@@ -109,6 +109,10 @@ bool ddog_php_prof_is_post_startup(void) {
 static post_startup_cb_result (*orig_post_startup_cb)(void) = NULL;
 
 static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
+#if CFG_FRAMELESS
+    ddog_php_prof_post_startup(); // before preload+JIT (which may hardcode the flf handlers)
+#endif
+
     if (orig_post_startup_cb) {
         post_startup_cb_result (*cb)(void) = orig_post_startup_cb;
 
@@ -118,10 +122,6 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
         }
     }
     
-#if CFG_FRAMELESS
-    ddog_php_prof_post_startup();
-#endif
-
     _is_post_startup = true;
 
     return SUCCESS;
