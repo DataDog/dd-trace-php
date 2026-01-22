@@ -454,10 +454,7 @@ static void dd_activate_once(void) {
         }
 
         // if we're to enable appsec, we need to enable sidecar
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
-        if (!enable_sidecar) {
-            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
-        }
+        bool enable_sidecar = ddtrace_sidecar_should_enable(&appsec_activation, &appsec_config);
 
         if (enable_sidecar)
 #endif
@@ -1587,9 +1584,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 #ifndef _WIN32
     ddtrace_signals_mshutdown();
 
-    // For CLI SAPI, background sender is already shut down in RSHUTDOWN
-    // For non-CLI SAPIs, shut it down here in MSHUTDOWN
-    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER() && strcmp(sapi_module.name, "cli") != 0) {
+    if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         ddtrace_coms_mshutdown();
         if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
             ddtrace_coms_curl_shutdown();
@@ -1616,11 +1611,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_user_req_shutdown();
 
-    // Only shutdown sidecar in MSHUTDOWN for non-CLI SAPIs
-    // CLI SAPI shuts down in RSHUTDOWN to allow thread joins before ASAN checks
-    if (strcmp(sapi_module.name, "cli") != 0) {
-        ddtrace_sidecar_shutdown();
-    }
+    ddtrace_sidecar_shutdown();
 
     ddtrace_live_debugger_mshutdown();
     ddtrace_process_tags_mshutdown();
@@ -2667,30 +2658,9 @@ void dd_internal_handle_fork(void) {
         ddtrace_coms_curl_shutdown();
         ddtrace_coms_clean_background_sender_after_fork();
     }
-
-    // Handle thread mode after fork
-    int32_t current_pid = (int32_t)getpid();
-    bool is_child_process = (ddtrace_sidecar_master_pid != 0 &&
-                             current_pid != ddtrace_sidecar_master_pid);
-
-    if (is_child_process && ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
-        // Clear inherited master listener state (child doesn't own it)
-        ddtrace_ffi_try("Failed clearing inherited listener state",
-                        ddog_sidecar_clear_inherited_listener());
-
-        // Attempt to reconnect child to parent's master listener
-        bool appsec_activation = false;
-        bool appsec_config = false;
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
-        if (!enable_sidecar) {
-            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
-        }
-
-        if (enable_sidecar && !ddtrace_sidecar_reconnect_after_fork(appsec_activation, appsec_config)) {
-            LOG(WARN, "Child process after fork with thread mode: failed to reconnect to parent's listener");
-        }
-    }
 #endif
+
+    ddtrace_sidecar_handle_fork();
     if (DDTRACE_G(agent_config_reader)) {
         ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
         DDTRACE_G(agent_config_reader) = NULL;
@@ -2705,11 +2675,6 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    // Thread mode already handled sidecar reconnection above (lines 2648-2664)
-    // Only reset for subprocess mode
-    if (ddtrace_sidecar_active_mode != DD_SIDECAR_CONNECTION_THREAD) {
-        ddtrace_reset_sidecar();
-    }
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
