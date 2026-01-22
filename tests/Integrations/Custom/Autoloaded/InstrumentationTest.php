@@ -23,7 +23,6 @@ final class InstrumentationTest extends WebFrameworkTestCase
             'DD_AGENT_HOST' => 'request-replayer',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 1,
             'DD_LOGS_INJECTION' => 'false',
-            'DD_TRACE_DEBUG' => 1,  // Enable DEBUG logs so they're counted in logs_created metric
         ]);
     }
 

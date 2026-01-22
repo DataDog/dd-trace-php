@@ -92,70 +92,14 @@ void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
  */
 ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
-/**
- * Start master listener thread for thread-based connections (Unix only).
- *
- * This spawns a listener thread that accepts worker connections. Only one
- * master listener can be active per process.
- *
- * # Arguments
- * * `pid` - Process ID that owns this listener
- *
- * # Returns
- * * `MaybeError::None` on success
- * * `MaybeError::Some(Error)` on failure
- */
 ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
 
-/**
- * Connect as worker to master listener thread (Unix only).
- *
- * Establishes a connection to the master listener for the given PID.
- *
- * # Arguments
- * * `pid` - Process ID of the master process
- * * `connection` - Output parameter for the connection
- *
- * # Returns
- * * `MaybeError::None` on success
- * * `MaybeError::Some(Error)` on failure
- */
 ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid, struct ddog_SidecarTransport **connection);
 
-/**
- * Shutdown the master listener thread (Unix only).
- *
- * Sends shutdown signal and joins the listener thread. This is blocking.
- *
- * # Returns
- * * `MaybeError::None` on success
- * * `MaybeError::Some(Error)` on failure
- */
 ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
 
-/**
- * Check if master listener is active for the given PID (Unix only).
- *
- * Used for fork detection.
- *
- * # Arguments
- * * `pid` - Process ID to check
- *
- * # Returns
- * * `true` if listener is active for this PID
- * * `false` otherwise
- */
 bool ddog_sidecar_is_master_listener_active(int32_t pid);
 
-/**
- * Clear inherited master listener state in child after fork (Unix only).
- *
- * Child processes must call this to avoid using the parent's listener.
- *
- * # Returns
- * * `MaybeError::None` on success
- * * `MaybeError::Some(Error)` on failure
- */
 ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
