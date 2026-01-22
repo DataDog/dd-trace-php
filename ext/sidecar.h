@@ -31,19 +31,21 @@ DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 
 // Connection functions
 ddog_SidecarTransport *ddtrace_sidecar_connect_subprocess(void);
+#ifndef _WIN32
 ddog_SidecarTransport *ddtrace_sidecar_connect_thread(void);
+#endif
 ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork);
 
 // Lifecycle functions
 void ddtrace_sidecar_minit(void);
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
-bool ddtrace_sidecar_reconnect_after_fork(bool appsec_activation, bool appsec_config);
+void ddtrace_sidecar_handle_fork(void);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
+bool ddtrace_sidecar_should_enable(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_update_process_tags(void);
 void ddtrace_sidecar_finalize(bool clear_id);
 void ddtrace_sidecar_shutdown(void);
-void ddtrace_reset_sidecar(void);
 void ddtrace_force_new_instance_id(void);
 void ddtrace_sidecar_submit_root_span_data(void);
 void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);

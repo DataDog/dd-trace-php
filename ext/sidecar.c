@@ -140,8 +140,10 @@ void ddtrace_sidecar_update_process_tags(void) {
 }
 
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork);
+#ifndef _WIN32
 static ddog_SidecarTransport *dd_sidecar_connection_factory_thread(void);
-static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_config);
+static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appsec_config);
+#endif
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
     if (!ddtrace_endpoint || !dogstatsd_endpoint) {
@@ -233,18 +235,14 @@ ddog_SidecarTransport *ddtrace_sidecar_connect_subprocess(void) {
     return sidecar_transport;
 }
 
-static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
-    // Should not happen, unless the agent url is malformed
+#ifndef _WIN32
+static ddog_SidecarTransport *ddtrace_sidecar_connect_as_worker(bool is_fork) {
     if (!ddtrace_endpoint) {
         return NULL;
     }
     ZEND_ASSERT(dogstatsd_endpoint != NULL);
 
     dd_set_endpoint_test_token(dogstatsd_endpoint);
-
-#ifdef _WIN32
-    DDOG_PHP_FUNCTION = (const uint8_t *)zend_hash_func;
-#endif
 
     char logpath[MAXPATHLEN];
     int error_fd = atomic_load(&ddtrace_error_log_fd);
@@ -270,10 +268,11 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
 
 // Connection factory for thread mode - connects as worker to master listener
 static ddog_SidecarTransport *dd_sidecar_connection_factory_thread(void) {
-    return dd_sidecar_connection_factory_ex(false);
+    return ddtrace_sidecar_connect_as_worker(false);
 }
+#endif
 
-static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_config) {
+static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appsec_config) {
 #ifndef _WIN32
     pid_t current_pid = getpid();
     bool is_child_process = (ddtrace_sidecar_master_pid != 0 && (int32_t)current_pid != ddtrace_sidecar_master_pid);
@@ -286,31 +285,12 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
 
         ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
 
-        if (!ddtrace_endpoint) {
-            LOG(WARN, "Cannot connect to sidecar: endpoint not available");
-            return;
-        }
-
-        ddog_SidecarTransport *sidecar_transport = NULL;
-        if (!ddtrace_ffi_try("Failed connecting worker to sidecar",
-                ddog_sidecar_connect_worker((int32_t)ddtrace_sidecar_master_pid, &sidecar_transport))) {
+        ddtrace_sidecar = ddtrace_sidecar_connect_as_worker(false);
+        if (!ddtrace_sidecar) {
             LOG(WARN, "Failed to connect worker to sidecar (PID=%d, master=%d)",
                 (int32_t)current_pid, ddtrace_sidecar_master_pid);
             return;
         }
-
-        char logpath[MAXPATHLEN];
-        int error_fd = atomic_load(&ddtrace_error_log_fd);
-        if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
-            *logpath = 0;
-        }
-
-        dd_sidecar_post_connect(&sidecar_transport, false, logpath);
-        ddtrace_sidecar = sidecar_transport;
-
-        ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_thread);
-
-        ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
 
         if (is_child_process) {
             LOG(INFO, "Worker connected to sidecar master listener (worker PID=%d, master PID=%d)",
@@ -318,8 +298,6 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
         }
         return;
     }
-
-    // CLI without existing listener: start listener now (fallback for old behavior)
 #endif
 
     ddtrace_set_non_resettable_sidecar_globals();
@@ -337,46 +315,32 @@ static void ddtrace_sidecar_setup_master(bool appsec_activation, bool appsec_con
 
     LOG(INFO, "Started sidecar master listener thread (PID=%d)", ddtrace_sidecar_master_pid);
 
-    ddog_SidecarTransport *sidecar_transport = NULL;
-    if (!ddtrace_ffi_try("Failed connecting master to sidecar", ddog_sidecar_connect_worker((int32_t)ddtrace_sidecar_master_pid, &sidecar_transport))) {
+    ddtrace_sidecar = ddtrace_sidecar_connect_as_worker(false);
+    if (!ddtrace_sidecar) {
         LOG(WARN, "Failed to connect master process to sidecar");
-        if (ddtrace_endpoint) {
-            dd_free_endpoints();
-        }
         return;
     }
-
-    char logpath[MAXPATHLEN];
-    int error_fd = atomic_load(&ddtrace_error_log_fd);
-    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
-        *logpath = 0;
-    }
-
-    dd_sidecar_post_connect(&sidecar_transport, false, logpath);
-    ddtrace_sidecar = sidecar_transport;
-
-    ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_thread);
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddtrace_telemetry_first_init();
     }
-
-    ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
 }
 
+#ifndef _WIN32
 ddog_SidecarTransport *ddtrace_sidecar_connect_thread(void) {
-    return dd_sidecar_connection_factory_ex(false);
+    return ddtrace_sidecar_connect_as_worker(false);
 }
+#endif
 
 ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
-    // Thread mode fork is handled by ddtrace_sidecar_reconnect_after_fork() in ddtrace.c
-    // This function is only used for subprocess mode or initial connections
-
     if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
         return ddtrace_sidecar_connect_subprocess();
-    } else if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
+    }
+#ifndef _WIN32
+    else if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
         return ddtrace_sidecar_connect_thread();
     }
+#endif
 
     zend_long mode = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE();
     ddog_SidecarTransport *transport = NULL;
@@ -390,6 +354,7 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
         }
         break;
 
+#ifndef _WIN32
     case DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD:
         // Force thread only
         transport = ddtrace_sidecar_connect_thread();
@@ -397,6 +362,7 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
             LOG(ERROR, "Thread connection failed (mode=thread, no fallback)");
         }
         break;
+#endif
 
     case DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO:
     default:
@@ -404,10 +370,8 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
         transport = ddtrace_sidecar_connect_subprocess();
 
         if (!transport) {
-            if (!ddtrace_endpoint) {
-                // Don't try fallback if endpoint is invalid - both modes need a valid endpoint
-                // The "Invalid DD_TRACE_AGENT_URL" error was already logged during endpoint creation
-            } else {
+            if (ddtrace_endpoint) {
+#ifndef _WIN32
                 // Subprocess failed but endpoint is valid - try thread mode fallback
                 LOG(WARN, "Subprocess connection failed, falling back to thread mode");
                 transport = ddtrace_sidecar_connect_thread();
@@ -417,6 +381,7 @@ ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork) {
                 } else {
                     LOG(ERROR, "Both subprocess and thread connections failed, sidecar unavailable");
                 }
+#endif
             }
         }
         break;
@@ -453,13 +418,24 @@ bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_c
 #endif
 }
 
+bool ddtrace_sidecar_should_enable(bool *appsec_activation, bool *appsec_config) {
+    bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(appsec_activation, appsec_config);
+    if (!enable_sidecar) {
+        enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() ||
+                       get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
+    }
+    return enable_sidecar;
+}
+
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     zend_long mode = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE();
 
+#ifndef _WIN32
     if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD) {
-        ddtrace_sidecar_setup_master(appsec_activation, appsec_config);
+        ddtrace_sidecar_setup_thread_mode(appsec_activation, appsec_config);
         return;
     }
+#endif
 
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
@@ -469,11 +445,13 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_sidecar = ddtrace_sidecar_connect_subprocess();
 
     if (!ddtrace_sidecar) {
+#ifndef _WIN32
         if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO && ddtrace_endpoint) {
             LOG(WARN, "Subprocess connection failed, falling back to thread mode");
-            ddtrace_sidecar_setup_master(appsec_activation, appsec_config);
+            ddtrace_sidecar_setup_thread_mode(appsec_activation, appsec_config);
             return;
         }
+#endif
 
         if (ddtrace_endpoint) {
             dd_free_endpoints();
@@ -489,62 +467,64 @@ void ddtrace_sidecar_minit(void) {
 
     zend_long mode = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE();
 
-    if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD ||
-        mode == DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO) {
+    if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD) {
         ddtrace_ffi_try("Starting sidecar master listener in MINIT",
                        ddog_sidecar_connect_master(ddtrace_sidecar_master_pid));
     }
 #endif
 }
 
-// Reconnect to parent's master listener after fork in thread mode
-bool ddtrace_sidecar_reconnect_after_fork(bool appsec_activation, bool appsec_config) {
+void ddtrace_sidecar_handle_fork(void) {
 #ifndef _WIN32
-    // Check if there's a master listener available to connect to
-    if (!ddog_sidecar_is_master_listener_active(ddtrace_sidecar_master_pid)) {
-        return false;
+    bool appsec_activation = false;
+    bool appsec_config = false;
+    bool enable_sidecar = ddtrace_sidecar_should_enable(&appsec_activation, &appsec_config);
+
+    if (!enable_sidecar) {
+        return;
     }
 
-    // Set up endpoints and configuration
-    ddtrace_set_non_resettable_sidecar_globals();
-    ddtrace_set_resettable_sidecar_globals();
+    // Handle thread mode fork - reconnect to parent's listener
+    if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
+        ddtrace_ffi_try("Failed clearing inherited listener state",
+                        ddog_sidecar_clear_inherited_listener());
 
-    ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
+        if (!ddog_sidecar_is_master_listener_active(ddtrace_sidecar_master_pid)) {
+            LOG(WARN, "Child process cannot reconnect: parent's listener not active");
+            return;
+        }
 
-    if (!ddtrace_endpoint) {
-        LOG(WARN, "Cannot reconnect to sidecar after fork: endpoint not available");
-        return false;
-    }
+        ddtrace_force_new_instance_id();
 
-    // Attempt to connect as a worker to parent's listener
-    ddog_SidecarTransport *sidecar_transport = NULL;
-    if (!ddtrace_ffi_try("Failed connecting child to parent's sidecar listener after fork",
-            ddog_sidecar_connect_worker(ddtrace_sidecar_master_pid, &sidecar_transport))) {
-        LOG(WARN, "Failed to connect child to parent's sidecar listener (child PID=%d, parent=%d)",
+        // Attempt to connect as a worker to parent's listener
+        ddtrace_sidecar = ddtrace_sidecar_connect_as_worker(true);
+        if (!ddtrace_sidecar) {
+            LOG(WARN, "Failed to connect child to parent's sidecar listener (child PID=%d, parent=%d)",
+                (int32_t)getpid(), ddtrace_sidecar_master_pid);
+            return;
+        }
+
+        LOG(INFO, "Child process reconnected to parent's sidecar listener after fork (child PID=%d, parent=%d)",
             (int32_t)getpid(), ddtrace_sidecar_master_pid);
-        return false;
     }
+    // Handle subprocess mode fork - reset and spawn new subprocess
+    else if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
+        ddtrace_force_new_instance_id();
 
-    // Set up the connection
-    char logpath[MAXPATHLEN];
-    int error_fd = atomic_load(&ddtrace_error_log_fd);
-    if (error_fd == -1 || ddtrace_get_fd_path(error_fd, logpath) < 0) {
-        *logpath = 0;
+        if (ddtrace_sidecar) {
+            ddog_sidecar_transport_drop(ddtrace_sidecar);
+            ddtrace_sidecar = NULL;
+
+            ddtrace_sidecar = ddtrace_sidecar_connect(true);
+            if (!ddtrace_sidecar) {
+                if (ddtrace_endpoint) {
+                    dd_free_endpoints();
+                }
+            } else {
+                ddtrace_sidecar_submit_root_span_data();
+            }
+        }
     }
-
-    dd_sidecar_post_connect(&sidecar_transport, true, logpath);  // is_fork=true: this IS a fork scenario
-    ddtrace_sidecar = sidecar_transport;
-
-    ddtrace_sidecar_reconnect(&ddtrace_sidecar, dd_sidecar_connection_factory_thread);
-
-    ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
-
-    LOG(INFO, "Child process reconnected to parent's sidecar listener after fork (child PID=%d, parent=%d)",
-        (int32_t)getpid(), ddtrace_sidecar_master_pid);
-
-    return true;
-#else
-    return false;
 #endif
 }
 
@@ -617,24 +597,6 @@ void ddtrace_force_new_instance_id(void) {
     if (ddtrace_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
         ddtrace_set_resettable_sidecar_globals();
-    }
-}
-
-void ddtrace_reset_sidecar(void) {
-    ddtrace_force_new_instance_id();
-
-    if (ddtrace_sidecar) {
-        ddog_sidecar_transport_drop(ddtrace_sidecar);
-        ddtrace_sidecar = NULL;
-
-        ddtrace_sidecar = ddtrace_sidecar_connect(true);
-        if (!ddtrace_sidecar) {
-            if (ddtrace_endpoint) {
-                dd_free_endpoints();
-            }
-        } else {
-            ddtrace_sidecar_submit_root_span_data();
-        }
     }
 }
 
@@ -937,28 +899,6 @@ void ddtrace_sidecar_rinit(void) {
 
 void ddtrace_sidecar_rshutdown(void) {
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
-
-    // For CLI SAPI, shut down sidecar here (before ASAN checks)
-    // CRITICAL: Must shut down background sender FIRST if it's running,
-    // otherwise it may try to access instance_id while we're freeing it
-    if (strcmp(sapi_module.name, "cli") == 0) {
-#ifndef _WIN32
-        if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-            // Background sender is running - must shut it down first
-            extern void ddtrace_coms_mshutdown(void);
-            extern bool ddtrace_coms_flush_shutdown_writer_synchronous(void);
-            extern void ddtrace_coms_curl_shutdown(void);
-            extern void ddtrace_coms_mshutdown_proxy_env(void);
-
-            ddtrace_coms_mshutdown();
-            if (ddtrace_coms_flush_shutdown_writer_synchronous()) {
-                ddtrace_coms_curl_shutdown();
-            }
-            ddtrace_coms_mshutdown_proxy_env();
-        }
-#endif
-        ddtrace_sidecar_shutdown();
-    }
 }
 
 bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {

@@ -37,7 +37,6 @@ static void dd_prefork() {
 
 static void dd_handle_fork(zval *return_value) {
     if (Z_LVAL_P(return_value) == 0) {
-        // CHILD PROCESS
         dd_internal_handle_fork();
     } else {
 #if JOIN_BGS_BEFORE_FORK
