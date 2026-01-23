@@ -997,6 +997,19 @@ typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
 
+typedef enum ddog_Method {
+  DDOG_METHOD_GET = 0,
+  DDOG_METHOD_POST = 1,
+  DDOG_METHOD_PUT = 2,
+  DDOG_METHOD_DELETE = 3,
+  DDOG_METHOD_PATCH = 4,
+  DDOG_METHOD_HEAD = 5,
+  DDOG_METHOD_OPTIONS = 6,
+  DDOG_METHOD_TRACE = 7,
+  DDOG_METHOD_CONNECT = 8,
+  DDOG_METHOD_OTHER = 9,
+} ddog_Method;
+
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,

@@ -2816,6 +2816,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "libdd-common"
 version = "1.1.0"
 source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
@@ -2854,6 +2855,8 @@ dependencies = [
 ]
 
 [[package]]
+=======
+>>>>>>> ec704d7cc (feat(sidecar): support threaded connection for windows)
 name = "libdd-common-ffi"
 version = "0.0.1"
 dependencies = [
@@ -2864,7 +2867,11 @@ dependencies = [
  "chrono",
  "crossbeam-queue",
  "function_name",
+<<<<<<< HEAD
  "hyper 1.6.0",
+=======
+ "hyper",
+>>>>>>> ec704d7cc (feat(sidecar): support threaded connection for windows)
  "libdd-common 1.1.0",
  "serde",
 ]
@@ -3041,7 +3048,11 @@ dependencies = [
  "httparse",
  "indexmap 2.12.1",
  "libdd-alloc",
+<<<<<<< HEAD
  "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?tag=v27.0.0)",
+=======
+ "libdd-common 1.0.0",
+>>>>>>> ec704d7cc (feat(sidecar): support threaded connection for windows)
  "libdd-profiling-protobuf",
  "mime 0.3.17",
  "parking_lot",
@@ -3172,8 +3183,13 @@ dependencies = [
  "http",
  "http-body-util",
  "httpmock",
+<<<<<<< HEAD
  "hyper 1.6.0",
  "indexmap 2.12.1",
+=======
+ "hyper",
+ "indexmap 2.12.0",
+>>>>>>> ec704d7cc (feat(sidecar): support threaded connection for windows)
  "libdd-common 1.1.0",
  "libdd-tinybytes",
  "libdd-trace-normalization",
