@@ -132,6 +132,17 @@ ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(struct ddog_SidecarTranspor
                                                      struct ddog_Option_U64 seq_id);
 
 /**
+ * Reports an endpoint to the telemetry.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport **transport,
+                                                   const struct ddog_InstanceId *instance_id,
+                                                   const ddog_QueueId *queue_id,
+                                                   enum ddog_Method method,
+                                                   ddog_CharSlice path,
+                                                   ddog_CharSlice operation_name,
+                                                   ddog_CharSlice resource_name);
+
+/**
  * Reports a dependency to the telemetry.
  */
 ddog_MaybeError ddog_sidecar_telemetry_addDependency(struct ddog_SidecarTransport **transport,
