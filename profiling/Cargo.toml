@@ -50,8 +50,12 @@ features = ["env-filter", "fmt", "smallvec", "std"]
 
 [dev-dependencies]
 allocator-api2 = { version = "0.2", default-features = false, features = ["alloc"] }
+backtrace = "0.3"
 criterion = { version = "0.5.1" }
 datadog-php-profiling = { path = ".", features = ["test"] }
+
+[target.'cfg(any(target_arch = "x86_64", target_arch = "aarch64"))'.dependencies]
+gimli = { version = "0.31", features = ["write"] }
 
 [target.'cfg(target_arch = "x86_64")'.dev-dependencies]
 criterion-perf-events = "0.4.0"
@@ -67,6 +71,13 @@ debug_stats = []
 io_profiling = []
 stack_walking_tests = []
 test = []
+# Tests only (Linux): Link with LLVM's libunwind to use __unw_add_dynamic_eh_frame_section
+# for eh_frame registration and enable tests using unw_* APIs. When disabled (default),
+# uses libgcc's __register_frame and libunwind API tests are skipped.
+# NOTE: Ensure LLVM's libunwind is actually linked (not the nongnu libunwind), otherwise
+# _Unwind_Backtrace will come from libgcc_s, which knows nothing about the registration
+# through the libunwind interface
+libunwind_link = []
 
 # Not for prod:
 tracing = ["dep:tracing"]
