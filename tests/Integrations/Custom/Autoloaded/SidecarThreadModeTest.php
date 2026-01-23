@@ -41,10 +41,6 @@ final class SidecarThreadModeTest extends WebFrameworkTestCase
             $this->markTestSkipped('This test requires DD_TRACE_TEST_SAPI=fpm-fcgi');
         }
 
-        if (PHP_OS_FAMILY === 'Windows') {
-            $this->markTestSkipped('Thread mode not supported on Windows');
-        }
-
         // This test validates that when thread mode is explicitly configured,
         // traces are successfully submitted through the thread-based sidecar
         $traces = $this->tracesFromWebRequest(function () {
@@ -65,10 +61,6 @@ final class SidecarThreadModeTest extends WebFrameworkTestCase
     {
         if (\getenv('DD_TRACE_TEST_SAPI') !== 'fpm-fcgi') {
             $this->markTestSkipped('This test requires DD_TRACE_TEST_SAPI=fpm-fcgi');
-        }
-
-        if (PHP_OS_FAMILY === 'Windows') {
-            $this->markTestSkipped('Thread mode not supported on Windows');
         }
 
         // This test validates that multiple PHP-FPM workers can successfully

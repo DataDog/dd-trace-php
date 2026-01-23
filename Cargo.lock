@@ -2867,44 +2867,6 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "1.1.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
-dependencies = [
- "anyhow",
- "cc",
- "const_format",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "http",
- "http-body",
- "http-body-util",
- "httparse",
- "hyper 1.6.0",
- "hyper-rustls",
- "hyper-util",
- "libc 0.2.177",
- "mime 0.3.17",
- "multipart",
- "nix 0.29.0",
- "pin-project",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "rustls",
- "rustls-native-certs",
- "serde",
- "static_assertions",
- "thiserror 1.0.69",
- "tokio",
- "tokio-rustls",
- "tower-service",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "libdd-common"
 version = "2.0.1"
 dependencies = [
  "anyhow",
@@ -3145,6 +3107,7 @@ dependencies = [
  "indexmap 2.12.1",
  "libdd-alloc",
  "libdd-common 1.1.0",
+ "libdd-common 1.0.0",
  "libdd-profiling-protobuf",
  "mime 0.3.17",
  "parking_lot",
