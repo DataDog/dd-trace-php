@@ -150,7 +150,7 @@ mod frameless {
         use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
         use std::ffi::c_void;
         use std::sync::atomic::Ordering;
-        use log::debug;
+        use log::{debug, error};
         use crate::bindings::{zend_flf_functions, zend_flf_handlers, zend_frameless_function_info};
         use crate::{profiling::Profiler, RefCellExt, REQUEST_LOCALS, zend};
 
@@ -172,7 +172,13 @@ mod frameless {
                 i += 1;
             }
 
-            let mut assembler = Assembler::new().unwrap();
+            let mut assembler = match Assembler::new() {
+                Ok(assembler) => assembler,
+                Err(e) => {
+                    error!("Failed to create assembler for FLF trampolines: {e}. Frameless functions will not appear in wall-time profiles.");
+                    return;
+                }
+            };
             let interrupt_addr = ddog_php_prof_icall_trampoline_target as *const ();
             let mut offsets = Vec::new();  // keep function offsets
             for orig in originals.iter() {
@@ -209,7 +215,13 @@ mod frameless {
             // Allocate enough space for all frameless_function_infos including trailing NULLs
             let mut infos = Vec::with_capacity(originals.len() * 2);
 
-            let buffer = assembler.finalize().unwrap();
+            let buffer = match assembler.finalize() {
+                Ok(buffer) => buffer,
+                Err(_) => {
+                    error!("Failed to finalize FLF trampolines (mprotect PROT_EXEC denied?). Frameless functions will not appear in cpu/wall-time profiles. This may be caused by security policies (SELinux, seccomp, etc.).");
+                    return;
+                }
+            };
             let mut last_infos = std::ptr::null_mut();
             for (i, offset) in offsets.iter().enumerate() {
                 let wrapper = buffer.as_ptr().add(offset.0) as *mut c_void;
