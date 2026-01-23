@@ -92,12 +92,21 @@ impl AllocationProfilingStats {
 #[cold]
 pub fn collect_allocation(len: size_t) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
+        // Check if there's a pending time interrupt that we can handle now
+        // instead of waiting for an interrupt handler. This is slightly more
+        // accurate and efficient, win-win.
+        let interrupt_count = REQUEST_LOCALS
+            .try_with_borrow(|locals| locals.interrupt_count.swap(0, Ordering::SeqCst))
+            .unwrap_or(0);
+
+        // SAFETY: execute_data was provided by the engine, and the profiler
+        // doesn't mutate it.
         unsafe {
             profiler.collect_allocations(
                 zend::ddog_php_prof_get_current_execute_data(),
                 1_i64,
                 len as i64,
+                (interrupt_count > 0).then_some(interrupt_count),
             )
         };
     }
