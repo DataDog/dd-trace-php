@@ -1,9 +1,16 @@
 [target.x86_64-apple-darwin]
 # Leaving syntax here in case we decide to list them all specifically
 #rustflags = ["-C", "link-args=-Wl,-U,_zend_register_extension -Wl,-U,_zend_getenv -Wl,-U,_sapi_module -Wl,-U,_executor_globals"]
-rustflags = ["-C", "link-args=-undefined dynamic_lookup"]
+# -force-frame-pointers: Ensure all functions set up frame pointers for FP-based backtrace tests
+rustflags = ["-C", "link-args=-undefined dynamic_lookup", "-C", "force-frame-pointers=yes"]
 
 [target.aarch64-apple-darwin]
 # Leaving syntax here in case we decide to list them all specifically
 #rustflags = ["-C", "link-args=-Wl,-U,_zend_register_extension -Wl,-U,_zend_getenv -Wl,-U,_sapi_module -Wl,-U,_executor_globals"]
-rustflags = ["-C", "link-args=-undefined dynamic_lookup"]
+rustflags = ["-C", "link-args=-undefined dynamic_lookup", "-C", "force-frame-pointers=yes"]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "force-frame-pointers=yes"]
+
+[target.aarch64-unknown-linux-gnu]
+rustflags = ["-C", "force-frame-pointers=yes"]

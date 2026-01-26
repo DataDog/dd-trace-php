@@ -1236,6 +1236,7 @@ dependencies = [
  "ahash",
  "allocator-api2",
  "anyhow",
+ "backtrace",
  "bindgen",
  "cc",
  "cfg-if",
@@ -1247,6 +1248,7 @@ dependencies = [
  "datadog-php-profiling",
  "dynasmrt",
  "env_logger 0.11.6",
+ "gimli 0.31.1",
  "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
@@ -1876,6 +1878,11 @@ name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
+dependencies = [
+ "fallible-iterator",
+ "indexmap 2.12.0",
+ "stable_deref_trait",
+]
 
 [[package]]
 name = "gimli"
