@@ -955,7 +955,7 @@ impl Profiler {
         alloc_size: i64,
         interrupt_count: Option<u32>,
     ) {
-        let (result, _wall_time, _cpu_time) = self.collect_stack_sample_with_timeline(execute_data);
+        let (result, wall_time, cpu_time) = self.collect_stack_sample_with_timeline(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -963,7 +963,6 @@ impl Profiler {
                 // Optionally collect time data when interrupt_count is provided
                 let (interrupt_count, wall_time, cpu_time, timestamp) =
                     if let Some(count) = interrupt_count {
-                        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
                         let timestamp = self.get_timeline_timestamp();
                         (count as i64, wall_time, cpu_time, timestamp)
                     } else {
