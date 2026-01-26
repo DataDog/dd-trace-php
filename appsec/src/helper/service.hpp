@@ -98,9 +98,12 @@ protected:
 
             SPDLOG_TRACE("submit_log [{}][{}]: {}", level, identifier, message);
             const std::lock_guard<std::mutex> lock{pending_logs_mutex_};
-            pending_logs_.emplace_back(
-                tel_log{level, std::move(identifier), std::move(message),
-                    std::move(stack_trace), std::move(tags), is_sensitive});
+            pending_logs_.emplace_back(tel_log{.level = level,
+                .identifier = std::move(identifier),
+                .message = std::move(message),
+                .stack_trace = std::move(stack_trace),
+                .tags = std::move(tags),
+                .is_sensitive = is_sensitive});
         }
 
     private:
@@ -156,6 +159,8 @@ protected:
             const telemetry_settings &telemetry_settings, std::string_view name,
             double value, std::optional<std::string> tags);
 
+        static bool is_sidecar_ready();
+
         std::vector<tel_metric> pending_metrics_;
         std::mutex pending_metrics_mutex_;
         std::vector<tel_log> pending_logs_;
@@ -164,6 +169,14 @@ protected:
         std::mutex legacy_metrics_mutex_;
         std::map<std::string, std::string> meta_;
         std::mutex meta_mutex_;
+
+        enum class sidecar_status : std::uint8_t {
+            UNKNOWN,
+            FAILED,
+            READY,
+        };
+        static inline std::atomic<sidecar_status> sidecar_status_{
+            sidecar_status::UNKNOWN};
     };
 
     // TODO: remove this. For testing only
@@ -205,8 +218,6 @@ public:
         const dds::engine_settings &eng_settings,
         const remote_config::settings &rc_settings,
         telemetry_settings telemetry_settings);
-
-    static void resolve_symbols();
 
     [[nodiscard]] std::shared_ptr<engine> get_engine() const
     {

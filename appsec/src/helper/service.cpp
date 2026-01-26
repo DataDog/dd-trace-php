@@ -5,6 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 #include "service.hpp"
+#include "ffi.hpp"
 #include "metrics.hpp"
 #include "sidecar_settings.hpp"
 #include <common.h>
@@ -13,19 +14,20 @@
 
 extern "C" {
 #include <dlfcn.h>
-// push -Wno-nested-anon-types and -Wno-gnu-anonymous-struct on clang
-#if defined(__clang__)
-#    pragma clang diagnostic push
-#    pragma clang diagnostic ignored "-Wnested-anon-types"
-#    pragma clang diagnostic ignored "-Wgnu-anonymous-struct"
-#endif
-#include <sidecar.h>
-#if defined(__clang__)
-#    pragma clang diagnostic pop
-#endif
 }
 
 using CharSlice = ddog_Slice_CChar;
+
+SIDECAR_FFI_SYMBOL(ddog_sidecar_connect);
+SIDECAR_FFI_SYMBOL(ddog_sidecar_ping);
+SIDECAR_FFI_SYMBOL(ddog_sidecar_transport_drop);
+
+SIDECAR_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_log);
+SIDECAR_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_point);
+SIDECAR_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_metric);
+
+SIDECAR_FFI_SYMBOL(ddog_Error_message);
+SIDECAR_FFI_SYMBOL(ddog_Error_drop);
 
 namespace {
 inline CharSlice to_ffi_string(std::string_view sv)
@@ -33,24 +35,8 @@ inline CharSlice to_ffi_string(std::string_view sv)
     return {sv.data(), sv.length()};
 }
 
-using ddog_sidecar_enqueue_telemetry_log_t =
-    decltype(&ddog_sidecar_enqueue_telemetry_log);
-ddog_sidecar_enqueue_telemetry_log_t fn_ddog_sidecar_enqueue_telemetry_log;
+bool wait_for_sidecar_ready();
 
-using ddog_sidecard_enqueue_telemetry_point_t =
-    decltype(&ddog_sidecar_enqueue_telemetry_point);
-ddog_sidecard_enqueue_telemetry_point_t fn_ddog_sidecar_enqueue_telemetry_point;
-
-using ddog_sidecar_enqueue_telemetry_metric_t =
-    decltype(&ddog_sidecar_enqueue_telemetry_metric);
-ddog_sidecar_enqueue_telemetry_metric_t
-    fn_ddog_sidecar_enqueue_telemetry_metric;
-
-using ddog_Error_message_t = decltype(&ddog_Error_message);
-ddog_Error_message_t fn_ddog_Error_message;
-
-using ddog_Error_drop_t = decltype(&ddog_Error_drop);
-ddog_Error_drop_t fn_ddog_Error_drop;
 } // namespace
 
 namespace dds {
@@ -71,6 +57,8 @@ service::service(std::shared_ptr<engine> engine,
               : std::nullopt},
       rc_path_{std::move(rc_path)},
       telemetry_settings_{std::move(telemetry_settings)},
+      metrics_registered_at_{
+          std::chrono::steady_clock::now() - std::chrono::years(1)},
       msubmitter_{std::move(msubmitter)}
 {
     // The engine should always be valid
@@ -110,10 +98,8 @@ void service::metrics_impl::submit_log(const sidecar_settings &sc_settings,
     SPDLOG_DEBUG("submit_log (ffi): [{}][{}]: {}", log.level, log.identifier,
         log.message);
 
-    if (fn_ddog_sidecar_enqueue_telemetry_log == nullptr) {
-        SPDLOG_WARN(
-            "ddog_sidecar_enqueue_telemetry_log function pointer is null. "
-            "Symbol resolution likely failed.");
+    if (!is_sidecar_ready()) {
+        SPDLOG_DEBUG("Sidecar is not ready, skipping log submission");
         return;
     }
 
@@ -153,15 +139,15 @@ void service::metrics_impl::submit_log(const sidecar_settings &sc_settings,
     }
 
     ddog_MaybeError result =
-        fn_ddog_sidecar_enqueue_telemetry_log(session_id_ffi, runtime_id_ffi,
+        ffi::ddog_sidecar_enqueue_telemetry_log(session_id_ffi, runtime_id_ffi,
             service_name_ffi, env_name_ffi, identifier_ffi, c_level,
             message_ffi, stack_trace_ffi_ptr, tags_ffi_ptr, log.is_sensitive);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice const error_msg = fn_ddog_Error_message(&result.some);
+        ddog_CharSlice const error_msg = ffi::ddog_Error_message(&result.some);
         SPDLOG_INFO("Failed to enqueue telemetry log, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
-        fn_ddog_Error_drop(&result.some);
+        ffi::ddog_Error_drop(&result.some);
     } else {
         SPDLOG_DEBUG("Sent telemetry log via sidecar-ffi: {}: {}",
             log.identifier, log.message);
@@ -175,11 +161,12 @@ void service::metrics_impl::register_metric_ffi(
 {
     SPDLOG_TRACE("register_metric_ffi: name: {}, type: {}", name, type);
 
-    if (fn_ddog_sidecar_enqueue_telemetry_metric == nullptr) {
-        throw std::runtime_error(
-            "Failed to resolve ddog_sidecar_enqueue_telemetry_metric");
+    if (!is_sidecar_ready()) {
+        SPDLOG_DEBUG("Sidecar is not ready, skipping metric registration");
+        return;
     }
-    ddog_MaybeError result = fn_ddog_sidecar_enqueue_telemetry_metric(
+
+    ddog_MaybeError result = ffi::ddog_sidecar_enqueue_telemetry_metric(
         to_ffi_string(sc_settings.session_id),
         to_ffi_string(sc_settings.runtime_id),
         to_ffi_string(telemetry_settings.service_name),
@@ -187,13 +174,14 @@ void service::metrics_impl::register_metric_ffi(
         DDOG_METRIC_NAMESPACE_APPSEC);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice const error_msg = fn_ddog_Error_message(&result.some);
+        ddog_CharSlice const error_msg = ffi::ddog_Error_message(&result.some);
         SPDLOG_INFO("Failed to register telemetry metric, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
-        fn_ddog_Error_drop(&result.some);
+        ffi::ddog_Error_drop(&result.some);
     } else {
         SPDLOG_DEBUG(
-            "Sent telemetry metric via sidecar-ffi: {} of type {}", name, type);
+            "Registered telemetry metric via sidecar-ffi: {} of type {}", name,
+            type);
     }
 }
 
@@ -205,17 +193,18 @@ void service::metrics_impl::submit_metric_ffi(
     SPDLOG_TRACE("submit_metric_ffi: name: {}, value: {}, tags: {}", name,
         value, tags.has_value() ? tags.value() : "(none)"sv);
 
-    if (fn_ddog_sidecar_enqueue_telemetry_point == nullptr) {
-        throw std::runtime_error(
-            "Failed to resolve ddog_sidecar_enqueue_telemetry_point");
+    if (!is_sidecar_ready()) {
+        SPDLOG_DEBUG("Sidecar is not ready, skipping metric submission");
+        return;
     }
+
     CharSlice tags_ffi;
     CharSlice *tags_ffi_ptr = nullptr;
     if (tags.has_value()) {
         tags_ffi = to_ffi_string(*tags);
         tags_ffi_ptr = &tags_ffi;
     }
-    ddog_MaybeError result = fn_ddog_sidecar_enqueue_telemetry_point(
+    ddog_MaybeError result = ffi::ddog_sidecar_enqueue_telemetry_point(
         to_ffi_string(sc_settings.session_id),
         to_ffi_string(sc_settings.runtime_id),
         to_ffi_string(telemetry_settings.service_name),
@@ -223,14 +212,36 @@ void service::metrics_impl::submit_metric_ffi(
         tags_ffi_ptr);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice const error_msg = fn_ddog_Error_message(&result.some);
+        ddog_CharSlice const error_msg = ffi::ddog_Error_message(&result.some);
         SPDLOG_INFO("Failed to enqueue telemetry point, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
-        fn_ddog_Error_drop(&result.some);
+        ffi::ddog_Error_drop(&result.some);
     } else {
         SPDLOG_DEBUG("Sent telemetry point via sidecar-ffi: {} of value {}",
             name, value);
     }
+}
+
+bool service::metrics_impl::is_sidecar_ready()
+{
+    auto val = sidecar_status_.load(std::memory_order_relaxed);
+
+    if (val == sidecar_status::READY) {
+        return true;
+    }
+
+    if (val == sidecar_status::FAILED) {
+        return false;
+    }
+
+    bool const wait_result = wait_for_sidecar_ready();
+    if (wait_result) {
+        sidecar_status_.store(sidecar_status::READY, std::memory_order_relaxed);
+        return true;
+    }
+
+    sidecar_status_.store(sidecar_status::FAILED, std::memory_order_relaxed);
+    return false;
 }
 
 void service::register_known_metrics(const sidecar_settings &sc_settings,
@@ -280,26 +291,49 @@ void service::handle_worker_count_metrics(const sidecar_settings &sc_settings)
     }
 }
 
-// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define RESOLVE_FFI_SYMBOL(symbol_name)                                        \
-    do {                                                                       \
-        if (fn_##symbol_name == nullptr) {                                     \
-            fn_##symbol_name =                                                 \
-                reinterpret_cast<decltype(fn_##symbol_name)>(/* NOLINT */      \
-                    dlsym(RTLD_DEFAULT, #symbol_name));                        \
-            if (fn_##symbol_name == nullptr) {                                 \
-                throw std::runtime_error{"Failed to resolve " #symbol_name};   \
-            }                                                                  \
-        }                                                                      \
-    } while (0)
-
-void service::resolve_symbols()
-{
-    RESOLVE_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_log);
-    RESOLVE_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_point);
-    RESOLVE_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_metric);
-    RESOLVE_FFI_SYMBOL(ddog_Error_message);
-    RESOLVE_FFI_SYMBOL(ddog_Error_drop);
-}
-
 } // namespace dds
+
+namespace {
+
+bool wait_for_sidecar_ready()
+{
+    constexpr int max_attempts = 50;
+    constexpr int sleep_ms = 100;
+
+    for (int attempt = 0; attempt < max_attempts; ++attempt) {
+        ddog_SidecarTransport *transport = nullptr;
+        ddog_MaybeError const connect_result =
+            dds::ffi::ddog_sidecar_connect(&transport);
+
+        if (connect_result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+            SPDLOG_DEBUG(
+                "Sidecar not ready yet (attempt {}), waiting...", attempt + 1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+            continue;
+        }
+
+        ddog_MaybeError ping_result = dds::ffi::ddog_sidecar_ping(&transport);
+        dds::ffi::ddog_sidecar_transport_drop(transport);
+
+        if (ping_result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+            auto error_message =
+                dds::ffi::ddog_Error_message(&ping_result.some);
+            SPDLOG_DEBUG(
+                "Sidecar ping failed with error {} (attempt {}), waiting...",
+                dds::to_sv(error_message), attempt + 1);
+            std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+            dds::ffi::ddog_Error_drop(&ping_result.some);
+            continue;
+        }
+
+        SPDLOG_INFO("Sidecar is ready after {} attempts", attempt + 1);
+        return true;
+        ;
+    }
+
+    SPDLOG_WARN(
+        "Sidecar did not become ready after {} attempts, not trying again",
+        max_attempts);
+    return false;
+}
+} // namespace
