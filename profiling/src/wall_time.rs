@@ -528,6 +528,10 @@ pub(crate) mod jit_trampoline {
             fde.add_instruction(1, CallFrameInstruction::Offset(RBP, -16));
             // After mov rbp, rsp (offset 4): CFA is now RBP + 16
             fde.add_instruction(4, CallFrameInstruction::CfaRegister(RBP));
+            // After pop rbp
+            fde.add_instruction(0x11, CallFrameInstruction::Restore(RBP));
+            fde.add_instruction(0x11, CallFrameInstruction::CfaRegister(RSP));
+            fde.add_instruction(0x11, CallFrameInstruction::CfaOffset(8));
         }
 
         #[cfg(target_arch = "aarch64")]
@@ -539,6 +543,11 @@ pub(crate) mod jit_trampoline {
             fde.add_instruction(4, CallFrameInstruction::Offset(X30, -8));
             // After mov x29, sp (offset 8): CFA is now X29 + 16
             fde.add_instruction(8, CallFrameInstruction::CfaRegister(X29));
+            // After: 0x10: ldp x29, x30, [sp], #16 : CFA is the SP
+            fde.add_instruction(0x14, CallFrameInstruction::Restore(X29));
+            fde.add_instruction(0x14, CallFrameInstruction::Restore(X30));
+            fde.add_instruction(0x14, CallFrameInstruction::CfaRegister(SP));
+            fde.add_instruction(0x14, CallFrameInstruction::CfaOffset(0));
         }
 
         fde
