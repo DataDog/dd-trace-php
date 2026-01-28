@@ -143,6 +143,13 @@ impl Service {
         &self.fixed_config.telemetry_settings
     }
 
+    pub fn configured_waf_timeout(&self) -> Option<std::time::Duration> {
+        self.fixed_config
+            .waf_settings
+            .waf_timeout_us
+            .map(std::time::Duration::from_micros)
+    }
+
     pub fn new_context(&self) -> libddwaf::Context {
         self.waf.current().new_context()
     }
@@ -156,7 +163,7 @@ impl Service {
     }
 
     pub fn waf_version() -> &'static str {
-        libddwaf::get_version().to_str().unwrap_or("unknown")
+        libddwaf::version().to_str().unwrap_or("unknown")
     }
 
     pub fn should_extract_schema(&self, api_sec_samp_key: u64) -> bool {
@@ -604,7 +611,7 @@ mod tests {
             true,
             protocol::WafSettings {
                 rules_file: Some(TEST_RULES_FILE.to_string()),
-                waf_timeout_us: 10000,
+                waf_timeout_us: Some(10000),
                 trace_rate_limit: 100,
                 obfuscator_key_regex: None,
                 obfuscator_value_regex: None,

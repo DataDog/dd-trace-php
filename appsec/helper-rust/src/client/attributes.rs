@@ -68,7 +68,7 @@ impl CollectedWafAttributes {
     }
 
     fn add_regular_attribute(&mut self, key: &str, value: &WafObject) -> anyhow::Result<()> {
-        match value.get_type() {
+        match value.object_type() {
             WafObjectType::Signed => {
                 let val = value
                     .as_type::<libddwaf::object::WafSigned>()

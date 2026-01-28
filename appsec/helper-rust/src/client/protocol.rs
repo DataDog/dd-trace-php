@@ -66,7 +66,8 @@ pub struct SidecarSettings {
 pub struct WafSettings {
     #[serde(deserialize_with = "empty_string_as_none")]
     pub rules_file: Option<String>,
-    pub waf_timeout_us: u64,
+    #[serde(deserialize_with = "zero_as_none")]
+    pub waf_timeout_us: Option<u64>,
     pub trace_rate_limit: u32,
     #[serde(deserialize_with = "empty_string_as_none")]
     pub obfuscator_key_regex: Option<String>,
@@ -283,6 +284,14 @@ where
 {
     let opt: Option<String> = Option::deserialize(deserializer)?;
     Ok(opt.filter(|s| !s.is_empty()))
+}
+
+fn zero_as_none<'de, D>(deserializer: D) -> Result<Option<u64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value: u64 = u64::deserialize(deserializer)?;
+    Ok(if value == 0 { None } else { Some(value) })
 }
 
 #[repr(C)]

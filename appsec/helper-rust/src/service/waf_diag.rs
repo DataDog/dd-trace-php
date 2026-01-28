@@ -51,7 +51,7 @@ pub fn report_diagnostics_errors(
             continue;
         };
         let value = keyed.value();
-        if value.get_type() != WafObjectType::Map {
+        if value.object_type() != WafObjectType::Map {
             warning!(
                 "Diagnostic key {} for {} is not a map, skipping",
                 config_key,
@@ -77,7 +77,11 @@ pub fn report_diagnostics_errors(
                 .key()
                 .as_type::<libddwaf::object::WafString>()
                 .and_then(|s| s.as_str().ok());
-            debug!("  - key: {:?}, type: {:?}", key_str, kv.value().get_type());
+            debug!(
+                "  - key: {:?}, type: {:?}",
+                key_str,
+                kv.value().object_type()
+            );
         }
 
         let mut tags = TelemetryTags::new();
@@ -86,7 +90,7 @@ pub fn report_diagnostics_errors(
             .add("config_key", config_key);
 
         if let Some(error_keyed) = map.get_str("error") {
-            if error_keyed.value().get_type() == WafObjectType::String {
+            if error_keyed.value().object_type() == WafObjectType::String {
                 tags.add("scope", "top-level");
                 metric_submitter.submit_metric(WAF_CONFIG_ERRORS, 1.0, tags);
 
@@ -109,7 +113,7 @@ pub fn report_diagnostics_errors(
 
         if let Some(errors_keyed) = map.get_str("errors") {
             let errors = errors_keyed.value();
-            if errors.get_type() == WafObjectType::Map {
+            if errors.object_type() == WafObjectType::Map {
                 let errors_map = errors
                     .as_type::<libddwaf::object::WafMap>()
                     .expect("type check");
@@ -117,7 +121,7 @@ pub fn report_diagnostics_errors(
                     let mut error_count: u64 = 0;
                     for kv in errors_map.iter() {
                         let arr = kv.value();
-                        if arr.get_type() == WafObjectType::Array {
+                        if arr.object_type() == WafObjectType::Array {
                             error_count += arr
                                 .as_type::<libddwaf::object::WafArray>()
                                 .expect("type check")
@@ -150,7 +154,7 @@ pub fn report_diagnostics_errors(
 
         if let Some(warnings_keyed) = map.get_str("warnings") {
             let warnings = warnings_keyed.value();
-            if warnings.get_type() == WafObjectType::Map {
+            if warnings.object_type() == WafObjectType::Map {
                 let warnings_map = warnings
                     .as_type::<libddwaf::object::WafMap>()
                     .expect("type check");
@@ -177,7 +181,7 @@ pub fn extract_ruleset_version(
 
     let version_keyed = diagnostics.get_str("ruleset_version")?;
     let version = version_keyed.value();
-    if version.get_type() != WafObjectType::String {
+    if version.object_type() != WafObjectType::String {
         return None;
     }
     version
@@ -197,7 +201,7 @@ pub fn extract_init_diagnostics_legacy(
         return result;
     };
     let rules = rules_keyed.value();
-    if rules.get_type() != WafObjectType::Map {
+    if rules.object_type() != WafObjectType::Map {
         return result;
     }
     let rules_map = rules
@@ -206,7 +210,7 @@ pub fn extract_init_diagnostics_legacy(
 
     if let Some(loaded_keyed) = rules_map.get_str("loaded") {
         let loaded = loaded_keyed.value();
-        if loaded.get_type() == WafObjectType::Array {
+        if loaded.object_type() == WafObjectType::Array {
             result.rules_loaded = loaded
                 .as_type::<libddwaf::object::WafArray>()
                 .expect("type check")
@@ -216,7 +220,7 @@ pub fn extract_init_diagnostics_legacy(
 
     if let Some(failed_keyed) = rules_map.get_str("failed") {
         let failed = failed_keyed.value();
-        if failed.get_type() == WafObjectType::Array {
+        if failed.object_type() == WafObjectType::Array {
             result.rules_failed = failed
                 .as_type::<libddwaf::object::WafArray>()
                 .expect("type check")
@@ -226,7 +230,7 @@ pub fn extract_init_diagnostics_legacy(
 
     if let Some(errors_keyed) = rules_map.get_str("errors") {
         let errors = errors_keyed.value();
-        if errors.get_type() == WafObjectType::Map {
+        if errors.object_type() == WafObjectType::Map {
             result.rules_errors =
                 serde_json::to_string(errors).unwrap_or_else(|_| "{}".to_string());
         }
@@ -269,7 +273,7 @@ fn waf_object_to_json(obj: &libddwaf::object::WafObject) -> String {
     use serde_json::{Map, Value};
 
     fn convert(obj: &libddwaf::object::WafObject) -> Value {
-        match obj.get_type() {
+        match obj.object_type() {
             WafObjectType::Map => {
                 let map = obj
                     .as_type::<libddwaf::object::WafMap>()

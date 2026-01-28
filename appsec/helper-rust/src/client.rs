@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{hash_map::Entry, HashMap},
     io,
     mem::MaybeUninit,
     os::fd::{AsFd, AsRawFd},
@@ -415,14 +415,18 @@ struct ReqContext {
     limiter_result: Option<bool>,
     waf_metrics: metrics::WafMetrics,
     waf_attributes: attributes::CollectedWafAttributes,
+    waf_timeout: Duration,
 }
 impl ReqContext {
-    const WAF_TIMEOUT: Duration = Duration::from_millis(50);
+    const DEFAULT_WAF_TIMEOUT: Duration = Duration::from_millis(50);
     const MAX_PLAIN_SCHEMA_ALLOWED: usize = 260;
     const MAX_SCHEMA_SIZE: usize = 25000;
 
     fn new(service: &Service, config_snapshot: Arc<crate::service::ConfigSnapshot>) -> Self {
         let rules_version = config_snapshot.rules_version.clone();
+        let waf_timeout = service
+            .configured_waf_timeout()
+            .unwrap_or(Self::DEFAULT_WAF_TIMEOUT);
 
         Self {
             waf_ctx: service.new_context(),
@@ -434,6 +438,7 @@ impl ReqContext {
                 Self::MAX_PLAIN_SCHEMA_ALLOWED,
                 Self::MAX_SCHEMA_SIZE,
             ),
+            waf_timeout,
         }
     }
 
@@ -444,8 +449,9 @@ impl ReqContext {
     ) -> anyhow::Result<WafRunResult> {
         debug!("Running WAF with: {:?}, options: {:?}", data, options);
 
-        let mut ctx = self.get_waf_runnable(options);
-        let maybe_res = tokio::task::block_in_place(|| ctx.run(data, Self::WAF_TIMEOUT));
+        let waf_timeout = self.waf_timeout;
+        let mut ctx = self.get_waf_runnable(options)?;
+        let maybe_res = tokio::task::block_in_place(|| ctx.run(data, waf_timeout));
         drop(ctx);
         let res = match maybe_res {
             Ok(res) => res,
@@ -499,7 +505,7 @@ impl ReqContext {
     fn get_waf_runnable(
         &mut self,
         options: &protocol::RequestExecOptions,
-    ) -> impl RunnableContext + '_ {
+    ) -> anyhow::Result<impl RunnableContext + '_> {
         enum RunnableCtx<'a> {
             Borrowed(&'a mut dyn libddwaf::RunnableContext),
             Owned(libddwaf::Subcontext),
@@ -517,21 +523,29 @@ impl ReqContext {
             }
         }
         match options.subctx_id.as_ref() {
-            None => RunnableCtx::Borrowed(&mut self.waf_ctx),
+            None => Ok(RunnableCtx::Borrowed(&mut self.waf_ctx)),
             Some(subctx_id) => {
                 if options.subctx_last_call {
                     let subctx = self
                         .waf_subctxs
                         .remove(subctx_id)
-                        .unwrap_or_else(|| self.waf_ctx.create_subcontext());
-                    RunnableCtx::Owned(subctx)
+                        .or_else(|| self.waf_ctx.new_subcontext().ok())
+                        .ok_or(anyhow!("Failed to create subcontext"))?;
+                    Ok(RunnableCtx::Owned(subctx))
                 } else {
                     let waf_ctx = &mut self.waf_ctx;
-                    let subctx = self
-                        .waf_subctxs
-                        .entry(subctx_id.clone())
-                        .or_insert_with(|| waf_ctx.create_subcontext());
-                    RunnableCtx::Borrowed(subctx)
+                    let entry = self.waf_subctxs.entry(subctx_id.clone());
+                    match entry {
+                        Entry::Occupied(entry) => Ok(RunnableCtx::Borrowed(entry.into_mut())),
+                        Entry::Vacant(entry) => {
+                            let subctx = entry.insert(
+                                waf_ctx
+                                    .new_subcontext()
+                                    .map_err(|e| anyhow!("Failed to create subcontext: {}", e))?,
+                            );
+                            Ok(RunnableCtx::Borrowed(subctx))
+                        }
+                    }
                 }
             }
         }
@@ -631,7 +645,7 @@ fn convert_actions(
                 .try_fold(HashMap::new(), |mut acc, kv| -> anyhow::Result<_> {
                     let key = kv.key_str().map_err(|e| anyhow!(e.to_string()))?;
                     let value = kv.value();
-                    let value_str: String = match value.get_type()  {
+                    let value_str: String = match value.object_type()  {
                         WafObjectType::String => {
                             value.as_type::<libddwaf::object::WafString>()
                             .expect("We just checked it was a string")
