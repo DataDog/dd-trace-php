@@ -150,7 +150,7 @@ mod frameless {
         use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
         use std::ffi::c_void;
         use std::sync::atomic::Ordering;
-        use log::{debug, error};
+        use log::error;
         use crate::bindings::{zend_flf_functions, zend_flf_handlers, zend_frameless_function_info};
         use crate::{profiling::Profiler, RefCellExt, REQUEST_LOCALS, zend};
 
