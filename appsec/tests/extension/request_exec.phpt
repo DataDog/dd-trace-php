@@ -47,8 +47,6 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    string(0) ""
-    [1]=>
     array(3) {
       ["key 01"]=>
       string(10) "some value"
@@ -59,6 +57,9 @@ array(2) {
         ["some"]=>
         string(5) "array"
       }
+    }
+    [1]=>
+    array(0) {
     }
   }
 }
