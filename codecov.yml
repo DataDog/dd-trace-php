@@ -14,6 +14,15 @@ coverage:
       default:
         target: 90%
 
+flags:
+  helper-rust-unit:
+    paths:
+      - appsec/helper-rust/
+    carryforward: true
+  helper-rust-integration:
+    paths:
+      - appsec/helper-rust/
+    carryforward: true
 
 comment: # See https://docs.codecov.com/docs/pull-request-comments
   behavior: default

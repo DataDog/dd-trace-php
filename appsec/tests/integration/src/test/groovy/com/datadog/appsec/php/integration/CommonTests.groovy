@@ -26,6 +26,11 @@ trait CommonTests {
         getClass().CONTAINER
     }
 
+    void cleanupHelperBeforeRestart() {
+        // Clean up helper before restarting services to ensure coverage is flushed
+        container.flushProfilingData()
+    }
+
     @Test
     void 'user tracking'() {
         def trace = container.traceFromRequest('/user_id.php') { HttpResponse<InputStream> resp ->
