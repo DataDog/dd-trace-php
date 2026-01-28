@@ -16,6 +16,7 @@
 #include "telemetry.h"
 #include "ext/standard/php_string.h"
 #include <hook/hook.h>
+#include <signal.h>
 #include "user_request.h"
 #include "zend_types.h"
 #include "sidecar.h"
@@ -35,6 +36,14 @@ static void dd_reset_span_counters(void) {
     DDTRACE_G(open_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
+}
+
+static zend_never_inline ZEND_COLD void ddtrace_crash_serialization_reentrancy(const char *where) {
+    LOG(ERROR, "Detected ddtrace serialization re-entrancy at %s; crashing intentionally for diagnosis", where);
+    /* Crash in a way that triggers crashtracking (SIGSEGV handler), not SIGABRT. */
+    raise(SIGSEGV);
+    /* If SIGSEGV is blocked or no handler is installed for some reason, hard-exit. */
+    _Exit(128 + SIGSEGV);
 }
 
 void ddtrace_init_span_stacks(void) {
@@ -1091,6 +1100,15 @@ void ddtrace_drop_span(ddtrace_span_data *span) {
 }
 
 void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown) {
+    // Prevent re-entrancy: serialization can be triggered from userland (explicit flush),
+    // from close paths (auto-flush), and indirectly via destructors/GC.
+    // Nested serialization risks use-after-free via iterator invalidation across many call sites.
+    static ZEND_TLS bool ddtrace_in_serialization = false;
+    if (ddtrace_in_serialization) {
+        ddtrace_crash_serialization_reentrancy("ddtrace_serialize_closed_spans");
+    }
+    ddtrace_in_serialization = true;
+
     if (DDTRACE_G(top_closed_stack)) {
         ddtrace_span_stack *rootstack = DDTRACE_G(top_closed_stack);
         DDTRACE_G(top_closed_stack) = NULL;
@@ -1138,6 +1156,8 @@ void ddtrace_serialize_closed_spans(ddog_TracesBytes *traces, bool fast_shutdown
     // Reset closed span counter for limit-refresh, don't touch open spans
     DDTRACE_G(closed_spans_count) = 0;
     DDTRACE_G(dropped_spans_count) = 0;
+
+    ddtrace_in_serialization = false;
 }
 
 void ddtrace_serialize_closed_spans_with_cycle(ddog_TracesBytes *traces, bool fast_shutdown) {
