@@ -80,6 +80,7 @@ final class WebServer
     private $isOctane = false;
     private $isFrankenphp = false;
     private $isSwoole = false;
+    private $phpFpmMaxChildren = 1;
 
     private $defaultInis = [
         'log_errors' => 'on',
@@ -130,6 +131,11 @@ final class WebServer
     public function setFrankenphp()
     {
         $this->isFrankenphp = true;
+    }
+
+    public function setPhpFpmMaxChildren($maxChildren)
+    {
+        $this->phpFpmMaxChildren = $maxChildren;
     }
 
     public function start()
@@ -192,7 +198,8 @@ final class WebServer
                         self::FCGI_HOST,
                         self::FCGI_PORT,
                         $this->envs,
-                        $this->inis
+                        $this->inis,
+                        $this->phpFpmMaxChildren
                     );
                     break;
                 case 'apache2handler':
