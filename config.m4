@@ -222,6 +222,13 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/hook/uhook_legacy.c \
   "
 
+  dnl Provide compat getrandom() on older libcs (e.g., Alpine 3.7 musl)
+  AC_CHECK_FUNCS([getrandom])
+  if test "x$ac_cv_func_getrandom" != "xyes"; then
+    DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
+      ext/compat_getrandom.c"
+  fi
+
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
     zend_abstract_interface/config/config.c \
     zend_abstract_interface/config/config_decode.c \

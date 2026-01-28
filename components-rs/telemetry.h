@@ -42,7 +42,8 @@ ddog_MaybeError ddog_telemetry_builder_with_config(struct ddog_TelemetryWorkerBu
                                                    ddog_CharSlice name,
                                                    ddog_CharSlice value,
                                                    enum ddog_ConfigurationOrigin origin,
-                                                   ddog_CharSlice config_id);
+                                                   ddog_CharSlice config_id,
+                                                   struct ddog_Option_U64 seq_id);
 
 /**
  * Builds the telemetry worker and return a handle to it
