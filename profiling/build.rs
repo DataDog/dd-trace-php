@@ -379,9 +379,7 @@ fn cfg_fibers(vernum: u64) -> bool {
 }
 
 fn cfg_frameless(vernum: u64) -> bool {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php_frameless)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php_frameless)");
     if vernum >= 80400 {
         println!("cargo:rustc-cfg=php_frameless");
         true
