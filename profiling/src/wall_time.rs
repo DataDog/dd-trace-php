@@ -264,26 +264,23 @@ mod frameless {
         #[no_mangle]
         #[inline(never)]
         pub extern "C" fn ddog_php_prof_icall_trampoline_target() {
-            let result = REQUEST_LOCALS.try_with_borrow(|locals| {
-                if !locals.system_settings().profiling_enabled {
-                    return;
-                }
+            let interrupt_count = REQUEST_LOCALS
+                .try_with_borrow(|locals| {
+                    if !locals.system_settings().profiling_enabled {
+                        return 0;
+                    }
+                    locals.interrupt_count.swap(0, Ordering::SeqCst)
+                })
+                .unwrap_or(0);
 
-                // Check whether we are actually wanting an interrupt to be handled.
-                let interrupt_count = locals.interrupt_count.swap(0, Ordering::SeqCst);
-                if interrupt_count == 0 {
-                    return;
-                }
+            if interrupt_count == 0 {
+                return;
+            }
 
-                if let Some(profiler) = Profiler::get() {
-                    // SAFETY: profiler doesn't mutate execute_data
-                    let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
-                    profiler.collect_time(execute_data, interrupt_count);
-                }
-            });
-
-            if let Err(err) = result {
-                debug!("ddog_php_prof_icall_trampoline_target failed to borrow request locals: {err}");
+            if let Some(profiler) = Profiler::get() {
+                // SAFETY: profiler doesn't mutate execute_data
+                let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
+                profiler.collect_time(execute_data, interrupt_count);
             }
         }
     }
