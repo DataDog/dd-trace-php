@@ -22,7 +22,7 @@
 | laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
 | laravel/octane              | 2.13.3                 | 2.13.3                 |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
-| mongodb/mongodb             | 1.10.1                 | 2.1.1                  |
+| mongodb/mongodb             | 1.8.0                  | 2.1.1                  |
 | monolog/monolog             | 1.27.1                 | 3.9.0                  |
 | nette/application           | 2.4.17                 | 3.2.7                  |
 | openai-php/client           | 0.16.1                 | 0.16.1                 |
