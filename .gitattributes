@@ -23,3 +23,4 @@ github-actions-helpers         export-ignore
 
 .gitlab-ci.yml    export-ignore
 phpstan*.neon     export-ignore
+Cargo.lock        export-ignore
