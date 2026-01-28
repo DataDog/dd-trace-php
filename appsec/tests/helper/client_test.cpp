@@ -2957,7 +2957,7 @@ TEST(ClientTest, RaspCalls)
         {
             network::request_exec::request msg;
 
-            msg.rasp_rule = "lfi";
+            msg.options.rasp_rule = "lfi";
             msg.data = parameter::map();
 
             network::request req(std::move(msg));

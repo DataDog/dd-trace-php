@@ -479,7 +479,9 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     }
 
     struct block_params block_params = {0};
-    if (dd_request_exec(conn, data, false, &block_params) != dd_success) {
+    struct req_exec_opts opts = {0};
+    if (dd_request_exec(conn, Z_ARRVAL_P(data), &opts, &block_params) !=
+        dd_success) {
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;
@@ -520,10 +522,12 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
+    struct req_exec_opts opts = {.rasp_rule = rasp_rule};
     struct block_params block_params = {0};
-    dd_result res = dd_request_exec(conn, addresses, rasp_rule, &block_params);
+    dd_result res =
+        dd_request_exec(conn, Z_ARRVAL_P(addresses), &opts, &block_params);
 
-    if (rasp_rule && ZSTR_LEN(rasp_rule) > 0) {
+    if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0) {
         struct timespec end;
         clock_gettime(CLOCK_MONOTONIC_RAW, &end);
         double elapsed_us =
