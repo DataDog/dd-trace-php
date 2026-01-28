@@ -21,7 +21,7 @@ XML;
 
 $content_type = "application/xml";
 
-$result = datadog\appsec\testing\convert_xml($entity, $content_type);
+$result = datadog\appsec\convert_xml($entity, $content_type);
 if (!$result) {
 print_r(libxml_get_errors());
 }

@@ -581,6 +581,7 @@ trait CommonTests {
                  "rule" : {
                     "id" : "poison-in-json",
                     "name" : "poison-in-json",
+                    "on_match" : [],
                     "tags" : {
                        "category" : "attack_attempt",
                        "type" : "security_scanner"
@@ -598,7 +599,7 @@ trait CommonTests {
                              ],
                              "key_path" : [
                                 "message",
-                                "3"
+                                3
                              ],
                              "value" : "poison"
                           }
@@ -627,6 +628,7 @@ trait CommonTests {
                  "rule" : {
                     "id" : "poison-in-xml",
                     "name" : "poison-in-xml",
+                    "on_match" : [],
                     "tags" : {
                        "category" : "attack_attempt",
                        "type" : "security_scanner"
@@ -644,7 +646,7 @@ trait CommonTests {
                              ],
                              "key_path" : [
                                 "note",
-                                "2"
+                                2
                              ],
                              "value" : "\\n  poison\\n"
                           }

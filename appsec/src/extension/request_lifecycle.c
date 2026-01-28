@@ -39,10 +39,11 @@ static void _reset_globals(void);
 const zend_array *nonnull _get_server_equiv(
     const zend_array *nonnull superglob_equiv);
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code);
-static void _register_testing_objects(void);
+static void _register_functions(void);
 
 static bool _enabled_user_req;
 static zend_string *_server_zstr;
+static zend_string *_dd_downstream_request_metric;
 
 static THREAD_LOCAL_ON_ZTS zend_object *nullable _cur_req_span;
 static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
@@ -54,6 +55,9 @@ static THREAD_LOCAL_ON_ZTS bool _request_blocked;
 #define MAX_LENGTH_OF_REM_CFG_PATH 31
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
+static THREAD_LOCAL_ON_ZTS uint64_t _downstream_body_count_this_req;
+static THREAD_LOCAL_ON_ZTS uint64_t _downstream_body_count_total;
+
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
 
 bool dd_req_is_user_req(void) { return _enabled_user_req; }
@@ -87,8 +91,10 @@ void dd_req_lifecycle_startup(void)
     }
 
     _server_zstr = zend_string_init_interned(LSTRARG("_SERVER"), 1);
+    _dd_downstream_request_metric =
+        zend_string_init_interned(LSTRARG("_dd.appsec.downstream_request"), 1);
 
-    _register_testing_objects();
+    _register_functions();
 }
 
 void dd_req_lifecycle_rinit(bool force)
@@ -193,6 +199,8 @@ static zend_array *nullable _do_request_begin(
 
     dd_tags_rinit();
 
+    _downstream_body_count_this_req = 0;
+
     zend_string *nullable rbe = NULL;
     if (rbe_zv) {
         rbe = _get_entity_as_string(rbe_zv);
@@ -270,6 +278,21 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         mlog_g(dd_log_debug, "Skipping automatic request shutdown in testing");
         _reset_globals();
         return;
+    }
+
+    // RFC-1062: Set downstream request metric if any bodies were analyzed
+    if (_cur_req_span && _downstream_body_count_this_req > 0) {
+        zval *metrics_zv = dd_trace_span_get_metrics(_cur_req_span);
+        if (metrics_zv) {
+            zval zv;
+            ZVAL_DOUBLE(&zv, 1.0);
+            zend_hash_update(
+                Z_ARRVAL_P(metrics_zv), _dd_downstream_request_metric, &zv);
+            mlog_g(dd_log_debug,
+                "Set _dd.appsec.downstream_request metric (analyzed %" PRIu64
+                " bodies)",
+                _downstream_body_count_this_req);
+        }
     }
 
     if (_enabled_user_req) {
@@ -1082,20 +1105,74 @@ PHP_FUNCTION(datadog_appsec_testing_dump_req_lifecycle_state)
     }
 }
 
+static PHP_FUNCTION(datadog_appsec_should_send_downstream_bodies)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (!DDAPPSEC_G(active)) {
+        RETURN_FALSE;
+    }
+
+    _downstream_body_count_total++;
+
+    if (_downstream_body_count_this_req >=
+        (uint64_t)get_DD_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS()) {
+        mlog_g(dd_log_debug,
+            "Downstream body count limit reached for this request (did for "
+            "%" PRIu64 " requests)",
+            _downstream_body_count_this_req);
+        RETURN_FALSE;
+    }
+
+    double sample_rate =
+        get_DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE();
+    if (sample_rate >= 1.0) {
+        mlog_g(dd_log_debug, "Downstream body analysis sample rate is 1.0; "
+                             "sending all downstream bodies up to the limit");
+        _downstream_body_count_this_req++;
+        RETURN_TRUE;
+    }
+
+    static const uint64_t KNUTH_FACTOR = 11400714819323198549ULL;
+    uint64_t threshold = (uint64_t)(sample_rate * (double)UINT64_MAX);
+    uint64_t sample_value = _downstream_body_count_total * KNUTH_FACTOR;
+
+    if (sample_value < threshold) {
+        _downstream_body_count_this_req++;
+        mlog_g(dd_log_debug,
+            "We're sending the bodies of this request for analysis");
+        RETURN_TRUE;
+    }
+
+    mlog_g(dd_log_debug,
+        "We're NOT sending the bodies of this request for analysis");
+    RETURN_FALSE;
+}
+
 // clang-format off
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(dump_arginfo, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(dump_downstream_bodies_arginfo, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
+    ZEND_RAW_FENTRY(DD_APPSEC_NS "should_send_downstream_bodies", PHP_FN(datadog_appsec_should_send_downstream_bodies), dump_downstream_bodies_arginfo, 0, NULL, NULL)
+    PHP_FE_END
+};
+
+static const zend_function_entry test_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "dump_req_lifecycle_state", PHP_FN(datadog_appsec_testing_dump_req_lifecycle_state), dump_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 // clang-format on
 
-static void _register_testing_objects(void)
+static void _register_functions(void)
 {
-    if (!get_global_DD_APPSEC_TESTING()) {
-        return;
-    }
     dd_phpobj_reg_funcs(functions);
+
+    if (get_global_DD_APPSEC_TESTING()) {
+        dd_phpobj_reg_funcs(test_functions);
+    }
 }

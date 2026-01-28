@@ -37,6 +37,7 @@ option(DD_APPSEC_BUILD_EXTENSION "Whether to builder the extension" ON)
 option(DD_APPSEC_ENABLE_COVERAGE "Whether to enable coverage calculation" OFF)
 option(DD_APPSEC_TESTING "Whether to enable testing" ON)
 option(DD_APPSEC_DDTRACE_ALT "Whether to build appsec with cmake" OFF)
+option(DD_APPSEC_EXTENSION_STATIC_LIBSTDCXX "Whether to link the extension with -static-libstdc++ (not available on macOS)" OFF)
 
 add_subdirectory(third_party EXCLUDE_FROM_ALL)
 

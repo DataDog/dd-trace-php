@@ -14,6 +14,10 @@ use function DDTrace\resource_weak_get;
 use function DDTrace\resource_weak_store;
 use function DDTrace\start_span;
 
+if (function_exists('datadog\\appsec\\is_fully_disabled') && !\datadog\appsec\is_fully_disabled()) {
+    require_once __DIR__ . '/CurlAppSec.php';
+}
+
 /**
  * @param \DDTrace\SpanData $span
  * @param array &$info
@@ -72,6 +76,8 @@ final class CurlIntegration extends Integration
 {
     const NAME = 'curl';
 
+    private static $internalCall = false;
+
     public static function init(): int
     {
         if (!extension_loaded('curl')) {
@@ -109,6 +115,7 @@ final class CurlIntegration extends Integration
             } else {
                 $data = resource_weak_get($hook->args[0], "span");
             }
+
             if ($data) {
                 $hook->data = $data;
                 return;
@@ -286,10 +293,20 @@ final class CurlIntegration extends Integration
             }
         });
 
+        if (function_exists('datadog\\appsec\\is_fully_disabled') && !\datadog\appsec\is_fully_disabled()) {
+            curlIntegrationAppSecInit();
+        }
+
         return Integration::LOADED;
     }
 
-    public static function setup_curl_span($span) {
+    public static function isWindows() : bool
+    {
+        return \strncasecmp(PHP_OS, 'WIN', 3) === 0;
+    }
+
+    public static function setup_curl_span($span)
+    {
         $span->name = $span->resource = 'curl_exec';
         $span->type = Type::HTTP_CLIENT;
         $span->service = 'curl';
@@ -299,7 +316,8 @@ final class CurlIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CLIENT;
     }
 
-    public static function set_curl_attributes($span, $info) {
+    public static function set_curl_attributes($span, $info)
+    {
         $sanitizedUrl = \DDTrace\Util\Normalizer::urlSanitize($info['url']);
         $normalizedPath = \DDTrace\Util\Normalizer::uriNormalizeOutgoingPath($info['url']);
         $host = Urls::hostname($sanitizedUrl);
@@ -351,5 +369,18 @@ final class CurlIntegration extends Integration
         }
 
         return $info;
+    }
+
+    public static function curl_setopt_internal($ch, $option, $value)
+    {
+        self::$internalCall = true;
+        $res = \curl_setopt($ch, $option, $value);
+        self::$internalCall = false;
+        return $res;
+    }
+
+    public static function isInternalCall() : bool
+    {
+        return self::$internalCall;
     }
 }
