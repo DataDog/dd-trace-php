@@ -22,6 +22,7 @@ cfg-if = { version = "1.0" }
 cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
+dynasmrt = "2.0"
 libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", tag = "v25.0.0" }
 libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", tag = "v25.0.0" }
 libdd-common = {  git = "https://github.com/DataDog/libdatadog", tag = "v25.0.0" }
