@@ -96,6 +96,8 @@ class TelemetryTests {
         TelemetryHelpers.Metric wafReq1
         TelemetryHelpers.Metric wafReq2
         TelemetryHelpers.Metric connSuccess
+        TelemetryHelpers.Metric workerCount
+
 
         waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
@@ -103,8 +105,9 @@ class TelemetryTests {
             wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
             wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
             connSuccess = allSeries.find { it.name == 'helper.connection_success' }
+            workerCount = allSeries.find { it.name == 'helper.service_worker_count' }
 
-            wafInit && wafReq1 && wafReq2 && connSuccess
+            wafInit && wafReq1 && wafReq2 && connSuccess && workerCount
         }
 
         assert wafInit != null
@@ -131,6 +134,10 @@ class TelemetryTests {
         assert connSuccess.points[0][1] >= 1.0
         assert connSuccess.tags.find { it.startsWith('runtime_path:') } != null
         assert connSuccess.type == 'count'
+
+        assert workerCount != null
+        assert workerCount.namespace == 'appsec'
+        assert workerCount.points[0][1] >= 1.0
     }
 
     @Test
@@ -542,5 +549,56 @@ class TelemetryTests {
         assert loginFailure.points[0][1] == 3.0
         assert loginFailure.tags.find { it.startsWith('sdk_version:v2') } != null
         assert loginFailure.type == 'count'
+    }
+
+    /**
+     * This test verifies that when input is truncated (strings > 4096 chars),
+     * the waf.requests metric includes the input_truncated:true tag.
+     */
+    @Test
+    @Order(6)
+    void 'Input truncation telemetry is generated'() {
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // first request to start helper
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        RemoteConfigRequest rcReq = requestSup.get()
+        assert rcReq != null, 'No RC request received'
+
+        // request with a very long query string (> 4096 chars) to trigger truncation
+        def longString = 'A' * 5000
+        HttpRequest req = CONTAINER.buildReq("/hello.php?long_param=${longString}")
+                .GET().build()
+        trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.body().size() > 0
+        }
+        assert trace.traceId != null
+
+        TelemetryHelpers.Metric wafReqTruncated
+
+        waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafReqTruncated = allSeries.find {
+                it.name == 'waf.requests' && 'input_truncated:true' in it.tags
+            }
+
+            wafReqTruncated != null
+        }
+
+        assert wafReqTruncated != null
+        assert wafReqTruncated.namespace == 'appsec'
+        assert wafReqTruncated.points[0][1] >= 1.0
+        assert 'input_truncated:true' in wafReqTruncated.tags
+        assert wafReqTruncated.tags.find { it.startsWith('event_rules_version:') } != null
+        assert wafReqTruncated.tags.find { it.startsWith('waf_version:') } != null
+        assert wafReqTruncated.type == 'count'
     }
 }
