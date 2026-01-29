@@ -30,13 +30,12 @@ use libdd_profiling::api::{
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
-use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -58,7 +57,7 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
-static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
+static mut PROFILER: OnceLock<Profiler> = OnceLock::new();
 
 /// Order this array this way:
 ///  1. Always enabled types.
@@ -657,7 +656,7 @@ const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
 
 impl Profiler {
-    /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
+    /// Will initialize the `PROFILER` OnceLock and makes sure that only one thread will do so.
     pub fn init(system_settings: &SystemSettings) {
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
