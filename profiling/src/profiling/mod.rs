@@ -30,8 +30,8 @@ use libdd_profiling::api::{
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
-use once_cell::sync::OnceCell;
 use std::borrow::Cow;
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
