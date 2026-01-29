@@ -4,7 +4,10 @@
 #include <unistd.h>
 #include <errno.h>
 
-ssize_t getrandom(void *buf, size_t buflen, unsigned int flags) {
+// Provide a weak, local fallback so that:
+// - On older libcs without getrandom, we satisfy the symbol at runtime.
+// - On newer libcs, libc's strong symbol may be preferred by the runtime loader.
+__attribute__((weak)) ssize_t getrandom(void *buf, size_t buflen, unsigned int flags) {
     (void)flags;
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) {
