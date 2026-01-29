@@ -549,7 +549,7 @@ class TelemetryTests {
 
         TelemetryHelpers.Metric wafReqTruncated
 
-        waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafReqTruncated = allSeries.find {
                 it.name == 'waf.requests' && 'input_truncated:true' in it.tags
