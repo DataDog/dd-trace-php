@@ -58,11 +58,12 @@ macro_rules! tls_zend_mm_state_get {
 
 #[macro_export]
 macro_rules! tls_zend_mm_state_set {
-    ($x:expr) => {
+    ($x:expr) => {{
+        let value = $x;
         unsafe {
-            (*$crate::allocation::get_zend_mm_state()).set($x);
+            (*$crate::allocation::get_zend_mm_state()).set(value);
         }
-    };
+    }};
 }
 
 #[cfg(php_zend_mm_set_custom_handlers_ex)]

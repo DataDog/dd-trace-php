@@ -50,6 +50,7 @@ pub struct ZendMMState {
 }
 
 impl ZendMMState {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> ZendMMState {
         ZendMMState {
             heap: None,

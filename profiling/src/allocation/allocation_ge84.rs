@@ -63,6 +63,7 @@ unsafe fn alloc_prof_panic_shutdown(_full: bool, _silent: bool) {
 }
 
 impl ZendMMState {
+    #[allow(clippy::new_without_default)]
     pub const fn new() -> ZendMMState {
         ZendMMState {
             heap: None,
