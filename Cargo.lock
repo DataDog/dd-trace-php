@@ -1253,7 +1253,6 @@ dependencies = [
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
- "once_cell",
  "perfcnt",
  "rand 0.8.5",
  "rand_distr",

@@ -246,13 +246,16 @@ pub struct ZendExtension {
 
 pub use ZendExtension as zend_extension;
 
-impl Default for ModuleEntry {
-    fn default() -> Self {
+impl ModuleEntry {
+    /// Creates a new ModuleEntry with default values for const-compatible fields.
+    /// Non-const fields (functions, build_id) are set to null and should be initialized separately.
+    #[allow(clippy::new_without_default)]
+    pub const fn new() -> Self {
         Self {
-            size: std::mem::size_of::<Self>() as c_ushort,
+            size: core::mem::size_of::<Self>() as c_ushort,
             zend_api: ZEND_MODULE_API_NO,
-            zend_debug: ZEND_DEBUG as u8,
-            zts: USING_ZTS as u8,
+            zend_debug: ZEND_DEBUG as c_uchar,
+            zts: USING_ZTS as c_uchar,
             ini_entry: ptr::null(),
             deps: ptr::null(),
             name: c"".as_ptr(),
@@ -264,12 +267,10 @@ impl Default for ModuleEntry {
             info_func: None,
             version: ptr::null(),
             globals_size: 0,
-
             #[cfg(php_zts)]
             globals_id_ptr: ptr::null_mut(),
             #[cfg(not(php_zts))]
             globals_ptr: ptr::null_mut(),
-
             globals_ctor: None,
             globals_dtor: None,
             post_deactivate_func: None,
@@ -277,7 +278,7 @@ impl Default for ModuleEntry {
             type_: MODULE_PERSISTENT as c_uchar,
             handle: ptr::null_mut(),
             module_number: -1,
-            build_id: unsafe { datadog_module_build_id() },
+            build_id: ptr::null(),
         }
     }
 }

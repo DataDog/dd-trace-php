@@ -34,14 +34,13 @@ use core::ptr;
 use lazy_static::lazy_static;
 use libdd_common::{cstr, tag, tag::Tag};
 use log::{debug, error, info, trace, warn};
-use once_cell::sync::{Lazy, OnceCell};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Once};
+use std::sync::{Arc, Once, OnceLock};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -146,7 +145,7 @@ lazy_static! {
 /// Additionally, the tracer is going to ask for this in its ACTIVATE handler,
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
-static RUNTIME_ID: OnceCell<Uuid> = OnceCell::new();
+static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
 // If ddtrace is loaded, we fetch the uuid from there instead
 extern "C" {
     pub static ddtrace_runtime_id: *const Uuid;
@@ -159,55 +158,62 @@ extern "C" {
 #[cfg(php_zts)]
 static mut GLOBALS_ID_PTR: i32 = 0;
 
-/// The function `get_module` is what makes this a PHP module. Please do not
-/// call this directly; only let it be called by the engine. Generally it is
-/// only called once, but if someone accidentally loads the module twice then
-/// it might get called more than once, though it will warn and not use the
-/// consecutive return value.
+/// Module dependencies for the profiler extension.
+static MODULE_DEPS: [zend::ModuleDep; 8] = [
+    zend::ModuleDep::required(cstr!("standard")),
+    zend::ModuleDep::required(cstr!("json")),
+    zend::ModuleDep::optional(cstr!("ddtrace")),
+    // Optionally, be dependent on these event extensions so that the functions they provide
+    // are registered in the function table and we can hook into them.
+    zend::ModuleDep::optional(cstr!("ev")),
+    zend::ModuleDep::optional(cstr!("event")),
+    zend::ModuleDep::optional(cstr!("libevent")),
+    zend::ModuleDep::optional(cstr!("uv")),
+    zend::ModuleDep::end(),
+];
+
+/// The module entry for the profiler extension. Fields that aren't
+/// const-compatible are set in get_module().
+static mut MODULE: zend::ModuleEntry = zend::ModuleEntry {
+    deps: MODULE_DEPS.as_ptr(),
+    name: PROFILER_NAME.as_ptr(),
+    functions: ptr::null(), // Will be set in get_module()
+    module_startup_func: Some(minit),
+    module_shutdown_func: Some(mshutdown),
+    request_startup_func: Some(rinit),
+    request_shutdown_func: Some(rshutdown),
+    info_func: Some(minfo),
+    version: PROFILER_VERSION.as_ptr(),
+    globals_size: 1,
+    #[cfg(php_zts)]
+    globals_id_ptr: ptr::addr_of_mut!(GLOBALS_ID_PTR),
+    #[cfg(not(php_zts))]
+    globals_ptr: ptr::null_mut(),
+    globals_ctor: Some(ginit),
+    globals_dtor: Some(gshutdown),
+    post_deactivate_func: Some(prshutdown),
+    build_id: ptr::null(), // Will be set in get_module()
+    ..zend::ModuleEntry::new()
+};
+
+/// The function `get_module` is what makes this a PHP module.
+///
+/// # Safety
+///
+/// Do not call this function manually; it will be called by the engine.
+/// Generally it is  only called once, but if someone accidentally loads the
+/// module twice then it might get called more than once, though it will warn
+/// and not use the consecutive return value.
 #[no_mangle]
-pub extern "C" fn get_module() -> &'static mut zend::ModuleEntry {
-    static DEPS: [zend::ModuleDep; 8] = [
-        zend::ModuleDep::required(cstr!("standard")),
-        zend::ModuleDep::required(cstr!("json")),
-        zend::ModuleDep::optional(cstr!("ddtrace")),
-        // Optionally, be dependent on these event extensions so that the functions they provide
-        // are registered in the function table and we can hook into them.
-        zend::ModuleDep::optional(cstr!("ev")),
-        zend::ModuleDep::optional(cstr!("event")),
-        zend::ModuleDep::optional(cstr!("libevent")),
-        zend::ModuleDep::optional(cstr!("uv")),
-        zend::ModuleDep::end(),
-    ];
+pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
+    let module = ptr::addr_of_mut!(MODULE);
 
-    // In PHP modules written in C, this just returns the address of a global,
-    // mutable variable. In Rust, you cannot initialize such a complicated
-    // global variable because of initialization order issues that have been
-    // found through decades of C++ experience.
-    // There are a variety of ways to deal with this; this is just one way.
-    static mut MODULE: Lazy<zend::ModuleEntry> = Lazy::new(|| zend::ModuleEntry {
-        name: PROFILER_NAME.as_ptr(),
-        // SAFETY: php_ffi.c defines this correctly
-        functions: unsafe { bindings::ddog_php_prof_functions },
-        module_startup_func: Some(minit),
-        module_shutdown_func: Some(mshutdown),
-        request_startup_func: Some(rinit),
-        request_shutdown_func: Some(rshutdown),
-        info_func: Some(minfo),
-        version: PROFILER_VERSION.as_ptr(),
-        post_deactivate_func: Some(prshutdown),
-        deps: DEPS.as_ptr(),
-        globals_ctor: Some(ginit),
-        globals_dtor: Some(gshutdown),
-        globals_size: 1,
-        #[cfg(php_zts)]
-        globals_id_ptr: ptr::addr_of_mut!(GLOBALS_ID_PTR),
-        #[cfg(not(php_zts))]
-        globals_ptr: ptr::null_mut(),
-        ..Default::default()
-    });
-
-    // SAFETY: well, it's at least as safe as what every single C extension does.
-    unsafe { &mut *ptr::addr_of_mut!(MODULE) }
+    // Set fields that aren't const-compatible.
+    unsafe {
+        ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
+        ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
+    }
+    module
 }
 
 unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
