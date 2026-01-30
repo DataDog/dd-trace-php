@@ -81,14 +81,15 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
 /// # Safety
 /// - Must be called by PHP's module initialization system.
 #[export_name = "ddog_php_prof_ginit"]
-pub unsafe extern "C" fn ginit(globals_ptr: *mut c_void) {
+pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
+    // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
+    // this was already done in its const initializer.
     #[cfg(php_zts)]
     {
-        // Initialize ZendMMState in PHP globals.
-        let globals = globals_ptr.cast::<ProfilerGlobals>();
+        let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
     }
 
