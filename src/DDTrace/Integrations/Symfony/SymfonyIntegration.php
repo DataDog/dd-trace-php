@@ -589,26 +589,26 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                if (self::$kernel !== null
-                    && \defined(\get_class(self::$kernel) . '::VERSION')
-                    && \strpos(self::$kernel::VERSION, '4.') !== 0
-                    && self::$frameworkPrefix === SymfonyIntegration::NAME
-                    && !\DDTrace\are_endpoints_collected())
-                {
-                    /** @var ContainerInterface $container */
-                    $container = self::$kernel->getContainer();
-                    /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
-                    $router = $container->get('router');
-                    $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
-                    /** @var \Symfony\Component\Routing\Route $route */
-                    foreach ($routes as $route) {
-                        $path = method_exists($route, 'getPath') ? $route->getPath() : '';
-                        $methods = method_exists($route, 'getMethods') ? $route->getMethods() : [];
-                        $method = isset($methods[0]) ? $methods[0] : 'GET';
-                        $resourceName = $method . ' ' . $path;
-                        \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
-                    }
-                }
+                // if (self::$kernel !== null
+                //     && \defined(\get_class(self::$kernel) . '::VERSION')
+                //     && \strpos(self::$kernel::VERSION, '4.') !== 0
+                //     && self::$frameworkPrefix === SymfonyIntegration::NAME
+                //     && !\DDTrace\are_endpoints_collected())
+                // {
+                //     /** @var ContainerInterface $container */
+                //     $container = self::$kernel->getContainer();
+                //     /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
+                //     $router = $container->get('router');
+                //     $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
+                //     /** @var \Symfony\Component\Routing\Route $route */
+                //     foreach ($routes as $route) {
+                //         $path = method_exists($route, 'getPath') ? $route->getPath() : '';
+                //         $methods = method_exists($route, 'getMethods') ? $route->getMethods() : [];
+                //         $method = isset($methods[0]) ? $methods[0] : 'GET';
+                //         $resourceName = $method . ' ' . $path;
+                //         \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
+                //     }
+                // }
             }
         ];
         \DDTrace\trace_method(
