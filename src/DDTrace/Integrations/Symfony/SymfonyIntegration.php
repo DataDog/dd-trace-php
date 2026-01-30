@@ -589,12 +589,12 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                // if (self::$kernel !== null
-                //     && \defined(\get_class(self::$kernel) . '::VERSION')
-                //     && \strpos(self::$kernel::VERSION, '4.') !== 0
-                //     && self::$frameworkPrefix === SymfonyIntegration::NAME
-                //     && !\DDTrace\are_endpoints_collected())
-                // {
+                if (self::$kernel !== null
+                    && \defined(\get_class(self::$kernel) . '::VERSION')
+                    && \strpos(self::$kernel::VERSION, '4.') !== 0
+                    && self::$frameworkPrefix === SymfonyIntegration::NAME
+                    && !\DDTrace\are_endpoints_collected())
+                {
                 //     /** @var ContainerInterface $container */
                 //     $container = self::$kernel->getContainer();
                 //     /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
@@ -608,7 +608,7 @@ class SymfonyIntegration extends Integration
                 //         $resourceName = $method . ' ' . $path;
                 //         \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
                 //     }
-                // }
+                }
             }
         ];
         \DDTrace\trace_method(
