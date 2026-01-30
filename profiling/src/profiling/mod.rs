@@ -31,8 +31,8 @@ use libdd_profiling::api::{
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
+use rustc_hash::FxHashMap;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
@@ -269,7 +269,7 @@ impl TimeCollector {
 
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut FxHashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
         let wall_export = WallTime::now();
@@ -498,7 +498,7 @@ impl TimeCollector {
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut FxHashMap<ProfileIndex, InternalProfile>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
@@ -523,7 +523,7 @@ impl TimeCollector {
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut FxHashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
     ) {
         if message.key.sample_types.is_empty() {
@@ -581,7 +581,8 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(1);
+        let mut profiles: FxHashMap<ProfileIndex, InternalProfile> =
+            FxHashMap::with_capacity_and_hasher(1, Default::default());
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
