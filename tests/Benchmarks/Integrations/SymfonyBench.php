@@ -27,7 +27,7 @@ class SymfonyBench extends FrameworkBenchmarksCase
      * @Iterations(10)
      * @OutputTimeUnit("microseconds")
      * @RetryThreshold(10.0)
-     * @Warmup(5)
+     * @Warmup(1)
      */
     public function benchSymfonyBaseline()
     {
@@ -55,7 +55,7 @@ class SymfonyBench extends FrameworkBenchmarksCase
      * @Iterations(50)
      * @OutputTimeUnit("microseconds")
      * @Groups({"ddprof"})
-     * @Warmup(5)
+     * @Warmup(1)
      */
     public function benchSymfonyDdprof()
     {
