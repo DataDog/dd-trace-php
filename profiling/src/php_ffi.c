@@ -28,7 +28,6 @@ static void locate_ddtrace_get_profiling_context(const zend_extension *extension
     }
 }
 
-
 static void locate_ddtrace_process_tags_get_serialized(const zend_extension *extension) {
     zend_string *(*get_process_tags)(void) =
         DL_FETCH_SYMBOL(extension->handle, "ddtrace_process_tags_get_serialized");

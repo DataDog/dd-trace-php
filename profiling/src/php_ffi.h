@@ -90,10 +90,9 @@ extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(
 
 /**
  * A pointer to the tracer's ddtrace_get_process_tags_serialized function if it
- * was found, otherwise points to a function which just return NULL;
+ * was found, otherwise points to a function which just returns NULL;
  */
 extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
-
 
 /**
  * Called by this zend_extension's .startup handler. Does things that are
