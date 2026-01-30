@@ -85,9 +85,12 @@ pub unsafe extern "C" fn ginit(globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    // Initialize ZendMMState in PHP globals.
-    let globals = globals_ptr.cast::<ProfilerGlobals>();
-    (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+    #[cfg(php_zts)]
+    {
+        // Initialize ZendMMState in PHP globals.
+        let globals = globals_ptr.cast::<ProfilerGlobals>();
+        (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+    }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
     allocation::ginit();
