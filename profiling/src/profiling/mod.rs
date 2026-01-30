@@ -247,13 +247,23 @@ struct TimeCollector {
 }
 
 impl TimeCollector {
-    fn drain_sample_queue(
+    /// Processes pending samples.
+    ///
+    /// Since the samples are in a queue, it's possible new samples will be
+    /// added as this runs. This is somewhat mitigated by only draining up to
+    /// the configured queue capacity in one pass, so the collector remains
+    /// responsive to other messages even under sustained producer load.
+    fn process_pending_samples(
         &self,
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         last_wall_export: &WallTime,
     ) {
-        while let Some(sample) = self.sample_queue.pop() {
-            Self::handle_sample_message(sample, profiles, last_wall_export);
+        for _ in 0..SAMPLE_QUEUE_CAPACITY {
+            if let Some(sample) = self.sample_queue.pop() {
+                Self::handle_sample_message(sample, profiles, last_wall_export);
+            } else {
+                break;
+            }
         }
     }
 
@@ -604,7 +614,7 @@ impl TimeCollector {
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
-                                self.drain_sample_queue(&mut profiles, &last_wall_export);
+                                self.process_pending_samples(&mut profiles, &last_wall_export);
                                 // flush what we have before exiting
                                 last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                                 running = false;
@@ -643,7 +653,7 @@ impl TimeCollector {
 
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
-                        self.drain_sample_queue(&mut profiles, &last_wall_export);
+                        self.process_pending_samples(&mut profiles, &last_wall_export);
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                     }
                 },
@@ -651,7 +661,7 @@ impl TimeCollector {
             }
 
             // Process any queued samples after handling the wake reason.
-            self.drain_sample_queue(&mut profiles, &last_wall_export);
+            self.process_pending_samples(&mut profiles, &last_wall_export);
         }
     }
 }
