@@ -691,7 +691,9 @@ impl Profiler {
         let process_tags: Option<String> = unsafe {
             let raw_ptr = datadog_php_profiling_get_process_tags_serialized.unwrap_unchecked()();
             zai_str_from_zstr(raw_ptr.as_mut())
-                .into_optional_utf8()
+                .into_utf8()
+                .ok()
+                .filter(|s| !s.is_empty())
                 .map(|s| s.to_owned())
         };
 

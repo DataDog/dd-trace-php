@@ -658,15 +658,6 @@ impl<'a> ZaiStr<'a> {
         let bytes = self.as_bytes();
         String::from_utf8_lossy(bytes)
     }
-
-    #[inline]
-    pub fn into_optional_utf8(self) -> Option<&'a str> {
-        if self.is_empty() {
-            None
-        } else {
-            self.into_utf8().ok()
-        }
-    }
 }
 
 #[repr(C)]
@@ -711,7 +702,6 @@ pub struct ZaiConfigMemoizedEntry {
 
 #[cfg(test)]
 mod tests {
-    use super::ZaiStr;
     use core::mem;
 
     // If this fails, then ddog_php_prof_function_run_time_cache needs to be
@@ -723,23 +713,5 @@ mod tests {
             mem::align_of::<&[usize; 2]>(),
             mem::align_of::<*mut usize>()
         );
-    }
-
-    #[test]
-    fn test_zai_str_into_optional_utf8_with_valid_utf8() {
-        let zai_str = ZaiStr::from("hello world");
-        assert_eq!(zai_str.into_optional_utf8(), Some("hello world"));
-    }
-
-    #[test]
-    fn test_zai_str_into_optional_utf8_with_empty_string() {
-        let zai_str = ZaiStr::new();
-        assert_eq!(zai_str.into_optional_utf8(), None);
-    }
-
-    #[test]
-    fn test_zai_str_into_optional_utf8_with_empty_slice() {
-        let zai_str = ZaiStr::from("");
-        assert_eq!(zai_str.into_optional_utf8(), None);
     }
 }
