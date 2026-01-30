@@ -3,7 +3,9 @@
 //
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
+
 #include "client.hpp"
+#include "../ffi.hpp"
 #include "product.hpp"
 #include <set>
 #include <spdlog/spdlog.h>
@@ -14,16 +16,11 @@ extern "C" {
 #include <dlfcn.h>
 }
 
+SIDECAR_FFI_SYMBOL(ddog_remote_config_reader_for_path);
+SIDECAR_FFI_SYMBOL(ddog_remote_config_read);
+SIDECAR_FFI_SYMBOL(ddog_remote_config_reader_drop);
+
 namespace {
-struct ddog_CharSlice { // NOLINT(readability-identifier-naming)
-    const char *ptr;
-    uintptr_t len;
-};
-ddog_RemoteConfigReader *(*ddog_remote_config_reader_for_path)(
-    const char *path);
-bool (*ddog_remote_config_read)(
-    ddog_RemoteConfigReader *reader, ddog_CharSlice *data);
-void (*ddog_remote_config_reader_drop)(struct ddog_RemoteConfigReader *);
 
 bool sets_are_indentical_for_subbed_products(
     const std::unordered_set<dds::remote_config::product> &products,
@@ -48,40 +45,12 @@ bool sets_are_indentical_for_subbed_products(
 
 namespace dds::remote_config {
 
-void resolve_symbols()
-{
-    ddog_remote_config_reader_for_path =
-        // NOLINTNEXTLINE
-        reinterpret_cast<decltype(ddog_remote_config_reader_for_path)>(
-            dlsym(RTLD_DEFAULT, "ddog_remote_config_reader_for_path"));
-    if (ddog_remote_config_reader_for_path == nullptr) {
-        throw std::runtime_error{
-            "Failed to resolve ddog_remote_config_reader_for_path"};
-    }
-
-    ddog_remote_config_read =
-        // NOLINTNEXTLINE
-        reinterpret_cast<decltype(ddog_remote_config_read)>(
-            dlsym(RTLD_DEFAULT, "ddog_remote_config_read"));
-    if (ddog_remote_config_read == nullptr) {
-        throw std::runtime_error{"Failed to resolve ddog_remote_config_read"};
-    }
-
-    ddog_remote_config_reader_drop =
-        // NOLINTNEXTLINE
-        reinterpret_cast<decltype(ddog_remote_config_reader_drop)>(
-            dlsym(RTLD_DEFAULT, "ddog_remote_config_reader_drop"));
-    if (ddog_remote_config_reader_drop == nullptr) {
-        throw std::runtime_error{
-            "Failed to resolve ddog_remote_config_reader_drop"};
-    }
-}
-
 client::client(remote_config::settings settings,
     std::vector<std::shared_ptr<listener_base>> listeners,
     std::shared_ptr<telemetry::telemetry_submitter> msubmitter)
-    : reader_{ddog_remote_config_reader_for_path(settings.shmem_path.c_str()),
-          ddog_remote_config_reader_drop},
+    : reader_{ffi::ddog_remote_config_reader_for_path(
+                  settings.shmem_path.c_str()),
+          ffi::ddog_remote_config_reader_drop.get_fn()},
       settings_{std::move(settings)}, listeners_{std::move(listeners)},
       msubmitter_{std::move(msubmitter)}
 {
@@ -113,7 +82,7 @@ bool client::poll()
     SPDLOG_DEBUG("Polling remote config");
 
     ddog_CharSlice slice{};
-    const bool has_update = ddog_remote_config_read(reader_.get(), &slice);
+    const bool has_update = ffi::ddog_remote_config_read(reader_.get(), &slice);
     if (!has_update) {
         SPDLOG_DEBUG("No update available for {}", settings_.shmem_path);
         return false;

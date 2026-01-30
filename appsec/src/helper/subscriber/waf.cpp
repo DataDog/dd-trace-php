@@ -769,8 +769,12 @@ instance::instance(parameter rules, telemetry::telemetry_submitter &msubmit,
     std::string_view value_regex)
     : waf_timeout_{waf_timeout_us}, msubmitter_{msubmit}
 {
-    const ddwaf_config config{
-        {0, 0, 0}, {key_regex.data(), value_regex.data()}, nullptr};
+    const ddwaf_config config{{.max_container_size = 0,
+                                  .max_container_depth = 0,
+                                  .max_string_length = 0},
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+        {.key_regex = key_regex.data(), .value_regex = value_regex.data()},
+        nullptr};
 
     parameter diagnostics{};
     auto maybe_builder =

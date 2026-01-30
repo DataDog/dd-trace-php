@@ -30,13 +30,12 @@ use libdd_profiling::api::{
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
-use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -58,7 +57,7 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
-static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
+static mut PROFILER: OnceLock<Profiler> = OnceLock::new();
 
 /// Order this array this way:
 ///  1. Always enabled types.
@@ -657,7 +656,7 @@ const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
 
 impl Profiler {
-    /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
+    /// Will initialize the `PROFILER` OnceLock and makes sure that only one thread will do so.
     pub fn init(system_settings: &SystemSettings) {
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
@@ -917,14 +916,7 @@ impl Profiler {
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                let mut timestamp = NO_TIMESTAMP;
-                {
-                    if self.is_timeline_enabled() {
-                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                            timestamp = now.as_nanos() as i64;
-                        }
-                    }
-                }
+                let timestamp = self.get_timeline_timestamp();
 
                 match self.prepare_and_send_message(
                     frames,
@@ -951,33 +943,51 @@ impl Profiler {
         }
     }
 
-    /// Collect a stack sample with memory allocations.
+    /// Collect a stack sample with memory allocations, and optionally time data.
+    ///
+    /// When `interrupt_count` is provided, this piggybacks time sampling onto
+    /// allocation sampling to avoid redundant stack walks.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
         alloc_samples: i64,
         alloc_size: i64,
+        interrupt_count: Option<u32>,
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
+
+                // Optionally collect time data when interrupt_count is provided
+                let (interrupt_count, wall_time, cpu_time, timestamp) =
+                    if let Some(count) = interrupt_count {
+                        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+                        let timestamp = self.get_timeline_timestamp();
+                        (count as i64, wall_time, cpu_time, timestamp)
+                    } else {
+                        (0, 0, 0, NO_TIMESTAMP)
+                    };
+
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
                 match self.prepare_and_send_message(
                     frames,
                     SampleValues {
-                        alloc_size,
+                        interrupt_count,
+                        wall_time,
+                        cpu_time,
                         alloc_samples,
+                        alloc_size,
                         ..Default::default()
                     },
                     labels,
-                    NO_TIMESTAMP,
+                    timestamp,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
+                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
                     ),
                     Err(err) => warn!(
                         "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
@@ -1018,14 +1028,7 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                let mut timestamp = NO_TIMESTAMP;
-                {
-                    if self.is_timeline_enabled() {
-                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                            timestamp = now.as_nanos() as i64;
-                        }
-                    }
-                }
+                let timestamp = self.get_timeline_timestamp();
 
                 match self.prepare_and_send_message(
                     frames,
@@ -1434,6 +1437,16 @@ impl Profiler {
                 warn!("Failed to collect stack sample: {err}")
             }
         }
+    }
+
+    /// Gets a timestamp for timeline profiling if timeline is enabled.
+    /// Returns NO_TIMESTAMP if timeline is disabled or if getting the time fails.
+    fn get_timeline_timestamp(&self) -> i64 {
+        self.is_timeline_enabled()
+            .then(|| SystemTime::now().duration_since(UNIX_EPOCH).ok())
+            .flatten()
+            .map(|now| now.as_nanos() as i64)
+            .unwrap_or(NO_TIMESTAMP)
     }
 
     /// Creates the common message labels for all samples.
