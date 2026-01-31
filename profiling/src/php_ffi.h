@@ -56,6 +56,12 @@ const char *datadog_extension_build_id(void);
 const char *datadog_module_build_id(void);
 
 /**
+ * Wrappers for inline zend_string helpers so Rust can link them.
+ */
+zend_string *datadog_php_zend_string_copy(zend_string *s);
+void datadog_php_zend_string_release(zend_string *s);
+
+/**
  * Returns the `sapi_request_info` from the SAPI_GLOBALS
  */
 sapi_request_info datadog_sapi_globals_request_info();

@@ -8,6 +8,7 @@ pub mod profiling;
 mod pthread;
 mod sapi;
 mod thin_str;
+mod thread_queue;
 mod wall_time;
 
 #[cfg(php_run_time_cache)]
@@ -395,6 +396,9 @@ extern "C" fn prshutdown() -> ZendResult {
     unsafe { bindings::zai_config_rshutdown() };
 
     timeline::timeline_prshutdown();
+
+    // Convert any borrowed frame strings to owned after RSHUTDOWN.
+    unsafe { thread_queue::rshutdown() };
 
     ZendResult::Success
 }

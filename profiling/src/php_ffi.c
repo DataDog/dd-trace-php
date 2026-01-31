@@ -13,6 +13,12 @@
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
+zend_string *datadog_php_zend_string_copy(zend_string *s) {
+    return zend_string_copy(s);
+}
+void datadog_php_zend_string_release(zend_string *s) {
+    zend_string_release(s);
+}
 
 uint8_t *ddtrace_runtime_id = NULL;
 

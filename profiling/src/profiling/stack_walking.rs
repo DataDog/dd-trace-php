@@ -1,7 +1,9 @@
 use crate::bindings::{
-    zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
+    datadog_php_zend_string_copy, datadog_php_zend_string_release, zai_str_from_zstr,
+    zend_execute_data, zend_function, zend_op, zend_op_array, zend_string,
 };
 use crate::vec_ext::VecExt;
+use core::ffi::c_char;
 use std::borrow::Cow;
 
 #[cfg(php_frameless)]
@@ -18,16 +20,100 @@ const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 /// The profiler is not meant to handle such large strings--if a file or
 /// function name exceeds this size, it will fail in some manner, or be
 /// replaced by a shorter string, etc.
-const STR_LEN_LIMIT: usize = u16::MAX as usize;
-const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
+pub enum FrameString {
+    BorrowedZstr(*mut zend_string),
+    BorrowedCStr(*const c_char),
+    Owned(Vec<u8>),
+}
+
+impl FrameString {
+    fn borrowed_zstr(zstr: *mut zend_string) -> Self {
+        // SAFETY: caller ensures zstr is valid for zend_string_copy.
+        let copied = unsafe { datadog_php_zend_string_copy(zstr) };
+        Self::BorrowedZstr(copied)
+    }
+
+    fn borrowed_cstr(ptr: *const c_char) -> Option<Self> {
+        if ptr.is_null() {
+            None
+        } else {
+            Some(Self::BorrowedCStr(ptr))
+        }
+    }
+
+    fn owned(value: &str) -> Self {
+        Self::Owned(value.as_bytes().to_vec())
+    }
+
+    pub fn to_bytes(&self) -> Cow<'_, [u8]> {
+        match self {
+            FrameString::BorrowedZstr(zstr) => {
+                let zstr = *zstr;
+                // SAFETY: caller guarantees zend_string is valid for read.
+                let bytes = unsafe { zai_str_from_zstr(zstr.as_mut()) }.into_bytes();
+                Cow::Borrowed(bytes)
+            }
+            FrameString::BorrowedCStr(ptr) => {
+                let ptr = *ptr;
+                // SAFETY: caller guarantees C string is valid.
+                let bytes = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_bytes();
+                Cow::Borrowed(bytes)
+            }
+            FrameString::Owned(value) => Cow::Borrowed(value.as_slice()),
+        }
+    }
+
+    fn make_owned(&mut self) {
+        match self {
+            FrameString::BorrowedZstr(zstr) => {
+                let zstr = *zstr;
+                // SAFETY: caller guarantees zend_string is valid for read.
+                let string = unsafe { zai_str_from_zstr(zstr.as_mut()) }
+                    .into_bytes()
+                    .to_vec();
+                // SAFETY: this pointer was created via zend_string_copy.
+                unsafe {
+                    datadog_php_zend_string_release(zstr);
+                }
+                *self = FrameString::Owned(string);
+            }
+            FrameString::BorrowedCStr(ptr) => {
+                let ptr = *ptr;
+                // SAFETY: caller guarantees C string is valid.
+                let string = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_bytes().to_vec();
+                *self = FrameString::Owned(string);
+            }
+            FrameString::Owned(_) => {}
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ZendFrame {
+    pub module: Option<FrameString>,
+    pub class: Option<FrameString>,
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".
-    pub function: Cow<'static, str>,
-    pub file: Option<Cow<'static, str>>,
+    pub function: FrameString,
+    pub file: Option<FrameString>,
     pub line: u32, // use 0 for no line info
+}
+
+impl ZendFrame {
+    pub fn make_owned(&mut self) {
+        if let Some(module) = &mut self.module {
+            module.make_owned();
+        }
+        if let Some(class) = &mut self.class {
+            class.make_owned();
+        }
+        self.function.make_owned();
+        if let Some(file) = &mut self.file {
+            file.make_owned();
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -76,11 +162,6 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     let class_name_len = has_class as usize * "::".len() + class_name.len();
     let len = module_len + class_name_len + method_name.len();
 
-    // Rather than fail, we use a short string to represent a long string.
-    if len >= STR_LEN_LIMIT {
-        return Some(COW_LARGE_STRING);
-    }
-
     // When refactoring, make sure large str len is checked before allocating.
     buffer.reserve_exact(len);
 
@@ -101,6 +182,57 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     // at the moment anyway, so this is okay.
     let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
     Some(Cow::Owned(string))
+}
+
+#[inline]
+fn function_name_zstr(func: &zend_function) -> Option<*mut zend_string> {
+    let ptr = unsafe { func.common.function_name };
+    if ptr.is_null() {
+        None
+    } else {
+        Some(ptr)
+    }
+}
+
+#[inline]
+fn class_name_zstr(func: &zend_function) -> Option<*mut zend_string> {
+    let scope = unsafe { func.common.scope.as_ref() }?;
+    let ptr = scope.name;
+    if ptr.is_null() {
+        None
+    } else {
+        Some(ptr)
+    }
+}
+
+#[inline]
+fn module_name_cstr(func: &zend_function) -> Option<*const c_char> {
+    if !func.is_internal() {
+        return None;
+    }
+    let module = unsafe { func.internal_function.module.as_ref() }?;
+    // Note: module->name is owned by zend_module_entry. Temporary modules are
+    // destroyed after post-deactivate; we convert borrowed strings to owned
+    // in prshutdown so the pointer remains valid until then.
+    if module.name.is_null() {
+        None
+    } else {
+        Some(module.name as *const c_char)
+    }
+}
+
+fn extract_function_parts(
+    func: &zend_function,
+) -> Option<(Option<FrameString>, Option<FrameString>, FrameString)> {
+    let function_zstr = function_name_zstr(func)?;
+    let class_zstr = class_name_zstr(func);
+    let module_cstr = module_name_cstr(func);
+
+    let module = module_cstr.and_then(FrameString::borrowed_cstr);
+    let class = class_zstr.map(FrameString::borrowed_zstr);
+    let function = FrameString::borrowed_zstr(function_zstr);
+
+    Some((module, class, function))
 }
 
 /// Gets an opline reference after doing bounds checking to prevent segfaults
@@ -134,24 +266,21 @@ fn opline_in_bounds(op_array: &zend_op_array, opline: *const zend_op) -> bool {
     (begin..end).contains(&(opline as usize))
 }
 
-unsafe fn extract_file_and_line(
-    execute_data: &zend_execute_data,
-) -> (Option<Cow<'static, str>>, u32) {
+unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<FrameString>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if !func.is_internal() => {
-            // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
-            let file = if bytes.len() < STR_LEN_LIMIT {
-                Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
+            let zstr = func.op_array.filename;
+            let file = if zstr.is_null() {
+                None
             } else {
-                COW_LARGE_STRING
+                Some(FrameString::borrowed_zstr(zstr))
             };
             let lineno = match safely_get_opline(execute_data) {
                 Some(opline) => opline.lineno,
                 None => 0,
             };
-            (Some(file), lineno)
+            (file, lineno)
         }
         _ => (None, 0),
     }
@@ -315,8 +444,15 @@ mod detail {
                                 let func = unsafe {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
+                                let function = function_name_zstr(func)
+                                    .map(FrameString::borrowed_zstr)
+                                    .unwrap_or_else(|| {
+                                        FrameString::owned(COW_PHP_OPEN_TAG.as_ref())
+                                    });
                                 samples.try_push(ZendFrame {
-                                    function: extract_function_name(func).unwrap(),
+                                    module: None,
+                                    class: None,
+                                    function,
                                     file: None,
                                     line: 0,
                                 })?;
@@ -336,7 +472,9 @@ mod detail {
                     // would be truncated!
                     if samples.len() == max_depth - 1 {
                         samples.try_push(ZendFrame {
-                            function: COW_TRUNCATED,
+                            module: None,
+                            class: None,
+                            function: FrameString::owned(COW_TRUNCATED.as_ref()),
                             file: None,
                             line: 0,
                         })?;
@@ -375,42 +513,57 @@ mod detail {
         use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
         let func = execute_data.func.as_ref()?;
-        let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
-            Some(slots) => {
-                let mut string_cache = StringCache {
-                    cache_slots: slots,
-                    string_set,
-                };
-                let function = handle_function_cache_slot(func, &mut string_cache);
-                let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
+        let (module, class, function, file, line) =
+            match ddog_php_prof_function_run_time_cache(func) {
+                Some(slots) => {
+                    let mut string_cache = StringCache {
+                        cache_slots: slots,
+                        string_set,
+                    };
+                    let function = handle_function_cache_slot(func, &mut string_cache)?;
+                    let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
 
-                let cache_slots = string_cache.cache_slots;
-                // If we cannot borrow the stats, then something has gone
-                // wrong, but it's not that important.
-                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
-                    if cache_slots[0] == 0 {
-                        stats.missed += 1;
+                    let cache_slots = string_cache.cache_slots;
+                    // If we cannot borrow the stats, then something has gone
+                    // wrong, but it's not that important.
+                    _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
+                        if cache_slots[0] == 0 {
+                            stats.missed += 1;
+                        } else {
+                            stats.hit += 1;
+                        }
+                    });
+
+                    (
+                        None,
+                        None,
+                        Some(FrameString::Owned(function.into_bytes())),
+                        file.map(|value| FrameString::Owned(value.into_bytes())),
+                        line,
+                    )
+                }
+
+                None => {
+                    // If we cannot borrow the stats, then something has gone
+                    // wrong, but it's not that important.
+                    _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
+                    let parts = extract_function_parts(func);
+                    let (file, line) = extract_file_and_line(execute_data);
+                    if let Some((module, class, function)) = parts {
+                        (module, class, Some(function), file, line)
                     } else {
-                        stats.hit += 1;
+                        (None, None, None, file, line)
                     }
-                });
-
-                (function, file.map(Cow::Owned), line)
-            }
-
-            None => {
-                // If we cannot borrow the stats, then something has gone
-                // wrong, but it's not that important.
-                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
-                let function = extract_function_name(func);
-                let (file, line) = extract_file_and_line(execute_data);
-                (function, file, line)
-            }
-        };
+                }
+            };
 
         if function.is_some() || file.is_some() {
+            let function =
+                function.unwrap_or_else(|| FrameString::owned(COW_PHP_OPEN_TAG.as_ref()));
             Some(ZendFrame {
-                function: function.unwrap_or(COW_PHP_OPEN_TAG),
+                module,
+                class,
+                function,
                 file,
                 line,
             })
@@ -422,10 +575,8 @@ mod detail {
     fn handle_function_cache_slot(
         func: &zend_function,
         string_cache: &mut StringCache,
-    ) -> Option<Cow<'static, str>> {
-        let fname =
-            string_cache.get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))?;
-        Some(Cow::Owned(fname))
+    ) -> Option<String> {
+        string_cache.get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))
     }
 
     unsafe fn handle_file_cache_slot(
@@ -493,7 +644,9 @@ mod detail {
                  */
                 if samples.len() == max_depth - 1 {
                     samples.try_push(ZendFrame {
-                        function: COW_TRUNCATED,
+                        module: None,
+                        class: None,
+                        function: FrameString::owned(COW_TRUNCATED.as_ref()),
                         file: None,
                         line: 0,
                     })?;
@@ -508,14 +661,17 @@ mod detail {
 
     unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
         if let Some(func) = execute_data.func.as_ref() {
-            let function = extract_function_name(func);
+            let parts = extract_function_parts(func);
             let (file, line) = extract_file_and_line(execute_data);
 
             // Only create a new frame if there's file or function info.
-            if file.is_some() || function.is_some() {
+            if file.is_some() || parts.is_some() {
                 // If there's no function name, use a fake name.
-                let function = function.unwrap_or(COW_PHP_OPEN_TAG);
+                let (module, class, function) = parts
+                    .unwrap_or_else(|| (None, None, FrameString::owned(COW_PHP_OPEN_TAG.as_ref())));
                 return Some(ZendFrame {
+                    module,
+                    class,
                     function,
                     file,
                     line,
@@ -532,6 +688,7 @@ pub use detail::*;
 mod tests {
     use super::*;
     use crate::bindings as zend;
+    use crate::profiling::STR_LEN_LIMIT;
 
     extern "C" {
         fn ddog_php_test_create_fake_zend_function_with_name_len(
@@ -550,16 +707,25 @@ mod tests {
 
             assert_eq!(stack.len(), 3);
 
-            assert_eq!(stack[0].function, "function name 003");
-            assert_eq!(stack[0].file, Some("filename-003.php".into()));
+            assert_eq!(stack[0].function.to_bytes(), b"function name 003");
+            assert_eq!(
+                stack[0].file.as_ref().unwrap().to_bytes(),
+                b"filename-003.php"
+            );
             assert_eq!(stack[0].line, 0);
 
-            assert_eq!(stack[1].function, "function name 002");
-            assert_eq!(stack[1].file, Some("filename-002.php".into()));
+            assert_eq!(stack[1].function.to_bytes(), b"function name 002");
+            assert_eq!(
+                stack[1].file.as_ref().unwrap().to_bytes(),
+                b"filename-002.php"
+            );
             assert_eq!(stack[1].line, 0);
 
-            assert_eq!(stack[2].function, "function name 001");
-            assert_eq!(stack[2].file, Some("filename-001.php".into()));
+            assert_eq!(stack[2].function.to_bytes(), b"function name 001");
+            assert_eq!(
+                stack[2].file.as_ref().unwrap().to_bytes(),
+                b"filename-001.php"
+            );
             assert_eq!(stack[2].line, 0);
 
             // Free the allocated memory
@@ -588,7 +754,6 @@ mod tests {
 
             let name = extract_function_name(&*func).expect("should extract name");
             assert_eq!(name.len(), STR_LEN_LIMIT - 1);
-            assert_ne!(name, COW_LARGE_STRING);
 
             ddog_php_test_free_fake_zend_function(func);
         }
@@ -600,8 +765,8 @@ mod tests {
             let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT);
             assert!(!func.is_null());
 
-            let name = extract_function_name(&*func).expect("should return large string marker");
-            assert_eq!(name, COW_LARGE_STRING);
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name.len(), STR_LEN_LIMIT);
 
             ddog_php_test_free_fake_zend_function(func);
         }
@@ -613,8 +778,8 @@ mod tests {
             let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT + 1000);
             assert!(!func.is_null());
 
-            let name = extract_function_name(&*func).expect("should return large string marker");
-            assert_eq!(name, COW_LARGE_STRING);
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name.len(), STR_LEN_LIMIT + 1000);
 
             ddog_php_test_free_fake_zend_function(func);
         }

@@ -339,6 +339,12 @@ extern "C" {
     /// (single byte of null, len of 0).
     pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str<'_>;
 
+    /// Increments the refcount of a zend_string and returns it.
+    pub fn datadog_php_zend_string_copy(str: *mut zend_string) -> *mut zend_string;
+
+    /// Decrements the refcount of a zend_string, freeing when it reaches zero.
+    pub fn datadog_php_zend_string_release(str: *mut zend_string);
+
     /// Returns the configuration item for the given config id. Note that the
     /// lifetime is roughly static, but technically it is from first rinit
     /// until mshutdown.

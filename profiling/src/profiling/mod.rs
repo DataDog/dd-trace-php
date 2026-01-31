@@ -19,6 +19,8 @@ use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
+use crate::thread_queue;
+use crate::thread_queue::EnqueueError;
 use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
@@ -54,6 +56,8 @@ pub const NO_TIMESTAMP: i64 = 0;
 // Guide: upload period / upload timeout should give about the order of
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
+const STR_LEN_LIMIT: usize = u16::MAX as usize;
+const LARGE_STRING_MARKER: &str = "[suspiciously large string]";
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
@@ -176,10 +180,77 @@ pub struct SampleData {
     pub timestamp: i64,
 }
 
+impl SampleData {
+    pub fn make_owned(&mut self) {
+        for frame in &mut self.frames {
+            frame.make_owned();
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct SampleMessage {
     pub key: ProfileIndex,
     pub value: SampleData,
+}
+
+fn frame_string_to_string(value: &FrameString) -> String {
+    let bytes = value.to_bytes();
+    if bytes.len() >= STR_LEN_LIMIT {
+        LARGE_STRING_MARKER.to_string()
+    } else {
+        String::from_utf8_lossy(bytes.as_ref()).into_owned()
+    }
+}
+
+fn frame_function_name(frame: &ZendFrame) -> String {
+    let module_bytes = frame.module.as_ref().map(|value| value.to_bytes());
+    let class_bytes = frame.class.as_ref().map(|value| value.to_bytes());
+    let function_bytes = frame.function.to_bytes();
+
+    let module_len = module_bytes.as_ref().map(|value| value.len()).unwrap_or(0);
+    let class_len = class_bytes.as_ref().map(|value| value.len()).unwrap_or(0);
+    let function_len = function_bytes.len();
+    let has_module = module_len != 0;
+    let has_class = class_len != 0;
+    let total_len =
+        module_len + (has_module as usize) + class_len + (has_class as usize * 2) + function_len;
+    if total_len >= STR_LEN_LIMIT {
+        return LARGE_STRING_MARKER.to_string();
+    }
+
+    let mut buffer = Vec::with_capacity(total_len);
+    if let Some(bytes) = module_bytes {
+        if !bytes.is_empty() {
+            buffer.extend_from_slice(bytes.as_ref());
+            buffer.push(b'|');
+        }
+    }
+    if let Some(bytes) = class_bytes {
+        if !bytes.is_empty() {
+            buffer.extend_from_slice(bytes.as_ref());
+            buffer.extend_from_slice(b"::");
+        }
+    }
+    buffer.extend_from_slice(function_bytes.as_ref());
+    String::from_utf8_lossy(buffer.as_slice()).into_owned()
+}
+
+fn simple_frame(function: &str, file: Option<&str>, line: u32) -> ZendFrame {
+    ZendFrame {
+        module: None,
+        class: None,
+        function: FrameString::Owned(function.as_bytes().to_vec()),
+        file: file.map(|value| FrameString::Owned(value.as_bytes().to_vec())),
+        line,
+    }
+}
+
+fn enqueue_sample_message(message: SampleMessage) -> Result<(), EnqueueError> {
+    // SAFETY: must be called from a PHP thread after ginit.
+    let queue = unsafe { thread_queue::get_thread_queue() };
+    let queue = unsafe { queue.as_ref() }.ok_or(EnqueueError)?;
+    queue.enqueue(message)
 }
 
 #[derive(Debug)]
@@ -191,7 +262,6 @@ pub struct LocalRootSpanResourceMessage {
 #[derive(Debug)]
 pub enum ProfilerMessage {
     Cancel,
-    Sample(SampleMessage),
     LocalRootSpanResource(LocalRootSpanResourceMessage),
 
     /// Used to put the helper thread into a barrier for caller so it can fork.
@@ -242,11 +312,39 @@ struct TimeCollector {
 }
 
 impl TimeCollector {
+    fn log_drop_stats(&self) {
+        let stats = thread_queue::take_all_drop_stats();
+        let mut dropped_total = 0u64;
+        let mut totals: HashMap<ProfileIndex, Vec<i64>> = HashMap::new();
+
+        for (dropped, snapshot) in stats {
+            dropped_total = dropped_total.saturating_add(dropped);
+            for (key, values) in snapshot {
+                let entry = totals.entry(key).or_insert_with(|| vec![0; values.len()]);
+                for (dst, value) in entry.iter_mut().zip(values.iter()) {
+                    *dst = dst.saturating_add(*value);
+                }
+            }
+        }
+
+        if dropped_total == 0 {
+            return;
+        }
+
+        for (key, values) in totals {
+            debug!(
+                "Dropped {dropped_total} samples for profile with {} sample types; values: {values:?}",
+                key.sample_types.len()
+            );
+        }
+    }
+
     fn handle_timeout(
         &self,
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
+        self.log_drop_stats();
         let wall_export = WallTime::now();
         if profiles.is_empty() {
             info!("No profiles to upload.");
@@ -520,16 +618,31 @@ impl TimeCollector {
         };
 
         let mut locations = Vec::with_capacity(message.value.frames.len());
+        let mut function_names = Vec::with_capacity(message.value.frames.len());
+        let mut file_names = Vec::with_capacity(message.value.frames.len());
 
         let values = message.value.sample_values;
         let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
         for frame in &message.value.frames {
+            let function_name = frame_function_name(frame);
+            let file_name = frame
+                .file
+                .as_ref()
+                .map(frame_string_to_string)
+                .unwrap_or_default();
+            function_names.push(function_name);
+            file_names.push(file_name);
+        }
+
+        for (index, frame) in message.value.frames.iter().enumerate() {
+            let function_name = function_names.get(index).expect("function name inserted");
+            let file_name = file_names.get(index).expect("file name inserted");
             let location = Location {
                 function: Function {
-                    name: frame.function.as_ref(),
+                    name: function_name.as_str(),
                     system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
+                    filename: file_name.as_str(),
                 },
                 line: frame.line as i64,
                 ..Location::default()
@@ -554,6 +667,21 @@ impl TimeCollector {
         }
     }
 
+    fn process_thread_queues(
+        &self,
+        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        last_wall_export: &WallTime,
+    ) {
+        let queues = thread_queue::snapshot_registry();
+        for queue in queues {
+            unsafe {
+                queue.as_ref().drain_with(|message| {
+                    Self::handle_sample_message(message, profiles, last_wall_export)
+                });
+            }
+        }
+    }
+
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
         let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(1);
@@ -569,6 +697,7 @@ impl TimeCollector {
         let mut running = true;
 
         while running {
+            self.process_thread_queues(&mut profiles, &last_wall_export);
             // The crossbeam_channel::select! doesn't have the ability to
             // optionally recv something. Instead, if the tick channel
             // shouldn't be selected on, then pass the never channel for that
@@ -586,12 +715,11 @@ impl TimeCollector {
                 recv(self.message_receiver) -> result => {
                     match result {
                         Ok(message) => match message {
-                            ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
                                 // flush what we have before exiting
+                                self.process_thread_queues(&mut profiles, &last_wall_export);
                                 last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                                 running = false;
                             },
@@ -629,6 +757,7 @@ impl TimeCollector {
 
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
+                        self.process_thread_queues(&mut profiles, &last_wall_export);
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                     }
                 },
@@ -762,13 +891,8 @@ impl Profiler {
         self.fork_barrier.wait();
     }
 
-    pub fn send_sample(
-        &self,
-        message: SampleMessage,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+    pub fn send_sample(&self, message: SampleMessage) -> Result<(), EnqueueError> {
+        enqueue_sample_message(message)
     }
 
     pub fn send_local_root_span_resource(
@@ -1065,11 +1189,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(Cow::Owned(filename)),
-                line,
-            }],
+            vec![simple_frame(COW_EVAL.as_ref(), Some(&filename), line)],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1106,11 +1226,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
-                line: 0,
-            }],
+            vec![simple_frame(&format!("[{include_type}]"), None, 0)],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1143,11 +1259,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: format!("[{event}]").into(),
-                file: None,
-                line: 0,
-            }],
+            vec![simple_frame(&format!("[{event}]"), None, 0)],
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1181,11 +1293,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[fatal]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }],
+            vec![simple_frame("[fatal]", Some(&file), line)],
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1228,11 +1336,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[opcache restart]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }],
+            vec![simple_frame("[opcache restart]", Some(&file), line)],
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1262,11 +1366,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[idle]".into(),
-                file: None,
-                line: 0,
-            }],
+            vec![simple_frame("[idle]", None, 0)],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1318,11 +1418,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
-                line: 0,
-            }],
+            vec![simple_frame("[gc]", None, 0)],
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1508,11 +1604,9 @@ impl Profiler {
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
-    ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
+    ) -> Result<(), EnqueueError> {
         let message = self.prepare_sample_message(frames, samples, labels, timestamp);
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+        enqueue_sample_message(message)
     }
 
     fn prepare_sample_message(
@@ -1557,11 +1651,7 @@ mod tests {
     use log::LevelFilter;
 
     fn get_frames() -> Vec<ZendFrame> {
-        vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }]
+        vec![simple_frame("foobar()", Some("foobar.php"), 42)]
     }
 
     pub fn get_system_settings() -> SystemSettings {

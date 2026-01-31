@@ -13,6 +13,7 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
+    pub thread_queue: *mut crate::thread_queue::ThreadQueue,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -29,6 +30,7 @@ pub static mut GLOBALS_ID: i32 = 0;
 #[cfg(not(php_zts))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
+    thread_queue: ptr::null_mut(),
 };
 
 #[cfg(php_zts)]
@@ -91,6 +93,13 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+        crate::thread_queue::ginit(globals);
+    }
+
+    #[cfg(not(php_zts))]
+    {
+        let globals = _globals_ptr.cast::<ProfilerGlobals>();
+        crate::thread_queue::ginit(globals);
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
@@ -112,4 +121,7 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();
+
+    let globals = _globals_ptr.cast::<ProfilerGlobals>();
+    crate::thread_queue::gshutdown(globals);
 }
