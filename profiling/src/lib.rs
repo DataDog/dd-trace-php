@@ -3,6 +3,7 @@ pub mod capi;
 mod clocks;
 mod config;
 mod logging;
+pub mod module_globals;
 pub mod profiling;
 mod pthread;
 mod sapi;
@@ -12,6 +13,7 @@ mod wall_time;
 #[cfg(php_run_time_cache)]
 mod string_set;
 
+#[macro_use]
 mod allocation;
 
 #[cfg(all(feature = "io_profiling", target_os = "linux"))]
@@ -29,7 +31,7 @@ use bindings::{
     ZendResult,
 };
 use clocks::*;
-use core::ffi::{c_char, c_int, c_void, CStr};
+use core::ffi::{c_char, c_int, CStr};
 use core::ptr;
 use lazy_static::lazy_static;
 use libdd_common::{cstr, tag, tag::Tag};
@@ -151,13 +153,6 @@ extern "C" {
     pub static ddtrace_runtime_id: *const Uuid;
 }
 
-/// We do not have any globals, but we need TSRM to call into GINIT and GSHUTDOWN to observe
-/// spawning and joining threads. This will be pointed to by the [`ModuleEntry::globals_id_ptr`] in
-/// the `zend_module_entry` and the TSRM will store it's thread-safe-resource id here.
-/// See: <https://heap.space/xref/PHP-8.3/Zend/zend_API.c?r=d41e97ae#2303>
-#[cfg(php_zts)]
-static mut GLOBALS_ID_PTR: i32 = 0;
-
 /// Module dependencies for the profiler extension.
 static MODULE_DEPS: [zend::ModuleDep; 8] = [
     zend::ModuleDep::required(cstr!("standard")),
@@ -184,13 +179,13 @@ static mut MODULE: zend::ModuleEntry = zend::ModuleEntry {
     request_shutdown_func: Some(rshutdown),
     info_func: Some(minfo),
     version: PROFILER_VERSION.as_ptr(),
-    globals_size: 1,
+    globals_size: core::mem::size_of::<module_globals::ProfilerGlobals>(),
     #[cfg(php_zts)]
-    globals_id_ptr: ptr::addr_of_mut!(GLOBALS_ID_PTR),
+    globals_id_ptr: ptr::addr_of_mut!(module_globals::GLOBALS_ID),
     #[cfg(not(php_zts))]
-    globals_ptr: ptr::null_mut(),
-    globals_ctor: Some(ginit),
-    globals_dtor: Some(gshutdown),
+    globals_ptr: ptr::addr_of_mut!(module_globals::GLOBALS).cast(),
+    globals_ctor: Some(module_globals::ginit),
+    globals_dtor: Some(module_globals::gshutdown),
     post_deactivate_func: Some(prshutdown),
     build_id: ptr::null(), // Will be set in get_module()
     ..zend::ModuleEntry::new()
@@ -214,22 +209,6 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
         ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
     }
     module
-}
-
-unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
-    #[cfg(php_zts)]
-    timeline::timeline_ginit();
-
-    // SAFETY: this is called in thread ginit as expected, and no other places.
-    allocation::ginit();
-}
-
-unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
-    #[cfg(php_zts)]
-    timeline::timeline_gshutdown();
-
-    // SAFETY: this is called in thread gshutdown as expected, no other places.
-    allocation::gshutdown();
 }
 
 // Important note on the PHP lifecycle:

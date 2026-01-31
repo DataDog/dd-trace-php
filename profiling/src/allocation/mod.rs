@@ -1,15 +1,14 @@
 mod profiling_stats;
 
-#[cfg(php_zend_mm_set_custom_handlers_ex)]
-pub mod allocation_ge84;
-#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-pub mod allocation_le83;
-
 pub use profiling_stats::*;
 
 use crate::bindings::{self as zend};
+use crate::config::SystemSettings;
+use crate::module_globals;
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
+use core::cell::Cell;
+use core::ptr;
 use libc::size_t;
 use log::{debug, trace};
 use rand_distr::{Distribution, Poisson};
@@ -17,13 +16,60 @@ use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::config::SystemSettings;
 #[cfg(not(php_zts))]
 use rand::rngs::StdRng;
 #[cfg(php_zts)]
 use rand::rngs::ThreadRng;
 #[cfg(not(php_zts))]
 use rand::SeedableRng;
+
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
+use crate::allocation::allocation_ge84::ZendMMState;
+#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+use crate::allocation::allocation_le83::ZendMMState;
+
+/// Gets a pointer to the Cell<ZendMMState> from PHP globals.
+///
+/// # Safety
+///
+/// Must uphold safety conditions of [`module_globals::get_profiler_globals`].
+#[inline]
+pub(crate) unsafe fn get_zend_mm_state() -> *mut Cell<ZendMMState> {
+    let globals = module_globals::get_profiler_globals();
+    ptr::addr_of_mut!((*globals).zend_mm_state)
+}
+
+/// Macros for accessing ZendMMState from PHP globals.
+/// These are shared between PHP 8.3- and 8.4+ implementations.
+/// They are exported at the crate root and can be used in submodules.
+#[macro_export]
+macro_rules! tls_zend_mm_state_copy {
+    () => {
+        unsafe { (*$crate::allocation::get_zend_mm_state()).get() }
+    };
+}
+
+#[macro_export]
+macro_rules! tls_zend_mm_state_get {
+    ($x:ident) => {
+        unsafe { (*$crate::allocation::get_zend_mm_state()).get().$x }
+    };
+}
+
+#[macro_export]
+macro_rules! tls_zend_mm_state_set {
+    ($x:expr) => {{
+        let value = $x;
+        unsafe {
+            (*$crate::allocation::get_zend_mm_state()).set(value);
+        }
+    }};
+}
+
+#[cfg(php_zend_mm_set_custom_handlers_ex)]
+pub mod allocation_ge84;
+#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+pub mod allocation_le83;
 
 /// Default sampling interval in bytes (4 MiB).
 // SAFETY: value is > 0.
