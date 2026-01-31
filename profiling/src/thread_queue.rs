@@ -3,9 +3,11 @@ use crate::profiling::{ProfileIndex, SampleMessage};
 use rtrb::{Consumer, Producer, RingBuffer};
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
+use std::mem::MaybeUninit;
+use std::ptr;
 use std::ptr::NonNull;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 const THREAD_QUEUE_CAPACITY: usize = 256;
 
@@ -24,6 +26,9 @@ impl QueuePtr {
 }
 
 static REGISTRY: Mutex<Vec<QueuePtr>> = Mutex::new(Vec::new());
+static mut REGISTRY_FORK_GUARD: MaybeUninit<MutexGuard<'static, Vec<QueuePtr>>> =
+    MaybeUninit::uninit();
+static mut REGISTRY_FORK_GUARD_HELD: bool = false;
 
 pub struct DroppedSampleStats {
     dropped_count: AtomicU64,
@@ -198,6 +203,52 @@ pub unsafe fn rshutdown() {
     let queue = get_thread_queue();
     if let Some(queue) = queue.as_ref() {
         queue.finalize_borrowed();
+    }
+}
+
+pub fn fork_prepare() {
+    let guard = REGISTRY
+        .lock()
+        .expect("thread queue registry lock poisoned");
+    // SAFETY: REGISTRY is a static, and we hold the lock across fork.
+    unsafe {
+        let guard = std::mem::transmute::<
+            MutexGuard<'_, Vec<QueuePtr>>,
+            MutexGuard<'static, Vec<QueuePtr>>,
+        >(guard);
+        ptr::addr_of_mut!(REGISTRY_FORK_GUARD).write(MaybeUninit::new(guard));
+        REGISTRY_FORK_GUARD_HELD = true;
+    }
+}
+
+pub unsafe fn fork_parent() {
+    if REGISTRY_FORK_GUARD_HELD {
+        // SAFETY: guard was written in fork_prepare.
+        let guard = ptr::addr_of!(REGISTRY_FORK_GUARD).read().assume_init();
+        drop(guard);
+        REGISTRY_FORK_GUARD_HELD = false;
+    }
+}
+
+pub unsafe fn fork_child() {
+    let queue_ptr = get_thread_queue();
+    let queue_ptr =
+        QueuePtr(NonNull::new(queue_ptr).expect("thread queue pointer should not be null"));
+    if REGISTRY_FORK_GUARD_HELD {
+        // SAFETY: guard was written in fork_prepare.
+        let guard_ptr =
+            ptr::addr_of_mut!(REGISTRY_FORK_GUARD).cast::<MutexGuard<'static, Vec<QueuePtr>>>();
+        (*guard_ptr).clear();
+        (*guard_ptr).push(queue_ptr);
+        let guard = ptr::addr_of!(REGISTRY_FORK_GUARD).read().assume_init();
+        drop(guard);
+        REGISTRY_FORK_GUARD_HELD = false;
+    } else {
+        let mut guard = REGISTRY
+            .lock()
+            .expect("thread queue registry lock poisoned");
+        guard.clear();
+        guard.push(queue_ptr);
     }
 }
 

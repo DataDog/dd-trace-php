@@ -1,5 +1,5 @@
 use crate::allocation::alloc_prof_rshutdown;
-use crate::{config, Profiler};
+use crate::{config, thread_queue, Profiler};
 use log::trace;
 
 pub(crate) fn startup() {
@@ -15,6 +15,7 @@ extern "C" fn prepare() {
     if let Some(profiler) = Profiler::get() {
         trace!("Preparing profiler for upcomming fork call.");
         let _ = profiler.fork_prepare();
+        thread_queue::fork_prepare();
     }
 }
 
@@ -22,6 +23,7 @@ extern "C" fn parent() {
     if let Some(profiler) = Profiler::get() {
         trace!("Re-enabling profiler in parent after fork call.");
         profiler.post_fork_parent();
+        unsafe { thread_queue::fork_parent() };
     }
 }
 
@@ -38,6 +40,7 @@ unsafe extern "C" fn child() {
     Profiler::kill();
 
     alloc_prof_rshutdown();
+    unsafe { thread_queue::fork_child() };
 
     // Reset some global state to prevent further profiling and to not handle
     // any pending interrupts.
