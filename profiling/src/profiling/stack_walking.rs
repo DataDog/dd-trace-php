@@ -213,7 +213,7 @@ fn module_name_cstr(func: &zend_function) -> Option<*const c_char> {
     let module = unsafe { func.internal_function.module.as_ref() }?;
     // Note: module->name is owned by zend_module_entry. Temporary modules are
     // destroyed after post-deactivate; we convert borrowed strings to owned
-    // in prshutdown so the pointer remains valid until then.
+    // in the zend_extension deactivate hook before op arrays are freed.
     if module.name.is_null() {
         None
     } else {

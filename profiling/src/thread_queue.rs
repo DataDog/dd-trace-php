@@ -199,7 +199,7 @@ pub fn take_all_drop_stats() -> Vec<(u64, HashMap<ProfileIndex, Vec<i64>>)> {
         .collect()
 }
 
-pub unsafe fn rshutdown() {
+pub unsafe fn deactivate() {
     let queue = get_thread_queue();
     if let Some(queue) = queue.as_ref() {
         queue.finalize_borrowed();
