@@ -528,7 +528,11 @@ impl TimeCollector {
         let mut locations = Vec::with_capacity(message.value.frames.len());
 
         for frame in message.value.frames.iter() {
-            let function_id = match profiles_dictionary.try_insert_function2(frame.function) {
+            let function_id = match profiles_dictionary.try_insert_function2(Function2 {
+                name: frame.function,
+                system_name: StringId2::EMPTY,
+                file_name: frame.file,
+            }) {
                 Ok(function_id) => function_id,
                 Err(err) => {
                     warn!("Failed to add function to ProfilesDictionary: {err}");
@@ -652,22 +656,17 @@ impl TimeCollector {
     }
 }
 
-fn build_function2(
+fn build_function_ids(
     dict: &ProfilesDictionary,
     name: &str,
     file: Option<&str>,
-) -> Result<Function2, SetError> {
+) -> Result<(StringId2, StringId2), SetError> {
     let name_id = dict.try_insert_str2(name)?;
-    let system_name_id = StringId2::EMPTY;
     let file_name_id = match file {
         Some(file) => dict.try_insert_str2(file)?,
         None => StringId2::EMPTY,
     };
-    Ok(Function2 {
-        name: name_id,
-        system_name: system_name_id,
-        file_name: file_name_id,
-    })
+    Ok((name_id, file_name_id))
 }
 
 fn build_backtrace(frames: Vec<ZendFrame>) -> Option<Backtrace> {
@@ -684,14 +683,18 @@ fn build_backtrace(frames: Vec<ZendFrame>) -> Option<Backtrace> {
 
 fn backtrace_from_frame(function: &str, file: Option<&str>, line: u32) -> Option<Backtrace> {
     let dict = profiles_dictionary();
-    let function = match build_function2(dict, function, file) {
-        Ok(function) => function,
+    let (function, file) = match build_function_ids(dict, function, file) {
+        Ok(ids) => ids,
         Err(err) => {
             warn!("Failed to build Function2 for backtrace frame: {err}");
             return None;
         }
     };
-    build_backtrace(vec![ZendFrame { function, line }])
+    build_backtrace(vec![ZendFrame {
+        function,
+        file,
+        line,
+    }])
 }
 
 fn include_type_frame_name(include_type: &str) -> Cow<'static, str> {

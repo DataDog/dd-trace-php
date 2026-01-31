@@ -5,7 +5,7 @@ use crate::profiling::profiles_dictionary as get_profiles_dictionary;
 use crate::profiling::Backtrace;
 use crate::vec_ext::VecExt;
 use libdd_profiling::profiles::collections::{ArcOverflow, SetError};
-use libdd_profiling::profiles::datatypes::{Function2, ProfilesDictionary, StringId2};
+use libdd_profiling::profiles::datatypes::{ProfilesDictionary, StringId2};
 use std::borrow::Cow;
 
 #[cfg(php_frameless)]
@@ -25,26 +25,37 @@ const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
-fn function2_from_name(
+fn string_ids_from_name(
     dict: &ProfilesDictionary,
     name: &str,
     file: Option<&str>,
-) -> Result<Function2, CollectStackSampleError> {
+) -> Result<(StringId2, StringId2), CollectStackSampleError> {
     let name_id = dict.try_insert_str2(name)?;
     let file_name_id = match file {
         Some(file) => dict.try_insert_str2(file)?,
         None => StringId2::EMPTY,
     };
-    Ok(Function2 {
-        name: name_id,
-        system_name: StringId2::EMPTY,
-        file_name: file_name_id,
-    })
+    Ok((name_id, file_name_id))
+}
+
+fn string_id_to_usize(value: StringId2) -> usize {
+    // SAFETY: StringId2 is repr(transparent) over a pointer. The
+    // ProfilesDictionary is kept alive for the lifetime of the request, so
+    // the ID remains valid while cached.
+    unsafe { core::mem::transmute::<StringId2, usize>(value) }
+}
+
+fn usize_to_string_id(value: usize) -> StringId2 {
+    // SAFETY: StringId2 is repr(transparent) over a pointer. The
+    // ProfilesDictionary is kept alive for the lifetime of the request, so
+    // the ID remains valid while cached.
+    unsafe { core::mem::transmute::<usize, StringId2>(value) }
 }
 
 #[derive(Clone, Copy, Debug)]
 pub struct ZendFrame {
-    pub function: Function2,
+    pub function: StringId2,
+    pub file: StringId2,
     pub line: u32, // use 0 for no line info
 }
 
@@ -265,12 +276,16 @@ mod detail {
                                 let func = unsafe {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
-                                let function = function2_from_name(
+                                let (function, file) = string_ids_from_name(
                                     get_profiles_dictionary(),
                                     extract_function_name(func).unwrap().as_ref(),
                                     None,
                                 )?;
-                                samples.try_push(ZendFrame { function, line: 0 })?;
+                                samples.try_push(ZendFrame {
+                                    function,
+                                    file,
+                                    line: 0,
+                                })?;
                             }
                             _ => {}
                         }
@@ -286,12 +301,16 @@ mod detail {
                     // subtracting one, then the [truncated] message itself
                     // would be truncated!
                     if samples.len() == max_depth - 1 {
-                        let function = function2_from_name(
+                        let (function, file) = string_ids_from_name(
                             get_profiles_dictionary(),
                             COW_TRUNCATED.as_ref(),
                             None,
                         )?;
-                        samples.try_push(ZendFrame { function, line: 0 })?;
+                        samples.try_push(ZendFrame {
+                            function,
+                            file,
+                            line: 0,
+                        })?;
                         break;
                     }
                 }
@@ -322,22 +341,26 @@ mod detail {
         let dict = get_profiles_dictionary();
         let cache = ddog_php_prof_function_run_time_cache(func);
         let cache_applicable = cache.is_some();
-        let (function, line, cache_hit) = match cache {
+        let (function, file, line, cache_hit) = match cache {
             Some(slots) => {
-                let cached = slots[0] as *const Function2;
-                if let Some(cached) = unsafe { cached.as_ref() } {
-                    (*cached, extract_file_and_line(execute_data).1, true)
+                let cached_name = usize_to_string_id(slots[0]);
+                let cached_file = usize_to_string_id(slots[1]);
+                if !cached_name.is_empty() {
+                    let line = unsafe { extract_file_and_line(execute_data).1 };
+                    (cached_name, cached_file, line, true)
                 } else {
-                    let (function, line) = build_function2(dict, func, execute_data).ok()??;
-                    let boxed = Box::new(function);
-                    slots[0] = Box::into_raw(boxed) as usize;
-                    (function, line, false)
+                    let (function, file, line) =
+                        build_function_ids(dict, func, execute_data).ok()??;
+                    slots[0] = string_id_to_usize(function);
+                    slots[1] = string_id_to_usize(file);
+                    (function, file, line, false)
                 }
             }
 
             None => {
-                let (function, line) = build_function2(dict, func, execute_data).ok()??;
-                (function, line, false)
+                let (function, file, line) =
+                    build_function_ids(dict, func, execute_data).ok()??;
+                (function, file, line, false)
             }
         };
 
@@ -355,14 +378,18 @@ mod detail {
             }
         });
 
-        Some(ZendFrame { function, line })
+        Some(ZendFrame {
+            function,
+            file,
+            line,
+        })
     }
 
-    fn build_function2(
+    fn build_function_ids(
         dict: &ProfilesDictionary,
         func: &zend_function,
         execute_data: &zend_execute_data,
-    ) -> Result<Option<(Function2, u32)>, CollectStackSampleError> {
+    ) -> Result<Option<(StringId2, StringId2, u32)>, CollectStackSampleError> {
         let function = extract_function_name(func);
         let (file, line) = unsafe { extract_file_and_line(execute_data) };
         let function = match function {
@@ -374,17 +401,8 @@ mod detail {
                 COW_PHP_OPEN_TAG
             }
         };
-        let name_id = dict.try_insert_str2(function.as_ref())?;
-        let file_name_id = match file.as_deref() {
-            Some(file) => dict.try_insert_str2(file)?,
-            None => StringId2::EMPTY,
-        };
-        let function2 = Function2 {
-            name: name_id,
-            system_name: StringId2::EMPTY,
-            file_name: file_name_id,
-        };
-        Ok(Some((function2, line)))
+        let (name_id, file_id) = string_ids_from_name(dict, function.as_ref(), file.as_deref())?;
+        Ok(Some((name_id, file_id, line)))
     }
 }
 
@@ -422,12 +440,16 @@ mod detail {
                  * then ironically the [truncated] message would be truncated.
                  */
                 if samples.len() == max_depth - 1 {
-                    let function = function2_from_name(
+                    let (function, file) = string_ids_from_name(
                         get_profiles_dictionary(),
                         COW_TRUNCATED.as_ref(),
                         None,
                     )?;
-                    samples.try_push(ZendFrame { function, line: 0 })?;
+                    samples.try_push(ZendFrame {
+                        function,
+                        file,
+                        line: 0,
+                    })?;
                     break;
                 }
             }
@@ -447,13 +469,17 @@ mod detail {
             if file.is_some() || function.is_some() {
                 // If there's no function name, use a fake name.
                 let function = function.unwrap_or(COW_PHP_OPEN_TAG);
-                let function = function2_from_name(
+                let (function, file) = string_ids_from_name(
                     get_profiles_dictionary(),
                     function.as_ref(),
                     file.as_deref(),
                 )
                 .ok()?;
-                return Some(ZendFrame { function, line });
+                return Some(ZendFrame {
+                    function,
+                    file,
+                    line,
+                });
             }
         }
         None
@@ -495,19 +521,16 @@ mod tests {
             let fn_001 = dict.try_insert_str2("function name 001").unwrap();
             let file_001 = dict.try_insert_str2("filename-001.php").unwrap();
 
-            assert_eq!(frames[0].function.name, fn_003);
-            assert_eq!(frames[0].function.system_name, StringId2::EMPTY);
-            assert_eq!(frames[0].function.file_name, file_003);
+            assert_eq!(frames[0].function, fn_003);
+            assert_eq!(frames[0].file, file_003);
             assert_eq!(frames[0].line, 0);
 
-            assert_eq!(frames[1].function.name, fn_002);
-            assert_eq!(frames[1].function.system_name, StringId2::EMPTY);
-            assert_eq!(frames[1].function.file_name, file_002);
+            assert_eq!(frames[1].function, fn_002);
+            assert_eq!(frames[1].file, file_002);
             assert_eq!(frames[1].line, 0);
 
-            assert_eq!(frames[2].function.name, fn_001);
-            assert_eq!(frames[2].function.system_name, StringId2::EMPTY);
-            assert_eq!(frames[2].function.file_name, file_001);
+            assert_eq!(frames[2].function, fn_001);
+            assert_eq!(frames[2].file, file_001);
             assert_eq!(frames[2].line, 0);
 
             // Free the allocated memory
