@@ -252,23 +252,19 @@ static int _internal_run_time_cache_handle = -1;
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #if CFG_RUN_TIME_CACHE // defined by build.rs
-    // Grab 1 slot for the full module|class::method name.
-    // Grab 1 slot for caching filename, as it turns out the utf-8 validity
-    // check is worth caching.
+    // Grab 1 slot for the Function2 pointer.
 #if PHP_VERSION_ID < 80200
     _user_run_time_cache_handle =
         zend_get_op_array_extension_handle(module_name);
-    int second = zend_get_op_array_extension_handle(module_name);
-    ZEND_ASSERT(_user_run_time_cache_handle + 1 == second);
 #else
     _user_run_time_cache_handle =
-        zend_get_op_array_extension_handles(module_name, 2);
+        zend_get_op_array_extension_handles(module_name, 1);
 
 #if PHP_VERSION_ID >= 80400
     // On PHP 8.4+, the internal cache slots need to be registered separately
     // from the user ones.
     _internal_run_time_cache_handle =
-        zend_get_internal_function_extension_handles(module_name, 2);
+        zend_get_internal_function_extension_handles(module_name, 1);
 #endif
 
 #endif
@@ -373,13 +369,13 @@ uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func)
 #if PHP_VERSION_ID < 80200
     if (non_const_func->op_array.run_time_cache__ptr == NULL) {
         non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->op_array.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
+        *non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
     }
     return (uintptr_t *)*non_const_func->op_array.run_time_cache__ptr;
 #else
     if (non_const_func->common.run_time_cache__ptr == NULL) {
         non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->common.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
+        *non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
     }
     return (uintptr_t *)*non_const_func->common.run_time_cache__ptr;
 #endif

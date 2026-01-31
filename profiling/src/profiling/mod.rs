@@ -1,5 +1,6 @@
 mod backtrace;
 mod interrupts;
+mod profiles_dictionary;
 mod sample_type_filter;
 pub mod stack_walking;
 mod thread_utils;
@@ -7,6 +8,7 @@ mod uploader;
 
 pub use backtrace::Backtrace;
 pub use interrupts::*;
+pub use profiles_dictionary::{init_profiles_dictionary, profiles_dictionary};
 pub use sample_type_filter::*;
 pub use stack_walking::*;
 use thread_utils::get_current_thread_name;
@@ -26,11 +28,12 @@ use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use libdd_profiling::api::{
-    Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
-};
+use libdd_profiling::api::{Period, UpscalingInfo, ValueType as ApiValueType};
+use libdd_profiling::api2;
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
+use libdd_profiling::profiles::collections::{Arc as ProfilesArc, SetError};
+use libdd_profiling::profiles::datatypes::{Function2, MappingId2, ProfilesDictionary, StringId2};
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -123,26 +126,6 @@ pub enum LabelValue {
 pub struct Label {
     pub key: &'static str,
     pub value: LabelValue,
-}
-
-impl<'a> From<&'a Label> for ApiLabel<'a> {
-    fn from(label: &'a Label) -> Self {
-        let key = label.key;
-        match label.value {
-            LabelValue::Str(ref str) => Self {
-                key,
-                str,
-                num: 0,
-                num_unit: "",
-            },
-            LabelValue::Num(num, num_unit) => Self {
-                key,
-                str: "",
-                num,
-                num_unit,
-            },
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -279,7 +262,11 @@ impl TimeCollector {
     /// makes sense to use an older time than now because if the profiler was
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
-    fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
+    fn create_profile(
+        message: &SampleMessage,
+        started_at: SystemTime,
+        profiles_dictionary: ProfilesArc<ProfilesDictionary>,
+    ) -> InternalProfile {
         let sample_types: Vec<ApiValueType> = message
             .key
             .sample_types
@@ -338,7 +325,7 @@ impl TimeCollector {
         let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = InternalProfile::try_new(
+        let mut profile = InternalProfile::try_new_with_dictionary(
             &sample_types,
             Some(Period {
                 r#type: ApiValueType {
@@ -347,6 +334,7 @@ impl TimeCollector {
                 },
                 value: period.min(i64::MAX as u128) as i64,
             }),
+            profiles_dictionary,
         )
         .expect("failed to create a new InternalProfile object");
         let _ = profile.set_start_time(started_at);
@@ -509,50 +497,74 @@ impl TimeCollector {
             return;
         }
 
+        let profiles_dictionary = message.value.frames.profiles_dictionary();
         let profile: &mut InternalProfile = if let Some(value) = profiles.get_mut(&message.key) {
             value
         } else {
+            let dict = match profiles_dictionary.try_clone() {
+                Ok(dict) => dict,
+                Err(err) => {
+                    warn!("Failed to clone ProfilesDictionary: {err}");
+                    return;
+                }
+            };
             profiles.insert(
                 message.key.clone(),
-                Self::create_profile(&message, started_at.systemtime),
+                Self::create_profile(&message, started_at.systemtime, dict),
             );
             profiles
                 .get_mut(&message.key)
                 .expect("entry to exist; just inserted it")
         };
+        let Some(profile_dictionary) = profile.get_profiles_dictionary() else {
+            warn!("Profile missing ProfilesDictionary; skipping sample.");
+            return;
+        };
+        if !ptr::eq(profile_dictionary, profiles_dictionary.as_ptr().as_ptr()) {
+            warn!("ProfilesDictionary mismatch between sample and profile; skipping sample.");
+            return;
+        }
 
         let mut locations = Vec::with_capacity(message.value.frames.len());
 
-        let values = message.value.sample_values;
-        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
-
         for frame in message.value.frames.iter() {
-            let location = Location {
-                function: Function {
-                    name: frame.function.as_ref(),
-                    system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
-                },
-                line: frame.line as i64,
-                ..Location::default()
+            let function_id = match profiles_dictionary.try_insert_function2(frame.function) {
+                Ok(function_id) => function_id,
+                Err(err) => {
+                    warn!("Failed to add function to ProfilesDictionary: {err}");
+                    return;
+                }
             };
-
-            locations.push(location);
+            locations.push(api2::Location2 {
+                mapping: MappingId2::default(),
+                function: function_id,
+                address: 0,
+                line: frame.line as i64,
+            });
         }
 
-        let sample = Sample {
-            locations,
-            values: &values,
-            labels,
-        };
+        let labels_iter =
+            message
+                .value
+                .labels
+                .iter()
+                .map(|label| -> anyhow::Result<api2::Label<'_>> {
+                    let key = profiles_dictionary
+                        .try_insert_str2(label.key)
+                        .map_err(|err| anyhow::anyhow!("failed to insert label key: {err}"))?;
+                    Ok(match &label.value {
+                        LabelValue::Str(value) => api2::Label::str(key, value.as_ref()),
+                        LabelValue::Num(num, num_unit) => api2::Label::num(key, *num, num_unit),
+                    })
+                });
 
+        let values = message.value.sample_values;
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
-        match profile.try_add_sample(sample, timestamp) {
-            Ok(_id) => {}
-            Err(err) => {
-                warn!("Failed to add sample to the profile: {err}")
-            }
+        let result =
+            unsafe { profile.try_add_sample2(&locations, &values, labels_iter, timestamp) };
+        if let Err(err) = result {
+            warn!("Failed to add sample to the profile: {err}");
         }
     }
 
@@ -640,6 +652,58 @@ impl TimeCollector {
     }
 }
 
+fn build_function2(
+    dict: &ProfilesDictionary,
+    name: &str,
+    file: Option<&str>,
+) -> Result<Function2, SetError> {
+    let name_id = dict.try_insert_str2(name)?;
+    let system_name_id = StringId2::EMPTY;
+    let file_name_id = match file {
+        Some(file) => dict.try_insert_str2(file)?,
+        None => StringId2::EMPTY,
+    };
+    Ok(Function2 {
+        name: name_id,
+        system_name: system_name_id,
+        file_name: file_name_id,
+    })
+}
+
+fn build_backtrace(frames: Vec<ZendFrame>) -> Option<Backtrace> {
+    let dict = profiles_dictionary();
+    let dict = match dict.try_clone() {
+        Ok(dict) => dict,
+        Err(err) => {
+            warn!("Failed to clone ProfilesDictionary: {err}");
+            return None;
+        }
+    };
+    Some(Backtrace::new(frames, dict))
+}
+
+fn backtrace_from_frame(function: &str, file: Option<&str>, line: u32) -> Option<Backtrace> {
+    let dict = profiles_dictionary();
+    let function = match build_function2(dict, function, file) {
+        Ok(function) => function,
+        Err(err) => {
+            warn!("Failed to build Function2 for backtrace frame: {err}");
+            return None;
+        }
+    };
+    build_backtrace(vec![ZendFrame { function, line }])
+}
+
+fn include_type_frame_name(include_type: &str) -> Cow<'static, str> {
+    match include_type {
+        "include" => Cow::Borrowed(INCLUDE_TYPE_INCLUDE),
+        "include_once" => Cow::Borrowed(INCLUDE_TYPE_INCLUDE_ONCE),
+        "require" => Cow::Borrowed(INCLUDE_TYPE_REQUIRE),
+        "require_once" => Cow::Borrowed(INCLUDE_TYPE_REQUIRE_ONCE),
+        _ => Cow::Owned(format!("[{include_type}]")),
+    }
+}
+
 pub struct UploadRequest {
     index: ProfileIndex,
     profile: InternalProfile,
@@ -653,6 +717,10 @@ pub enum UploadMessage {
 }
 
 const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+const INCLUDE_TYPE_INCLUDE: &str = "[include]";
+const INCLUDE_TYPE_INCLUDE_ONCE: &str = "[include_once]";
+const INCLUDE_TYPE_REQUIRE: &str = "[require]";
+const INCLUDE_TYPE_REQUIRE_ONCE: &str = "[require_once]";
 
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
@@ -1066,12 +1134,12 @@ impl Profiler {
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
+        let frames = match backtrace_from_frame(COW_EVAL.as_ref(), Some(&filename), line) {
+            Some(frames) => frames,
+            None => return,
+        };
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(Cow::Owned(filename)),
-                line,
-            }]),
+            frames,
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1107,12 +1175,13 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let function = include_type_frame_name(include_type);
+        let frames = match backtrace_from_frame(function.as_ref(), None, 0) {
+            Some(frames) => frames,
+            None => return,
+        };
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
-                line: 0,
-            }]),
+            frames,
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1144,12 +1213,13 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let function = format!("[{event}]");
+        let frames = match backtrace_from_frame(&function, None, 0) {
+            Some(frames) => frames,
+            None => return,
+        };
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: format!("[{event}]").into(),
-                file: None,
-                line: 0,
-            }]),
+            frames,
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1182,12 +1252,12 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let frames = match backtrace_from_frame("[fatal]", Some(&file), line) {
+            Some(frames) => frames,
+            None => return,
+        };
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[fatal]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }]),
+            frames,
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1229,12 +1299,12 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let frames = match backtrace_from_frame("[opcache restart]", Some(&file), line) {
+            Some(frames) => frames,
+            None => return,
+        };
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[opcache restart]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }]),
+            frames,
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1263,12 +1333,12 @@ impl Profiler {
 
         let n_labels = labels.len();
 
+        let frames = match backtrace_from_frame("[idle]", None, 0) {
+            Some(frames) => frames,
+            None => return,
+        };
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[idle]".into(),
-                file: None,
-                line: 0,
-            }]),
+            frames,
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1319,12 +1389,12 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
+        let frames = match backtrace_from_frame("[gc]", None, 0) {
+            Some(frames) => frames,
+            None => return,
+        };
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
-                line: 0,
-            }]),
+            frames,
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1559,11 +1629,9 @@ mod tests {
     use log::LevelFilter;
 
     fn get_frames() -> Backtrace {
-        Backtrace::new(vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }])
+        crate::profiling::profiles_dictionary::init_profiles_dictionary();
+        backtrace_from_frame("foobar()", Some("foobar.php"), 42)
+            .expect("failed to build test backtrace")
     }
 
     pub fn get_system_settings() -> SystemSettings {

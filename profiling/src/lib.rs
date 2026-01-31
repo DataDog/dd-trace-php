@@ -9,9 +9,6 @@ mod sapi;
 mod thin_str;
 mod wall_time;
 
-#[cfg(php_run_time_cache)]
-mod string_set;
-
 mod allocation;
 
 #[cfg(all(feature = "io_profiling", target_os = "linux"))]
@@ -213,6 +210,8 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
         ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
         ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
     }
+
+    profiling::init_profiles_dictionary();
     module
 }
 

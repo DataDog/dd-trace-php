@@ -353,13 +353,13 @@ extern "C" {
     /// none-the-less has been seen in the wild. It may also return None if
     /// the run_time_cache is not available on this function type.
     #[cfg(not(feature = "stack_walking_tests"))]
-    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
+    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 1]>;
 
     /// mock for testing
     #[cfg(feature = "stack_walking_tests")]
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
+    ) -> Option<&mut [usize; 1]>;
 
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
@@ -708,9 +708,9 @@ mod tests {
     // adjusted accordingly.
     #[test]
     fn test_sizeof_fixed_size_slice_is_same_as_pointer() {
-        assert_eq!(mem::size_of::<&[usize; 2]>(), mem::size_of::<*mut usize>());
+        assert_eq!(mem::size_of::<&[usize; 1]>(), mem::size_of::<*mut usize>());
         assert_eq!(
-            mem::align_of::<&[usize; 2]>(),
+            mem::align_of::<&[usize; 1]>(),
             mem::align_of::<*mut usize>()
         );
     }
