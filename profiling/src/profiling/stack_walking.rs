@@ -483,6 +483,36 @@ mod detail {
         let mut execute_data_ptr = top_execute_data;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+            // allowed because it's only used on the frameless path
+            #[allow(unused_variables)]
+            if let Some(func) = unsafe { execute_data.func.as_ref() } {
+                // It's possible that this is a fake frame put there by the
+                // engine, see accel_preload on PHP 8.4 and the local variable
+                // `fake_execute_data`. The frame is zeroed in this case, so
+                // we can check for null.
+                #[cfg(php_frameless)]
+                if !func.is_internal() {
+                    if let Some(opline) = safely_get_opline(execute_data) {
+                        match opline.opcode as u32 {
+                            ZEND_FRAMELESS_ICALL_0
+                            | ZEND_FRAMELESS_ICALL_1
+                            | ZEND_FRAMELESS_ICALL_2
+                            | ZEND_FRAMELESS_ICALL_3 => {
+                                let func = unsafe {
+                                    &**zend_flf_functions.offset(opline.extended_value as isize)
+                                };
+                                samples.try_push(ZendFrame {
+                                    function: extract_function_name(func).unwrap(),
+                                    file: None,
+                                    line: 0,
+                                })?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;
