@@ -39,6 +39,71 @@ allows us to gloss over minor differences in const-correctness in the engine
 definitions across versions, as well as provide more idiomatic types in some
 cases where they are ABI compatible.
 
+### Phpize build (recommended for installs)
+
+From the `profiling/` directory, use the normal extension build flow:
+
+```sh
+# Choose the PHP version to build against
+export PATH="/opt/php/8.4/bin:$PATH"
+
+phpize
+./configure --enable-datadog-profiling
+make
+make install
+```
+
+This builds `modules/datadog-profiling.so` and installs it into the PHP
+extension directory reported by `php-config --extension-dir`.
+
+To build with the Cargo debug profile:
+
+```sh
+./configure --enable-datadog-profiling --enable-datadog-profiling-debug
+```
+
+To enable specific Cargo features:
+
+```sh
+./configure --enable-datadog-profiling \
+  --with-datadog-profiling-cargo-features="stack_walking_tests,trigger_time_sample"
+```
+
+To run the PHPT tests with the built extension:
+
+```sh
+make test
+```
+
+To suppress the failure report prompt:
+
+```sh
+NO_INTERACTION=1 make test
+```
+
+To show diffs on failure, or to run tests in parallel, pass flags via `TESTS`:
+
+```sh
+make test TESTS="--show-diff -j8 tests/phpt"
+```
+
+To run tests in parallel on newer PHP versions (PHP 8.0+ supports `-j`):
+
+```sh
+make test TESTS="-j8 tests/phpt"
+```
+
+Note: direct `cargo build` expects you to have run `phpize` and
+`./configure` so `build.rs` can read PHP settings from the generated
+`Makefile`.
+
+If you want to run cargo commands and want to reuse artifacts from the phpize
+flow, run it with the same target directory:
+
+```sh
+CARGO_TARGET_DIR=target cargo build --release
+```
+
 ## Testing
 
 The command `cargo test` will run the tests on the profiler. To also run the

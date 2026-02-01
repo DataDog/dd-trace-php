@@ -1,25 +1,17 @@
 use bindgen::callbacks::IntKind;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::OnceLock;
 use std::{env, fs};
 
 fn main() {
-    let php_config_includes_output = Command::new("php-config")
-        .arg("--includes")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
-
-    if !php_config_includes_output.status.success() {
-        match String::from_utf8(php_config_includes_output.stderr) {
-            Ok(stderr) => panic!("`php-config failed: {stderr}"),
-            Err(err) => panic!(
-                "`php-config` failed, not utf8: {}",
-                String::from_utf8_lossy(err.as_bytes())
-            ),
-        }
-    }
+    let php_includes = build_var("PHP_INCLUDES");
+    let php_include_dir = build_var("PHP_INCLUDE_DIR");
+    let php_prefix = build_var("PHP_PREFIX");
+    let php_version_id = php_version_id();
 
     // Read the version from the VERSION file
     let version = fs::read_to_string("../VERSION")
@@ -29,10 +21,7 @@ fn main() {
     println!("cargo:rustc-env=PROFILER_VERSION={version}");
     println!("cargo:rerun-if-changed=../VERSION");
 
-    let php_config_includes = std::str::from_utf8(php_config_includes_output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8");
-
-    let vernum = php_config_vernum();
+    let vernum = php_version_id;
     let post_startup_cb = cfg_post_startup_cb(vernum);
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
@@ -40,9 +29,10 @@ fn main() {
     let trigger_time_sample = cfg_trigger_time_sample();
     let zend_error_observer = cfg_zend_error_observer(vernum);
 
-    generate_bindings(php_config_includes, fibers, zend_error_observer);
+    generate_bindings(&php_includes, fibers, zend_error_observer);
     build_zend_php_ffis(
-        php_config_includes,
+        &php_includes,
+        &php_prefix,
         post_startup_cb,
         preload,
         run_time_cache,
@@ -53,32 +43,62 @@ fn main() {
 
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
-    cfg_zts();
+    cfg_zts(&php_include_dir);
 }
 
-fn php_config_vernum() -> u64 {
-    let output = Command::new("php-config")
-        .arg("--vernum")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
-
-    if !output.status.success() {
-        match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php-config --vernum` failed: {stderr}"),
-            Err(err) => panic!(
-                "`php-config --vernum` failed, not utf8: {}",
-                String::from_utf8_lossy(err.as_bytes())
-            ),
-        }
+fn build_var(name: &str) -> String {
+    if let Some(value) = makefile_var(name) {
+        return value;
     }
 
-    let vernum = std::str::from_utf8(output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8");
+    panic!(
+        "Missing required build variable {name}. \
+Run phpize && ./configure to generate Makefile."
+    )
+}
 
-    vernum
+fn php_version_id() -> u64 {
+    build_var("PHP_VERSION_ID")
         .trim()
         .parse::<u64>()
-        .expect("output to be a number and fit in u64")
+        .expect("PHP_VERSION_ID must be a number and fit in u64")
+}
+
+fn makefile_vars() -> Option<&'static HashMap<String, String>> {
+    static MAKEFILE_VARS: OnceLock<Option<HashMap<String, String>>> = OnceLock::new();
+    MAKEFILE_VARS
+        .get_or_init(|| {
+            let path = Path::new("Makefile");
+            if !path.exists() {
+                return None;
+            }
+            println!("cargo:rerun-if-changed=Makefile");
+            let contents = fs::read_to_string(path).ok()?;
+            let mut vars = HashMap::new();
+            for line in contents.lines() {
+                if let Some((key, value)) = line.split_once('=') {
+                    let key = key.trim();
+                    let value = value.trim();
+                    if !key.is_empty() {
+                        vars.insert(key.to_string(), value.to_string());
+                    }
+                }
+            }
+            Some(vars)
+        })
+        .as_ref()
+}
+
+fn makefile_var(name: &str) -> Option<String> {
+    let vars = makefile_vars()?;
+    let key = match name {
+        "PHP_INCLUDES" => "INCLUDES",
+        "PHP_INCLUDE_DIR" => "phpincludedir",
+        "PHP_PREFIX" => "prefix",
+        "PHP_VERSION_ID" => "DATADOG_PHP_VERSION_ID",
+        _ => return None,
+    };
+    vars.get(key).cloned()
 }
 
 const ZAI_H_FILES: &[&str] = &[
@@ -98,6 +118,7 @@ const ZAI_H_FILES: &[&str] = &[
 #[allow(clippy::too_many_arguments)]
 fn build_zend_php_ffis(
     php_config_includes: &str,
+    php_prefix: &str,
     post_startup_cb: bool,
     preload: bool,
     run_time_cache: bool,
@@ -127,15 +148,9 @@ fn build_zend_php_ffis(
         println!("cargo:rerun-if-changed={file}");
     }
 
-    let output = Command::new("php-config")
-        .arg("--prefix")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
-
-    let prefix = String::from_utf8(output.stdout).expect("only utf8 chars work");
     println!(
         "cargo:rustc-link-search=native={prefix}/lib",
-        prefix = prefix.trim()
+        prefix = php_prefix.trim()
     );
 
     let files = ["src/php_ffi.c", "../ext/handlers_api.c"];
@@ -392,24 +407,8 @@ fn cfg_php_feature_flags(vernum: u64) {
     }
 }
 
-fn cfg_zts() {
+fn cfg_zts(php_include_dir: &str) {
     println!("cargo::rustc-check-cfg=cfg(php_zts)");
-
-    let output = Command::new("php-config")
-        .arg("--include-dir")
-        .output()
-        .expect("Unable to run `php-config`. Is it in your PATH?");
-
-    if !output.status.success() {
-        match String::from_utf8(output.stderr) {
-            Ok(stderr) => panic!("`php-config --include-dir` failed: {stderr}"),
-            Err(err) => panic!("`php-config --include-dir` failed, not utf8: {err}"),
-        }
-    }
-
-    let include_dir = std::str::from_utf8(output.stdout.as_slice())
-        .expect("`php-config`'s stdout to be valid utf8")
-        .trim();
 
     // Create a temporary C file to probe ZTS
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -437,7 +436,7 @@ int main() {
     // Compile the probe to an executable
     let probe_exe = Path::new(&out_dir).join("zts_probe");
     let compile_status = Command::new(compiler.path())
-        .arg(format!("-I{}", include_dir))
+        .arg(format!("-I{}", php_include_dir.trim()))
         .arg(&probe_path)
         .arg("-o")
         .arg(&probe_exe)
