@@ -110,10 +110,6 @@ workflow:
       fi
     - git clone --branch dd-trace-php https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.ddbuild.io/DataDog/benchmarking-platform /platform && cd /platform
     - ./steps/capture-hardware-software-info.sh
-    - cd "${CI_PROJECT_DIR}/profiling"
-    - phpize
-    - ./configure --with-php-config="$(command -v php-config)"
-    - cd /platform
     - BP_SCENARIO=$SCENARIO bp-runner bp-runner.yml --debug -t
     - ./steps/analyze-results.sh
     - "./steps/upload-results-to-s3.sh || :"
