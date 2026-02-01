@@ -38,6 +38,7 @@ fn string_ids_from_name(
     Ok((name_id, file_name_id))
 }
 
+#[cfg(php_run_time_cache)]
 fn string_id_to_usize(value: StringId2) -> usize {
     // SAFETY: StringId2 is repr(transparent) over a pointer. The
     // ProfilesDictionary is kept alive for the lifetime of the request, so
@@ -45,6 +46,7 @@ fn string_id_to_usize(value: StringId2) -> usize {
     unsafe { core::mem::transmute::<StringId2, usize>(value) }
 }
 
+#[cfg(php_run_time_cache)]
 fn usize_to_string_id(value: usize) -> StringId2 {
     // SAFETY: StringId2 is repr(transparent) over a pointer. The
     // ProfilesDictionary is kept alive for the lifetime of the request, so
