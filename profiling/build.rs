@@ -3,15 +3,14 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex, OnceLock};
 use std::{env, fs};
 
 fn main() {
     let php_includes = build_var("PHP_INCLUDES");
     let php_include_dir = build_var("PHP_INCLUDE_DIR");
     let php_prefix = build_var("PHP_PREFIX");
-    let php_version_id = php_version_id();
+    let php_version_id = php_version_id(&php_includes, &php_include_dir);
 
     // Read the version from the VERSION file
     let version = fs::read_to_string("../VERSION")
@@ -43,7 +42,7 @@ fn main() {
 
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
-    cfg_zts(&php_include_dir);
+    cfg_zts_from_headers(&php_include_dir);
 }
 
 fn build_var(name: &str) -> String {
@@ -57,11 +56,17 @@ Run phpize && ./configure to generate Makefile."
     )
 }
 
-fn php_version_id() -> u64 {
-    build_var("PHP_VERSION_ID")
-        .trim()
-        .parse::<u64>()
-        .expect("PHP_VERSION_ID must be a number and fit in u64")
+fn php_version_id(php_includes: &str, php_include_dir: &str) -> u64 {
+    let macros = php_header_macros(
+        "main/php_version.h",
+        php_includes,
+        php_include_dir,
+        &["PHP_VERSION_ID"],
+    );
+    macros
+        .get("PHP_VERSION_ID")
+        .copied()
+        .unwrap_or_else(|| panic!("PHP_VERSION_ID not found in php_config.h")) as u64
 }
 
 fn makefile_vars() -> Option<&'static HashMap<String, String>> {
@@ -407,56 +412,66 @@ fn cfg_php_feature_flags(vernum: u64) {
     }
 }
 
-fn cfg_zts(php_include_dir: &str) {
+fn cfg_zts_from_headers(php_include_dir: &str) {
     println!("cargo::rustc-check-cfg=cfg(php_zts)");
-
-    // Create a temporary C file to probe ZTS
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let probe_path = Path::new(&out_dir).join("zts_probe.c");
-    fs::write(
-        &probe_path,
-        r#"
-#include "main/php_config.h"
-#include <stdio.h>
-int main() {
-#ifdef ZTS
-    printf("1");
-#else
-    printf("0");
-#endif
-    return 0;
+    if php_header_macros("main/php_config.h", "", php_include_dir, &["ZTS"])
+        .get("ZTS")
+        .copied()
+        .unwrap_or(0)
+        != 0
+    {
+        println!("cargo:rustc-cfg=php_zts");
+    }
 }
-"#,
-    )
-    .expect("Failed to write ZTS probe file");
 
-    // Get the C compiler from cc crate
-    let compiler = cc::Build::new().get_compiler();
+fn php_header_macros(
+    header: &str,
+    php_includes: &str,
+    php_include_dir: &str,
+    interested: &[&str],
+) -> HashMap<String, i64> {
+    let header_path = Path::new(php_include_dir.trim()).join(header);
+    println!("cargo:rerun-if-changed={}", header_path.display());
 
-    // Compile the probe to an executable
-    let probe_exe = Path::new(&out_dir).join("zts_probe");
-    let compile_status = Command::new(compiler.path())
-        .arg(format!("-I{}", php_include_dir.trim()))
-        .arg(&probe_path)
-        .arg("-o")
-        .arg(&probe_exe)
-        .status()
-        .expect("Failed to compile ZTS probe");
+    let macros = Arc::new(Mutex::new(HashMap::<String, i64>::new()));
+    let callbacks = MacroCollector {
+        macros: Arc::clone(&macros),
+        interested: interested.iter().map(|s| s.to_string()).collect(),
+    };
 
-    if !compile_status.success() {
-        panic!("Failed to compile ZTS probe");
+    let mut builder = bindgen::Builder::default()
+        .header(header_path.to_string_lossy().to_string())
+        .parse_callbacks(Box::new(callbacks));
+
+    for arg in php_includes.split_whitespace() {
+        builder = builder.clang_arg(arg);
+    }
+    if !php_include_dir.trim().is_empty() {
+        builder = builder.clang_arg(format!("-I{}", php_include_dir.trim()));
     }
 
-    // Run the probe
-    let probe_output = Command::new(&probe_exe)
-        .output()
-        .expect("Failed to run ZTS probe");
+    builder
+        .generate()
+        .expect("bindgen failed to parse PHP headers");
 
-    let zts_value = std::str::from_utf8(&probe_output.stdout)
-        .expect("ZTS probe output not UTF-8")
-        .trim();
+    let map = macros.lock().unwrap();
+    map.clone()
+}
 
-    if zts_value == "1" {
-        println!("cargo:rustc-cfg=php_zts");
+#[derive(Debug)]
+struct MacroCollector {
+    macros: Arc<Mutex<HashMap<String, i64>>>,
+    interested: HashSet<String>,
+}
+
+impl bindgen::callbacks::ParseCallbacks for MacroCollector {
+    fn int_macro(&self, name: &str, value: i64) -> Option<IntKind> {
+        if self.interested.contains(name) {
+            self.macros
+                .lock()
+                .expect("macro map lock to succeed")
+                .insert(name.to_string(), value);
+        }
+        None
     }
 }
