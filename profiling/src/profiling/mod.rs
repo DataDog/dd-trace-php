@@ -1,3 +1,4 @@
+pub(crate) mod arena;
 mod interrupts;
 mod sample_type_filter;
 pub mod stack_walking;
@@ -56,8 +57,12 @@ pub const NO_TIMESTAMP: i64 = 0;
 // Guide: upload period / upload timeout should give about the order of
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
+/// The profiler is not meant to handle such large strings--if a file or
+/// function name exceeds this size, it will fail in some manner, or be
+/// replaced by a shorter string, etc.
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
 const LARGE_STRING_MARKER: &str = "[suspiciously large string]";
+const INVALID_UTF8_MARKER: &str = "[invalid utf-8 detected]";
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
@@ -174,17 +179,15 @@ pub struct ProfileIndex {
 
 #[derive(Debug)]
 pub struct SampleData {
-    pub frames: Vec<ZendFrame>,
+    pub backtrace: Backtrace,
     pub labels: Vec<Label>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
 }
 
 impl SampleData {
-    pub fn make_owned(&mut self) {
-        for frame in &mut self.frames {
-            frame.make_owned();
-        }
+    pub fn frames(&self) -> &[ZendFrame] {
+        self.backtrace.frames()
     }
 }
 
@@ -194,56 +197,34 @@ pub struct SampleMessage {
     pub value: SampleData,
 }
 
-fn frame_string_to_string(value: &FrameString) -> String {
-    let bytes = value.to_bytes();
-    if bytes.len() >= STR_LEN_LIMIT {
-        LARGE_STRING_MARKER.to_string()
-    } else {
-        String::from_utf8_lossy(bytes.as_ref()).into_owned()
+fn frame_string_to_str(value: &FrameString) -> Cow<'_, str> {
+    match std::str::from_utf8(value.as_bytes()) {
+        Ok(value) => Cow::Borrowed(value),
+        Err(_) => Cow::Borrowed(INVALID_UTF8_MARKER),
     }
 }
 
-fn frame_function_name(frame: &ZendFrame) -> String {
-    let module_bytes = frame.module.as_ref().map(|value| value.to_bytes());
-    let class_bytes = frame.class.as_ref().map(|value| value.to_bytes());
-    let function_bytes = frame.function.to_bytes();
-
-    let module_len = module_bytes.as_ref().map(|value| value.len()).unwrap_or(0);
-    let class_len = class_bytes.as_ref().map(|value| value.len()).unwrap_or(0);
-    let function_len = function_bytes.len();
-    let has_module = module_len != 0;
-    let has_class = class_len != 0;
-    let total_len =
-        module_len + (has_module as usize) + class_len + (has_class as usize * 2) + function_len;
-    if total_len >= STR_LEN_LIMIT {
-        return LARGE_STRING_MARKER.to_string();
+fn frame_file_name(frame: &ZendFrame) -> Cow<'_, str> {
+    let value = match frame.file.as_ref() {
+        Some(value) => value,
+        None => return Cow::Borrowed(""),
+    };
+    if value.as_bytes().len() >= STR_LEN_LIMIT {
+        return Cow::Borrowed(LARGE_STRING_MARKER);
     }
-
-    let mut buffer = Vec::with_capacity(total_len);
-    if let Some(bytes) = module_bytes {
-        if !bytes.is_empty() {
-            buffer.extend_from_slice(bytes.as_ref());
-            buffer.push(b'|');
-        }
-    }
-    if let Some(bytes) = class_bytes {
-        if !bytes.is_empty() {
-            buffer.extend_from_slice(bytes.as_ref());
-            buffer.extend_from_slice(b"::");
-        }
-    }
-    buffer.extend_from_slice(function_bytes.as_ref());
-    String::from_utf8_lossy(buffer.as_slice()).into_owned()
+    frame_string_to_str(value)
 }
 
-fn simple_frame(function: &str, file: Option<&str>, line: u32) -> ZendFrame {
-    ZendFrame {
-        module: None,
-        class: None,
-        function: FrameString::Owned(function.as_bytes().to_vec()),
-        file: file.map(|value| FrameString::Owned(value.as_bytes().to_vec())),
-        line,
-    }
+fn frame_function_name(frame: &ZendFrame) -> Cow<'_, str> {
+    frame_string_to_str(&frame.function)
+}
+
+fn single_frame_backtrace(
+    function: &str,
+    file: Option<&str>,
+    line: u32,
+) -> Result<Backtrace, CollectStackSampleError> {
+    Backtrace::from_single_frame(function, file, line)
 }
 
 fn enqueue_sample_message(message: SampleMessage) -> Result<(), EnqueueError> {
@@ -617,32 +598,35 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
-        let mut function_names = Vec::with_capacity(message.value.frames.len());
-        let mut file_names = Vec::with_capacity(message.value.frames.len());
+        let SampleData {
+            backtrace,
+            labels,
+            sample_values,
+            timestamp,
+        } = message.value;
+        let frames = backtrace.frames();
+        let mut locations = Vec::with_capacity(frames.len());
+        let mut function_names: Vec<Cow<'_, str>> = Vec::with_capacity(frames.len());
+        let mut file_names: Vec<Cow<'_, str>> = Vec::with_capacity(frames.len());
 
-        let values = message.value.sample_values;
-        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
+        let values = sample_values;
+        let labels: Vec<ApiLabel> = labels.iter().map(ApiLabel::from).collect();
 
-        for frame in &message.value.frames {
+        for frame in frames {
             let function_name = frame_function_name(frame);
-            let file_name = frame
-                .file
-                .as_ref()
-                .map(frame_string_to_string)
-                .unwrap_or_default();
+            let file_name = frame_file_name(frame);
             function_names.push(function_name);
             file_names.push(file_name);
         }
 
-        for (index, frame) in message.value.frames.iter().enumerate() {
+        for (index, frame) in frames.iter().enumerate() {
             let function_name = function_names.get(index).expect("function name inserted");
             let file_name = file_names.get(index).expect("file name inserted");
             let location = Location {
                 function: Function {
-                    name: function_name.as_str(),
+                    name: function_name.as_ref(),
                     system_name: "",
-                    filename: file_name.as_str(),
+                    filename: file_name.as_ref(),
                 },
                 line: frame.line as i64,
                 ..Location::default()
@@ -657,7 +641,7 @@ impl TimeCollector {
             labels,
         };
 
-        let timestamp = NonZeroI64::new(message.value.timestamp);
+        let timestamp = NonZeroI64::new(timestamp);
 
         match profile.try_add_sample(sample, timestamp) {
             Ok(_id) => {}
@@ -1033,8 +1017,8 @@ impl Profiler {
         let interrupt_count = interrupt_count as i64;
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(backtrace) => {
+                let depth = backtrace.frames().len();
                 let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
                 let labels = Profiler::common_labels(0);
@@ -1042,14 +1026,16 @@ impl Profiler {
 
                 let timestamp = self.get_timeline_timestamp();
 
+                let samples = SampleValues {
+                    interrupt_count,
+                    wall_time,
+                    cpu_time,
+                    ..Default::default()
+                };
+
                 match self.prepare_and_send_message(
-                    frames,
-                    SampleValues {
-                        interrupt_count,
-                        wall_time,
-                        cpu_time,
-                        ..Default::default()
-                    },
+                    backtrace,
+                    samples,
                     labels,
                     timestamp,
                 ) {
@@ -1060,6 +1046,15 @@ impl Profiler {
                         "Failed to send stack sample of {depth} frames and {n_labels} labels to profiler: {err}"
                     ),
                 }
+            }
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+                self.record_dropped_sample(SampleValues {
+                    interrupt_count,
+                    wall_time,
+                    cpu_time,
+                    ..Default::default()
+                });
             }
             Err(err) => {
                 warn!("Failed to collect stack sample: {err}")
@@ -1079,34 +1074,35 @@ impl Profiler {
         alloc_size: i64,
         interrupt_count: Option<u32>,
     ) {
+        let (interrupt_count, wall_time, cpu_time, timestamp) = if let Some(count) = interrupt_count
+        {
+            let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+            let timestamp = self.get_timeline_timestamp();
+            (count as i64, wall_time, cpu_time, timestamp)
+        } else {
+            (0, 0, 0, NO_TIMESTAMP)
+        };
+
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
-
-                // Optionally collect time data when interrupt_count is provided
-                let (interrupt_count, wall_time, cpu_time, timestamp) =
-                    if let Some(count) = interrupt_count {
-                        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
-                        let timestamp = self.get_timeline_timestamp();
-                        (count as i64, wall_time, cpu_time, timestamp)
-                    } else {
-                        (0, 0, 0, NO_TIMESTAMP)
-                    };
+            Ok(backtrace) => {
+                let depth = backtrace.frames().len();
 
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
+                let samples = SampleValues {
+                    interrupt_count,
+                    wall_time,
+                    cpu_time,
+                    alloc_samples,
+                    alloc_size,
+                    ..Default::default()
+                };
+
                 match self.prepare_and_send_message(
-                    frames,
-                    SampleValues {
-                        interrupt_count,
-                        wall_time,
-                        cpu_time,
-                        alloc_samples,
-                        alloc_size,
-                        ..Default::default()
-                    },
+                    backtrace,
+                    samples,
                     labels,
                     timestamp,
                 ) {
@@ -1117,6 +1113,16 @@ impl Profiler {
                         "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
                     ),
                 }
+            }
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(SampleValues {
+                    interrupt_count,
+                    wall_time,
+                    cpu_time,
+                    alloc_samples,
+                    alloc_size,
+                    ..Default::default()
+                });
             }
             Err(err) => {
                 warn!("Failed to collect stack sample: {err}")
@@ -1134,8 +1140,8 @@ impl Profiler {
     ) {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(backtrace) => {
+                let depth = backtrace.frames().len();
                 let mut labels = Profiler::common_labels(2);
 
                 labels.push(Label {
@@ -1154,12 +1160,14 @@ impl Profiler {
 
                 let timestamp = self.get_timeline_timestamp();
 
+                let samples = SampleValues {
+                    exception: 1,
+                    ..Default::default()
+                };
+
                 match self.prepare_and_send_message(
-                    frames,
-                    SampleValues {
-                        exception: 1,
-                        ..Default::default()
-                    },
+                    backtrace,
+                    samples,
                     labels,
                     timestamp,
                 ) {
@@ -1170,6 +1178,12 @@ impl Profiler {
                         "Failed to send stack sample of {depth} frames, {n_labels} labels with Exception {exception} to profiler: {err}"
                     ),
                 }
+            }
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(SampleValues {
+                    exception: 1,
+                    ..Default::default()
+                });
             }
             Err(err) => {
                 warn!("Failed to collect stack sample: {err}")
@@ -1188,15 +1202,23 @@ impl Profiler {
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
-        match self.prepare_and_send_message(
-            vec![simple_frame(COW_EVAL.as_ref(), Some(&filename), line)],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
-            },
-            labels,
-            now,
-        ) {
+        let samples = SampleValues {
+            timeline: duration,
+            ..Default::default()
+        };
+        let backtrace = match single_frame_backtrace(COW_EVAL.as_ref(), Some(&filename), line) {
+            Ok(backtrace) => backtrace,
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(samples);
+                return;
+            }
+            Err(err) => {
+                warn!("Failed to collect backtrace for compile eval: {err}");
+                return;
+            }
+        };
+
+        match self.prepare_and_send_message(backtrace, samples, labels, now) {
             Ok(_) => {
                 trace!("Sent event 'compile eval' with {n_labels} labels to profiler.")
             }
@@ -1225,15 +1247,23 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.prepare_and_send_message(
-            vec![simple_frame(&format!("[{include_type}]"), None, 0)],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
-            },
-            labels,
-            now,
-        ) {
+        let samples = SampleValues {
+            timeline: duration,
+            ..Default::default()
+        };
+        let backtrace = match single_frame_backtrace(&format!("[{include_type}]"), None, 0) {
+            Ok(backtrace) => backtrace,
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(samples);
+                return;
+            }
+            Err(err) => {
+                warn!("Failed to collect backtrace for compile file: {err}");
+                return;
+            }
+        };
+
+        match self.prepare_and_send_message(backtrace, samples, labels, now) {
             Ok(_) => {
                 trace!("Sent event 'compile file' with {n_labels} labels to profiler.")
             }
@@ -1258,15 +1288,23 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.prepare_and_send_message(
-            vec![simple_frame(&format!("[{event}]"), None, 0)],
-            SampleValues {
-                timeline: 1,
-                ..Default::default()
-            },
-            labels,
-            now,
-        ) {
+        let samples = SampleValues {
+            timeline: 1,
+            ..Default::default()
+        };
+        let backtrace = match single_frame_backtrace(&format!("[{event}]"), None, 0) {
+            Ok(backtrace) => backtrace,
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(samples);
+                return;
+            }
+            Err(err) => {
+                warn!("Failed to collect backtrace for event '{event}': {err}");
+                return;
+            }
+        };
+
+        match self.prepare_and_send_message(backtrace, samples, labels, now) {
             Ok(_) => {
                 trace!("Sent event '{event}' with {n_labels} labels to profiler.")
             }
@@ -1292,15 +1330,23 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.prepare_and_send_message(
-            vec![simple_frame("[fatal]", Some(&file), line)],
-            SampleValues {
-                timeline: 1,
-                ..Default::default()
-            },
-            labels,
-            now,
-        ) {
+        let samples = SampleValues {
+            timeline: 1,
+            ..Default::default()
+        };
+        let backtrace = match single_frame_backtrace("[fatal]", Some(&file), line) {
+            Ok(backtrace) => backtrace,
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(samples);
+                return;
+            }
+            Err(err) => {
+                warn!("Failed to collect backtrace for fatal error: {err}");
+                return;
+            }
+        };
+
+        match self.prepare_and_send_message(backtrace, samples, labels, now) {
             Ok(_) => {
                 trace!("Sent event 'fatal error' with {n_labels} labels to profiler.")
             }
@@ -1335,15 +1381,23 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.prepare_and_send_message(
-            vec![simple_frame("[opcache restart]", Some(&file), line)],
-            SampleValues {
-                timeline: 1,
-                ..Default::default()
-            },
-            labels,
-            now,
-        ) {
+        let samples = SampleValues {
+            timeline: 1,
+            ..Default::default()
+        };
+        let backtrace = match single_frame_backtrace("[opcache restart]", Some(&file), line) {
+            Ok(backtrace) => backtrace,
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(samples);
+                return;
+            }
+            Err(err) => {
+                warn!("Failed to collect backtrace for opcache restart: {err}");
+                return;
+            }
+        };
+
+        match self.prepare_and_send_message(backtrace, samples, labels, now) {
             Ok(_) => {
                 trace!("Sent event 'opcache_restart' with {n_labels} labels to profiler.")
             }
@@ -1365,15 +1419,23 @@ impl Profiler {
 
         let n_labels = labels.len();
 
-        match self.prepare_and_send_message(
-            vec![simple_frame("[idle]", None, 0)],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
-            },
-            labels,
-            now,
-        ) {
+        let samples = SampleValues {
+            timeline: duration,
+            ..Default::default()
+        };
+        let backtrace = match single_frame_backtrace("[idle]", None, 0) {
+            Ok(backtrace) => backtrace,
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(samples);
+                return;
+            }
+            Err(err) => {
+                warn!("Failed to collect backtrace for idle: {err}");
+                return;
+            }
+        };
+
+        match self.prepare_and_send_message(backtrace, samples, labels, now) {
             Ok(_) => {
                 trace!("Sent event 'idle' with {n_labels} labels to profiler.")
             }
@@ -1417,15 +1479,23 @@ impl Profiler {
         });
         let n_labels = labels.len();
 
-        match self.prepare_and_send_message(
-            vec![simple_frame("[gc]", None, 0)],
-            SampleValues {
-                timeline: duration,
-                ..Default::default()
-            },
-            labels,
-            now,
-        ) {
+        let samples = SampleValues {
+            timeline: duration,
+            ..Default::default()
+        };
+        let backtrace = match single_frame_backtrace("[gc]", None, 0) {
+            Ok(backtrace) => backtrace,
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                self.record_dropped_sample(samples);
+                return;
+            }
+            Err(err) => {
+                warn!("Failed to collect backtrace for gc: {err}");
+                return;
+            }
+        };
+
+        match self.prepare_and_send_message(backtrace, samples, labels, now) {
             Ok(_) => {
                 trace!("Sent event 'gc' with {n_labels} labels and reason {reason} to profiler.")
             }
@@ -1506,8 +1576,8 @@ impl Profiler {
     {
         let result = collect_stack_sample(execute_data);
         match result {
-            Ok(frames) => {
-                let depth = frames.len();
+            Ok(backtrace) => {
+                let depth = backtrace.frames().len();
                 let labels = Profiler::common_labels(0);
 
                 let n_labels = labels.len();
@@ -1516,7 +1586,7 @@ impl Profiler {
                 set_value(&mut values);
 
                 match self.prepare_and_send_message(
-                    frames,
+                    backtrace,
                     values,
                     labels,
                     NO_TIMESTAMP,
@@ -1528,6 +1598,11 @@ impl Profiler {
                         "Failed to send I/O stack sample of {depth} frames, {n_labels} labels to profiler: {err}"
                     ),
                 }
+            }
+            Err(CollectStackSampleError::ArenaAllocFailed) => {
+                let mut values = SampleValues::default();
+                set_value(&mut values);
+                self.record_dropped_sample(values);
             }
             Err(err) => {
                 warn!("Failed to collect stack sample: {err}")
@@ -1598,20 +1673,28 @@ impl Profiler {
         labels
     }
 
+    fn record_dropped_sample(&self, samples: SampleValues) {
+        let sample_types = self.sample_types_filter.sample_types();
+        let sample_values = self.sample_types_filter.filter(samples);
+        let tags = TAGS.with_borrow(Arc::clone);
+        let key = ProfileIndex { sample_types, tags };
+        thread_queue::record_drop_stats(key, sample_values);
+    }
+
     fn prepare_and_send_message(
         &self,
-        frames: Vec<ZendFrame>,
+        backtrace: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
     ) -> Result<(), EnqueueError> {
-        let message = self.prepare_sample_message(frames, samples, labels, timestamp);
+        let message = self.prepare_sample_message(backtrace, samples, labels, timestamp);
         enqueue_sample_message(message)
     }
 
     fn prepare_sample_message(
         &self,
-        frames: Vec<ZendFrame>,
+        backtrace: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1629,7 +1712,7 @@ impl Profiler {
         SampleMessage {
             key: ProfileIndex { sample_types, tags },
             value: SampleData {
-                frames,
+                backtrace,
                 labels,
                 sample_values,
                 timestamp,
@@ -1650,8 +1733,9 @@ mod tests {
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
 
-    fn get_frames() -> Vec<ZendFrame> {
-        vec![simple_frame("foobar()", Some("foobar.php"), 42)]
+    fn get_backtrace() -> Backtrace {
+        Backtrace::from_single_frame("foobar()", Some("foobar.php"), 42)
+            .expect("backtrace allocation should succeed")
     }
 
     pub fn get_system_settings() -> SystemSettings {
@@ -1706,7 +1790,7 @@ mod tests {
     #[test]
     #[cfg(not(miri))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
-        let frames = get_frames();
+        let backtrace = get_backtrace();
         let samples = get_samples();
         let labels = Profiler::common_labels(0);
         let mut settings = get_system_settings();
@@ -1716,7 +1800,8 @@ mod tests {
 
         let profiler = Profiler::new(&settings);
 
-        let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
+        let message: SampleMessage =
+            profiler.prepare_sample_message(backtrace, samples, labels, 900);
 
         assert_eq!(
             message.key.sample_types,

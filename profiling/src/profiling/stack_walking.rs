@@ -1,9 +1,10 @@
+use super::arena::{self, ArenaConsumer, ArenaProducer, FrameSlice};
 use crate::bindings::{
-    datadog_php_zend_string_copy, datadog_php_zend_string_release, zai_str_from_zstr,
-    zend_execute_data, zend_function, zend_op, zend_op_array, zend_string,
+    zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
 };
 use crate::vec_ext::VecExt;
 use core::ffi::c_char;
+use core::ptr;
 use std::borrow::Cow;
 
 #[cfg(php_frameless)]
@@ -17,78 +18,189 @@ use crate::bindings::{
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 
-/// The profiler is not meant to handle such large strings--if a file or
-/// function name exceeds this size, it will fail in some manner, or be
-/// replaced by a shorter string, etc.
-
 #[derive(Debug)]
-pub enum FrameString {
-    BorrowedZstr(*mut zend_string),
-    BorrowedCStr(*const c_char),
-    Owned(Vec<u8>),
+pub struct Backtrace {
+    pub frames: Vec<ZendFrame>,
+    _arena: ArenaConsumer,
+}
+
+impl Backtrace {
+    pub fn frames(&self) -> &[ZendFrame] {
+        &self.frames
+    }
+
+    pub fn from_single_frame(
+        function: &str,
+        file: Option<&str>,
+        line: u32,
+    ) -> Result<Self, CollectStackSampleError> {
+        let mut builder = BacktraceBuilder::new()?;
+        builder.push_frame_str(None, None, function, file, line)?;
+        Ok(builder.finish())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FrameString {
+    slice: FrameSlice,
 }
 
 impl FrameString {
-    fn borrowed_zstr(zstr: *mut zend_string) -> Self {
-        // SAFETY: caller ensures zstr is valid for zend_string_copy.
-        let copied = unsafe { datadog_php_zend_string_copy(zstr) };
-        Self::BorrowedZstr(copied)
+    fn new(slice: FrameSlice) -> Self {
+        Self { slice }
     }
 
-    fn borrowed_cstr(ptr: *const c_char) -> Option<Self> {
-        if ptr.is_null() {
-            None
-        } else {
-            Some(Self::BorrowedCStr(ptr))
-        }
-    }
-
-    fn owned(value: &str) -> Self {
-        Self::Owned(value.as_bytes().to_vec())
+    pub fn as_bytes(&self) -> &[u8] {
+        // SAFETY: FrameSlice points into the arena and Backtrace holds the arena handle.
+        unsafe { self.slice.as_bytes() }
     }
 
     pub fn to_bytes(&self) -> Cow<'_, [u8]> {
-        match self {
-            FrameString::BorrowedZstr(zstr) => {
-                let zstr = *zstr;
-                // SAFETY: caller guarantees zend_string is valid for read.
-                let bytes = unsafe { zai_str_from_zstr(zstr.as_mut()) }.into_bytes();
-                Cow::Borrowed(bytes)
-            }
-            FrameString::BorrowedCStr(ptr) => {
-                let ptr = *ptr;
-                // SAFETY: caller guarantees C string is valid.
-                let bytes = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_bytes();
-                Cow::Borrowed(bytes)
-            }
-            FrameString::Owned(value) => Cow::Borrowed(value.as_slice()),
-        }
+        // SAFETY: FrameSlice points into the arena and Backtrace holds the arena handle.
+        Cow::Borrowed(self.as_bytes())
     }
+}
 
-    fn make_owned(&mut self) {
-        match self {
-            FrameString::BorrowedZstr(zstr) => {
-                let zstr = *zstr;
-                // SAFETY: caller guarantees zend_string is valid for read.
-                let string = unsafe { zai_str_from_zstr(zstr.as_mut()) }
-                    .into_bytes()
-                    .to_vec();
-                // SAFETY: this pointer was created via zend_string_copy.
-                unsafe {
-                    datadog_php_zend_string_release(zstr);
-                }
-                *self = FrameString::Owned(string);
-            }
-            FrameString::BorrowedCStr(ptr) => {
-                let ptr = *ptr;
-                // SAFETY: caller guarantees C string is valid.
-                let string = unsafe { std::ffi::CStr::from_ptr(ptr) }.to_bytes().to_vec();
-                *self = FrameString::Owned(string);
-            }
-            FrameString::Owned(_) => {}
+unsafe impl Send for FrameString {}
+unsafe impl Sync for FrameString {}
+
+#[derive(Debug)]
+struct ZendFrameRef {
+    module: Option<FrameSlice>,
+    class: Option<FrameSlice>,
+    function: FrameSlice,
+    file: Option<FrameSlice>,
+    line: u32,
+}
+
+impl ZendFrameRef {
+    fn resolve(self) -> ZendFrame {
+        ZendFrame {
+            module: self.module.map(FrameString::new),
+            class: self.class.map(FrameString::new),
+            function: FrameString::new(self.function),
+            file: self.file.map(FrameString::new),
+            line: self.line,
         }
     }
 }
+
+pub struct BacktraceBuilder {
+    arena: ArenaConsumer,
+    producer: ArenaProducer,
+    frames: Vec<ZendFrameRef>,
+}
+
+impl BacktraceBuilder {
+    pub fn new() -> Result<Self, CollectStackSampleError> {
+        let (arena, producer) = arena::get_or_create_current_arena()
+            .map_err(|_| CollectStackSampleError::ArenaAllocFailed)?;
+        Ok(Self {
+            arena,
+            producer,
+            frames: Vec::new(),
+        })
+    }
+
+    pub fn push_frame_bytes(
+        &mut self,
+        module: Option<&[u8]>,
+        class: Option<&[u8]>,
+        function: &[u8],
+        file: Option<&[u8]>,
+        line: u32,
+    ) -> Result<(), CollectStackSampleError> {
+        let function = self.append_function_name(module, class, function)?;
+        let file = file
+            .map(|bytes| self.producer.append(bytes))
+            .transpose()
+            .map_err(|_| CollectStackSampleError::ArenaAllocFailed)?;
+        self.frames.try_push(ZendFrameRef {
+            module: None,
+            class: None,
+            function,
+            file,
+            line,
+        })?;
+        Ok(())
+    }
+
+    pub fn push_frame_str(
+        &mut self,
+        module: Option<&str>,
+        class: Option<&str>,
+        function: &str,
+        file: Option<&str>,
+        line: u32,
+    ) -> Result<(), CollectStackSampleError> {
+        self.push_frame_bytes(
+            module.map(str::as_bytes),
+            class.map(str::as_bytes),
+            function.as_bytes(),
+            file.map(str::as_bytes),
+            line,
+        )
+    }
+
+    pub fn finish(self) -> Backtrace {
+        let frames = self.frames.into_iter().map(ZendFrameRef::resolve).collect();
+        Backtrace {
+            frames,
+            _arena: self.arena,
+        }
+    }
+
+    fn append_function_name(
+        &mut self,
+        module: Option<&[u8]>,
+        class: Option<&[u8]>,
+        function: &[u8],
+    ) -> Result<FrameSlice, CollectStackSampleError> {
+        let has_module = module.is_some_and(|bytes| !bytes.is_empty());
+        let has_class = class.is_some_and(|bytes| !bytes.is_empty());
+        let module_len = module.map(|bytes| bytes.len()).unwrap_or(0);
+        let class_len = class.map(|bytes| bytes.len()).unwrap_or(0);
+        let function_len = function.len();
+        let total_len = function_len
+            + (has_module as usize * (module_len + 1))
+            + (has_class as usize * (class_len + 2));
+
+        if total_len >= super::STR_LEN_LIMIT {
+            return self
+                .producer
+                .append(super::LARGE_STRING_MARKER.as_bytes())
+                .map_err(|_| CollectStackSampleError::ArenaAllocFailed);
+        }
+
+        let (slice, dst) = self
+            .producer
+            .alloc_uninit(total_len)
+            .map_err(|_| CollectStackSampleError::ArenaAllocFailed)?;
+
+        let mut cursor = dst;
+        unsafe {
+            if has_module {
+                let module = module.unwrap();
+                ptr::copy_nonoverlapping(module.as_ptr(), cursor, module.len());
+                cursor = cursor.add(module.len());
+                *cursor = b'|';
+                cursor = cursor.add(1);
+            }
+            if has_class {
+                let class = class.unwrap();
+                ptr::copy_nonoverlapping(class.as_ptr(), cursor, class.len());
+                cursor = cursor.add(class.len());
+                ptr::copy_nonoverlapping(b"::".as_ptr(), cursor, 2);
+                cursor = cursor.add(2);
+            }
+            ptr::copy_nonoverlapping(function.as_ptr(), cursor, function.len());
+        }
+        Ok(slice)
+    }
+}
+
+unsafe impl Send for Backtrace {}
+unsafe impl Sync for Backtrace {}
 
 #[derive(Debug)]
 pub struct ZendFrame {
@@ -102,18 +214,7 @@ pub struct ZendFrame {
 }
 
 impl ZendFrame {
-    pub fn make_owned(&mut self) {
-        if let Some(module) = &mut self.module {
-            module.make_owned();
-        }
-        if let Some(class) = &mut self.class {
-            class.make_owned();
-        }
-        self.function.make_owned();
-        if let Some(file) = &mut self.file {
-            file.make_owned();
-        }
-    }
+    pub fn make_owned(&mut self) {}
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -124,6 +225,8 @@ pub enum CollectStackSampleError {
     BorrowError(#[from] std::cell::BorrowError),
     #[error("failed to borrow request locals: mutable borrow while mutably borrowed")]
     BorrowMutError(#[from] std::cell::BorrowMutError),
+    #[error("failed to allocate backtrace arena")]
+    ArenaAllocFailed,
     #[error(transparent)]
     TryReserveError(#[from] std::collections::TryReserveError),
 }
@@ -185,52 +288,50 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
 }
 
 #[inline]
-fn function_name_zstr(func: &zend_function) -> Option<*mut zend_string> {
+fn function_name_bytes(func: &zend_function) -> Option<&[u8]> {
     let ptr = unsafe { func.common.function_name };
     if ptr.is_null() {
         None
     } else {
-        Some(ptr)
+        // SAFETY: pointer is checked for null and is owned by the engine.
+        Some(unsafe { zai_str_from_zstr(ptr.as_mut()) }.into_bytes())
     }
 }
 
 #[inline]
-fn class_name_zstr(func: &zend_function) -> Option<*mut zend_string> {
+fn class_name_bytes(func: &zend_function) -> Option<&[u8]> {
     let scope = unsafe { func.common.scope.as_ref() }?;
     let ptr = scope.name;
     if ptr.is_null() {
         None
     } else {
-        Some(ptr)
+        // SAFETY: pointer is checked for null and is owned by the engine.
+        Some(unsafe { zai_str_from_zstr(ptr.as_mut()) }.into_bytes())
     }
 }
 
 #[inline]
-fn module_name_cstr(func: &zend_function) -> Option<*const c_char> {
+fn module_name_bytes(func: &zend_function) -> Option<&[u8]> {
     if !func.is_internal() {
         return None;
     }
     let module = unsafe { func.internal_function.module.as_ref() }?;
     // Note: module->name is owned by zend_module_entry. Temporary modules are
-    // destroyed after post-deactivate; we convert borrowed strings to owned
-    // in the zend_extension deactivate hook before op arrays are freed.
+    // destroyed after post-deactivate; we copy strings during stack collection.
     if module.name.is_null() {
         None
     } else {
-        Some(module.name as *const c_char)
+        // SAFETY: pointer is checked for null and is owned by the engine.
+        Some(unsafe { std::ffi::CStr::from_ptr(module.name as *const c_char) }.to_bytes())
     }
 }
 
-fn extract_function_parts(
-    func: &zend_function,
-) -> Option<(Option<FrameString>, Option<FrameString>, FrameString)> {
-    let function_zstr = function_name_zstr(func)?;
-    let class_zstr = class_name_zstr(func);
-    let module_cstr = module_name_cstr(func);
+type FunctionParts<'a> = (Option<&'a [u8]>, Option<&'a [u8]>, &'a [u8]);
 
-    let module = module_cstr.and_then(FrameString::borrowed_cstr);
-    let class = class_zstr.map(FrameString::borrowed_zstr);
-    let function = FrameString::borrowed_zstr(function_zstr);
+fn extract_function_parts(func: &zend_function) -> Option<FunctionParts<'_>> {
+    let function = function_name_bytes(func)?;
+    let class = class_name_bytes(func);
+    let module = module_name_bytes(func);
 
     Some((module, class, function))
 }
@@ -266,7 +367,7 @@ fn opline_in_bounds(op_array: &zend_op_array, opline: *const zend_op) -> bool {
     (begin..end).contains(&(opline as usize))
 }
 
-unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<FrameString>, u32) {
+unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<&[u8]>, u32) {
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if !func.is_internal() => {
@@ -274,7 +375,8 @@ unsafe fn extract_file_and_line(execute_data: &zend_execute_data) -> (Option<Fra
             let file = if zstr.is_null() {
                 None
             } else {
-                Some(FrameString::borrowed_zstr(zstr))
+                // SAFETY: pointer is checked for null and is owned by the engine.
+                Some(unsafe { zai_str_from_zstr(zstr.as_mut()) }.into_bytes())
             };
             let lineno = match safely_get_opline(execute_data) {
                 Some(opline) => opline.lineno,
@@ -309,7 +411,7 @@ mod detail {
         /// string in the slot currently, then create one by calling the
         /// provided function, store it in the string cache and cache slot,
         /// and return it.
-        fn get_or_insert<F>(&mut self, slot: usize, f: F) -> Option<String>
+        fn get_or_insert<F>(&mut self, slot: usize, f: F) -> Option<ThinStr<'static>>
         where
             F: FnOnce() -> Option<String>,
         {
@@ -321,11 +423,9 @@ mod detail {
                 Some(non_null) => {
                     // SAFETY: transmuting ThinStr from its repr.
                     let thin_str: ThinStr = unsafe { core::mem::transmute(non_null) };
-                    // SAFETY: the string set is only reset between requests,
-                    // so this ThinStr points into the same string set that
-                    // created it.
-                    let str = unsafe { self.string_set.get_thin_str(thin_str) };
-                    Some(str.to_string())
+                    // SAFETY: string_set owns the backing storage.
+                    let thin_str: ThinStr<'static> = unsafe { core::mem::transmute(thin_str) };
+                    Some(thin_str)
                 }
                 None => {
                     let string = f()?;
@@ -333,7 +433,9 @@ mod detail {
                     // SAFETY: transmuting ThinStr into its repr.
                     let non_null: NonNull<u8> = unsafe { core::mem::transmute(thin_str) };
                     *cached = non_null.as_ptr() as usize;
-                    Some(string)
+                    // SAFETY: string_set owns the backing storage.
+                    let thin_str: ThinStr<'static> = unsafe { core::mem::transmute(thin_str) };
+                    Some(thin_str)
                 }
             }
         }
@@ -418,12 +520,13 @@ mod detail {
     fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         let max_depth = 512;
-        let mut samples = Vec::new();
+        let mut builder = BacktraceBuilder::new()?;
         let mut execute_data_ptr = top_execute_data;
+        let mut depth = 0usize;
 
-        samples.try_reserve(max_depth >> 3)?;
+        builder.frames.try_reserve(max_depth >> 3)?;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
             // allowed because it's only used on the frameless path
@@ -444,40 +547,26 @@ mod detail {
                                 let func = unsafe {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
-                                let function = function_name_zstr(func)
-                                    .map(FrameString::borrowed_zstr)
-                                    .unwrap_or_else(|| {
-                                        FrameString::owned(COW_PHP_OPEN_TAG.as_ref())
-                                    });
-                                samples.try_push(ZendFrame {
-                                    module: None,
-                                    class: None,
-                                    function,
-                                    file: None,
-                                    line: 0,
-                                })?;
+                                let function = function_name_bytes(func)
+                                    .unwrap_or(COW_PHP_OPEN_TAG.as_ref().as_bytes());
+                                builder.push_frame_bytes(None, None, function, None, 0)?;
+                                depth += 1;
                             }
                             _ => {}
                         }
                     }
                 }
 
-                let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
-                if let Some(frame) = maybe_frame {
-                    samples.try_push(frame)?;
+                let pushed = unsafe { collect_call_frame(execute_data, string_set, &mut builder)? };
+                if pushed {
+                    depth += 1;
 
                     // -1 to reserve room for the [truncated] message. In case
                     // the backend and/or frontend have the same limit, without
                     // subtracting one, then the [truncated] message itself
                     // would be truncated!
-                    if samples.len() == max_depth - 1 {
-                        samples.try_push(ZendFrame {
-                            module: None,
-                            class: None,
-                            function: FrameString::owned(COW_TRUNCATED.as_ref()),
-                            file: None,
-                            line: 0,
-                        })?;
+                    if depth == max_depth - 1 {
+                        builder.push_frame_str(None, None, COW_TRUNCATED.as_ref(), None, 0)?;
                         break;
                     }
                 }
@@ -485,13 +574,13 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(builder.finish())
     }
 
     #[inline(never)]
     pub fn collect_stack_sample(
         execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
         CACHED_STRINGS
@@ -506,83 +595,92 @@ mod detail {
     unsafe fn collect_call_frame(
         execute_data: &zend_execute_data,
         string_set: &mut StringSet,
-    ) -> Option<ZendFrame> {
+        builder: &mut BacktraceBuilder,
+    ) -> Result<bool, CollectStackSampleError> {
         #[cfg(not(feature = "stack_walking_tests"))]
         use crate::bindings::ddog_php_prof_function_run_time_cache;
         #[cfg(feature = "stack_walking_tests")]
         use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
-        let func = execute_data.func.as_ref()?;
-        let (module, class, function, file, line) =
-            match ddog_php_prof_function_run_time_cache(func) {
-                Some(slots) => {
+        let Some(func) = execute_data.func.as_ref() else {
+            return Ok(false);
+        };
+        match ddog_php_prof_function_run_time_cache(func) {
+            Some(slots) => {
+                let (function, file, line, cache_slot, string_set_ptr) = {
                     let mut string_cache = StringCache {
                         cache_slots: slots,
                         string_set,
                     };
-                    let function = handle_function_cache_slot(func, &mut string_cache)?;
+                    let function = handle_function_cache_slot(func, &mut string_cache);
                     let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
+                    let cache_slot = string_cache.cache_slots[0];
+                    let string_set_ptr = string_cache.string_set as *mut StringSet;
+                    (function, file, line, cache_slot, string_set_ptr)
+                };
 
-                    let cache_slots = string_cache.cache_slots;
-                    // If we cannot borrow the stats, then something has gone
-                    // wrong, but it's not that important.
-                    _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
-                        if cache_slots[0] == 0 {
-                            stats.missed += 1;
-                        } else {
-                            stats.hit += 1;
-                        }
-                    });
-
-                    (
-                        None,
-                        None,
-                        Some(FrameString::Owned(function.into_bytes())),
-                        file.map(|value| FrameString::Owned(value.into_bytes())),
-                        line,
-                    )
-                }
-
-                None => {
-                    // If we cannot borrow the stats, then something has gone
-                    // wrong, but it's not that important.
-                    _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
-                    let parts = extract_function_parts(func);
-                    let (file, line) = extract_file_and_line(execute_data);
-                    if let Some((module, class, function)) = parts {
-                        (module, class, Some(function), file, line)
+                // If we cannot borrow the stats, then something has gone
+                // wrong, but it's not that important.
+                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
+                    if cache_slot == 0 {
+                        stats.missed += 1;
                     } else {
-                        (None, None, None, file, line)
+                        stats.hit += 1;
                     }
-                }
-            };
+                });
 
-        if function.is_some() || file.is_some() {
-            let function =
-                function.unwrap_or_else(|| FrameString::owned(COW_PHP_OPEN_TAG.as_ref()));
-            Some(ZendFrame {
-                module,
-                class,
-                function,
-                file,
-                line,
-            })
-        } else {
-            None
+                let string_set = unsafe { &*string_set_ptr };
+                let function_bytes =
+                    function.map(|value| unsafe { string_set.get_thin_str(value) }.as_bytes());
+                let file_bytes =
+                    file.map(|value| unsafe { string_set.get_thin_str(value) }.as_bytes());
+
+                if function_bytes.is_some() || file_bytes.is_some() {
+                    let function_bytes =
+                        function_bytes.unwrap_or_else(|| COW_PHP_OPEN_TAG.as_ref().as_bytes());
+                    builder.push_frame_bytes(None, None, function_bytes, file_bytes, line)?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+
+            None => {
+                // If we cannot borrow the stats, then something has gone
+                // wrong, but it's not that important.
+                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
+                let parts = extract_function_parts(func);
+                let (file, line) = extract_file_and_line(execute_data);
+                if let Some((module, class, function)) = parts {
+                    builder.push_frame_bytes(module, class, function, file, line)?;
+                    Ok(true)
+                } else if file.is_some() {
+                    builder.push_frame_bytes(
+                        None,
+                        None,
+                        COW_PHP_OPEN_TAG.as_ref().as_bytes(),
+                        file,
+                        line,
+                    )?;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
         }
     }
 
     fn handle_function_cache_slot(
         func: &zend_function,
         string_cache: &mut StringCache,
-    ) -> Option<String> {
+    ) -> Option<ThinStr<'static>> {
         string_cache.get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))
     }
 
     unsafe fn handle_file_cache_slot(
         execute_data: &zend_execute_data,
         string_cache: &mut StringCache,
-    ) -> (Option<String>, u32) {
+    ) -> (Option<ThinStr<'static>>, u32) {
         let option = string_cache.get_or_insert(1, || -> Option<String> {
             unsafe {
                 // Safety: if we have cache slots, we definitely have a func.
@@ -625,41 +723,39 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
         let max_depth = 512;
-        let mut samples = Vec::with_capacity(max_depth >> 3);
+        let mut builder = BacktraceBuilder::new()?;
         let mut execute_data_ptr = top_execute_data;
+        let mut depth = 0usize;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            let maybe_frame = unsafe { collect_call_frame(execute_data) };
-            if let Some(frame) = maybe_frame {
-                samples.try_push(frame)?;
+            let pushed = unsafe { collect_call_frame(execute_data, &mut builder)? };
+            if pushed {
+                depth += 1;
 
                 /* -1 to reserve room for the [truncated] message. In case the
                  * backend and/or frontend have the same limit, without the -1
                  * then ironically the [truncated] message would be truncated.
                  */
-                if samples.len() == max_depth - 1 {
-                    samples.try_push(ZendFrame {
-                        module: None,
-                        class: None,
-                        function: FrameString::owned(COW_TRUNCATED.as_ref()),
-                        file: None,
-                        line: 0,
-                    })?;
+                if depth == max_depth - 1 {
+                    builder.push_frame_str(None, None, COW_TRUNCATED.as_ref(), None, 0)?;
                     break;
                 }
             }
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(builder.finish())
     }
 
-    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    unsafe fn collect_call_frame(
+        execute_data: &zend_execute_data,
+        builder: &mut BacktraceBuilder,
+    ) -> Result<bool, CollectStackSampleError> {
         if let Some(func) = execute_data.func.as_ref() {
             let parts = extract_function_parts(func);
             let (file, line) = extract_file_and_line(execute_data);
@@ -667,18 +763,13 @@ mod detail {
             // Only create a new frame if there's file or function info.
             if file.is_some() || parts.is_some() {
                 // If there's no function name, use a fake name.
-                let (module, class, function) = parts
-                    .unwrap_or_else(|| (None, None, FrameString::owned(COW_PHP_OPEN_TAG.as_ref())));
-                return Some(ZendFrame {
-                    module,
-                    class,
-                    function,
-                    file,
-                    line,
-                });
+                let (module, class, function) =
+                    parts.unwrap_or_else(|| (None, None, COW_PHP_OPEN_TAG.as_ref().as_bytes()));
+                builder.push_frame_bytes(module, class, function, file, line)?;
+                return Ok(true);
             }
         }
-        None
+        Ok(false)
     }
 }
 
@@ -698,12 +789,21 @@ mod tests {
     }
 
     #[test]
+    fn arena_types_are_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<ArenaConsumer>();
+        assert_send_sync::<FrameString>();
+        assert_send_sync::<Backtrace>();
+    }
+
+    #[test]
     #[cfg(stack_walking_tests)]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
 
-            let stack = collect_stack_sample(fake_execute_data).unwrap();
+            let backtrace = collect_stack_sample(fake_execute_data).unwrap();
+            let stack = backtrace.frames();
 
             assert_eq!(stack.len(), 3);
 

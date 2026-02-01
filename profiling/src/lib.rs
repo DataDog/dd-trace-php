@@ -359,7 +359,6 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         startup: Some(startup),
         shutdown: Some(shutdown),
         activate: Some(activate),
-        deactivate: Some(deactivate),
         ..Default::default()
     };
 
@@ -528,11 +527,6 @@ fn runtime_id() -> &'static Uuid {
 extern "C" fn activate() {
     // SAFETY: calling in activate as required.
     unsafe { profiling::stack_walking::activate() };
-}
-
-extern "C" fn deactivate() {
-    // Convert any borrowed frame strings to owned before op arrays are freed.
-    unsafe { thread_queue::deactivate() };
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.

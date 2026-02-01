@@ -1,4 +1,5 @@
 use crate::allocation;
+use crate::profiling::arena::ChunkedArena;
 use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr;
@@ -14,6 +15,7 @@ pub struct ProfilerGlobals {
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
     pub thread_queue: *mut crate::thread_queue::ThreadQueue,
+    pub current_arena: *mut ChunkedArena,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -31,11 +33,13 @@ pub static mut GLOBALS_ID: i32 = 0;
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
     thread_queue: ptr::null_mut(),
+    current_arena: ptr::null_mut(),
 };
 
 #[cfg(php_zts)]
 mod zts {
     use core::ffi::c_void;
+    use core::ptr;
 
     extern "C" {
         fn tsrm_get_ls_cache() -> *mut c_void;
@@ -94,12 +98,14 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
         crate::thread_queue::ginit(globals);
+        (*globals).current_arena = ptr::null_mut();
     }
 
     #[cfg(not(php_zts))]
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         crate::thread_queue::ginit(globals);
+        (*globals).current_arena = ptr::null_mut();
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
@@ -124,4 +130,6 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
 
     let globals = _globals_ptr.cast::<ProfilerGlobals>();
     crate::thread_queue::gshutdown(globals);
+    crate::profiling::arena::release_current_arena((*globals).current_arena);
+    (*globals).current_arena = ptr::null_mut();
 }

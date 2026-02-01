@@ -44,18 +44,22 @@ impl DroppedSampleStats {
     }
 
     fn record_drop(&self, message: &SampleMessage) {
+        self.record_drop_values(&message.key, &message.value.sample_values);
+    }
+
+    fn record_drop_values(&self, key: &ProfileIndex, values: &[i64]) {
         self.dropped_count.fetch_add(1, Ordering::Relaxed);
         let mut totals = self
             .totals
             .lock()
             .expect("dropped sample totals mutex poisoned");
         let entry = totals
-            .entry(message.key.clone())
-            .or_insert_with(|| vec![0; message.value.sample_values.len()]);
-        if entry.len() < message.value.sample_values.len() {
-            entry.resize(message.value.sample_values.len(), 0);
+            .entry(key.clone())
+            .or_insert_with(|| vec![0; values.len()]);
+        if entry.len() < values.len() {
+            entry.resize(values.len(), 0);
         }
-        for (dst, value) in entry.iter_mut().zip(message.value.sample_values.iter()) {
+        for (dst, value) in entry.iter_mut().zip(values.iter()) {
             *dst = dst.saturating_add(*value);
         }
     }
@@ -86,7 +90,6 @@ pub struct ThreadQueue {
     producer: UnsafeCell<Producer<SampleMessage>>,
     consumer: UnsafeCell<Consumer<SampleMessage>>,
     drop_stats: DroppedSampleStats,
-    drain_lock: Mutex<()>,
 }
 
 unsafe impl Sync for ThreadQueue {}
@@ -98,7 +101,6 @@ impl ThreadQueue {
             producer: UnsafeCell::new(producer),
             consumer: UnsafeCell::new(consumer),
             drop_stats: DroppedSampleStats::new(),
-            drain_lock: Mutex::new(()),
         }
     }
 
@@ -120,10 +122,6 @@ impl ThreadQueue {
     where
         F: FnMut(SampleMessage),
     {
-        let _guard = self
-            .drain_lock
-            .lock()
-            .expect("thread queue drain lock poisoned");
         let consumer = unsafe { &mut *self.consumer.get() };
         let limit = consumer.slots();
         for _ in 0..limit {
@@ -137,28 +135,12 @@ impl ThreadQueue {
         }
     }
 
-    pub fn finalize_borrowed(&self) {
-        let _guard = self
-            .drain_lock
-            .lock()
-            .expect("thread queue drain lock poisoned");
-        let consumer = unsafe { &mut *self.consumer.get() };
-        let producer = unsafe { &mut *self.producer.get() };
-        let limit = consumer.slots();
-        for _ in 0..limit {
-            match consumer.pop() {
-                Ok(mut message) => {
-                    message.value.make_owned();
-                    // Should succeed since we only popped up to the snapshot size.
-                    let _ = producer.push(message);
-                }
-                Err(_) => break,
-            }
-        }
-    }
-
     pub fn take_drop_stats(&self) -> (u64, HashMap<ProfileIndex, Vec<i64>>) {
         self.drop_stats.take()
+    }
+
+    pub fn record_drop_stats(&self, key: &ProfileIndex, values: &[i64]) {
+        self.drop_stats.record_drop_values(key, values);
     }
 }
 
@@ -181,6 +163,9 @@ pub unsafe fn gshutdown(globals_ptr: *mut module_globals::ProfilerGlobals) {
 #[inline]
 pub unsafe fn get_thread_queue() -> *mut ThreadQueue {
     let globals = module_globals::get_profiler_globals();
+    if globals.is_null() {
+        return ptr::null_mut();
+    }
     (*globals).thread_queue
 }
 
@@ -199,10 +184,11 @@ pub fn take_all_drop_stats() -> Vec<(u64, HashMap<ProfileIndex, Vec<i64>>)> {
         .collect()
 }
 
-pub unsafe fn deactivate() {
-    let queue = get_thread_queue();
-    if let Some(queue) = queue.as_ref() {
-        queue.finalize_borrowed();
+pub fn record_drop_stats(key: ProfileIndex, values: Vec<i64>) {
+    let queue = unsafe { get_thread_queue() };
+    let queue = unsafe { queue.as_ref() };
+    if let Some(queue) = queue {
+        queue.record_drop_stats(&key, &values);
     }
 }
 
@@ -232,8 +218,10 @@ pub unsafe fn fork_parent() {
 
 pub unsafe fn fork_child() {
     let queue_ptr = get_thread_queue();
-    let queue_ptr =
-        QueuePtr(NonNull::new(queue_ptr).expect("thread queue pointer should not be null"));
+    let Some(queue_ptr) = NonNull::new(queue_ptr) else {
+        return;
+    };
+    let queue_ptr = QueuePtr(queue_ptr);
     if REGISTRY_FORK_GUARD_HELD {
         // SAFETY: guard was written in fork_prepare.
         let guard_ptr =
