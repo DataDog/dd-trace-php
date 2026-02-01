@@ -48,7 +48,7 @@ From the `profiling/` directory, use the normal extension build flow:
 export PATH="/opt/php/8.4/bin:$PATH"
 
 phpize
-./configure --enable-datadog-profiling
+./configure
 make
 make install
 ```
@@ -59,14 +59,13 @@ extension directory reported by `php-config --extension-dir`.
 To build with the Cargo debug profile:
 
 ```sh
-./configure --enable-datadog-profiling --enable-datadog-profiling-debug
+./configure --enable-datadog-profiling-debug
 ```
 
 To enable specific Cargo features:
 
 ```sh
-./configure --enable-datadog-profiling \
-  --with-datadog-profiling-cargo-features="stack_walking_tests,trigger_time_sample"
+./configure --with-datadog-profiling-cargo-features="stack_walking_tests,trigger_time_sample"
 ```
 
 To run the PHPT tests with the built extension:

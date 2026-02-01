@@ -1,8 +1,11 @@
-PHP_ARG_ENABLE([datadog-profiling],
-  [whether to enable Datadog profiling support],
+AC_ARG_ENABLE([datadog-profiling],
   [AS_HELP_STRING([--enable-datadog-profiling],
     [Enable Datadog profiling support])],
-  [no])
+  [PHP_DATADOG_PROFILING=$enableval],
+  [PHP_DATADOG_PROFILING=yes])
+
+AC_MSG_CHECKING([whether to enable Datadog profiling support])
+AC_MSG_RESULT([$PHP_DATADOG_PROFILING])
 
 AC_ARG_ENABLE([datadog-profiling-debug],
   [AS_HELP_STRING([--enable-datadog-profiling-debug],
