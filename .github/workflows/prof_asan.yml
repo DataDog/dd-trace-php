@@ -37,6 +37,8 @@ jobs:
           set -eux
           switch-php nts-asan
           cd profiling
+          phpize
+          ./configure --with-php-config="$(command -v php-config)"
           export CARGO_TARGET_DIR=/tmp/build-cargo
           export CC=clang-17
           export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
