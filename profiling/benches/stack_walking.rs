@@ -1,5 +1,6 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, SamplingMode};
 use datadog_php_profiling::bindings as zend;
+use datadog_php_profiling::profiling::init_profiles_dictionary;
 use datadog_php_profiling::profiling::stack_walking::collect_stack_sample;
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
@@ -10,6 +11,7 @@ use perfcnt::linux::HardwareEventType as Hardware;
 use perfcnt::linux::PerfCounterBuilderLinux as Builder;
 
 fn benchmark(c: &mut Criterion) {
+    init_profiles_dictionary();
     let mut group = c.benchmark_group("walk_stack");
     group.sampling_mode(SamplingMode::Flat);
     for depth in [1, 50, 99].iter() {
@@ -24,6 +26,7 @@ fn benchmark(c: &mut Criterion) {
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 fn benchmark_instructions(c: &mut Criterion<Perf>) {
+    init_profiles_dictionary();
     let mut group = c.benchmark_group("walk_stack_instructions");
     group.sampling_mode(SamplingMode::Flat);
     for depth in [1, 50, 99].iter() {
