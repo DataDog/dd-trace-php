@@ -55,6 +55,8 @@ jobs:
           sudo apt-get update
           sudo apt install -y clang-17
           cd profiling
+          phpize
+          ./configure --with-php-config="$(command -v php-config)"
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
           cargo rustc --features="trigger_time_sample" --profile profiler-release --crate-type=cdylib
