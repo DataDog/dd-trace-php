@@ -542,7 +542,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(stack_walking_tests)]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
