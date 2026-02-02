@@ -596,12 +596,12 @@ class SymfonyIntegration extends Integration
                     && !\DDTrace\are_endpoints_collected())
                 {
                     \DDTrace\add_endpoint('/test', 'http.request', 'GET /test', 'GET');
-                //     /** @var ContainerInterface $container */
-                //     $container = self::$kernel->getContainer();
-                //     /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
-                //     $router = $container->get('router');
-                //     $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
-                //     /** @var \Symfony\Component\Routing\Route $route */
+                    /** @var ContainerInterface $container */
+                    $container = self::$kernel->getContainer();
+                    /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
+                    $router = $container->get('router');
+                    $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
+                    /** @var \Symfony\Component\Routing\Route $route */
                 //     foreach ($routes as $route) {
                 //         $path = method_exists($route, 'getPath') ? $route->getPath() : '';
                 //         $methods = method_exists($route, 'getMethods') ? $route->getMethods() : [];
