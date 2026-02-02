@@ -322,8 +322,12 @@ fn cfg_preload(vernum: u64) -> bool {
 
 fn cfg_run_time_cache(vernum: u64) -> bool {
     println!("cargo::rustc-check-cfg=cfg(php_run_time_cache)");
-    let _ = vernum;
-    false
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=php_run_time_cache");
+        true
+    } else {
+        false
+    }
 }
 
 fn cfg_trigger_time_sample() -> bool {
