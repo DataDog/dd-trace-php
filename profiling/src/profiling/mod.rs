@@ -1,9 +1,11 @@
+mod backtrace;
 mod interrupts;
 mod sample_type_filter;
 pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
+pub use backtrace::Backtrace;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
@@ -170,7 +172,7 @@ pub struct ProfileIndex {
 
 #[derive(Debug)]
 pub struct SampleData {
-    pub frames: Vec<ZendFrame>,
+    pub frames: Backtrace,
     pub labels: Vec<Label>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
@@ -524,7 +526,7 @@ impl TimeCollector {
         let values = message.value.sample_values;
         let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
-        for frame in &message.value.frames {
+        for frame in message.value.frames.iter() {
             let location = Location {
                 function: Function {
                     name: frame.function.as_ref(),
@@ -1065,11 +1067,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: COW_EVAL,
                 file: Some(Cow::Owned(filename)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1106,11 +1108,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: format!("[{include_type}]").into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1143,11 +1145,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: format!("[{event}]").into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1181,11 +1183,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[fatal]".into(),
                 file: Some(Cow::Owned(file)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1228,11 +1230,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[opcache restart]".into(),
                 file: Some(Cow::Owned(file)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1262,11 +1264,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[idle]".into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1318,11 +1320,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[gc]".into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1504,7 +1506,7 @@ impl Profiler {
 
     fn prepare_and_send_message(
         &self,
-        frames: Vec<ZendFrame>,
+        frames: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1517,7 +1519,7 @@ impl Profiler {
 
     fn prepare_sample_message(
         &self,
-        frames: Vec<ZendFrame>,
+        frames: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1556,12 +1558,12 @@ mod tests {
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
 
-    fn get_frames() -> Vec<ZendFrame> {
-        vec![ZendFrame {
+    fn get_frames() -> Backtrace {
+        Backtrace::new(vec![ZendFrame {
             function: "foobar()".into(),
             file: Some("foobar.php".into()),
             line: 42,
-        }]
+        }])
     }
 
     pub fn get_system_settings() -> SystemSettings {

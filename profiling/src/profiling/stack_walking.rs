@@ -1,6 +1,7 @@
 use crate::bindings::{
     zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
 };
+use crate::profiling::Backtrace;
 use crate::vec_ext::VecExt;
 use std::borrow::Cow;
 
@@ -289,7 +290,7 @@ mod detail {
     fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         let max_depth = 512;
         let mut samples = Vec::new();
         let mut execute_data_ptr = top_execute_data;
@@ -347,13 +348,13 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(Backtrace::new(samples))
     }
 
     #[inline(never)]
     pub fn collect_stack_sample(
         execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
         CACHED_STRINGS
@@ -474,7 +475,7 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -503,7 +504,7 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(Backtrace::new(samples))
     }
 
     unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
@@ -541,7 +542,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(stack_walking_tests)]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
@@ -550,17 +551,18 @@ mod tests {
 
             assert_eq!(stack.len(), 3);
 
-            assert_eq!(stack[0].function, "function name 003");
-            assert_eq!(stack[0].file, Some("filename-003.php".into()));
-            assert_eq!(stack[0].line, 0);
+            let frames = &stack;
+            assert_eq!(frames[0].function, "function name 003");
+            assert_eq!(frames[0].file, Some("filename-003.php".into()));
+            assert_eq!(frames[0].line, 0);
 
-            assert_eq!(stack[1].function, "function name 002");
-            assert_eq!(stack[1].file, Some("filename-002.php".into()));
-            assert_eq!(stack[1].line, 0);
+            assert_eq!(frames[1].function, "function name 002");
+            assert_eq!(frames[1].file, Some("filename-002.php".into()));
+            assert_eq!(frames[1].line, 0);
 
-            assert_eq!(stack[2].function, "function name 001");
-            assert_eq!(stack[2].file, Some("filename-001.php".into()));
-            assert_eq!(stack[2].line, 0);
+            assert_eq!(frames[2].function, "function name 001");
+            assert_eq!(frames[2].file, Some("filename-001.php".into()));
+            assert_eq!(frames[2].line, 0);
 
             // Free the allocated memory
             zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
