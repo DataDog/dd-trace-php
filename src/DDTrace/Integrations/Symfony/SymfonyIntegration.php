@@ -595,6 +595,7 @@ class SymfonyIntegration extends Integration
                     && self::$frameworkPrefix === SymfonyIntegration::NAME
                     && !\DDTrace\are_endpoints_collected())
                 {
+                    \DDTrace\add_endpoint('/test', 'http.request', 'GET /test', 'GET');
                 //     /** @var ContainerInterface $container */
                 //     $container = self::$kernel->getContainer();
                 //     /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
