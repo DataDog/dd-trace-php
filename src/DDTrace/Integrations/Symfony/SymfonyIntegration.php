@@ -600,10 +600,10 @@ class SymfonyIntegration extends Integration
                     //     \DDTrace\add_endpoint('/test'.$i, 'http.request', 'GET /test'.$i, 'GET');
                     // }
                     /** @var ContainerInterface $container */
-                    $container = self::$kernel->getContainer();
+                    // $container = self::$kernel->getContainer();
                     /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
-                    $router = $container->get('router');
-                    $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
+                    // $router = $container->get('router');
+                    // $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
                     $routesComputed = [];
                     $routes = json_decode('[{"path":"\/_error\/{code}.{_format}","operationName":"http.request","resourceName":"GET \/_error\/{code}.{_format}","method":"GET"},{"path":"\/simple","operationName":"http.request","resourceName":"GET \/simple","method":"GET"},{"path":"\/simple_view","operationName":"http.request","resourceName":"GET \/simple_view","method":"GET"},{"path":"\/dynamic_route\/{param01}\/{param02}","operationName":"http.request","resourceName":"GET \/dynamic_route\/{param01}\/{param02}","method":"GET"},{"path":"\/error","operationName":"http.request","resourceName":"GET \/error","method":"GET"},{"path":"\/behind_auth","operationName":"http.request","resourceName":"GET \/behind_auth","method":"GET"},{"path":"\/telemetry","operationName":"http.request","resourceName":"GET \/telemetry","method":"GET"},{"path":"\/lucky\/number","operationName":"http.request","resourceName":"GET \/lucky\/number","method":"GET"},{"path":"\/lucky\/fail","operationName":"http.request","resourceName":"GET \/lucky\/fail","method":"GET"},{"path":"\/register","operationName":"http.request","resourceName":"GET \/register","method":"GET"},{"path":"\/login","operationName":"http.request","resourceName":"GET \/login","method":"GET"},{"path":"\/dumper","operationName":"http.request","resourceName":"GET \/dumper","method":"GET"}]', true);
                     foreach ($routes as $route) {

@@ -47,6 +47,9 @@ class SymfonyBench extends FrameworkBenchmarksCase
     public function benchSymfonyOverhead()
     {
         static $executionCount = 0;
+        if ($executionCount === 0) {
+            @mkdir('/tmp/artifacts', 0777, true);
+        }
         $executionCount++;
         file_put_contents('/tmp/artifacts/benchSymfonyOverhead.log', 'benchSymfonyOverhead: Request number ' . $executionCount . PHP_EOL, FILE_APPEND);
         $this->doRun();
