@@ -8,7 +8,7 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
-  DOWNSTREAM_REL_BRANCH:
+  RELIABILITY_ENV_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
@@ -94,3 +94,4 @@ package-trigger:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
     NIGHTLY_BUILD: $NIGHTLY_BUILD
+    RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH
