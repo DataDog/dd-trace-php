@@ -595,20 +595,34 @@ class SymfonyIntegration extends Integration
                     && self::$frameworkPrefix === SymfonyIntegration::NAME
                     && !\DDTrace\are_endpoints_collected())
                 {
-                    \DDTrace\add_endpoint('/test', 'http.request', 'GET /test', 'GET');
+                    file_put_contents('/tmp/artifacts/benchSymfonyOverhead.log', 'are_endpoints_collected' . PHP_EOL, FILE_APPEND);
+                    // for ($i = 0; $i < 30; $i++) {
+                    //     \DDTrace\add_endpoint('/test'.$i, 'http.request', 'GET /test'.$i, 'GET');
+                    // }
                     /** @var ContainerInterface $container */
                     $container = self::$kernel->getContainer();
                     /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
                     $router = $container->get('router');
                     $routes = $router && $router->getRouteCollection() ? $router->getRouteCollection()->all() : [];
+                    $routesComputed = [];
+                    $routes = json_decode('[{"path":"\/_error\/{code}.{_format}","operationName":"http.request","resourceName":"GET \/_error\/{code}.{_format}","method":"GET"},{"path":"\/simple","operationName":"http.request","resourceName":"GET \/simple","method":"GET"},{"path":"\/simple_view","operationName":"http.request","resourceName":"GET \/simple_view","method":"GET"},{"path":"\/dynamic_route\/{param01}\/{param02}","operationName":"http.request","resourceName":"GET \/dynamic_route\/{param01}\/{param02}","method":"GET"},{"path":"\/error","operationName":"http.request","resourceName":"GET \/error","method":"GET"},{"path":"\/behind_auth","operationName":"http.request","resourceName":"GET \/behind_auth","method":"GET"},{"path":"\/telemetry","operationName":"http.request","resourceName":"GET \/telemetry","method":"GET"},{"path":"\/lucky\/number","operationName":"http.request","resourceName":"GET \/lucky\/number","method":"GET"},{"path":"\/lucky\/fail","operationName":"http.request","resourceName":"GET \/lucky\/fail","method":"GET"},{"path":"\/register","operationName":"http.request","resourceName":"GET \/register","method":"GET"},{"path":"\/login","operationName":"http.request","resourceName":"GET \/login","method":"GET"},{"path":"\/dumper","operationName":"http.request","resourceName":"GET \/dumper","method":"GET"}]', true);
+                    foreach ($routes as $route) {
+                        \DDTrace\add_endpoint($route['path'], 'http.request', $route['resourceName'], $route['method']);
+                    }
                     /** @var \Symfony\Component\Routing\Route $route */
-                //     foreach ($routes as $route) {
-                //         $path = method_exists($route, 'getPath') ? $route->getPath() : '';
-                //         $methods = method_exists($route, 'getMethods') ? $route->getMethods() : [];
-                //         $method = isset($methods[0]) ? $methods[0] : 'GET';
-                //         $resourceName = $method . ' ' . $path;
-                //         \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
-                //     }
+                    // foreach ($routes as $route) {
+                    //     $path = method_exists($route, 'getPath') ? $route->getPath() : '';
+                    //     $methods = method_exists($route, 'getMethods') ? $route->getMethods() : [];
+                    //     $method = isset($methods[0]) ? $methods[0] : 'GET';
+                    //     $resourceName = $method . ' ' . $path;
+                    //     $routesComputed[] = [
+                    //         'path' => $path,
+                    //         'operationName' => 'http.request',
+                    //         'resourceName' => $resourceName,
+                    //         'method' => $method,
+                    //     ];
+                    //     \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
+                    // }
                 }
             }
         ];
