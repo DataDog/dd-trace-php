@@ -1244,6 +1244,7 @@ dependencies = [
  "criterion",
  "criterion-perf-events",
  "crossbeam-channel",
+ "crossbeam-queue",
  "datadog-php-profiling",
  "env_logger 0.11.6",
  "lazy_static",
