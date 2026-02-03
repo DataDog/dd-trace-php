@@ -22,7 +22,7 @@ const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct ZendFrame {
     // Most tools don't like frames that don't have function names, so use a
     // fake name if you need to like "<?php".

@@ -135,8 +135,13 @@ impl AllocationProfilingStats {
     }
 }
 
+/// Collect an allocation sample and optionally track it for live heap profiling.
+///
+/// # Arguments
+/// * `ptr` - The pointer returned by the allocator (used for live heap tracking)
+/// * `len` - The size of the allocation in bytes
 #[cold]
-pub fn collect_allocation(len: size_t) {
+pub fn collect_allocation(ptr: *mut c_void, len: size_t) {
     if let Some(profiler) = Profiler::get() {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
@@ -150,11 +155,20 @@ pub fn collect_allocation(len: size_t) {
         unsafe {
             profiler.collect_allocations(
                 zend::ddog_php_prof_get_current_execute_data(),
+                ptr,
                 1_i64,
                 len as i64,
                 (interrupt_count > 0).then_some(interrupt_count),
             )
         };
+    }
+}
+
+/// Called when memory is freed. If this pointer was tracked for live heap,
+/// sends the deallocation sample to cancel out the original allocation.
+pub fn free_allocation(ptr: *mut c_void) {
+    if let Some(profiler) = Profiler::get() {
+        profiler.free_allocation(ptr);
     }
 }
 
