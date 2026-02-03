@@ -27,6 +27,7 @@ use core::mem::forget;
 use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
+use dashmap::DashMap;
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
     UpscalingInfo, ValueType as ApiValueType,
@@ -93,13 +94,15 @@ pub(crate) fn update_cpu_time_counter(last: &mut Option<ThreadTime>, counter: &A
 ///  1. Always enabled types.
 ///  2. On by default types.
 ///  3. Off by default types.
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct SampleValues {
     interrupt_count: i64,
     wall_time: i64,
     cpu_time: i64,
     alloc_samples: i64,
     alloc_size: i64,
+    heap_live_samples: i64,
+    heap_live_size: i64,
     timeline: i64,
     exception: i64,
     socket_read_time: i64,
@@ -228,6 +231,28 @@ pub enum ProfilerMessage {
     Wake,
 }
 
+/// A complete sample stored for live heap tracking. Contains everything needed
+/// to send an identical deallocation sample (with negated heap-live-* values).
+#[derive(Clone, Debug)]
+/// Tracked allocation for batched heap-live sample emission.
+/// Unlike the .NET profiler which tracks CLR objects via weak handles,
+/// we track raw allocation pointers. Samples are emitted in batches
+/// at profile export time, not on each allocation/free.
+pub struct LiveHeapSample {
+    /// The profile index (sample_types + tags) for adding to correct profile
+    pub key: ProfileIndex,
+    /// The captured stack trace at allocation time
+    pub frames: Backtrace,
+    /// The labels at allocation time (thread id, span id, etc.)
+    pub labels: Vec<Label>,
+    /// The size of the allocation in bytes
+    pub allocation_size: i64,
+}
+
+/// Maximum number of allocations to track for live heap profiling.
+/// This bounds memory usage. When full, new allocations are not tracked.
+pub const LIVE_HEAP_TRACKER_MAX_SIZE: usize = 4096;
+
 pub struct Globals {
     pub interrupt_count: AtomicU32,
     pub last_interrupt: SystemTime,
@@ -257,6 +282,11 @@ pub struct Profiler {
     /// need the atomicity specifically. Don't modify the SystemSettings
     /// through this pointer.
     system_settings: AtomicPtr<SystemSettings>,
+
+    /// Tracks sampled allocations for live heap profiling.
+    /// Maps allocation pointer -> sample data for batched emission at export time.
+    /// Wrapped in Arc to share with TimeCollector for batched sample emission.
+    live_heap_tracker: Arc<DashMap<usize, LiveHeapSample>>,
 }
 
 struct TimeCollector {
@@ -265,14 +295,63 @@ struct TimeCollector {
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
+    /// Shared tracker for batched heap-live sample emission at export time.
+    live_heap_tracker: Arc<DashMap<usize, LiveHeapSample>>,
 }
 
 impl TimeCollector {
+    /// Collects batched heap-live samples from the tracker and adds them to profiles.
+    /// This should be called before exporting profiles to ensure heap-live data is included.
+    fn collect_batched_heap_live_samples(
+        &self,
+        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        started_at: &WallTime,
+    ) {
+        let tracker_len = self.live_heap_tracker.len();
+        if tracker_len == 0 {
+            return;
+        }
+
+        trace!("Collecting {tracker_len} batched heap-live samples");
+
+        for entry in self.live_heap_tracker.iter() {
+            let tracked = entry.value();
+
+            // Build sample_values with only heap-live-samples and heap-live-size set
+            let mut sample_values = vec![0i64; tracked.key.sample_types.len()];
+            for (i, st) in tracked.key.sample_types.iter().enumerate() {
+                if st.r#type == "heap-live-samples" {
+                    sample_values[i] = 1;
+                } else if st.r#type == "heap-live-size" {
+                    sample_values[i] = tracked.allocation_size;
+                }
+            }
+
+            // Create the sample message
+            let message = SampleMessage {
+                key: tracked.key.clone(),
+                value: SampleData {
+                    frames: tracked.frames.clone(),
+                    labels: tracked.labels.clone(),
+                    sample_values,
+                    timestamp: NO_TIMESTAMP,
+                },
+            };
+
+            Self::handle_sample_message(message, profiles, started_at);
+        }
+
+        trace!("Finished collecting batched heap-live samples");
+    }
+
     fn handle_timeout(
         &self,
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
+        // Collect batched heap-live samples before export
+        self.collect_batched_heap_live_samples(profiles, last_export);
+
         let wall_export = WallTime::now();
         if profiles.is_empty() {
             info!("No profiles to upload.");
@@ -710,12 +789,14 @@ impl Profiler {
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
+        let live_heap_tracker = Arc::new(DashMap::new());
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
+            live_heap_tracker: live_heap_tracker.clone(),
         };
 
         let uploader = Uploader::new(
@@ -743,6 +824,7 @@ impl Profiler {
             should_join: AtomicBool::new(true),
             sample_types_filter,
             system_settings: AtomicPtr::new(system_settings as *const _ as *mut _),
+            live_heap_tracker,
         }
     }
 
@@ -794,6 +876,33 @@ impl Profiler {
     /// Call after a fork, but only on the thread of the parent process that forked.
     pub fn post_fork_parent(&self) {
         self.fork_barrier.wait();
+    }
+
+    /// Track an allocation for live heap profiling.
+    /// Returns true if tracked, false if tracking is disabled or limit reached.
+    pub fn track_allocation(&self, ptr: usize, sample: LiveHeapSample) -> bool {
+        // Check if we're under the tracking limit
+        if self.live_heap_tracker.len() >= LIVE_HEAP_TRACKER_MAX_SIZE {
+            return false;
+        }
+
+        self.live_heap_tracker.insert(ptr, sample);
+        true
+    }
+
+    /// Untrack an allocation. Returns the sample if it was tracked.
+    pub fn untrack_allocation(&self, ptr: usize) -> Option<LiveHeapSample> {
+        self.live_heap_tracker.remove(&ptr).map(|(_, sample)| sample)
+    }
+
+    /// Clear all tracked allocations (used after fork in child process)
+    pub fn clear_live_heap_tracker(&self) {
+        self.live_heap_tracker.clear();
+    }
+
+    /// Get the number of currently tracked allocations
+    pub fn live_heap_tracker_len(&self) -> usize {
+        self.live_heap_tracker.len()
     }
 
     pub fn send_sample(
@@ -918,6 +1027,9 @@ impl Profiler {
             profiler.message_sender = crossbeam_channel::bounded(0).0;
             profiler.upload_sender = crossbeam_channel::bounded(0).0;
 
+            // Clear live heap tracker to avoid stale entries from parent process
+            profiler.live_heap_tracker.clear();
+
             // But we're not 100% sure everything is safe to drop, notably the
             // join handles, so we leak the rest.
             forget(profiler)
@@ -949,6 +1061,14 @@ impl Profiler {
             }
         }
         result
+    }
+
+    /// Returns true if heap live profiling is enabled.
+    #[inline]
+    fn is_heap_live_enabled(&self) -> bool {
+        let system_settings = self.system_settings.load(Ordering::Relaxed);
+        // SAFETY: system settings are valid while the Profiler is alive.
+        unsafe { (*system_settings).profiling_heap_live_enabled }
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
@@ -997,10 +1117,14 @@ impl Profiler {
     ///
     /// When `interrupt_count` is provided, this piggybacks time sampling onto
     /// allocation sampling to avoid redundant stack walks.
+    ///
+    /// If heap live profiling is enabled, the allocation is tracked for later
+    /// cancellation when freed.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
+        ptr: *mut std::ffi::c_void,
         alloc_samples: i64,
         alloc_size: i64,
         interrupt_count: Option<u32>,
@@ -1023,19 +1147,52 @@ impl Profiler {
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                match self.prepare_and_send_message(
-                    frames,
-                    SampleValues {
-                        interrupt_count,
-                        wall_time,
-                        cpu_time,
-                        alloc_samples,
-                        alloc_size,
-                        ..Default::default()
+                // Note: heap_live_samples/heap_live_size are NOT included here.
+                // They are emitted in batches at profile export time (like .NET profiler).
+                let sample_values = SampleValues {
+                    interrupt_count,
+                    wall_time,
+                    cpu_time,
+                    alloc_samples,
+                    alloc_size,
+                    ..Default::default()
+                };
+
+                // Track allocation for heap live profiling if enabled.
+                // Samples will be emitted in batch at profile export time.
+                // Fetch sample_types and tags once, reuse for both tracking and sending.
+                let sample_types = self.sample_types_filter.sample_types();
+                let tags = TAGS.with_borrow(Arc::clone);
+                let key = ProfileIndex { sample_types, tags };
+
+                if self.is_heap_live_enabled() {
+                    let tracked = LiveHeapSample {
+                        key: key.clone(),
+                        frames: frames.clone(),
+                        labels: labels.clone(),
+                        allocation_size: alloc_size,
+                    };
+                    if self.track_allocation(ptr as usize, tracked) {
+                        trace!(
+                            "Tracked allocation at {:#x} ({} bytes) for batched heap-live emission",
+                            ptr as usize,
+                            alloc_size
+                        );
+                    }
+                }
+
+                let sample_values = self.sample_types_filter.filter(sample_values);
+                let message = SampleMessage {
+                    key,
+                    value: SampleData {
+                        frames,
+                        labels,
+                        sample_values,
+                        timestamp,
                     },
-                    labels,
-                    timestamp,
-                ) {
+                };
+
+                match self.message_sender.try_send(ProfilerMessage::Sample(message)) {
                     Ok(_) => trace!(
                         "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
                     ),
@@ -1048,6 +1205,19 @@ impl Profiler {
                 warn!("Failed to collect stack sample: {err}")
             }
         }
+    }
+
+    /// Called when memory is freed. Removes the allocation from tracking. The next profile export
+    /// will not include this allocation in the heap-live samples.
+    pub fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
+        if let Some(sample) = self.untrack_allocation(ptr as usize) {
+            trace!(
+                "Untracked freed allocation at {:#x} ({} bytes)",
+                ptr as usize,
+                sample.allocation_size
+            );
+        }
+        // If not tracked, nothing to do (wasn't sampled or tracking disabled)
     }
 
     /// Collect a stack sample with exception.
@@ -1623,6 +1793,7 @@ mod tests {
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL,
+            profiling_heap_live_enabled: false,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
@@ -1642,6 +1813,8 @@ mod tests {
             cpu_time: 30,
             alloc_samples: 40,
             alloc_size: 50,
+            heap_live_samples: 55,
+            heap_live_size: 56,
             timeline: 60,
             exception: 70,
             socket_read_time: 80,

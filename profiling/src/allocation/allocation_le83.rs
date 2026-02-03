@@ -1,4 +1,4 @@
-use crate::allocation::{allocation_profiling_stats_should_collect, collect_allocation};
+use crate::allocation::{allocation_profiling_stats_should_collect, collect_allocation, free_allocation};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
@@ -300,7 +300,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     }
 
     if allocation_profiling_stats_should_collect(len) {
-        collect_allocation(len);
+        collect_allocation(ptr, len);
     }
 
     ptr
@@ -330,6 +330,11 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
+    // Check if this was a tracked allocation (before freeing!)
+    if !ptr.is_null() {
+        free_allocation(ptr);
+    }
+
     tls_zend_mm_state_get!(free)(ptr);
 }
 
@@ -358,12 +363,21 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr::eq(ptr, prev_ptr) {
+    if zend::ddog_php_prof_get_current_execute_data().is_null() {
         return ptr;
     }
 
-    if allocation_profiling_stats_should_collect(len) {
-        collect_allocation(len);
+    // If pointer changed, treat as free(old) + alloc(new)
+    if !ptr::eq(ptr, prev_ptr) {
+        // Untrack the old allocation if it was tracked
+        if !prev_ptr.is_null() {
+            free_allocation(prev_ptr);
+        }
+
+        // Sample the new allocation
+        if allocation_profiling_stats_should_collect(len) {
+            collect_allocation(ptr, len);
+        }
     }
 
     ptr
