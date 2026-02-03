@@ -1,12 +1,12 @@
 use crate::zend::sapi_request_info;
 use log::warn;
-use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::{CStr, OsStr};
 use std::fmt::{Display, Formatter};
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
+use std::sync::OnceLock;
 
 // todo: unify with ../component/sapi
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -27,7 +27,7 @@ pub enum Sapi {
 
 impl Sapi {
     pub fn from_name(name: &str) -> Sapi {
-        static SAPIS: OnceCell<HashMap<&str, Sapi>> = OnceCell::new();
+        static SAPIS: OnceLock<HashMap<&str, Sapi>> = OnceLock::new();
         let sapis = SAPIS.get_or_init(|| {
             HashMap::from_iter([
                 ("apache2handler", Sapi::Apache2Handler),

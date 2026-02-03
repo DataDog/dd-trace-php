@@ -61,8 +61,43 @@ __attribute__((visibility("default"))) ddog_CharSlice ddog_Error_message(
     return ddog_CharSlice{nullptr, 0};
 }
 
-__attribute__((constructor)) void resolve_symbols()
+__attribute__((visibility("default"))) ddog_MaybeError
+ddog_sidecar_enqueue_telemetry_point(ddog_CharSlice /*session_id_ffi*/,
+    ddog_CharSlice /*runtime_id_ffi*/, ddog_CharSlice /*service_name_ffi*/,
+    ddog_CharSlice /*env_name_ffi*/, ddog_CharSlice /*metric_name_ffi*/,
+    double /*value*/, ddog_CharSlice * /*tags_ffi*/)
 {
-    dds::remote_config::resolve_symbols();
+    return ddog_MaybeError{.tag = DDOG_OPTION_ERROR_NONE_ERROR};
+}
+
+__attribute__((visibility("default"))) ddog_MaybeError
+ddog_sidecar_enqueue_telemetry_metric(ddog_CharSlice /*session_id_ffi*/,
+    ddog_CharSlice /*runtime_id_ffi*/, ddog_CharSlice /*service_name_ffi*/,
+    ddog_CharSlice /*env_name_ffi*/, ddog_CharSlice /*metric_name_ffi*/,
+    enum ddog_MetricType /*metric_type*/,
+    enum ddog_MetricNamespace /*metric_namespace*/)
+{
+    return ddog_MaybeError{.tag = DDOG_OPTION_ERROR_NONE_ERROR};
+}
+
+__attribute__((visibility("default"))) ddog_MaybeError ddog_sidecar_connect(
+    struct ddog_SidecarTransport **connection)
+{
+    // Return a non-null pointer to simulate successful connection
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    *connection = reinterpret_cast<ddog_SidecarTransport *>(0x1);
+    return ddog_MaybeError{.tag = DDOG_OPTION_ERROR_NONE_ERROR};
+}
+
+__attribute__((visibility("default"))) ddog_MaybeError ddog_sidecar_ping(
+    struct ddog_SidecarTransport ** /*transport*/)
+{
+    return ddog_MaybeError{.tag = DDOG_OPTION_ERROR_NONE_ERROR};
+}
+
+__attribute__((visibility("default"))) void ddog_sidecar_transport_drop(
+    struct ddog_SidecarTransport * /*transport*/)
+{
+    // do nothing
 }
 }

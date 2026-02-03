@@ -44,8 +44,10 @@ import java.util.function.Supplier
 class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContainer<SELF> {
     private final static Logger DOCKER_OUTPUT_LOGGER = LoggerFactory.getLogger('docker')
     private String imageName
-    private Slf4jLogConsumer logConsumer
+    private Consumer<OutputFrame> logConsumer
     private File logsDir
+    // Set to true to include sidecar.log in stdout (very verbose)
+    private static final boolean TAIL_SIDECAR_LOG = false
     private String wwwDir
     private String wwwSrcDir
     public final HttpClient httpClient = HttpClient.newBuilder()
@@ -89,7 +91,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_TRACE_GIT_METADATA_ENABLED', '0'
         withEnv 'DD_INSTRUMENTATION_TELEMETRY_ENABLED', '1'
         // very verbose:
-        // withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
+        withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
         withEnv 'DD_SPAWN_WORKER_USE_EXEC', '1' // gdb fails following child with fdexec
         withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
         withEnv 'DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL', '10'
@@ -104,10 +106,51 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     @Override
     protected void doStart() {
         super.doStart()
-        this.logConsumer = new Slf4jLogConsumer(DOCKER_OUTPUT_LOGGER)
+        this.logConsumer = createLogConsumer()
         followOutput(logConsumer)
         overlayWww()
         runInitialize()
+    }
+
+    private Consumer<OutputFrame> createLogConsumer() {
+        Slf4jLogConsumer baseConsumer = new Slf4jLogConsumer(DOCKER_OUTPUT_LOGGER)
+        if (TAIL_SIDECAR_LOG) {
+            return baseConsumer
+        }
+        // Filter out sidecar.log content from stdout
+        // tail -F outputs "==> /path/to/file <==" when switching files
+        new SidecarLogFilteringConsumer(baseConsumer)
+    }
+
+    @CompileStatic
+    private static class SidecarLogFilteringConsumer implements Consumer<OutputFrame> {
+        private final Consumer<OutputFrame> delegate
+        private volatile boolean inSidecarLog = false
+
+        SidecarLogFilteringConsumer(Consumer<OutputFrame> delegate) {
+            this.delegate = delegate
+        }
+
+        @Override
+        void accept(OutputFrame frame) {
+            String text = frame.utf8String
+            if (text == null) {
+                delegate.accept(frame)
+                return
+            }
+
+            // Check for tail -F file header
+            if (text.contains('==>') && text.contains('<==')) {
+                inSidecarLog = text.contains('sidecar.log')
+                if (inSidecarLog) {
+                    return // Skip the sidecar.log header line
+                }
+            }
+
+            if (!inSidecarLog) {
+                delegate.accept(frame)
+            }
+        }
     }
 
     Object nextCapturedTrace() {

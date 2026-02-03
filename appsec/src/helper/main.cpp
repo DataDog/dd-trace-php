@@ -187,10 +187,6 @@ int appsec_helper_main_impl()
         return 1;
     }
 
-    dds::remote_config::resolve_symbols();
-    dds::runner::resolve_symbols();
-    dds::service::resolve_symbols();
-
     auto runner = std::make_shared<dds::runner>(config, interrupted);
     SPDLOG_INFO("starting runner on new thread");
 

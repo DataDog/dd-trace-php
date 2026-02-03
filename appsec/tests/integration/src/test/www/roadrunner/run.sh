@@ -9,7 +9,7 @@ composer install --no-dev
 if [[ ! -f rr ]]; then
   # Uses the github API, which is flaky
   #vendor/bin/rr get-binary
-  if [[ $(arch) == "arm64" ]]; then
+  if [[ $(arch) == "aarch64" ]]; then
     ARCH="arm64"
   else
     ARCH="amd64"

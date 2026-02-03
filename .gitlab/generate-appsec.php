@@ -145,6 +145,7 @@ stages:
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \;
+    - cp -r appsec/tests/integration/build/test-logs "${CI_PROJECT_DIR}/artifacts/" 2>/dev/null || true
     - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:appsec"
   artifacts:
     reports:
@@ -359,7 +360,7 @@ stages:
 
 "check libxml2 version":
   stage: test
-  image: registry.ddbuild.io/images/mirror/python:3.12-slim
+  image: registry.ddbuild.io/images/mirror/python:3.12-slim-bullseye
   tags: [ "arch:amd64" ]
   needs: []
   allow_failure: true

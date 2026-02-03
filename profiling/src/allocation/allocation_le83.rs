@@ -4,7 +4,7 @@ use crate::bindings::{
     ddog_php_prof_copy_long_into_zval,
 };
 use crate::{RefCellExt, PROFILER_NAME, REQUEST_LOCALS};
-use core::{cell::Cell, ptr};
+use core::ptr;
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, trace, warn};
@@ -19,7 +19,7 @@ type ZendHeapPrepareFn = unsafe fn(heap: *mut zend::_zend_mm_heap) -> c_int;
 type ZendHeapRestoreFn = unsafe fn(heap: *mut zend::_zend_mm_heap, custom_heap: c_int);
 
 #[derive(Copy, Clone)]
-struct ZendMMState {
+pub struct ZendMMState {
     /// The heap installed in ZendMM at the time we install our custom
     /// handlers, this is also the heap our custom handlers are installed in.
     /// We need this in case there is no custom handlers installed prior to us,
@@ -50,7 +50,8 @@ struct ZendMMState {
 }
 
 impl ZendMMState {
-    const fn new() -> ZendMMState {
+    #[allow(clippy::new_without_default)]
+    pub const fn new() -> ZendMMState {
         ZendMMState {
             heap: None,
             prev_custom_mm_alloc: None,
@@ -62,55 +63,6 @@ impl ZendMMState {
             free: super::alloc_prof_panic_free,
         }
     }
-}
-
-#[cfg(php_zts)]
-thread_local! {
-    /// Using a `Cell` here should be okay. There might not be any
-    /// synchronization issues, as it is used in as thread local and only
-    /// mutated in RINIT and RSHUTDOWN.
-    static ZEND_MM_STATE: Cell<ZendMMState> = const {
-        Cell::new(ZendMMState::new())
-    };
-}
-
-#[cfg(not(php_zts))]
-/// Using a `Cell` here should be okay. There might not be any
-/// synchronization issues, as it is only mutated in RINIT and RSHUTDOWN.
-static mut ZEND_MM_STATE: Cell<ZendMMState> = Cell::new(ZendMMState::new());
-
-#[cfg(php_zts)]
-macro_rules! tls_zend_mm_state_copy {
-    () => {
-        ZEND_MM_STATE.get()
-    };
-}
-
-#[cfg(not(php_zts))]
-macro_rules! tls_zend_mm_state_copy {
-    () => {
-        unsafe { (*ptr::addr_of_mut!(ZEND_MM_STATE)).get() }
-    };
-}
-
-macro_rules! tls_zend_mm_state_get {
-    ($x:ident) => {
-        tls_zend_mm_state_copy!().$x
-    };
-}
-
-#[cfg(php_zts)]
-macro_rules! tls_zend_mm_state_set {
-    ($x:expr) => {
-        ZEND_MM_STATE.set($x)
-    };
-}
-
-#[cfg(not(php_zts))]
-macro_rules! tls_zend_mm_state_set {
-    ($x:expr) => {
-        unsafe { (*ptr::addr_of!(ZEND_MM_STATE)).set($x) }
-    };
 }
 
 const NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT: bool =

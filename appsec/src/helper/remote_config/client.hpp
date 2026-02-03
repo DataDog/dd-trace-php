@@ -21,8 +21,6 @@ struct ddog_RemoteConfigReader;
 
 namespace dds::remote_config {
 
-void resolve_symbols();
-
 struct config_path {
     static config_path from_path(const std::string &path);
 

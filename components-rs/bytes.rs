@@ -1,10 +1,10 @@
-use libdd_trace_utils::span::SpanBytes;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
+use libdd_trace_utils::span::v04::SpanBytes;
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr::NonNull;
-use libdd_tinybytes::{Bytes, BytesString, RefCountedCell, RefCountedCellVTable};
 
 /// cbindgen:no-export
 #[repr(C)]
