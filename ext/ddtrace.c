@@ -2864,6 +2864,13 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
         &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), method_enum, path_slice, operation_name_slice,
         resource_name_slice);
 
+    LOG_LINE(DEBUG,
+             "Adding endpoint: %.*s (%zu) - operation_name: %.*s (%zu) - resource_name: %.*s (%zu) - method: %.*s (%zu)",
+             (int)path_slice.len, (char *)path_slice.ptr, path_slice.len,
+             (int)operation_name_slice.len, (char *)operation_name_slice.ptr, operation_name_slice.len,
+             (int)resource_name_slice.len, (char *)resource_name_slice.ptr, resource_name_slice.len,
+             (int)method->len, ZSTR_VAL(method), (size_t)method->len);
+
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
         ddog_CharSlice message = ddog_Error_message(&result.some);
         LOG_LINE(ERROR, "Error submitting  endpoint to sidecar: %.*s", (int)message.len, (char *)message.ptr);
