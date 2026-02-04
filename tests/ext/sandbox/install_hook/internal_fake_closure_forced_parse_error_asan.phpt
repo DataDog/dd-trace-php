@@ -13,31 +13,26 @@ datadog.trace.auto_flush_enabled=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --FILE--
 <?php
-$iterations = 1;
-$callsPerIter = 1;
+$closure = (new ReflectionFunction("intval"))->getClosure();
+$hookId = null;
 
-for ($i = 0; $i < $iterations; $i++) {
-    $closureA = (new ReflectionFunction("intval"))->getClosure();
-    $hookIdA = null;
+$hookId = \DDTrace\install_hook(
+    $closure,
+    function () {},
+    function () use (&$hookId) {
+        // Force eval() error path (deterministic ASAN crash site).
+        eval('class Broken {');
 
-    $hookIdA = \DDTrace\install_hook(
-        $closureA,
-        function () {},
-        function () use (&$hookIdA) {
-            // Force eval() error path (deterministic ASAN crash site).
-            eval('class Broken {');
+        if ($hookId !== null) {
+            \DDTrace\remove_hook($hookId);
+            $hookId = null;
+        }
+    },
+    \DDTrace\HOOK_INSTANCE
+);
 
-            if ($hookIdA !== null) {
-                \DDTrace\remove_hook($hookIdA);
-                $hookIdA = null;
-            }
-        },
-        \DDTrace\HOOK_INSTANCE
-    );
-
-    $callA = $closureA;
-    $callA($i);
-}
+$callable = $closure;
+$callable(1);
 
 echo "ok\n";
 ?>
