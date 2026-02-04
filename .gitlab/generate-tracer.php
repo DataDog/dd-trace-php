@@ -22,6 +22,10 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
 <?php if ($has_test_agent): ?>
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
+    - |
+      if [[ "${MAKE_TARGET:-}" == *"sqlsrv"* ]]; then
+        .gitlab/check_sqlsrv.sh
+      fi
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
     - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src"
 <?php
