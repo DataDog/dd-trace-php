@@ -89,7 +89,11 @@ impl Uploader {
         Some(metadata)
     }
 
-    fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
+    fn upload(
+        &self,
+        message: Box<UploadRequest>,
+        last_cpu: &mut Option<ThreadTime>,
+    ) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 
@@ -110,6 +114,11 @@ impl Uploader {
         let serialized =
             profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
         exporter.set_timeout(10000); // 10 seconds in milliseconds
+
+        // Capture CPU time up to this point. Note: metadata generation, exporter
+        // building, and HTTP request time will be attributed to the next profile.
+        update_background_cpu_time(last_cpu);
+
         let request = exporter.build(
             serialized,
             &[],
@@ -147,7 +156,6 @@ impl Uploader {
                     },
 
                     Ok(UploadMessage::Upload(request)) => {
-                        update_background_cpu_time(&mut last_cpu);
                         match pprof_filename {
                             Some(filename) => {
                                 let filename_prefix = filename.as_ref();
@@ -157,7 +165,7 @@ impl Uploader {
                                 std::fs::write(&name, r.buffer).expect("write to succeed");
                                 info!("Successfully wrote profile to {name}");
                             },
-                            None => match self.upload(request) {
+                            None => match self.upload(request, &mut last_cpu) {
                                 Ok(status) => {
                                     if status >= 400 {
                                         warn!("Unexpected HTTP status when sending profile (HTTP {status}).")
