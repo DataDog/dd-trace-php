@@ -27,8 +27,7 @@ $closure = (new ReflectionFunction("intval"))->getClosure();
     \DDTrace\HOOK_INSTANCE
 );
 
-$callable = $closure;
-$callable(1);
+$closure(1);
 
 echo "ok\n";
 ?>
