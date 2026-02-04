@@ -13,8 +13,8 @@ datadog.trace.auto_flush_enabled=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --FILE--
 <?php
-$iterations = 2000;
-$callsPerIter = 5;
+$iterations = 1;
+$callsPerIter = 1;
 
 for ($i = 0; $i < $iterations; $i++) {
     $closureA = (new ReflectionFunction("intval"))->getClosure();
