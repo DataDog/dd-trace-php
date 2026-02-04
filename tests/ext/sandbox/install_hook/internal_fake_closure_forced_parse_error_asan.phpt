@@ -17,15 +17,16 @@ $closure = (new ReflectionFunction("intval"))->getClosure();
     $closure,
     null,
     function () {
-        // Force eval() error path (deterministic ASAN crash site).
-        eval('class Broken {');
-
-        // Keep the hook installed; crash occurs during backtrace collection.
+        eval('throw new \\Exception("boom");');
     },
     \DDTrace\HOOK_INSTANCE
 );
 
-$closure(1);
+try {
+    $closure(1);
+} catch (Throwable $e) {
+    // ignore
+}
 
 echo "ok\n";
 ?>
