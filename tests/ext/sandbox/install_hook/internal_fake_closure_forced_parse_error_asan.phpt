@@ -21,24 +21,11 @@ for ($i = 0; $i < $iterations; $i++) {
     $closureB = (new ReflectionFunction("intval"))->getClosure();
 
     $hookIdA = null;
-    $hookIdB = null;
-
-    $hookIdB = \DDTrace\install_hook(
-        $closureB,
-        function () {},
-        function () {},
-        \DDTrace\HOOK_INSTANCE
-    );
 
     $hookIdA = \DDTrace\install_hook(
         $closureA,
         function () {},
-        function () use ($i, $callsPerIter, &$hookIdA, &$hookIdB, $closureB) {
-            if ($hookIdB !== null) {
-                \DDTrace\remove_hook($hookIdB);
-                $hookIdB = null;
-            }
-
+        function () use ($i, $callsPerIter, &$hookIdA, $closureB) {
             // Force eval() error path (deterministic ASAN crash site).
             eval('class Broken {');
 
