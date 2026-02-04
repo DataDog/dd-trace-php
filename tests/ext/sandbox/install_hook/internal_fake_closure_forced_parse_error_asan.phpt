@@ -14,12 +14,11 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --FILE--
 <?php
 $closure = (new ReflectionFunction("intval"))->getClosure();
-$hookId = null;
 
-$hookId = \DDTrace\install_hook(
+\DDTrace\install_hook(
     $closure,
-    function () {},
-    function () use (&$hookId) {
+    null,
+    function () {
         // Force eval() error path (deterministic ASAN crash site).
         eval('class Broken {');
 
