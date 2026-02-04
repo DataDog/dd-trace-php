@@ -595,6 +595,7 @@ impl TimeCollector {
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let never = crossbeam_channel::never();
         let mut running = true;
+        let mut last_cpu = ThreadTime::try_now().ok();
 
         while running {
             // The crossbeam_channel::select! doesn't have the ability to
@@ -620,6 +621,7 @@ impl TimeCollector {
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
                                 // flush what we have before exiting
+                                update_background_cpu_time(&mut last_cpu);
                                 last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                                 running = false;
                             },
@@ -657,6 +659,7 @@ impl TimeCollector {
 
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
+                        update_background_cpu_time(&mut last_cpu);
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                     }
                 },
