@@ -131,7 +131,9 @@ class EndpointCatalog
     {
         $path = '';
 
-        foreach ($tokens as $token) {
+		// Symfony stores generator tokens in reverse order; iterate accordingly
+		for ($i = count($tokens) - 1; $i >= 0; $i--) {
+			$token = $tokens[$i];
             if (!is_array($token) || !isset($token[0])) {
                 continue;
             }
