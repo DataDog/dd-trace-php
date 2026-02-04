@@ -13,20 +13,52 @@ datadog.trace.auto_flush_enabled=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --FILE--
 <?php
-$closure = (new ReflectionFunction("intval"))->getClosure();
+$iterations = 2000;
+$callsPerIter = 5;
 
-\DDTrace\install_hook(
-    $closure,
-    function () {},
-    function () {
-        // Intentionally invalid PHP code to force a ParseError from eval().
-        eval('class Broken {');
-    },
-    \DDTrace\HOOK_INSTANCE
-);
+for ($i = 0; $i < $iterations; $i++) {
+    $closureA = (new ReflectionFunction("intval"))->getClosure();
+    $closureB = (new ReflectionFunction("intval"))->getClosure();
 
-$callable = $closure;
-$callable(1);
+    $hookIdA = null;
+    $hookIdB = null;
+
+    $hookIdB = \DDTrace\install_hook(
+        $closureB,
+        function () {},
+        function () {},
+        \DDTrace\HOOK_INSTANCE
+    );
+
+    $hookIdA = \DDTrace\install_hook(
+        $closureA,
+        function () {},
+        function () use ($i, $callsPerIter, &$hookIdA, &$hookIdB, $closureB) {
+            if ($hookIdB !== null) {
+                \DDTrace\remove_hook($hookIdB);
+                $hookIdB = null;
+            }
+
+            // Force eval() error path (deterministic ASAN crash site).
+            eval('class Broken {');
+
+            // Re-enter via internal fake closure after removal.
+            $callB = $closureB;
+            for ($j = 0; $j < $callsPerIter; $j++) {
+                $callB($i + $j);
+            }
+
+            if ($hookIdA !== null) {
+                \DDTrace\remove_hook($hookIdA);
+                $hookIdA = null;
+            }
+        },
+        \DDTrace\HOOK_INSTANCE
+    );
+
+    $callA = $closureA;
+    $callA($i);
+}
 
 echo "ok\n";
 ?>
