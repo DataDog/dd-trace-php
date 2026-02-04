@@ -1,7 +1,7 @@
 use crate::config::AgentEndpoint;
 use crate::profiling::{
-    update_background_cpu_time, UploadMessage, UploadRequest, BACKGROUND_THREAD_CPU_TIME_NS,
-    STACK_WALK_COUNT, STACK_WALK_CPU_TIME_NS,
+    update_cpu_time_counter, UploadMessage, UploadRequest, DDPROF_TIME_CPU_TIME_NS,
+    DDPROF_UPLOAD_CPU_TIME_NS, STACK_WALK_COUNT, STACK_WALK_CPU_TIME_NS,
 };
 use crate::{PROFILER_NAME_STR, PROFILER_VERSION_STR};
 use chrono::{DateTime, Utc};
@@ -48,7 +48,7 @@ impl Uploader {
     /// This function will not only create the internal metadata JSON representation, but is also
     /// in charge to reset all those counters back to 0.
     fn create_internal_metadata() -> Option<serde_json::Value> {
-        let capacity = 3 + cfg!(feature = "debug_stats") as usize * 3;
+        let capacity = 4 + cfg!(feature = "debug_stats") as usize * 3;
         let mut metadata = serde_json::Map::with_capacity(capacity);
         metadata.insert(
             "stack_walk_count".to_string(),
@@ -59,8 +59,12 @@ impl Uploader {
             json!(STACK_WALK_CPU_TIME_NS.swap(0, Ordering::Relaxed)),
         );
         metadata.insert(
-            "background_threads_cpu_time_ns".to_string(),
-            json!(BACKGROUND_THREAD_CPU_TIME_NS.swap(0, Ordering::Relaxed)),
+            "ddprof_time_cpu_time_ns".to_string(),
+            json!(DDPROF_TIME_CPU_TIME_NS.swap(0, Ordering::Relaxed)),
+        );
+        metadata.insert(
+            "ddprof_upload_cpu_time_ns".to_string(),
+            json!(DDPROF_UPLOAD_CPU_TIME_NS.swap(0, Ordering::Relaxed)),
         );
         #[cfg(feature = "debug_stats")]
         {
@@ -89,7 +93,11 @@ impl Uploader {
         Some(metadata)
     }
 
-    fn upload(&self, message: Box<UploadRequest>) -> anyhow::Result<u16> {
+    fn upload(
+        &self,
+        message: Box<UploadRequest>,
+        last_cpu: &mut Option<ThreadTime>,
+    ) -> anyhow::Result<u16> {
         let index = message.index;
         let profile = message.profile;
 
@@ -110,6 +118,11 @@ impl Uploader {
         let serialized =
             profile.serialize_into_compressed_pprof(Some(message.end_time), message.duration)?;
         exporter.set_timeout(10000); // 10 seconds in milliseconds
+
+        // Capture CPU time up to this point. Note: metadata generation, exporter
+        // building, and HTTP request time will be attributed to the next profile.
+        update_cpu_time_counter(last_cpu, &DDPROF_UPLOAD_CPU_TIME_NS);
+
         let request = exporter.build(
             serialized,
             &[],
@@ -147,7 +160,6 @@ impl Uploader {
                     },
 
                     Ok(UploadMessage::Upload(request)) => {
-                        update_background_cpu_time(&mut last_cpu);
                         match pprof_filename {
                             Some(filename) => {
                                 let filename_prefix = filename.as_ref();
@@ -157,7 +169,7 @@ impl Uploader {
                                 std::fs::write(&name, r.buffer).expect("write to succeed");
                                 info!("Successfully wrote profile to {name}");
                             },
-                            None => match self.upload(request) {
+                            None => match self.upload(request, &mut last_cpu) {
                                 Ok(status) => {
                                     if status >= 400 {
                                         warn!("Unexpected HTTP status when sending profile (HTTP {status}).")
@@ -196,7 +208,8 @@ mod tests {
         // Set up all counters with known values
         STACK_WALK_COUNT.store(7, Ordering::Relaxed);
         STACK_WALK_CPU_TIME_NS.store(9000, Ordering::Relaxed);
-        BACKGROUND_THREAD_CPU_TIME_NS.store(1234, Ordering::Relaxed);
+        DDPROF_TIME_CPU_TIME_NS.store(1234, Ordering::Relaxed);
+        DDPROF_UPLOAD_CPU_TIME_NS.store(5678, Ordering::Relaxed);
         EXCEPTION_PROFILING_EXCEPTION_COUNT.store(42, Ordering::Relaxed);
         ALLOCATION_PROFILING_COUNT.store(100, Ordering::Relaxed);
         ALLOCATION_PROFILING_SIZE.store(1024, Ordering::Relaxed);
@@ -221,9 +234,15 @@ mod tests {
         );
         assert_eq!(
             metadata
-                .get("background_threads_cpu_time_ns")
+                .get("ddprof_time_cpu_time_ns")
                 .and_then(|v| v.as_u64()),
             Some(1234)
+        );
+        assert_eq!(
+            metadata
+                .get("ddprof_upload_cpu_time_ns")
+                .and_then(|v| v.as_u64()),
+            Some(5678)
         );
 
         assert_eq!(

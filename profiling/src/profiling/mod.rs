@@ -64,7 +64,8 @@ static mut PROFILER: OnceLock<Profiler> = OnceLock::new();
 
 pub static STACK_WALK_COUNT: AtomicU64 = AtomicU64::new(0);
 pub static STACK_WALK_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
-pub static BACKGROUND_THREAD_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+pub static DDPROF_TIME_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+pub static DDPROF_UPLOAD_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
 
 fn cpu_time_delta_ns(now: ThreadTime, prev: ThreadTime) -> u64 {
     match now.as_duration().checked_sub(prev.as_duration()) {
@@ -73,14 +74,14 @@ fn cpu_time_delta_ns(now: ThreadTime, prev: ThreadTime) -> u64 {
     }
 }
 
-pub(crate) fn update_background_cpu_time(last: &mut Option<ThreadTime>) {
+pub(crate) fn update_cpu_time_counter(last: &mut Option<ThreadTime>, counter: &AtomicU64) {
     let Some(prev) = last.take() else {
         *last = ThreadTime::try_now().ok();
         return;
     };
     if let Ok(now) = ThreadTime::try_now() {
         let elapsed_ns = cpu_time_delta_ns(now, prev);
-        BACKGROUND_THREAD_CPU_TIME_NS.fetch_add(elapsed_ns, Ordering::Relaxed);
+        counter.fetch_add(elapsed_ns, Ordering::Relaxed);
         *last = Some(now);
     } else {
         *last = Some(prev);
@@ -595,6 +596,7 @@ impl TimeCollector {
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let never = crossbeam_channel::never();
         let mut running = true;
+        let mut last_cpu = ThreadTime::try_now().ok();
 
         while running {
             // The crossbeam_channel::select! doesn't have the ability to
@@ -620,6 +622,7 @@ impl TimeCollector {
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
                                 // flush what we have before exiting
+                                update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
                                 last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                                 running = false;
                             },
@@ -657,6 +660,7 @@ impl TimeCollector {
 
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
+                        update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                     }
                 },
