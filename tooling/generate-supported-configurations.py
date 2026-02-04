@@ -342,12 +342,15 @@ def map_type(type_name: str) -> str:
 
 
 def entry_from_config(type_name: str, name: str, default_token: str, aliases: list, defines: dict) -> dict:
-    return {
-        "version": "A",
+    entry = {
+        "implementation": "A",
         "type": map_type(type_name),
         "default": resolve_default_token(default_token, defines),
-        "aliases": normalize_aliases(aliases, name),
     }
+    normalized_aliases = normalize_aliases(aliases, name)
+    if normalized_aliases:
+        entry["aliases"] = normalized_aliases
+    return entry
 
 
 def parse_config_macro_entries(macro_body: str, defines: dict) -> dict:
@@ -476,9 +479,15 @@ def merge_supported_configurations(output: dict, generated: dict):
         existing_entries = existing_supported.get(name, [])
         if not isinstance(existing_entries, list):
             existing_entries = []
+        normalized_entries = []
+        for existing_entry in existing_entries:
+            if isinstance(existing_entry, dict) and "implementation" not in existing_entry and "version" in existing_entry:
+                existing_entry["implementation"] = existing_entry.pop("version")
+            normalized_entries.append(existing_entry)
+        existing_entries = normalized_entries
         updated = False
         for idx, existing_entry in enumerate(existing_entries):
-            if isinstance(existing_entry, dict) and existing_entry.get("version") == "A":
+            if isinstance(existing_entry, dict) and existing_entry.get("implementation") == "A":
                 existing_entries[idx] = generated_entry
                 updated = True
                 break
@@ -493,7 +502,11 @@ def merge_supported_configurations(output: dict, generated: dict):
             continue
         for entry in entries:
             if isinstance(entry, dict) and isinstance(entry.get("aliases"), list):
-                entry["aliases"] = normalize_aliases(entry["aliases"], name)
+                normalized_aliases = normalize_aliases(entry["aliases"], name)
+                if normalized_aliases:
+                    entry["aliases"] = normalized_aliases
+                else:
+                    entry.pop("aliases", None)
 
 
 def main():
