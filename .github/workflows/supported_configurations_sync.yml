@@ -1,7 +1,6 @@
 name: Validate supported configurations
 
 on:
-  pull_request:
   push:
 
 jobs:
