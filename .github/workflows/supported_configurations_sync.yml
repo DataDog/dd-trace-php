@@ -1,0 +1,29 @@
+name: Validate supported configurations
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  validate-supported-configurations:
+    name: validate supported configurations
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+          clean: true
+
+      - name: Verify supported configurations are in sync
+        run: |
+          python3 tooling/generate-supported-configurations.py
+
+          if ! git diff --exit-code -- metadata/supported-configurations.json ext/configuration.h; then
+            echo "ERROR: @metadata/supported-configurations.json and @ext/configuration.h got out of sync. Please run tooling/generate-supported-configurations.py locally."
+            git --no-pager diff -- metadata/supported-configurations.json ext/configuration.h
+            exit 1
+          fi
