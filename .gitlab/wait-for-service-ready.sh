@@ -12,6 +12,7 @@ detect_service_type() {
     kafka*) echo "kafka" ;;
     redis*) echo "redis" ;;
     httpbin*) echo "httpbin" ;;
+    sqlsrv-integration) echo "sqlsrv" ;;
     *) echo "generic" ;;
   esac
 }
@@ -74,6 +75,14 @@ wait_for_single_service() {
         # Zookeeper readiness via "ruok" four-letter-word command
         if echo "ruok" | nc -w1 -q1 "${HOST}" "${PORT}" 2>/dev/null | grep -q "imok"; then
           echo "Zookeeper is ready"
+          return 0
+        fi
+        ;;
+      sqlsrv)
+        # SQL Server readiness check
+        if timeout 5 bash -c "echo > /dev/tcp/${HOST}/${PORT}" 2>/dev/null; then
+          echo "SQL Server port ${HOST}:${PORT} is open"
+          sleep 5
           return 0
         fi
         ;;
