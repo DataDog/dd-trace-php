@@ -23,10 +23,7 @@ $hookId = \DDTrace\install_hook(
         // Force eval() error path (deterministic ASAN crash site).
         eval('class Broken {');
 
-        if ($hookId !== null) {
-            \DDTrace\remove_hook($hookId);
-            $hookId = null;
-        }
+        // Keep the hook installed; crash occurs during backtrace collection.
     },
     \DDTrace\HOOK_INSTANCE
 );
