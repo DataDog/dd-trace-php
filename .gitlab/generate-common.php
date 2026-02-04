@@ -206,6 +206,8 @@ foreach ($arch_targets as $arch_target) {
       ACCEPT_EULA: Y
       MSSQL_SA_PASSWORD: Password12!
       MSSQL_PID: Developer
+      MSSQL_TCP_PORT: 1433
+      MSSQL_AGENT_ENABLED: "false"
 
   googlespanner:
     name: registry.ddbuild.io/images/mirror/cloud-spanner-emulator/emulator:1.5.25
