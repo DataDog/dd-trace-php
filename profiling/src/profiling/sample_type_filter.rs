@@ -78,38 +78,11 @@ impl SampleTypeFilter {
 
             #[cfg(feature = "io_profiling")]
             if system_settings.profiling_io_enabled {
-                sample_types.push(SAMPLE_TYPES[9]);
-                sample_types_mask[9] = true;
-                sample_types.push(SAMPLE_TYPES[10]);
-                sample_types_mask[10] = true;
-                sample_types.push(SAMPLE_TYPES[11]);
-                sample_types_mask[11] = true;
-                sample_types.push(SAMPLE_TYPES[12]);
-                sample_types_mask[12] = true;
-                sample_types.push(SAMPLE_TYPES[13]);
-                sample_types_mask[13] = true;
-                sample_types.push(SAMPLE_TYPES[14]);
-                sample_types_mask[14] = true;
-                sample_types.push(SAMPLE_TYPES[15]);
-                sample_types_mask[15] = true;
-                sample_types.push(SAMPLE_TYPES[16]);
-                sample_types_mask[16] = true;
-                sample_types.push(SAMPLE_TYPES[17]);
-                sample_types_mask[17] = true;
-                sample_types.push(SAMPLE_TYPES[18]);
-                sample_types_mask[18] = true;
-                sample_types.push(SAMPLE_TYPES[19]);
-                sample_types_mask[19] = true;
-                sample_types.push(SAMPLE_TYPES[20]);
-                sample_types_mask[20] = true;
-                sample_types.push(SAMPLE_TYPES[21]);
-                sample_types_mask[21] = true;
-                sample_types.push(SAMPLE_TYPES[22]);
-                sample_types_mask[22] = true;
-                sample_types.push(SAMPLE_TYPES[23]);
-                sample_types_mask[23] = true;
-                sample_types.push(SAMPLE_TYPES[24]);
-                sample_types_mask[24] = true;
+                // I/O sample types are at indices 9..=24
+                for i in 9..=24 {
+                    sample_types.push(SAMPLE_TYPES[i]);
+                    sample_types_mask[i] = true;
+                }
             }
         }
 
@@ -124,9 +97,6 @@ impl SampleTypeFilter {
     }
 
     pub fn filter(&self, sample_values: SampleValues) -> Vec<i64> {
-        let mut output = Vec::new();
-        output.reserve_exact(self.sample_types.len());
-
         // Lay this out in the same order as SampleValues.
         // Allows us to slice the SampleValues as if they were an array.
         let values: [i64; MAX_SAMPLE_TYPES] = [
@@ -157,13 +127,11 @@ impl SampleTypeFilter {
             sample_values.file_write_size_samples,
         ];
 
-        for (value, enabled) in values.into_iter().zip(self.sample_types_mask.iter()) {
-            if *enabled {
-                output.push(value);
-            }
-        }
-
-        output
+        values
+            .into_iter()
+            .zip(self.sample_types_mask.iter())
+            .filter_map(|(value, &enabled)| enabled.then_some(value))
+            .collect()
     }
 }
 
