@@ -102,6 +102,74 @@ impl BuildHasher for PointerHasherBuilder {
 /// Type alias for the heap tracker with our fast pointer hasher
 type HeapTracker = DashMap<usize, LiveHeapSample, PointerHasherBuilder>;
 
+/// Number of bits in the allocation bloom filter (must be power of 2).
+/// With 4096 max tracked allocations and 2 hash functions, this gives
+/// ~5% false positive rate — 95% of frees skip the DashMap lookup.
+const ALLOC_FILTER_BITS: usize = 32768;
+const ALLOC_FILTER_WORDS: usize = ALLOC_FILTER_BITS / 64; // 512 words = 4KB
+
+/// Lock-free bloom filter for quickly checking if a pointer might be tracked.
+///
+/// Uses atomic operations with Relaxed ordering — no locks, no allocations.
+/// This allows free() to skip the expensive DashMap lookup for non-tracked
+/// allocations, which are 99.9%+ of all frees.
+///
+/// False positives are acceptable (just an extra DashMap lookup).
+/// False negatives must not occur (mark before DashMap insert).
+struct AllocationFilter {
+    bits: [AtomicU64; ALLOC_FILTER_WORDS],
+}
+
+impl AllocationFilter {
+    fn new() -> Self {
+        Self {
+            bits: std::array::from_fn(|_| AtomicU64::new(0)),
+        }
+    }
+
+    #[inline]
+    fn hash1(ptr: usize) -> usize {
+        // Shift right to remove alignment bits, XOR-fold for mixing.
+        let h = ptr >> 4;
+        (h ^ (h >> 16)) & (ALLOC_FILTER_BITS - 1)
+    }
+
+    #[inline]
+    fn hash2(ptr: usize) -> usize {
+        // Multiplicative hash with a large odd constant for independent distribution.
+        let h = (ptr >> 4).wrapping_mul(0x517cc1b727220a95);
+        (h >> 16) & (ALLOC_FILTER_BITS - 1)
+    }
+
+    /// Mark a pointer as potentially tracked.
+    /// Must be called BEFORE inserting into DashMap to avoid false negatives.
+    fn mark(&self, ptr: usize) {
+        let h1 = Self::hash1(ptr);
+        let h2 = Self::hash2(ptr);
+        self.bits[h1 / 64].fetch_or(1u64 << (h1 % 64), Ordering::Relaxed);
+        self.bits[h2 / 64].fetch_or(1u64 << (h2 % 64), Ordering::Relaxed);
+    }
+
+    /// Check if a pointer might be tracked.
+    /// Returns false if definitely not tracked (fast path).
+    /// Returns true if possibly tracked (needs DashMap lookup).
+    #[inline]
+    fn might_contain(&self, ptr: usize) -> bool {
+        let h1 = Self::hash1(ptr);
+        let h2 = Self::hash2(ptr);
+        let w1 = self.bits[h1 / 64].load(Ordering::Relaxed);
+        let w2 = self.bits[h2 / 64].load(Ordering::Relaxed);
+        (w1 & (1u64 << (h1 % 64))) != 0 && (w2 & (1u64 << (h2 % 64))) != 0
+    }
+
+    /// Clear all bits.
+    fn clear(&self) {
+        for word in &self.bits {
+            word.store(0, Ordering::Relaxed);
+        }
+    }
+}
+
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
 static mut PROFILER: OnceLock<Profiler> = OnceLock::new();
@@ -332,6 +400,9 @@ pub struct Profiler {
     /// Wrapped in Arc to share with TimeCollector for batched sample emission.
     /// Uses a fast pointer hasher since addresses are already well-distributed.
     live_heap_tracker: Arc<HeapTracker>,
+
+    /// Lock-free bloom filter to skip DashMap lookups for non-tracked frees.
+    allocation_filter: AllocationFilter,
 }
 
 struct TimeCollector {
@@ -866,6 +937,7 @@ impl Profiler {
             sample_types_filter,
             system_settings: AtomicPtr::new(system_settings as *const _ as *mut _),
             live_heap_tracker,
+            allocation_filter: AllocationFilter::new(),
         }
     }
 
@@ -927,6 +999,11 @@ impl Profiler {
             return false;
         }
 
+        // Mark in chunk bitmap BEFORE inserting into DashMap to avoid false negatives.
+        // Order matters: if we insert first and another thread calls free() before
+        // we mark, the free() would see "not tracked" and skip the DashMap lookup,
+        // leaving a stale entry.
+        self.allocation_filter.mark(ptr);
         self.live_heap_tracker.insert(ptr, sample);
         true
     }
@@ -939,6 +1016,7 @@ impl Profiler {
     /// Clear all tracked allocations (used after fork in child process)
     pub fn clear_live_heap_tracker(&self) {
         self.live_heap_tracker.clear();
+        self.allocation_filter.clear();
     }
 
     /// Get the number of currently tracked allocations
@@ -1068,8 +1146,9 @@ impl Profiler {
             profiler.message_sender = crossbeam_channel::bounded(0).0;
             profiler.upload_sender = crossbeam_channel::bounded(0).0;
 
-            // Clear live heap tracker to avoid stale entries from parent process
+            // Clear live heap tracker and allocation filter to avoid stale entries from parent process
             profiler.live_heap_tracker.clear();
+            profiler.allocation_filter.clear();
 
             // But we're not 100% sure everything is safe to drop, notably the
             // join handles, so we leak the rest.
@@ -1240,19 +1319,29 @@ impl Profiler {
     /// Called when memory is freed. Removes the allocation from tracking. The next profile export
     /// will not include this allocation in the heap-live samples.
     pub fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
-        // Bail out early if heap-live tracking is disabled to avoid DashMap lookup overhead
+        // Bail out early if heap-live tracking is disabled
         if !self.is_heap_live_enabled() {
             return;
         }
 
-        if let Some(sample) = self.untrack_allocation(ptr as usize) {
+        let ptr_usize = ptr as usize;
+
+        // FAST PATH: Check chunk bitmap first (read lock only).
+        // This avoids expensive DashMap lookup for 99.9%+ of frees that weren't tracked.
+        if !self.allocation_filter.might_contain(ptr_usize) {
+            return; // Definitely not tracked, skip DashMap lookup
+        }
+
+        // SLOW PATH: Might be tracked, check DashMap.
+        // False positives are OK (bit set but not in DashMap -> just extra lookup).
+        if let Some(sample) = self.untrack_allocation(ptr_usize) {
             trace!(
                 "Untracked freed allocation at {:#x} ({} bytes)",
-                ptr as usize,
+                ptr_usize,
                 sample.allocation_size
             );
         }
-        // If not tracked, nothing to do (wasn't sampled)
+        // If not tracked, nothing to do (was a false positive from bitmap)
     }
 
     /// Collect a stack sample with exception.
@@ -1897,5 +1986,80 @@ mod tests {
         );
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
         assert_eq!(message.value.timestamp, 900);
+    }
+
+    #[test]
+    fn allocation_filter_empty_contains_nothing() {
+        let filter = AllocationFilter::new();
+
+        // An empty filter should not match any pointers
+        assert!(!filter.might_contain(0x1000_0100));
+        assert!(!filter.might_contain(0x2000_5000));
+        assert!(!filter.might_contain(0xDEAD_BEEF));
+    }
+
+    #[test]
+    fn allocation_filter_mark_and_query() {
+        let filter = AllocationFilter::new();
+
+        let ptr1 = 0x1000_0100;
+        let ptr2 = 0x2000_5000;
+
+        filter.mark(ptr1);
+        assert!(filter.might_contain(ptr1));
+
+        filter.mark(ptr2);
+        assert!(filter.might_contain(ptr1));
+        assert!(filter.might_contain(ptr2));
+    }
+
+    #[test]
+    fn allocation_filter_clear() {
+        let filter = AllocationFilter::new();
+
+        let ptr = 0x1000_0100;
+        filter.mark(ptr);
+        assert!(filter.might_contain(ptr));
+
+        filter.clear();
+        assert!(!filter.might_contain(ptr));
+    }
+
+    #[test]
+    fn allocation_filter_low_false_positive_rate() {
+        let filter = AllocationFilter::new();
+
+        // Mark 4096 pointers (simulating max tracked allocations)
+        for i in 0..LIVE_HEAP_TRACKER_MAX_SIZE {
+            // Simulate 8-byte aligned allocations across different chunks
+            let ptr = 0x7F00_0000_0000 + i * 64;
+            filter.mark(ptr);
+        }
+
+        // All marked pointers must be found (no false negatives)
+        for i in 0..LIVE_HEAP_TRACKER_MAX_SIZE {
+            let ptr = 0x7F00_0000_0000 + i * 64;
+            assert!(filter.might_contain(ptr), "False negative at index {i}");
+        }
+
+        // Check false positive rate on unmarked pointers
+        let test_count = 100_000;
+        let mut false_positives = 0;
+        for i in 0..test_count {
+            // Use a completely different address range
+            let ptr = 0x3F00_0000_0000 + i * 64;
+            if filter.might_contain(ptr) {
+                false_positives += 1;
+            }
+        }
+
+        let fp_rate = false_positives as f64 / test_count as f64;
+        // With 32768 bits and 2 hash functions, expect ~5% FP rate.
+        // Use 15% as a generous upper bound for the test.
+        assert!(
+            fp_rate < 0.15,
+            "False positive rate too high: {:.1}% ({false_positives}/{test_count})",
+            fp_rate * 100.0
+        );
     }
 }
