@@ -231,13 +231,11 @@ pub enum ProfilerMessage {
     Wake,
 }
 
-/// A complete sample stored for live heap tracking. Contains everything needed
-/// to send an identical deallocation sample (with negated heap-live-* values).
-#[derive(Clone, Debug)]
 /// Tracked allocation for batched heap-live sample emission.
 /// Unlike the .NET profiler which tracks CLR objects via weak handles,
 /// we track raw allocation pointers. Samples are emitted in batches
 /// at profile export time, not on each allocation/free.
+#[derive(Clone, Debug)]
 pub struct LiveHeapSample {
     /// The profile index (sample_types + tags) for adding to correct profile
     pub key: ProfileIndex,
@@ -318,16 +316,17 @@ impl TimeCollector {
             let tracked = entry.value();
 
             // Build sample_values with only heap-live-samples and heap-live-size set
-            let mut sample_values = vec![0i64; tracked.key.sample_types.len()];
-            for (i, st) in tracked.key.sample_types.iter().enumerate() {
-                if st.r#type == "heap-live-samples" {
-                    sample_values[i] = 1;
-                } else if st.r#type == "heap-live-size" {
-                    sample_values[i] = tracked.allocation_size;
-                }
-            }
+            let sample_values: Vec<i64> = tracked
+                .key
+                .sample_types
+                .iter()
+                .map(|st| match st.r#type {
+                    "heap-live-samples" => 1,
+                    "heap-live-size" => tracked.allocation_size,
+                    _ => 0,
+                })
+                .collect();
 
-            // Create the sample message
             let message = SampleMessage {
                 key: tracked.key.clone(),
                 value: SampleData {
@@ -1160,14 +1159,12 @@ impl Profiler {
 
                 // Track allocation for heap live profiling if enabled.
                 // Samples will be emitted in batch at profile export time.
-                // Fetch sample_types and tags once, reuse for both tracking and sending.
-                let sample_types = self.sample_types_filter.sample_types();
-                let tags = TAGS.with_borrow(Arc::clone);
-                let key = ProfileIndex { sample_types, tags };
-
                 if self.is_heap_live_enabled() {
                     let tracked = LiveHeapSample {
-                        key: key.clone(),
+                        key: ProfileIndex {
+                            sample_types: self.sample_types_filter.sample_types(),
+                            tags: TAGS.with_borrow(Arc::clone),
+                        },
                         frames: frames.clone(),
                         labels: labels.clone(),
                         allocation_size: alloc_size,
@@ -1181,16 +1178,7 @@ impl Profiler {
                     }
                 }
 
-                let sample_values = self.sample_types_filter.filter(sample_values);
-                let message = SampleMessage {
-                    key,
-                    value: SampleData {
-                        frames,
-                        labels,
-                        sample_values,
-                        timestamp,
-                    },
-                };
+                let message = self.prepare_sample_message(frames, sample_values, labels, timestamp);
 
                 match self.message_sender.try_send(ProfilerMessage::Sample(message)) {
                     Ok(_) => trace!(
@@ -1210,6 +1198,11 @@ impl Profiler {
     /// Called when memory is freed. Removes the allocation from tracking. The next profile export
     /// will not include this allocation in the heap-live samples.
     pub fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
+        // Bail out early if heap-live tracking is disabled to avoid DashMap lookup overhead
+        if !self.is_heap_live_enabled() {
+            return;
+        }
+
         if let Some(sample) = self.untrack_allocation(ptr as usize) {
             trace!(
                 "Untracked freed allocation at {:#x} ({} bytes)",
@@ -1217,7 +1210,7 @@ impl Profiler {
                 sample.allocation_size
             );
         }
-        // If not tracked, nothing to do (wasn't sampled or tracking disabled)
+        // If not tracked, nothing to do (wasn't sampled)
     }
 
     /// Collect a stack sample with exception.
