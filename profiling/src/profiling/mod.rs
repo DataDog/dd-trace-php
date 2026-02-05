@@ -37,7 +37,7 @@ use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::hash::Hash;
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::num::NonZeroI64;
 use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
@@ -59,6 +59,49 @@ pub const NO_TIMESTAMP: i64 = 0;
 // Guide: upload period / upload timeout should give about the order of
 // magnitude for the capacity.
 const UPLOAD_CHANNEL_CAPACITY: usize = 8;
+
+/// A fast, non-cryptographic hasher optimized for pointer addresses.
+/// Since pointers are already well-distributed and typically aligned,
+/// we use a simple bit mixing approach instead of expensive hashing.
+#[derive(Default)]
+struct PointerHasher(u64);
+
+impl Hasher for PointerHasher {
+    #[inline]
+    fn write(&mut self, _bytes: &[u8]) {
+        unreachable!("PointerHasher only supports write_usize");
+    }
+
+    #[inline]
+    fn write_usize(&mut self, ptr: usize) {
+        // Pointers are typically 8 or 16-byte aligned, so shift right to spread
+        // the entropy across the lower bits. XOR with shifted value for mixing.
+        let ptr = ptr as u64;
+        self.0 = ptr ^ (ptr >> 4);
+    }
+
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
+
+/// BuildHasher that creates PointerHasher instances.
+/// DashMap requires Clone for its internal sharding.
+#[derive(Clone)]
+struct PointerHasherBuilder;
+
+impl BuildHasher for PointerHasherBuilder {
+    type Hasher = PointerHasher;
+
+    #[inline]
+    fn build_hasher(&self) -> Self::Hasher {
+        PointerHasher(0)
+    }
+}
+
+/// Type alias for the heap tracker with our fast pointer hasher
+type HeapTracker = DashMap<usize, LiveHeapSample, PointerHasherBuilder>;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
@@ -284,7 +327,8 @@ pub struct Profiler {
     /// Tracks sampled allocations for live heap profiling.
     /// Maps allocation pointer -> sample data for batched emission at export time.
     /// Wrapped in Arc to share with TimeCollector for batched sample emission.
-    live_heap_tracker: Arc<DashMap<usize, LiveHeapSample>>,
+    /// Uses a fast pointer hasher since addresses are already well-distributed.
+    live_heap_tracker: Arc<HeapTracker>,
 }
 
 struct TimeCollector {
@@ -294,7 +338,7 @@ struct TimeCollector {
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
     /// Shared tracker for batched heap-live sample emission at export time.
-    live_heap_tracker: Arc<DashMap<usize, LiveHeapSample>>,
+    live_heap_tracker: Arc<HeapTracker>,
 }
 
 impl TimeCollector {
@@ -788,7 +832,7 @@ impl Profiler {
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
-        let live_heap_tracker = Arc::new(DashMap::new());
+        let live_heap_tracker = Arc::new(DashMap::with_hasher(PointerHasherBuilder));
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
