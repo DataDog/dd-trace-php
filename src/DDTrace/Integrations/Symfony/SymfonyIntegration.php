@@ -588,6 +588,20 @@ class SymfonyIntegration extends Integration
                         $injectedActionInfo = true;
                     }
                 }
+
+                if (self::$kernel !== null
+                    && \defined(\get_class(self::$kernel) . '::VERSION')
+                    && \strpos(self::$kernel::VERSION, '4.') !== 0
+                    && self::$frameworkPrefix === SymfonyIntegration::NAME
+                    && !\DDTrace\are_endpoints_collected())
+                {
+                    /** @var ContainerInterface $container */
+                    $container = self::$kernel->getContainer();
+                    $endpoints = EndpointCatalog::generate($container);
+                    foreach ($endpoints as $endpoint) {
+                        \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
+                    }
+                }
             }
         ];
         \DDTrace\trace_method(

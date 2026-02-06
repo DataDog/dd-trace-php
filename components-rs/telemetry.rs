@@ -5,6 +5,7 @@ use hashbrown::{Equivalent, HashMap};
 use std::collections::HashSet;
 use std::ffi::CString;
 use std::path::PathBuf;
+use std::time::{Duration, Instant, SystemTime};
 
 use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
@@ -237,11 +238,12 @@ pub struct ShmCache {
     pub config_sent: bool,
     pub integrations: HashSet<String>,
     pub composer_paths: HashSet<PathBuf>,
+    pub last_endpoints_push: SystemTime,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
 }
 
 #[derive(Hash, Eq, PartialEq)]
-pub struct ShmCacheKey(String, String);
+struct ShmCacheKey(String, String);
 
 impl Equivalent<ShmCacheKey> for (&str, &str) {
     fn equivalent(&self, key: &ShmCacheKey) -> bool {
@@ -286,16 +288,18 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
                     cache.config_sent = false;
                     cache.integrations.clear();
                     cache.composer_paths.clear();
+                    cache.last_endpoints_push = SystemTime::UNIX_EPOCH;
                     return;
                 }
             }
 
-            if let Ok((config_sent, integrations, composer_paths)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>)>(buf)
+            if let Ok((config_sent, integrations, composer_paths, last_endpoints_push)) =
+                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, SystemTime)>(buf)
             {
                 cache.config_sent = config_sent;
                 cache.integrations = integrations;
                 cache.composer_paths = composer_paths;
+                cache.last_endpoints_push = last_endpoints_push;
             }
         }
     }
@@ -316,6 +320,7 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
         config_sent: false,
         integrations: HashSet::new(),
         composer_paths: HashSet::new(),
+        last_endpoints_push: SystemTime::UNIX_EPOCH,
     }).into_mut();
 
     refresh_cache(cached_entry);
@@ -358,4 +363,15 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
     ));
 
     MaybeError::None
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
+    cache: &mut ShmCacheMap,
+    service: CharSlice,
+    env: CharSlice,
+) -> bool {
+    let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
+    let result = cache_entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)); // 30 minutes
+    result
 }

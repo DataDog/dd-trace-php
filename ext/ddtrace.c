@@ -2796,6 +2796,91 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
     RETURN_NULL();
 }
 
+PHP_FUNCTION(DDTrace_are_endpoints_collected) {
+    UNUSED(execute_data);
+
+    if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
+        RETURN_FALSE;
+    }
+
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+
+    RETURN_BOOL(ddog_sidecar_telemetry_are_endpoints_collected(ddtrace_telemetry_cache(), service_name, env_name));
+}
+
+static ddog_Method dd_string_to_method(zend_string *method) {
+    if (zend_string_equals_literal(method, "GET")) {
+        return DDOG_METHOD_GET;
+    }
+    if (zend_string_equals_literal(method, "POST")) {
+        return DDOG_METHOD_POST;
+    }
+    if (zend_string_equals_literal(method, "PUT")) {
+        return DDOG_METHOD_PUT;
+    }
+    if (zend_string_equals_literal(method, "DELETE")) {
+        return DDOG_METHOD_DELETE;
+    }
+    if (zend_string_equals_literal(method, "PATCH")) {
+        return DDOG_METHOD_PATCH;
+    }
+    if (zend_string_equals_literal(method, "HEAD")) {
+        return DDOG_METHOD_HEAD;
+    }
+    if (zend_string_equals_literal(method, "OPTIONS")) {
+        return DDOG_METHOD_OPTIONS;
+    }
+    if (zend_string_equals_literal(method, "TRACE")) {
+        return DDOG_METHOD_TRACE;
+    }
+    if (zend_string_equals_literal(method, "CONNECT")) {
+        return DDOG_METHOD_CONNECT;
+    }
+    return DDOG_METHOD_OTHER;
+}
+
+PHP_FUNCTION(DDTrace_add_endpoint) {
+    UNUSED(execute_data);
+    zend_string *path = NULL;
+    zend_string *operation_name = NULL;
+    zend_string *resource_name = NULL;
+    zend_string *method = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSSS", &path, &operation_name, &resource_name, &method) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        RETURN_FALSE;
+    }
+
+    ddog_Method method_enum = dd_string_to_method(method);
+    ddog_CharSlice path_slice = dd_zend_string_to_CharSlice(path);
+    ddog_CharSlice operation_name_slice = dd_zend_string_to_CharSlice(operation_name);
+    ddog_CharSlice resource_name_slice = dd_zend_string_to_CharSlice(resource_name);
+
+    ddog_MaybeError result = ddog_sidecar_telemetry_addEndpoint(
+        &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), method_enum, path_slice, operation_name_slice,
+        resource_name_slice);
+
+    LOG_LINE(DEBUG,
+             "Adding endpoint: %.*s (%zu) - operation_name: %.*s (%zu) - resource_name: %.*s (%zu) - method: %.*s (%zu)",
+             (int)path_slice.len, (char *)path_slice.ptr, path_slice.len,
+             (int)operation_name_slice.len, (char *)operation_name_slice.ptr, operation_name_slice.len,
+             (int)resource_name_slice.len, (char *)resource_name_slice.ptr, resource_name_slice.len,
+             (int)method->len, ZSTR_VAL(method), (size_t)method->len);
+
+    if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
+        ddog_CharSlice message = ddog_Error_message(&result.some);
+        LOG_LINE(ERROR, "Error submitting  endpoint to sidecar: %.*s", (int)message.len, (char *)message.ptr);
+        ZVAL_FALSE(return_value);
+    } else {
+        ZVAL_TRUE(return_value);
+    }
+    ddog_MaybeError_drop(result);
+}
+
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;

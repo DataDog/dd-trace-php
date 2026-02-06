@@ -13,6 +13,7 @@ if [[ -f /project/tmp/build_extension/modules/ddtrace.so ]]; then
     echo extension=/project/tmp/build_extension/modules/ddtrace.so
     echo datadog.trace.sources_path=/project/src
     echo datadog.trace.generate_root_span=true
+    echo datadog.trace.log_level=debug
   } >> /etc/php/php.ini
 fi
 
