@@ -1,4 +1,4 @@
-use libdd_trace_utils::span::SpanBytes;
+use libdd_trace_utils::span::v04::SpanBytes;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::borrow::Cow;
 use std::ffi::CStr;
