@@ -39,8 +39,7 @@ class SQLSRVTest extends IntegrationTestCase
 
     private static function waitForSqlServerReady()
     {
-        // SQL Server 2022 containers can take up to 2 minutes to fully initialize
-        $maxAttempts = 120;
+        $maxAttempts = 30;
         $attempt = 0;
         $conn = false;
 
@@ -53,13 +52,12 @@ class SQLSRVTest extends IntegrationTestCase
                     'Database' => self::$db,
                     'UID' => self::$user,
                     'TrustServerCertificate' => true,
-                    'LoginTimeout' => 1,
                 ]
             );
 
             if ($conn === false) {
                 if ($attempt < $maxAttempts) {
-                    usleep(1000000); // 1 second between attempts
+                    usleep(500000);
                 }
             }
         }
