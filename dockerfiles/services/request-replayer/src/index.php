@@ -163,6 +163,15 @@ switch ($uri) {
     case '/v0.7/config':
         $request = file_get_contents('php://input');
         logRequest("Requested remote config", $request);
+
+        if (file_exists(REQUEST_LATEST_DUMP_FILE)) {
+            $tracesStack = json_decode(file_get_contents(REQUEST_LATEST_DUMP_FILE), true);
+        } else {
+            $tracesStack = [];
+        }
+        $tracesStack[] = ['uri' => $_SERVER['REQUEST_URI'], 'headers' => getallheaders(), 'body' => $request];
+        file_put_contents(REQUEST_LATEST_DUMP_FILE, json_encode($tracesStack));
+
         $request = json_decode($request, true);
         $recentUpdate = @filemtime(REQUEST_RC_CONFIGS_FILE) > time() - 2;
         $response = [

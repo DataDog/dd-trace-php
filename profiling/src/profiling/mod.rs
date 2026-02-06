@@ -1,9 +1,11 @@
+mod backtrace;
 mod interrupts;
 mod sample_type_filter;
 pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
+pub use backtrace::Backtrace;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
@@ -25,6 +27,7 @@ use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
+use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
@@ -36,7 +39,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -60,6 +63,32 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
 static mut PROFILER: OnceLock<Profiler> = OnceLock::new();
+
+pub static STACK_WALK_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static STACK_WALK_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+pub static DDPROF_TIME_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+pub static DDPROF_UPLOAD_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+
+fn cpu_time_delta_ns(now: ThreadTime, prev: ThreadTime) -> u64 {
+    match now.as_duration().checked_sub(prev.as_duration()) {
+        Some(duration) => duration.as_nanos().try_into().unwrap_or(u64::MAX),
+        None => 0,
+    }
+}
+
+pub(crate) fn update_cpu_time_counter(last: &mut Option<ThreadTime>, counter: &AtomicU64) {
+    let Some(prev) = last.take() else {
+        *last = ThreadTime::try_now().ok();
+        return;
+    };
+    if let Ok(now) = ThreadTime::try_now() {
+        let elapsed_ns = cpu_time_delta_ns(now, prev);
+        counter.fetch_add(elapsed_ns, Ordering::Relaxed);
+        *last = Some(now);
+    } else {
+        *last = Some(prev);
+    }
+}
 
 /// Order this array this way:
 ///  1. Always enabled types.
@@ -172,7 +201,7 @@ pub struct ProfileIndex {
 
 #[derive(Debug)]
 pub struct SampleData {
-    pub frames: Vec<ZendFrame>,
+    pub frames: Backtrace,
     pub labels: Vec<Label>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
@@ -526,7 +555,7 @@ impl TimeCollector {
         let values = message.value.sample_values;
         let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
-        for frame in &message.value.frames {
+        for frame in message.value.frames.iter() {
             let location = Location {
                 function: Function {
                     name: frame.function.as_ref(),
@@ -569,6 +598,7 @@ impl TimeCollector {
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let never = crossbeam_channel::never();
         let mut running = true;
+        let mut last_cpu = ThreadTime::try_now().ok();
 
         while running {
             // The crossbeam_channel::select! doesn't have the ability to
@@ -594,6 +624,7 @@ impl TimeCollector {
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
                                 // flush what we have before exiting
+                                update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
                                 last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                                 running = false;
                             },
@@ -631,6 +662,7 @@ impl TimeCollector {
 
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
+                        update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                     }
                 },
@@ -915,13 +947,29 @@ impl Profiler {
         unsafe { (*system_settings).profiling_timeline_enabled }
     }
 
+    fn collect_stack_sample_timed(
+        &self,
+        execute_data: *mut zend_execute_data,
+    ) -> Result<Backtrace, CollectStackSampleError> {
+        let start = ThreadTime::try_now().ok();
+        let result = collect_stack_sample(execute_data);
+        STACK_WALK_COUNT.fetch_add(1, Ordering::Relaxed);
+        if let Some(start) = start {
+            if let Ok(end) = ThreadTime::try_now() {
+                let elapsed_ns = cpu_time_delta_ns(end, start);
+                STACK_WALK_CPU_TIME_NS.fetch_add(elapsed_ns, Ordering::Relaxed);
+            }
+        }
+        result
+    }
+
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -969,7 +1017,7 @@ impl Profiler {
         alloc_size: i64,
         interrupt_count: Option<u32>,
     ) {
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1022,7 +1070,7 @@ impl Profiler {
         exception: String,
         message: Option<String>,
     ) {
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1079,11 +1127,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: COW_EVAL,
                 file: Some(Cow::Owned(filename)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1120,11 +1168,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: format!("[{include_type}]").into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1157,11 +1205,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: format!("[{event}]").into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1195,11 +1243,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[fatal]".into(),
                 file: Some(Cow::Owned(file)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1242,11 +1290,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[opcache restart]".into(),
                 file: Some(Cow::Owned(file)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1276,11 +1324,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[idle]".into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1332,11 +1380,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[gc]".into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1422,7 +1470,7 @@ impl Profiler {
     where
         F: FnOnce(&mut SampleValues),
     {
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1518,7 +1566,7 @@ impl Profiler {
 
     fn prepare_and_send_message(
         &self,
-        frames: Vec<ZendFrame>,
+        frames: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1531,7 +1579,7 @@ impl Profiler {
 
     fn prepare_sample_message(
         &self,
-        frames: Vec<ZendFrame>,
+        frames: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1570,12 +1618,12 @@ mod tests {
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
 
-    fn get_frames() -> Vec<ZendFrame> {
-        vec![ZendFrame {
+    fn get_frames() -> Backtrace {
+        Backtrace::new(vec![ZendFrame {
             function: "foobar()".into(),
             file: Some("foobar.php".into()),
             line: 42,
-        }]
+        }])
     }
 
     pub fn get_system_settings() -> SystemSettings {
