@@ -1,7 +1,7 @@
 use crate::config::SystemSettings;
 use crate::profiling::{SampleValues, ValueType};
 
-const MAX_SAMPLE_TYPES: usize = 23;
+const MAX_SAMPLE_TYPES: usize = 25;
 
 pub struct SampleTypeFilter {
     sample_types: Vec<ValueType>,
@@ -17,6 +17,8 @@ impl SampleTypeFilter {
             ValueType::new("cpu-time", "nanoseconds"),
             ValueType::new("alloc-samples", "count"),
             ValueType::new("alloc-size", "bytes"),
+            ValueType::new("heap-live-samples", "count"),
+            ValueType::new("heap-live-size", "bytes"),
             ValueType::new("timeline", "nanoseconds"),
             ValueType::new("exception-samples", "count"),
             ValueType::new("socket-read-time", "nanoseconds"),
@@ -55,50 +57,32 @@ impl SampleTypeFilter {
                 sample_types_mask[4] = true;
             }
 
-            if system_settings.profiling_timeline_enabled {
-                sample_types.push(SAMPLE_TYPES[5]);
+            // heap-live-samples, heap-live-size (indices 5, 6)
+            if system_settings.profiling_allocation_enabled
+                && system_settings.profiling_heap_live_enabled
+            {
+                sample_types.extend_from_slice(&SAMPLE_TYPES[5..7]);
                 sample_types_mask[5] = true;
+                sample_types_mask[6] = true;
+            }
+
+            if system_settings.profiling_timeline_enabled {
+                sample_types.push(SAMPLE_TYPES[7]);
+                sample_types_mask[7] = true;
             }
 
             if system_settings.profiling_exception_enabled {
-                sample_types.push(SAMPLE_TYPES[6]);
-                sample_types_mask[6] = true;
+                sample_types.push(SAMPLE_TYPES[8]);
+                sample_types_mask[8] = true;
             }
 
             #[cfg(feature = "io_profiling")]
             if system_settings.profiling_io_enabled {
-                sample_types.push(SAMPLE_TYPES[7]);
-                sample_types_mask[7] = true;
-                sample_types.push(SAMPLE_TYPES[8]);
-                sample_types_mask[8] = true;
-                sample_types.push(SAMPLE_TYPES[9]);
-                sample_types_mask[9] = true;
-                sample_types.push(SAMPLE_TYPES[10]);
-                sample_types_mask[10] = true;
-                sample_types.push(SAMPLE_TYPES[11]);
-                sample_types_mask[11] = true;
-                sample_types.push(SAMPLE_TYPES[12]);
-                sample_types_mask[12] = true;
-                sample_types.push(SAMPLE_TYPES[13]);
-                sample_types_mask[13] = true;
-                sample_types.push(SAMPLE_TYPES[14]);
-                sample_types_mask[14] = true;
-                sample_types.push(SAMPLE_TYPES[15]);
-                sample_types_mask[15] = true;
-                sample_types.push(SAMPLE_TYPES[16]);
-                sample_types_mask[16] = true;
-                sample_types.push(SAMPLE_TYPES[17]);
-                sample_types_mask[17] = true;
-                sample_types.push(SAMPLE_TYPES[18]);
-                sample_types_mask[18] = true;
-                sample_types.push(SAMPLE_TYPES[19]);
-                sample_types_mask[19] = true;
-                sample_types.push(SAMPLE_TYPES[20]);
-                sample_types_mask[20] = true;
-                sample_types.push(SAMPLE_TYPES[21]);
-                sample_types_mask[21] = true;
-                sample_types.push(SAMPLE_TYPES[22]);
-                sample_types_mask[22] = true;
+                // I/O sample types are at indices 9..=24
+                for i in 9..=24 {
+                    sample_types.push(SAMPLE_TYPES[i]);
+                    sample_types_mask[i] = true;
+                }
             }
         }
 
@@ -113,9 +97,6 @@ impl SampleTypeFilter {
     }
 
     pub fn filter(&self, sample_values: SampleValues) -> Vec<i64> {
-        let mut output = Vec::new();
-        output.reserve_exact(self.sample_types.len());
-
         // Lay this out in the same order as SampleValues.
         // Allows us to slice the SampleValues as if they were an array.
         let values: [i64; MAX_SAMPLE_TYPES] = [
@@ -124,6 +105,8 @@ impl SampleTypeFilter {
             sample_values.cpu_time,
             sample_values.alloc_samples,
             sample_values.alloc_size,
+            sample_values.heap_live_samples,
+            sample_values.heap_live_size,
             sample_values.timeline,
             sample_values.exception,
             sample_values.socket_read_time,
@@ -144,13 +127,11 @@ impl SampleTypeFilter {
             sample_values.file_write_size_samples,
         ];
 
-        for (value, enabled) in values.into_iter().zip(self.sample_types_mask.iter()) {
-            if *enabled {
-                output.push(value);
-            }
-        }
-
-        output
+        values
+            .into_iter()
+            .zip(self.sample_types_mask.iter())
+            .filter_map(|(value, &enabled)| enabled.then_some(value))
+            .collect()
     }
 }
 
@@ -287,5 +268,81 @@ mod tests {
             ]
         );
         assert_eq!(values, vec![10, 20, 30, 70]);
+    }
+
+    #[test]
+    fn filter_with_heap_live() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = true;
+        settings.profiling_heap_live_enabled = true;
+        settings.profiling_experimental_cpu_time_enabled = false;
+
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
+
+        assert_eq!(
+            types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("alloc-samples", "count"),
+                ValueType::new("alloc-size", "bytes"),
+                ValueType::new("heap-live-samples", "count"),
+                ValueType::new("heap-live-size", "bytes"),
+            ]
+        );
+        assert_eq!(values, vec![10, 20, 40, 50, 55, 56]);
+    }
+
+    #[test]
+    fn filter_with_heap_live_requires_allocation_enabled() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = false;
+        settings.profiling_heap_live_enabled = true;
+        settings.profiling_experimental_cpu_time_enabled = false;
+
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
+
+        // heap-live should NOT be included when allocation profiling is disabled
+        assert_eq!(
+            types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+            ]
+        );
+        assert_eq!(values, vec![10, 20]);
+    }
+
+    #[test]
+    fn filter_with_allocations_and_heap_live_and_cpu_time() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = true;
+        settings.profiling_heap_live_enabled = true;
+        settings.profiling_experimental_cpu_time_enabled = true;
+
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
+
+        assert_eq!(
+            types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("cpu-time", "nanoseconds"),
+                ValueType::new("alloc-samples", "count"),
+                ValueType::new("alloc-size", "bytes"),
+                ValueType::new("heap-live-samples", "count"),
+                ValueType::new("heap-live-size", "bytes"),
+            ]
+        );
+        assert_eq!(values, vec![10, 20, 30, 40, 50, 55, 56]);
     }
 }
