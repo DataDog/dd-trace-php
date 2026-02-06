@@ -224,6 +224,10 @@ final class WebServer
             }
         }
 
+        // Start PHP-FPM first (if FastCGI), as nginx depends on it
+        $this->sapi->start();
+
+        // Then start nginx (if needed)
         if ($this->sapi->isFastCgi()) {
             $this->server = new NginxServer(
                 $this->indexFile,
@@ -234,9 +238,6 @@ final class WebServer
             );
             $this->server->start();
         }
-
-        $this->sapi->start();
-        usleep(500000);
     }
 
     public function reload()

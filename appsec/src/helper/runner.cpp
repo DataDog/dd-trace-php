@@ -6,27 +6,27 @@
 #include "runner.hpp"
 
 #include "client.hpp"
+#include "ffi.hpp"
+#include <chrono>
 #include <csignal>
-#include <cstdio>
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 #include <sys/stat.h>
+#include <thread>
 
 extern "C" {
+#include <common.h>
 #include <dlfcn.h>
 }
 
-namespace {
-struct ConfigInvariants;
-struct Arc_Target;
-
 using in_proc_notify_fn = void (*)(
-    const ConfigInvariants *invariants, const Arc_Target *target);
+    const ddog_ConfigInvariants *invariants, const ddog_Arc_Target *target);
 
-void (*ddog_set_rc_notify_fn)(in_proc_notify_fn notify_fn);
-char *(*ddog_remote_config_path)(const ConfigInvariants *, const Arc_Target *);
-void (*ddog_remote_config_path_free)(char *);
-} // namespace
+extern "C" void ddog_set_rc_notify_fn(in_proc_notify_fn notify_fn);
+
+SIDECAR_FFI_SYMBOL(ddog_set_rc_notify_fn);
+SIDECAR_FFI_SYMBOL(ddog_remote_config_path);
+SIDECAR_FFI_SYMBOL(ddog_remote_config_path_free);
 
 namespace dds {
 
@@ -109,31 +109,25 @@ void runner::register_for_rc_notifications()
     SPDLOG_INFO("Register RC update callback");
     std::atomic_store(&runner::RUNNER_FOR_NOTIFICATIONS, shared_from_this());
 
-    ddog_set_rc_notify_fn(
-        [](const ConfigInvariants *invariants, const Arc_Target *target) {
-            char *path = ddog_remote_config_path(invariants, target);
+    ffi::ddog_set_rc_notify_fn([](const ddog_ConfigInvariants *invariants,
+                                   const ddog_Arc_Target *target) {
+        char *path = ffi::ddog_remote_config_path(invariants, target);
 
-            if (path == nullptr) {
-                // NOLINTNEXTLINE(bugprone-lambda-function-name)
-                SPDLOG_ERROR("Failed to get remote config path");
-                return;
-            }
-
-            const std::shared_ptr<runner> runner =
-                std::atomic_load(&RUNNER_FOR_NOTIFICATIONS);
-            if (!runner) {
-                // NOLINTNEXTLINE(bugprone-lambda-function-name)
-                SPDLOG_WARN("No runner to notify of remote config updates");
-                ddog_remote_config_path_free(path);
-                return;
-            }
-
+        const std::shared_ptr<runner> runner =
+            std::atomic_load(&RUNNER_FOR_NOTIFICATIONS);
+        if (!runner) {
             // NOLINTNEXTLINE(bugprone-lambda-function-name)
-            SPDLOG_INFO("Remote config updated notification for {}", path);
-            // TODO: move the updates to a separate thread
-            runner->service_manager_->notify_of_rc_updates(path);
-            ddog_remote_config_path_free(path);
-        });
+            SPDLOG_WARN("No runner to notify of remote config updates");
+            ffi::ddog_remote_config_path_free(path);
+            return;
+        }
+
+        // NOLINTNEXTLINE(bugprone-lambda-function-name)
+        SPDLOG_INFO("Remote config updated notification for {}", path);
+        // TODO: move the updates to a separate thread
+        runner->service_manager_->notify_of_rc_updates(path);
+        ffi::ddog_remote_config_path_free(path);
+    });
 }
 
 void runner::unregister_for_rc_notifications()
@@ -187,33 +181,6 @@ void runner::run()
     SPDLOG_INFO("Runner exiting, stopping pool");
     worker_pool_.stop();
     SPDLOG_INFO("Pool stopped");
-}
-
-void runner::resolve_symbols()
-{
-    // NOLINTNEXTLINE
-    ddog_set_rc_notify_fn = reinterpret_cast<decltype(ddog_set_rc_notify_fn)>(
-        dlsym(RTLD_DEFAULT, "ddog_set_rc_notify_fn"));
-    if (ddog_set_rc_notify_fn == nullptr) {
-        throw std::runtime_error{"Failed to resolve ddog_set_rc_notify_fn"};
-    }
-
-    ddog_remote_config_path =
-        // NOLINTNEXTLINE
-        reinterpret_cast<decltype(ddog_remote_config_path)>(
-            dlsym(RTLD_DEFAULT, "ddog_remote_config_path"));
-    if (ddog_remote_config_path == nullptr) {
-        throw std::runtime_error{"Failed to resolve ddog_remote_config_path"};
-    }
-
-    ddog_remote_config_path_free =
-        // NOLINTNEXTLINE
-        reinterpret_cast<decltype(ddog_remote_config_path_free)>(
-            dlsym(RTLD_DEFAULT, "ddog_remote_config_path_free"));
-    if (ddog_remote_config_path_free == nullptr) {
-        throw std::runtime_error{
-            "Failed to resolve ddog_remote_config_path_free"};
-    }
 }
 
 } // namespace dds

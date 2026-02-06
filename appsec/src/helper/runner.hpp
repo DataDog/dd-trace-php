@@ -25,8 +25,6 @@ public:
     runner &operator=(runner &&) = delete;
     ~runner() = default;
 
-    static void resolve_symbols();
-
     void run() noexcept(false);
 
     void register_for_rc_notifications();

@@ -25,6 +25,16 @@ final class NginxServer
     private $rootPath;
 
     /**
+     * @var string
+     */
+    private $serverHost;
+
+    /**
+     * @var int
+     */
+    private $hostPort;
+
+    /**
      * @param string $indexFile
      * @param string $serverHost
      * @param string $hostPort
@@ -35,6 +45,8 @@ final class NginxServer
     public function __construct($indexFile, $serverHost, $hostPort, $fastCGIHost, $fastCGIPort)
     {
         $this->rootPath = dirname($indexFile);
+        $this->serverHost = $serverHost;
+        $this->hostPort = $hostPort;
         $replacements = [
             '{{root_path}}' => $this->rootPath,
             '{{index_file}}' => basename($indexFile),
@@ -76,6 +88,27 @@ final class NginxServer
 
         $this->process = new Process($processCmd);
         $this->process->start();
+
+        if (!$this->waitUntilServerRunning()) {
+            error_log("[nginx] Server never came up...");
+            return;
+        }
+        error_log("[nginx] Server is up and responding...");
+    }
+
+    public function waitUntilServerRunning()
+    {
+        //Let's wait until nginx is accepting connections
+        for ($try = 0; $try < 40; $try++) {
+            $socket = @fsockopen($this->serverHost, $this->hostPort);
+            if ($socket !== false) {
+                fclose($socket);
+                return true;
+            }
+            usleep(50000);
+        }
+
+        return false;
     }
 
     public function stop()

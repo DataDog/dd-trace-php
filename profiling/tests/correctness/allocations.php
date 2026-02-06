@@ -2,12 +2,14 @@
 
 function a()
 {
-    str_repeat("a", 1024 * 120_000);
+    $a = str_repeat("a", 1024 * 12_000);
+    str_replace('a', 'b', $a);
 }
 
 function b()
 {
-    str_repeat("a", 1024 * 60_000);
+    $a = str_repeat("a", 1024 * 6_000);
+    str_replace('a', 'b', $a);
 }
 
 function main()

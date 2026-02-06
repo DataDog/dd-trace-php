@@ -33,7 +33,7 @@ stages:
   after_script:
     - mkdir -p tmp/artifacts
     - cp tmp/build_php_components_asan/Testing/Temporary/LastTest.log tmp/artifacts/LastTestASan.log
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:components-rs"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:components-rs"
   artifacts:
     reports:
       junit: "artifacts/*-results.xml"
@@ -57,7 +57,7 @@ stages:
   after_script:
     - mkdir -p tmp/artifacts
     - cp tmp/build_php_components_ubsan/Testing/Temporary/LastTest.log tmp/artifacts/LastTestUBSan.log
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:components-rs"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:components-rs"
   artifacts:
     reports:
       junit: "artifacts/*-results.xml"
@@ -85,7 +85,7 @@ stages:
   after_script:
     - mkdir -p tmp/artifacts/
     - cp tmp/build-tea-${SWITCH_PHP_VERSION}/Testing/Temporary/LastTest.log tmp/artifacts/LastTest.log
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:zend_abstract_interface"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:zend_abstract_interface"
   artifacts:
     reports:
       junit: "artifacts/*-results.xml"
@@ -107,7 +107,7 @@ stages:
   after_script:
     - mkdir -p tmp/artifacts
     - cp tmp/build*/Testing/Temporary/LastTest.log tmp/artifacts/LastTest.log
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:zend_abstract_interface"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:zend_abstract_interface"
   artifacts:
     reports:
       junit: "artifacts/*-results.xml"

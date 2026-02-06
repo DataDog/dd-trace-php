@@ -1,9 +1,11 @@
+mod backtrace;
 mod interrupts;
 mod sample_type_filter;
 pub mod stack_walking;
 mod thread_utils;
 mod uploader;
 
+pub use backtrace::Backtrace;
 pub use interrupts::*;
 pub use sample_type_filter::*;
 pub use stack_walking::*;
@@ -23,6 +25,7 @@ use crate::{Clocks, CLOCKS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
+use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
@@ -30,13 +33,12 @@ use libdd_profiling::api::{
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
-use once_cell::sync::OnceCell;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::num::NonZeroI64;
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, Ordering};
-use std::sync::{Arc, Barrier};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
+use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -58,7 +60,33 @@ const UPLOAD_CHANNEL_CAPACITY: usize = 8;
 
 /// The global profiler. Profiler gets made during the first rinit after an
 /// minit, and is destroyed on mshutdown.
-static mut PROFILER: OnceCell<Profiler> = OnceCell::new();
+static mut PROFILER: OnceLock<Profiler> = OnceLock::new();
+
+pub static STACK_WALK_COUNT: AtomicU64 = AtomicU64::new(0);
+pub static STACK_WALK_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+pub static DDPROF_TIME_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+pub static DDPROF_UPLOAD_CPU_TIME_NS: AtomicU64 = AtomicU64::new(0);
+
+fn cpu_time_delta_ns(now: ThreadTime, prev: ThreadTime) -> u64 {
+    match now.as_duration().checked_sub(prev.as_duration()) {
+        Some(duration) => duration.as_nanos().try_into().unwrap_or(u64::MAX),
+        None => 0,
+    }
+}
+
+pub(crate) fn update_cpu_time_counter(last: &mut Option<ThreadTime>, counter: &AtomicU64) {
+    let Some(prev) = last.take() else {
+        *last = ThreadTime::try_now().ok();
+        return;
+    };
+    if let Ok(now) = ThreadTime::try_now() {
+        let elapsed_ns = cpu_time_delta_ns(now, prev);
+        counter.fetch_add(elapsed_ns, Ordering::Relaxed);
+        *last = Some(now);
+    } else {
+        *last = Some(prev);
+    }
+}
 
 /// Order this array this way:
 ///  1. Always enabled types.
@@ -171,7 +199,7 @@ pub struct ProfileIndex {
 
 #[derive(Debug)]
 pub struct SampleData {
-    pub frames: Vec<ZendFrame>,
+    pub frames: Backtrace,
     pub labels: Vec<Label>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
@@ -525,7 +553,7 @@ impl TimeCollector {
         let values = message.value.sample_values;
         let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
-        for frame in &message.value.frames {
+        for frame in message.value.frames.iter() {
             let location = Location {
                 function: Function {
                     name: frame.function.as_ref(),
@@ -568,6 +596,7 @@ impl TimeCollector {
         let upload_tick = crossbeam_channel::tick(self.upload_period);
         let never = crossbeam_channel::never();
         let mut running = true;
+        let mut last_cpu = ThreadTime::try_now().ok();
 
         while running {
             // The crossbeam_channel::select! doesn't have the ability to
@@ -593,6 +622,7 @@ impl TimeCollector {
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
                                 // flush what we have before exiting
+                                update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
                                 last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                                 running = false;
                             },
@@ -630,6 +660,7 @@ impl TimeCollector {
 
                 recv(upload_tick) -> message => {
                     if message.is_ok() {
+                        update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
                     }
                 },
@@ -657,7 +688,7 @@ const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
 
 impl Profiler {
-    /// Will initialize the `PROFILER` OnceCell and makes sure that only one thread will do so.
+    /// Will initialize the `PROFILER` OnceLock and makes sure that only one thread will do so.
     pub fn init(system_settings: &SystemSettings) {
         // SAFETY: the `get_or_init` access is a thread-safe API, and the
         // PROFILER is only being mutated in single-threaded phases such as
@@ -902,13 +933,29 @@ impl Profiler {
         unsafe { (*system_settings).profiling_timeline_enabled }
     }
 
+    fn collect_stack_sample_timed(
+        &self,
+        execute_data: *mut zend_execute_data,
+    ) -> Result<Backtrace, CollectStackSampleError> {
+        let start = ThreadTime::try_now().ok();
+        let result = collect_stack_sample(execute_data);
+        STACK_WALK_COUNT.fetch_add(1, Ordering::Relaxed);
+        if let Some(start) = start {
+            if let Ok(end) = ThreadTime::try_now() {
+                let elapsed_ns = cpu_time_delta_ns(end, start);
+                STACK_WALK_CPU_TIME_NS.fetch_add(elapsed_ns, Ordering::Relaxed);
+            }
+        }
+        result
+    }
+
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -917,14 +964,7 @@ impl Profiler {
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
-                let mut timestamp = NO_TIMESTAMP;
-                {
-                    if self.is_timeline_enabled() {
-                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                            timestamp = now.as_nanos() as i64;
-                        }
-                    }
-                }
+                let timestamp = self.get_timeline_timestamp();
 
                 match self.prepare_and_send_message(
                     frames,
@@ -951,33 +991,51 @@ impl Profiler {
         }
     }
 
-    /// Collect a stack sample with memory allocations.
+    /// Collect a stack sample with memory allocations, and optionally time data.
+    ///
+    /// When `interrupt_count` is provided, this piggybacks time sampling onto
+    /// allocation sampling to avoid redundant stack walks.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_allocations(
         &self,
         execute_data: *mut zend_execute_data,
         alloc_samples: i64,
         alloc_size: i64,
+        interrupt_count: Option<u32>,
     ) {
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
+
+                // Optionally collect time data when interrupt_count is provided
+                let (interrupt_count, wall_time, cpu_time, timestamp) =
+                    if let Some(count) = interrupt_count {
+                        let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
+                        let timestamp = self.get_timeline_timestamp();
+                        (count as i64, wall_time, cpu_time, timestamp)
+                    } else {
+                        (0, 0, 0, NO_TIMESTAMP)
+                    };
+
                 let labels = Profiler::common_labels(0);
                 let n_labels = labels.len();
 
                 match self.prepare_and_send_message(
                     frames,
                     SampleValues {
-                        alloc_size,
+                        interrupt_count,
+                        wall_time,
+                        cpu_time,
                         alloc_samples,
+                        alloc_size,
                         ..Default::default()
                     },
                     labels,
-                    NO_TIMESTAMP,
+                    timestamp,
                 ) {
                     Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler."
+                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
                     ),
                     Err(err) => warn!(
                         "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
@@ -998,7 +1056,7 @@ impl Profiler {
         exception: String,
         message: Option<String>,
     ) {
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1018,14 +1076,7 @@ impl Profiler {
 
                 let n_labels = labels.len();
 
-                let mut timestamp = NO_TIMESTAMP;
-                {
-                    if self.is_timeline_enabled() {
-                        if let Ok(now) = SystemTime::now().duration_since(UNIX_EPOCH) {
-                            timestamp = now.as_nanos() as i64;
-                        }
-                    }
-                }
+                let timestamp = self.get_timeline_timestamp();
 
                 match self.prepare_and_send_message(
                     frames,
@@ -1062,11 +1113,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: COW_EVAL,
                 file: Some(Cow::Owned(filename)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1103,11 +1154,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: format!("[{include_type}]").into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1140,11 +1191,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: format!("[{event}]").into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1178,11 +1229,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[fatal]".into(),
                 file: Some(Cow::Owned(file)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1225,11 +1276,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[opcache restart]".into(),
                 file: Some(Cow::Owned(file)),
                 line,
-            }],
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1259,11 +1310,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[idle]".into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1315,11 +1366,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            vec![ZendFrame {
+            Backtrace::new(vec![ZendFrame {
                 function: "[gc]".into(),
                 file: None,
                 line: 0,
-            }],
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1405,7 +1456,7 @@ impl Profiler {
     where
         F: FnOnce(&mut SampleValues),
     {
-        let result = collect_stack_sample(execute_data);
+        let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
@@ -1434,6 +1485,16 @@ impl Profiler {
                 warn!("Failed to collect stack sample: {err}")
             }
         }
+    }
+
+    /// Gets a timestamp for timeline profiling if timeline is enabled.
+    /// Returns NO_TIMESTAMP if timeline is disabled or if getting the time fails.
+    fn get_timeline_timestamp(&self) -> i64 {
+        self.is_timeline_enabled()
+            .then(|| SystemTime::now().duration_since(UNIX_EPOCH).ok())
+            .flatten()
+            .map(|now| now.as_nanos() as i64)
+            .unwrap_or(NO_TIMESTAMP)
     }
 
     /// Creates the common message labels for all samples.
@@ -1491,7 +1552,7 @@ impl Profiler {
 
     fn prepare_and_send_message(
         &self,
-        frames: Vec<ZendFrame>,
+        frames: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1504,7 +1565,7 @@ impl Profiler {
 
     fn prepare_sample_message(
         &self,
-        frames: Vec<ZendFrame>,
+        frames: Backtrace,
         samples: SampleValues,
         labels: Vec<Label>,
         timestamp: i64,
@@ -1543,12 +1604,12 @@ mod tests {
     use libdd_profiling::exporter::Uri;
     use log::LevelFilter;
 
-    fn get_frames() -> Vec<ZendFrame> {
-        vec![ZendFrame {
+    fn get_frames() -> Backtrace {
+        Backtrace::new(vec![ZendFrame {
             function: "foobar()".into(),
             file: Some("foobar.php".into()),
             line: 42,
-        }]
+        }])
     }
 
     pub fn get_system_settings() -> SystemSettings {

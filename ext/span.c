@@ -854,6 +854,29 @@ void ddtrace_close_span(ddtrace_span_data *span) {
         ddtrace_switch_span_stack(span->stack);
     }
 
+    ddtrace_close_stack_userland_spans_until(span);
+
+    ddtrace_close_top_span_without_stack_swap(span);
+}
+
+void ddtrace_close_span_restore_stack(ddtrace_span_data *span) {
+    assert(span != NULL);
+    if (span->type == DDTRACE_SPAN_CLOSED) {
+        return;
+    }
+
+    // switches to the stack of the passed span, closes the span and switches back to the original stack
+    ddtrace_span_stack *active_stack_before = DDTRACE_G(active_stack);
+    assert(active_stack_before != NULL);
+    GC_ADDREF(&active_stack_before->std);
+
+    ddtrace_close_span(span);
+
+    ddtrace_switch_span_stack(active_stack_before);
+    GC_DELREF(&active_stack_before->std);
+}
+
+void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     if (span->std.ce == ddtrace_ce_root_span_data) {
         ddtrace_span_data *inferred_span = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
         if (inferred_span) {
@@ -912,29 +935,6 @@ void ddtrace_close_span(ddtrace_span_data *span) {
     // Must be done at closing because we need to read the "component" span's meta which is not available at creation
     ddtrace_telemetry_inc_spans_created(span);
 
-    ddtrace_close_stack_userland_spans_until(span);
-
-    ddtrace_close_top_span_without_stack_swap(span);
-}
-
-void ddtrace_close_span_restore_stack(ddtrace_span_data *span) {
-    assert(span != NULL);
-    if (span->type == DDTRACE_SPAN_CLOSED) {
-        return;
-    }
-
-    // switches to the stack of the passed span, closes the span and switches back to the original stack
-    ddtrace_span_stack *active_stack_before = DDTRACE_G(active_stack);
-    assert(active_stack_before != NULL);
-    GC_ADDREF(&active_stack_before->std);
-
-    ddtrace_close_span(span);
-
-    ddtrace_switch_span_stack(active_stack_before);
-    GC_DELREF(&active_stack_before->std);
-}
-
-void ddtrace_close_top_span_without_stack_swap(ddtrace_span_data *span) {
     ddtrace_span_stack *stack = span->stack;
 
     span->type = DDTRACE_SPAN_CLOSED;
