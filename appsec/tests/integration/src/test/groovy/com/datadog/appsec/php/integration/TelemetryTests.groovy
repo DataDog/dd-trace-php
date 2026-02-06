@@ -619,6 +619,7 @@ class TelemetryTests {
             HttpRequest req = CONTAINER.buildReq('/hello.php')
                     .header('User-Agent', 'Arachni/v1').GET().build()
             def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
                 assert resp.body().size() > 0
             }
             assert trace.traceId != null

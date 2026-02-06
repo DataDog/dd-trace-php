@@ -38,6 +38,48 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallba
     }
 
     @Test
+    void 'trace rate limit resets after one second'() {
+        setRateLimit('1')
+        try {
+            def req = container.buildReq('/hello.php')
+                    .header('User-Agent', 'TraceTagging/v2').GET().build()
+            def trace1 = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+            assert trace1.first().metrics._sampling_priority_v1 == 2.0d
+
+            Thread.sleep(1200)
+
+            def trace2 = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+            assert trace2.first().metrics._sampling_priority_v1 == 2.0d
+        } finally {
+            resetFpm()
+        }
+    }
+
+    @Test
+    void 'trace rate limit unlimited when set to zero'() {
+        setRateLimit('0')
+        try {
+            def req = container.buildReq('/hello.php')
+                    .header('User-Agent', 'TraceTagging/v2').GET().build()
+            def trace1 = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+            assert trace1.first().metrics._sampling_priority_v1 == 2.0d
+
+            def trace2 = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+            assert trace2.first().metrics._sampling_priority_v1 == 2.0d
+        } finally {
+            resetFpm()
+        }
+    }
+
+    @Test
     void 'php-fpm -i does not launch helper'() {
         ExecResult res = CONTAINER.execInContainer('mkdir', '/tmp/cli/')
 
