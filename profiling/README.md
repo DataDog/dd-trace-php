@@ -3,7 +3,7 @@
 <img align="right" style="margin-left:10px" src="profiling_bits_211220.png" alt="profiling bits php" width="200px"/>
 
 The profiler is implemented in Rust. To see the currently required Rust
-version, refer to the [rust-toolchain](rust-toolchain) file. The profiler
+version, refer to the [rust-toolchain.toml](rust-toolchain.toml) file. The profiler
 requires PHP 7.1+, and does not support debug builds.
 
 ## Time Profiling
@@ -88,7 +88,7 @@ behind a feature flag.
 #### ld: symbol(s) not found for architecture arm64
 
 If your linker is not finding certain symbols, you might be missing your
-architecture in the [.cargo/config](.cargo/config) file. You should be able to
+architecture in the [.cargo/config.toml](.cargo/config.toml) file. You should be able to
 fix this problem by adding your target as shown by `rustc -vV`.
 
 #### Can't find `libdatadog_php_profiling.so` on MacOS
