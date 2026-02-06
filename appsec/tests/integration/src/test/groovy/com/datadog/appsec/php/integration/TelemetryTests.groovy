@@ -601,4 +601,59 @@ class TelemetryTests {
         assert wafReqTruncated.tags.find { it.startsWith('waf_version:') } != null
         assert wafReqTruncated.type == 'count'
     }
+
+    @Test
+    @Order(7)
+    void 'waf timeout emits telemetry tag'() {
+        // Enable appsec so WAF runs
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // lower the WAF timeout drastically to force timeouts
+        setWafTimeout('1')
+        try {
+            // trigger an attack-like request to exercise WAF
+            HttpRequest req = CONTAINER.buildReq('/hello.php')
+                    .header('User-Agent', 'Arachni/v1').GET().build()
+            def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body().size() > 0
+            }
+            assert trace.traceId != null
+
+            TelemetryHelpers.Metric wafReqTimeout
+
+            waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+                def allSeries = messages.collectMany { it.series }
+                wafReqTimeout = allSeries.find {
+                    it.name == 'waf.requests' && it.tags.contains('waf_timeout:true')
+                }
+                wafReqTimeout != null
+            }
+
+            assert wafReqTimeout != null
+            assert wafReqTimeout.namespace == 'appsec'
+            assert 'waf_timeout:true' in wafReqTimeout.tags
+        } finally {
+            resetFpm()
+        }
+    }
+
+    private void setWafTimeout(String timeoutUs) {
+        org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
+                'bash', '-c',
+                """kill -9 `pgrep php-fpm`;
+                   export DD_APPSEC_WAF_TIMEOUT=$timeoutUs;
+                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini""")
+        assert res.exitCode == 0
+    }
+
+    private void resetFpm() {
+        CONTAINER.execInContainer(
+                'bash', '-c',
+                '''kill -9 `pgrep php-fpm`;
+                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
+    }
 }

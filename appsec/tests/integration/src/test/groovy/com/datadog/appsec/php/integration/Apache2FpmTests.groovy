@@ -95,6 +95,30 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallba
     }
 
     @Test
+    void 'trace rate limit does not force keep when keep is false'() {
+        // Limit to 1 keep per second; send two back-to-back requests that would normally set user_keep
+        // using UA TraceTagging/v2 (covered by tagging rules).
+        setRateLimit('1')
+        try {
+            def req = container.buildReq('/hello.php')
+                    .header('User-Agent', 'TraceTagging/v2').GET().build()
+            def trace1 = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+            def span1 = trace1.first()
+            assert span1.metrics._sampling_priority_v1 == 2.0d
+
+            def trace2 = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.body() == 'Hello world!'
+            }
+            def span2 = trace2.first()
+            assert span2.metrics._sampling_priority_v1 < 2.0d
+        } finally {
+            resetFpm()
+        }
+    }
+
+    @Test
     void 'resource renaming auto-enabled with appsec'() {
         // By default, DD_APPSEC_ENABLED=true is set but DD_TRACE_RESOURCE_RENAMING_ENABLED is not set.
         def req = container.buildReq('/hello.php').GET().build()

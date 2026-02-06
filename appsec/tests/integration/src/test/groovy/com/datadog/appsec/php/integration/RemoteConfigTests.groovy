@@ -532,4 +532,46 @@ class RemoteConfigTests {
         dropRemoteConfig(INITIAL_TARGET)
     }
 
+    @Test
+    void 'rules override can disable and re-enable a builtin rule'() {
+        def doReq = { int expectedStatus ->
+            HttpRequest req = CONTAINER.buildReq('/hello.php')
+                    .GET()
+                    .header('User-agent', 'dd-test-scanner-log-block')
+                    .build()
+            CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == expectedStatus
+            }
+        }
+
+        // initially enabled
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]]
+        ])
+        doReq.call(403)
+
+        // disable builtin rule 'ua0-600-56x' via rules_override
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_override/config': [
+                        rules_override: [[
+                                                 rules_target: [[ rule_id: 'ua0-600-56x' ]],
+                                                 enabled: false
+                                         ]]
+                ]
+        ])
+        doReq.call(200)
+
+        // clear overrides, re-enable default behavior
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_override/config': [
+                        rules_override: []
+                ]
+        ])
+        doReq.call(403)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
 }
