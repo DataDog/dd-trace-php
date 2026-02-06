@@ -208,6 +208,13 @@ foreach ($arch_targets as $arch_target) {
       MSSQL_PID: Developer
       MSSQL_TCP_PORT: 1433
       MSSQL_AGENT_ENABLED: "false"
+      MSSQL_MEMORY_LIMIT_MB: 2048
+      MSSQL_ENABLE_HADR: 0
+      MSSQL_LCID: 1033
+      MSSQL_COLLATION: SQL_Latin1_General_CP1_CI_AS
+      MSSQL_DATA_DIR: /var/opt/mssql/data
+      MSSQL_LOG_DIR: /var/opt/mssql/log
+      MSSQL_BACKUP_DIR: /var/opt/mssql/data
 
   googlespanner:
     name: registry.ddbuild.io/images/mirror/cloud-spanner-emulator/emulator:1.5.25
