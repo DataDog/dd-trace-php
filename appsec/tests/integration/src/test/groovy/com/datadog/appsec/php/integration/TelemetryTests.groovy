@@ -623,6 +623,7 @@ class TelemetryTests {
                 assert resp.body().size() > 0
             }
             assert trace.traceId != null
+            assert !trace.first().meta.containsKey('_dd.appsec.json')
 
             TelemetryHelpers.Metric wafReqTimeout
 
