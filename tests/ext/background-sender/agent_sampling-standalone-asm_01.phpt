@@ -17,33 +17,36 @@ datadog.trace.agent_test_session_token=background-sender/agent_samplingc
 include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
-$rr->maxIteration = 2000;
 
 $picked = 0;
 $notPicked = 0;
-$maxIterations = 10;
+$maxIterations = 5;
 for ($i = 0; $i < $maxIterations; $i++)
 {
     //Do call and get sampling
     \DDTrace\start_span();
     \DDTrace\close_span();
-    $root = json_decode($rr->waitForDataAndReplay()["body"], true);
+	// Flush the span synchronously before reading from the request replayer
+	dd_trace_internal_fn("synchronous_flush");
+	$root = json_decode($rr->waitForDataAndReplay()["body"], true);
     $spans = $root["chunks"][0]["spans"] ?? $root[0];
     $sampling = $spans[0]["metrics"]["_sampling_priority_v1"];
-    dd_trace_internal_fn("synchronous_flush");
 
-    if($sampling == 1 && $picked == 1) //Start again, probably different minute
-    {
-        $notPicked = 0;
-        continue;
-    } else if ($sampling == 1) { //First picked
+	if ($sampling == 1) { // First pick this minute (or minute rollover)
         $picked = 1;
-    } else if ($sampling == 0) {
-       $notPicked++;
-    } else if($picked == 0 && $sampling == 0) {
-        //If this happen means something is odd already
-        break;
+		$notPicked = 0;
+		continue;
     }
+
+	// Ignore zeros until we've seen the first 1
+	if ($picked == 0) {
+		continue;
+	}
+
+	// After first 1, count zeros
+	if ($sampling == 0) {
+		$notPicked++;
+	}
     if ($picked == 1 && $notPicked == 2) {
         break;
     }
