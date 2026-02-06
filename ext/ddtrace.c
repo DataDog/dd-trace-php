@@ -1642,6 +1642,7 @@ static void dd_rinit_once(void) {
     // Collect process tags now that script path is available
     if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
         ddtrace_process_tags_first_rinit();
+        ddtrace_sidecar_update_process_tags();
     }
 
     // Uses config, cannot run earlier
