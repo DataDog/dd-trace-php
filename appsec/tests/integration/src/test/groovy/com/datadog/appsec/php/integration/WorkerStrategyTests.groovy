@@ -76,6 +76,22 @@ trait WorkerStrategyTests {
     }
 
     @Test
+    void 'blocking json on request start honors accept q weight'() {
+        HttpRequest req = container.buildReq('/')
+                .header('X-Forwarded-For', '80.80.80.80')
+                .header('Accept', 'text/html;q=0.3, application/json;q=0.9')
+                .GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.body().containsIgnoreCase("You've been blocked")
+            assert re.statusCode() == 403
+            assert re.headers().firstValue('Content-type').get() == 'application/json'
+        }
+
+        Span span = trace.first()
+        assert span.meta."appsec.blocked" == "true"
+    }
+
+    @Test
     void 'blocking forward on request start'() {
         HttpRequest req = container.buildReq('/')
                 .header('X-Forwarded-For', '80.80.80.81').GET().build()

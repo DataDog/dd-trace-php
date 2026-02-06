@@ -150,6 +150,118 @@ class RemoteConfigTests {
     }
 
     @Test
+    void 'custom query deeply nested param matches and reports full key path'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_query_deep/config': [
+                        custom_rules: [[
+                                               id: 'query_deep_rule',
+                                               name: 'query_deep_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.query',
+                                                                                             key_path: ['a','b','c','d']
+                                                                                     ]],
+                                                                            regex: 'poison'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        def req = CONTAINER.buildReq('/hello.php?a[b][c][d]=poison').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "query_deep_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.query",
+                             "key_path" : ["a","b","c","d"],
+                             "value" : "poison",
+                             "highlight" : ["poison"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'custom query array of objects matches and reports key path with index'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_query_array_obj/config': [
+                        custom_rules: [[
+                                               id: 'query_array_obj_rule',
+                                               name: 'query_array_obj_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.query',
+                                                                                             key_path: ['items','0','name']
+                                                                                     ]],
+                                                                            regex: '^bad$'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        def req = CONTAINER.buildReq('/hello.php?items[0][name]=bad&items[1][name]=ok').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "query_array_obj_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.query",
+                             "key_path" : ["items","0","name"],
+                             "value" : "bad",
+                             "highlight" : ["bad"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
     void 'custom cookie rule matches and reports parameter path'() {
         // Enable appsec with a custom cookie rule
         applyRemoteConfig(INITIAL_TARGET, [

@@ -55,6 +55,44 @@ class TelemetryTests {
         assert res.exitCode == 0
     }
 
+    @Test
+    @Order(8)
+    void 'telemetry log includes actions diagnostics on invalid actions'() {
+        // warm up
+        def request = CONTAINER.buildReq('/hello.php').GET().build()
+        CONTAINER.traceFromRequest(request, ofString()) { HttpResponse<String> resp ->
+            assert resp.body().size() > 0
+        }
+
+        def requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ],
+                'datadog/2/ASM/bad_actions/config': [
+                        actions: [[
+                                          id: 'bad_action',
+                                          type: 'non_existing_action',
+                                          parameters: [:]
+                                  ]]
+                ],
+        ])
+
+        def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
+            def relevantLogs = logs.collectMany { it.logs.findAll { it.tags.contains('log_type:rc::') } }
+            relevantLogs.find {
+                it.parsedTags?.log_type == 'rc::asm_dd::diagnostic' &&
+                        it.parsedTags?.appsec_config_key == 'actions' &&
+                        it.parsedTags?.rc_config_id == 'bad_actions'
+            } != null
+        }.collectMany { it.logs }
+
+        assert requestSup.get() != null
+        assert messages.any {
+            it.parsedTags?.log_type == 'rc::asm_dd::diagnostic' &&
+                    it.parsedTags?.appsec_config_key == 'actions' &&
+                    it.parsedTags?.rc_config_id == 'bad_actions'
+        }
+    }
     /**
      * This test takes a long time (around 10-12 seconds) because the metric
      * interval is hardcoded to 10 seconds in the metrics.rs.
