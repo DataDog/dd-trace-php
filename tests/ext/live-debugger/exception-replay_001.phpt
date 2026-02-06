@@ -47,7 +47,7 @@ reset_request_replayer();
 --EXPECTF--
 array(2) {
   [0]=>
-  array(5) {
+  array(6) {
     ["service"]=>
     string(24) "exception-replay_001.php"
     ["ddsource"]=>
@@ -126,9 +126,11 @@ array(2) {
     }
     ["message"]=>
     NULL
+    ["process_tags"]=>
+    NULL
   }
   [1]=>
-  array(5) {
+  array(6) {
     ["service"]=>
     string(24) "exception-replay_001.php"
     ["ddsource"]=>
@@ -230,6 +232,8 @@ array(2) {
       }
     }
     ["message"]=>
+    NULL
+    ["process_tags"]=>
     NULL
   }
 }

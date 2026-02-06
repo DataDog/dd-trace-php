@@ -49,7 +49,7 @@ reset_request_replayer();
 ?>
 --EXPECTF--
 Warning: mysqli::__construct(): php_network_getaddresses: getaddrinfo %s
-%Aarray(5) {
+%Aarray(6) {
   ["service"]=>
   string(47) "exception-replay_non_regression_2989_mysqli.php"
   ["ddsource"]=>
@@ -123,5 +123,7 @@ Warning: mysqli::__construct(): php_network_getaddresses: getaddrinfo %s
     }
   }
   ["message"]=>
+  NULL
+  ["process_tags"]=>
   NULL
 }

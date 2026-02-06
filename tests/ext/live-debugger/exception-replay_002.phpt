@@ -76,7 +76,7 @@ require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 ?>
 --EXPECTF--
-array(5) {
+array(6) {
   ["service"]=>
   string(24) "exception-replay_002.php"
   ["ddsource"]=>
@@ -1028,5 +1028,7 @@ array(5) {
     }
   }
   ["message"]=>
+  NULL
+  ["process_tags"]=>
   NULL
 }

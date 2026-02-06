@@ -58,7 +58,8 @@ struct ddog_DebuggerPayload *ddog_create_log_probe_snapshot(const struct ddog_Pr
                                                             const ddog_CharSlice *message,
                                                             ddog_CharSlice service,
                                                             ddog_CharSlice language,
-                                                            uint64_t timestamp);
+                                                            uint64_t timestamp,
+                                                            ddog_CharSlice process_tags);
 
 void ddog_update_payload_message(struct ddog_DebuggerPayload *payload, ddog_CharSlice message);
 
