@@ -351,6 +351,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // zend_llist_element. Every time a new PHP version is released, we should
     // double-check zend_register_extension to ensure the address is not
     // mutated nor stored. Well, hopefully we catch it _before_ a release.
+    #[allow(unused_mut)]
     let mut extension = ZendExtension {
         name: PROFILER_NAME.as_ptr(),
         version: PROFILER_VERSION.as_ptr().cast::<c_char>(),

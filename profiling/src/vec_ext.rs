@@ -16,6 +16,7 @@ pub trait VecExt<T>: sealed::Sealed {
     /// Appends all elements from `src` into `self`, using fallible
     /// allocation. This is similar to [`Vec::extend_from_slice`] except it
     /// returns an error instead of panicking on allocation failure.
+    #[allow(unused)]
     fn try_extend_from_slice(&mut self, src: &[T]) -> Result<(), TryReserveError>
     where
         T: Copy;
