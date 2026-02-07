@@ -370,6 +370,14 @@ extern "C" {
     pub fn ddog_php_prof_php_version() -> *const c_char;
 }
 
+#[cfg(php_opcache_shm_cache)]
+extern "C" {
+    /// Acquires a slot in `_zend_op_array.reserved[]` and contributes to the
+    /// `zend_system_id` hash (PHP 8.0+). Returns the handle (>= 0) on
+    /// success, or -1 if all slots are taken.
+    pub fn zend_get_resource_handle(module_name: *const c_char) -> c_int;
+}
+
 #[cfg(php_post_startup_cb)]
 extern "C" {
     /// Returns true after zend_post_startup_cb has been called for the current

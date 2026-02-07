@@ -23,6 +23,9 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
+#[cfg(php_opcache_shm_cache)]
+mod shm_cache;
+
 use crate::config::SystemSettings;
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
@@ -348,7 +351,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // zend_llist_element. Every time a new PHP version is released, we should
     // double-check zend_register_extension to ensure the address is not
     // mutated nor stored. Well, hopefully we catch it _before_ a release.
-    let extension = ZendExtension {
+    let mut extension = ZendExtension {
         name: PROFILER_NAME.as_ptr(),
         version: PROFILER_VERSION.as_ptr().cast::<c_char>(),
         author: c"Datadog".as_ptr(),
@@ -359,6 +362,17 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         activate: Some(activate),
         ..Default::default()
     };
+
+    // Acquire the opcache SHM reserved[] slot and set resource_number +
+    // persist hooks on the extension before zend_register_extension copies it.
+    #[cfg(php_opcache_shm_cache)]
+    {
+        // SAFETY: called during minit as required, single-threaded.
+        if unsafe { shm_cache::minit(&mut extension) } == ZendResult::Failure {
+            error!("Failed to acquire opcache SHM resource handle");
+            return ZendResult::Failure;
+        }
+    }
 
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };

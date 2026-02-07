@@ -1253,6 +1253,7 @@ dependencies = [
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
+ "no-panic",
  "perfcnt",
  "rand 0.8.5",
  "rand_distr",
@@ -3159,6 +3160,17 @@ dependencies = [
  "cfg_aliases",
  "libc 0.2.177",
  "memoffset",
+]
+
+[[package]]
+name = "no-panic"
+version = "0.1.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f967505aabc8af5752d098c34146544a43684817cdba8f9725b292530cabbf53"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
 ]
 
 [[package]]

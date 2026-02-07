@@ -209,19 +209,24 @@ mod detail {
         }
     }
 
-    /// Used to help track the function run_time_cache hit rate. It glosses
-    /// over the fact that there are two cache slots used, and they don't have
-    /// to be in sync. However, they usually are, so we simplify.
+    /// Used to help track cache hit rates across the SHM and run_time_cache
+    /// layers. A miss is only counted when both layers miss.
     #[derive(Debug, Default)]
     struct FunctionRunTimeCacheStats {
+        /// Hit in the opcache SHM reserved[] slot.
+        shm_hit: usize,
+        /// Hit in the per-request run_time_cache slot.
         hit: usize,
+        /// Both SHM and run_time_cache missed; had to compute fresh.
         missed: usize,
+        /// Cache not applicable (e.g. no cache slots available).
         not_applicable: usize,
     }
 
     impl FunctionRunTimeCacheStats {
         const fn new() -> Self {
             Self {
+                shm_hit: 0,
                 hit: 0,
                 missed: 0,
                 not_applicable: 0,
@@ -231,8 +236,8 @@ mod detail {
 
     impl FunctionRunTimeCacheStats {
         fn hit_rate(&self) -> f64 {
-            let denominator = (self.hit + self.missed + self.not_applicable) as f64;
-            self.hit as f64 / denominator
+            let denominator = (self.shm_hit + self.hit + self.missed + self.not_applicable) as f64;
+            (self.shm_hit + self.hit) as f64 / denominator
         }
     }
 
@@ -374,6 +379,28 @@ mod detail {
         use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
         let func = execute_data.func.as_ref()?;
+
+        // First, try the opcache SHM cache (highest priority).
+        #[cfg(php_opcache_shm_cache)]
+        if let Some((fn_name, filename)) = unsafe { crate::shm_cache::try_get_cached(func) } {
+            _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.shm_hit += 1);
+
+            // Both strings are guaranteed non-empty: function_name is at
+            // least "<?php" (top-level code) and filename always exists for
+            // compiled op_arrays.
+            let line = match safely_get_opline(execute_data) {
+                Some(opline) => opline.lineno,
+                None => 0,
+            };
+
+            return Some(ZendFrame {
+                function: Cow::Owned(fn_name.to_owned()),
+                file: Some(Cow::Owned(filename.to_owned())),
+                line,
+            });
+        }
+
+        // Fall through to the per-request run_time_cache layer.
         let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
             Some(slots) => {
                 let mut string_cache = StringCache {
