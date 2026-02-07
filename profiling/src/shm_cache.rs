@@ -151,7 +151,7 @@ fn compute_function_name(func: &zend_function) -> Option<String> {
     let class_name = func.scope_name().unwrap_or(b"");
 
     let (has_module, has_class) = (!module_name.is_empty(), !class_name.is_empty());
-    let module_len = has_module as usize * 1 + module_name.len(); // "|" separator
+    let module_len = has_module as usize + module_name.len(); // "|" separator
     let class_name_len = has_class as usize * 2 + class_name.len(); // "::" separator
     let raw_len = module_len + class_name_len + method_name.len();
 
