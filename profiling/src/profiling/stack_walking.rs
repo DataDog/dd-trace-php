@@ -162,11 +162,11 @@ unsafe fn extract_file_and_line(
 mod detail {
     use super::*;
     use crate::string_set::StringSet;
-    use crate::thin_str::ThinStr;
     use crate::{RefCellExt, RefCellExtError};
+    use libdd_profiling::profiles::collections::ThinStr;
     use log::{debug, trace};
     use std::cell::RefCell;
-    use std::ptr::NonNull;
+    use std::ffi::c_void;
 
     struct StringCache<'a> {
         /// Refers to a function's run time cache reserved by this extension.
@@ -188,23 +188,21 @@ mod detail {
             debug_assert!(slot < self.cache_slots.len());
             let cached = unsafe { self.cache_slots.get_unchecked_mut(slot) };
 
-            let ptr = *cached as *mut u8;
-            match NonNull::new(ptr) {
+            let ptr = *cached as *mut c_void;
+            match std::ptr::NonNull::new(ptr) {
                 Some(non_null) => {
-                    // SAFETY: transmuting ThinStr from its repr.
-                    let thin_str: ThinStr = unsafe { core::mem::transmute(non_null) };
-                    // SAFETY: the string set is only reset between requests,
-                    // so this ThinStr points into the same string set that
-                    // created it.
+                    // SAFETY: the raw pointer was produced by ThinStr::into_raw
+                    // and the string set (which owns the backing memory) is
+                    // still alive because it is only reset between requests.
+                    let thin_str: ThinStr = unsafe { ThinStr::from_raw(non_null) };
                     let str = unsafe { self.string_set.get_thin_str(thin_str) };
                     Some(str.to_string())
                 }
                 None => {
                     let string = f()?;
                     let thin_str = self.string_set.insert(&string);
-                    // SAFETY: transmuting ThinStr into its repr.
-                    let non_null: NonNull<u8> = unsafe { core::mem::transmute(thin_str) };
-                    *cached = non_null.as_ptr() as usize;
+                    let raw = thin_str.into_raw();
+                    *cached = raw.as_ptr() as usize;
                     Some(string)
                 }
             }
