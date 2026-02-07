@@ -33,7 +33,7 @@
 
 use crate::bindings::{
     self, _zend_op_array as zend_op_array, zai_str_from_zstr, zend_function, ZendExtension,
-    ZendResult,
+    ZendResult, ZEND_ACC_CALL_VIA_TRAMPOLINE,
 };
 use crate::vec_ext::VecExt;
 use libc::{c_int, c_void};
@@ -328,6 +328,13 @@ pub unsafe fn try_get_cached<'a>(func: &zend_function) -> Option<(&'a str, Optio
         return None;
     }
     let handle = handle as usize;
+
+    // Trampolines (e.g. __call, Closure::__invoke) are temporary
+    // zend_function structs whose reserved[] slots are uninitialized.
+    // SAFETY: common.fn_flags is always safe to read on any zend_function.
+    if unsafe { func.common.fn_flags } & ZEND_ACC_CALL_VIA_TRAMPOLINE != 0 {
+        return None;
+    }
 
     if func.is_internal() {
         return unsafe { try_get_cached_internal(func, handle) };
