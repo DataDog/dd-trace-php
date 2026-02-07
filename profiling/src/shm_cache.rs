@@ -1,4 +1,4 @@
-//! Opcache SHM caching layer for function names and filenames.
+//! Caching layer for function names and filenames in `reserved[]` slots.
 //!
 //! This module is only compiled on PHP 8.0+ (`cfg(php_opcache_shm_cache)`)
 //! because [`zend_get_resource_handle`] only contributes to `zend_system_id`
@@ -6,13 +6,24 @@
 //! changes in handle assignments across runs would not invalidate the cache,
 //! potentially leading to stale `reserved[]` pointers.
 //!
-//! ## SHM Data Layout
+//! ## Op-array (user function) caching
 //!
-//! Each op_array's `reserved[handle]` points to the following layout in SHM:
+//! Each op_array's `reserved[handle]` points to the following layout in SHM,
+//! populated by the `op_array_persist_calc`/`op_array_persist` hooks:
 //!
 //! ```text
 //! [ u16: fn_name_len ] [ fn_name_bytes... ] [ \0 ]
 //! [ u16: filename_len ] [ filename_bytes... ] [ \0 ]
+//! ```
+//!
+//! ## Internal (native) function caching
+//!
+//! For internal functions, `reserved[handle]` is lazily populated on first
+//! access via an [`AtomicPtr`] compare-and-swap. The heap-allocated buffer
+//! contains only the function name:
+//!
+//! ```text
+//! [ u16: fn_name_len ] [ fn_name_bytes... ] [ \0 ]
 //! ```
 //!
 //! Length prefixes are stored as native-endian `u16`, read/written with
@@ -26,7 +37,10 @@ use crate::bindings::{
 };
 use crate::vec_ext::VecExt;
 use libc::{c_int, c_void};
+use std::alloc::{self, Layout};
 use std::mem;
+use std::ptr;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 const LARGE_STRING: &str = "[suspiciously large string]";
 
@@ -122,20 +136,14 @@ pub unsafe fn minit(extension: &mut ZendExtension) -> ZendResult {
     ZendResult::Success
 }
 
-/// Computes the FQN and filename strings for an op_array, returning them as
-/// lossy-UTF-8 owned [`String`]s. Strings exceeding [`STR_LEN_LIMIT`] are
-/// replaced with a `"[suspiciously large string]"` placeholder.
+/// Computes the FQN for a function (both user and internal), returning it as
+/// a lossy-UTF-8 owned [`String`]. Names exceeding [`STR_LEN_LIMIT`] are
+/// replaced with `"[suspiciously large string]"`.
 ///
 /// All allocations are fallible (no panics). Returns `None` on OOM.
 /// Top-level script code (no function name) uses `"<?php"` as the name.
 #[inline(always)]
-fn compute_shm_strings(op_array: &zend_op_array) -> Option<(String, String)> {
-    // SAFETY: we cast to zend_function to use its helper methods. This is safe
-    // because zend_op_array is the op_array variant of the zend_function union,
-    // and we only call methods that access common/op_array fields.
-    let func: &zend_function =
-        unsafe { &*(op_array as *const zend_op_array as *const zend_function) };
-
+fn compute_function_name(func: &zend_function) -> Option<String> {
     const PHP_OPEN_TAG: &[u8] = b"<?php";
     let method_name: &[u8] = func.name().unwrap_or(PHP_OPEN_TAG);
 
@@ -147,8 +155,8 @@ fn compute_shm_strings(op_array: &zend_op_array) -> Option<(String, String)> {
     let class_name_len = has_class as usize * 2 + class_name.len(); // "::" separator
     let raw_len = module_len + class_name_len + method_name.len();
 
-    let function_name: String = if raw_len >= STR_LEN_LIMIT {
-        try_string_from_utf8_lossy(LARGE_STRING.as_bytes())?
+    if raw_len >= STR_LEN_LIMIT {
+        try_string_from_utf8_lossy(LARGE_STRING.as_bytes())
     } else {
         let mut buffer = Vec::<u8>::new();
         buffer.try_reserve_exact(raw_len).ok()?;
@@ -165,8 +173,23 @@ fn compute_shm_strings(op_array: &zend_op_array) -> Option<(String, String)> {
         }
         buffer.try_extend_from_slice(method_name).ok()?;
 
-        try_string_from_utf8_lossy_vec(buffer)?
-    };
+        try_string_from_utf8_lossy_vec(buffer)
+    }
+}
+
+/// Computes the FQN and filename strings for an op_array, returning them as
+/// lossy-UTF-8 owned [`String`]s.
+///
+/// All allocations are fallible (no panics). Returns `None` on OOM.
+#[inline(always)]
+fn compute_shm_strings(op_array: &zend_op_array) -> Option<(String, String)> {
+    // SAFETY: we cast to zend_function to use its helper methods. This is safe
+    // because zend_op_array is the op_array variant of the zend_function union,
+    // and we only call methods that access common/op_array fields.
+    let func: &zend_function =
+        unsafe { &*(op_array as *const zend_op_array as *const zend_function) };
+
+    let function_name = compute_function_name(func)?;
 
     // Extract filename (lossy UTF-8 converted).
     // SAFETY: op_array.filename is valid during persist hooks.
@@ -282,37 +305,104 @@ unsafe fn write_shm_str(dst: *mut u8, s: &str) -> *mut u8 {
     unsafe { nul_dst.add(1) }
 }
 
-/// Attempts to read cached function name and filename from the SHM
+/// Attempts to read cached function name and (optionally) filename from the
 /// `reserved[]` slot for a given function.
 ///
-/// Returns `Some((function_name, filename))` on hit, `None` on miss.
+/// For user functions (op_arrays), the data lives in opcache SHM and contains
+/// both function name and filename. For internal (native) functions, the data
+/// is lazily heap-allocated on first access and contains only the function
+/// name (filename is `None`).
+///
+/// Returns `Some((function_name, Some(filename)))` for op_arrays,
+/// `Some((function_name, None))` for internal functions, or `None` on miss.
 ///
 /// # Safety
 /// The caller must ensure `func` is a valid reference to a live
-/// `zend_function`. The SHM data pointed to by the `reserved[]` slot must
-/// have been written by [`op_array_persist`].
-pub unsafe fn try_get_cached<'a>(func: &zend_function) -> Option<(&'a str, &'a str)> {
+/// `zend_function`.
+pub unsafe fn try_get_cached<'a>(func: &zend_function) -> Option<(&'a str, Option<&'a str>)> {
     let handle = unsafe { RESOURCE_HANDLE } as usize;
-    // SAFETY: is_internal() checks the type tag, then we access the correct
-    // union variant. handle is guaranteed in-bounds (see minit).
-    let ptr = if func.is_internal() {
-        unsafe { func.internal_function.reserved[handle] }
-    } else {
-        unsafe { func.op_array.reserved[handle] }
-    };
+
+    if func.is_internal() {
+        return unsafe { try_get_cached_internal(func, handle) };
+    }
+
+    // Op-array path: read directly from the SHM pointer written by
+    // op_array_persist. No atomics needed — SHM is immutable after persist.
+    let ptr = unsafe { func.op_array.reserved[handle] };
     if ptr.is_null() {
         return None;
     }
 
     let cursor = ptr as *const u8;
-
-    // Read function name, advancing cursor past its entry.
     let (function_name, cursor) = unsafe { read_shm_str(cursor) };
-
-    // Read filename.
     let (filename, _cursor) = unsafe { read_shm_str(cursor) };
+    Some((function_name, Some(filename)))
+}
 
-    Some((function_name, filename))
+/// Lazily populates and reads the cached function name for an internal
+/// function. Uses [`AtomicPtr`] compare-and-swap for thread-safe one-time
+/// initialization.
+///
+/// # Safety
+/// `func` must be a valid internal function and `handle` must be in-bounds.
+unsafe fn try_get_cached_internal<'a>(
+    func: &zend_function,
+    handle: usize,
+) -> Option<(&'a str, Option<&'a str>)> {
+    // SAFETY: AtomicPtr<c_void> has the same size and alignment as
+    // *mut c_void (verified by test). We reinterpret the reserved[] slot
+    // as an AtomicPtr for lock-free lazy initialization. The slot is only
+    // ever written via this atomic CAS or is null (the engine zero-inits
+    // internal_function.reserved[] and never writes to our handle).
+    let slot = unsafe {
+        &*(&func.internal_function.reserved[handle] as *const *mut c_void
+            as *const AtomicPtr<c_void>)
+    };
+
+    let ptr = slot.load(Ordering::Acquire);
+    let data_ptr = if !ptr.is_null() {
+        ptr as *const u8
+    } else {
+        // Cache miss — compute and try to install.
+        let (new_ptr, layout) = allocate_internal_cache(func)?;
+        match slot.compare_exchange(
+            ptr::null_mut(),
+            new_ptr as *mut c_void,
+            Ordering::Release,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => new_ptr,
+            Err(winner) => {
+                // Another thread populated the slot first. Free ours.
+                unsafe { alloc::dealloc(new_ptr, layout) };
+                winner as *const u8
+            }
+        }
+    };
+
+    let (function_name, _cursor) = unsafe { read_shm_str(data_ptr) };
+    Some((function_name, None))
+}
+
+/// Allocates a heap buffer containing the cached function name for an
+/// internal function. Layout: `[u16 len][bytes...][\0]`.
+///
+/// Returns the buffer pointer and its [`Layout`] (for deallocation on CAS
+/// failure), or `None` on OOM.
+fn allocate_internal_cache(func: &zend_function) -> Option<(*mut u8, Layout)> {
+    let function_name = compute_function_name(func)?;
+    let total_size = LEN_PREFIX_SIZE + function_name.len() + 1;
+
+    // SAFETY: total_size >= 4 (function name is always non-empty), align 1
+    // is always valid.
+    let layout = unsafe { Layout::from_size_align_unchecked(total_size, 1) };
+    let ptr = unsafe { alloc::alloc(layout) };
+    if ptr.is_null() {
+        return None;
+    }
+
+    unsafe { write_shm_str(ptr, &function_name) };
+    Some((ptr, layout))
 }
 
 /// Reads a length-prefixed string entry (`[u16 len][bytes...][\0]`) from
@@ -329,9 +419,30 @@ unsafe fn read_shm_str<'a>(src: *const u8) -> (&'a str, *const u8) {
     let len = unsafe { core::ptr::read_unaligned(src as *const u16) } as usize;
     let bytes_ptr = unsafe { src.add(LEN_PREFIX_SIZE) };
     let bytes = unsafe { core::slice::from_raw_parts(bytes_ptr, len) };
-    // SAFETY: the data was written as valid UTF-8 by op_array_persist.
+    // SAFETY: the data was written as valid UTF-8 by op_array_persist or
+    // allocate_internal_cache.
     let s = unsafe { core::str::from_utf8_unchecked(bytes) };
     // Advance past bytes + trailing NUL.
     let next = unsafe { bytes_ptr.add(len + 1) };
     (s, next)
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::c_void;
+    use std::sync::atomic::AtomicPtr;
+
+    /// The internal function cache reinterprets a `*mut c_void` slot as an
+    /// `AtomicPtr<c_void>`. This test verifies the layout assumption.
+    #[test]
+    fn atomic_ptr_layout_matches_raw_pointer() {
+        assert_eq!(
+            std::mem::size_of::<AtomicPtr<c_void>>(),
+            std::mem::size_of::<*mut c_void>(),
+        );
+        assert_eq!(
+            std::mem::align_of::<AtomicPtr<c_void>>(),
+            std::mem::align_of::<*mut c_void>(),
+        );
+    }
 }
