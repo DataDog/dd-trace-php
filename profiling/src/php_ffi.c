@@ -382,6 +382,8 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 #endif
 }
 
+// ddog_php_prof_function_reserved_slot was moved to Rust (shm_cache.rs).
+
 #if CFG_STACK_WALKING_TESTS
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_RUN_TIME_CACHE

@@ -37,6 +37,7 @@ fn main() {
     let preload = cfg_preload(vernum);
     let fibers = cfg_fibers(vernum);
     let run_time_cache = cfg_run_time_cache(vernum);
+    let opcache_shm_cache = cfg_opcache_shm_cache(vernum);
     let trigger_time_sample = cfg_trigger_time_sample();
     let zend_error_observer = cfg_zend_error_observer(vernum);
 
@@ -46,6 +47,7 @@ fn main() {
         post_startup_cb,
         preload,
         run_time_cache,
+        opcache_shm_cache,
         fibers,
         trigger_time_sample,
         zend_error_observer,
@@ -54,6 +56,7 @@ fn main() {
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
     cfg_zts();
+    cfg_apple_linker_flags();
 }
 
 fn php_config_vernum() -> u64 {
@@ -101,6 +104,7 @@ fn build_zend_php_ffis(
     post_startup_cb: bool,
     preload: bool,
     run_time_cache: bool,
+    opcache_shm_cache: bool,
     fibers: bool,
     trigger_time_sample: bool,
     zend_error_observer: bool,
@@ -143,6 +147,7 @@ fn build_zend_php_ffis(
     let preload = if preload { "1" } else { "0" };
     let fibers = if fibers { "1" } else { "0" };
     let run_time_cache = if run_time_cache { "1" } else { "0" };
+    let opcache_shm_cache = if opcache_shm_cache { "1" } else { "0" };
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
     let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
@@ -159,6 +164,7 @@ fn build_zend_php_ffis(
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
+        .define("CFG_OPCACHE_SHM_CACHE", opcache_shm_cache)
         .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
@@ -330,6 +336,20 @@ fn cfg_run_time_cache(vernum: u64) -> bool {
     }
 }
 
+fn cfg_opcache_shm_cache(vernum: u64) -> bool {
+    println!("cargo::rustc-check-cfg=cfg(php_opcache_shm_cache)");
+    // Gated to PHP 8.0+ because zend_get_resource_handle only contributes to
+    // zend_system_id (used by opcache for cache invalidation) from PHP 8.0
+    // onward. On PHP 7.x, changes in handle assignments across runs would not
+    // invalidate the cache, potentially leading to stale reserved[] pointers.
+    if vernum >= 80000 {
+        println!("cargo:rustc-cfg=php_opcache_shm_cache");
+        true
+    } else {
+        false
+    }
+}
+
 fn cfg_trigger_time_sample() -> bool {
     env::var("CARGO_FEATURE_TRIGGER_TIME_SAMPLE").is_ok()
 }
@@ -459,5 +479,140 @@ int main() {
 
     if zts_value == "1" {
         println!("cargo:rustc-cfg=php_zts");
+    }
+}
+
+/// On macOS (Apple targets), the cdylib has undefined symbols that are
+/// resolved at load time by the PHP process. In release builds, we use
+/// explicit `-Wl,-U,_symbol` flags so that `no_panic`'s sentinel symbols
+/// cause a linker error if a panic path survives optimization. In debug
+/// builds (where `no_panic` is inactive and LTO is off, producing more
+/// unresolved symbols), we fall back to `-undefined dynamic_lookup`.
+///
+/// To regenerate the symbol list after adding new PHP/C API calls:
+///   1. Build a release: `cargo build -p datadog-php-profiling --release`
+///      (with `-undefined dynamic_lookup` temporarily enabled)
+///   2. Extract symbols:
+///      `nm -u target/release/libdatadog_php_profiling.dylib | sort -u |
+///       grep -v '^$\|^ERROR\|dyld_stub' | sed 's/^/-Wl,-U,/' | tr '\n' ' '`
+///   3. Update the ALLOWED_UNDEFINED_SYMBOLS list below.
+fn cfg_apple_linker_flags() {
+    let target = env::var("TARGET").unwrap_or_default();
+    if !target.contains("apple") {
+        return;
+    }
+
+    let profile = env::var("PROFILE").unwrap_or_default();
+    if profile != "release" {
+        // Debug builds: allow all undefined symbols.
+        println!("cargo:rustc-cdylib-link-arg=-undefined");
+        println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
+        return;
+    }
+
+    // Release builds: explicitly allow only PHP/Zend symbols that are
+    // resolved at load time from the PHP binary. System symbols (libc,
+    // libSystem, CoreFoundation, Security, etc.) are resolved by the
+    // linker from their respective libraries/frameworks. This way, any
+    // NEW undefined symbol — such as a no_panic sentinel — causes a
+    // linker error.
+    //
+    // Note: on macOS, symbols get a leading underscore, so `_efree` in C
+    // becomes `__efree` here, and `__zend_malloc` becomes `___zend_malloc`.
+    const ALLOWED_UNDEFINED_SYMBOLS: &[&str] = &[
+        // Zend memory allocator
+        "___zend_malloc",
+        "__efree",
+        "__emalloc",
+        "__emalloc_40",
+        "__emalloc_48",
+        "__emalloc_56",
+        "__emalloc_large",
+        "__zend_handle_numeric_str_ex",
+        "__zend_hash_init",
+        "__zend_mm_alloc",
+        "__zend_mm_free",
+        "__zend_mm_realloc",
+        // Zend globals
+        "_compiler_globals",
+        "_core_globals",
+        "_executor_globals",
+        "_module_registry",
+        // Zend engine APIs
+        "_cfg_get_entry",
+        "_display_ini_entries",
+        "_gc_collect_cycles",
+        "_instanceof_function_slow",
+        "_is_zend_mm",
+        "_rc_dtor_func",
+        "_zend_accel_schedule_restart_hook",
+        "_zend_alter_ini_entry_ex",
+        "_zend_ce_throwable",
+        "_zend_compile_file",
+        "_zend_compile_string",
+        "_zend_empty_string",
+        "_zend_extensions",
+        "_zend_flf_functions",
+        "_zend_gc_get_status",
+        "_zend_get_executed_filename_ex",
+        "_zend_get_executed_lineno",
+        "_zend_get_extension",
+        "_zend_get_internal_function_extension_handles",
+        "_zend_get_op_array_extension_handles",
+        "_zend_get_resource_handle",
+        "_zend_hash_add",
+        "_zend_hash_add_empty_element",
+        "_zend_hash_destroy",
+        "_zend_hash_find",
+        "_zend_hash_index_update",
+        "_zend_hash_next_index_insert",
+        "_zend_hash_str_add",
+        "_zend_hash_str_find",
+        "_zend_hash_update",
+        "_zend_ini_boolean_displayer_cb",
+        "_zend_ini_get_value",
+        "_zend_ini_parse_bool",
+        "_zend_ini_parse_quantity",
+        "_zend_ini_string",
+        "_zend_interned_strings_switch_storage",
+        "_zend_interrupt_function",
+        "_zend_known_strings",
+        "_zend_mm_gc",
+        "_zend_mm_get_custom_handlers_ex",
+        "_zend_mm_get_heap",
+        "_zend_mm_set_custom_handlers_ex",
+        "_zend_mm_shutdown",
+        "_zend_new_interned_string",
+        "_zend_observer_error_register",
+        "_zend_post_startup_cb",
+        "_zend_register_extension",
+        "_zend_register_ini_entries",
+        "_zend_str_tolower",
+        "_zend_string_init_interned",
+        "_zend_strtod",
+        "_zend_throw_exception_hook",
+        "_zend_write",
+        "_zval_internal_ptr_dtor",
+        "_zval_ptr_dtor",
+        // PHP APIs
+        "_php_during_module_startup",
+        "_php_get_module_initialized",
+        "_php_info_print_table_end",
+        "_php_info_print_table_row",
+        "_php_info_print_table_start",
+        "_php_json_encode",
+        "_php_json_parse",
+        "_php_json_parser_init",
+        "_php_json_serializable_ce",
+        "_php_version",
+        "_php_version_id",
+        // SAPI
+        "_sapi_getenv",
+        "_sapi_globals",
+        "_sapi_module",
+    ];
+
+    for sym in ALLOWED_UNDEFINED_SYMBOLS {
+        println!("cargo:rustc-cdylib-link-arg=-Wl,-U,{sym}");
     }
 }

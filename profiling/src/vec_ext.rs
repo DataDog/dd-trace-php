@@ -12,6 +12,13 @@ mod sealed {
 
 pub trait VecExt<T>: sealed::Sealed {
     fn try_push(&mut self, val: T) -> Result<(), TryReserveError>;
+
+    /// Appends all elements from `src` into `self`, using fallible
+    /// allocation. This is similar to [`Vec::extend_from_slice`] except it
+    /// returns an error instead of panicking on allocation failure.
+    fn try_extend_from_slice(&mut self, src: &[T]) -> Result<(), TryReserveError>
+    where
+        T: Copy;
 }
 
 impl<T> VecExt<T> for Vec<T> {
@@ -29,6 +36,21 @@ impl<T> VecExt<T> for Vec<T> {
         // SAFETY: the len is less than or equal to the capacity due to the
         // try_reserve, and we initialized the new slot with the ptr::write.
         unsafe { self.set_len(len + 1) };
+        Ok(())
+    }
+
+    fn try_extend_from_slice(&mut self, src: &[T]) -> Result<(), TryReserveError>
+    where
+        T: Copy,
+    {
+        let old_len = self.len();
+        self.try_reserve(src.len())?;
+        // SAFETY: try_reserve guarantees old_len + src.len() <= capacity.
+        // T: Copy, so a bytewise copy is valid and no drop concerns exist.
+        unsafe {
+            ptr::copy_nonoverlapping(src.as_ptr(), self.as_mut_ptr().add(old_len), src.len());
+            self.set_len(old_len + src.len());
+        }
         Ok(())
     }
 }
