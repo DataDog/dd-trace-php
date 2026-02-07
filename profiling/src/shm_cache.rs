@@ -320,7 +320,14 @@ unsafe fn write_shm_str(dst: *mut u8, s: &str) -> *mut u8 {
 /// The caller must ensure `func` is a valid reference to a live
 /// `zend_function`.
 pub unsafe fn try_get_cached<'a>(func: &zend_function) -> Option<(&'a str, Option<&'a str>)> {
-    let handle = unsafe { RESOURCE_HANDLE } as usize;
+    let handle = unsafe { RESOURCE_HANDLE };
+    // Not initialized (minit wasn't called, e.g. in benchmarks).
+    // todo: remove plumb through testing so we don't need to have this at
+    //       runtime for performance.
+    if handle < 0 {
+        return None;
+    }
+    let handle = handle as usize;
 
     if func.is_internal() {
         return unsafe { try_get_cached_internal(func, handle) };
