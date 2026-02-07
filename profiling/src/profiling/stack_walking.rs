@@ -382,12 +382,10 @@ mod detail {
 
         // First, try the opcache SHM cache (highest priority).
         #[cfg(php_opcache_shm_cache)]
-        if let Some((fn_name, filename)) = unsafe { crate::shm_cache::try_get_cached(func) } {
+        if let Some((fn_name, cached_file)) = unsafe { crate::shm_cache::try_get_cached(func) } {
             _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.shm_hit += 1);
 
-            // Both strings are guaranteed non-empty: function_name is at
-            // least "<?php" (top-level code) and filename always exists for
-            // compiled op_arrays.
+            let file = cached_file.map(|f| Cow::Owned(f.to_owned()));
             let line = match safely_get_opline(execute_data) {
                 Some(opline) => opline.lineno,
                 None => 0,
@@ -395,7 +393,7 @@ mod detail {
 
             return Some(ZendFrame {
                 function: Cow::Owned(fn_name.to_owned()),
-                file: Some(Cow::Owned(filename.to_owned())),
+                file,
                 line,
             });
         }
