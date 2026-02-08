@@ -9,9 +9,6 @@ mod pthread;
 mod sapi;
 mod wall_time;
 
-#[cfg(php_run_time_cache)]
-mod string_set;
-
 #[macro_use]
 mod allocation;
 
@@ -22,6 +19,8 @@ mod exception;
 
 mod timeline;
 mod vec_ext;
+
+pub mod interning;
 
 #[cfg(php_opcache_shm_cache)]
 mod shm_cache;
@@ -210,6 +209,12 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
         ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
         ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
     }
+
+    // Initialize the global ProfilesDictionary and pre-intern known
+    // strings (label keys, special frame names). This is the very first
+    // entry point into the extension — nothing runs before get_module.
+    interning::init();
+
     module
 }
 
@@ -1054,10 +1059,6 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // anyway. If the join with the uploader times out, there could become a
     // data race condition.
     unsafe { config::shutdown() };
-
-    // Free heap-allocated internal function caches.
-    #[cfg(php_opcache_shm_cache)]
-    shm_cache::shutdown();
 
     // SAFETY: zai_config_mshutdown should be safe to call in shutdown instead
     // of mshutdown.

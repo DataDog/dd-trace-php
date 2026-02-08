@@ -10,6 +10,10 @@ use perfcnt::linux::HardwareEventType as Hardware;
 use perfcnt::linux::PerfCounterBuilderLinux as Builder;
 
 fn benchmark(c: &mut Criterion) {
+    // Initialize the global ProfilesDictionary and KnownStrings before
+    // running benchmarks (normally done in get_module).
+    datadog_php_profiling::interning::init();
+
     let mut group = c.benchmark_group("walk_stack");
     group.sampling_mode(SamplingMode::Flat);
     for depth in [1, 50, 99].iter() {
@@ -24,6 +28,8 @@ fn benchmark(c: &mut Criterion) {
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 fn benchmark_instructions(c: &mut Criterion<Perf>) {
+    datadog_php_profiling::interning::init();
+
     let mut group = c.benchmark_group("walk_stack_instructions");
     group.sampling_mode(SamplingMode::Flat);
     for depth in [1, 50, 99].iter() {

@@ -653,7 +653,7 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         }
 
         let include_type = match r#type as u32 {
-            zend::ZEND_INCLUDE => "include", // `include_once()` and `include_once()`
+            zend::ZEND_INCLUDE => "include", // `include()` and `include_once()`
             zend::ZEND_REQUIRE => "require", // `require()` and `require_once()`
             _default => "",
         };

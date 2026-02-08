@@ -1,4 +1,5 @@
-//! Caching layer for function names and filenames in `reserved[]` slots.
+//! Caching layer that maps PHP functions to [`FunctionId2`] handles in the
+//! global [`ProfilesDictionary`].
 //!
 //! This module is only compiled on PHP 8.0+ (`cfg(php_opcache_shm_cache)`)
 //! because [`zend_get_resource_handle`] only contributes to `zend_system_id`
@@ -16,19 +17,20 @@
 //! [ u16: filename_len ] [ filename_bytes... ] [ \0 ]
 //! ```
 //!
+//! On read, the SHM strings are inserted into the global
+//! [`ProfilesDictionary`] (deduplicating) and a [`FunctionId2`] is returned.
+//!
 //! ## Internal (native) function caching
 //!
-//! For internal functions, `reserved[handle]` is lazily populated on first
-//! access via an [`AtomicPtr`] compare-and-swap. The heap-allocated buffer
-//! contains only the function name:
+//! For internal functions, `reserved[handle]` directly stores a
+//! [`FunctionId2`] (transmuted to `*mut c_void`), lazily populated on first
+//! access via an [`AtomicPtr`] compare-and-swap. The function name is
+//! computed once and inserted into the [`ProfilesDictionary`]; no separate
+//! heap allocation is needed.
 //!
-//! ```text
-//! [ u16: fn_name_len ] [ fn_name_bytes... ] [ \0 ]
-//! ```
-//!
-//! Length prefixes are stored as native-endian `u16`, read/written with
-//! unaligned access. The trailing `\0` after each string is not included in
-//! the length and exists only to aid runtime debuggers. Both strings are
+//! Length prefixes in SHM are stored as native-endian `u16`, read/written
+//! with unaligned access. The trailing `\0` after each string is not included
+//! in the length and exists only to aid runtime debuggers. Both strings are
 //! bounded by [`STR_LEN_LIMIT`] (`u16::MAX`), so `u16` is sufficient.
 
 use crate::bindings::{
@@ -37,25 +39,12 @@ use crate::bindings::{
 };
 use crate::vec_ext::VecExt;
 use libc::{c_int, c_void};
-use std::alloc::{self, Layout};
+use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering, Ordering::*};
-use std::sync::Mutex;
 
 const LARGE_STRING: &str = "[suspiciously large string]";
-
-/// A raw pointer wrapper that is `Send` so it can be stored in a
-/// `Mutex<Vec<_>>` across threads.
-struct SendPtr(*mut u8);
-// SAFETY: The pointed-to memory is only accessed by the thread that
-// allocated it (during write) and later during single-threaded shutdown.
-unsafe impl Send for SendPtr {}
-
-/// Tracks heap allocations made for internal function caches so they can
-/// be freed during shutdown. The mutex is only contended on cold (miss)
-/// paths; cache hits never touch this.
-static INTERNAL_CACHE_ALLOCS: Mutex<Vec<(SendPtr, Layout)>> = Mutex::new(Vec::new());
 
 // TODO: `try_string_from_utf8_lossy` and `try_string_from_utf8_lossy_vec`
 // duplicate logic from `libdd-profiling-ffi/src/profiles/utf8.rs`. That
@@ -147,18 +136,6 @@ pub unsafe fn minit(extension: &mut ZendExtension) -> ZendResult {
     extension.op_array_persist = Some(op_array_persist);
 
     ZendResult::Success
-}
-
-/// Frees all heap-allocated internal function caches. Must be called
-/// during shutdown (single-threaded).
-pub fn shutdown() {
-    if let Ok(mut allocs) = INTERNAL_CACHE_ALLOCS.lock() {
-        for (SendPtr(ptr), layout) in allocs.drain(..) {
-            // SAFETY: each (ptr, layout) pair was produced by alloc::alloc
-            // in allocate_internal_cache and has not been freed.
-            unsafe { alloc::dealloc(ptr, layout) };
-        }
-    }
 }
 
 /// Computes the FQN for a function (both user and internal), returning it as
@@ -330,25 +307,23 @@ unsafe fn write_shm_str(dst: *mut u8, s: &str) -> *mut u8 {
     unsafe { nul_dst.add(1) }
 }
 
-/// Attempts to read cached function name and (optionally) filename from the
-/// `reserved[]` slot for a given function.
+/// Attempts to resolve a [`FunctionId2`] for the given function.
 ///
-/// For user functions (op_arrays), the data lives in opcache SHM and contains
-/// both function name and filename. For internal (native) functions, the data
-/// is lazily heap-allocated on first access and contains only the function
-/// name (filename is `None`).
+/// For user functions (op_arrays), the data lives in opcache SHM; the
+/// strings are read and inserted into the global [`ProfilesDictionary`] to
+/// produce a [`FunctionId2`]. For internal (native) functions, the
+/// [`FunctionId2`] is stored directly in `reserved[handle]` and returned
+/// without any dictionary lookup on the hot path.
 ///
-/// Returns `Some((function_name, Some(filename)))` for op_arrays,
-/// `Some((function_name, None))` for internal functions, or `None` on miss.
+/// Returns `None` if the function has no cached data (no opcache, no
+/// reserved handle, trampoline, or dictionary insertion failure).
 ///
 /// # Safety
 /// The caller must ensure `func` is a valid reference to a live
 /// `zend_function`.
-pub unsafe fn try_get_cached<'a>(func: &zend_function) -> Option<(&'a str, Option<&'a str>)> {
+pub unsafe fn try_get_cached(func: &zend_function) -> Option<FunctionId2> {
     let handle = unsafe { RESOURCE_HANDLE };
     // Not initialized (minit wasn't called, e.g. in benchmarks).
-    // todo: remove plumb through testing so we don't need to have this at
-    //       runtime for performance.
     if handle < 0 {
         return None;
     }
@@ -365,8 +340,8 @@ pub unsafe fn try_get_cached<'a>(func: &zend_function) -> Option<(&'a str, Optio
         return unsafe { try_get_cached_internal(func, handle) };
     }
 
-    // Op-array path: read directly from the SHM pointer written by
-    // op_array_persist. No atomics needed — SHM is immutable after persist.
+    // Op-array path: read SHM strings and insert into dictionary.
+    // No atomics needed — SHM is immutable after persist.
     let ptr = unsafe { func.op_array.reserved[handle] };
     if ptr.is_null() {
         return None;
@@ -375,19 +350,26 @@ pub unsafe fn try_get_cached<'a>(func: &zend_function) -> Option<(&'a str, Optio
     let cursor = ptr as *const u8;
     let (function_name, cursor) = unsafe { read_shm_str(cursor) };
     let (filename, _cursor) = unsafe { read_shm_str(cursor) };
-    Some((function_name, Some(filename)))
+
+    let dict = crate::interning::dictionary();
+    let name_id = dict.try_insert_str2(function_name).ok()?;
+    let file_id = dict.try_insert_str2(filename).ok()?;
+    let func2 = Function2 {
+        name: name_id,
+        system_name: StringId2::default(),
+        file_name: file_id,
+    };
+    dict.try_insert_function2(func2).ok()
 }
 
-/// Lazily populates and reads the cached function name for an internal
-/// function. Uses [`AtomicPtr`] compare-and-swap for thread-safe one-time
-/// initialization.
+/// Lazily populates and reads a [`FunctionId2`] for an internal function.
+/// Uses [`AtomicPtr`] compare-and-swap for thread-safe one-time
+/// initialization. The [`FunctionId2`] is stored directly in the
+/// `reserved[]` slot (transmuted to `*mut c_void`).
 ///
 /// # Safety
 /// `func` must be a valid internal function and `handle` must be in-bounds.
-unsafe fn try_get_cached_internal<'a>(
-    func: &zend_function,
-    handle: usize,
-) -> Option<(&'a str, Option<&'a str>)> {
+unsafe fn try_get_cached_internal(func: &zend_function, handle: usize) -> Option<FunctionId2> {
     // SAFETY: AtomicPtr<c_void> has the same size and alignment as
     // *mut c_void (verified by test). We reinterpret the reserved[] slot
     // as an AtomicPtr for lock-free lazy initialization. The slot is only
@@ -398,7 +380,7 @@ unsafe fn try_get_cached_internal<'a>(
             as *const AtomicPtr<c_void>)
     };
 
-    // On ZTS, Acquire/Release pairs ensure the buffer writes from the
+    // On ZTS, Acquire/Release pairs ensure the dictionary writes from the
     // publishing thread are visible to readers. On NTS there's only one
     // thread, so Relaxed suffices for all operations.
     const LOAD_ORDER: Ordering = if cfg!(php_zts) { Acquire } else { Relaxed };
@@ -406,50 +388,40 @@ unsafe fn try_get_cached_internal<'a>(
     const CAS_FAILURE: Ordering = if cfg!(php_zts) { Acquire } else { Relaxed };
 
     let ptr = slot.load(LOAD_ORDER);
-    let data_ptr = if !ptr.is_null() {
-        ptr as *const u8
-    } else {
-        // Cache miss — compute and try to install.
-        let (new_ptr, layout) = allocate_internal_cache(func)?;
-        match slot.compare_exchange(ptr::null_mut(), new_ptr.cast(), CAS_SUCCESS, CAS_FAILURE) {
-            Ok(_) => {
-                // Track for cleanup during shutdown.
-                if let Ok(mut allocs) = INTERNAL_CACHE_ALLOCS.lock() {
-                    allocs.push((SendPtr(new_ptr), layout));
-                }
-                new_ptr
-            }
-            Err(winner) => {
-                // Another thread populated the slot first. Free ours.
-                unsafe { alloc::dealloc(new_ptr, layout) };
-                winner as *const u8
-            }
-        }
-    };
-
-    let (function_name, _cursor) = unsafe { read_shm_str(data_ptr) };
-    Some((function_name, None))
-}
-
-/// Allocates a heap buffer containing the cached function name for an
-/// internal function. Layout: `[u16 len][bytes...][\0]`.
-///
-/// Returns the buffer pointer and its [`Layout`] (for deallocation on CAS
-/// failure), or `None` on OOM.
-fn allocate_internal_cache(func: &zend_function) -> Option<(*mut u8, Layout)> {
-    let function_name = compute_function_name(func)?;
-    let total_size = LEN_PREFIX_SIZE + function_name.len() + 1;
-
-    // SAFETY: total_size >= 4 (function name is always non-empty), align 1
-    // is always valid.
-    let layout = unsafe { Layout::from_size_align_unchecked(total_size, 1) };
-    let ptr = unsafe { alloc::alloc(layout) };
-    if ptr.is_null() {
-        return None;
+    if !ptr.is_null() {
+        // Cache hit: the pointer IS the FunctionId2 (stored via transmute).
+        // SAFETY: we only ever store valid FunctionId2 values via CAS below.
+        return Some(unsafe { mem::transmute::<*mut c_void, FunctionId2>(ptr) });
     }
 
-    unsafe { write_shm_str(ptr, &function_name) };
-    Some((ptr, layout))
+    // Cache miss — compute name, insert into dictionary, CAS.
+    let function_name = compute_function_name(func)?;
+    let dict = crate::interning::dictionary();
+    let name_id = dict.try_insert_str2(&function_name).ok()?;
+    let func2 = Function2 {
+        name: name_id,
+        system_name: StringId2::EMPTY,
+        file_name: StringId2::EMPTY,
+    };
+    let function_id = dict.try_insert_function2(func2).ok()?;
+
+    // SAFETY: FunctionId2 is #[repr(transparent)] over *mut Function2,
+    // which has the same size and alignment as *mut c_void.
+    let new_ptr: *mut c_void = unsafe { mem::transmute::<FunctionId2, *mut c_void>(function_id) };
+
+    match slot.compare_exchange(ptr::null_mut(), new_ptr, CAS_SUCCESS, CAS_FAILURE) {
+        Ok(_) => Some(function_id),
+        Err(winner) => {
+            // Another thread populated the slot first. Use their FunctionId2.
+            // No deallocation needed — the dictionary handles dedup.
+            // SAFETY: winner was stored by another thread via the same CAS,
+            // but it should be the same function so this is fine.
+            // todo: make a method in libdatadog for "is_repr_eq" which is
+            //       similar to Eq but only works for things that come from the
+            //       the same dictionary.
+            Some(unsafe { mem::transmute::<*mut c_void, FunctionId2>(winner) })
+        }
+    }
 }
 
 /// Reads a length-prefixed string entry (`[u16 len][bytes...][\0]`) from
