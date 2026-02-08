@@ -41,8 +41,21 @@ use std::alloc::{self, Layout};
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering, Ordering::*};
+use std::sync::Mutex;
 
 const LARGE_STRING: &str = "[suspiciously large string]";
+
+/// A raw pointer wrapper that is `Send` so it can be stored in a
+/// `Mutex<Vec<_>>` across threads.
+struct SendPtr(*mut u8);
+// SAFETY: The pointed-to memory is only accessed by the thread that
+// allocated it (during write) and later during single-threaded shutdown.
+unsafe impl Send for SendPtr {}
+
+/// Tracks heap allocations made for internal function caches so they can
+/// be freed during shutdown. The mutex is only contended on cold (miss)
+/// paths; cache hits never touch this.
+static INTERNAL_CACHE_ALLOCS: Mutex<Vec<(SendPtr, Layout)>> = Mutex::new(Vec::new());
 
 // TODO: `try_string_from_utf8_lossy` and `try_string_from_utf8_lossy_vec`
 // duplicate logic from `libdd-profiling-ffi/src/profiles/utf8.rs`. That
@@ -134,6 +147,18 @@ pub unsafe fn minit(extension: &mut ZendExtension) -> ZendResult {
     extension.op_array_persist = Some(op_array_persist);
 
     ZendResult::Success
+}
+
+/// Frees all heap-allocated internal function caches. Must be called
+/// during shutdown (single-threaded).
+pub fn shutdown() {
+    if let Ok(mut allocs) = INTERNAL_CACHE_ALLOCS.lock() {
+        for (SendPtr(ptr), layout) in allocs.drain(..) {
+            // SAFETY: each (ptr, layout) pair was produced by alloc::alloc
+            // in allocate_internal_cache and has not been freed.
+            unsafe { alloc::dealloc(ptr, layout) };
+        }
+    }
 }
 
 /// Computes the FQN for a function (both user and internal), returning it as
@@ -387,7 +412,13 @@ unsafe fn try_get_cached_internal<'a>(
         // Cache miss — compute and try to install.
         let (new_ptr, layout) = allocate_internal_cache(func)?;
         match slot.compare_exchange(ptr::null_mut(), new_ptr.cast(), CAS_SUCCESS, CAS_FAILURE) {
-            Ok(_) => new_ptr,
+            Ok(_) => {
+                // Track for cleanup during shutdown.
+                if let Ok(mut allocs) = INTERNAL_CACHE_ALLOCS.lock() {
+                    allocs.push((SendPtr(new_ptr), layout));
+                }
+                new_ptr
+            }
             Err(winner) => {
                 // Another thread populated the slot first. Free ours.
                 unsafe { alloc::dealloc(new_ptr, layout) };
