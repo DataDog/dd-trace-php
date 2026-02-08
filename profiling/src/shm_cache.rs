@@ -40,7 +40,7 @@ use libc::{c_int, c_void};
 use std::alloc::{self, Layout};
 use std::mem;
 use std::ptr;
-use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering, Ordering::*};
 
 const LARGE_STRING: &str = "[suspiciously large string]";
 
@@ -373,18 +373,20 @@ unsafe fn try_get_cached_internal<'a>(
             as *const AtomicPtr<c_void>)
     };
 
-    let ptr = slot.load(Ordering::Acquire);
+    // On ZTS, Acquire/Release pairs ensure the buffer writes from the
+    // publishing thread are visible to readers. On NTS there's only one
+    // thread, so Relaxed suffices for all operations.
+    const LOAD_ORDER: Ordering = if cfg!(php_zts) { Acquire } else { Relaxed };
+    const CAS_SUCCESS: Ordering = if cfg!(php_zts) { Release } else { Relaxed };
+    const CAS_FAILURE: Ordering = if cfg!(php_zts) { Acquire } else { Relaxed };
+
+    let ptr = slot.load(LOAD_ORDER);
     let data_ptr = if !ptr.is_null() {
         ptr as *const u8
     } else {
         // Cache miss — compute and try to install.
         let (new_ptr, layout) = allocate_internal_cache(func)?;
-        match slot.compare_exchange(
-            ptr::null_mut(),
-            new_ptr as *mut c_void,
-            Ordering::Release,
-            Ordering::Acquire,
-        ) {
+        match slot.compare_exchange(ptr::null_mut(), new_ptr.cast(), CAS_SUCCESS, CAS_FAILURE) {
             Ok(_) => new_ptr,
             Err(winner) => {
                 // Another thread populated the slot first. Free ours.
