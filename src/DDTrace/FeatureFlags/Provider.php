@@ -193,16 +193,15 @@ class Provider
      */
     private function isFeatureFlagEnabled()
     {
-        if (function_exists('dd_trace_env_config')) {
-            $val = \dd_trace_env_config('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED');
-            if ($val !== null && $val !== false) {
-                return (bool)$val;
-            }
-        }
-
+        // Check env var first (most reliable across all SAPIs)
         $envVal = getenv('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED');
         if ($envVal !== false) {
             return strtolower($envVal) === 'true' || $envVal === '1';
+        }
+
+        // Fall back to INI config
+        if (function_exists('dd_trace_env_config')) {
+            return (bool)\dd_trace_env_config('DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED');
         }
 
         return false;
