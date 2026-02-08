@@ -1055,6 +1055,10 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // data race condition.
     unsafe { config::shutdown() };
 
+    // Free heap-allocated internal function caches.
+    #[cfg(php_opcache_shm_cache)]
+    shm_cache::shutdown();
+
     // SAFETY: zai_config_mshutdown should be safe to call in shutdown instead
     // of mshutdown.
     unsafe { bindings::zai_config_mshutdown() };
