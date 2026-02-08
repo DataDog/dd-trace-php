@@ -71,7 +71,7 @@ fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) -> bool
     let Some(func) = (unsafe { execute_data.func.as_ref() }) else {
         return false;
     };
-    let Some(func) = extract_function_name(func) else {
+    let Ok(func) = extract_function_name(func) else {
         return false;
     };
     func == "frankenphp|frankenphp_handle_request"

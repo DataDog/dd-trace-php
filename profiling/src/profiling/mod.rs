@@ -1590,7 +1590,7 @@ impl Profiler {
             // there's nothing changing that value in all of fibers
             // afterwards, from start to destruction of the fiber itself.
             let func = unsafe { &*fiber.fci_cache.function_handler };
-            if let Some(functionname) = extract_function_name(func) {
+            if let Ok(functionname) = extract_function_name(func) {
                 labels.push(Label {
                     key: ks.fiber,
                     value: LabelValue::Str(functionname),

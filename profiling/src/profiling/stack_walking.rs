@@ -2,9 +2,10 @@ use crate::bindings::{
     zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
 };
 use crate::profiling::Backtrace;
-use crate::vec_ext::VecExt;
+use crate::vec_ext::{self, VecExt};
 use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
 use std::borrow::Cow;
+use std::collections::TryReserveError;
 
 #[cfg(php_frameless)]
 use crate::bindings::zend_flf_functions;
@@ -19,6 +20,7 @@ use crate::bindings::{
 /// replaced by a shorter string, etc.
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
 
+const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -46,28 +48,25 @@ pub enum CollectStackSampleError {
     TryReserveError(#[from] std::collections::TryReserveError),
 }
 
-/// Extract the "function name" component for the frame. This is a string which
-/// looks like this for methods:
-///     {module}|{class_name}::{method_name}
-/// And this for functions:
-///     {module}|{function_name}
-/// Where the "{module}|" is present only if it's an internal function.
-/// Namespaces are part of the class_name or function_name respectively.
-/// Closures and anonymous classes get reformatted by the backend (or maybe
-/// frontend, either way it's not our concern, at least not right now).
-pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> {
+/// Computes the fully-qualified function name for a frame.
+///
+/// The result looks like `{module}|{class}::{method}` for internal methods,
+/// `{class}::{method}` for user methods, `{function}` for plain functions,
+/// or `"<?php"` for top-level script code (no function name).
+///
+/// All allocations are fallible — returns `Err` on OOM, never panics.
+/// Names exceeding [`STR_LEN_LIMIT`] are replaced with
+/// `"[suspiciously large string]"`.
+pub fn extract_function_name(func: &zend_function) -> Result<Cow<'static, str>, TryReserveError> {
     let method_name: &[u8] = func.name().unwrap_or(b"");
 
-    /* The top of the stack seems to reasonably often not have a function, but
-     * still has a scope. I don't know if this intentional, or if it's more of
-     * a situation where scope is only valid if the func is present. So, I'm
-     * erring on the side of caution and returning early.
-     */
+    // The top of the stack seems to reasonably often not have a function, but
+    // still has a scope. I don't know if this intentional, or if it's more of
+    // a situation where scope is only valid if the func is present. So, I'm
+    // erring on the side of caution and returning early.
     if method_name.is_empty() {
-        return None;
+        return Ok(COW_PHP_OPEN_TAG);
     }
-
-    let mut buffer = Vec::<u8>::new();
 
     // User functions do not have a "module". Maybe one day use composer info?
     let module_name = func.module_name().unwrap_or(b"");
@@ -80,31 +79,29 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     let class_name_len = has_class as usize * "::".len() + class_name.len();
     let len = module_len + class_name_len + method_name.len();
 
-    // Rather than fail, we use a short string to represent a long string.
+    // When refactoring, make sure large str len is checked before allocating.
     if len >= STR_LEN_LIMIT {
-        return Some(COW_LARGE_STRING);
+        return Ok(COW_LARGE_STRING);
     }
 
-    // When refactoring, make sure large str len is checked before allocating.
-    buffer.reserve_exact(len);
+    let mut buffer = Vec::<u8>::new();
+    buffer.try_reserve_exact(len)?;
 
+    // Capacity was pre-reserved for the exact total length, so these
+    // try_extend_from_slice calls will not allocate.
     if has_module {
-        buffer.extend_from_slice(module_name);
-        buffer.push(b'|');
+        buffer.try_extend_from_slice(module_name)?;
+        buffer.try_extend_from_slice(b"|")?;
     }
 
     if has_class {
-        buffer.extend_from_slice(class_name);
-        buffer.extend_from_slice(b"::");
+        buffer.try_extend_from_slice(class_name)?;
+        buffer.try_extend_from_slice(b"::")?;
     }
 
-    buffer.extend_from_slice(method_name);
+    buffer.try_extend_from_slice(method_name)?;
 
-    // When replacing the string to make it valid utf-8, it may get a bit
-    // longer, but this usually doesn't happen. This limit is a soft-limit
-    // at the moment anyway, so this is okay.
-    let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
-    Some(Cow::Owned(string))
+    vec_ext::try_cow_from_utf8_lossy_vec(buffer)
 }
 
 /// Gets an opline reference after doing bounds checking to prevent segfaults
@@ -141,26 +138,15 @@ fn opline_in_bounds(op_array: &zend_op_array, opline: *const zend_op) -> bool {
 /// Computes function name (and optionally filename) for a function and inserts
 /// them into the global [`ProfilesDictionary`], returning a [`FunctionId2`].
 ///
-/// Returns `None` if the function has no identifiable name or file, or if
-/// dictionary insertion fails.
+/// Returns `None` if dictionary insertion fails or OOM.
 fn insert_function_into_dictionary(func: &zend_function) -> Option<FunctionId2> {
     let dict = crate::interning::dictionary();
     let ks = crate::interning::known_strings();
 
-    let function_name = extract_function_name(func);
-    let has_file = !func.is_internal();
+    let function_name = extract_function_name(func).ok()?;
+    let name_id = dict.try_insert_str2(&function_name).ok()?;
 
-    // If there's no function name AND no file, skip this frame.
-    if function_name.is_none() && !has_file {
-        return None;
-    }
-
-    let name_id = match function_name {
-        Some(ref name) => dict.try_insert_str2(name).ok()?,
-        None => ks.php_open_tag, // Top-level script code
-    };
-
-    let file_id = if has_file {
+    let file_id = if !func.is_internal() {
         // SAFETY: op_array.filename is always valid for user functions
         // — this is a PHP engine invariant.
         let file_bytes = unsafe { zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes() };

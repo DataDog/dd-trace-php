@@ -37,65 +37,13 @@ use crate::bindings::{
     self, _zend_op_array as zend_op_array, zai_str_from_zstr, zend_function, ZendExtension,
     ZendResult, ZEND_ACC_CALL_VIA_TRAMPOLINE,
 };
-use crate::vec_ext::VecExt;
+use crate::profiling::extract_function_name;
+use crate::vec_ext;
 use libc::{c_int, c_void};
 use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
 use std::mem;
 use std::ptr;
 use std::sync::atomic::{AtomicPtr, Ordering, Ordering::*};
-
-const LARGE_STRING: &str = "[suspiciously large string]";
-
-// TODO: `try_string_from_utf8_lossy` and `try_string_from_utf8_lossy_vec`
-// duplicate logic from `libdd-profiling-ffi/src/profiles/utf8.rs`. That
-// implementation should be moved to `libdd-profiling` (not `-ffi`) so both
-// crates can reuse it without duplicating the fallible lossy UTF-8 conversion.
-
-/// Lossy UTF-8 conversion of a `Vec<u8>` into a `String`, using only
-/// fallible allocations. If the input is already valid UTF-8, this is
-/// zero-copy (reuses the Vec's buffer). Returns `None` on OOM.
-#[inline(always)]
-fn try_string_from_utf8_lossy_vec(v: Vec<u8>) -> Option<String> {
-    match String::from_utf8(v) {
-        Ok(s) => Some(s),
-        Err(e) => try_string_from_utf8_lossy(e.as_bytes()),
-    }
-}
-
-/// Lossy UTF-8 conversion of a byte slice into an owned `String`, using
-/// only fallible allocations and no operations that can panic. Adapted
-/// from `libdd-profiling-ffi/src/profiles/utf8.rs`. Returns `None` on OOM.
-#[inline(always)]
-fn try_string_from_utf8_lossy(v: &[u8]) -> Option<String> {
-    const REPLACEMENT: &[u8] = "\u{FFFD}".as_bytes();
-
-    let mut iter = v.utf8_chunks();
-
-    let first = iter.next()?;
-    if first.invalid().is_empty() {
-        // Entirely valid UTF-8 — allocate and copy via Vec.
-        let mut buf = Vec::new();
-        buf.try_extend_from_slice(v).ok()?;
-        // SAFETY: we just confirmed the input is valid UTF-8.
-        return Some(unsafe { String::from_utf8_unchecked(buf) });
-    }
-
-    let mut buf = Vec::new();
-    buf.try_reserve(v.len()).ok()?;
-    buf.try_extend_from_slice(first.valid().as_bytes()).ok()?;
-    buf.try_extend_from_slice(REPLACEMENT).ok()?;
-
-    for chunk in iter {
-        buf.try_extend_from_slice(chunk.valid().as_bytes()).ok()?;
-        if !chunk.invalid().is_empty() {
-            buf.try_extend_from_slice(REPLACEMENT).ok()?;
-        }
-    }
-
-    // SAFETY: we only pushed valid UTF-8 fragments and the UTF-8
-    // replacement character, so the result is valid UTF-8.
-    Some(unsafe { String::from_utf8_unchecked(buf) })
-}
 
 /// The acquired `reserved[]` slot handle. -1 means not acquired.
 static mut RESOURCE_HANDLE: c_int = -1;
@@ -138,71 +86,35 @@ pub unsafe fn minit(extension: &mut ZendExtension) -> ZendResult {
     ZendResult::Success
 }
 
-/// Computes the FQN for a function (both user and internal), returning it as
-/// a lossy-UTF-8 owned [`String`]. Names exceeding [`STR_LEN_LIMIT`] are
-/// replaced with `"[suspiciously large string]"`.
-///
-/// All allocations are fallible (no panics). Returns `None` on OOM.
-/// Top-level script code (no function name) uses `"<?php"` as the name.
-#[inline(always)]
-fn compute_function_name(func: &zend_function) -> Option<String> {
-    const PHP_OPEN_TAG: &[u8] = b"<?php";
-    let method_name: &[u8] = func.name().unwrap_or(PHP_OPEN_TAG);
-
-    let module_name = func.module_name().unwrap_or(b"");
-    let class_name = func.scope_name().unwrap_or(b"");
-
-    let (has_module, has_class) = (!module_name.is_empty(), !class_name.is_empty());
-    let module_len = has_module as usize + module_name.len(); // "|" separator
-    let class_name_len = has_class as usize * 2 + class_name.len(); // "::" separator
-    let raw_len = module_len + class_name_len + method_name.len();
-
-    if raw_len >= STR_LEN_LIMIT {
-        try_string_from_utf8_lossy(LARGE_STRING.as_bytes())
-    } else {
-        let mut buffer = Vec::<u8>::new();
-        buffer.try_reserve_exact(raw_len).ok()?;
-
-        // Capacity was pre-reserved for the exact total length, so these
-        // try_extend_from_slice calls will not allocate.
-        if has_module {
-            buffer.try_extend_from_slice(module_name).ok()?;
-            buffer.try_extend_from_slice(b"|").ok()?;
-        }
-        if has_class {
-            buffer.try_extend_from_slice(class_name).ok()?;
-            buffer.try_extend_from_slice(b"::").ok()?;
-        }
-        buffer.try_extend_from_slice(method_name).ok()?;
-
-        try_string_from_utf8_lossy_vec(buffer)
-    }
-}
-
 /// Computes the FQN and filename strings for an op_array, returning them as
-/// lossy-UTF-8 owned [`String`]s.
+/// lossy-UTF-8 [`Cow<str>`] values.
 ///
 /// All allocations are fallible (no panics). Returns `None` on OOM.
 #[inline(always)]
-fn compute_shm_strings(op_array: &zend_op_array) -> Option<(String, String)> {
+fn compute_shm_strings(
+    op_array: &zend_op_array,
+) -> Option<(
+    std::borrow::Cow<'static, str>,
+    std::borrow::Cow<'static, str>,
+)> {
     // SAFETY: we cast to zend_function to use its helper methods. This is safe
     // because zend_op_array is the op_array variant of the zend_function union,
     // and we only call methods that access common/op_array fields.
     let func: &zend_function =
         unsafe { &*(op_array as *const zend_op_array as *const zend_function) };
 
-    let function_name = compute_function_name(func)?;
+    let function_name = extract_function_name(func).ok()?;
 
     // Extract filename (lossy UTF-8 converted).
     // SAFETY: op_array.filename is valid during persist hooks.
-    let filename: String = {
+    let filename = {
         let file_str = unsafe { zai_str_from_zstr(op_array.filename.as_mut()) };
         let bytes = file_str.as_bytes();
-        try_string_from_utf8_lossy(if bytes.len() >= STR_LEN_LIMIT {
-            LARGE_STRING.as_bytes()
+        if bytes.len() >= STR_LEN_LIMIT {
+            std::borrow::Cow::Borrowed("[suspiciously large string]")
         } else {
-            bytes
-        })?
+            vec_ext::try_cow_from_utf8_lossy(bytes).ok()?
+        }
     };
 
     Some((function_name, filename))
@@ -230,7 +142,13 @@ fn compute_total_size(function_name: &str, filename: &str) -> usize {
 /// `op_array` must be a valid pointer provided by the engine during opcache
 /// persistence.
 #[inline(always)]
-unsafe fn prepare_persist(op_array: *mut zend_op_array) -> Option<(String, String, usize)> {
+unsafe fn prepare_persist(
+    op_array: *mut zend_op_array,
+) -> Option<(
+    std::borrow::Cow<'static, str>,
+    std::borrow::Cow<'static, str>,
+    usize,
+)> {
     let op_array = unsafe { op_array.as_ref() }?;
     let (function_name, filename) = compute_shm_strings(op_array)?;
     let aligned_total = zend_aligned_size(compute_total_size(&function_name, &filename));
@@ -395,7 +313,7 @@ unsafe fn try_get_cached_internal(func: &zend_function, handle: usize) -> Option
     }
 
     // Cache miss — compute name, insert into dictionary, CAS.
-    let function_name = compute_function_name(func)?;
+    let function_name = extract_function_name(func).ok()?;
     let dict = crate::interning::dictionary();
     let name_id = dict.try_insert_str2(&function_name).ok()?;
     let func2 = Function2 {
