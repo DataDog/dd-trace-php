@@ -57,13 +57,20 @@ uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
 void ddog_init_remote_config(bool live_debugging_enabled,
                              bool appsec_activation,
-                             bool appsec_config);
+                             bool appsec_config,
+                             bool ffe_enabled);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
 bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+
+uint8_t *ddog_get_ffe_config(size_t *out_len);
+
+void ddog_free_ffe_config(uint8_t *ptr, size_t len);
+
+bool ddog_ffe_config_changed(void);
 
 bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
                                    ddog_CharSlice typename_);

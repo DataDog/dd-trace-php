@@ -2922,6 +2922,17 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 ddtrace_metric_add_point(Z_STR_P(metric_name), zval_get_double(metric_value), Z_STR_P(tags));
                 RETVAL_TRUE;
             }
+        } else if (FUNCTION_NAME_MATCHES("get_ffe_config")) {
+            size_t len = 0;
+            uint8_t *data = ddog_get_ffe_config(&len);
+            if (data && len > 0) {
+                RETVAL_STRINGL((char *)data, len);
+                ddog_free_ffe_config(data, len);
+            } else {
+                RETVAL_NULL();
+            }
+        } else if (FUNCTION_NAME_MATCHES("ffe_config_changed")) {
+            RETVAL_BOOL(ddog_ffe_config_changed());
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
             if (!ddtrace_sidecar) {
                 RETURN_FALSE;

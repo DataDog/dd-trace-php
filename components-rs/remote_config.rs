@@ -28,9 +28,14 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::c_char;
 use std::mem;
 use std::ptr::NonNull;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tracing::debug;
 use crate::bytes::{ZendString, OwnedZendString, dangling_zend_string};
+
+lazy_static::lazy_static! {
+    static ref FFE_CONFIG: Mutex<Option<Vec<u8>>> = Mutex::new(None);
+    static ref FFE_CONFIG_CHANGED: Mutex<bool> = Mutex::new(false);
+}
 
 pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
 
@@ -101,6 +106,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
     live_debugging_enabled: bool,
     appsec_activation: bool,
     appsec_config: bool,
+    ffe_enabled: bool,
 ) {
     DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::ApmTracing);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingCustomTags);
@@ -115,6 +121,11 @@ pub unsafe extern "C" fn ddog_init_remote_config(
 
     if appsec_activation {
         DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmActivation);
+    }
+
+    if ffe_enabled {
+        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::FfeFlags);
+        DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::FfeFlagConfigurationRules);
     }
 
     if live_debugging_enabled {
@@ -348,6 +359,15 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         remote_config.dynamic_config.active_config_path = Some(value.config_id);
                     }
                 }
+                RemoteConfigData::FfeFlags(data) => {
+                    debug!("Received FFE flags configuration, {} bytes", data.len());
+                    if let Ok(mut config) = FFE_CONFIG.lock() {
+                        *config = Some(data);
+                    }
+                    if let Ok(mut changed) = FFE_CONFIG_CHANGED.lock() {
+                        *changed = true;
+                    }
+                }
                 RemoteConfigData::Ignored(_) => (),
                 RemoteConfigData::TracerFlareConfig(_) => {}
                 RemoteConfigData::TracerFlareTask(_) => {}
@@ -362,6 +382,15 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 RemoteConfigProduct::ApmTracing => {
                     if Some(path.config_id) == remote_config.dynamic_config.active_config_path {
                         remove_old_configs(remote_config);
+                    }
+                }
+                RemoteConfigProduct::FfeFlags => {
+                    debug!("FFE flags configuration removed");
+                    if let Ok(mut config) = FFE_CONFIG.lock() {
+                        *config = None;
+                    }
+                    if let Ok(mut changed) = FFE_CONFIG_CHANGED.lock() {
+                        *changed = true;
                     }
                 }
                 _ => (),
@@ -565,6 +594,45 @@ pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigS
 
 #[no_mangle]
 pub extern "C" fn ddog_shutdown_remote_config(_: Box<RemoteConfigState>) {}
+
+/// Returns the current FFE configuration as raw JSON bytes.
+/// The caller must free the returned pointer with ddog_free_ffe_config.
+/// Returns null if no config is available.
+#[no_mangle]
+pub extern "C" fn ddog_get_ffe_config(out_len: &mut usize) -> *mut u8 {
+    if let Ok(config) = FFE_CONFIG.lock() {
+        if let Some(ref data) = *config {
+            *out_len = data.len();
+            let mut boxed = data.clone().into_boxed_slice();
+            let ptr = boxed.as_mut_ptr();
+            std::mem::forget(boxed);
+            return ptr;
+        }
+    }
+    *out_len = 0;
+    std::ptr::null_mut()
+}
+
+/// Free memory allocated by ddog_get_ffe_config.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_free_ffe_config(ptr: *mut u8, len: usize) {
+    if !ptr.is_null() && len > 0 {
+        drop(Vec::from_raw_parts(ptr, len, len));
+    }
+}
+
+/// Check if FFE config has changed since last check.
+/// Resets the changed flag after reading.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_config_changed() -> bool {
+    if let Ok(mut changed) = FFE_CONFIG_CHANGED.lock() {
+        let was_changed = *changed;
+        *changed = false;
+        was_changed
+    } else {
+        false
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn ddog_log_debugger_data(payloads: &Vec<DebuggerPayload>) {
