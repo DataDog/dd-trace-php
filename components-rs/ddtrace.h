@@ -43,6 +43,10 @@ ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_Cha
 
 int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
 
+const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
+
+void ddog_free_normalized_tag_value(const char *ptr);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -238,9 +242,5 @@ void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
 void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
-
-const char *ddog_normalize_process_tag_value(ddog_CharSlice val);
-
-void ddog_free_normalized_tag_value(const char* normalized_val);
 
 #endif  /* DDTRACE_PHP_H */

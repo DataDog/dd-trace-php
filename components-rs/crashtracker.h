@@ -451,7 +451,7 @@ void ddog_crasht_CrashInfoBuilder_drop(struct ddog_crasht_Handle_CrashInfoBuilde
  * which has not previously been dropped.
  */
 DDOG_CHECK_RETURN
-struct ddog_crasht_CrashInfo_NewResult ddog_crasht_CrashInfoBuilder_build(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
+ddog_crasht_CrashInfo_NewResult ddog_crasht_CrashInfoBuilder_build(struct ddog_crasht_Handle_CrashInfoBuilder *builder);
 
 /**
  * # Safety
@@ -645,6 +645,16 @@ struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_trace_id(struct ddog_cr
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_message(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
                                                                  ddog_CharSlice message);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_thread_name(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                     ddog_CharSlice thread_name);
 
 /**
  * # Safety
@@ -854,7 +864,7 @@ struct ddog_StringWrapperResult ddog_crasht_demangle(ddog_CharSlice name,
  * signal handler is dangerous, so we fork a sidecar to do the stuff we aren't
  * allowed to do in the handler.
  *
- * See comments in [datadog-crashtracker/lib.rs] for a full architecture description.
+ * See comments in [libdd-crashtracker/lib.rs] for a full architecture description.
  * # Safety
  * No safety concerns
  */
@@ -868,7 +878,7 @@ DDOG_CHECK_RETURN struct ddog_VoidResult ddog_crasht_receiver_entry_point_stdin(
  * signal handler is dangerous, so we fork a sidecar to do the stuff we aren't
  * allowed to do in the handler.
  *
- * See comments in [datadog-crashtracker/lib.rs] for a full architecture
+ * See comments in [libdd-crashtracker/lib.rs] for a full architecture
  * description.
  * # Safety
  * No safety concerns
