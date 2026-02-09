@@ -1748,7 +1748,7 @@ mod tests {
     fn get_frames() -> Backtrace {
         #[cfg(php_opcache_restart_hook)]
         {
-            use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
+            use libdd_profiling::profiles::datatypes::{Function2, StringId2};
             crate::interning::init();
             let dict = crate::interning::dictionary();
             let name_id = dict

@@ -8,17 +8,19 @@ use chrono::{DateTime, Utc};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{select, Receiver};
 use libdd_common::Endpoint;
-use log::{debug, error, info, warn};
+use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
 
 #[cfg(feature = "debug_stats")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 #[cfg(feature = "debug_stats")]
 use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
-use std::sync::atomic::Ordering;
+#[cfg(php_opcache_restart_hook)]
+use log::error;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
