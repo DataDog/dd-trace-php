@@ -416,9 +416,29 @@ mod tests {
         fn ddog_php_test_free_fake_zend_function(func: *mut zend::zend_function);
     }
 
+    #[cfg(feature = "stack_walking_tests")]
+    /// Resolves the function name string from a [`ZendFrame`]'s
+    /// [`FunctionId2`] via the global [`ProfilesDictionary`].
+    unsafe fn resolve_function_name(frame: &ZendFrame) -> &str {
+        let func2 = unsafe { frame.function.read() }.expect("FunctionId2 should not be empty");
+        let string_ref = libdd_profiling::profiles::collections::StringRef::from(func2.name);
+        unsafe { crate::interning::dictionary().strings().get(string_ref) }
+    }
+
+    #[cfg(feature = "stack_walking_tests")]
+    /// Resolves the filename string from a [`ZendFrame`]'s [`FunctionId2`]
+    /// via the global [`ProfilesDictionary`].
+    unsafe fn resolve_file_name(frame: &ZendFrame) -> &str {
+        let func2 = unsafe { frame.function.read() }.expect("FunctionId2 should not be empty");
+        let string_ref = libdd_profiling::profiles::collections::StringRef::from(func2.file_name);
+        unsafe { crate::interning::dictionary().strings().get(string_ref) }
+    }
+
     #[test]
     #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
+        crate::interning::init();
+
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
 
@@ -427,16 +447,16 @@ mod tests {
             assert_eq!(stack.len(), 3);
 
             let frames = &stack;
-            assert_eq!(frames[0].function, "function name 003");
-            assert_eq!(frames[0].file, Some("filename-003.php".into()));
+            assert_eq!(resolve_function_name(&frames[0]), "function name 003");
+            assert_eq!(resolve_file_name(&frames[0]), "filename-003.php");
             assert_eq!(frames[0].line, 0);
 
-            assert_eq!(frames[1].function, "function name 002");
-            assert_eq!(frames[1].file, Some("filename-002.php".into()));
+            assert_eq!(resolve_function_name(&frames[1]), "function name 002");
+            assert_eq!(resolve_file_name(&frames[1]), "filename-002.php");
             assert_eq!(frames[1].line, 0);
 
-            assert_eq!(frames[2].function, "function name 001");
-            assert_eq!(frames[2].file, Some("filename-001.php".into()));
+            assert_eq!(resolve_function_name(&frames[2]), "function name 001");
+            assert_eq!(resolve_file_name(&frames[2]), "filename-001.php");
             assert_eq!(frames[2].line, 0);
 
             // Free the allocated memory
