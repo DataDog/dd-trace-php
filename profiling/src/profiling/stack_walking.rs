@@ -3,9 +3,11 @@ use crate::bindings::{
 };
 use crate::profiling::Backtrace;
 use crate::vec_ext::{self, VecExt};
-use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
 use std::borrow::Cow;
 use std::collections::TryReserveError;
+
+#[cfg(php_opcache_restart_hook)]
+use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
 
 #[cfg(php_frameless)]
 use crate::bindings::zend_flf_functions;
@@ -23,8 +25,67 @@ const STR_LEN_LIMIT: usize = u16::MAX as usize;
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
+/// Known synthetic frames without a runtime filename.
+///
+/// Used with [`Frame::from_synthetic`] to create frames for timeline events
+/// and special markers in a version-agnostic way. The implementation maps
+/// these to the appropriate internal representation (e.g. `FunctionId2` on
+/// PHP 8.4+, owned strings on older versions).
+#[derive(Clone, Copy, Debug)]
+pub enum SyntheticFrame {
+    Truncated,      // "[truncated]"
+    Idle,           // "[idle]"
+    Gc,             // "[gc]"
+    Include,        // "[include]"
+    Require,        // "[require]"
+    IncludeUnknown, // "[]"
+    ThreadStart,    // "[thread start]"
+    ThreadStop,     // "[thread stop]"
+}
+
+impl SyntheticFrame {
+    /// Returns `(function_name, filename)` string pair for this frame.
+    pub const fn as_strs(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Truncated => ("[truncated]", ""),
+            Self::Idle => ("[idle]", ""),
+            Self::Gc => ("[gc]", ""),
+            Self::Include => ("[include]", ""),
+            Self::Require => ("[require]", ""),
+            Self::IncludeUnknown => ("[]", ""),
+            Self::ThreadStart => ("[thread start]", ""),
+            Self::ThreadStop => ("[thread stop]", ""),
+        }
+    }
+}
+
+/// Known frame names that pair with a runtime filename.
+///
+/// Used with [`Frame::from_synthetic_with_file`] for events like eval,
+/// fatal errors, and opcache restarts where the frame name is fixed but
+/// the filename comes from runtime context.
+#[derive(Clone, Copy, Debug)]
+pub enum SyntheticFrameName {
+    Eval,           // "[eval]"
+    Fatal,          // "[fatal]"
+    OpcacheRestart, // "[opcache restart]"
+}
+
+impl SyntheticFrameName {
+    /// Returns the function name string for this synthetic frame name.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Eval => "[eval]",
+            Self::Fatal => "[fatal]",
+            Self::OpcacheRestart => "[opcache restart]",
+        }
+    }
+}
+
+// ── PHP 8.4+ Frame ──────────────────────────────────────────────────
+#[cfg(php_opcache_restart_hook)]
 #[derive(Clone, Copy, Debug, Default)]
-pub struct ZendFrame {
+pub struct Frame {
     /// A [`FunctionId2`] handle into the global [`ProfilesDictionary`].
     /// Encapsulates function name, system name, and filename.
     pub function: FunctionId2,
@@ -33,8 +94,86 @@ pub struct ZendFrame {
 
 // SAFETY: FunctionId2 points into the global ProfilesDictionary which is
 // Send + Sync and lives for the process lifetime.
-unsafe impl Send for ZendFrame {}
-unsafe impl Sync for ZendFrame {}
+#[cfg(php_opcache_restart_hook)]
+unsafe impl Send for Frame {}
+#[cfg(php_opcache_restart_hook)]
+unsafe impl Sync for Frame {}
+
+#[cfg(php_opcache_restart_hook)]
+impl Frame {
+    /// Creates a [`Frame`] for a known synthetic event (no runtime filename).
+    pub fn from_synthetic(sf: SyntheticFrame, line: u32) -> Self {
+        let kf = crate::interning::known_functions();
+        let function = match sf {
+            SyntheticFrame::Truncated => kf.truncated,
+            SyntheticFrame::Idle => kf.idle,
+            SyntheticFrame::Gc => kf.gc,
+            SyntheticFrame::Include => kf.include,
+            SyntheticFrame::Require => kf.require,
+            SyntheticFrame::IncludeUnknown => kf.include_unknown,
+            SyntheticFrame::ThreadStart => kf.thread_start,
+            SyntheticFrame::ThreadStop => kf.thread_stop,
+        };
+        Self { function, line }
+    }
+
+    /// Creates a [`Frame`] for a known synthetic event with a runtime filename.
+    ///
+    /// Returns `None` if interning fails (e.g. OOM).
+    pub fn from_synthetic_with_file(
+        name: SyntheticFrameName,
+        filename: &str,
+        line: u32,
+    ) -> Option<Self> {
+        let kf = crate::interning::known_functions();
+        let name_id = match name {
+            SyntheticFrameName::Eval => kf.eval_name,
+            SyntheticFrameName::Fatal => kf.fatal_name,
+            SyntheticFrameName::OpcacheRestart => kf.opcache_restart_name,
+        };
+        let function = crate::interning::make_function_id_with_file(name_id, filename)?;
+        Some(Self { function, line })
+    }
+}
+
+// ── PHP 7.1-8.3 Frame ──────────────────────────────────────────────
+#[cfg(not(php_opcache_restart_hook))]
+#[derive(Clone, Debug, Default)]
+pub struct Frame {
+    /// Fully-qualified function name (e.g. `"MyClass::method"`).
+    pub function_name: String,
+    /// Source filename (empty string for internal functions).
+    pub filename: String,
+    pub line: u32, // use 0 for no line info
+}
+
+#[cfg(not(php_opcache_restart_hook))]
+impl Frame {
+    /// Creates a [`Frame`] for a known synthetic event (no runtime filename).
+    pub fn from_synthetic(sf: SyntheticFrame, line: u32) -> Self {
+        let (name, file) = sf.as_strs();
+        Self {
+            function_name: name.into(),
+            filename: file.into(),
+            line,
+        }
+    }
+
+    /// Creates a [`Frame`] for a known synthetic event with a runtime filename.
+    ///
+    /// Always succeeds on PHP 7.1-8.3 (no dictionary insertion).
+    pub fn from_synthetic_with_file(
+        name: SyntheticFrameName,
+        filename: &str,
+        line: u32,
+    ) -> Option<Self> {
+        Some(Self {
+            function_name: name.as_str().into(),
+            filename: filename.into(),
+            line,
+        })
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum CollectStackSampleError {
@@ -139,6 +278,7 @@ fn opline_in_bounds(op_array: &zend_op_array, opline: *const zend_op) -> bool {
 /// them into the global [`ProfilesDictionary`], returning a [`FunctionId2`].
 ///
 /// Returns `None` if dictionary insertion fails or OOM.
+#[cfg(php_opcache_restart_hook)]
 fn insert_function_into_dictionary(func: &zend_function) -> Option<FunctionId2> {
     let dict = crate::interning::dictionary();
     let ks = crate::interning::known_strings();
@@ -168,7 +308,26 @@ fn insert_function_into_dictionary(func: &zend_function) -> Option<FunctionId2> 
     dict.try_insert_function2(func2).ok()
 }
 
-#[cfg(php_run_time_cache)]
+/// Extracts the filename from a user function, or returns an empty string
+/// for internal functions. Returns `None` only on OOM.
+#[cfg(not(php_opcache_restart_hook))]
+fn extract_filename(func: &zend_function) -> Option<Cow<'static, str>> {
+    if !func.is_internal() {
+        // SAFETY: op_array.filename is always valid for user functions
+        // — this is a PHP engine invariant.
+        let file_bytes = unsafe { zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes() };
+        if file_bytes.len() < STR_LEN_LIMIT {
+            Some(String::from_utf8_lossy(file_bytes).into_owned().into())
+        } else {
+            Some(COW_LARGE_STRING)
+        }
+    } else {
+        Some(Cow::Borrowed(""))
+    }
+}
+
+/// PHP 8.4+: FunctionId2-based frames via ProfilesDictionary + caching.
+#[cfg(php_opcache_restart_hook)]
 mod detail {
     use super::*;
     use crate::RefCellExt;
@@ -210,11 +369,6 @@ mod detail {
         static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
             const { RefCell::new(FunctionRunTimeCacheStats::new()) }
     }
-
-    /// # Safety
-    /// Must be called in Zend Extension activate.
-    #[inline]
-    pub unsafe fn activate() {}
 
     #[inline]
     pub fn rshutdown() {
@@ -260,7 +414,7 @@ mod detail {
                                     &**zend_flf_functions.offset(opline.extended_value as isize)
                                 };
                                 if let Some(fid) = insert_function_into_dictionary(flf_func) {
-                                    samples.try_push(ZendFrame {
+                                    samples.try_push(Frame {
                                         function: fid,
                                         line: 0,
                                     })?;
@@ -276,10 +430,7 @@ mod detail {
                     samples.try_push(frame)?;
 
                     if samples.len() == max_depth - 1 {
-                        samples.try_push(ZendFrame {
-                            function: crate::interning::known_functions().truncated,
-                            line: 0,
-                        })?;
+                        samples.try_push(Frame::from_synthetic(SyntheticFrame::Truncated, 0))?;
                         break;
                     }
                 }
@@ -290,7 +441,7 @@ mod detail {
         Ok(Backtrace::new(samples))
     }
 
-    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<Frame> {
         #[cfg(not(feature = "stack_walking_tests"))]
         use crate::bindings::ddog_php_prof_function_run_time_cache;
         #[cfg(feature = "stack_walking_tests")]
@@ -303,7 +454,7 @@ mod detail {
         if let Some(function_id) = unsafe { crate::shm_cache::try_get_cached(func) } {
             _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.shm_hit += 1);
             let line = safely_get_opline(execute_data).map_or(0, |op| op.lineno);
-            return Some(ZendFrame {
+            return Some(Frame {
                 function: function_id,
                 line,
             });
@@ -320,7 +471,7 @@ mod detail {
                 let function_id: FunctionId2 =
                     unsafe { std::mem::transmute::<usize, FunctionId2>(cached) };
                 let line = safely_get_opline(execute_data).map_or(0, |op| op.lineno);
-                return Some(ZendFrame {
+                return Some(Frame {
                     function: function_id,
                     line,
                 });
@@ -331,7 +482,7 @@ mod detail {
             let function_id = insert_function_into_dictionary(func)?;
             slots[0] = unsafe { std::mem::transmute::<FunctionId2, usize>(function_id) };
             let line = safely_get_opline(execute_data).map_or(0, |op| op.lineno);
-            return Some(ZendFrame {
+            return Some(Frame {
                 function: function_id,
                 line,
             });
@@ -341,22 +492,17 @@ mod detail {
         _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
         let function_id = insert_function_into_dictionary(func)?;
         let line = safely_get_opline(execute_data).map_or(0, |op| op.lineno);
-        Some(ZendFrame {
+        Some(Frame {
             function: function_id,
             line,
         })
     }
 }
 
-#[cfg(not(php_run_time_cache))]
+/// PHP 7.1-8.3: string-based frames, no ProfilesDictionary.
+#[cfg(not(php_opcache_restart_hook))]
 mod detail {
     use super::*;
-
-    /// # Safety
-    /// This is actually safe, but it is marked unsafe for symmetry when the
-    /// run_time_cache is enabled.
-    #[inline]
-    pub unsafe fn activate() {}
 
     #[inline]
     pub fn rshutdown() {}
@@ -378,10 +524,7 @@ mod detail {
                 samples.try_push(frame)?;
 
                 if samples.len() == max_depth - 1 {
-                    samples.try_push(ZendFrame {
-                        function: crate::interning::known_functions().truncated,
-                        line: 0,
-                    })?;
+                    samples.try_push(Frame::from_synthetic(SyntheticFrame::Truncated, 0))?;
                     break;
                 }
             }
@@ -391,12 +534,14 @@ mod detail {
         Ok(Backtrace::new(samples))
     }
 
-    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<Frame> {
         let func = execute_data.func.as_ref()?;
-        let function_id = insert_function_into_dictionary(func)?;
+        let function_name = extract_function_name(func).ok()?.into_owned();
+        let filename = extract_filename(func)?;
         let line = safely_get_opline(execute_data).map_or(0, |op| op.lineno);
-        Some(ZendFrame {
-            function: function_id,
+        Some(Frame {
+            function_name,
+            filename: filename.into_owned(),
             line,
         })
     }
@@ -416,26 +561,26 @@ mod tests {
         fn ddog_php_test_free_fake_zend_function(func: *mut zend::zend_function);
     }
 
-    #[cfg(feature = "stack_walking_tests")]
-    /// Resolves the function name string from a [`ZendFrame`]'s
+    #[cfg(all(feature = "stack_walking_tests", php_opcache_restart_hook))]
+    /// Resolves the function name string from a [`Frame`]'s
     /// [`FunctionId2`] via the global [`ProfilesDictionary`].
-    unsafe fn resolve_function_name(frame: &ZendFrame) -> &str {
+    unsafe fn resolve_function_name(frame: &Frame) -> &str {
         let func2 = unsafe { frame.function.read() }.expect("FunctionId2 should not be empty");
         let string_ref = libdd_profiling::profiles::collections::StringRef::from(func2.name);
         unsafe { crate::interning::dictionary().strings().get(string_ref) }
     }
 
-    #[cfg(feature = "stack_walking_tests")]
-    /// Resolves the filename string from a [`ZendFrame`]'s [`FunctionId2`]
+    #[cfg(all(feature = "stack_walking_tests", php_opcache_restart_hook))]
+    /// Resolves the filename string from a [`Frame`]'s [`FunctionId2`]
     /// via the global [`ProfilesDictionary`].
-    unsafe fn resolve_file_name(frame: &ZendFrame) -> &str {
+    unsafe fn resolve_file_name(frame: &Frame) -> &str {
         let func2 = unsafe { frame.function.read() }.expect("FunctionId2 should not be empty");
         let string_ref = libdd_profiling::profiles::collections::StringRef::from(func2.file_name);
         unsafe { crate::interning::dictionary().strings().get(string_ref) }
     }
 
     #[test]
-    #[cfg(feature = "stack_walking_tests")]
+    #[cfg(all(feature = "stack_walking_tests", php_opcache_restart_hook))]
     fn test_collect_stack_sample() {
         crate::interning::init();
 
@@ -457,6 +602,34 @@ mod tests {
 
             assert_eq!(resolve_function_name(&frames[2]), "function name 001");
             assert_eq!(resolve_file_name(&frames[2]), "filename-001.php");
+            assert_eq!(frames[2].line, 0);
+
+            // Free the allocated memory
+            zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
+        }
+    }
+
+    #[test]
+    #[cfg(all(feature = "stack_walking_tests", not(php_opcache_restart_hook)))]
+    fn test_collect_stack_sample() {
+        unsafe {
+            let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
+
+            let stack = collect_stack_sample(fake_execute_data).unwrap();
+
+            assert_eq!(stack.len(), 3);
+
+            let frames = &stack;
+            assert_eq!(frames[0].function_name, "function name 003");
+            assert_eq!(frames[0].filename, "filename-003.php");
+            assert_eq!(frames[0].line, 0);
+
+            assert_eq!(frames[1].function_name, "function name 002");
+            assert_eq!(frames[1].filename, "filename-002.php");
+            assert_eq!(frames[1].line, 0);
+
+            assert_eq!(frames[2].function_name, "function name 001");
+            assert_eq!(frames[2].filename, "filename-001.php");
             assert_eq!(frames[2].line, 0);
 
             // Free the allocated memory

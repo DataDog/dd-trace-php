@@ -20,6 +20,7 @@ mod exception;
 mod timeline;
 mod vec_ext;
 
+#[cfg(php_opcache_restart_hook)]
 pub mod interning;
 
 #[cfg(php_opcache_shm_cache)]
@@ -213,6 +214,8 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
     // Initialize the global ProfilesDictionary and pre-intern known
     // strings (label keys, special frame names). This is the very first
     // entry point into the extension — nothing runs before get_module.
+    // Only needed on PHP 8.4+ where the dictionary powers the sample API.
+    #[cfg(php_opcache_restart_hook)]
     interning::init();
 
     module
@@ -543,8 +546,12 @@ fn runtime_id() -> &'static Uuid {
 }
 
 extern "C" fn activate() {
-    // SAFETY: calling in activate as required.
-    unsafe { profiling::stack_walking::activate() };
+    // Pre-size the process-local SHM index → FunctionId2 cache.
+    #[cfg(php_opcache_restart_hook)]
+    // SAFETY: SHARED_PAGE initialized during startup; NTS single-threaded.
+    unsafe {
+        shm_cache::activate();
+    }
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -1030,6 +1037,17 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation::alloc_prof_startup();
 
+    // Allocate the shared mmap page for the SHM function index counter.
+    // This must happen in startup (zend extension), after fork, so the
+    // page is shared across all worker processes.
+    #[cfg(php_opcache_restart_hook)]
+    {
+        // SAFETY: called during zend extension startup, single-threaded.
+        if unsafe { shm_cache::startup() } == ZendResult::Failure {
+            return ZendResult::Failure;
+        }
+    }
+
     ZendResult::Success
 }
 
@@ -1064,6 +1082,13 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // of mshutdown.
     unsafe { bindings::zai_config_mshutdown() };
     unsafe { bindings::zai_json_shutdown_bindings() };
+
+    // Unmap the shared counter page.
+    #[cfg(php_opcache_restart_hook)]
+    // SAFETY: called during zend extension shutdown, single-threaded.
+    unsafe {
+        shm_cache::shutdown();
+    }
 }
 
 /// Notifies the profiler a trace has finished so it can update information

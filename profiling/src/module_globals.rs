@@ -3,6 +3,12 @@ use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr;
 
+#[cfg(php_opcache_restart_hook)]
+use core::cell::RefCell;
+
+#[cfg(php_opcache_restart_hook)]
+use libdd_profiling::profiles::datatypes::FunctionId2;
+
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 use crate::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
@@ -13,6 +19,19 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
+
+    /// Thread/process-local cache mapping SHM index → [`FunctionId2`].
+    /// Persists across requests; cleared when a generation change is detected.
+    /// Wrapped in `RefCell` for interior mutability since the globals pointer
+    /// is obtained as a shared reference.
+    #[cfg(php_opcache_restart_hook)]
+    pub local_cache: RefCell<Vec<FunctionId2>>,
+
+    /// The generation observed by this thread on its last `activate` call.
+    /// When this diverges from the shared generation, the local cache is stale.
+    /// Wrapped in `Cell` for interior mutability (u32 is Copy).
+    #[cfg(php_opcache_restart_hook)]
+    pub local_generation: Cell<u32>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -29,6 +48,10 @@ pub static mut GLOBALS_ID: i32 = 0;
 #[cfg(not(php_zts))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
+    #[cfg(php_opcache_restart_hook)]
+    local_cache: RefCell::new(Vec::new()),
+    #[cfg(php_opcache_restart_hook)]
+    local_generation: Cell::new(0),
 };
 
 #[cfg(php_zts)]
@@ -85,12 +108,20 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
-    // this was already done in its const initializer.
+    // Initialize fields in PHP globals for ZTS builds. For NTS builds,
+    // these were already done in const initializers.
     #[cfg(php_zts)]
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+        #[cfg(php_opcache_restart_hook)]
+        {
+            ptr::write(
+                ptr::addr_of_mut!((*globals).local_cache),
+                RefCell::new(Vec::new()),
+            );
+            (*globals).local_generation = Cell::new(0);
+        }
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
@@ -106,9 +137,14 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_gshutdown();
 
-    // TODO: Florian, do we need this?
-    // let globals = globals_ptr.cast::<ProfilerGlobals>();
-    // (*globals).zend_mm_state = ZendMMState::new();
+    // Free the local cache buffer for ZTS builds. Using replace instead of
+    // drop_in_place leaves the RefCell<Vec> in a valid empty state, which is
+    // safer if anything accidentally touches it after gshutdown.
+    #[cfg(all(php_zts, php_opcache_restart_hook))]
+    {
+        let globals = _globals_ptr.cast::<ProfilerGlobals>();
+        *(*globals).local_cache.borrow_mut() = Vec::new();
+    }
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();

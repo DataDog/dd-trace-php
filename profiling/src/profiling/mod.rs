@@ -31,10 +31,10 @@ use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use libdd_profiling::api::{Period, UpscalingInfo, ValueType as ApiValueType};
+#[cfg(php_opcache_restart_hook)]
 use libdd_profiling::api2::{Label as Api2Label, Location2};
 use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
-use libdd_profiling::profiles::datatypes::StringId2;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -139,6 +139,76 @@ impl WallTime {
     }
 }
 
+/// Closed set of label keys used across all profiling samples.
+///
+/// This enum decouples label-creation code (producers) from the
+/// version-specific sample-building API (consumer). The consumer maps
+/// each variant to the concrete key representation required by the
+/// profile format (`StringId2` on 8.4+, `&str` on older versions).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum LabelKey {
+    ThreadId,         // "thread id"
+    ThreadName,       // "thread name"
+    LocalRootSpanId,  // "local root span id"
+    SpanId,           // "span id"
+    Fiber,            // "fiber"
+    ExceptionType,    // "exception type"
+    ExceptionMessage, // "exception message"
+    Event,            // "event"
+    Filename,         // "filename"
+    Message,          // "message"
+    Reason,           // "reason"
+    GcReason,         // "gc reason"
+    GcRuns,           // "gc runs"
+    GcCollected,      // "gc collected"
+}
+
+impl LabelKey {
+    /// Returns the pprof label key string for this variant.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ThreadId => "thread id",
+            Self::ThreadName => "thread name",
+            Self::LocalRootSpanId => "local root span id",
+            Self::SpanId => "span id",
+            Self::Fiber => "fiber",
+            Self::ExceptionType => "exception type",
+            Self::ExceptionMessage => "exception message",
+            Self::Event => "event",
+            Self::Filename => "filename",
+            Self::Message => "message",
+            Self::Reason => "reason",
+            Self::GcReason => "gc reason",
+            Self::GcRuns => "gc runs",
+            Self::GcCollected => "gc collected",
+        }
+    }
+
+    /// Maps this label key to a pre-interned [`StringId2`] from the
+    /// global [`ProfilesDictionary`]. Only available on PHP 8.4+.
+    #[cfg(php_opcache_restart_hook)]
+    pub fn to_string_id2(self) -> libdd_profiling::profiles::datatypes::StringId2 {
+        let ks = crate::interning::known_strings();
+        match self {
+            Self::ThreadId => ks.thread_id,
+            Self::ThreadName => ks.thread_name,
+            Self::LocalRootSpanId => ks.local_root_span_id,
+            Self::SpanId => ks.span_id,
+            Self::Fiber => ks.fiber,
+            Self::ExceptionType => ks.exception_type,
+            Self::ExceptionMessage => ks.exception_message,
+            Self::Event => ks.event,
+            Self::Filename => ks.label_filename,
+            Self::Message => ks.message,
+            Self::Reason => ks.reason,
+            Self::GcReason => ks.gc_reason,
+            Self::GcRuns => ks.gc_runs,
+            Self::GcCollected => ks.gc_collected,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum LabelValue {
     Str(Cow<'static, str>),
@@ -147,28 +217,8 @@ pub enum LabelValue {
 
 #[derive(Debug, Clone)]
 pub struct Label {
-    pub key: StringId2,
+    pub key: LabelKey,
     pub value: LabelValue,
-}
-
-impl<'a> From<&'a Label> for Api2Label<'a> {
-    fn from(label: &'a Label) -> Self {
-        let key = label.key;
-        match label.value {
-            LabelValue::Str(ref str) => Self {
-                key,
-                str,
-                num: 0,
-                num_unit: "",
-            },
-            LabelValue::Num(num, num_unit) => Self {
-                key,
-                str: "",
-                num,
-                num_unit,
-            },
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -556,29 +606,108 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
-
         let values = message.value.sample_values;
-        let labels: Vec<Api2Label> = message.value.labels.iter().map(Api2Label::from).collect();
-
-        for frame in message.value.frames.iter() {
-            locations.push(Location2 {
-                function: frame.function,
-                line: frame.line as i64,
-                ..Location2::default()
-            });
-        }
-
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
-        // SAFETY: all FunctionId2 / StringId2 values reference the global
-        // dictionary which is alive for the process lifetime.
-        match unsafe {
-            profile.try_add_sample2(&locations, &values, labels.into_iter().map(Ok), timestamp)
-        } {
-            Ok(()) => {}
-            Err(err) => {
-                warn!("Failed to add sample to the profile: {err}")
+        // PHP 8.4+: FunctionId2-based frames + dictionary-backed profile.
+        #[cfg(php_opcache_restart_hook)]
+        {
+            let mut locations = Vec::with_capacity(message.value.frames.len());
+
+            let labels: Vec<Api2Label> = message
+                .value
+                .labels
+                .iter()
+                .map(|label| {
+                    let key = label.key.to_string_id2();
+                    match label.value {
+                        LabelValue::Str(ref str) => Api2Label {
+                            key,
+                            str,
+                            num: 0,
+                            num_unit: "",
+                        },
+                        LabelValue::Num(num, num_unit) => Api2Label {
+                            key,
+                            str: "",
+                            num,
+                            num_unit,
+                        },
+                    }
+                })
+                .collect();
+
+            for frame in message.value.frames.iter() {
+                locations.push(Location2 {
+                    function: frame.function,
+                    line: frame.line as i64,
+                    ..Location2::default()
+                });
+            }
+
+            // SAFETY: all FunctionId2 / StringId2 values reference the global
+            // dictionary which is alive for the process lifetime.
+            match unsafe {
+                profile.try_add_sample2(&locations, &values, labels.into_iter().map(Ok), timestamp)
+            } {
+                Ok(()) => {}
+                Err(err) => {
+                    warn!("Failed to add sample to the profile: {err}")
+                }
+            }
+        }
+
+        // PHP 7.1-8.3: string-based frames + string-based sample API.
+        #[cfg(not(php_opcache_restart_hook))]
+        {
+            use libdd_profiling::api as pprof_api;
+
+            let mut locations = Vec::with_capacity(message.value.frames.len());
+            for frame in message.value.frames.iter() {
+                locations.push(pprof_api::Location {
+                    function: pprof_api::Function {
+                        name: &frame.function_name,
+                        system_name: "",
+                        filename: &frame.filename,
+                    },
+                    line: frame.line as i64,
+                    ..pprof_api::Location::default()
+                });
+            }
+
+            let labels: Vec<pprof_api::Label> = message
+                .value
+                .labels
+                .iter()
+                .map(|label| {
+                    let key = label.key.as_str();
+                    match label.value {
+                        LabelValue::Str(ref str) => pprof_api::Label {
+                            key,
+                            str,
+                            num: 0,
+                            num_unit: "",
+                        },
+                        LabelValue::Num(num, num_unit) => pprof_api::Label {
+                            key,
+                            str: "",
+                            num,
+                            num_unit,
+                        },
+                    }
+                })
+                .collect();
+
+            let sample = pprof_api::Sample {
+                locations,
+                values: &values,
+                labels,
+            };
+            match profile.try_add_sample(sample, timestamp) {
+                Ok(()) => {}
+                Err(err) => {
+                    warn!("Failed to add sample to the profile: {err}")
+                }
             }
         }
     }
@@ -1070,17 +1199,16 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let ks = crate::interning::known_strings();
                 let mut labels = Profiler::common_labels(2);
 
                 labels.push(Label {
-                    key: ks.exception_type,
+                    key: LabelKey::ExceptionType,
                     value: LabelValue::Str(exception.clone().into()),
                 });
 
                 if let Some(message) = message {
                     labels.push(Label {
-                        key: ks.exception_message,
+                        key: LabelKey::ExceptionMessage,
                         value: LabelValue::Str(message.into()),
                     });
                 }
@@ -1113,9 +1241,8 @@ impl Profiler {
     }
 
     fn timeline_compile_file_labels() -> Vec<Label> {
-        let ks = crate::interning::known_strings();
         vec![Label {
-            key: ks.event,
+            key: LabelKey::Event,
             value: LabelValue::Str(Cow::Borrowed("compilation")),
         }]
     }
@@ -1127,18 +1254,14 @@ impl Profiler {
         labels.extend(compile_labels);
         let n_labels = labels.len();
 
-        let kf = crate::interning::known_functions();
-        let Some(function_id) =
-            crate::interning::make_function_id_with_file(kf.eval_name, &filename)
+        let Some(frame) =
+            Frame::from_synthetic_with_file(SyntheticFrameName::Eval, &filename, line)
         else {
             return;
         };
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: function_id,
-                line,
-            }]),
+            Backtrace::new(vec![frame]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1165,28 +1288,23 @@ impl Profiler {
         filename: String,
         include_type: &str,
     ) {
-        let ks = crate::interning::known_strings();
         let compile_labels = Self::timeline_compile_file_labels();
         let mut labels = Profiler::common_labels(compile_labels.len() + 1);
         labels.extend(compile_labels);
         labels.push(Label {
-            key: ks.label_filename,
+            key: LabelKey::Filename,
             value: LabelValue::Str(Cow::from(filename)),
         });
 
         let n_labels = labels.len();
-        let kf = crate::interning::known_functions();
-        let function_id = match include_type {
-            "include" => kf.include,
-            "require" => kf.require,
-            _ => kf.include_unknown,
+        let sf = match include_type {
+            "include" => SyntheticFrame::Include,
+            "require" => SyntheticFrame::Require,
+            _ => SyntheticFrame::IncludeUnknown,
         };
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: function_id,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(sf, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1209,28 +1327,23 @@ impl Profiler {
     #[cfg(php_zts)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
-        let ks = crate::interning::known_strings();
         let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
-            key: ks.event,
+            key: LabelKey::Event,
             value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
         });
 
         let n_labels = labels.len();
 
-        let kf = crate::interning::known_functions();
-        let function_id = match event {
-            "thread start" => kf.thread_start,
-            "thread stop" => kf.thread_stop,
+        let sf = match event {
+            "thread start" => SyntheticFrame::ThreadStart,
+            "thread stop" => SyntheticFrame::ThreadStop,
             _ => return, // unknown event, nothing to report
         };
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: function_id,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(sf, 0)]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1250,31 +1363,26 @@ impl Profiler {
     /// This function can be called to collect any fatal errors
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
-        let ks = crate::interning::known_strings();
         let mut labels = Profiler::common_labels(2);
 
         labels.push(Label {
-            key: ks.event,
+            key: LabelKey::Event,
             value: LabelValue::Str("fatal".into()),
         });
         labels.push(Label {
-            key: ks.message,
+            key: LabelKey::Message,
             value: LabelValue::Str(message.into()),
         });
 
         let n_labels = labels.len();
 
-        let kf = crate::interning::known_functions();
-        let Some(function_id) = crate::interning::make_function_id_with_file(kf.fatal_name, &file)
+        let Some(frame) = Frame::from_synthetic_with_file(SyntheticFrameName::Fatal, &file, line)
         else {
             return;
         };
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: function_id,
-                line,
-            }]),
+            Backtrace::new(vec![frame]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1303,31 +1411,26 @@ impl Profiler {
         line: u32,
         reason: &'static str,
     ) {
-        let ks = crate::interning::known_strings();
         let mut labels = Profiler::common_labels(2);
 
         labels.push(Label {
-            key: ks.event,
+            key: LabelKey::Event,
             value: LabelValue::Str("opcache_restart".into()),
         });
         labels.push(Label {
-            key: ks.reason,
+            key: LabelKey::Reason,
             value: LabelValue::Str(reason.into()),
         });
 
         let n_labels = labels.len();
-        let kf = crate::interning::known_functions();
-        let Some(function_id) =
-            crate::interning::make_function_id_with_file(kf.opcache_restart_name, &file)
+        let Some(frame) =
+            Frame::from_synthetic_with_file(SyntheticFrameName::OpcacheRestart, &file, line)
         else {
             return;
         };
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: function_id,
-                line,
-            }]),
+            Backtrace::new(vec![frame]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1347,22 +1450,17 @@ impl Profiler {
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
-        let ks = crate::interning::known_strings();
         let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
-            key: ks.event,
+            key: LabelKey::Event,
             value: LabelValue::Str(reason.into()),
         });
 
         let n_labels = labels.len();
-        let function_id = crate::interning::known_functions().idle;
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: function_id,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(SyntheticFrame::Idle, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1390,36 +1488,30 @@ impl Profiler {
         collected: i64,
         #[cfg(php_gc_status)] runs: i64,
     ) {
-        let ks = crate::interning::known_strings();
         let mut labels = Profiler::common_labels(4);
 
         labels.push(Label {
-            key: ks.event,
+            key: LabelKey::Event,
             value: LabelValue::Str(Cow::Borrowed("gc")),
         });
 
         labels.push(Label {
-            key: ks.gc_reason,
+            key: LabelKey::GcReason,
             value: LabelValue::Str(Cow::from(reason)),
         });
 
         #[cfg(php_gc_status)]
         labels.push(Label {
-            key: ks.gc_runs,
+            key: LabelKey::GcRuns,
             value: LabelValue::Num(runs, "count"),
         });
         labels.push(Label {
-            key: ks.gc_collected,
+            key: LabelKey::GcCollected,
             value: LabelValue::Num(collected, "count"),
         });
         let n_labels = labels.len();
-        let function_id = crate::interning::known_functions().gc;
-
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: function_id,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(SyntheticFrame::Gc, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1551,15 +1643,14 @@ impl Profiler {
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///   caller adds gc or exception labels.
     fn common_labels(n_extra_labels: usize) -> Vec<Label> {
-        let ks = crate::interning::known_strings();
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
-            key: ks.thread_id,
+            key: LabelKey::ThreadId,
             value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id"),
         });
 
         labels.push(Label {
-            key: ks.thread_name,
+            key: LabelKey::ThreadName,
             value: LabelValue::Str(get_current_thread_name().into()),
         });
 
@@ -1573,12 +1664,12 @@ impl Profiler {
             let span_id = context.span_id as i64;
 
             labels.push(Label {
-                key: ks.local_root_span_id,
+                key: LabelKey::LocalRootSpanId,
                 value: LabelValue::Num(local_root_span_id, ""),
             });
 
             labels.push(Label {
-                key: ks.span_id,
+                key: LabelKey::SpanId,
                 value: LabelValue::Num(span_id, ""),
             });
         }
@@ -1592,7 +1683,7 @@ impl Profiler {
             let func = unsafe { &*fiber.fci_cache.function_handler };
             if let Ok(functionname) = extract_function_name(func) {
                 labels.push(Label {
-                    key: ks.fiber,
+                    key: LabelKey::Fiber,
                     value: LabelValue::Str(functionname),
                 });
             }
@@ -1652,32 +1743,41 @@ mod tests {
     use crate::config::SystemSettingsState;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use libdd_profiling::exporter::Uri;
-    use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
     use log::LevelFilter;
 
-    fn make_function_id(name: &str, filename: Option<&str>) -> Option<FunctionId2> {
-        let dict = crate::interning::dictionary();
-        let name_id = dict.try_insert_str2(name).ok()?;
-        let file_id = match filename {
-            Some(f) => dict.try_insert_str2(f).ok()?,
-            None => StringId2::default(),
-        };
-        let func = Function2 {
-            name: name_id,
-            system_name: StringId2::default(),
-            file_name: file_id,
-        };
-        dict.try_insert_function2(func).ok()
-    }
-
     fn get_frames() -> Backtrace {
-        crate::interning::init();
-        let function_id = make_function_id("foobar()", Some("foobar.php"))
-            .expect("dictionary insertion should succeed in tests");
-        Backtrace::new(vec![ZendFrame {
-            function: function_id,
-            line: 42,
-        }])
+        #[cfg(php_opcache_restart_hook)]
+        {
+            use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
+            crate::interning::init();
+            let dict = crate::interning::dictionary();
+            let name_id = dict
+                .try_insert_str2("foobar()")
+                .expect("dictionary insertion should succeed in tests");
+            let file_id = dict
+                .try_insert_str2("foobar.php")
+                .expect("dictionary insertion should succeed in tests");
+            let func = Function2 {
+                name: name_id,
+                system_name: StringId2::default(),
+                file_name: file_id,
+            };
+            let function_id = dict
+                .try_insert_function2(func)
+                .expect("dictionary insertion should succeed in tests");
+            Backtrace::new(vec![Frame {
+                function: function_id,
+                line: 42,
+            }])
+        }
+        #[cfg(not(php_opcache_restart_hook))]
+        {
+            Backtrace::new(vec![Frame {
+                function_name: "foobar()".into(),
+                filename: "foobar.php".into(),
+                line: 42,
+            }])
+        }
     }
 
     pub fn get_system_settings() -> SystemSettings {

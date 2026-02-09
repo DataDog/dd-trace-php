@@ -295,6 +295,9 @@ unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32)
         }
     }
 
+    // Reset the SHM function cache. All indices become invalid after restart.
+    unsafe { crate::shm_cache::opcache_restart() };
+
     if let Some(prev) = PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK {
         prev(reason);
     }

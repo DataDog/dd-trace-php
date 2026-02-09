@@ -8,7 +8,7 @@ use chrono::{DateTime, Utc};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{select, Receiver};
 use libdd_common::Endpoint;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
@@ -84,6 +84,15 @@ impl Uploader {
                 json!(ALLOCATION_PROFILING_SIZE.swap(0, Ordering::Relaxed)),
             );
         }
+
+        #[cfg(php_opcache_restart_hook)]
+        {
+            let oob = crate::shm_cache::SHM_INDEX_OUT_OF_BOUNDS.swap(0, Ordering::Relaxed);
+            if oob > 0 {
+                error!("SHM function cache: {oob} index out-of-bounds lookups since last upload");
+            }
+        }
+
         Some(serde_json::Value::Object(metadata))
     }
 
