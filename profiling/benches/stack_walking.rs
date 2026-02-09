@@ -11,7 +11,9 @@ use perfcnt::linux::PerfCounterBuilderLinux as Builder;
 
 fn benchmark(c: &mut Criterion) {
     // Initialize the global ProfilesDictionary and KnownStrings before
-    // running benchmarks (normally done in get_module).
+    // running benchmarks (normally done in get_module). Only needed on
+    // PHP 8.4+ where the dictionary powers the sample API.
+    #[cfg(php_opcache_restart_hook)]
     datadog_php_profiling::interning::init();
 
     let mut group = c.benchmark_group("walk_stack");
@@ -28,6 +30,7 @@ fn benchmark(c: &mut Criterion) {
 
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 fn benchmark_instructions(c: &mut Criterion<Perf>) {
+    #[cfg(php_opcache_restart_hook)]
     datadog_php_profiling::interning::init();
 
     let mut group = c.benchmark_group("walk_stack_instructions");
