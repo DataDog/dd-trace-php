@@ -225,7 +225,7 @@ These tests use object ids, and %00; changing the EXPECT to EXPECTF will cause t
 
 ## `ext/soap/tests/soap_qname_crash.phpt`
 
-Disabled on versions: `8.5+`.
+Disabled on versions: `8.1+`.
 
 This test checks PHP's handling of excessively large QName prefix in SoapVar (a stress test for edge cases). With ddtrace loaded, the additional memory overhead causes the test to be killed before it can complete, due to hitting memory limits during the stress test.
 
