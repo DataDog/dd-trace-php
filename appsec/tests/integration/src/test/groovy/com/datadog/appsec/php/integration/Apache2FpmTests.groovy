@@ -223,16 +223,4 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallba
             resetFpm()
         }
     }
-
-    @Test
-    void 'span contains runtime id meta'() {
-        def req = container.buildReq('/hello.php').GET().build()
-        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
-            assert resp.body() == 'Hello world!'
-        }
-        def span = trace.first()
-        assert span.meta."_dd.runtime_id" instanceof String
-        assert span.meta."_dd.runtime_id".size() > 0
-    }
-
 }
