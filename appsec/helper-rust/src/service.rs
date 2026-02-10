@@ -17,12 +17,13 @@ use crate::{
     telemetry::{
         self, SpanMetricsGenerator, SpanMetricsSubmitter, TelemetryLogSubmitter,
         TelemetryLogsCollector, TelemetryLogsGenerator, TelemetryMetricSubmitter,
-        TelemetryMetricsCollector, TelemetryTags, WAF_INIT, WAF_UPDATES,
+        TelemetryMetricsCollector, TelemetryMetricsGenerator, TelemetryTags, WAF_INIT, WAF_UPDATES,
     },
 };
 
 mod config_manager;
 mod limiter;
+mod metrics;
 mod sampler;
 mod updateable_waf;
 mod waf_diag;
@@ -47,7 +48,7 @@ impl ServiceManager {
     pub fn get_service(
         &self,
         config: &ServiceFixedConfig,
-        tel_collector: &mut impl TelemetryMetricSubmitter,
+        tel_collector: &mut dyn TelemetryMetricSubmitter,
     ) -> anyhow::Result<Arc<Service>> {
         let mut inner = self.inner.lock().unwrap();
 
@@ -72,7 +73,7 @@ impl ServiceManager {
         let inner = self.inner.lock().unwrap();
 
         for (config, weak) in &inner.services {
-            if config.rem_cfg_settings.shmem_path != shmem_path {
+            if config.rem_cfg_settings.shmem_path() != Some(shmem_path) {
                 continue;
             }
 
@@ -117,6 +118,9 @@ pub struct Service {
     // Sometimes we generate logs before we even have service/env
     // Those need to be collected and submitted later
     logs_collector: TelemetryLogsCollector,
+
+    // Track concurrent worker count (clients handling requests)
+    worker_count: metrics::WorkerCountState,
 }
 
 /// Legacy span metrics/meta from WAF initialization diagnostics.
@@ -200,9 +204,10 @@ impl Service {
         self.apply_config(&mut state, cfg_dir)
     }
 
-    pub fn take_pending_telemetry(&self) -> TelemetryMetricsCollector {
+    fn take_pending_telemetry_metrics(&self) -> impl TelemetryMetricsGenerator {
         let mut state = self.rc_update_lock.lock().unwrap();
-        std::mem::take(&mut state.pending_telemetry_metrics)
+        let pending = std::mem::take(&mut state.pending_telemetry_metrics);
+        pending.into_generator()
     }
 
     pub fn take_pending_init_diagnostics_legacy(&self) -> Option<InitDiagnosticsLegacy> {
@@ -210,9 +215,17 @@ impl Service {
         std::mem::take(&mut state.pending_init_diagnostics_legacy)
     }
 
+    pub fn increment_worker_count(&self) {
+        self.worker_count.increment();
+    }
+
+    pub fn decrement_worker_count(&self) {
+        self.worker_count.decrement();
+    }
+
     fn new(
         fixed_config: ServiceFixedConfig,
-        tel_submitter: &mut impl TelemetryMetricSubmitter,
+        tel_submitter: &mut dyn TelemetryMetricSubmitter,
     ) -> anyhow::Result<Self> {
         let waf_settings = &fixed_config.waf_settings;
         let rc_settings = &fixed_config.rem_cfg_settings;
@@ -270,11 +283,9 @@ impl Service {
 
         // Initialization of remaining components
         let limiter = limiter::Limiter::new(waf_settings.trace_rate_limit);
-        let poller = if rc_settings.enabled {
-            Some(rc::ConfigPoller::new(&rc_settings.shmem_path))
-        } else {
-            None
-        };
+        let poller = rc_settings
+            .shmem_path()
+            .map(|path| rc::ConfigPoller::new(path));
 
         let schema_sampler = if waf_settings.schema_extraction.enabled
             && waf_settings.schema_extraction.sampling_period >= 1.0
@@ -297,7 +308,7 @@ impl Service {
                 poller,
                 last_configs: HashSet::new(),
                 asm_feature_config_manager: AsmFeatureConfigManager::new(),
-                pending_telemetry_metrics: TelemetryMetricsCollector::new(),
+                pending_telemetry_metrics: TelemetryMetricsCollector::default(),
                 pending_init_diagnostics_legacy: Some(init_diagnostics_legacy),
             }),
             config_snapshot: ArcSwap::from_pointee(ConfigSnapshot::new(
@@ -305,6 +316,7 @@ impl Service {
                 rules_version,
             )),
             logs_collector: TelemetryLogsCollector::new(),
+            worker_count: Default::default(),
         };
         service.poll_and_apply_rc()?;
         Ok(service)
@@ -451,6 +463,13 @@ impl TelemetryLogsGenerator for Service {
         self.logs_collector.generate_telemetry_logs(submitter);
     }
 }
+impl TelemetryMetricsGenerator for Service {
+    fn generate_telemetry_metrics(&self, submitter: &mut dyn TelemetryMetricSubmitter) {
+        self.worker_count.generate_telemetry_metrics(submitter);
+        self.take_pending_telemetry_metrics()
+            .generate_telemetry_metrics(submitter);
+    }
+}
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub struct ServiceFixedConfig {
@@ -486,14 +505,21 @@ impl ServiceFixedConfig {
 
     pub fn new_from_config_sync(&self, args: protocol::ConfigSyncArgs) -> Option<Self> {
         let new_rem_cfg_path = PathBuf::from(args.rem_cfg_path);
-        if new_rem_cfg_path != self.rem_cfg_settings.shmem_path
+        let new_rem_cfg_enabled = !new_rem_cfg_path.as_os_str().is_empty();
+        let maybe_new_rem_cfg_path = if new_rem_cfg_enabled {
+            Some(new_rem_cfg_path.as_path())
+        } else {
+            None
+        };
+
+        if maybe_new_rem_cfg_path != self.rem_cfg_settings.shmem_path()
             || args.telemetry_settings != self.telemetry_settings
         {
             let mut new_cfg = self.clone();
-            new_cfg.rem_cfg_settings = protocol::RemoteConfigSettings {
-                enabled: !new_rem_cfg_path.as_os_str().is_empty(),
-                shmem_path: new_rem_cfg_path,
-            };
+            new_cfg.rem_cfg_settings = protocol::RemoteConfigSettings::new(
+                !new_rem_cfg_path.as_os_str().is_empty(),
+                new_rem_cfg_path,
+            );
             new_cfg.telemetry_settings = args.telemetry_settings;
             Some(new_cfg)
         } else {
@@ -620,10 +646,7 @@ mod tests {
                     sampling_period: 1.0,
                 },
             },
-            protocol::RemoteConfigSettings {
-                enabled: false,
-                shmem_path: PathBuf::from(format!("/tmp/test_{}", id)),
-            },
+            protocol::RemoteConfigSettings::new(false, PathBuf::from(format!("/tmp/test_{}", id))),
             protocol::TelemetrySettings {
                 service_name: "test".to_string(),
                 env_name: "test".to_string(),

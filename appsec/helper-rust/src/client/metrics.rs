@@ -1,8 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, time::Duration};
 
-use crate::telemetry::{self, TelemetryTags};
-
-pub use crate::telemetry::TelemetryMetricsCollector;
+use crate::telemetry;
 
 #[derive(Default, Debug)]
 pub struct CollectingMetricsSubmitter {
@@ -32,7 +30,7 @@ impl telemetry::SpanMetricsSubmitter for CollectingMetricsSubmitter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct WafMetrics {
     // Ruleset version (context for tag generation)
     rules_version: Option<String>,
@@ -63,6 +61,9 @@ pub struct WafMetrics {
 
     /// Whether the request was blocked
     request_blocked: bool,
+
+    /// Whether the input was truncated by the extension
+    input_truncated: bool,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -85,7 +86,12 @@ impl WafMetrics {
             rasp_per_rule: HashMap::new(),
             had_triggers: false,
             request_blocked: false,
+            input_truncated: false,
         }
+    }
+
+    pub fn set_input_truncated(&mut self, input_truncated: bool) {
+        self.input_truncated = input_truncated;
     }
 
     pub fn record_non_rasp_error_eval(&mut self) {
@@ -149,7 +155,7 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         submitter: &mut dyn telemetry::TelemetryMetricSubmitter,
     ) {
         // waf.requests metrics
-        let mut tags = TelemetryTags::new();
+        let mut tags = telemetry::TelemetryTags::new();
         tags.add("waf_version", crate::service::Service::waf_version());
         if let Some(ref rules_ver) = self.rules_version {
             tags.add("event_rules_version", rules_ver);
@@ -163,11 +169,14 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         if self.waf_hit_timeout {
             tags.add("waf_timeout", "true");
         }
+        if self.input_truncated {
+            tags.add("input_truncated", "true");
+        }
         submitter.submit_metric(telemetry::WAF_REQUESTS, 1.0, tags);
 
         // Rasp rule metrics
         for (rule_type, metrics) in &self.rasp_per_rule {
-            let mut tags = TelemetryTags::new();
+            let mut tags = telemetry::TelemetryTags::new();
             tags.add("rule_type", rule_type);
             tags.add("waf_version", crate::service::Service::waf_version());
 

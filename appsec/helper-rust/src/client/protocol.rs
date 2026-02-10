@@ -6,13 +6,13 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tokio_util::bytes::{Buf, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
 
 use crate::client::log::{fmt_bin, trace};
 
-pub const VERSION_FOR_PROTO: &str = "1.15.0";
+pub const VERSION_FOR_PROTO: &str = "1.16.0";
 const MAX_MESSAGE_SIZE: u32 = 4 * 1024 * 1024;
 
 #[derive(Debug)]
@@ -97,8 +97,29 @@ impl Hash for SchemaExtraction {
 
 #[derive(PartialEq, Eq, Hash, Clone, Debug, Deserialize)]
 pub struct RemoteConfigSettings {
-    pub enabled: bool,
-    pub shmem_path: PathBuf,
+    enabled: bool,
+    shmem_path: PathBuf,
+}
+
+impl RemoteConfigSettings {
+    pub fn new(enabled: bool, shmem_path: PathBuf) -> Self {
+        Self {
+            enabled,
+            shmem_path,
+        }
+    }
+
+    fn enabled(&self) -> bool {
+        self.enabled && !self.shmem_path.as_os_str().is_empty()
+    }
+
+    pub fn shmem_path(&self) -> Option<&Path> {
+        if self.enabled() {
+            Some(&self.shmem_path)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize_tuple)]
@@ -108,13 +129,6 @@ pub struct ClientInitResp {
     pub errors: Vec<String>,
     pub meta: HashMap<String, String>,
     pub metrics: HashMap<String, f64>,
-    pub tel_metrics: HashMap<String, Vec<TelemetryMetric>>,
-}
-
-#[derive(Debug, Serialize_tuple)]
-pub struct TelemetryMetric {
-    pub value: f64,
-    pub tags: String,
 }
 
 #[derive(Debug, Deserialize_tuple)]
@@ -201,6 +215,7 @@ pub struct RequestShutdownArgs {
     pub api_sec_samp_key: u64,
     #[allow(dead_code)]
     pub queue_id: u64, // TODO: unused, update protocol
+    pub input_truncated: bool,
 }
 
 #[derive(Debug, Serialize_tuple)]
@@ -211,7 +226,6 @@ pub struct RequestShutdownResp {
     pub settings: HashMap<String, String>,
     pub meta: HashMap<Cow<'static, str>, String>,
     pub metrics: HashMap<Cow<'static, str>, f64>,
-    pub tel_metrics: HashMap<String, Vec<TelemetryMetric>>, // XXX: to be removed in https://github.com/DataDog/dd-trace-php/pull/3530
 }
 
 impl<'de> Deserialize<'de> for Command {
@@ -520,7 +534,6 @@ mod tests {
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
-            tel_metrics: HashMap::new(),
         });
 
         let mut buf = BytesMut::new();
@@ -660,7 +673,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_shutdown_command() {
         let waf_map = waf_map!(("foo", "bar"),);
-        let command = ("request_shutdown", (&waf_map, 12345u64, 67890u64));
+        let command = ("request_shutdown", (&waf_map, 12345u64, 67890u64, true));
         let data = serialize_message(&command);
 
         let mut decoder = CommandCodec;
@@ -673,26 +686,12 @@ mod tests {
             assert_eq!(args.data, waf_map);
             assert_eq!(args.api_sec_samp_key, 12345);
             assert_eq!(args.queue_id, 67890);
+            assert!(args.input_truncated);
         }
     }
 
     #[tokio::test]
     async fn test_request_shutdown_response() {
-        let mut tel_metrics = HashMap::new();
-        tel_metrics.insert(
-            "waf.requests".to_string(),
-            vec![
-                TelemetryMetric {
-                    value: 1.0,
-                    tags: "rule_triggered:true".to_string(),
-                },
-                TelemetryMetric {
-                    value: 1.0,
-                    tags: "rule_triggered:false".to_string(),
-                },
-            ],
-        );
-
         let resp = CommandResponse::RequestShutdown(RequestShutdownResp {
             actions: vec![],
             triggers: vec![],
@@ -700,7 +699,6 @@ mod tests {
             settings: HashMap::new(),
             meta: HashMap::from([("meta_key".into(), "meta_value".to_string())]),
             metrics: HashMap::from([("metric_key".into(), 123.45)]),
-            tel_metrics,
         });
 
         let mut buf = BytesMut::new();

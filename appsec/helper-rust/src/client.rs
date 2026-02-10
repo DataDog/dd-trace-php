@@ -1,4 +1,5 @@
 use std::{
+    cell::Cell,
     collections::{hash_map::Entry, HashMap},
     io,
     mem::MaybeUninit,
@@ -7,7 +8,7 @@ use std::{
         atomic::{self, AtomicU64},
         Arc,
     },
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, Context};
@@ -21,15 +22,12 @@ use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 
 use crate::{
-    client::{
-        metrics::TelemetryMetricsCollector,
-        protocol::{RequestExecOptions, WafRunType},
-    },
+    client::protocol::{RequestExecOptions, WafRunType},
     service::{Service, ServiceFixedConfig, ServiceManager},
     telemetry::{
         SpanMetaGenerator, SpanMetaName, SpanMetricName, SpanMetricsGenerator,
         SpanMetricsSubmitter, TelemetryLogsGenerator, TelemetryMetricsGenerator,
-        TelemetrySidecarLogSubmitter,
+        TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter,
     },
 };
 
@@ -38,12 +36,39 @@ pub mod log;
 mod metrics;
 pub mod protocol;
 
+/// Smart pointer that tracks worker count for a service.
+/// Increments on creation/clone, decrements on drop.
+#[derive(Clone)]
+struct TrackedService {
+    service: Arc<Service>,
+}
+
+impl TrackedService {
+    fn new(service: Arc<Service>) -> Self {
+        service.increment_worker_count();
+        Self { service }
+    }
+}
+
+impl Drop for TrackedService {
+    fn drop(&mut self) {
+        self.service.decrement_worker_count();
+    }
+}
+
+impl std::ops::Deref for TrackedService {
+    type Target = Service;
+    fn deref(&self) -> &Self::Target {
+        &self.service
+    }
+}
+
 pub struct Client {
     pub id: u64,
     service_manager: &'static ServiceManager,
-    service: Option<Arc<Service>>, // set after client init
-    delayed_span_metrics: Option<TelemetryMetricsCollector>,
+    service: Option<TrackedService>,
     sidecar_settings: Option<protocol::SidecarSettings>,
+    metrics_last_registered: Cell<Option<Instant>>,
 }
 
 static CLIENT_SERIAL: AtomicU64 = AtomicU64::new(0);
@@ -53,8 +78,8 @@ impl Client {
             id: CLIENT_SERIAL.fetch_add(1, atomic::Ordering::Relaxed),
             service_manager,
             service: None,
-            delayed_span_metrics: None,
             sidecar_settings: None,
+            metrics_last_registered: Default::default(),
         }
     }
 
@@ -143,6 +168,7 @@ fn handle_client_init(
     client: &mut Client,
     args: protocol::ClientInitArgs,
 ) -> core::result::Result<protocol::CommandResponse<'_>, Box<protocol::CommandResponse<'_>>> {
+    let telemetry_settings = args.telemetry_settings.clone();
     let sd = ServiceFixedConfig::new(
         args.appsec_enabled == Some(true),
         args.waf_config.clone(),
@@ -150,11 +176,18 @@ fn handle_client_init(
         args.telemetry_settings,
     );
 
-    client.sidecar_settings = Some(args.sidecar_settings);
+    client.sidecar_settings = Some(args.sidecar_settings.clone());
 
-    let mut tel_collector = TelemetryMetricsCollector::new();
+    let last_registration_time = &client.metrics_last_registered;
+    let mut tel_metric_submitter = TelemetrySidecarMetricSubmitter::create(
+        &args.sidecar_settings,
+        &telemetry_settings,
+        last_registration_time,
+    );
 
-    let service = client.service_manager.get_service(&sd, &mut tel_collector);
+    let service = client
+        .service_manager
+        .get_service(&sd, tel_metric_submitter.as_mut());
 
     let mut cir = ClientInitResp {
         version: protocol::VERSION_FOR_PROTO,
@@ -172,9 +205,8 @@ fn handle_client_init(
                 Service::waf_version().to_string(),
             );
 
-            client.service = Some(service);
+            client.service = Some(TrackedService::new(service));
             cir.status = "ok".to_string();
-            cir.tel_metrics = tel_collector.take();
             Ok(CommandResponse::ClientInit(cir))
         }
         Err(err) => {
@@ -182,7 +214,6 @@ fn handle_client_init(
 
             cir.status = "fail".to_string();
             cir.errors = vec![err.to_string()];
-            cir.tel_metrics = tel_collector.take();
             Err(Box::new(CommandResponse::ClientInit(cir)))
         }
     }
@@ -195,6 +226,7 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
     };
 
     let cur_disc = service.fixed_config();
+    let telemetry_settings = args.telemetry_settings.clone();
     let new_disc = cur_disc.new_from_config_sync(args);
 
     let new_disc = match new_disc {
@@ -215,15 +247,25 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
         }
     };
 
-    let mut tel_collector = TelemetryMetricsCollector::new();
+    let mut tel_metric_submitter = match client.sidecar_settings {
+        Some(ref sidecar_settings) => TelemetrySidecarMetricSubmitter::create(
+            sidecar_settings,
+            &telemetry_settings,
+            &client.metrics_last_registered,
+        ),
+        None => {
+            // this should have been set in client_init
+            error!("Cannot submit telemetry metrics: sidecar_settings unexpectadly not set");
+            TelemetrySidecarMetricSubmitter::noop()
+        }
+    };
 
     match client
         .service_manager
-        .get_service(&new_disc, &mut tel_collector)
+        .get_service(&new_disc, &mut *tel_metric_submitter)
     {
         Ok(new_service) => {
-            client.service = Some(new_service);
-            client.delayed_span_metrics = Some(tel_collector);
+            client.service = Some(TrackedService::new(new_service));
         }
         Err(e) => {
             error!("Failed to get service with new RC path: {}", e);
@@ -277,7 +319,7 @@ async fn do_request_loop_iter(
             };
             send_command_resp(framed, resp).await?;
 
-            submit_service_telemetry_logs(client, service);
+            submit_service_telemetry(client, service);
 
             return Ok(());
         }
@@ -342,34 +384,26 @@ async fn do_request_loop_iter(
                 let result = req_ctx.run_waf(data, &protocol::RequestExecOptions::regular())?;
 
                 // span metrics / meta
-                let mut submitter = metrics::CollectingMetricsSubmitter::default();
-                req_ctx.generate_span_metrics(&mut submitter);
-                req_ctx.generate_meta(&mut submitter);
-
-                // telemetry metrics
-                let mut tel_collector = TelemetryMetricsCollector::new();
-                req_ctx.generate_telemetry_metrics(&mut tel_collector);
-                if let Some(delayed_tel_collector) = client.delayed_span_metrics.take() {
-                    tel_collector.extend(delayed_tel_collector);
-                }
+                let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
+                req_ctx.generate_span_metrics(&mut span_submitter);
+                req_ctx.generate_meta(&mut span_submitter);
 
                 let service = client.get_service();
-                tel_collector.extend(service.take_pending_telemetry());
+                let force_keep = req_ctx.should_force_keep(service, result.waf_keep);
 
                 let resp =
                     protocol::CommandResponse::RequestShutdown(protocol::RequestShutdownResp {
                         triggers: result.triggers,
                         actions: result.actions,
-                        force_keep: req_ctx.should_force_keep(service, result.waf_keep),
+                        force_keep,
                         settings: HashMap::default(),
-                        meta: submitter.take_meta(),
-                        metrics: submitter.take_metrics(),
-                        tel_metrics: tel_collector.take(),
+                        meta: span_submitter.take_meta(),
+                        metrics: span_submitter.take_metrics(),
                     });
                 send_command_resp(framed, resp).await?;
 
-                // Drain and submit telemetry logs to sidecar
-                submit_service_telemetry_logs(client, service);
+                submit_context_telemetry_metrics(client, &mut req_ctx, req.input_truncated);
+                submit_service_telemetry(client, service);
 
                 break;
             }
@@ -381,25 +415,51 @@ async fn do_request_loop_iter(
 
     Ok(())
 }
-fn submit_service_telemetry_logs(client: &Client, service: &Service) {
+
+fn submit_service_telemetry(client: &Client, service: &Service) {
     if let (Some(sidecar_settings), telemetry_settings) =
         (&client.sidecar_settings, &service.telemetry_settings())
     {
-        debug!("Submitting service telemetry logs to sidecar");
-        let mut submitter = TelemetrySidecarLogSubmitter::new(sidecar_settings, telemetry_settings);
-        match submitter {
-            Ok(ref mut submitter) => service.generate_telemetry_logs(submitter),
-            Err(e) => {
-                warn!("Failed to create telemetry sidecar log submitter: {}", e);
-            }
-        }
+        debug!("Submitting service telemetry to sidecar");
+        let mut submitter =
+            TelemetrySidecarLogSubmitter::create(sidecar_settings, telemetry_settings);
+        service.generate_telemetry_logs(&mut *submitter);
+
+        let mut submitter = TelemetrySidecarMetricSubmitter::create(
+            sidecar_settings,
+            telemetry_settings,
+            &client.metrics_last_registered,
+        );
+        service.generate_telemetry_metrics(&mut *submitter);
     } else {
         debug!(
-            "Cannot submit service telemetry logs: sidecar_settings={:?}, telemetry_settings={:?}",
+            "Cannot submit service telemetry: sidecar_settings={:?}, telemetry_settings={:?}",
             client.sidecar_settings,
             service.telemetry_settings()
         );
     }
+}
+
+fn submit_context_telemetry_metrics(
+    client: &Client,
+    req_ctx: &mut ReqContext,
+    input_truncated: bool,
+) {
+    let Some(ref sidecar_settings) = client.sidecar_settings else {
+        warn!("Cannot submit context telemetry metrics: sidecar_settings not set");
+        return;
+    };
+    let service = client.get_service();
+    let telemetry_settings = service.telemetry_settings();
+
+    let mut tel_metric_submitter = TelemetrySidecarMetricSubmitter::create(
+        sidecar_settings,
+        telemetry_settings,
+        &client.metrics_last_registered,
+    );
+
+    let waf_metrics = req_ctx.take_waf_metrics(input_truncated);
+    waf_metrics.generate_telemetry_metrics(&mut *tel_metric_submitter);
 }
 
 struct WafRunResult {
@@ -571,6 +631,11 @@ impl ReqContext {
             self.config_snapshot.auto_user_instrum.as_str().to_string(),
         )])
     }
+
+    pub fn take_waf_metrics(&mut self, input_truncated: bool) -> metrics::WafMetrics {
+        self.waf_metrics.set_input_truncated(input_truncated);
+        std::mem::take(&mut self.waf_metrics)
+    }
 }
 
 impl crate::telemetry::SpanMetricsGenerator for ReqContext {
@@ -587,14 +652,6 @@ impl crate::telemetry::SpanMetaGenerator for ReqContext {
         if let Some(rules_ver) = self.config_snapshot.rules_version.as_deref() {
             submitter.submit_meta(crate::telemetry::EVENT_RULES_VERSION, rules_ver.to_string());
         }
-    }
-}
-impl crate::telemetry::TelemetryMetricsGenerator for ReqContext {
-    fn generate_telemetry_metrics(
-        &'_ self,
-        submitter: &mut dyn crate::telemetry::TelemetryMetricSubmitter,
-    ) {
-        self.waf_metrics.generate_telemetry_metrics(submitter);
     }
 }
 

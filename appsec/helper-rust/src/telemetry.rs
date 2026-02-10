@@ -1,9 +1,16 @@
 #[path = "telemetry/sidecar.rs"]
 mod sidecar;
 
-pub use sidecar::{resolve_symbols, TelemetrySidecarLogSubmitter};
+use crate::client::protocol::{SidecarSettings, TelemetrySettings};
+use crate::ffi::sidecar_ffi::{
+    ddog_MetricType, ddog_MetricType_DDOG_METRIC_TYPE_COUNT, ddog_MetricType_DDOG_METRIC_TYPE_GAUGE,
+};
+pub use sidecar::{resolve_symbols, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter};
+use std::cell::Cell;
+use std::collections::HashMap;
+use std::sync::Mutex;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetricName(pub &'static str);
 #[derive(Debug, Clone, Copy)]
 pub struct SpanMetricName(pub &'static str);
@@ -84,6 +91,57 @@ pub const WAF_CONFIG_ERRORS: MetricName = MetricName("waf.config_errors");
 pub const RASP_RULE_EVAL: MetricName = MetricName("rasp.rule.eval");
 pub const RASP_RULE_MATCH: MetricName = MetricName("rasp.rule.match");
 pub const RASP_TIMEOUT: MetricName = MetricName("rasp.timeout");
+pub const HELPER_WORKER_COUNT: MetricName = MetricName("helper.service_worker_count");
+
+#[derive(Debug, Clone, Copy)]
+pub struct KnownMetric {
+    pub name: MetricName,
+    pub metric_type: ddog_MetricType,
+}
+pub const KNOWN_METRICS: &[KnownMetric] = &[
+    KnownMetric {
+        name: WAF_REQUESTS,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: WAF_UPDATES,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: WAF_INIT,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: WAF_CONFIG_ERRORS,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: RASP_TIMEOUT,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: RASP_RULE_MATCH,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: RASP_RULE_EVAL,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: HELPER_WORKER_COUNT,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_GAUGE,
+    },
+];
+
+pub fn register_known_metrics(
+    sidecar_settings: &SidecarSettings,
+    telemetry_settings: &TelemetrySettings,
+) -> anyhow::Result<()> {
+    for metric in KNOWN_METRICS {
+        sidecar::register_metric_ffi(sidecar_settings, telemetry_settings, metric)?;
+    }
+    Ok(())
+}
 
 // not implemented (difficult to count requests on the helper)
 #[allow(dead_code)]
@@ -101,42 +159,37 @@ pub const RAST_DURATION: SpanMetricName = SpanMetricName("_dd.appsec.rasp.durati
 pub const RAST_RULE_EVALS: SpanMetricName = SpanMetricName("_dd.appsec.rasp.rule.eval");
 pub const RAST_TIMEOUTS: SpanMetricName = SpanMetricName("_dd.appsec.rasp.timeout");
 
-use std::collections::HashMap;
-use std::sync::Mutex;
+// A "Collector" is a type of fake submitter that instead of submitting telemetry
+// directly, stores it inside. It can then be converted into a generator (or implements it directly)
+// for submission into the real submitter.
+// See TelemetryMetricsCollector and TelemetryLogsCollector.
 
-use crate::client::protocol::TelemetryMetric;
-
-/// Collector for time-series telemetry metrics (tel_metrics in protocol)
-/// (After https://github.com/DataDog/dd-trace-php/pull/3530, submissions can be
-/// done directly)
 #[derive(Default, Debug)]
 pub struct TelemetryMetricsCollector {
-    metrics: HashMap<String, Vec<TelemetryMetric>>,
+    metrics: HashMap<MetricName, Vec<(f64, TelemetryTags)>>,
 }
 impl TelemetryMetricsCollector {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn take(self) -> HashMap<String, Vec<TelemetryMetric>> {
-        self.metrics
-    }
-
-    pub fn extend(&mut self, other: TelemetryMetricsCollector) {
-        for (key, values) in other.metrics {
-            self.metrics.entry(key).or_default().extend(values);
+    pub fn into_generator(self) -> impl TelemetryMetricsGenerator {
+        struct TelemetryMetricsGeneratorImpl {
+            metrics: Cell<TelemetryMetricsCollector>,
+        }
+        impl TelemetryMetricsGenerator for TelemetryMetricsGeneratorImpl {
+            fn generate_telemetry_metrics(&self, submitter: &mut dyn TelemetryMetricSubmitter) {
+                for (key, values) in self.metrics.take().metrics.into_iter() {
+                    for (value, tags) in values {
+                        submitter.submit_metric(key, value, tags);
+                    }
+                }
+            }
+        }
+        TelemetryMetricsGeneratorImpl {
+            metrics: Cell::new(self),
         }
     }
 }
 impl TelemetryMetricSubmitter for TelemetryMetricsCollector {
     fn submit_metric(&mut self, key: MetricName, value: f64, tags: TelemetryTags) {
-        self.metrics
-            .entry(key.0.to_string())
-            .or_default()
-            .push(TelemetryMetric {
-                value,
-                tags: tags.into_string(),
-            });
+        self.metrics.entry(key).or_default().push((value, tags));
     }
 }
 

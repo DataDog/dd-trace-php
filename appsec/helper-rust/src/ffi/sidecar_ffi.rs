@@ -46,6 +46,22 @@ pub struct ddog_Option_Error__bindgen_ty_1__bindgen_ty_1 {
     pub some: ddog_Error,
 }
 pub type ddog_MaybeError = ddog_Option_Error;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_TRACERS: ddog_MetricNamespace = 0;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_PROFILERS: ddog_MetricNamespace = 1;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_RUM: ddog_MetricNamespace = 2;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_APPSEC: ddog_MetricNamespace = 3;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_IDE_PLUGINS: ddog_MetricNamespace = 4;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_LIVE_DEBUGGER: ddog_MetricNamespace = 5;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_IAST: ddog_MetricNamespace = 6;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_GENERAL: ddog_MetricNamespace = 7;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_TELEMETRY: ddog_MetricNamespace = 8;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_APM: ddog_MetricNamespace = 9;
+pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_SIDECAR: ddog_MetricNamespace = 10;
+pub type ddog_MetricNamespace = ::core::ffi::c_uint;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_GAUGE: ddog_MetricType = 0;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_COUNT: ddog_MetricType = 1;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION: ddog_MetricType = 2;
+pub type ddog_MetricType = ::core::ffi::c_uint;
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_ERROR: ddog_LogLevel = 0;
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_WARN: ddog_LogLevel = 1;
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_DEBUG: ddog_LogLevel = 2;
@@ -71,5 +87,27 @@ unsafe extern "C" {
         stack_trace_ffi: *mut ddog_CharSlice,
         tags_ffi: *mut ddog_CharSlice,
         is_sensitive: bool,
+    ) -> ddog_MaybeError;
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_enqueue_telemetry_point(
+        session_id_ffi: ddog_CharSlice,
+        runtime_id_ffi: ddog_CharSlice,
+        service_name_ffi: ddog_CharSlice,
+        env_name_ffi: ddog_CharSlice,
+        metric_name_ffi: ddog_CharSlice,
+        value: f64,
+        tags_ffi: *mut ddog_CharSlice,
+    ) -> ddog_MaybeError;
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_enqueue_telemetry_metric(
+        session_id_ffi: ddog_CharSlice,
+        runtime_id_ffi: ddog_CharSlice,
+        service_name_ffi: ddog_CharSlice,
+        env_name_ffi: ddog_CharSlice,
+        metric_name_ffi: ddog_CharSlice,
+        metric_type: ddog_MetricType,
+        metric_namespace: ddog_MetricNamespace,
     ) -> ddog_MaybeError;
 }

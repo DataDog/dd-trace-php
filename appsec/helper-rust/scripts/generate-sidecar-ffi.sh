@@ -16,6 +16,8 @@ cd "$COMPONENTS_RS_DIR"
 
 bindgen sidecar.h \
     --allowlist-function 'ddog_sidecar_enqueue_telemetry_log' \
+    --allowlist-function 'ddog_sidecar_enqueue_telemetry_point' \
+    --allowlist-function 'ddog_sidecar_enqueue_telemetry_metric' \
     --allowlist-function 'ddog_Error_drop' \
     --allowlist-function 'ddog_Error_message' \
     --allowlist-function 'ddog_MaybeError_drop' \
@@ -27,6 +29,7 @@ bindgen sidecar.h \
     --allowlist-type 'ddog_Option_Error_Tag' \
     --allowlist-type 'ddog_Error' \
     --allowlist-type 'ddog_Vec_U8' \
+    --allowlist-type 'ddog_MetricNamespace' \
     --no-layout-tests \
     --no-doc-comments \
     --use-core \
