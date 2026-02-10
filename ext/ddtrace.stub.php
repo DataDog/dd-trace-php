@@ -822,6 +822,23 @@ namespace DDTrace {
      * @return mixed|null The stored value, or null if missing.
      */
     function resource_weak_get(mixed $resource, string $key): mixed {}
+
+    /**
+     * Check if endpoints are already collected
+     *
+     * @return bool
+     */
+    function are_endpoints_collected(): bool {}
+
+    /**
+     * Add an endpoint
+     *
+     * @param string $path The path of the endpoint
+     * @param string $operation_name The operation name of the endpoint
+     * @param string $resource_name The resource name of the endpoint
+     * @param string $method The method of the endpoint
+     */
+    function add_endpoint(string $path, string $operation_name, string $resource_name, string $method): bool {}
 }
 
 namespace DDTrace\System {

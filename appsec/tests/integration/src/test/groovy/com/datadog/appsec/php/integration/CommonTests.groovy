@@ -5,6 +5,9 @@ import com.datadog.appsec.php.mock_agent.MsgpackHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Order
+import org.junit.jupiter.api.TestMethodOrder
+import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -19,7 +22,7 @@ import org.msgpack.core.MessagePack
 import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static java.net.http.HttpResponse.BodyHandlers.ofString
 import static org.hamcrest.MatcherAssert.assertThat
-
+@TestMethodOrder(MethodOrderer.OrderAnnotation)
 trait CommonTests {
 
     AppSecContainer getContainer() {
@@ -27,6 +30,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(2)
     void 'user tracking'() {
         def trace = container.traceFromRequest('/user_id.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -42,6 +46,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(3)
     void 'user signup event'() {
         Trace trace = container.traceFromRequest('/user_signup.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -58,6 +63,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(4)
     void 'user signup event automated'() {
         Trace trace = container.traceFromRequest('/user_signup_automated.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -74,6 +80,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(5)
     void 'user login success event'() {
         Trace trace = container.traceFromRequest('/user_login_success.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -90,6 +97,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(6)
     void 'user login success event automated'() {
         Trace trace = container.traceFromRequest('/user_login_success_automated.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -106,6 +114,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(7)
     void 'sdk v2 user login success event'() {
         def trace = container.traceFromRequest('/user_login_success_v2.php?login=Admin&id=user_id') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -127,6 +136,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(8)
     void 'user login failure event'() {
         def trace = container.traceFromRequest('/user_login_failure.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -144,6 +154,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(9)
     void 'sdk v2 user login failure event'() {
         def trace = container.traceFromRequest('/user_login_failure_v2.php?login=login') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -160,6 +171,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(10)
     void 'user login failure event automated'() {
         def trace = container.traceFromRequest('/user_login_failure_automated.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -177,6 +189,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(11)
     void 'authenticated user event automated'() {
         def trace = container.traceFromRequest('/behind_auth.php?id=userID&disable_schema=1') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -190,6 +203,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(12)
     void 'custom event'() {
         def trace = container.traceFromRequest('/custom_event.php') { resp ->
             assert resp.statusCode() == 200
@@ -204,6 +218,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(13)
     void 'sanity check against non PHP endpoint'() {
         HttpRequest req = container.buildReq('/example.html').GET().build()
         HttpResponse<String> res = container.httpClient.send(req, ofString())
@@ -211,6 +226,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(14)
     void 'trace without attack'() {
         def trace = container.traceFromRequest('/phpinfo.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -226,6 +242,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(15)
     void 'trace with an attack'() {
         HttpRequest req = container.buildReq('/hello.php')
                 .header('User-Agent', 'Arachni/v1').GET().build()
@@ -284,6 +301,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(16)
     void 'test blocking json'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/phpinfo.php')
@@ -304,6 +322,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(17)
     void 'test blocking html'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/phpinfo.php')
@@ -324,6 +343,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(18)
     void 'test blocking and stack generation'() {
         HttpRequest req = container.buildReq('/generate_stack.php?id=stack_user').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
@@ -357,6 +377,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(19)
     void 'test stack generation without blocking'() {
         HttpRequest req = container.buildReq('/generate_stack.php?id=stack_user_no_block').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
@@ -399,6 +420,7 @@ trait CommonTests {
      }
 
      @ParameterizedTest
+     @Order(20)
      @MethodSource("getTestLfiData")
         void 'filesystem functions generate LFI signal'(String target_function, String path, Integer line) {
             HttpRequest req = container.buildReq('/filesystem.php?function='+target_function+"&path="+path).GET().build()
@@ -440,6 +462,7 @@ trait CommonTests {
         }
 
     @Test
+    @Order(21)
     void 'multiple rasp'() {
         def trace = container.traceFromRequest(
             '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') {HttpResponse<InputStream> resp ->
@@ -451,6 +474,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(22)
     void 'user blocking'() {
         def trace = container.traceFromRequest('/user_id.php?id=user2020') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
@@ -467,6 +491,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(23)
     void 'user login success blocking'() {
         def trace = container.traceFromRequest('/user_login_success.php?id=user2020') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
@@ -481,6 +506,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(24)
     void 'sdk v2 user login failure blocking'() {
         def trace = container.traceFromRequest('/user_login_failure_v2.php?login=login2020') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
@@ -495,6 +521,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(25)
     void 'sdk v2 user login success blocking'() {
         def trace = container.traceFromRequest('/user_login_success_v2.php?login=login&id=user2020') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
@@ -509,6 +536,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(26)
     void 'user login fingerprint'() {
         def trace = container.traceFromRequest('/user_login_success.php?id=user2020') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 403
@@ -523,6 +551,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(27)
     void 'user redirecting'() {
         def trace = container.traceFromRequest('/user_id.php?id=user2023') { HttpResponse<InputStream> conn ->
             assert conn.statusCode() == 303
@@ -536,6 +565,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(28)
     void 'user login success redirecting'() {
         def trace = container.traceFromRequest('/user_login_success.php?id=user2023') { HttpResponse<InputStream> conn ->
             assert conn.statusCode() == 303
@@ -549,6 +579,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(29)
     void 'test redirecting'() {
         // Set ip which is set to be redirected
         def req = container.buildReq('/phpinfo.php')
@@ -566,6 +597,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(30)
     void 'match against json response body'() {
         HttpRequest req = container.buildReq('/parseable_resp_entity.php?json=1').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
@@ -612,6 +644,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(31)
     void 'match against xml response body'() {
         HttpRequest req = container.buildReq('/parseable_resp_entity.php?xml=1').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
@@ -659,6 +692,7 @@ trait CommonTests {
 
 
     @Test
+    @Order(32)
     void 'POST request sets content type and length'() {
         def json = '{"message":["Hello world!"]}'
         HttpRequest req = container.buildReq('/hello.php')
@@ -674,6 +708,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(33)
     void 'module does not have STATIC_TLS flag'() {
         Container.ExecResult res = container.execInContainer(
                 'bash', '-c',
@@ -691,6 +726,7 @@ trait CommonTests {
      }
 
     @ParameterizedTest
+    @Order(34)
     @MethodSource("getTestSsrfData")
        void 'filesystem functions generate SSRF signal'(String target_function, Integer line) {
            HttpRequest req = container.buildReq('/ssrf.php?function='+target_function+"&domain=169.254.169.254").GET().build()
@@ -732,6 +768,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(35)
     void 'tagging rule with attributes, no keep and no event'() {
         HttpRequest req = container.buildReq('/hello.php?disable_schema=1')
                 .header('User-Agent', 'TraceTagging/v1').GET().build()
@@ -750,6 +787,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(36)
     void 'tagging rule with attributes, sampling priority user_keep and no event'() {
         HttpRequest req = container.buildReq('/hello.php')
                 .header('User-Agent', 'TraceTagging/v2').GET().build()
@@ -766,6 +804,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(37)
     void 'tagging rule with attributes, sampling priority user_keep and an event'() {
         HttpRequest req = container.buildReq('/hello.php')
                 .header('User-Agent', 'TraceTagging/v3').GET().build()
@@ -782,6 +821,7 @@ trait CommonTests {
     }
 
     @Test
+    @Order(38)
     void 'tagging rule with attributes and an event, but no sampling priority change'() {
         HttpRequest req = container.buildReq('/hello.php')
                 .header('User-Agent', 'TraceTagging/v4').GET().build()
@@ -795,5 +835,16 @@ trait CommonTests {
         assert span.meta."http.useragent" == "TraceTagging/v4"
         assert span.metrics."_dd.appsec.trace.integer" == 1729
         assert span.meta."_dd.appsec.trace.agent" == "TraceTagging/v4"
+    }
+
+    @Test
+    @Order(1)
+    void 'test endpoint collection'() {
+        HttpRequest req = container.buildReq('/endpoint_collection.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected before: false')
+            assert re.body().contains('are_endpoints_collected after: true')
+        }
     }
 }

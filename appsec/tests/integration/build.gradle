@@ -330,6 +330,7 @@ def buildTracerTask = { String version, String variant ->
 }
 
 def buildAppSecTask = { String version, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildAppsec',
             baseTag: 'php',
@@ -353,9 +354,10 @@ def buildAppSecTask = { String version, String variant ->
             command: [
                     '-e', '-c',
                     """
+                    git config --global --add safe.directory '*'
                     cd /appsec
                     test -f CMakeCache.txt || \\
-                        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
+                        cmake -DCMAKE_BUILD_TYPE=$buildType \\
                               -DCMAKE_INSTALL_PREFIX=/appsec \\
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
                               -DGIT_COMMIT=${libddwafCommit()} \\

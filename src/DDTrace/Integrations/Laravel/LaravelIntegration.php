@@ -142,6 +142,17 @@ class LaravelIntegration extends Integration
                 }
                 $rootSpan->meta[Tag::HTTP_METHOD] = $request->method();
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+
+                if (!\DDTrace\are_endpoints_collected()) {
+                    $routeCollection = $This->getRoutes();
+                    foreach ($routeCollection as $value) {
+                        $path = method_exists($value, 'uri') ? $value->uri() : '';
+                        $methods = method_exists($value, 'methods') ? $value->methods() : [];
+                        $method = isset($methods[0]) ? $methods[0] : 'GET';
+                        $resourceName = $method . ' ' . $path;
+                        \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
+                    }
+                }
             }
         );
 
