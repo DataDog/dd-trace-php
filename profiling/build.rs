@@ -610,6 +610,17 @@ fn cfg_apple_linker_flags() {
         "_sapi_getenv",
         "_sapi_globals",
         "_sapi_module",
+        // TSRM (ZTS builds only; harmless to list on NTS — they simply
+        // won't appear as undefined)
+        "_tsrm_get_ls_cache",
+        "_tsrm_set_new_thread_end_handler",
+        // ZTS globals offsets (replace direct globals on ZTS)
+        "_compiler_globals_offset",
+        "_core_globals_offset",
+        "_executor_globals_offset",
+        "_sapi_globals_offset",
+        // Zend parameter error (may appear with certain PHP versions/features)
+        "_zend_wrong_parameters_none_error",
     ];
 
     for sym in ALLOWED_UNDEFINED_SYMBOLS {

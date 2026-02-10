@@ -215,7 +215,11 @@ pub unsafe fn startup() -> ZendResult {
     ZendResult::Success
 }
 
-/// Unmaps the shared page and clears the local cache.
+/// Unmaps the shared page.
+///
+/// Per-thread local_cache and local_generation are cleaned up in
+/// `gshutdown`, which runs before this (zend extension shutdown happens
+/// after `ts_free_id` frees the TSRM slots on ZTS).
 ///
 /// # Safety
 /// Must be called during zend extension shutdown, single-threaded.
@@ -227,9 +231,6 @@ pub unsafe fn shutdown() {
         unsafe { libc::munmap(page as *mut libc::c_void, page_size()) };
         unsafe { SHARED_PAGE = ptr::null_mut() };
     }
-    let g = unsafe { globals() };
-    g.local_cache.borrow_mut().clear();
-    g.local_generation.set(0);
 }
 
 /// Pre-sizes the process-local cache to accommodate any new indices
