@@ -44,7 +44,7 @@ for ($i = 0; $i < 300; ++$i) {
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
                     if ($json["request_type"] == "logs") {
-                        $logs = $json['payload'];
+                        $logs = $json['payload']['logs'];
                         ksort($logs);
                         var_dump(array_values($logs));
 
