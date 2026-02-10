@@ -15,6 +15,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
@@ -144,6 +145,548 @@ class RemoteConfigTests {
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]]])
 
         doReq.call('1.2.3.4', 200)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'custom query deeply nested param matches and reports full key path'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_query_deep/config': [
+                        custom_rules: [[
+                                               id: 'query_deep_rule',
+                                               name: 'query_deep_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.query',
+                                                                                             key_path: ['a','b','c','d']
+                                                                                     ]],
+                                                                            regex: 'poison'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        def req = CONTAINER.buildReq('/hello.php?a[b][c][d]=poison').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "query_deep_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.query",
+                             "key_path" : ["a","b","c","d"],
+                             "value" : "poison",
+                             "highlight" : ["poison"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'custom query array of objects matches and reports key path with index'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_query_array_obj/config': [
+                        custom_rules: [[
+                                               id: 'query_array_obj_rule',
+                                               name: 'query_array_obj_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.query',
+                                                                                             key_path: ['items','0','name']
+                                                                                     ]],
+                                                                            regex: '^bad$'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        def req = CONTAINER.buildReq('/hello.php?items[0][name]=bad&items[1][name]=ok').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "query_array_obj_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.query",
+                             "key_path" : ["items","0","name"],
+                             "value" : "bad",
+                             "highlight" : ["bad"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'custom cookie rule matches and reports parameter path'() {
+        // Enable appsec with a custom cookie rule
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_cookie_rule/config': [
+                        custom_rules: [[
+                                               id: 'cookie_rule',
+                                               name: 'cookie_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.cookies',
+                                                                                             key_path: ['session']
+                                                                                     ]],
+                                                                            regex: '(?i)bad'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        // first, good cookie -> 200
+        def req = CONTAINER.buildReq('/hello.php').header('Cookie', 'session=good').GET().build()
+        CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        // bad cookie -> 403 and json shows correct address/key_path/value/highlight
+        req = CONTAINER.buildReq('/hello.php').header('Cookie', 'session=bad').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "cookie_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.cookies",
+                             "key_path" : ["session"],
+                             "value" : "bad",
+                             "highlight" : ["bad"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'custom header rule matches and reports parameter path'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_header_rule/config': [
+                        custom_rules: [[
+                                               id: 'header_rule',
+                                               name: 'header_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.headers.no_cookies',
+                                                                                             key_path: ['x-demo-header']
+                                                                                     ]],
+                                                                            regex: '^foo$'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        // no match
+        def req = CONTAINER.buildReq('/hello.php')
+                .header('X-Demo-Header', 'bar')
+                .GET().build()
+        CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        // match + verify json payload
+        req = CONTAINER.buildReq('/hello.php')
+                .header('X-Demo-Header', 'foo')
+                .GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "header_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.headers.no_cookies",
+                             "key_path" : ["x-demo-header"],
+                             "value" : "foo",
+                             "highlight" : ["foo"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'header rule is case-insensitive on header name'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_header_rule_ci/config': [
+                        custom_rules: [[
+                                               id: 'header_rule_ci',
+                                               name: 'header_rule_ci',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.headers.no_cookies',
+                                                                                             key_path: ['x-demo-ci']
+                                                                                     ]],
+                                                                            regex: '^foo$'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        // supply uppercase header name; should still match
+        def req = CONTAINER.buildReq('/hello.php')
+                .header('X-DEMO-CI', 'foo')
+                .GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "header_rule_ci" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.headers.no_cookies",
+                             "key_path" : ["x-demo-ci"],
+                             "value" : "foo",
+                             "highlight" : ["foo"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'cookie rule is case-sensitive on cookie name'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_cookie_case_rule/config': [
+                        custom_rules: [[
+                                               id: 'cookie_rule_cs',
+                                               name: 'cookie_rule_cs',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.cookies',
+                                                                                             key_path: ['session']
+                                                                                     ]],
+                                                                            regex: '(?i)bad'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        // Using cookie name 'Session' should not match rule expecting 'session'
+        def req = CONTAINER.buildReq('/hello.php').header('Cookie', 'Session=bad').GET().build()
+        CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'custom query nested param matches and reports key path'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_query_nested/config': [
+                        custom_rules: [[
+                                               id: 'query_nested_rule',
+                                               name: 'query_nested_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.query',
+                                                                                             key_path: ['nested', 'deep']
+                                                                                     ]],
+                                                                            regex: 'poison'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        def req = CONTAINER.buildReq('/hello.php?nested[deep]=poison').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "query_nested_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.query",
+                             "key_path" : ["nested","deep"],
+                             "value" : "poison",
+                             "highlight" : ["poison"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'custom query array index matches and reports key path'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_query_array/config': [
+                        custom_rules: [[
+                                               id: 'query_array_rule',
+                                               name: 'query_array_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[
+                                                                                             address: 'server.request.query',
+                                                                                             key_path: ['arr', '0']
+                                                                                     ]],
+                                                                            regex: '^bad0$'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['block']
+                                       ]]
+                ],
+        ])
+
+        def req = CONTAINER.buildReq('/hello.php?arr[0]=bad0&arr[1]=ok').GET().build()
+        def trace = CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 403
+        }
+        def appsecJson = trace.first().meta."_dd.appsec.json"
+        def expJson = '''{
+           "triggers" : [
+              {
+                 "rule" : { "id" : "query_array_rule" },
+                 "rule_matches" : [
+                    {
+                       "parameters" : [
+                          {
+                             "address" : "server.request.query",
+                             "key_path" : ["arr","0"],
+                             "value" : "bad0",
+                             "highlight" : ["bad0"]
+                          }
+                       ]
+                    }
+                 ]
+              }
+           ]
+        }'''
+        assertThat appsecJson, matchesJson(expJson, false, true)
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'invalid custom action type falls back to record (no block)'() {
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_bad_action/config': [
+                        custom_rules: [[
+                                               id: 'bad_action_rule',
+                                               name: 'bad_action_rule',
+                                               tags: [
+                                                       type: 'security_scanner',
+                                                       category: 'attack_attempt'
+                                               ],
+                                               conditions: [[
+                                                                    parameters: [
+                                                                            inputs: [[ address: 'server.request.query' ]],
+                                                                            regex: 'trigger_bad_action'
+                                                                    ],
+                                                                    operator: 'match_regex'
+                                                            ]],
+                                               on_match: ['bad_action']
+                                       ]],
+                        actions: [[
+                                          id: 'bad_action',
+                                          type: 'non_existing_action_type',
+                                          parameters: [:]
+                                  ]]
+                ],
+        ])
+
+        def req = CONTAINER.buildReq('/hello.php?q=trigger_bad_action').GET().build()
+        CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+            // should not block due to invalid action type
+            assert resp.statusCode() == 200
+        }
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'rules override redirect falls back to record when actions cleared'() {
+        def doReq = { Integer expectedStatus, Map headers = [:] ->
+            def br = CONTAINER.buildReq('/hello.php').GET()
+            headers.each { k, v -> br.header(k, v) }
+            HttpRequest req = br.build()
+            CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == expectedStatus
+            }
+        }
+
+        // enable appsec
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+        ])
+
+        // set override to redirect for builtin UA rule and define redirect action
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_override_redirect/config': [
+                        rules_override: [[
+                                                 rules_target: [[ rule_id: 'ua0-600-56x' ]],
+                                                 on_match: ['redirect']
+                                         ]],
+                        actions: [[
+                                          id: 'redirect',
+                                          type: 'redirect_request',
+                                          parameters: [
+                                                  status_code: '303',
+                                                  location: 'https://datadoghq.com'
+                                          ]
+                                  ]]
+                ]
+        ])
+        // expect redirect
+        doReq.call(303, ['User-agent': 'dd-test-scanner-log-block'])
+
+        // now clear actions while keeping the override on_match to 'redirect'
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_override_redirect/config': [
+                        rules_override: [[
+                                                 rules_target: [[ rule_id: 'ua0-600-56x' ]],
+                                                 on_match: ['redirect']
+                                         ]],
+                        actions: []
+                ]
+        ])
+        // expect no blocking (record), hence 200
+        doReq.call(200, ['User-agent': 'dd-test-scanner-log-block'])
 
         dropRemoteConfig(INITIAL_TARGET)
     }
@@ -528,6 +1071,48 @@ class RemoteConfigTests {
 
         doReq.call('Arachni/v1', 'str-000-002')
         doReq.call('TechnoViking/v1')
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
+    void 'rules override can disable and re-enable a builtin rule'() {
+        def doReq = { int expectedStatus ->
+            HttpRequest req = CONTAINER.buildReq('/hello.php')
+                    .GET()
+                    .header('User-agent', 'dd-test-scanner-log-block')
+                    .build()
+            CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == expectedStatus
+            }
+        }
+
+        // initially enabled
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]]
+        ])
+        doReq.call(403)
+
+        // disable builtin rule 'ua0-600-56x' via rules_override
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_override/config': [
+                        rules_override: [[
+                                                 rules_target: [[ rule_id: 'ua0-600-56x' ]],
+                                                 enabled: false
+                                         ]]
+                ]
+        ])
+        doReq.call(200)
+
+        // clear overrides, re-enable default behavior
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [asm: [enabled: true]],
+                'datadog/2/ASM/custom_override/config': [
+                        rules_override: []
+                ]
+        ])
+        doReq.call(403)
 
         dropRemoteConfig(INITIAL_TARGET)
     }
