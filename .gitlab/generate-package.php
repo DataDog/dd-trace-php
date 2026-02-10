@@ -1348,7 +1348,7 @@ endforeach;
   tags: [ "arch:amd64" ]
   rules:
     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
-      when: always
+      when: on_success
     - when: manual
   needs:
     - job: "prepare code"
@@ -1394,9 +1394,9 @@ foreach ($arch_targets as $arch) {
   tags: [ "runner:main", "size:large" ]
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
-      when: always
+      when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
-      when: always
+      when: on_success
     - when: manual
       allow_failure: true
   needs:
