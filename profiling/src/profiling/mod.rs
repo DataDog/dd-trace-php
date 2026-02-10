@@ -30,7 +30,7 @@ use crossbeam_channel::{Receiver, Sender, TrySendError};
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
 };
-use libdd_profiling::exporter::Tag;
+use libdd_common::tag::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
@@ -1601,7 +1601,7 @@ mod tests {
     use super::*;
     use crate::config::SystemSettingsState;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
-    use libdd_profiling::exporter::Uri;
+    use http::Uri;
     use log::LevelFilter;
 
     fn get_frames() -> Backtrace {
