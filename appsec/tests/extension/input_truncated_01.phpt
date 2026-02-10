@@ -15,25 +15,20 @@ include __DIR__ . '/inc/mock_helper.php';
 
 $helper = Helper::createInitedRun([
     response_list(response_request_init([[['ok', []]]])),
-    response_list(response_request_shutdown([[['ok', []]], [], false, [],
-    [], [], ["waf.requests" => [[2.0, ""], [1.0, "a=b"]]]]))
+    response_list(response_request_shutdown([[['ok', []]]]))
 ]);
 
 var_dump(rinit());
 $helper->get_commands(); // ignore
 
 var_dump(rshutdown());
-$helper->get_commands();
+
+$commands = $helper->get_commands();
+// Verify request_shutdown receives input_truncated=true
+var_dump($commands[0][1][3]);
 
 ?>
 --EXPECTF--
 bool(true)
-
-Notice: datadog\appsec\testing\rshutdown(): Would call ddtrace_metric_register_buffer with name=waf.requests type=1 ns=3 in %s on line %d
-
-Notice: datadog\appsec\testing\rshutdown(): Would call to ddtrace_metric_add_point with name=waf.requests value=2.000000 tags=input_truncated=true in %s on line %d
-
-Notice: datadog\appsec\testing\rshutdown(): Would call ddtrace_metric_register_buffer with name=waf.requests type=1 ns=3 in %s on line %d
-
-Notice: datadog\appsec\testing\rshutdown(): Would call to ddtrace_metric_add_point with name=waf.requests value=1.000000 tags=a=b,input_truncated=true in %s on line %d
+bool(true)
 bool(true)

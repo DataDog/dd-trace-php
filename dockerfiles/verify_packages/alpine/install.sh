@@ -19,13 +19,19 @@ if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php8 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
-    PHP_BIN=$(command -v php81 || true)
+    PHP_BIN=$(command -v php85 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php84 || true)
+fi
+if [ -z "$PHP_BIN" ]; then
+    PHP_BIN=$(command -v php83 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php82 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
-    PHP_BIN=$(command -v php83 || true)
+    PHP_BIN=$(command -v php81 || true)
 fi
 if [ -z "$PHP_BIN" ]; then
     PHP_BIN=$(command -v php7 || true)
@@ -53,6 +59,12 @@ if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm85 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
+    PHP_FPM_BIN=$(command -v php-fpm84 || true)
+fi
+if [ -z "$PHP_FPM_BIN" ]; then
     PHP_FPM_BIN=$(command -v php-fpm83 || true)
 fi
 if [ -z "$PHP_FPM_BIN" ]; then
@@ -74,6 +86,14 @@ fi
 WWW_CONF=/etc/php/php-fpm.d/www.conf
 if [ ! -f "${WWW_CONF}" ]; then
     WWW_CONF=/usr/local/etc/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.22+
+    WWW_CONF=/etc/php85/php-fpm.d/www.conf
+fi
+if [ ! -f "${WWW_CONF}" ]; then
+    # Alpine 3.21
+    WWW_CONF=/etc/php84/php-fpm.d/www.conf
 fi
 if [ ! -f "${WWW_CONF}" ]; then
     # Alpine 3.20

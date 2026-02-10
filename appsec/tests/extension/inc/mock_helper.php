@@ -277,7 +277,6 @@ function response_request_shutdown($message, $mergeWithEmpty = true) {
             false, //force_keep
             [],
             [],
-            [],
             []
         ], $message);
     }

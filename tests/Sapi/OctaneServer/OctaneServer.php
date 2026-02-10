@@ -57,6 +57,9 @@ final class OctaneServer implements Sapi
 
     public function start()
     {
+        //Avoid previous tests
+        $this->waitUntilServerIsNotRunning();
+
         if (getenv('PHPUNIT_COVERAGE')) {
             $xdebugExtension = glob(PHP_EXTENSION_DIR . '/xdebug*.so');
             $xdebugExtension = end($xdebugExtension);
@@ -86,8 +89,41 @@ final class OctaneServer implements Sapi
 
         $this->process = new Process($processCmd);
         $this->process->start();
-        sleep(1);
-        echo $this->process->getErrorOutput();
+
+        if (!$this->waitUntilServerRunning()) {
+            error_log("[octane-server] Server never came up...");
+            echo $this->process->getErrorOutput();
+            return;
+        }
+        error_log("[octane-server] Server is up and responding...");
+    }
+
+    public function waitUntilServerIsNotRunning()
+    {
+        //Let's wait until server is not accepting connections
+        for ($try = 0; $try < 40; $try++) {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket == false) {
+                return true;
+            }
+            usleep(50000);
+        }
+
+        return false;
+    }
+
+    public function waitUntilServerRunning()
+    {
+        //Let's wait until server is accepting connections
+        for ($try = 0; $try < 40; $try++) {
+            $socket = @fsockopen($this->host, $this->port);
+            if ($socket !== false) {
+                return true;
+            }
+            usleep(50000);
+        }
+
+        return false;
     }
 
     public function stop()
@@ -101,6 +137,7 @@ final class OctaneServer implements Sapi
         );
         $process = new Process($cmd);
         $process->run();
+        $this->waitUntilServerIsNotRunning();
     }
 
     public function isFastCgi()

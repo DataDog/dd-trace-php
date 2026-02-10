@@ -203,6 +203,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/memory_limit.c \
     ext/otel_config.c \
     ext/priority_sampling/priority_sampling.c \
+    ext/process_tags.c \
     ext/profiling.c \
     ext/random.c \
     ext/remote_config.c \
@@ -220,6 +221,12 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/hook/uhook.c \
     ext/hook/uhook_legacy.c \
   "
+
+  dnl Always provide a local, weak getrandom() fallback to avoid runtime
+  dnl relocation failures when running on older libcs (e.g., Alpine 3.7 musl).
+  dnl On newer libcs, the libc getrandom() takes precedence.
+  DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
+    ext/compat_getrandom.c"
 
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
     zend_abstract_interface/config/config.c \

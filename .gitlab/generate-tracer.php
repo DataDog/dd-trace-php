@@ -23,7 +23,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:src"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src"
 <?php
 }
 
@@ -492,7 +492,7 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
-    SKIP_ONLINE_TEST: "1"
+    SKIP_ONLINE_TESTS: "1"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>

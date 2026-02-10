@@ -4,10 +4,10 @@ use crate::bindings::{
     ddog_php_prof_copy_long_into_zval,
 };
 use crate::{RefCellExt, PROFILER_NAME, REQUEST_LOCALS};
-use core::{cell::Cell, ptr};
+use core::ptr;
 use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
-use log::{debug, error, trace, warn};
+use log::{debug, trace, warn};
 use std::sync::atomic::Ordering::Relaxed;
 
 #[cfg(feature = "debug_stats")]
@@ -19,7 +19,7 @@ type ZendHeapPrepareFn = unsafe fn(heap: *mut zend::_zend_mm_heap) -> c_int;
 type ZendHeapRestoreFn = unsafe fn(heap: *mut zend::_zend_mm_heap, custom_heap: c_int);
 
 #[derive(Copy, Clone)]
-struct ZendMMState {
+pub struct ZendMMState {
     /// The heap installed in ZendMM at the time we install our custom
     /// handlers, this is also the heap our custom handlers are installed in.
     /// We need this in case there is no custom handlers installed prior to us,
@@ -50,7 +50,8 @@ struct ZendMMState {
 }
 
 impl ZendMMState {
-    const fn new() -> ZendMMState {
+    #[allow(clippy::new_without_default)]
+    pub const fn new() -> ZendMMState {
         ZendMMState {
             heap: None,
             prev_custom_mm_alloc: None,
@@ -62,55 +63,6 @@ impl ZendMMState {
             free: super::alloc_prof_panic_free,
         }
     }
-}
-
-#[cfg(php_zts)]
-thread_local! {
-    /// Using a `Cell` here should be okay. There might not be any
-    /// synchronization issues, as it is used in as thread local and only
-    /// mutated in RINIT and RSHUTDOWN.
-    static ZEND_MM_STATE: Cell<ZendMMState> = const {
-        Cell::new(ZendMMState::new())
-    };
-}
-
-#[cfg(not(php_zts))]
-/// Using a `Cell` here should be okay. There might not be any
-/// synchronization issues, as it is only mutated in RINIT and RSHUTDOWN.
-static mut ZEND_MM_STATE: Cell<ZendMMState> = Cell::new(ZendMMState::new());
-
-#[cfg(php_zts)]
-macro_rules! tls_zend_mm_state_copy {
-    () => {
-        ZEND_MM_STATE.get()
-    };
-}
-
-#[cfg(not(php_zts))]
-macro_rules! tls_zend_mm_state_copy {
-    () => {
-        unsafe { (*ptr::addr_of_mut!(ZEND_MM_STATE)).get() }
-    };
-}
-
-macro_rules! tls_zend_mm_state_get {
-    ($x:ident) => {
-        tls_zend_mm_state_copy!().$x
-    };
-}
-
-#[cfg(php_zts)]
-macro_rules! tls_zend_mm_state_set {
-    ($x:expr) => {
-        ZEND_MM_STATE.set($x)
-    };
-}
-
-#[cfg(not(php_zts))]
-macro_rules! tls_zend_mm_state_set {
-    ($x:expr) => {
-        unsafe { (*ptr::addr_of!(ZEND_MM_STATE)).set($x) }
-    };
 }
 
 const NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT: bool =
@@ -132,19 +84,9 @@ pub fn alloc_prof_ginit() {
 }
 
 pub fn first_rinit_should_disable_due_to_jit() -> bool {
-    if NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
+    NEEDS_RUN_TIME_CHECK_FOR_ENABLED_JIT
         && alloc_prof_needs_disabled_for_jit(crate::RUNTIME_PHP_VERSION_ID.load(Relaxed))
         && *JIT_ENABLED
-    {
-        if zend::PHP_VERSION_ID >= 80400 {
-            error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
-        } else {
-            error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
-        }
-        true
-    } else {
-        false
-    }
 }
 
 pub fn alloc_prof_rinit() {
@@ -373,7 +315,9 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
 }
 
 unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
-    let heap = zend::zend_mm_get_heap();
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
@@ -398,7 +342,9 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
 }
 
 unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
-    let heap = zend::zend_mm_get_heap();
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     zend::_zend_mm_free(heap, ptr);
 }
 
@@ -432,7 +378,9 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
 }
 
 unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
-    let heap = zend::zend_mm_get_heap();
+    // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
+    // handlers are only installed and pointing to this function if initialization was succesful.
+    let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);

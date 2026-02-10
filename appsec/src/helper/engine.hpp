@@ -69,6 +69,14 @@ public:
             parameter &&param, const network::request_exec_options &options);
         // NOLINTNEXTLINE(google-runtime-references)
         void get_metrics(telemetry::telemetry_submitter &msubmitter);
+        [[nodiscard]] bool get_input_truncated() const
+        {
+            return input_truncated_;
+        }
+        void set_input_truncated(bool input_truncated)
+        {
+            input_truncated_ = input_truncated;
+        }
 
     protected:
         std::shared_ptr<shared_state> common_;
@@ -77,6 +85,7 @@ public:
         std::vector<parameter> prev_published_params_;
         rate_limiter<dds::timer> &
             limiter_; // NOLINT(cppcoreguidelines-avoid-const-or-ref-data-members)
+        bool input_truncated_{false};
     };
 
     engine(const engine &) = delete;

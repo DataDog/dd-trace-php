@@ -43,6 +43,10 @@ ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_Cha
 
 int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
 
+const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
+
+void ddog_free_normalized_tag_value(const char *ptr);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -178,6 +182,10 @@ ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport
                                                     const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer,
                                                     ddog_ShmCacheMap *cache,
+                                                    ddog_CharSlice service,
+                                                    ddog_CharSlice env);
+
+bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
 

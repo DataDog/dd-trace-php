@@ -29,3 +29,7 @@ Route::get('login/auth', 'LoginTestController@auth');
 Route::get('login/signup', 'LoginTestController@register');
 Route::get('/behind_auth', 'LoginTestController@behind_auth')->middleware('auth');
 Route::get('rasp', 'RaspTestController@rasp');
+Route::get('/telemetry', function () {
+    dd_trace_internal_fn("finalize_telemetry");
+    return response('Done');
+});

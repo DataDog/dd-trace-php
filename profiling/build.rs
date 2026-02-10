@@ -1,5 +1,4 @@
 use bindgen::callbacks::IntKind;
-use rustc_version::version_meta;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
@@ -257,6 +256,17 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .blocklist_item("zend_result")
         .blocklist_item("zend_register_extension")
         .blocklist_item("_zend_string")
+        // Block typedefs that use __attribute__((preserve_none)) calling convention.
+        // PHP 8.5.1+ on macOS enables TAILCALL VM when compiled with Clang 18+,
+        // which uses preserve_none for opcode handlers. Bindgen doesn't support
+        // CXCallingConv_PreserveNone (CC 20) and panics. We use opaque pointers
+        // instead of the actual function signatures because: 1) we never call
+        // these opcode handlers from Rust, and 2) Rust cannot express the
+        // preserve_none calling convention anyway.
+        .blocklist_item("zend_vm_opcode_handler_t")
+        .blocklist_item("zend_vm_opcode_handler_func_t")
+        .raw_line("pub type zend_vm_opcode_handler_t = *const ::std::ffi::c_void;")
+        .raw_line("pub type zend_vm_opcode_handler_func_t = *const ::std::ffi::c_void;")
         // Block a few of functions that we'll provide defs for manually
         .blocklist_item("datadog_php_profiling_vm_interrupt_addr")
         // I had to block these for some reason *shrug*
@@ -290,18 +300,8 @@ fn generate_bindings(php_config_includes: &str, fibers: bool, zend_error_observe
         .expect("bindings to be written successfully");
 }
 
-// See https://doc.rust-lang.org/nightly/rustc/check-cfg/cargo-specifics.html
-// We can remove this when we're on Rust 1.80+.
-fn has_check_cfg() -> bool {
-    let meta = version_meta().unwrap();
-    assert_eq!(1, meta.semver.major);
-    meta.semver.minor >= 80
-}
-
 fn cfg_post_startup_cb(vernum: u64) -> bool {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php_post_startup_cb)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php_post_startup_cb)");
     if vernum >= 70300 {
         println!("cargo:rustc-cfg=php_post_startup_cb");
         true
@@ -311,9 +311,7 @@ fn cfg_post_startup_cb(vernum: u64) -> bool {
 }
 
 fn cfg_preload(vernum: u64) -> bool {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php_preload)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php_preload)");
     if vernum >= 70400 {
         println!("cargo:rustc-cfg=php_preload");
         true
@@ -323,9 +321,7 @@ fn cfg_preload(vernum: u64) -> bool {
 }
 
 fn cfg_run_time_cache(vernum: u64) -> bool {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php_run_time_cache)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php_run_time_cache)");
     if vernum >= 80000 {
         println!("cargo:rustc-cfg=php_run_time_cache");
         true
@@ -339,9 +335,7 @@ fn cfg_trigger_time_sample() -> bool {
 }
 
 fn cfg_zend_error_observer(vernum: u64) -> bool {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(zend_error_observer, zend_error_observer_80)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(zend_error_observer, zend_error_observer_80)");
     if vernum >= 80000 {
         println!("cargo:rustc-cfg=zend_error_observer");
         if vernum < 80100 {
@@ -354,9 +348,7 @@ fn cfg_zend_error_observer(vernum: u64) -> bool {
 }
 
 fn cfg_php_major_version(vernum: u64) {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php7, php8)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php7, php8)");
 
     let major_version = match vernum {
         70000..=79999 => 7,
@@ -372,9 +364,7 @@ fn cfg_php_major_version(vernum: u64) {
 }
 
 fn cfg_fibers(vernum: u64) -> bool {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php_has_fibers)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php_has_fibers)");
     if vernum >= 80100 {
         println!("cargo:rustc-cfg=php_has_fibers");
         true
@@ -384,9 +374,7 @@ fn cfg_fibers(vernum: u64) -> bool {
 }
 
 fn cfg_php_feature_flags(vernum: u64) {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php_gc_status, php_zend_compile_string_has_position, php_gc_status_extended, php_frameless, php_opcache_restart_hook, php_zend_mm_set_custom_handlers_ex)");
 
     if vernum >= 70300 {
         println!("cargo:rustc-cfg=php_gc_status");
@@ -400,17 +388,12 @@ fn cfg_php_feature_flags(vernum: u64) {
     if vernum >= 80400 {
         println!("cargo:rustc-cfg=php_frameless");
         println!("cargo:rustc-cfg=php_opcache_restart_hook");
-        // Commenting the following line temporary disables the new hooking mechanism for
-        // allocation profiling until we solved the intefereing with
-        // `memory_get_usage()`/`memory_get_peak_usage()`
-        // println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
+        println!("cargo:rustc-cfg=php_zend_mm_set_custom_handlers_ex");
     }
 }
 
 fn cfg_zts() {
-    if has_check_cfg() {
-        println!("cargo::rustc-check-cfg=cfg(php_zts)");
-    }
+    println!("cargo::rustc-check-cfg=cfg(php_zts)");
 
     let output = Command::new("php-config")
         .arg("--include-dir")

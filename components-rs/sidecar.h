@@ -118,7 +118,19 @@ ddog_MaybeError ddog_sidecar_telemetry_enqueueConfig(struct ddog_SidecarTranspor
                                                      ddog_CharSlice config_key,
                                                      ddog_CharSlice config_value,
                                                      enum ddog_ConfigurationOrigin origin,
-                                                     ddog_CharSlice config_id);
+                                                     ddog_CharSlice config_id,
+                                                     struct ddog_Option_U64 seq_id);
+
+/**
+ * Reports an endpoint to the telemetry.
+ */
+ddog_MaybeError ddog_sidecar_telemetry_addEndpoint(struct ddog_SidecarTransport **transport,
+                                                   const struct ddog_InstanceId *instance_id,
+                                                   const ddog_QueueId *queue_id,
+                                                   enum ddog_Method method,
+                                                   ddog_CharSlice path,
+                                                   ddog_CharSlice operation_name,
+                                                   ddog_CharSlice resource_name);
 
 /**
  * Reports a dependency to the telemetry.
@@ -207,6 +219,34 @@ ddog_MaybeError ddog_sidecar_enqueue_telemetry_log(ddog_CharSlice session_id_ffi
                                                    ddog_CharSlice *stack_trace_ffi,
                                                    ddog_CharSlice *tags_ffi,
                                                    bool is_sensitive);
+
+/**
+ * Enqueues a telemetry point to be processed internally.
+ *
+ * # Safety
+ * Pointers must be valid, strings must be null-terminated if not null.
+ */
+ddog_MaybeError ddog_sidecar_enqueue_telemetry_point(ddog_CharSlice session_id_ffi,
+                                                     ddog_CharSlice runtime_id_ffi,
+                                                     ddog_CharSlice service_name_ffi,
+                                                     ddog_CharSlice env_name_ffi,
+                                                     ddog_CharSlice metric_name_ffi,
+                                                     double value,
+                                                     ddog_CharSlice *tags_ffi);
+
+/**
+ * Registers a telemetry metric to be processed internally.
+ *
+ * # Safety
+ * Pointers must be valid, strings must be null-terminated if not null.
+ */
+ddog_MaybeError ddog_sidecar_enqueue_telemetry_metric(ddog_CharSlice session_id_ffi,
+                                                       ddog_CharSlice runtime_id_ffi,
+                                                       ddog_CharSlice service_name_ffi,
+                                                       ddog_CharSlice env_name_ffi,
+                                                       ddog_CharSlice metric_name_ffi,
+                                                       enum ddog_MetricType metric_type,
+                                                       enum ddog_MetricNamespace metric_namespace);
 
 /**
  * Sends a trace to the sidecar via shared memory.

@@ -30,7 +30,7 @@ extern bool runtime_config_first_init;
 
 // clang-format off
 #define DD_CONFIGURATION_GENERAL \
-    SYSCFG(BOOL, DD_APPSEC_ENABLED, "false")                                                                                          \
+    CONFIG(BOOL, DD_APPSEC_ENABLED, "false", .ini_change = zai_config_system_ini_change)                                                                                          \
     SYSCFG(BOOL, DD_APPSEC_CLI_START_ON_RINIT, "false")                                                                               \
     SYSCFG(STRING, DD_APPSEC_RULES, "")                                                                                               \
     SYSCFG(CUSTOM(uint64_t), DD_APPSEC_WAF_TIMEOUT, "10000", .parser = _parse_uint64)                                                 \

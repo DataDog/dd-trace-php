@@ -137,11 +137,8 @@ struct client_init {
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
-        std::unordered_map<std::string_view,
-            std::vector<std::pair<double, std::string>>>
-            tel_metrics;
 
-        MSGPACK_DEFINE(status, version, errors, meta, metrics, tel_metrics)
+        MSGPACK_DEFINE(status, version, errors, meta, metrics)
     };
 };
 
@@ -288,6 +285,7 @@ struct request_shutdown {
         dds::parameter data;
         std::uint64_t api_sec_samp_key{0};
         std::uint64_t queue_id{0};
+        bool input_truncated{false};
 
         request() = default;
         request(const request &) = delete;
@@ -296,7 +294,7 @@ struct request_shutdown {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(data, api_sec_samp_key, queue_id)
+        MSGPACK_DEFINE(data, api_sec_samp_key, queue_id, input_truncated)
     };
 
     struct response : base_response_generic<response> {
@@ -314,12 +312,8 @@ struct request_shutdown {
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
-        std::unordered_map<std::string_view,
-            std::vector<std::pair<double, std::string>>>
-            tel_metrics;
 
-        MSGPACK_DEFINE(
-            actions, triggers, force_keep, settings, meta, metrics, tel_metrics)
+        MSGPACK_DEFINE(actions, triggers, force_keep, settings, meta, metrics)
     };
 };
 

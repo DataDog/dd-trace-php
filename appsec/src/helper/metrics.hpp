@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <common.h> // components-rs/common.h
 #include <spdlog/spdlog.h>
 #include <string_view>
 
@@ -17,11 +18,14 @@ constexpr std::string_view waf_updates = "waf.updates";
 constexpr std::string_view waf_requests = "waf.requests";
 constexpr std::string_view waf_config_errors = "waf.config_errors";
 
-// not implemented:
+// implemented in the extension
 constexpr std::string_view waf_input_truncated = "waf.input_truncated";
+// not implemented
 constexpr std::string_view waf_truncated_value_size =
     "waf.truncated_value_size";
+// not implemented
 constexpr std::string_view waf_duration_tel = "waf.duration";
+// implemented in the extension
 constexpr std::string_view waf_duration_ext = "waf.duration_ext";
 
 // not implemented (difficult to count requests on the helper)
@@ -48,4 +52,50 @@ constexpr std::string_view telemetry_rasp_error = "rasp.error";
 constexpr std::string_view telemetry_rasp_rule_match = "rasp.rule.match";
 constexpr std::string_view telemetry_rasp_timeout = "rasp.timeout";
 
+// telemetry
+constexpr std::string_view helper_worker_count = "helper.service_worker_count";
+
+struct known_tel_metrics {
+    std::string_view name;
+    ddog_MetricType type;
+};
+
+static constexpr std::array<known_tel_metrics, 9> known_metrics = {
+    known_tel_metrics{
+        .name = waf_requests,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    known_tel_metrics{
+        .name = waf_updates,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    {
+        .name = waf_init,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    {
+        .name = waf_config_errors,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    {
+        .name = telemetry_rasp_timeout,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    {
+        .name = telemetry_rasp_rule_match,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    {
+        .name = telemetry_rasp_rule_eval,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    {
+        .name = telemetry_rasp_error,
+        .type = DDOG_METRIC_TYPE_COUNT,
+    },
+    {
+        .name = helper_worker_count,
+        .type = DDOG_METRIC_TYPE_GAUGE,
+    },
+};
 } // namespace dds::metrics

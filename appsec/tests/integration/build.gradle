@@ -36,9 +36,10 @@ dependencies {
     implementation 'org.msgpack:msgpack-core:0.9.9'
     implementation 'io.javalin:javalin:6.7.0'
 
-    implementation platform('org.testcontainers:testcontainers-bom:1.21.3')
-    implementation 'org.testcontainers:mysql'
-    implementation "org.testcontainers:junit-jupiter"
+    implementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    implementation 'org.testcontainers:testcontainers-mysql'
+    implementation "org.testcontainers:testcontainers-junit-jupiter"
+    implementation 'org.hamcrest:hamcrest:2.2'
     implementation 'com.flipkart.zjsonpatch:zjsonpatch:0.4.16'
     implementation 'org.junit.jupiter:junit-jupiter-engine:5.12.2'
     implementation 'org.junit.jupiter:junit-jupiter-params:5.12.2'
@@ -92,6 +93,11 @@ def creationDateOf(String image) {
     def imageModifiedStr = proc.text.trim().replace('"', '')
     Date volumeDate = Date.from(OffsetDateTime.parse(imageModifiedStr).toInstant())
     volumeDate.time
+}
+def libddwafCommit() {
+    def proc = ['git', '-C', "${projectDir}/../../third_party/libddwaf", 'rev-parse', 'HEAD'].execute()
+    proc.waitForOrKill(5_000)
+    proc.text.trim()
 }
 
 def createVolumeTask = { String volumeName ->
@@ -324,6 +330,7 @@ def buildTracerTask = { String version, String variant ->
 }
 
 def buildAppSecTask = { String version, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildAppsec',
             baseTag: 'php',
@@ -346,18 +353,19 @@ def buildAppSecTask = { String version, String variant ->
             ],
             command: [
                     '-e', '-c',
-                    '''
+                    """
                     git config --global --add safe.directory '*'
                     cd /appsec
                     test -f CMakeCache.txt || \\
-                        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
+                        cmake -DCMAKE_BUILD_TYPE=$buildType \\
                               -DCMAKE_INSTALL_PREFIX=/appsec \\
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
+                              -DGIT_COMMIT=${libddwafCommit()} \\
                               -DDD_APPSEC_TESTING=ON \\
                               -DBOOST_CACHE_PREFIX=/root/.boost /project/appsec
                     make -j extension ddappsec-helper && \\
                         touch ddappsec.so libddappsec-helper.so
-                '''
+                """
             ]
     )
 }
