@@ -42,20 +42,24 @@ $rr->waitForRequest(function ($request) {
         return false;
     }
     $body = json_decode($request["body"], true);
-    if ($body["request_type"] != "logs" || !isset($body["payload"][0]["message"])) {
-        return false;
-    }
+    $batch = $body["request_type"] == "message-batch" ? $body["payload"] : [$body];
 
-    foreach ($body["payload"] as $payload) {
-        $payload["message"] = json_decode($payload["message"], true);
-        if (!isset($payload["message"]["metadata"])) {
-            break;
+    foreach ($batch as $json) {
+        if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
+            continue;
         }
 
-        $output = json_encode($payload, JSON_PRETTY_PRINT);
-        echo $output;
+        foreach ($json["payload"]["logs"] as $payload) {
+            $payload["message"] = json_decode($payload["message"], true);
+            if (!isset($payload["message"]["metadata"])) {
+                break;
+            }
 
-        return true;
+            $output = json_encode($payload, JSON_PRETTY_PRINT);
+            echo $output;
+
+            return true;
+        }
     }
 
     return false;
