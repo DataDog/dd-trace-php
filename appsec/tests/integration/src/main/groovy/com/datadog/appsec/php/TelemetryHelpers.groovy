@@ -46,6 +46,10 @@ class TelemetryHelpers {
         static names = ['logs']
         List<Log> logs
 
+        Logs(Map m) {
+            this(m.logs as List)
+        }
+
         Logs(List m) {
             logs = m.collect { new Log(it as Map) }
         }
