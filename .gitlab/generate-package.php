@@ -489,6 +489,7 @@ foreach ($windows_build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     GIT_STRATEGY: clone
+    GIT_CLEAN_FLAGS: -ffdx
     GIT_CONFIG_COUNT: 2
     GIT_CONFIG_KEY_0: core.longpaths
     GIT_CONFIG_VALUE_0: true
