@@ -50,6 +50,9 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
 bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str);
 
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
+    if (str == NULL) {
+        return (ddog_CharSlice){ .len = 0, .ptr = NULL };
+    }
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
 }
 
