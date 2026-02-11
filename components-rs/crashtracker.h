@@ -650,6 +650,16 @@ struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_message(struct ddog_cra
  * # Safety
  * The `builder` can be null, but if non-null it must point to a Builder made by this module,
  * which has not previously been dropped.
+ * The CharSlice must be valid.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_thread_name(struct ddog_crasht_Handle_CrashInfoBuilder *builder,
+                                                                     ddog_CharSlice thread_name);
+
+/**
+ * # Safety
+ * The `builder` can be null, but if non-null it must point to a Builder made by this module,
+ * which has not previously been dropped.
  * All arguments must be valid.
  * This method requires that the builder has a UUID, siginfo, and metadata set
  */

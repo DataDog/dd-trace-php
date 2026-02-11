@@ -192,8 +192,8 @@ static void serialize_process_tags(void) {
     smart_str_free(&buf);
 }
 
-DDTRACE_PUBLIC zend_string *ddtrace_process_tags_get_serialized(void) {
-    return (ddtrace_process_tags_enabled() && process_tags.serialized) ? process_tags.serialized : NULL;
+zend_string *ddtrace_process_tags_get_serialized(void) {
+    return (ddtrace_process_tags_enabled() && process_tags.serialized) ? process_tags.serialized : ZSTR_EMPTY_ALLOC();
 }
 
 bool ddtrace_process_tags_enabled(void){

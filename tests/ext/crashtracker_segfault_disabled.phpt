@@ -35,17 +35,24 @@ $rr->waitForRequest(function ($request) {
         return false;
     }
     $body = json_decode($request["body"], true);
-    if ($body["request_type"] != "logs" || !isset($body["payload"][0]["message"])) {
-        return false;
+    $batch = $body["request_type"] == "message-batch" ? $body["payload"] : [$body];
+
+    foreach ($batch as $json) {
+        if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
+            continue;
+        }
+
+        foreach ($json["payload"]["logs"] as $payload) {
+            $payload["message"] = json_decode($payload["message"], true);
+            $output = json_encode($payload, JSON_PRETTY_PRINT);
+
+            echo $output;
+
+            return true;
+        }
     }
 
-    $payload = $body["payload"][0];
-    $payload["message"] = json_decode($payload["message"], true);
-    $output = json_encode($payload, JSON_PRETTY_PRINT);
-
-    echo $output;
-
-    return true;
+    return false;
 });
 
 ?>

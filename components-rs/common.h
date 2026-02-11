@@ -1472,6 +1472,10 @@ typedef struct ddog_crasht_OsInfo {
 
 typedef struct ddog_crasht_ProcInfo {
   uint32_t pid;
+  /**
+   * Optional crashing thread id; 0 means unset.
+   */
+  uint32_t tid;
 } ddog_crasht_ProcInfo;
 
 typedef struct ddog_crasht_SigInfo {
