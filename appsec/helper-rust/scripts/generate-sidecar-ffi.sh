@@ -18,9 +18,13 @@ bindgen sidecar.h \
     --allowlist-function 'ddog_sidecar_enqueue_telemetry_log' \
     --allowlist-function 'ddog_sidecar_enqueue_telemetry_point' \
     --allowlist-function 'ddog_sidecar_enqueue_telemetry_metric' \
+    --allowlist-function 'ddog_sidecar_connect' \
+    --allowlist-function 'ddog_sidecar_ping' \
+    --allowlist-function 'ddog_sidecar_transport_drop' \
     --allowlist-function 'ddog_Error_drop' \
     --allowlist-function 'ddog_Error_message' \
     --allowlist-function 'ddog_MaybeError_drop' \
+    --allowlist-type 'ddog_SidecarTransport' \
     --allowlist-type 'ddog_LogLevel' \
     --allowlist-type 'ddog_CharSlice' \
     --allowlist-type 'ddog_Slice_CChar' \

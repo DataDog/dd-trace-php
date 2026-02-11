@@ -62,6 +62,11 @@ pub const ddog_MetricType_DDOG_METRIC_TYPE_GAUGE: ddog_MetricType = 0;
 pub const ddog_MetricType_DDOG_METRIC_TYPE_COUNT: ddog_MetricType = 1;
 pub const ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION: ddog_MetricType = 2;
 pub type ddog_MetricType = ::core::ffi::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ddog_SidecarTransport {
+    _unused: [u8; 0],
+}
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_ERROR: ddog_LogLevel = 0;
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_WARN: ddog_LogLevel = 1;
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_DEBUG: ddog_LogLevel = 2;
@@ -74,6 +79,15 @@ unsafe extern "C" {
 }
 unsafe extern "C" {
     pub fn ddog_MaybeError_drop(arg1: ddog_MaybeError);
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_transport_drop(arg1: *mut ddog_SidecarTransport);
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_connect(connection: *mut *mut ddog_SidecarTransport) -> ddog_MaybeError;
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_ping(transport: *mut *mut ddog_SidecarTransport) -> ddog_MaybeError;
 }
 unsafe extern "C" {
     pub fn ddog_sidecar_enqueue_telemetry_log(

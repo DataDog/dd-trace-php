@@ -12,7 +12,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use futures::SinkExt;
+use futures::{future::Shared, SinkExt};
 use libddwaf::{object::WafObjectType, RunnableContext};
 use log::{debug, error, info, warning as warn};
 use protocol::{ClientInitResp, CommandResponse, ConfigFeaturesResp};
@@ -25,9 +25,9 @@ use crate::{
     client::protocol::{RequestExecOptions, WafRunType},
     service::{Service, ServiceFixedConfig, ServiceManager},
     telemetry::{
-        SpanMetaGenerator, SpanMetaName, SpanMetricName, SpanMetricsGenerator,
-        SpanMetricsSubmitter, TelemetryLogsGenerator, TelemetryMetricsGenerator,
-        TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter,
+        SidecarReadyFuture, SidecarStatus, SpanMetaGenerator, SpanMetaName, SpanMetricName,
+        SpanMetricsGenerator, SpanMetricsSubmitter, TelemetryLogsGenerator,
+        TelemetryMetricsGenerator, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter,
     },
 };
 
@@ -83,12 +83,32 @@ impl Client {
         }
     }
 
-    pub async fn entrypoint(self, stream: UnixStream, cancel_token: CancellationToken) {
-        log::with_scoped_client_id(self.id, self.do_entrypoint(stream, cancel_token)).await;
+    pub async fn entrypoint(
+        self,
+        stream: UnixStream,
+        sidecar_ready: Shared<SidecarReadyFuture>,
+        cancel_token: CancellationToken,
+    ) {
+        log::with_scoped_client_id(
+            self.id,
+            self.do_entrypoint(stream, sidecar_ready, cancel_token),
+        )
+        .await;
     }
 
-    async fn do_entrypoint(mut self, stream: UnixStream, cancel_token: CancellationToken) {
+    async fn do_entrypoint(
+        mut self,
+        stream: UnixStream,
+        sidecar_ready: Shared<SidecarReadyFuture>,
+        cancel_token: CancellationToken,
+    ) {
         info!("starting");
+
+        let sidecar_ready = sidecar_ready.await;
+        if sidecar_ready != SidecarStatus::Ready {
+            info!("Sidecar is not ready, no telemetry will be submitted");
+            return;
+        }
 
         let res = do_client_entrypoint(&mut self, stream, cancel_token).await;
         match res {

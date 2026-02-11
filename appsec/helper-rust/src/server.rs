@@ -7,6 +7,7 @@ use crate::client::Client;
 use crate::config::Config;
 use crate::rc_notify;
 use crate::service::ServiceManager;
+use crate::telemetry::SidecarReadyFuture;
 
 /// Run the Unix socket server that accepts client connections
 ///
@@ -40,6 +41,9 @@ pub async fn run_server(config: Config, cancel_token: CancellationToken) -> anyh
     // Register for RC update callbacks from the sidecar
     rc_notify::register_for_rc_notifications(service_manager);
 
+    // telemetry can only be submitted after the sidecar is ready, so we need to wait for it
+    let sidecar_ready = SidecarReadyFuture::create();
+
     loop {
         match listener
             .accept()
@@ -50,9 +54,10 @@ pub async fn run_server(config: Config, cancel_token: CancellationToken) -> anyh
                 log::debug!("Accepted new client {:?}", addr);
 
                 let client = Client::new(service_manager);
+                let sidecar_ready = sidecar_ready.clone();
                 let token = cancel_token.clone();
 
-                tokio::spawn(async move { client.entrypoint(stream, token).await });
+                tokio::spawn(async move { client.entrypoint(stream, sidecar_ready, token).await });
             }
             Some(Err(err)) => {
                 log::warn!("Error in accept() call: {}", err);

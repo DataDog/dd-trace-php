@@ -10,6 +10,8 @@ use std::cell::Cell;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+pub use sidecar::{SidecarReadyFuture, SidecarStatus};
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetricName(pub &'static str);
 #[derive(Debug, Clone, Copy)]

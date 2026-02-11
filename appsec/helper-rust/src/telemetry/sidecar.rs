@@ -1,7 +1,13 @@
 use std::cell::Cell;
 use std::ffi::c_char;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use std::task::Poll;
 use std::time::{Duration, Instant};
+
+use futures::future::Shared;
+use futures::task::Context;
 
 use crate::client::log::{debug, info, warning};
 use crate::client::protocol::{SidecarSettings, TelemetrySettings};
@@ -10,8 +16,10 @@ use crate::ffi::sidecar_ffi::{
     ddog_LogLevel_DDOG_LOG_LEVEL_DEBUG, ddog_LogLevel_DDOG_LOG_LEVEL_ERROR,
     ddog_LogLevel_DDOG_LOG_LEVEL_WARN, ddog_MaybeError, ddog_MetricNamespace,
     ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_APPSEC, ddog_MetricType,
-    ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR, ddog_sidecar_enqueue_telemetry_log,
-    ddog_sidecar_enqueue_telemetry_metric, ddog_sidecar_enqueue_telemetry_point,
+    ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR, ddog_SidecarTransport,
+    ddog_sidecar_connect, ddog_sidecar_enqueue_telemetry_log,
+    ddog_sidecar_enqueue_telemetry_metric, ddog_sidecar_enqueue_telemetry_point, ddog_sidecar_ping,
+    ddog_sidecar_transport_drop,
 };
 use crate::ffi::SidecarSymbol;
 use crate::sidecar_symbol;
@@ -53,8 +61,22 @@ type DdogSidecarEnqueueTelemetryMetricFn = unsafe extern "C" fn(
 ) -> ddog_MaybeError;
 type DdogErrorDropFn = unsafe extern "C" fn(*mut ddog_Error);
 type DdogErrorMessageFn = unsafe extern "C" fn(*const ddog_Error) -> ddog_CharSlice;
+type DdogSidecarConnectFn =
+    unsafe extern "C" fn(*mut *mut ddog_SidecarTransport) -> ddog_MaybeError;
+type DdogSidecarPingFn = unsafe extern "C" fn(*mut *mut ddog_SidecarTransport) -> ddog_MaybeError;
+type DdogSidecarTransportDropFn = unsafe extern "C" fn(*mut ddog_SidecarTransport);
 
 static RESOLUTION_STATUS: AtomicBool = AtomicBool::new(false);
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SidecarStatus {
+    Unknown = 0,
+    Ready = 1,
+    Failed = 2,
+}
+
+static SIDECAR_STATUS: AtomicU8 = AtomicU8::new(SidecarStatus::Unknown as u8);
 
 sidecar_symbol!(
     static ENQUEUE_TELEMETRY_LOG = DdogSidecarEnqueueTelemetryLogFn : ddog_sidecar_enqueue_telemetry_log
@@ -70,6 +92,15 @@ sidecar_symbol!(
 );
 sidecar_symbol!(
     static ERROR_MESSAGE = DdogErrorMessageFn : ddog_Error_message
+);
+sidecar_symbol!(
+    static SIDECAR_CONNECT = DdogSidecarConnectFn : ddog_sidecar_connect
+);
+sidecar_symbol!(
+    static SIDECAR_PING = DdogSidecarPingFn : ddog_sidecar_ping
+);
+sidecar_symbol!(
+    static SIDECAR_TRANSPORT_DROP = DdogSidecarTransportDropFn : ddog_sidecar_transport_drop
 );
 
 pub struct TelemetrySidecarLogSubmitter<'a> {
@@ -95,7 +126,11 @@ impl<'a> TelemetrySidecarLogSubmitter<'a> {
         }
 
         if !RESOLUTION_STATUS.load(Ordering::Acquire) {
-            warning!("Sidecar symbols for telemetry not resolved, skipping log submission");
+            info!("Sidecar symbols for telemetry not resolved, skipping log submission");
+            return Box::new(NoopTelemetryLogSubmitter);
+        }
+        if SIDECAR_STATUS.load(Ordering::Relaxed) != SidecarStatus::Ready as u8 {
+            info!("Sidecar is not ready, skipping log submission");
             return Box::new(NoopTelemetryLogSubmitter);
         }
 
@@ -208,8 +243,85 @@ pub fn resolve_symbols() -> anyhow::Result<()> {
     ENQUEUE_TELEMETRY_METRIC.resolve()?;
     ERROR_DROP.resolve()?;
     ERROR_MESSAGE.resolve()?;
+    SIDECAR_CONNECT.resolve()?;
+    SIDECAR_PING.resolve()?;
+    SIDECAR_TRANSPORT_DROP.resolve()?;
     RESOLUTION_STATUS.store(true, Ordering::Release);
     Ok(())
+}
+
+pub struct SidecarReadyFuture {
+    attempt: u32,
+    sleep: Option<Pin<Box<tokio::time::Sleep>>>,
+}
+
+impl SidecarReadyFuture {
+    const MAX_ATTEMPTS: u32 = 50;
+    const SLEEP_DURATION: Duration = Duration::from_millis(100);
+
+    pub fn create() -> Shared<Self> {
+        let future = Self {
+            attempt: 0,
+            sleep: None,
+        };
+        futures::FutureExt::shared(future)
+    }
+
+    fn try_connect_and_ping(&self) -> bool {
+        let mut transport: *mut ddog_SidecarTransport = std::ptr::null_mut();
+
+        let mut connect_result = unsafe { SIDECAR_CONNECT(&mut transport as *mut _) };
+
+        if connect_result.tag == ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR {
+            unsafe { ERROR_DROP(&mut connect_result.__bindgen_anon_1.__bindgen_anon_1.some) };
+            return false;
+        }
+
+        let ping_result = unsafe { SIDECAR_PING(&mut transport as *mut _) };
+        unsafe { SIDECAR_TRANSPORT_DROP(transport) };
+
+        ping_result.tag != ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR
+    }
+}
+
+impl Future for SidecarReadyFuture {
+    type Output = SidecarStatus;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        loop {
+            if let Some(ref mut sleep) = self.sleep {
+                match sleep.as_mut().poll(cx) {
+                    Poll::Pending => return Poll::Pending,
+                    Poll::Ready(()) => {
+                        self.sleep = None;
+                    }
+                }
+            }
+
+            if self.attempt >= Self::MAX_ATTEMPTS {
+                warning!(
+                    "Sidecar did not become ready after {} attempts, not trying again",
+                    Self::MAX_ATTEMPTS
+                );
+                SIDECAR_STATUS.store(SidecarStatus::Failed as u8, Ordering::Release);
+                return Poll::Ready(SidecarStatus::Failed);
+            }
+
+            self.attempt += 1;
+
+            if self.try_connect_and_ping() {
+                info!("Sidecar is ready after {} attempts", self.attempt);
+                SIDECAR_STATUS.store(SidecarStatus::Ready as u8, Ordering::Release);
+                return Poll::Ready(SidecarStatus::Ready);
+            }
+
+            debug!(
+                "Sidecar not ready yet (attempt {}), waiting...",
+                self.attempt
+            );
+            self.sleep = Some(Box::pin(tokio::time::sleep(Self::SLEEP_DURATION)));
+        }
+    }
 }
 
 pub(super) fn register_metric_ffi(
@@ -219,6 +331,10 @@ pub(super) fn register_metric_ffi(
 ) -> anyhow::Result<()> {
     if !RESOLUTION_STATUS.load(Ordering::Acquire) {
         anyhow::bail!("Sidecar symbols not resolved, skipping metric registration")
+    }
+
+    if SIDECAR_STATUS.load(Ordering::Relaxed) != SidecarStatus::Ready as u8 {
+        anyhow::bail!("Sidecar is not ready, skipping metric registration");
     }
 
     let session_id = char_slice_from_str(&sidecar_settings.session_id);
