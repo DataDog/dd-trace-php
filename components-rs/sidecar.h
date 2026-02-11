@@ -241,12 +241,12 @@ ddog_MaybeError ddog_sidecar_enqueue_telemetry_point(ddog_CharSlice session_id_f
  * Pointers must be valid, strings must be null-terminated if not null.
  */
 ddog_MaybeError ddog_sidecar_enqueue_telemetry_metric(ddog_CharSlice session_id_ffi,
-                                                       ddog_CharSlice runtime_id_ffi,
-                                                       ddog_CharSlice service_name_ffi,
-                                                       ddog_CharSlice env_name_ffi,
-                                                       ddog_CharSlice metric_name_ffi,
-                                                       enum ddog_MetricType metric_type,
-                                                       enum ddog_MetricNamespace metric_namespace);
+                                                      ddog_CharSlice runtime_id_ffi,
+                                                      ddog_CharSlice service_name_ffi,
+                                                      ddog_CharSlice env_name_ffi,
+                                                      ddog_CharSlice metric_name_ffi,
+                                                      enum ddog_MetricType metric_type,
+                                                      enum ddog_MetricNamespace metric_namespace);
 
 /**
  * Sends a trace to the sidecar via shared memory.
