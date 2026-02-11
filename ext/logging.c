@@ -160,15 +160,6 @@ int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
 
     int ret = write(fd, msgbuf, p - msgbuf);
 
-    // Flush to disk to ensure data persists even if process terminates immediately
-    if (ret > 0) {
-#ifndef _WIN32
-        fsync(fd);
-#else
-        _commit(fd);
-#endif
-    }
-
     free(msgbuf);
     return ret;
 }

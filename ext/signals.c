@@ -100,6 +100,15 @@ static void dd_sigsegv_handler(int sig) {
 #endif
     }
 
+    int error_log_fd = atomic_load(&ddtrace_error_log_fd);
+    if (error_log_fd != -1) {
+#ifndef _WIN32
+        fsync(error_log_fd);
+#else
+        _commit(error_log_fd);
+#endif
+    }
+
     // _Exit to avoid atexit() handlers, they may crash in this SIGSEGV signal handler...
     _Exit(128 + sig);
 }
