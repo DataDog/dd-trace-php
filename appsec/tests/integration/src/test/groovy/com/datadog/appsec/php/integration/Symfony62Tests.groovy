@@ -158,7 +158,16 @@ class Symfony62Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 6
+        def expectedEndpoints = 6
+
+        if (endpoints.size() != expectedEndpoints) {
+            println "Endpoints count mismatch (${endpoints.size()} != ${expectedEndpoints}). Endpoints:\n" +
+                    endpoints.collect { e ->
+                        "- method=${e.method}, path=${e.path}, operationName=${e.operationName}, resourceName=${e.resourceName}"
+                    }.join("\n")
+        }
+
+        assert endpoints.size() == expectedEndpoints
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path/{param01}' } != null
         assert endpoints.find { it.path == '/login' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /login' } != null
