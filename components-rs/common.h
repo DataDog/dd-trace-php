@@ -264,34 +264,6 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
-typedef enum ddog_ConfigurationOrigin {
-  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
-  DDOG_CONFIGURATION_ORIGIN_CODE,
-  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
-  DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
-} ddog_ConfigurationOrigin;
-
-typedef enum ddog_DynamicConfigUpdateMode {
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
-} ddog_DynamicConfigUpdateMode;
-
-typedef enum ddog_EvaluateAt {
-  DDOG_EVALUATE_AT_ENTRY,
-  DDOG_EVALUATE_AT_EXIT,
-} ddog_EvaluateAt;
-
-typedef enum ddog_InBodyLocation {
-  DDOG_IN_BODY_LOCATION_NONE,
-  DDOG_IN_BODY_LOCATION_START,
-  DDOG_IN_BODY_LOCATION_END,
-} ddog_InBodyLocation;
-
 typedef enum ddog_Log {
   DDOG_LOG_ERROR = 1,
   DDOG_LOG_WARN = 2,
@@ -306,12 +278,61 @@ typedef enum ddog_Log {
   DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
 } ddog_Log;
 
+typedef enum ddog_DynamicConfigUpdateMode {
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
+} ddog_DynamicConfigUpdateMode;
+
+typedef enum ddog_InBodyLocation {
+  DDOG_IN_BODY_LOCATION_NONE,
+  DDOG_IN_BODY_LOCATION_START,
+  DDOG_IN_BODY_LOCATION_END,
+} ddog_InBodyLocation;
+
+typedef enum ddog_EvaluateAt {
+  DDOG_EVALUATE_AT_ENTRY,
+  DDOG_EVALUATE_AT_EXIT,
+} ddog_EvaluateAt;
+
 typedef enum ddog_MetricKind {
   DDOG_METRIC_KIND_COUNT,
   DDOG_METRIC_KIND_GAUGE,
   DDOG_METRIC_KIND_HISTOGRAM,
   DDOG_METRIC_KIND_DISTRIBUTION,
 } ddog_MetricKind;
+
+typedef enum ddog_SpanProbeTarget {
+  DDOG_SPAN_PROBE_TARGET_ACTIVE,
+  DDOG_SPAN_PROBE_TARGET_ROOT,
+} ddog_SpanProbeTarget;
+
+typedef enum ddog_ProbeStatus {
+  DDOG_PROBE_STATUS_RECEIVED,
+  DDOG_PROBE_STATUS_INSTALLED,
+  DDOG_PROBE_STATUS_EMITTING,
+  DDOG_PROBE_STATUS_ERROR,
+  DDOG_PROBE_STATUS_BLOCKED,
+  DDOG_PROBE_STATUS_WARNING,
+} ddog_ProbeStatus;
+
+typedef enum ddog_ConfigurationOrigin {
+  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
+  DDOG_CONFIGURATION_ORIGIN_CODE,
+  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
+  DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_CALCULATED,
+} ddog_ConfigurationOrigin;
+
+typedef enum ddog_MetricType {
+  DDOG_METRIC_TYPE_GAUGE,
+  DDOG_METRIC_TYPE_COUNT,
+  DDOG_METRIC_TYPE_DISTRIBUTION,
+} ddog_MetricType;
 
 typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_TRACERS,
@@ -327,20 +348,16 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_SIDECAR,
 } ddog_MetricNamespace;
 
-typedef enum ddog_MetricType {
-  DDOG_METRIC_TYPE_GAUGE,
-  DDOG_METRIC_TYPE_COUNT,
-  DDOG_METRIC_TYPE_DISTRIBUTION,
-} ddog_MetricType;
-
-typedef enum ddog_ProbeStatus {
-  DDOG_PROBE_STATUS_RECEIVED,
-  DDOG_PROBE_STATUS_INSTALLED,
-  DDOG_PROBE_STATUS_EMITTING,
-  DDOG_PROBE_STATUS_ERROR,
-  DDOG_PROBE_STATUS_BLOCKED,
-  DDOG_PROBE_STATUS_WARNING,
-} ddog_ProbeStatus;
+typedef enum ddog_RemoteConfigProduct {
+  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_CONFIG,
+  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_TASK,
+  DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+} ddog_RemoteConfigProduct;
 
 typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_ACTIVATION = 1,
@@ -387,22 +404,6 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
 } ddog_RemoteConfigCapabilities;
-
-typedef enum ddog_RemoteConfigProduct {
-  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_CONFIG,
-  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_TASK,
-  DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
-  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
-} ddog_RemoteConfigProduct;
-
-typedef enum ddog_SpanProbeTarget {
-  DDOG_SPAN_PROBE_TARGET_ACTIVE,
-  DDOG_SPAN_PROBE_TARGET_ROOT,
-} ddog_SpanProbeTarget;
 
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
@@ -774,16 +775,17 @@ typedef struct ddog_DebuggerValue ddog_DebuggerValue;
 
 #define ddog_EVALUATOR_RESULT_REDACTED (const void*)-2
 
-typedef enum ddog_DebuggerType {
-  DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
-  DDOG_DEBUGGER_TYPE_LOGS,
-} ddog_DebuggerType;
-
 typedef enum ddog_FieldType {
   DDOG_FIELD_TYPE_STATIC,
   DDOG_FIELD_TYPE_ARG,
   DDOG_FIELD_TYPE_LOCAL,
 } ddog_FieldType;
+
+typedef enum ddog_DebuggerType {
+  DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
+  DDOG_DEBUGGER_TYPE_SNAPSHOTS,
+  DDOG_DEBUGGER_TYPE_LOGS,
+} ddog_DebuggerType;
 
 typedef struct ddog_Entry ddog_Entry;
 
@@ -913,16 +915,6 @@ typedef struct ddog_OwnedCharSlice {
   void (*free)(ddog_CharSlice);
 } ddog_OwnedCharSlice;
 
-typedef enum ddog_LogLevel {
-  DDOG_LOG_LEVEL_ERROR,
-  DDOG_LOG_LEVEL_WARN,
-  DDOG_LOG_LEVEL_DEBUG,
-} ddog_LogLevel;
-
-typedef enum ddog_TelemetryWorkerBuilderBoolProperty {
-  DDOG_TELEMETRY_WORKER_BUILDER_BOOL_PROPERTY_CONFIG_TELEMETRY_DEBUG_LOGGING_ENABLED,
-} ddog_TelemetryWorkerBuilderBoolProperty;
-
 typedef enum ddog_TelemetryWorkerBuilderEndpointProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_ENDPOINT_PROPERTY_CONFIG_ENDPOINT,
 } ddog_TelemetryWorkerBuilderEndpointProperty;
@@ -941,6 +933,16 @@ typedef enum ddog_TelemetryWorkerBuilderStrProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_RUNTIME_ID,
 } ddog_TelemetryWorkerBuilderStrProperty;
 
+typedef enum ddog_TelemetryWorkerBuilderBoolProperty {
+  DDOG_TELEMETRY_WORKER_BUILDER_BOOL_PROPERTY_CONFIG_TELEMETRY_DEBUG_LOGGING_ENABLED,
+} ddog_TelemetryWorkerBuilderBoolProperty;
+
+typedef enum ddog_LogLevel {
+  DDOG_LOG_LEVEL_ERROR,
+  DDOG_LOG_LEVEL_WARN,
+  DDOG_LOG_LEVEL_DEBUG,
+} ddog_LogLevel;
+
 typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
 
 /**
@@ -953,6 +955,20 @@ typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
  * then `TelemetryWorkerHandle::wait_for_shutdown`
  */
 typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
+
+typedef enum ddog_Option_U64_Tag {
+  DDOG_OPTION_U64_SOME_U64,
+  DDOG_OPTION_U64_NONE_U64,
+} ddog_Option_U64_Tag;
+
+typedef struct ddog_Option_U64 {
+  ddog_Option_U64_Tag tag;
+  union {
+    struct {
+      uint64_t some;
+    };
+  };
+} ddog_Option_U64;
 
 typedef enum ddog_Option_Bool_Tag {
   DDOG_OPTION_BOOL_SOME_BOOL,
@@ -979,6 +995,19 @@ typedef struct ddog_SpanEventBytes ddog_SpanEventBytes;
 typedef struct ddog_AttributeAnyValueBytes ddog_AttributeAnyValueBytes;
 typedef struct ddog_AttributeArrayValueBytes ddog_AttributeArrayValueBytes;
 
+
+typedef enum ddog_Method {
+  DDOG_METHOD_GET = 0,
+  DDOG_METHOD_POST = 1,
+  DDOG_METHOD_PUT = 2,
+  DDOG_METHOD_DELETE = 3,
+  DDOG_METHOD_PATCH = 4,
+  DDOG_METHOD_HEAD = 5,
+  DDOG_METHOD_OPTIONS = 6,
+  DDOG_METHOD_TRACE = 7,
+  DDOG_METHOD_CONNECT = 8,
+  DDOG_METHOD_OTHER = 9,
+} ddog_Method;
 
 typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED,
@@ -1065,37 +1094,28 @@ typedef struct ddog_SenderParameters {
   ddog_CharSlice url;
 } ddog_SenderParameters;
 
-typedef enum ddog_crasht_BuildIdType {
-  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
-  DDOG_CRASHT_BUILD_ID_TYPE_GO,
-  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
-  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
-} ddog_crasht_BuildIdType;
-
 /**
- * Result type for runtime callback registration
+ * Stacktrace collection occurs in the context of a crashing process.
+ * If the stack is sufficiently corruputed, it is possible (but unlikely),
+ * for stack trace collection itself to crash.
+ * We recommend fully enabling stacktrace collection, but having an environment
+ * variable to allow downgrading the collector.
  */
-typedef enum ddog_crasht_CallbackResult {
-  DDOG_CRASHT_CALLBACK_RESULT_OK,
-  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
-} ddog_crasht_CallbackResult;
-
-typedef enum ddog_crasht_DemangleOptions {
-  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
-  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
-} ddog_crasht_DemangleOptions;
-
-typedef enum ddog_crasht_ErrorKind {
-  DDOG_CRASHT_ERROR_KIND_PANIC,
-  DDOG_CRASHT_ERROR_KIND_UNHANDLED_EXCEPTION,
-  DDOG_CRASHT_ERROR_KIND_UNIX_SIGNAL,
-} ddog_crasht_ErrorKind;
-
-typedef enum ddog_crasht_FileType {
-  DDOG_CRASHT_FILE_TYPE_APK,
-  DDOG_CRASHT_FILE_TYPE_ELF,
-  DDOG_CRASHT_FILE_TYPE_PE,
-} ddog_crasht_FileType;
+typedef enum ddog_crasht_StacktraceCollection {
+  /**
+   * Stacktrace collection occurs in the
+   */
+  DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
+  /**
+   * This option uses `backtrace::resolve_frame_unsynchronized()` to gather symbol information
+   * and also unwind inlined functions. Enabling this feature will not only provide symbolic
+   * details, but may also yield additional or less stack frames compared to other
+   * configurations.
+   */
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
+} ddog_crasht_StacktraceCollection;
 
 /**
  * This enum represents operations a the tracked library might be engaged in.
@@ -1119,6 +1139,12 @@ typedef enum ddog_crasht_OpTypes {
    */
   DDOG_CRASHT_OP_TYPES_SIZE,
 } ddog_crasht_OpTypes;
+
+typedef enum ddog_crasht_ErrorKind {
+  DDOG_CRASHT_ERROR_KIND_PANIC,
+  DDOG_CRASHT_ERROR_KIND_UNHANDLED_EXCEPTION,
+  DDOG_CRASHT_ERROR_KIND_UNIX_SIGNAL,
+} ddog_crasht_ErrorKind;
 
 /**
  * See https://man7.org/linux/man-pages/man2/sigaction.2.html
@@ -1192,28 +1218,31 @@ typedef enum ddog_crasht_SignalNames {
   DDOG_CRASHT_SIGNAL_NAMES_UNKNOWN,
 } ddog_crasht_SignalNames;
 
+typedef enum ddog_crasht_BuildIdType {
+  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
+  DDOG_CRASHT_BUILD_ID_TYPE_GO,
+  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
+  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
+} ddog_crasht_BuildIdType;
+
+typedef enum ddog_crasht_FileType {
+  DDOG_CRASHT_FILE_TYPE_APK,
+  DDOG_CRASHT_FILE_TYPE_ELF,
+  DDOG_CRASHT_FILE_TYPE_PE,
+} ddog_crasht_FileType;
+
+typedef enum ddog_crasht_DemangleOptions {
+  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
+  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
+} ddog_crasht_DemangleOptions;
+
 /**
- * Stacktrace collection occurs in the context of a crashing process.
- * If the stack is sufficiently corruputed, it is possible (but unlikely),
- * for stack trace collection itself to crash.
- * We recommend fully enabling stacktrace collection, but having an environment
- * variable to allow downgrading the collector.
+ * Result type for runtime callback registration
  */
-typedef enum ddog_crasht_StacktraceCollection {
-  /**
-   * Stacktrace collection occurs in the
-   */
-  DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
-  DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
-  /**
-   * This option uses `backtrace::resolve_frame_unsynchronized()` to gather symbol information
-   * and also unwind inlined functions. Enabling this feature will not only provide symbolic
-   * details, but may also yield additional or less stack frames compared to other
-   * configurations.
-   */
-  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
-} ddog_crasht_StacktraceCollection;
+typedef enum ddog_crasht_CallbackResult {
+  DDOG_CRASHT_CALLBACK_RESULT_OK,
+  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
+} ddog_crasht_CallbackResult;
 
 typedef struct ddog_crasht_CrashInfo ddog_crasht_CrashInfo;
 
@@ -1291,7 +1320,7 @@ typedef struct ddog_crasht_Config {
   /**
    * Timeout in milliseconds before the signal handler starts tearing things down to return.
    * If 0, uses the default timeout as specified in
-   * `datadog_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
+   * `libdd_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
    * the specified timeout value.
    * This is given as a uint32_t, but the actual timeout needs to fit inside of an i32 (max
    * 2^31-1). This is a limitation of the various interfaces used to guarantee the timeout.
@@ -1411,13 +1440,17 @@ typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
   };
 }  ddog_crasht_CrashInfoBuilder_NewResult;
 
-typedef enum ddog_crasht_CrashInfo_NewResult_Tag {
-  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
-  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
-} ddog_crasht_CrashInfo_NewResult_Tag;
+/**
+ * A generic result type for when an operation may fail,
+ * or may return <T> in case of success.
+ */
+typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
+  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
+  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_ERR_HANDLE_CRASH_INFO,
+} ddog_crasht_Result_HandleCrashInfo_Tag;
 
-typedef struct ddog_crasht_CrashInfo_NewResult {
-  ddog_crasht_CrashInfo_NewResult_Tag tag;
+typedef struct ddog_crasht_Result_HandleCrashInfo {
+  ddog_crasht_Result_HandleCrashInfo_Tag tag;
   union {
     struct {
       struct ddog_crasht_Handle_CrashInfo ok;
@@ -1426,7 +1459,9 @@ typedef struct ddog_crasht_CrashInfo_NewResult {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_CrashInfo_NewResult;
+} ddog_crasht_Result_HandleCrashInfo;
+
+typedef struct ddog_crasht_Result_HandleCrashInfo ddog_crasht_CrashInfo_NewResult;
 
 typedef struct ddog_crasht_OsInfo {
   ddog_CharSlice architecture;
@@ -1437,6 +1472,10 @@ typedef struct ddog_crasht_OsInfo {
 
 typedef struct ddog_crasht_ProcInfo {
   uint32_t pid;
+  /**
+   * Optional crashing thread id; 0 means unset.
+   */
+  uint32_t tid;
 } ddog_crasht_ProcInfo;
 
 typedef struct ddog_crasht_SigInfo {

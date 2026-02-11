@@ -13,12 +13,12 @@
 #include "action.hpp"
 #include "client.hpp"
 #include "exception.hpp"
-#include "metrics.hpp"
 #include "network/broker.hpp"
 #include "network/proto.hpp"
 #include "service.hpp"
 #include "service_config.hpp"
 #include "std_logging.hpp"
+#include "telemetry.hpp"
 
 using namespace std::chrono_literals;
 
@@ -27,9 +27,11 @@ namespace dds {
 namespace {
 
 void collect_metrics(network::request_shutdown::response &response,
-    service &service, std::optional<engine::context> &context);
+    service &service, std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings);
 void collect_metrics(network::client_init::response &response, service &service,
-    std::optional<engine::context> &context);
+    std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings);
 
 template <typename M, typename... Mrest>
 // NOLINTNEXTLINE(google-runtime-references)
@@ -195,9 +197,9 @@ bool client::handle_command(const network::client_init::request &command)
     response->status = has_errors ? "fail" : "ok";
     response->errors = std::move(errors);
 
-    if (service_) {
+    if (!service_.is_empty()) {
         // may be null in testing
-        collect_metrics(*response, *service_, context_);
+        collect_metrics(*response, *service_, context_, sc_settings_);
     }
 
     try {
@@ -218,7 +220,7 @@ bool client::handle_command(const network::client_init::request &command)
 
 template <typename T> bool client::service_guard()
 {
-    if (!service_) {
+    if (service_.is_empty()) {
         // This implies a failed client_init, we can't continue.
         SPDLOG_DEBUG("no service available on {}", T::name);
         send_error_response(*broker_);
@@ -349,7 +351,7 @@ bool client::compute_client_status()
         return request_enabled_;
     }
 
-    if (service_ == nullptr) {
+    if (service_.is_empty()) {
         request_enabled_ = false;
         return request_enabled_;
     }
@@ -470,7 +472,9 @@ bool client::handle_command(network::request_shutdown::request &command)
         return false;
     }
 
-    collect_metrics(*response, *service_, context_);
+    context_->set_input_truncated(command.input_truncated);
+
+    collect_metrics(*response, *service_, context_, sc_settings_);
     service_->drain_logs(sc_settings_);
 
     return send_message<network::request_shutdown>(response);
@@ -503,8 +507,6 @@ void client::update_settings(
         rc_settings.shmem_path = std::string{rc_path};
     }
 
-    sidecar_settings const current_sc_settings =
-        service_->get_sidecar_settings();
     std::shared_ptr<service> new_service =
         service_manager_->get_or_create_service(
             *engine_settings_, rc_settings, telemetry_settings);
@@ -552,7 +554,9 @@ void client::run(worker::queue_consumer &q)
 namespace {
 
 struct request_metrics_submitter : public telemetry::telemetry_submitter {
-    request_metrics_submitter() = default;
+    request_metrics_submitter(service &svc, bool input_truncated)
+        : service_{svc}, input_truncated_{input_truncated}
+    {}
     ~request_metrics_submitter() override = default;
     request_metrics_submitter(const request_metrics_submitter &) = delete;
     request_metrics_submitter &operator=(
@@ -563,16 +567,18 @@ struct request_metrics_submitter : public telemetry::telemetry_submitter {
     void submit_metric(std::string_view name, double value,
         telemetry::telemetry_tags tags) override
     {
-        std::string tags_s = tags.consume();
+        if (input_truncated_ && name == metrics::waf_requests) {
+            tags.add("input_truncated", "true");
+        }
         SPDLOG_TRACE("submit_metric [req]: name={}, value={}, tags={}", name,
-            value, tags_s);
-        tel_metrics[name].emplace_back(value, std::move(tags_s));
+            value, tags);
+        service_.submit_request_metric(name, value, std::move(tags));
     };
     void submit_span_metric(std::string_view name, double value) override
     {
         SPDLOG_TRACE(
             "submit_span_metric [req]: name={}, value={}", name, value);
-        metrics[name] = value;
+        span_metrics[name] = value;
     };
     void submit_span_meta(std::string_view name, std::string value) override
     {
@@ -596,39 +602,42 @@ struct request_metrics_submitter : public telemetry::telemetry_submitter {
     }
 
     std::map<std::string, std::string> meta;
-    std::map<std::string_view, double> metrics;
-    std::unordered_map<std::string_view,
-        std::vector<std::pair<double, std::string>>>
-        tel_metrics;
+    std::map<std::string_view, double> span_metrics;
+    service &service_; // NOLINT
+    bool input_truncated_;
 };
 
 template <typename Response>
 void collect_metrics_impl(Response &response, service &service,
-    std::optional<engine::context> &context)
+    std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings)
 {
-    request_metrics_submitter msubmitter{};
+    request_metrics_submitter msubmitter{
+        service, context ? context->get_input_truncated() : false};
     if (context) {
+        // span metrics/meta go to msubmitter.span_metrics/meta and are sent to
+        // the extension; request telemetry metrics are routed to the service
+        // and sent to sidecar
         context->get_metrics(msubmitter);
     }
-    service.drain_metrics(
-        [&msubmitter](std::string_view name, double value, auto tags) {
-            msubmitter.submit_metric(name, value, std::move(tags));
-        });
-    msubmitter.metrics.merge(service.drain_legacy_metrics());
+
+    service.drain_metrics(sc_settings);
+    msubmitter.span_metrics.merge(service.drain_legacy_metrics());
     msubmitter.meta.merge(service.drain_legacy_meta());
-    response.tel_metrics = std::move(msubmitter.tel_metrics);
     response.meta = std::move(msubmitter.meta);
-    response.metrics = std::move(msubmitter.metrics);
+    response.metrics = std::move(msubmitter.span_metrics);
 }
 void collect_metrics(network::request_shutdown::response &response,
-    service &service, std::optional<engine::context> &context)
+    service &service, std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings)
 {
-    collect_metrics_impl(response, service, context);
+    collect_metrics_impl(response, service, context, sc_settings);
 }
 void collect_metrics(network::client_init::response &response, service &service,
-    std::optional<engine::context> &context)
+    std::optional<engine::context> &context,
+    const sidecar_settings &sc_settings)
 {
-    collect_metrics_impl(response, service, context);
+    collect_metrics_impl(response, service, context, sc_settings);
 }
 } // namespace
 

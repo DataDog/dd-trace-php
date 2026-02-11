@@ -1,6 +1,7 @@
 use crate::bindings::{
     zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
 };
+use crate::profiling::Backtrace;
 use crate::vec_ext::VecExt;
 use std::borrow::Cow;
 
@@ -289,7 +290,7 @@ mod detail {
     fn collect_stack_sample_cached(
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         let max_depth = 512;
         let mut samples = Vec::new();
         let mut execute_data_ptr = top_execute_data;
@@ -347,13 +348,13 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(Backtrace::new(samples))
     }
 
     #[inline(never)]
     pub fn collect_stack_sample(
         execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
         CACHED_STRINGS
@@ -474,7 +475,7 @@ mod detail {
     #[inline(never)]
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
-    ) -> Result<Vec<ZendFrame>, CollectStackSampleError> {
+    ) -> Result<Backtrace, CollectStackSampleError> {
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -503,7 +504,7 @@ mod detail {
 
             execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(samples)
+        Ok(Backtrace::new(samples))
     }
 
     unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
@@ -528,14 +529,20 @@ mod detail {
 
 pub use detail::*;
 
-// todo: this should be feature = "stack_walking_tests" but it seemed to
-//       cause a failure in CI to migrate it.
-#[cfg(all(test, stack_walking_tests))]
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::bindings as zend;
 
+    extern "C" {
+        fn ddog_php_test_create_fake_zend_function_with_name_len(
+            len: libc::size_t,
+        ) -> *mut zend::zend_function;
+        fn ddog_php_test_free_fake_zend_function(func: *mut zend::zend_function);
+    }
+
     #[test]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_collect_stack_sample() {
         unsafe {
             let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
@@ -544,20 +551,74 @@ mod tests {
 
             assert_eq!(stack.len(), 3);
 
-            assert_eq!(stack[0].function, "function name 003");
-            assert_eq!(stack[0].file, Some("filename-003.php".into()));
-            assert_eq!(stack[0].line, 0);
+            let frames = &stack;
+            assert_eq!(frames[0].function, "function name 003");
+            assert_eq!(frames[0].file, Some("filename-003.php".into()));
+            assert_eq!(frames[0].line, 0);
 
-            assert_eq!(stack[1].function, "function name 002");
-            assert_eq!(stack[1].file, Some("filename-002.php".into()));
-            assert_eq!(stack[1].line, 0);
+            assert_eq!(frames[1].function, "function name 002");
+            assert_eq!(frames[1].file, Some("filename-002.php".into()));
+            assert_eq!(frames[1].line, 0);
 
-            assert_eq!(stack[2].function, "function name 001");
-            assert_eq!(stack[2].file, Some("filename-001.php".into()));
-            assert_eq!(stack[2].line, 0);
+            assert_eq!(frames[2].function, "function name 001");
+            assert_eq!(frames[2].file, Some("filename-001.php".into()));
+            assert_eq!(frames[2].line, 0);
 
             // Free the allocated memory
             zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_short_string() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(10);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name, "xxxxxxxxxx");
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_at_limit_minus_one() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT - 1);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should extract name");
+            assert_eq!(name.len(), STR_LEN_LIMIT - 1);
+            assert_ne!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_at_limit() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should return large string marker");
+            assert_eq!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
+        }
+    }
+
+    #[test]
+    fn test_extract_function_name_over_limit() {
+        unsafe {
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT + 1000);
+            assert!(!func.is_null());
+
+            let name = extract_function_name(&*func).expect("should return large string marker");
+            assert_eq!(name, COW_LARGE_STRING);
+
+            ddog_php_test_free_fake_zend_function(func);
         }
     }
 }

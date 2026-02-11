@@ -23,7 +23,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:src"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src"
 <?php
 }
 
@@ -118,19 +118,32 @@ stages:
       - PHP_MAJOR_MINOR: <?= json_encode($windows_minor_major_targets) ?>
 
   variables:
-    GIT_CONFIG_COUNT: 2
-    GIT_CONFIG_KEY_0: core.longpaths
-    GIT_CONFIG_VALUE_0: true
-    GIT_CONFIG_KEY_1: core.symlinks
-    GIT_CONFIG_VALUE_1: true
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
-    GIT_STRATEGY: clone
-    GIT_CLEAN_FLAGS: -ffdxq
+    GIT_STRATEGY: none
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
+    # Agressive Git cleanup
+    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
+    cmd /c "if exist .git rmdir /s /q .git" 2>$null
+    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
+    cmd /c "del /f /s /q *" 2>$null
+    Write-Host "Cleanup complete."
+
     # Make sure we actually fail if a command fails
     $ErrorActionPreference = 'Stop'
     $PSNativeCommandUseErrorActionPreference = $true
+
+    # Manual git clone with proper config
+    Write-Host "Cloning repository..."
+    git config --global core.longpaths true
+    git config --global core.symlinks true
+    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    git checkout $env:CI_COMMIT_SHA
+
+    # Initialize submodules
+    Write-Host "Initializing submodules..."
+    git submodule update --init --recursive
+    Write-Host "Git setup complete."
 
     mkdir dumps
 
@@ -492,7 +505,7 @@ foreach ($all_minor_major_targets as $major_minor):
     DD_TRACE_GIT_METADATA_ENABLED: "0"
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
-    SKIP_ONLINE_TEST: "1"
+    SKIP_ONLINE_TESTS: "1"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
@@ -606,6 +619,9 @@ foreach ($services as $part => $service) {
 <?php if (str_contains($target, "kafk")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
+<?php endif; ?>
+<?php if (str_contains($target, "sqlsrv")): ?>
+    WAIT_FOR: sqlsrv-integration:1433
 <?php endif; ?>
 <?php if (preg_match("(test_web_symfony_(2|30|33|40))", $target)): ?>
     COMPOSER_VERSION: 2.2

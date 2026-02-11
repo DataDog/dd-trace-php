@@ -399,7 +399,7 @@ static void zai_hook_resolve_hooks_entry(zai_hooks_entry *hooks, zend_function *
         hooks->run_time_cache = ZEND_MAP_PTR(resolved->common.run_time_cache);
 #endif
     }
-    hooks->is_internal = ZEND_USER_CODE(resolved->type);
+    hooks->is_internal = !ZEND_USER_CODE(resolved->type);
     hooks->is_generator = (resolved->common.fn_flags & ZEND_ACC_GENERATOR) != 0;
     if (hooks->is_generator) {
 #if ZAI_JIT_BLACKLIST_ACTIVE
