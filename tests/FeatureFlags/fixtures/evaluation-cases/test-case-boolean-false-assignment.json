@@ -1,0 +1,38 @@
+[
+  {
+    "flag": "boolean-false-assignment",
+    "variationType": "BOOLEAN",
+    "defaultValue": true,
+    "targetingKey": "alice",
+    "attributes": {
+      "should_disable_feature": true
+    },
+    "result": {
+      "value": false
+    }
+  },
+  {
+    "flag": "boolean-false-assignment",
+    "variationType": "BOOLEAN",
+    "defaultValue": true,
+    "targetingKey": "bob",
+    "attributes": {
+      "should_disable_feature": false
+    },
+    "result": {
+      "value": true
+    }
+  },
+  {
+    "flag": "boolean-false-assignment",
+    "variationType": "BOOLEAN",
+    "defaultValue": true,
+    "targetingKey": "charlie",
+    "attributes": {
+      "unknown_attribute": "value"
+    },
+    "result": {
+      "value": true
+    }
+  }
+]
