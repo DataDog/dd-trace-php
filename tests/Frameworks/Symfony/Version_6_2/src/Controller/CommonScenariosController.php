@@ -9,6 +9,12 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class CommonScenariosController extends AbstractController
 {
+    #[Route("/", name:"home")]
+    public function homeAction(Request $request)
+    {
+        return new Response('Welcome');
+    }
+
     #[Route("/simple", name:"simple")]
     public function simpleAction(Request $request)
     {
@@ -62,5 +68,29 @@ class CommonScenariosController extends AbstractController
     {
         dd_trace_internal_fn("finalize_telemetry");
         return new Response('Done');
+    }
+
+    #[Route("/dynamic-path/{param01}", name:"dynamic_path")]
+    public function dynamicPathAction($param01)
+    {
+        return new Response("Dynamic path: {$param01}");
+    }
+
+    #[Route("/login", name:"login")]
+    public function loginAction(Request $request)
+    {
+        return new Response('Login');
+    }
+
+    #[Route("/register", name:"register")]
+    public function registerAction(Request $request)
+    {
+        return new Response('Register');
+    }
+
+    #[Route("/caminho-dinamico/{param01}", name:"caminho_dinamico")]
+    public function caminhoDinamicoAction($param01)
+    {
+        return new Response("Caminho dinâmico: {$param01}");
     }
 }
