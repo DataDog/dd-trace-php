@@ -13,7 +13,7 @@ use core::ptr;
 use core::str::FromStr;
 use libc::{c_char, c_int};
 use libdd_common::tag::{parse_tags, Tag};
-pub use libdd_profiling::exporter::Uri;
+pub use http::Uri;
 use log::{debug, error, warn, LevelFilter};
 use std::borrow::Cow;
 use std::ffi::CString;
@@ -236,21 +236,22 @@ impl TryFrom<AgentEndpoint> for libdd_common::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: AgentEndpoint) -> Result<Self, Self::Error> {
-        match value {
-            AgentEndpoint::Uri(uri) => libdd_profiling::exporter::config::agent(uri),
-            AgentEndpoint::Socket(path) => libdd_profiling::exporter::config::agent_uds(&path),
-        }
+        libdd_common::Endpoint::try_from(&value)
     }
 }
+
+/// Timeout in milliseconds for the agent endpoint connection.
+const AGENT_ENDPOINT_TIMEOUT_MS: u64 = 10_000;
 
 impl TryFrom<&AgentEndpoint> for libdd_common::Endpoint {
     type Error = anyhow::Error;
 
     fn try_from(value: &AgentEndpoint) -> Result<Self, Self::Error> {
-        match value {
+        let endpoint = match value {
             AgentEndpoint::Uri(uri) => libdd_profiling::exporter::config::agent(uri.clone()),
             AgentEndpoint::Socket(path) => libdd_profiling::exporter::config::agent_uds(path),
-        }
+        }?;
+        Ok(endpoint.with_timeout(AGENT_ENDPOINT_TIMEOUT_MS))
     }
 }
 
