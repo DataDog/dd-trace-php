@@ -2,7 +2,7 @@
 
 echo "are_endpoints_collected before: " . (\DDTrace\are_endpoints_collected() ? 'true' : 'false') . "\n";
 
-\DDTrace\add_endpoint('/test', 'http.request', 'GET /test', 'GET');
+\DDTrace\add_endpoint('/test_random_endpoint', 'http.request', 'GET /test_random_endpoint', 'GET');
 
 sleep(1);
 
