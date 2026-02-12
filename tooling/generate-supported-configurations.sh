@@ -1,13 +1,6 @@
 #!/bin/bash
 # Generates metadata/supported-configurations.json from ext/configuration.h
 #
-# DD_CONFIGURATION vs DD_CONFIGURATION_ALL:
-#   DD_CONFIGURATION_ALL - The macro that lists all CONFIG/CALIAS entries (lines 99-246 in configuration.h).
-#   DD_CONFIGURATION     - The macro actually used in the C code. On non-Windows it expands to
-#                          DD_TRACE_SIDECAR_TRACE_SENDER + DD_CONFIGURATION_ALL; on Windows it is just
-#                          DD_CONFIGURATION_ALL. We use DD_CONFIGURATION so the preprocessor yields the
-#                          full, platform-appropriate list.
-#
 set -euo pipefail
 
 cd "$(dirname "$0")"
