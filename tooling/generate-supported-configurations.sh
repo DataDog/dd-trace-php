@@ -14,8 +14,9 @@ function map_type($raw) {
     }
     $map = [
         'BOOL' => 'boolean', 'STRING' => 'string', 'INT' => 'int', 'DOUBLE' => 'decimal',
-        'MAP' => 'map', 'JSON' => 'map', 'SET_OR_MAP_LOWERCASE' => 'map',
+        'MAP' => 'map', 'JSON' => 'array', 'SET_OR_MAP_LOWERCASE' => 'map',
         'SET' => 'array', 'SET_LOWERCASE' => 'array',
+        'CUSTOM(INT)' => 'string', 'CUSTOM(MAP)' => 'map',
     ];
     return $map[$raw] ?? 'string';
 }
@@ -26,6 +27,10 @@ function normalize_default($v, $type, $name) {
         return '';
     }
     if (strtoupper($v) === 'NULL') {
+        // OTEL env vars are string-typed and use "" (not null) as their "unset" default.
+        if (strpos($name, 'OTEL_') === 0) {
+            return '';
+        }
         return null;
     }
     if ($type === 'boolean') {
@@ -101,7 +106,7 @@ if (file_exists($otelPath)) {
     sort($otelVars);
     foreach ($otelVars as $v) {
         if (!isset($supported[$v])) {
-            $supported[$v] = [["implementation" => "A", "type" => "string", "default" => null]];
+            $supported[$v] = [["implementation" => "A", "type" => "string", "default" => ""]];
         }
     }
 }

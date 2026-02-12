@@ -58,7 +58,7 @@ extern bool runtime_config_first_init;
     CONFIG(STRING, DD_VERSION, "")                                                                                                    \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true")                                                                                    \
     CONFIG(CUSTOM(uint32_t), DD_REMOTE_CONFIG_POLL_INTERVAL, "1000", .parser = _parse_uint32)                                         \
-    CONFIG(STRING, DD_AGENT_HOST, "")                                                                                                 \
+    CONFIG(STRING, DD_AGENT_HOST, "localhost")                                                                                                 \
     CONFIG(INT, DD_TRACE_AGENT_PORT, "0")                                                                                             \
     CONFIG(INT, DD_APPSEC_MAX_BODY_BUFF_SIZE, "524288")                                                                               \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "")                                                                                            \
