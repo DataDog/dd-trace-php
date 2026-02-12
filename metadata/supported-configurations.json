@@ -2235,6 +2235,62 @@
         "type": "string",
         "default": ""
       }
+    ],
+    "OTEL_LOG_LEVEL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
+    ],
+    "OTEL_METRICS_EXPORTER": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
+    ],
+    "OTEL_PROPAGATORS": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
+    ],
+    "OTEL_RESOURCE_ATTRIBUTES": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
+    ],
+    "OTEL_SERVICE_NAME": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
+    ],
+    "OTEL_TRACES_EXPORTER": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
+    ],
+    "OTEL_TRACES_SAMPLER": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
+    ],
+    "OTEL_TRACES_SAMPLER_ARG": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": null
+      }
     ]
   },
   "deprecations": {}
