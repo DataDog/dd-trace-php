@@ -141,6 +141,14 @@ if (file_exists($outputPath)) {
                     break;
                 }
             }
+            // If the existing JSON uses a different implementation label (e.g. "C", "E"),
+            // update the entry in-place but preserve that label instead of adding a new "A".
+            if (!$updated && !empty($existingEntries)) {
+                $impl = $existingEntries[0]["implementation"] ?? $generatedEntry["implementation"];
+                $existingEntries[0] = $generatedEntry;
+                $existingEntries[0]["implementation"] = $impl;
+                $updated = true;
+            }
             if (!$updated) {
                 $existingEntries[] = $generatedEntry;
             }

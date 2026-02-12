@@ -5,7 +5,7 @@
       {
         "implementation": "A",
         "type": "string",
-        "default": ""
+        "default": "localhost"
       }
     ],
     "DD_API_KEY": [
@@ -1000,7 +1000,7 @@
       {
         "implementation": "B",
         "type": "array",
-        "default": "500-599"
+        "default": "400-499"
       }
     ],
     "DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN": [
@@ -2240,14 +2240,14 @@
       {
         "implementation": "C",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_METRICS_EXPORTER": [
       {
         "implementation": "B",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_PROPAGATORS": [
@@ -2268,28 +2268,28 @@
       {
         "implementation": "B",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_TRACES_EXPORTER": [
       {
         "implementation": "C",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_TRACES_SAMPLER": [
       {
         "implementation": "C",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_TRACES_SAMPLER_ARG": [
       {
         "implementation": "C",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ]
   },
