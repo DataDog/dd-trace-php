@@ -40,4 +40,8 @@ return [
     __DIR__ . '/../DDTrace/Propagators/TextMap.php',
     __DIR__ . '/../DDTrace/ScopeManager.php',
     __DIR__ . '/../DDTrace/Tracer.php',
+    __DIR__ . '/../DDTrace/FeatureFlags/LRUCache.php',
+    __DIR__ . '/../DDTrace/FeatureFlags/ExposureCache.php',
+    __DIR__ . '/../DDTrace/FeatureFlags/ExposureWriter.php',
+    __DIR__ . '/../DDTrace/FeatureFlags/Provider.php',
 ];

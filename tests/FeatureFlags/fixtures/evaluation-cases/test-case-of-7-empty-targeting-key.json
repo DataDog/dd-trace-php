@@ -1,0 +1,12 @@
+[
+  {
+    "flag": "empty-targeting-key-flag",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "",
+    "attributes": {},
+    "result": {
+      "value": "on-value"
+    }
+  }
+]

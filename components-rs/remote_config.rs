@@ -31,6 +31,7 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 use tracing::debug;
 use crate::bytes::{ZendString, OwnedZendString, dangling_zend_string};
+use datadog_ffe::rules_based::Configuration;
 
 pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
 
@@ -101,6 +102,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
     live_debugging_enabled: bool,
     appsec_activation: bool,
     appsec_config: bool,
+    ffe_enabled: bool,
 ) {
     DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::ApmTracing);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingCustomTags);
@@ -115,6 +117,11 @@ pub unsafe extern "C" fn ddog_init_remote_config(
 
     if appsec_activation {
         DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmActivation);
+    }
+
+    if ffe_enabled {
+        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::FfeFlags);
+        DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::FfeFlagConfigurationRules);
     }
 
     if live_debugging_enabled {
@@ -348,6 +355,11 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         remote_config.dynamic_config.active_config_path = Some(value.config_id);
                     }
                 }
+                RemoteConfigData::FfeFlags(ufc) => {
+                    debug!("Received FFE flags configuration");
+                    let config = Configuration::from_server_response(ufc);
+                    crate::ffe::store_config(config);
+                }
                 RemoteConfigData::Ignored(_) => (),
                 RemoteConfigData::TracerFlareConfig(_) => {}
                 RemoteConfigData::TracerFlareTask(_) => {}
@@ -363,6 +375,10 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     if Some(path.config_id) == remote_config.dynamic_config.active_config_path {
                         remove_old_configs(remote_config);
                     }
+                }
+                RemoteConfigProduct::FfeFlags => {
+                    debug!("FFE flags configuration removed");
+                    crate::ffe::clear_config();
                 }
                 _ => (),
             },
