@@ -132,7 +132,7 @@ impl Uploader {
             &[],
             Self::create_internal_metadata(),
             self.create_profiler_info(),
-            None,
+            self.process_tags.as_deref(),
             None,
         )?;
         Ok(status.as_u16())
