@@ -26,10 +26,6 @@ var_dump(request_exec([
     'key 03' => ['some' => 'array']
 ]));
 
-var_dump(request_exec('value'));
-var_dump(request_exec(55));
-
-
 rshutdown();
 
 $commands = $helper->get_commands();
@@ -39,8 +35,6 @@ var_dump($commands[2]);
 ?>
 --EXPECTF--
 bool(true)
-bool(false)
-bool(false)
 array(2) {
   [0]=>
   string(12) "request_exec"

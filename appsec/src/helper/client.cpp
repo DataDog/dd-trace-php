@@ -202,6 +202,8 @@ bool client::handle_command(const network::client_init::request &command)
         collect_metrics(*response, *service_, context_, sc_settings_);
     }
 
+    response->helper_runtime = "cpp";
+
     try {
         if (!broker_->send(response)) {
             has_errors = true;

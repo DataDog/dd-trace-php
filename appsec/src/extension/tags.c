@@ -9,7 +9,7 @@
 #include "ddappsec.h"
 #include "ddtrace.h"
 #include "ext/pcre/php_pcre.h"
-#include "ip_extraction.h"
+#include "helper_process.h"
 #include "logging.h"
 #include "php_compat.h"
 #include "php_helpers.h"
@@ -33,6 +33,7 @@
 #define DD_TAG_EVENT "appsec.event"
 #define DD_TAG_BLOCKED "appsec.blocked"
 #define DD_TAG_RUNTIME_FAMILY "_dd.runtime_family"
+#define DD_TAG_HELPER_RUNTIME "_dd.appsec.helper_runtime"
 #define DD_TAG_HTTP_METHOD "http.method"
 #define DD_TAG_HTTP_USER_AGENT "http.useragent"
 #define DD_TAG_HTTP_STATUS_CODE "http.status_code"
@@ -123,6 +124,7 @@ static zend_string *_dd_login_failure_event_auto_mode;
 static zend_string *_dd_signup_event_sdk;
 static zend_string *_dd_login_success_event_sdk;
 static zend_string *_dd_login_failure_event_sdk;
+static zend_string *_dd_tag_helper_runtime;
 static zend_string *_key_request_uri_zstr;
 static zend_string *_key_http_host_zstr;
 static zend_string *_key_server_name_zstr;
@@ -150,7 +152,8 @@ static void _add_basic_ancillary_tags(zend_object *nonnull span,
     const zend_array *nonnull server, HashTable *headers);
 static bool _add_all_ancillary_tags(
     zend_object *nonnull span, const zend_array *nonnull server);
-void _set_runtime_family(zend_object *nonnull span);
+static void _set_runtime_family(zend_object *nonnull span);
+static void _set_helper_runtime(zend_object *nonnull span);
 static bool _set_appsec_enabled(zval *metrics_zv);
 static void _register_functions(void);
 static void _register_test_functions(void);
@@ -199,6 +202,8 @@ void dd_tags_startup(void)
         zend_string_init_interned(LSTRARG(DD_TAG_HTTP_RH_CONTENT_LANGUAGE), 1);
     _dd_tag_user = zend_string_init_interned(LSTRARG(DD_TAG_USER), 1);
     _dd_tag_user_id = zend_string_init_interned(LSTRARG(DD_TAG_USER_ID), 1);
+    _dd_tag_helper_runtime =
+        zend_string_init_interned(LSTRARG(DD_TAG_HELPER_RUNTIME), 1);
 
     _dd_metric_enabled =
         zend_string_init_interned(LSTRARG(DD_METRIC_ENABLED), 1);
@@ -355,6 +360,7 @@ void dd_tags_rinit(void)
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 {
+    // NOLINTNEXTLINE(bugprone-multi-level-implicit-pointer-conversion)
     zend_llist_add_element(&_appsec_json_frags, &zstr);
 }
 
@@ -391,6 +397,8 @@ void dd_tags_add_tags(
     }
     // tag _dd.runtime_family
     _set_runtime_family(span);
+    // tag _dd.appsec.helper_runtime (only if Rust)
+    _set_helper_runtime(span);
 
     if (zend_llist_count(&_appsec_json_frags) == 0) {
         if (!server) {
@@ -443,6 +451,7 @@ static void _zend_string_release_indirect(void *s)
     zend_string_release(*(zend_string **)s);
 }
 
+// NOLINTBEGIN(bugprone-multi-level-implicit-pointer-conversion)
 static zend_string *_concat_json_fragments(void)
 {
 #define DD_DATA_TAG_BEFORE "{\"triggers\":["
@@ -483,6 +492,7 @@ static zend_string *_concat_json_fragments(void)
 
     return tag_value;
 }
+// NOLINTEND(bugprone-multi-level-implicit-pointer-conversion)
 
 static void _add_basic_tags_to_meta(
     zval *nonnull meta, const zend_array *nonnull server, HashTable *headers);
@@ -856,13 +866,25 @@ static zend_string *nullable _is_relevant_resp_header(
     return NULL;
 }
 
-void _set_runtime_family(zend_object *nonnull span)
+static void _set_runtime_family(zend_object *nonnull span)
 {
     bool res = dd_trace_span_add_tag_str(
         span, LSTRARG(DD_TAG_RUNTIME_FAMILY), LSTRARG("php"));
     if (!res && !get_global_DD_APPSEC_TESTING()) {
         mlog(dd_log_warning,
             "Failed to add " DD_TAG_RUNTIME_FAMILY " to root span");
+    }
+}
+
+static void _set_helper_runtime(zend_object *nonnull span)
+{
+    if (dd_helper_is_rust()) {
+        bool res = dd_trace_span_add_tag_str(
+            span, LSTRARG(DD_TAG_HELPER_RUNTIME), LSTRARG("rust"));
+        if (!res && !get_global_DD_APPSEC_TESTING()) {
+            mlog(dd_log_warning,
+                "Failed to add " DD_TAG_HELPER_RUNTIME " to root span");
+        }
     }
 }
 

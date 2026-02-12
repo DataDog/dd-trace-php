@@ -11,9 +11,11 @@
 #include "../configuration.h"
 #include "../ddappsec.h"
 #include "../ddtrace.h"
+#include "../helper_process.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
 #include "../php_compat.h"
+#include "../string_helpers.h"
 #include "../version.h"
 #include "client_init.h"
 
@@ -194,6 +196,21 @@ static dd_result _process_response(
 static void _process_meta_and_metrics(
     mpack_node_t root, struct req_info *nonnull ctx)
 {
+    // Extract helper_runtime from array index 5
+    mpack_node_t runtime_node = mpack_node_array_at(root, 5);
+    if (mpack_node_type(runtime_node) == mpack_type_str) {
+        const char *runtime = mpack_node_str(runtime_node);
+        size_t runtime_len = mpack_node_strlen(runtime_node);
+        if (STR_CONS_EQ(runtime, runtime_len, "rust")) {
+            dd_helper_set_runtime(HELPER_RUNTIME_RUST);
+        } else if (STR_CONS_EQ(runtime, runtime_len, "cpp")) {
+            dd_helper_set_runtime(HELPER_RUNTIME_CPP);
+        } else {
+            dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
+        }
+    }
+
+    mpack_node_t meta = mpack_node_array_at(root, 3);
     zend_object *span = ctx->root_span;
     if (!span) {
         mlog(
@@ -201,7 +218,6 @@ static void _process_meta_and_metrics(
         return;
     }
 
-    mpack_node_t meta = mpack_node_array_at(root, 3);
     if (mpack_node_map_count(meta) > 0) {
         dd_command_process_meta(meta, span);
     }

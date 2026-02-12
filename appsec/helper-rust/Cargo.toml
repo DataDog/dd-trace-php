@@ -18,10 +18,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_tuple = { version = "1.0" }
 rmp-serde = "1.1"      # MessagePack support for serde
 serde_json = "1.0"
-anyhow = "1.0"
+anyhow = { version = "1.0", features = ["backtrace"] }
 thiserror = "1.0"
 futures = "0.3"
-log = "0.4"            # Logging facade
+log = { version = "0.4", features = ["kv", "kv_std"] }  # Logging facade with key-value support
 simplelog = "0.12"     # Simple logger with file support
 tokio-util = { version = "0.7", features = ["codec"] }
 tokio-stream = "0.1"

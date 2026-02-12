@@ -129,6 +129,7 @@ pub struct ClientInitResp {
     pub errors: Vec<String>,
     pub meta: HashMap<String, String>,
     pub metrics: HashMap<String, f64>,
+    pub helper_runtime: Option<String>,
 }
 
 #[derive(Debug, Deserialize_tuple)]

@@ -137,8 +137,9 @@ struct client_init {
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
+        std::optional<std::string> helper_runtime;
 
-        MSGPACK_DEFINE(status, version, errors, meta, metrics)
+        MSGPACK_DEFINE(status, version, errors, meta, metrics, helper_runtime)
     };
 };
 

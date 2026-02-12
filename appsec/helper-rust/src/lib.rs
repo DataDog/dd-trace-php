@@ -1,6 +1,7 @@
 #![warn(clippy::extra_unused_lifetimes, clippy::needless_lifetimes)]
 
 use anyhow::Context;
+use log::Log;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::time::{Duration, Instant};
@@ -209,6 +210,7 @@ fn ensure_uniqueness(config: &Config) -> anyhow::Result<Option<LockFile>> {
 
 fn init_logging(log_level: &log::Level, log_file_path: &Option<PathBuf>) -> anyhow::Result<()> {
     use simplelog::*;
+    use telemetry::TelemetryAwareLogger;
 
     let log_level_filter = match log_level {
         log::Level::Error => LevelFilter::Error,
@@ -224,29 +226,31 @@ fn init_logging(log_level: &log::Level, log_file_path: &Option<PathBuf>) -> anyh
         .set_target_level(LevelFilter::Debug)
         .build();
 
-    // Log to file if path specified, otherwise to stderr
-    if let Some(log_path) = log_file_path {
+    // Create the primary logger (file or terminal)
+    let primary_logger: Box<dyn Log> = if let Some(log_path) = log_file_path {
         let log_file = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
             .open(log_path)
             .with_context(|| format!("Failed to open log file: {:?}", log_path))?;
 
-        WriteLogger::init(log_level_filter, config, log_file)?;
         eprintln!("AppSec helper logging to file: {:?}", log_path);
+        WriteLogger::new(log_level_filter, config, log_file)
     } else {
-        // Try to use TermLogger, fall back to SimpleLogger if terminal not available
-        if TermLogger::init(
+        // TermLogger outputs to stderr, which works in most environments.
+        TermLogger::new(
             log_level_filter,
-            config.clone(),
+            config,
             TerminalMode::Stderr,
             ColorChoice::Auto,
         )
-        .is_err()
-        {
-            SimpleLogger::init(log_level_filter, config)?;
-        }
-    }
+    };
+
+    // Wrap with telemetry-aware logger that auto-submits error logs to telemetry
+    let tel_aware_logger = TelemetryAwareLogger::new(primary_logger);
+
+    log::set_max_level(log_level_filter);
+    log::set_boxed_logger(Box::new(tel_aware_logger))?;
 
     Ok(())
 }

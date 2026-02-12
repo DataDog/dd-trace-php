@@ -22,6 +22,7 @@
 #include "commands/client_init.h"
 #include "commands/request_exec.h"
 #include "commands_ctx.h"
+#include "commands_helpers.h"
 #include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
@@ -463,8 +464,8 @@ static PHP_FUNCTION(datadog_appsec_testing_stop_for_debugger)
 
 static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 {
-    zval *data = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &data) != SUCCESS) {
+    zend_array *data = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "h", &data) != SUCCESS) {
         RETURN_FALSE;
     }
 
@@ -480,7 +481,7 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 
     struct block_params block_params = {0};
     struct req_exec_opts opts = {0};
-    if (dd_request_exec(conn, Z_ARRVAL_P(data), &opts, &block_params) !=
+    if (dd_request_exec(conn, data, &opts, &block_params) !=
         dd_success) {
         RETVAL_FALSE;
     } else {
@@ -489,10 +490,65 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     dd_request_abort_destroy_block_params(&block_params);
 }
 
+static dd_result _pack_invalid_command(mpack_writer_t *nonnull w,
+    ATTR_UNUSED void *nullable ctx)
+{
+    UNUSED(ctx);
+    mpack_start_map(w, 1);
+    dd_mpack_write_lstr(w, "foo");
+    dd_mpack_write_lstr(w, "bar");
+    mpack_finish_map(w);
+    return dd_success;
+}
+
+static dd_result _process_invalid_response(mpack_node_t root,
+    ATTR_UNUSED void *nullable ctx)
+{
+    UNUSED(root);
+    UNUSED(ctx);
+    return dd_success;
+}
+
+static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    dd_conn *conn = dd_helper_mgr_cur_conn();
+    if (conn == NULL) {
+        struct req_info ctx = {
+            .root_span = dd_trace_get_active_root_span(),
+        };
+        conn = dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
+        if (conn == NULL) {
+            mlog_g(dd_log_debug, "Failed to acquire connection for invalid message test");
+            RETURN_FALSE;
+        }
+    }
+
+    static const dd_command_spec invalid_spec = {
+        .name = "invalid_command",
+        .name_len = sizeof("invalid_command") - 1,
+        .num_args = 1,
+        .outgoing_cb = _pack_invalid_command,
+        .incoming_cb = _process_invalid_response,
+        .config_features_cb = dd_command_process_config_features_unexpected,
+    };
+
+    dd_result res = dd_command_exec(conn, &invalid_spec, NULL);
+    if (res == dd_success) {
+        RETURN_TRUE;
+    } else {
+        dd_helper_close_conn();
+        RETURN_FALSE;
+    }
+}
+
 static PHP_FUNCTION(datadog_appsec_push_addresses)
 {
     struct timespec start;
-    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+    UNUSED(clock_gettime(CLOCK_MONOTONIC_RAW, &start));
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
         mlog(dd_log_debug, "Trying to access to push_addresses "
@@ -529,13 +585,13 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
 
     if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0) {
         struct timespec end;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+        UNUSED(clock_gettime(CLOCK_MONOTONIC_RAW, &end));
         double elapsed_us =
-            ((double)(end.tv_sec - start.tv_sec) *
+            (((double)(end.tv_sec - start.tv_sec) *
                     // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                    (int64_t)1000000 +
+                    (int64_t)1000000) +
                 // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                (double)(end.tv_nsec - start.tv_nsec) / 1000.0);
+                ((double)(end.tv_nsec - start.tv_nsec) / 1000.0));
         dd_rasp_account_duration_us(elapsed_us);
     }
 
@@ -548,7 +604,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
-ZEND_ARG_INFO(0, "data")
+ZEND_ARG_TYPE_INFO(0, data, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
@@ -571,11 +627,19 @@ static const zend_function_entry testing_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
+static const zend_function_entry testing_invalid_command_functions[] = {
+    ZEND_RAW_FENTRY(DD_TESTING_NS "send_invalid_msg", PHP_FN(datadog_appsec_testing_send_invalid_command), void_ret_bool_arginfo, 0, NULL, NULL)
+    PHP_FE_END
+};
 // clang-format on
 
 static void _register_testing_objects(void)
 {
     dd_phpobj_reg_funcs(functions);
+
+    if (get_global_DD_APPSEC_TESTING_INVALID_COMMAND()) {
+        dd_phpobj_reg_funcs(testing_invalid_command_functions);
+    }
 
     if (!get_global_DD_APPSEC_TESTING()) {
         return;

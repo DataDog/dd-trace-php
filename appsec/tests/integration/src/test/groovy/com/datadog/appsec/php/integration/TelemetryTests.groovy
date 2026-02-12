@@ -7,6 +7,7 @@ import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -42,7 +43,13 @@ class TelemetryTests {
                     phpVersion: phpVersion,
                     phpVariant: variant,
                     www: 'base',
-            )
+            ) {
+                @Override
+                void configure() {
+                    super.configure()
+                    withEnv('RUST_LIB_BACKTRACE', '1')
+                }
+            }
 
     @BeforeAll
     static void beforeAll() {
@@ -113,8 +120,10 @@ class TelemetryTests {
         waitForMetrics(30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
-            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
+            // Rust helper has +1 tag (helper_runtime), C++ doesn't
+            def useRust = System.getProperty('USE_HELPER_RUST') != null
+            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
+            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 4 : 3) }
             connSuccess = allSeries.find { it.name == 'helper.connection_success' }
             workerCount = allSeries.find { it.name == 'helper.service_worker_count' }
 
@@ -125,7 +134,6 @@ class TelemetryTests {
         assert wafInit.namespace == 'appsec'
         assert wafInit.points[0][1] == 1.0
         assert 'success:true' in wafInit.tags
-        assert wafInit.tags.size() == 3
         assert wafInit.type == 'count'
         assert wafInit.interval == 10
 
@@ -149,6 +157,21 @@ class TelemetryTests {
         assert workerCount != null
         assert workerCount.namespace == 'appsec'
         assert workerCount.points[0][1] >= 1.0
+
+        // Check helper_runtime tag: only Rust helper should have it
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'helper_runtime:rust' in wafInit.tags
+            assert 'helper_runtime:rust' in wafReq1.tags
+            assert 'helper_runtime:rust' in wafReq2.tags
+            assert 'helper_runtime:rust' in workerCount.tags
+            // connSuccess is from extension, not helper, so it doesn't have helper_runtime tag
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            assert !wafInit.tags.any { it.startsWith('helper_runtime:') }
+            assert !wafReq1.tags.any { it.startsWith('helper_runtime:') }
+            assert !wafReq2.tags.any { it.startsWith('helper_runtime:') }
+            assert !workerCount.tags.any { it.startsWith('helper_runtime:') }
+        }
     }
 
     @Test
@@ -279,6 +302,16 @@ class TelemetryTests {
         assert 'event_rules_version:1.1.1' in wafUpdates.tags
         assert wafUpdates.tags.find { it.startsWith('waf_version:') } != null
         assert wafUpdates.type == 'count'
+
+        // Check helper_runtime tag: only Rust helper should have it
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'helper_runtime:rust' in wafUpdates.tags
+            series.each { assert 'helper_runtime:rust' in it.tags }
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            assert !wafUpdates.tags.any { it.startsWith('helper_runtime:') }
+            series.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }
+        }
     }
 
     @Test
@@ -518,6 +551,15 @@ class TelemetryTests {
         assert ssrfTimeout.points[0][1] == 0.0
         assert ssrfTimeout.type == 'count'
         assert ssrfTimeout.tags.find { it.startsWith('waf_version:') } != null
+
+        // Check helper_runtime tag: only Rust helper should have it
+        def raspMetrics = [wafReq1, lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            raspMetrics.each { assert 'helper_runtime:rust' in it.tags }
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            raspMetrics.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }
+        }
     }
 
     /**
@@ -625,5 +667,85 @@ class TelemetryTests {
         assert wafReqTruncated.tags.find { it.startsWith('event_rules_version:') } != null
         assert wafReqTruncated.tags.find { it.startsWith('waf_version:') } != null
         assert wafReqTruncated.type == 'count'
+
+        // Check helper_runtime tag: only Rust helper should have it
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'helper_runtime:rust' in wafReqTruncated.tags
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            assert !wafReqTruncated.tags.any { it.startsWith('helper_runtime:') }
+        }
+    }
+
+    /**
+     * This test verifies that helper-rust errors are properly sent to telemetry
+     * with backtraces. It sends an invalid message to the helper which triggers
+     * an error with backtrace.
+     *
+     * This test only runs when USE_HELPER_RUST is set (Rust helper implementation).
+     */
+    @Test
+    @Order(7)
+    void 'helper error telemetry includes backtrace'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // first request to start helper and establish connection
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        RemoteConfigRequest rcReq = requestSup.get()
+        assert rcReq != null, 'No RC request received'
+
+        // request covered by Appsec to ensure we have an active connection
+        trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        // send invalid message to trigger error with backtrace
+        CONTAINER.traceFromRequest('/send_invalid_msg.php') {
+            HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
+        }
+
+        def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
+            def relevantLogs = logs.collectMany { it.logs.findAll { it.tags.contains('log_type:helper::logged_error') } }
+            !relevantLogs.empty
+        }.collectMany { it.logs }
+
+        def errorLog = messages.find { it.tags?.contains('log_type:helper::logged_error') }
+
+        assert errorLog != null : "Expected to find a log with log_type:helper::client_error. " +
+                "All logs: ${messages}"
+        assert errorLog.level == 'ERROR' : "Expected ERROR level, got ${errorLog.level}"
+        assert errorLog.message?.contains('unknown command') || errorLog.message?.contains('invalid_command') :
+                "Expected error message about unknown/invalid command, got: ${errorLog.message}"
+
+        // back trace
+        assert errorLog.stack_trace != null : "Expected stack_trace to be present"
+        assert errorLog.stack_trace.length() > 0 : "Expected stack_trace to be non-empty"
+
+        // check that the backtrace contains some typical Rust stack frame indicators
+        def hasStackFrameIndicators = errorLog.stack_trace.contains('::') ||
+                errorLog.stack_trace.contains('.rs:') ||
+                errorLog.stack_trace =~ /at \d+:\d+/ ||
+                errorLog.stack_trace =~ /\d+: / ||
+                errorLog.stack_trace =~ /:\d+$/
+
+        assert hasStackFrameIndicators :
+                "Expected backtrace with stack frame indicators (::, .rs:, line numbers), got: ${errorLog.stack_trace}"
+
+        // This test only runs for Rust helper, so verify helper_runtime:rust tag is present in logs
+        assert errorLog.tags?.contains('helper_runtime:rust') :
+                "Expected helper_runtime:rust tag in log tags, got: ${errorLog.tags}"
+
+        CONTAINER.clearTraces()
     }
 }

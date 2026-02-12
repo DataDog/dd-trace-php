@@ -80,7 +80,10 @@ impl ServiceManager {
             if let Some(service) = weak.upgrade() {
                 drop(inner);
                 if let Err(e) = service.poll_and_apply_rc() {
-                    error!("Failed to apply RC update for {:?}: {}", shmem_path, e);
+                    error!(
+                        "Failed to apply RC update for {:?} (service with config {:?}): {}",
+                        shmem_path, service.fixed_config, e
+                    );
                 }
                 return;
             }
@@ -283,9 +286,7 @@ impl Service {
 
         // Initialization of remaining components
         let limiter = limiter::Limiter::new(waf_settings.trace_rate_limit);
-        let poller = rc_settings
-            .shmem_path()
-            .map(|path| rc::ConfigPoller::new(path));
+        let poller = rc_settings.shmem_path().map(rc::ConfigPoller::new);
 
         let schema_sampler = if waf_settings.schema_extraction.enabled
             && waf_settings.schema_extraction.sampling_period >= 1.0
@@ -350,9 +351,15 @@ impl Service {
                 "ASM_FEATURES" => {
                     let shmem = cfg.read()?;
                     let data = unsafe { shmem.as_slice() };
-                    state
+                    let result = state
                         .asm_feature_config_manager
-                        .add(rc_path.to_string(), data)?;
+                        .add(rc_path.to_string(), data);
+                    if let Err(e) = result {
+                        error!(
+                            "Failed to add ASM_FEATURES config on service with {:?}: {}",
+                            self.fixed_config, e
+                        );
+                    }
                 }
                 "ASM_DD" | "ASM" | "ASM_DATA" => {
                     let shmem = cfg.read()?;
@@ -361,7 +368,10 @@ impl Service {
                     let ruleset = match waf_ruleset::WafRuleset::from_slice(data) {
                         Ok(ruleset) => ruleset,
                         Err(e) => {
-                            error!("Failed to parse WAF config {}: {}", rc_path, e);
+                            error!(
+                                "Failed to parse WAF config on service with {:?}: {}: {}",
+                                self.fixed_config, rc_path, e
+                            );
                             continue;
                         }
                     };
@@ -382,7 +392,10 @@ impl Service {
                         }
                         waf_changed = true;
                     } else {
-                        error!("Failed to add WAF config: {}", rc_path);
+                        error!(
+                            "Failed to add WAF config on service with config {:?}: {}",
+                            self.fixed_config, rc_path
+                        );
                     }
 
                     all_diagnostics.push((rc_path.to_string(), diagnostics));
@@ -423,7 +436,10 @@ impl Service {
             let update_success = match self.waf.update() {
                 Ok(_) => true,
                 Err(e) => {
-                    error!("Failed to rebuild WAF after config update: {}", e);
+                    error!(
+                        "Failed to rebuild WAF after config update on service with {:?}: {}",
+                        self.fixed_config, e
+                    );
                     false
                 }
             };

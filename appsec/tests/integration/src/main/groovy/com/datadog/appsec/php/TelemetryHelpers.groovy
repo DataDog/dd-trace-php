@@ -54,6 +54,7 @@ class TelemetryHelpers {
     }
 
     @Canonical
+    @ToString
     static class Log {
         String level
         String message

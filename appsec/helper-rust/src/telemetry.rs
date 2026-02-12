@@ -1,16 +1,18 @@
-#[path = "telemetry/sidecar.rs"]
-mod sidecar;
-
 use crate::client::protocol::{SidecarSettings, TelemetrySettings};
 use crate::ffi::sidecar_ffi::{
     ddog_MetricType, ddog_MetricType_DDOG_METRIC_TYPE_COUNT, ddog_MetricType_DDOG_METRIC_TYPE_GAUGE,
 };
-pub use sidecar::{resolve_symbols, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter};
 use std::cell::Cell;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+pub mod error_tel_ctx;
+mod sidecar;
+mod tel_aware_logger;
+
+pub use sidecar::{resolve_symbols, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter};
 pub use sidecar::{SidecarReadyFuture, SidecarStatus};
+pub use tel_aware_logger::TelemetryAwareLogger;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MetricName(pub &'static str);

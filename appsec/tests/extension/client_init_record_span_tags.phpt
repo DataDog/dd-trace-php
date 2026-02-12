@@ -32,7 +32,7 @@ $helper = Helper::createRun([
     response_list(
         response_client_init(['ok', phpversion('ddappsec'), [],
         ["meta_1" => "value_1", "meta_2" => "value_2"],
-        ["metric_1" => 2.0, "metric_2" => 10.0]])
+        ["metric_1" => 2.0, "metric_2" => 10.0], null])
     ),
     response_list(
         response_request_init([[['record', []]], ['{"found":"attack"}','{"another":"attack"}']])

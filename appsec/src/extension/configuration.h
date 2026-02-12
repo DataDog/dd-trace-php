@@ -42,6 +42,7 @@ extern bool runtime_config_first_init;
     SYSCFG(BOOL, DD_APPSEC_TESTING_ABORT_RINIT, "false")                                                                              \
     SYSCFG(BOOL, DD_APPSEC_TESTING_RAW_BODY, "false")                                                                                 \
     SYSCFG(BOOL, DD_APPSEC_TESTING_HELPER_METRICS, "false")                                                                           \
+    SYSCFG(BOOL, DD_APPSEC_TESTING_INVALID_COMMAND, "false")                                                                           \
     CONFIG(CUSTOM(INT), DD_APPSEC_LOG_LEVEL, "warn", .parser = dd_parse_log_level)                                                    \
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
     SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                                                     \

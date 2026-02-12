@@ -25,6 +25,10 @@ use crate::{
     client::protocol::{RequestExecOptions, WafRunType},
     service::{Service, ServiceFixedConfig, ServiceManager},
     telemetry::{
+        error_tel_ctx::{
+            clear_error_telemetry_context, update_error_telemetry_context,
+            with_error_telemetry_handle,
+        },
         SidecarReadyFuture, SidecarStatus, SpanMetaGenerator, SpanMetaName, SpanMetricName,
         SpanMetricsGenerator, SpanMetricsSubmitter, TelemetryLogsGenerator,
         TelemetryMetricsGenerator, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter,
@@ -115,6 +119,9 @@ impl Client {
             Ok(_) => {
                 info!("ended normally");
             }
+            Err(err) if err.is::<ForcefulDisconnect>() => {
+                warn!("ended due to client connectivity issue: {}", err);
+            }
             Err(err) => {
                 error!("ended with failure: {}", err);
             }
@@ -127,11 +134,28 @@ impl Client {
     }
 }
 
+/// Indicates a clean client shutdown - the client properly closed its connection
+/// after completing all pending writes. This is NOT an error condition.
 #[derive(Debug, Error)]
-#[error("Client exited")]
-struct ClientExited;
+#[error("Client closed connection cleanly")]
+struct CleanShutdown;
+
+/// Indicates the client disconnected unexpectedly - partial data was received
+/// before the connection was closed (client crash, kill, network issue).
+/// This is a connectivity issue, not a protocol error.
+#[derive(Debug, Error)]
+#[error("Client disconnected with incomplete data: {0}")]
+struct ForcefulDisconnect(io::Error);
 
 async fn do_client_entrypoint(
+    client: &mut Client,
+    stream: UnixStream,
+    cancel_token: CancellationToken,
+) -> anyhow::Result<()> {
+    with_error_telemetry_handle(do_client_entrypoint_inner(client, stream, cancel_token)).await
+}
+
+async fn do_client_entrypoint_inner(
     client: &mut Client,
     stream: UnixStream,
     cancel_token: CancellationToken,
@@ -148,17 +172,27 @@ async fn do_client_entrypoint(
                 Ok(resp) => {
                     send_command_resp(&mut framed, resp).await?;
                 }
-                Err(resp) => {
-                    send_command_resp(&mut framed, *resp).await?;
-                    anyhow::bail!("client init failed");
+                Err(err) => {
+                    let cir = ClientInitResp {
+                        version: protocol::VERSION_FOR_PROTO,
+                        status: "fail".to_string(),
+                        errors: vec![err.to_string()],
+                        ..Default::default()
+                    };
+                    send_command_resp(&mut framed, CommandResponse::ClientInit(cir)).await?;
+                    return Err(err);
                 }
             }
         }
         Ok(cmd) => {
             return Err(anyhow!("expected client_init, got {:?}", cmd));
         }
-        Err(e) if e.is::<ClientExited>() => {
-            warn!("client exited before sending first message");
+        Err(e) if e.is::<CleanShutdown>() => {
+            info!("client closed connection before sending first message");
+            return Ok(());
+        }
+        Err(e) if e.is::<ForcefulDisconnect>() => {
+            warn!("client forcefully disconnected before sending first message");
             return Err(e);
         }
         Err(e) => {
@@ -172,9 +206,12 @@ async fn do_client_entrypoint(
             Ok(_) => {
                 debug!("request done; waiting for new one");
             }
-            Err(err) if err.is::<ClientExited>() => {
-                warn!("client exited");
+            Err(err) if err.is::<CleanShutdown>() => {
                 return Ok(());
+            }
+            Err(err) if err.is::<ForcefulDisconnect>() => {
+                info!("client disconnected unexpectedly");
+                return Err(err);
             }
             Err(err) => {
                 error!("error in request loop: {}", err);
@@ -187,7 +224,7 @@ async fn do_client_entrypoint(
 fn handle_client_init(
     client: &mut Client,
     args: protocol::ClientInitArgs,
-) -> core::result::Result<protocol::CommandResponse<'_>, Box<protocol::CommandResponse<'_>>> {
+) -> anyhow::Result<protocol::CommandResponse<'_>> {
     let telemetry_settings = args.telemetry_settings.clone();
     let sd = ServiceFixedConfig::new(
         args.appsec_enabled == Some(true),
@@ -197,6 +234,8 @@ fn handle_client_init(
     );
 
     client.sidecar_settings = Some(args.sidecar_settings.clone());
+
+    update_error_telemetry_context(args.sidecar_settings.clone(), telemetry_settings.clone());
 
     let last_registration_time = &client.metrics_last_registered;
     let mut tel_metric_submitter = TelemetrySidecarMetricSubmitter::create(
@@ -224,6 +263,7 @@ fn handle_client_init(
                 crate::telemetry::WAF_VERSION.0.to_string(),
                 Service::waf_version().to_string(),
             );
+            cir.helper_runtime = Some("rust".to_string());
 
             client.service = Some(TrackedService::new(service));
             cir.status = "ok".to_string();
@@ -231,10 +271,7 @@ fn handle_client_init(
         }
         Err(err) => {
             error!("client init handling error: {:?}", err);
-
-            cir.status = "fail".to_string();
-            cir.errors = vec![err.to_string()];
-            Err(Box::new(CommandResponse::ClientInit(cir)))
+            Err(err).context("client init handling error")
         }
     }
 }
@@ -267,6 +304,12 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
         }
     };
 
+    if let Some(ref sidecar_settings) = client.sidecar_settings {
+        update_error_telemetry_context(sidecar_settings.clone(), telemetry_settings.clone());
+    } else {
+        clear_error_telemetry_context();
+    }
+
     let mut tel_metric_submitter = match client.sidecar_settings {
         Some(ref sidecar_settings) => TelemetrySidecarMetricSubmitter::create(
             sidecar_settings,
@@ -288,7 +331,7 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
             client.service = Some(TrackedService::new(new_service));
         }
         Err(e) => {
-            error!("Failed to get service with new RC path: {}", e);
+            error!("Failed to get service with new RC path: {}; will continue running with old service!", e);
         }
     }
 }
@@ -609,7 +652,7 @@ impl ReqContext {
                     let subctx = self
                         .waf_subctxs
                         .remove(subctx_id)
-                        .or_else(|| self.waf_ctx.new_subcontext().ok())
+                        .or_else(|| self.waf_ctx.new_subcontext().ok()) // error should not happen
                         .ok_or(anyhow!("Failed to create subcontext"))?;
                     Ok(RunnableCtx::Owned(subctx))
                 } else {
@@ -805,26 +848,39 @@ async fn recv_command(
 
     tokio::select! {
         maybe_msg = framed.next() => {
-            let maybe_msg = maybe_msg.ok_or(ClientExited {})?;
-
             match maybe_msg {
-                Ok(msg) => {
+                Some(Ok(msg)) => {
                     debug!("Received command: {:?}", msg);
                     Ok(msg)
                 }
-                Err(err) => {
-                    error!("Error receiving command: {}", err);
-                    framed.send(CommandResponse::ProtocolError).await?;
-                    Err(err)?
+                Some(Err(err)) => {
+                    if is_incomplete_stream_error(&err) {
+                        Err(ForcefulDisconnect(err).into())
+                    } else {
+                        // Protocol error: invalid header marker, bad msgpack, unknown command
+                        error!("Protocol error receiving command: {}", err);
+                        let _ = framed.send(CommandResponse::ProtocolError).await;
+                        Err(err.into())
+                    }
+                }
+                None => {
+                    // Stream ended cleanly - client closed connection properly
+                    Err(CleanShutdown.into())
                 }
             }
         }
 
         _ = cancel_token.cancelled() => {
-            warn!("Client cancelled during recv");
-            Err(ClientExited {}.into())
+            info!("Cancellation during client recv");
+            Err(CleanShutdown.into())
         }
     }
+}
+
+fn is_incomplete_stream_error(err: &io::Error) -> bool {
+    // tokio_util's FramedRead returns this specific error when EOF is reached
+    // with bytes still in the decode buffer
+    err.kind() == io::ErrorKind::Other && err.to_string().contains("bytes remaining on stream")
 }
 
 async fn send_command_resp(
@@ -934,5 +990,340 @@ impl SpanMetricsSubmitter for ClientInitResp {
     }
     fn submit_metric_dyn_key(&mut self, key: String, value: f64) {
         self.metrics.insert(key, value);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rmp_serde::Serializer;
+    use std::path::PathBuf;
+    use tokio::io::AsyncWriteExt;
+    use tokio::net::UnixStream;
+
+    fn serialize_message<T: serde::Serialize>(command: &T) -> Vec<u8> {
+        let mut buf = Vec::new();
+        let mut serializer = Serializer::new(&mut buf);
+        command.serialize(&mut serializer).unwrap();
+
+        let size = buf.len() as u32;
+        let mut full_message = Vec::new();
+        full_message.extend_from_slice(b"dds\0");
+        full_message.extend_from_slice(&size.to_le_bytes());
+        full_message.extend_from_slice(&buf);
+        full_message
+    }
+
+    fn make_client_init_message() -> Vec<u8> {
+        let client_init_args = (
+            12345u32,
+            "1.0.0",
+            "8.0",
+            Some(true),
+            (
+                Some("/path/to/rules"),
+                1000u64,
+                10u32,
+                Option::<&str>::None,
+                Some(".*"),
+                (true, 0.5f64),
+            ),
+            (true, PathBuf::from("/dev/shm/remote")),
+            ("my-service", "production"),
+            ("session-123", "runtime-456"),
+        );
+        serialize_message(&("client_init", client_init_args))
+    }
+
+    /// Tests that demonstrate how Framed<UnixStream, CommandCodec> behaves
+    /// with various shutdown scenarios.
+    mod framed_behavior {
+        use super::*;
+
+        /// When the client cleanly closes the connection (after writing all data),
+        /// framed.next() returns None.
+        #[tokio::test]
+        async fn test_clean_shutdown_returns_none() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            assert!(
+                result.is_none(),
+                "Clean shutdown should return None, got {:?}",
+                result
+            );
+        }
+
+        /// When the client sends a complete message then closes cleanly,
+        /// we get the message first, then None on the next read.
+        #[tokio::test]
+        async fn test_message_then_clean_shutdown() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let msg = make_client_init_message();
+            client.write_all(&msg).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let first = framed.next().await;
+            assert!(
+                matches!(first, Some(Ok(protocol::Command::ClientInit(_)))),
+                "Should receive client_init message, got {:?}",
+                first
+            );
+
+            let second = framed.next().await;
+            assert!(
+                second.is_none(),
+                "After message, clean shutdown should return None, got {:?}",
+                second
+            );
+        }
+
+        /// When the client drops without shutdown (simulating crash/kill),
+        /// the behavior depends on whether there's partial data in the buffer.
+        /// With no partial data, it returns None (same as clean shutdown).
+        #[tokio::test]
+        async fn test_drop_without_shutdown_no_partial_data() {
+            let (server, client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            drop(client);
+
+            let result = framed.next().await;
+            assert!(
+                result.is_none(),
+                "Drop without partial data returns None (indistinguishable from clean shutdown), got {:?}",
+                result
+            );
+        }
+
+        /// When the client sends partial data (incomplete header) then drops,
+        /// Framed returns an io::Error with ErrorKind::Other and message
+        /// "bytes remaining on stream". This is tokio_util's way of indicating
+        /// the stream closed with incomplete data in the buffer.
+        #[tokio::test]
+        async fn test_incomplete_header_then_drop() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            client.write_all(b"dds").await.unwrap();
+            drop(client);
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(e.kind(), io::ErrorKind::Other);
+                    let msg = e.to_string();
+                    assert!(
+                        msg.contains("bytes remaining on stream"),
+                        "Expected 'bytes remaining on stream' error, got: {}",
+                        msg
+                    );
+                }
+                other => panic!("Expected Some(Err(...)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends a valid header but incomplete body then drops,
+        /// Framed returns "bytes remaining on stream" error.
+        #[tokio::test]
+        async fn test_incomplete_body_then_drop() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let mut partial = Vec::new();
+            partial.extend_from_slice(b"dds\0");
+            partial.extend_from_slice(&100u32.to_le_bytes());
+            partial.extend_from_slice(b"partial body");
+
+            client.write_all(&partial).await.unwrap();
+            drop(client);
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(e.kind(), io::ErrorKind::Other);
+                    let msg = e.to_string();
+                    assert!(
+                        msg.contains("bytes remaining on stream"),
+                        "Expected 'bytes remaining on stream' error, got: {}",
+                        msg
+                    );
+                }
+                other => panic!("Expected Some(Err(...)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends an invalid header marker, we get InvalidData error.
+        #[tokio::test]
+        async fn test_invalid_header_marker() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let mut invalid = Vec::new();
+            invalid.extend_from_slice(b"bad\0");
+            invalid.extend_from_slice(&10u32.to_le_bytes());
+            invalid.extend_from_slice(b"0123456789");
+
+            client.write_all(&invalid).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(
+                        e.kind(),
+                        io::ErrorKind::InvalidData,
+                        "Invalid marker should give InvalidData, got {:?}",
+                        e.kind()
+                    );
+                }
+                other => panic!("Expected Some(Err(InvalidData)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends a valid header but invalid msgpack body,
+        /// we get InvalidData error from deserialization.
+        #[tokio::test]
+        async fn test_invalid_msgpack_body() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let mut invalid = Vec::new();
+            invalid.extend_from_slice(b"dds\0");
+            invalid.extend_from_slice(&10u32.to_le_bytes());
+            invalid.extend_from_slice(b"not msgpack");
+
+            client.write_all(&invalid).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(
+                        e.kind(),
+                        io::ErrorKind::InvalidData,
+                        "Invalid msgpack should give InvalidData, got {:?}",
+                        e.kind()
+                    );
+                }
+                other => panic!("Expected Some(Err(InvalidData)), got {:?}", other),
+            }
+        }
+
+        /// When the client sends an unknown command name, we get InvalidData error.
+        #[tokio::test]
+        async fn test_unknown_command_name() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+
+            let msg = serialize_message(&("unknown_command", ()));
+            client.write_all(&msg).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let result = framed.next().await;
+            match result {
+                Some(Err(e)) => {
+                    assert_eq!(
+                        e.kind(),
+                        io::ErrorKind::InvalidData,
+                        "Unknown command should give InvalidData, got {:?}",
+                        e.kind()
+                    );
+                }
+                other => panic!("Expected Some(Err(InvalidData)), got {:?}", other),
+            }
+        }
+    }
+
+    /// Tests for recv_command error classification
+    mod recv_command_errors {
+        use super::*;
+
+        /// Clean shutdown should return CleanShutdown error
+        #[tokio::test]
+        async fn test_clean_shutdown_returns_clean_shutdown_error() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+            let cancel_token = CancellationToken::new();
+
+            client.shutdown().await.unwrap();
+
+            let result = recv_command(&mut framed, &cancel_token).await;
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert!(
+                err.is::<CleanShutdown>(),
+                "Clean shutdown should return CleanShutdown, got: {:?}",
+                err
+            );
+        }
+
+        /// Incomplete data should return ForcefulDisconnect error
+        #[tokio::test]
+        async fn test_incomplete_data_returns_forceful_disconnect() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+            let cancel_token = CancellationToken::new();
+
+            client.write_all(b"dds").await.unwrap();
+            drop(client);
+
+            let result = recv_command(&mut framed, &cancel_token).await;
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert!(
+                err.is::<ForcefulDisconnect>(),
+                "Incomplete data should return ForcefulDisconnect, got: {:?}",
+                err
+            );
+        }
+
+        /// Invalid protocol (bad header) should NOT return ForcefulDisconnect
+        #[tokio::test]
+        async fn test_invalid_header_returns_io_error() {
+            let (server, mut client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+            let cancel_token = CancellationToken::new();
+
+            let mut invalid = Vec::new();
+            invalid.extend_from_slice(b"bad\0");
+            invalid.extend_from_slice(&10u32.to_le_bytes());
+            invalid.extend_from_slice(b"0123456789");
+            client.write_all(&invalid).await.unwrap();
+            client.shutdown().await.unwrap();
+
+            let result = recv_command(&mut framed, &cancel_token).await;
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert!(
+                err.downcast_ref::<io::Error>().is_some(),
+                "Should contain io::Error in chain, got: {:?}",
+                err
+            );
+        }
+
+        /// Cancellation should return CleanShutdown (treated same as clean close)
+        #[tokio::test]
+        async fn test_cancellation_returns_clean_shutdown() {
+            let (server, _client) = UnixStream::pair().unwrap();
+            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+            let cancel_token = CancellationToken::new();
+
+            cancel_token.cancel();
+
+            let result = recv_command(&mut framed, &cancel_token).await;
+            assert!(result.is_err());
+            let err = result.unwrap_err();
+            assert!(
+                err.is::<CleanShutdown>(),
+                "Cancellation should return CleanShutdown, got: {:?}",
+                err
+            );
+        }
     }
 }

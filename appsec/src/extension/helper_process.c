@@ -48,6 +48,7 @@ typedef struct _dd_helper_mgr {
 static _Atomic(dd_helper_shared_state) *_shared_state;
 
 static THREAD_LOCAL_ON_ZTS dd_helper_mgr _mgr;
+static THREAD_LOCAL_ON_ZTS helper_runtime _helper_runtime = HELPER_RUNTIME_UNKNOWN;
 
 static const double _backoff_initial = 3.0;
 static const double _backoff_base = 2.0;
@@ -173,6 +174,12 @@ dd_conn *nullable dd_helper_mgr_cur_conn(void)
     return NULL;
 }
 
+helper_runtime dd_helper_get_runtime(void) { return _helper_runtime; }
+
+void dd_helper_set_runtime(helper_runtime rt) { _helper_runtime = rt; }
+
+bool dd_helper_is_rust(void) { return _helper_runtime == HELPER_RUNTIME_RUST; }
+
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val,
     zend_string *nullable new_str)
@@ -267,6 +274,7 @@ void dd_helper_close_conn(void)
         mlog_err(dd_log_warning, "Error closing connection to helper");
     }
 
+    dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
     dd_telemetry_helper_conn_close();
 
     /* we treat closing the connection on the request it was opened a failure
