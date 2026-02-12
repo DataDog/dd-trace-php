@@ -104,8 +104,7 @@ final class NginxServer
             if ($socket !== false) {
                 fclose($socket);
                 // Give nginx and PHP-FPM a bit more time to stabilize after port opens
-                // This prevents 502 Bad Gateway errors from happening right after startup
-                usleep(500000);  // 500ms additional settle time
+                usleep(500000);
                 return true;
             }
             usleep(50000);

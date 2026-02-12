@@ -200,7 +200,7 @@ foreach ($arch_targets as $arch_target) {
       MONGO_INITDB_ROOT_PASSWORD: test
 
   sqlsrv:
-    name: registry.ddbuild.io/images/mirror/sqlserver:2022-latest
+    name: registry.ddbuild.io/images/mirror/sqlserver:2019-CU15-ubuntu-20.04
     alias: sqlsrv-integration
     variables:
       ACCEPT_EULA: Y
