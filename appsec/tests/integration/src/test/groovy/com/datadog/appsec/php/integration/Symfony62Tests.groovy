@@ -47,7 +47,7 @@ class Symfony62Tests {
             )
 
     @Test
-    @Order(2)
+    @Order(4)
     void 'login success automated event'() {
         //The user ciuser@example.com is already on the DB
         String body = '_username=test-user%40email.com&_password=test'
@@ -65,7 +65,7 @@ class Symfony62Tests {
     }
 
     @Test
-    @Order(3)
+    @Order(5)
     void 'login failure automated event'() {
         String body = '_username=aa&_password=ee'
         HttpRequest req = container.buildReq('/login')
@@ -82,7 +82,7 @@ class Symfony62Tests {
     }
 
     @Test
-    @Order(4)
+    @Order(6)
     void 'sign up automated event'() {
         String body = 'registration_form[email]=some@email.com&registration_form[plainPassword]=somepassword&registration_form[agreeTerms]=1'
         HttpRequest req = container.buildReq('/register')
@@ -99,7 +99,7 @@ class Symfony62Tests {
     }
 
     @Test
-    @Order(5)
+    @Order(7)
     void 'test path params'() {
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
@@ -116,7 +116,7 @@ class Symfony62Tests {
     }
 
     @Test
-    @Order(6)
+    @Order(8)
     void 'symfony http route disabled'() {
         try {
             def res = CONTAINER.execInContainer(
@@ -144,6 +144,22 @@ class Symfony62Tests {
 
     @Test
     @Order(1)
+    void 'Endpoints are not collected before the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: false')
+        }
+    }
+    @Order(3)
+    void 'Endpoints are collected after the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: true')
+        }
+    }
+    @Order(2)
     void 'Endpoints are sent'() {
         def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
