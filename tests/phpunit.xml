@@ -136,6 +136,9 @@
         <testsuite name="unit">
             <directory>./Unit/</directory>
         </testsuite>
+        <testsuite name="featureflags">
+            <directory>./FeatureFlags/</directory>
+        </testsuite>
     </testsuites>
 
     <coverage includeUncoveredFiles="false">
