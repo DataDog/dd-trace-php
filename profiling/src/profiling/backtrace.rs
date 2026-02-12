@@ -1,7 +1,7 @@
 use crate::profiling::stack_walking::ZendFrame;
 use core::ops::Deref;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Backtrace {
     frames: Vec<ZendFrame>,
 }
