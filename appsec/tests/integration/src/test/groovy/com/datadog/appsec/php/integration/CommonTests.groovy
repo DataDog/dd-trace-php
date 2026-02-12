@@ -22,9 +22,6 @@ import org.msgpack.core.MessagePack
 import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static java.net.http.HttpResponse.BodyHandlers.ofString
 import static org.hamcrest.MatcherAssert.assertThat
-import static org.junit.jupiter.api.Assumptions.assumeTrue
-import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
-import static com.datadog.appsec.php.integration.TestParams.getVariant
 @TestMethodOrder(MethodOrderer.OrderAnnotation)
 trait CommonTests {
 
@@ -843,17 +840,6 @@ trait CommonTests {
     @Test
     @Order(1)
     void 'test endpoint collection'() {
-        // Skip on specific versions:
-        // - PHP 8.1 non-ZTS: Symfony sends endpoints, making this test invalid
-        // - PHP 7.4 non-ZTS: Laravel sends endpoints, making this test invalid
-        boolean skipBecauseOfSymfony= phpVersion.contains('8.1') && !variant.contains('zts')
-        boolean skipLaravel74 = phpVersion.contains('7.4') && !variant.contains('zts')
-        assumeTrue(!(skipBecauseOfSymfony || skipLaravel74),
-                skipSymfony81NonZts
-                        ? 'Skipping on PHP 8.1 non-ZTS because Symfony sends endpoints'
-                        : (skipLaravel74
-                                ? 'Skipping on PHP 7.4 non-ZTS because of Laravel sends endpoints'
-                                : ''))
         HttpRequest req = container.buildReq('/endpoint_collection.php').GET().build()
         container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
             assert re.statusCode() == 200

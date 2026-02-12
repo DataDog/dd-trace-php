@@ -129,16 +129,8 @@ class Laravel8xTests {
             endpoints.size() > 0
         })
 
-        def expectedEndpoints = 6
 
-        if (endpoints.size() != expectedEndpoints) {
-            println "Endpoints count mismatch (${endpoints.size()} != ${expectedEndpoints}). Endpoints:\n" +
-                    endpoints.collect { e ->
-                        "- method=${e.method}, path=${e.path}, operationName=${e.operationName}, resourceName=${e.resourceName}"
-                    }.join("\n")
-        }
-
-        assert endpoints.size() == expectedEndpoints
+        assert endpoints.size() == 6
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == 'authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET authenticate' } != null
         assert endpoints.find { it.path == 'register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET register' } != null
