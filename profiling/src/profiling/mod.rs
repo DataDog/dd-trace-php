@@ -19,7 +19,8 @@ use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_ac
 
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 use crate::bindings::{
-    datadog_php_profiling_get_profiling_context, zend_execute_data, zai_str_from_zstr, datadog_php_profiling_get_process_tags_serialized
+    datadog_php_profiling_get_process_tags_serialized, datadog_php_profiling_get_profiling_context,
+    zai_str_from_zstr, zend_execute_data,
 };
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
@@ -29,11 +30,11 @@ use core::mem::forget;
 use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
+use libdd_common::tag::Tag;
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
     UpscalingInfo, ValueType as ApiValueType,
 };
-use libdd_common::tag::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
