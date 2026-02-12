@@ -38,7 +38,7 @@
     ],
     "DD_APPSEC_SCA_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "boolean",
         "default": "false"
       }
@@ -96,13 +96,13 @@
       {
         "implementation": "A",
         "type": "string",
-        "default": ""
+        "default": "localhost"
       }
     ],
     "DD_DOGSTATSD_PORT": [
       {
         "implementation": "A",
-        "type": "string",
+        "type": "int",
         "default": "8125"
       }
     ],
@@ -110,7 +110,7 @@
       {
         "implementation": "A",
         "type": "string",
-        "default": ""
+        "default": "http://localhost:8125"
       }
     ],
     "DD_DYNAMIC_INSTRUMENTATION_ENABLED": [
@@ -150,7 +150,7 @@
     ],
     "DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "int",
         "default": "-1"
       }
@@ -285,19 +285,19 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "5"
+        "default": "5.0"
       }
     ],
     "DD_SERVICE": [
       {
-        "implementation": "A",
+        "implementation": "E",
         "type": "string",
         "default": ""
       }
     ],
     "DD_SERVICE_MAPPING": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "map",
         "default": ""
       }
@@ -305,7 +305,7 @@
     "DD_SPAN_SAMPLING_RULES": [
       {
         "implementation": "A",
-        "type": "map",
+        "type": "array",
         "default": "[]"
       }
     ],
@@ -325,7 +325,7 @@
     ],
     "DD_TELEMETRY_HEARTBEAT_INTERVAL": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "int",
         "default": "60"
       }
@@ -397,7 +397,7 @@
       {
         "implementation": "A",
         "type": "int",
-        "default": "0"
+        "default": "8126"
       }
     ],
     "DD_TRACE_AGENT_RETRIES": [
@@ -430,7 +430,7 @@
     ],
     "DD_TRACE_AGENT_TIMEOUT": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "int",
         "default": "500"
       }
@@ -456,7 +456,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_AMQP_ANALYTICS_SAMPLE_RATE"
         ]
@@ -471,7 +471,7 @@
     ],
     "DD_TRACE_ANALYTICS_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "false"
       }
@@ -508,7 +508,7 @@
       {
         "implementation": "A",
         "type": "array",
-        "default": "user.id,session.id,account.id"
+        "default": "user.id, session.id, account.id"
       }
     ],
     "DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT": [
@@ -534,7 +534,7 @@
     ],
     "DD_TRACE_BUFFER_SIZE": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "int",
         "default": "2097152"
       }
@@ -553,7 +553,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_CAKEPHP_ANALYTICS_SAMPLE_RATE"
         ]
@@ -601,7 +601,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_CODEIGNITER_ANALYTICS_SAMPLE_RATE"
         ]
@@ -628,7 +628,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_CURL_ANALYTICS_SAMPLE_RATE"
         ]
@@ -650,7 +650,7 @@
     ],
     "DD_TRACE_DEBUG": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "false"
       }
@@ -683,7 +683,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_DRUPAL_ANALYTICS_SAMPLE_RATE"
         ]
@@ -698,7 +698,7 @@
     ],
     "DD_TRACE_ELASTICSEARCH_ANALYTICS_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "false",
         "aliases": [
@@ -710,7 +710,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE"
         ]
@@ -737,7 +737,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_ELOQUENT_ANALYTICS_SAMPLE_RATE"
         ]
@@ -771,7 +771,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_EXEC_ANALYTICS_SAMPLE_RATE"
         ]
@@ -798,7 +798,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_FILESYSTEM_ANALYTICS_SAMPLE_RATE"
         ]
@@ -860,7 +860,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_FRANKENPHP_ANALYTICS_SAMPLE_RATE"
         ]
@@ -901,7 +901,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_GOOGLESPANNER_ANALYTICS_SAMPLE_RATE"
         ]
@@ -928,7 +928,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_GUZZLE_ANALYTICS_SAMPLE_RATE"
         ]
@@ -943,14 +943,14 @@
     ],
     "DD_TRACE_HEADER_TAGS": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "map",
         "default": ""
       }
     ],
     "DD_TRACE_HEALTH_METRICS_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "false"
       }
@@ -983,7 +983,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_HTTPSTREAM_ANALYTICS_SAMPLE_RATE"
         ]
@@ -998,7 +998,7 @@
     ],
     "DD_TRACE_HTTP_CLIENT_ERROR_STATUSES": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "array",
         "default": "500-599"
       }
@@ -1019,7 +1019,7 @@
     ],
     "DD_TRACE_HTTP_SERVER_ERROR_STATUSES": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "array",
         "default": "500-599"
       }
@@ -1047,7 +1047,7 @@
     ],
     "DD_TRACE_KAFKA_ANALYTICS_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "false",
         "aliases": [
@@ -1059,7 +1059,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_KAFKA_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1093,7 +1093,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_LAMINAS_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1120,7 +1120,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_LARAVELQUEUE_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1147,7 +1147,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_LARAVEL_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1181,7 +1181,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_LOGS_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1206,7 +1206,7 @@
     ],
     "DD_TRACE_LOG_LEVEL": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": "error"
       }
@@ -1225,7 +1225,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_LUMEN_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1252,7 +1252,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_MAGENTO_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1293,7 +1293,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_MEMCACHED_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1327,7 +1327,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_MEMCACHE_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1361,7 +1361,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_MONGODB_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1383,7 +1383,7 @@
     ],
     "DD_TRACE_MONGO_ANALYTICS_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "false",
         "aliases": [
@@ -1395,7 +1395,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_MONGO_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1422,7 +1422,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_MYSQLI_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1449,7 +1449,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_NETTE_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1464,7 +1464,7 @@
     ],
     "DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP": [
       {
-        "implementation": "A",
+        "implementation": "E",
         "type": "string",
         "default": "(?i)(?:(?:\"|%22)?)(?:(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?|pass(?:[-_]?phrase)?|secret|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)key(?:[-_]?id)?|token|consumer[-_]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|(?:bearer(?:\\s|%20)+[a-z0-9._\\-]+|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?)"
       }
@@ -1490,7 +1490,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_OPENAI_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1524,7 +1524,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_PCNTL_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1551,7 +1551,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_PDO_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1592,7 +1592,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_PHPREDIS_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1619,7 +1619,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_PREDIS_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1648,21 +1648,21 @@
     ],
     "DD_TRACE_PROPAGATION_STYLE": [
       {
-        "implementation": "A",
+        "implementation": "D",
         "type": "array",
         "default": "datadog,tracecontext,baggage"
       }
     ],
     "DD_TRACE_PROPAGATION_STYLE_EXTRACT": [
       {
-        "implementation": "A",
+        "implementation": "E",
         "type": "array",
         "default": "datadog,tracecontext,B3,B3 single header,baggage"
       }
     ],
     "DD_TRACE_PROPAGATION_STYLE_INJECT": [
       {
-        "implementation": "A",
+        "implementation": "D",
         "type": "array",
         "default": "datadog,tracecontext,baggage"
       }
@@ -1681,7 +1681,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_PSR18_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1708,7 +1708,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_RATCHET_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1833,7 +1833,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_ROADRUNNER_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1848,7 +1848,7 @@
     ],
     "DD_TRACE_SAMPLE_RATE": [
       {
-        "implementation": "A",
+        "implementation": "D",
         "type": "decimal",
         "default": "-1"
       }
@@ -1856,7 +1856,7 @@
     "DD_TRACE_SAMPLING_RULES": [
       {
         "implementation": "A",
-        "type": "map",
+        "type": "array",
         "default": "[]"
       }
     ],
@@ -1895,7 +1895,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_SLIM_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1936,7 +1936,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_SQLSRV_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1951,7 +1951,7 @@
     ],
     "DD_TRACE_STARTUP_LOGS": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "boolean",
         "default": "true"
       }
@@ -1970,7 +1970,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_SWOOLE_ANALYTICS_SAMPLE_RATE"
         ]
@@ -1997,7 +1997,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_SYMFONYMESSENGER_ANALYTICS_SAMPLE_RATE"
         ]
@@ -2024,7 +2024,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_SYMFONY_ANALYTICS_SAMPLE_RATE"
         ]
@@ -2114,7 +2114,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_WEB_ANALYTICS_SAMPLE_RATE"
         ]
@@ -2148,7 +2148,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_WORDPRESS_ANALYTICS_SAMPLE_RATE"
         ]
@@ -2189,7 +2189,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_YII_ANALYTICS_SAMPLE_RATE"
         ]
@@ -2216,7 +2216,7 @@
       {
         "implementation": "A",
         "type": "decimal",
-        "default": "1",
+        "default": "1.0",
         "aliases": [
           "DD_ZENDFRAMEWORK_ANALYTICS_SAMPLE_RATE"
         ]
@@ -2238,14 +2238,14 @@
     ],
     "OTEL_LOG_LEVEL": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "string",
         "default": null
       }
     ],
     "OTEL_METRICS_EXPORTER": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": null
       }
@@ -2254,40 +2254,40 @@
       {
         "implementation": "A",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_RESOURCE_ATTRIBUTES": [
       {
         "implementation": "A",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_SERVICE_NAME": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": null
       }
     ],
     "OTEL_TRACES_EXPORTER": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "string",
         "default": null
       }
     ],
     "OTEL_TRACES_SAMPLER": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "string",
         "default": null
       }
     ],
     "OTEL_TRACES_SAMPLER_ARG": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "string",
         "default": null
       }
