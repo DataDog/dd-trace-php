@@ -121,6 +121,10 @@ class DataDogProvider extends AbstractProvider
             $builder->withReason($result['reason']);
         }
 
+        if (isset($result['variant']) && $result['variant'] !== null) {
+            $builder->withVariant($result['variant']);
+        }
+
         return $builder->build();
     }
 }
