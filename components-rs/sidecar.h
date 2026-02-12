@@ -204,7 +204,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice process_tags);
 
 /**
- * Updates the process_tags for an existing session
+ * Updates the process_tags for an existing session.
  */
 ddog_MaybeError ddog_sidecar_session_set_process_tags(struct ddog_SidecarTransport **transport,
                                                       ddog_CharSlice session_id,
