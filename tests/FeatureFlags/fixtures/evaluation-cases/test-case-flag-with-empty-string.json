@@ -1,0 +1,24 @@
+[
+  {
+    "flag": "empty_string_flag",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "alice",
+    "attributes": {
+      "country": "US"
+    },
+    "result": {
+      "value": ""
+    }
+  },
+  {
+    "flag": "empty_string_flag",
+    "variationType": "STRING",
+    "defaultValue": "default",
+    "targetingKey": "bob",
+    "attributes": {},
+    "result": {
+      "value": "non_empty"
+    }
+  }
+]

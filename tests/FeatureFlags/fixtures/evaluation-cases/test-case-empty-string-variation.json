@@ -1,0 +1,38 @@
+[
+  {
+    "flag": "empty-string-variation",
+    "variationType": "STRING",
+    "defaultValue": "default_value",
+    "targetingKey": "empty_user",
+    "attributes": {
+      "content_type": "minimal"
+    },
+    "result": {
+      "value": ""
+    }
+  },
+  {
+    "flag": "empty-string-variation",
+    "variationType": "STRING",
+    "defaultValue": "default_value",
+    "targetingKey": "full_user",
+    "attributes": {
+      "content_type": "full"
+    },
+    "result": {
+      "value": "detailed_content"
+    }
+  },
+  {
+    "flag": "empty-string-variation",
+    "variationType": "STRING",
+    "defaultValue": "default_value",
+    "targetingKey": "default_user",
+    "attributes": {
+      "content_type": "unknown"
+    },
+    "result": {
+      "value": "default_value"
+    }
+  }
+]
