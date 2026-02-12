@@ -237,6 +237,10 @@ final class WebServer
                 self::FCGI_PORT
             );
             $this->server->start();
+
+            if (!$this->server->waitUntilServerRunning()) {
+                throw new \Exception('Nginx failed to start within expected time');
+            }
         }
     }
 
