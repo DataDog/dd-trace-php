@@ -631,7 +631,7 @@ ddog_crasht_Metadata ddtrace_setup_crashtracking_metadata(ddog_Vec_Tag *tags) {
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime_version"), (ddog_CharSlice) {.ptr = (char *) runtime_version, .len = strlen(runtime_version)});
 
     zend_string *process_tags = ddtrace_process_tags_get_serialized();
-    if (process_tags) {
+    if (ZSTR_LEN(process_tags)) {
         ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("process_tags"), (ddog_CharSlice) {.ptr = ZSTR_VAL(process_tags), .len = ZSTR_LEN(process_tags)});
     }
 
