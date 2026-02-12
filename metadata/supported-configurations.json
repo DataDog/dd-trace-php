@@ -10,7 +10,7 @@
     ],
     "DD_API_KEY": [
       {
-        "implementation": "A",
+        "implementation": "C",
         "type": "string",
         "default": ""
       }
@@ -81,7 +81,7 @@
     "DD_DBM_PROPAGATION_MODE": [
       {
         "implementation": "A",
-        "type": "int",
+        "type": "string",
         "default": "disabled"
       }
     ],
@@ -171,21 +171,21 @@
     ],
     "DD_GIT_COMMIT_SHA": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": ""
       }
     ],
     "DD_GIT_REPOSITORY_URL": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": ""
       }
     ],
     "DD_HOSTNAME": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": ""
       }
@@ -290,7 +290,7 @@
     ],
     "DD_SERVICE": [
       {
-        "implementation": "E",
+        "implementation": "F",
         "type": "string",
         "default": ""
       }
@@ -311,7 +311,7 @@
     ],
     "DD_SPAN_SAMPLING_RULES_FILE": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": ""
       }
@@ -1315,7 +1315,7 @@
     ],
     "DD_TRACE_MEMCACHE_ANALYTICS_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
         "default": "false",
         "aliases": [
@@ -1855,7 +1855,7 @@
     ],
     "DD_TRACE_SAMPLING_RULES": [
       {
-        "implementation": "A",
+        "implementation": "D",
         "type": "array",
         "default": "[]"
       }
@@ -1863,7 +1863,7 @@
     "DD_TRACE_SAMPLING_RULES_FORMAT": [
       {
         "implementation": "A",
-        "type": "int",
+        "type": "string",
         "default": "glob"
       }
     ],
@@ -2238,56 +2238,56 @@
     ],
     "OTEL_LOG_LEVEL": [
       {
-        "implementation": "C",
+        "implementation": "E",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_METRICS_EXPORTER": [
       {
-        "implementation": "B",
+        "implementation": "D",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_PROPAGATORS": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_RESOURCE_ATTRIBUTES": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_SERVICE_NAME": [
       {
-        "implementation": "B",
+        "implementation": "C",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_TRACES_EXPORTER": [
       {
-        "implementation": "C",
+        "implementation": "E",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_TRACES_SAMPLER": [
       {
-        "implementation": "C",
+        "implementation": "D",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_TRACES_SAMPLER_ARG": [
       {
-        "implementation": "C",
+        "implementation": "E",
         "type": "string",
         "default": ""
       }

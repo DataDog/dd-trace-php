@@ -6,11 +6,24 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 # Maps C config type to JSON schema type.
-PHP_CODE=$(cat <<'ENDPHP'
+PHP_CODE_FILE=$(mktemp "${TMPDIR:-/tmp}/ddtrace-supported-configurations.XXXXXX.php")
+trap 'rm -f "$PHP_CODE_FILE"' EXIT
+
+cat >"$PHP_CODE_FILE" <<'ENDPHP'
+<?php
 function map_type($raw) {
     $raw = trim($raw);
     if (preg_match('/^CUSTOM\((.+)\)$/', $raw, $m)) {
-        $raw = trim($m[1]);
+        $inner = trim($m[1]);
+        // CUSTOM() types don't always map 1:1 to JSON schema types.
+        // In particular, CUSTOM(INT) values are exposed as strings at the config boundary.
+        if ($inner === 'INT') {
+            return 'string';
+        }
+        if ($inner === 'MAP') {
+            return 'map';
+        }
+        $raw = $inner;
     }
     $map = [
         'BOOL' => 'boolean', 'STRING' => 'string', 'INT' => 'int', 'DOUBLE' => 'decimal',
@@ -172,7 +185,6 @@ $json = preg_replace_callback('/^ +/m', function ($m) {
 file_put_contents($outputPath, $json . "\n");
 echo "Wrote supported configurations to $outputPath\n";
 ENDPHP
-)
 
 cat <<EOT >../ext/version.h
 #ifndef PHP_DDTRACE_VERSION
@@ -181,7 +193,7 @@ cat <<EOT >../ext/version.h
 EOT
 
 PHP_VERSION_ID=${PHP_VERSION_ID:-0}
-gcc $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F 'JSON_CONFIGURATION_MARKER' | tail -n+2 | php -r "$PHP_CODE"
+gcc $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2 | php "$PHP_CODE_FILE"
 #include "../ext/configuration.h"
 
 #undef PHP_VERSION_ID
@@ -196,8 +208,10 @@ gcc $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src
 #define ALTCALIASES(...) ,##__VA_ARGS__
 #define EXPAND(x) x
 #define CUSTOM(id) id
-#define CONFIG(type, name, default_value, ...) CALIAS(type, name, default_value,)
-#define CALIAS(type, name, default_value, aliases, ...) #type, #name, default_value EXPAND(ALT##aliases) |NEXT_CONFIG|
+// Preserve the literal config type tokens (e.g. CUSTOM(INT)) so the generator can
+// map them to the correct JSON schema type.
+#define CONFIG(type, name, default_value, ...) CALIAS(#type, name, default_value,)
+#define CALIAS(type, name, default_value, aliases, ...) type, #name, default_value EXPAND(ALT##aliases) |NEXT_CONFIG|
 
 JSON_CONFIGURATION_MARKER
 DD_CONFIGURATION
