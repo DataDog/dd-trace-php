@@ -204,7 +204,10 @@ class Provider
                 return (float)$valueJson;
             case 'JSON':
                 $decoded = json_decode($valueJson, true);
-                return $decoded !== null ? $decoded : $defaultValue;
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    return $decoded;
+                }
+                return $defaultValue;
             case 'STRING':
             default:
                 // String values come as JSON-encoded strings (with quotes)

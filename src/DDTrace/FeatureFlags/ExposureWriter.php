@@ -12,6 +12,9 @@ class ExposureWriter
     /** @var array */
     private $buffer = [];
 
+    /** @var int */
+    private $droppedEvents = 0;
+
     /** @var string */
     private $agentUrl;
 
@@ -28,6 +31,7 @@ class ExposureWriter
     public function enqueue(array $event)
     {
         if (count($this->buffer) >= self::MAX_BUFFER_SIZE) {
+            $this->droppedEvents++;
             return;
         }
         $this->buffer[] = $event;
@@ -43,7 +47,13 @@ class ExposureWriter
         }
 
         $events = $this->buffer;
+        $dropped = $this->droppedEvents;
         $this->buffer = [];
+        $this->droppedEvents = 0;
+
+        if ($dropped > 0 && function_exists('dd_trace_env_config') && \dd_trace_env_config('DD_TRACE_DEBUG')) {
+            error_log("ddtrace/ffe: dropped $dropped exposure event(s) due to full buffer");
+        }
 
         $payload = [
             'context' => [
@@ -56,6 +66,10 @@ class ExposureWriter
 
         $url = rtrim($this->agentUrl, '/') . '/evp_proxy/v2/api/v2/exposures';
         $body = json_encode($payload);
+
+        if (!function_exists('curl_init')) {
+            return;
+        }
 
         $ch = curl_init($url);
         if ($ch === false) {
@@ -74,7 +88,10 @@ class ExposureWriter
             CURLOPT_CONNECTTIMEOUT_MS => 100,
         ]);
 
-        curl_exec($ch);
+        $response = curl_exec($ch);
+        if ($response === false && function_exists('dd_trace_env_config') && \dd_trace_env_config('DD_TRACE_DEBUG')) {
+            error_log('ddtrace/ffe: failed to send exposures: ' . curl_error($ch));
+        }
         curl_close($ch);
     }
 
@@ -91,9 +108,9 @@ class ExposureWriter
     /**
      * Build a complete exposure event array.
      *
-     * @param string $allocationKey
      * @param string $flagKey
      * @param string $variantKey
+     * @param string $allocationKey
      * @param string|null $targetingKey
      * @param array $attributes
      * @return array

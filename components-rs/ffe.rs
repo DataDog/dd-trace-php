@@ -80,6 +80,36 @@ pub extern "C" fn ddog_ffe_config_changed() -> bool {
     }
 }
 
+// Reason codes returned to PHP via ddog_ffe_result_reason().
+// Must match Provider::$REASON_MAP in src/DDTrace/FeatureFlags/Provider.php.
+const REASON_STATIC: i32 = 0;
+const REASON_DEFAULT: i32 = 1;
+const REASON_TARGETING_MATCH: i32 = 2;
+const REASON_SPLIT: i32 = 3;
+const REASON_DISABLED: i32 = 4;
+const REASON_ERROR: i32 = 5;
+
+// Error codes returned to PHP via ddog_ffe_result_error_code().
+// 0 means no error.
+const ERROR_NONE: i32 = 0;
+const ERROR_TYPE_MISMATCH: i32 = 1;
+const ERROR_CONFIG_PARSE: i32 = 2;
+const ERROR_FLAG_UNRECOGNIZED: i32 = 3;
+const ERROR_CONFIG_MISSING: i32 = 6;
+const ERROR_GENERAL: i32 = 7;
+
+// Attribute value types passed from C (matches FfeAttribute.value_type).
+const ATTR_TYPE_STRING: i32 = 0;
+const ATTR_TYPE_NUMBER: i32 = 1;
+const ATTR_TYPE_BOOL: i32 = 2;
+
+// Expected flag type IDs passed from C (matches Provider::$TYPE_MAP).
+const TYPE_STRING: i32 = 0;
+const TYPE_INTEGER: i32 = 1;
+const TYPE_FLOAT: i32 = 2;
+const TYPE_BOOLEAN: i32 = 3;
+const TYPE_OBJECT: i32 = 4;
+
 /// Opaque handle for FFE evaluation results returned to C/PHP.
 pub struct FfeResult {
     pub value_json: CString,
@@ -115,17 +145,20 @@ pub extern "C" fn ddog_ffe_evaluate(
     attributes: *const FfeAttribute,
     attributes_count: usize,
 ) -> *mut FfeResult {
+    if flag_key.is_null() {
+        return std::ptr::null_mut();
+    }
     let flag_key = match unsafe { CStr::from_ptr(flag_key) }.to_str() {
         Ok(s) => s,
         Err(_) => return std::ptr::null_mut(),
     };
 
     let expected_type = match expected_type {
-        0 => ExpectedFlagType::String,
-        1 => ExpectedFlagType::Integer,
-        2 => ExpectedFlagType::Float,
-        3 => ExpectedFlagType::Boolean,
-        4 => ExpectedFlagType::Object,
+        TYPE_STRING => ExpectedFlagType::String,
+        TYPE_INTEGER => ExpectedFlagType::Integer,
+        TYPE_FLOAT => ExpectedFlagType::Float,
+        TYPE_BOOLEAN => ExpectedFlagType::Boolean,
+        TYPE_OBJECT => ExpectedFlagType::Object,
         _ => return std::ptr::null_mut(),
     };
 
@@ -152,8 +185,7 @@ pub extern "C" fn ddog_ffe_evaluate(
                 Err(_) => continue,
             };
             let value = match attr.value_type {
-                0 => {
-                    // string
+                ATTR_TYPE_STRING => {
                     if attr.string_value.is_null() {
                         continue;
                     }
@@ -162,14 +194,8 @@ pub extern "C" fn ddog_ffe_evaluate(
                         Err(_) => continue,
                     }
                 }
-                1 => {
-                    // number
-                    Attribute::from(attr.number_value)
-                }
-                2 => {
-                    // bool
-                    Attribute::from(attr.bool_value)
-                }
+                ATTR_TYPE_NUMBER => Attribute::from(attr.number_value),
+                ATTR_TYPE_BOOL => Attribute::from(attr.bool_value),
                 _ => continue,
             };
             attrs.insert(Str::from(key), value);
@@ -197,22 +223,22 @@ pub extern "C" fn ddog_ffe_evaluate(
             variant: Some(CString::new(a.variation_key.as_str()).unwrap_or_default()),
             allocation_key: Some(CString::new(a.allocation_key.as_str()).unwrap_or_default()),
             reason: match a.reason {
-                AssignmentReason::Static => 0,
-                AssignmentReason::TargetingMatch => 2,
-                AssignmentReason::Split => 3,
+                AssignmentReason::Static => REASON_STATIC,
+                AssignmentReason::TargetingMatch => REASON_TARGETING_MATCH,
+                AssignmentReason::Split => REASON_SPLIT,
             },
-            error_code: 0,
+            error_code: ERROR_NONE,
             do_log: a.do_log,
         },
         Err(err) => {
             let (error_code, reason) = match &err {
-                EvaluationError::TypeMismatch { .. } => (1, 5),
-                EvaluationError::ConfigurationParseError => (2, 5),
-                EvaluationError::ConfigurationMissing => (6, 5),
-                EvaluationError::FlagUnrecognizedOrDisabled => (3, 1),
-                EvaluationError::FlagDisabled => (0, 4),
-                EvaluationError::DefaultAllocationNull => (0, 1),
-                _ => (7, 5),
+                EvaluationError::TypeMismatch { .. } => (ERROR_TYPE_MISMATCH, REASON_ERROR),
+                EvaluationError::ConfigurationParseError => (ERROR_CONFIG_PARSE, REASON_ERROR),
+                EvaluationError::ConfigurationMissing => (ERROR_CONFIG_MISSING, REASON_ERROR),
+                EvaluationError::FlagUnrecognizedOrDisabled => (ERROR_FLAG_UNRECOGNIZED, REASON_DEFAULT),
+                EvaluationError::FlagDisabled => (ERROR_NONE, REASON_DISABLED),
+                EvaluationError::DefaultAllocationNull => (ERROR_NONE, REASON_DEFAULT),
+                _ => (ERROR_GENERAL, REASON_ERROR),
             };
             FfeResult {
                 value_json: CString::new("null").unwrap_or_default(),
