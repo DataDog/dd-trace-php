@@ -28,7 +28,8 @@ use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use libdd_profiling::api::{
-    Function, Label as ApiLabel, Location, Period, Sample, UpscalingInfo, ValueType as ApiValueType,
+    Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
+    UpscalingInfo, ValueType as ApiValueType,
 };
 use libdd_common::tag::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
@@ -120,10 +121,6 @@ pub struct SampleValues {
 }
 
 const WALL_TIME_PERIOD: Duration = Duration::from_millis(10);
-const WALL_TIME_PERIOD_TYPE: ValueType = ValueType {
-    r#type: "wall-time",
-    unit: "nanoseconds",
-};
 
 #[derive(Debug, Clone)]
 struct WallTime {
@@ -307,17 +304,25 @@ impl TimeCollector {
     /// running 4 seconds ago and we're only creating a profile now, that means
     /// we didn't collect any samples during that 4 seconds.
     fn create_profile(message: &SampleMessage, started_at: SystemTime) -> InternalProfile {
-        let sample_types: Vec<ApiValueType> = message
+        let sample_types: Vec<ApiSampleType> = message
             .key
             .sample_types
             .iter()
-            .map(|sample_type| ApiValueType {
-                r#type: sample_type.r#type,
-                unit: sample_type.unit,
+            .map(|sample_type| {
+                ApiSampleType::try_from(ApiValueType {
+                    r#type: sample_type.r#type,
+                    unit: sample_type.unit,
+                })
+                .expect("unknown sample type")
             })
             .collect();
 
-        let get_offset = |sample_type| sample_types.iter().position(|&x| x.r#type == sample_type);
+        let get_offset = |name: &str| {
+            sample_types.iter().position(|st| {
+                let vt: ApiValueType = (*st).into();
+                vt.r#type == name
+            })
+        };
 
         // check if we have the `alloc-size` and `alloc-samples` sample types
         let (alloc_samples_offset, alloc_size_offset) =
@@ -368,10 +373,7 @@ impl TimeCollector {
         let mut profile = InternalProfile::try_new(
             &sample_types,
             Some(Period {
-                r#type: ApiValueType {
-                    r#type: WALL_TIME_PERIOD_TYPE.r#type,
-                    unit: WALL_TIME_PERIOD_TYPE.unit,
-                },
+                sample_type: ApiSampleType::WallTime,
                 value: period.min(i64::MAX as u128) as i64,
             }),
         )
