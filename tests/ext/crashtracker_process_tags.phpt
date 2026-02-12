@@ -6,6 +6,7 @@ if (!extension_loaded('posix')) die('skip: posix extension required');
 if (getenv('SKIP_ASAN') || getenv('USE_ZEND_ALLOC') === '0') die("skip: intentionally causes segfaults");
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %A in EXPECTF");
 if (getenv('DD_TRACE_CLI_ENABLED') === '0') die("skip: tracer is disabled");
+if (PHP_VERSION_ID < 70200) die("skip: TEST_PHP_EXTRA_ARGS is only available on PHP 7.2+");
 include __DIR__ . '/includes/skipif_no_dev_env.inc';
 ?>
 --ENV--
