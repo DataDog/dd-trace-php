@@ -20,7 +20,8 @@ $rr = new RequestReplayer();
 
 $picked = 0;
 $notPicked = 0;
-$maxIterations = 5;
+$maxIterations = 15;
+$spanRecords = [];
 for ($i = 0; $i < $maxIterations; $i++)
 {
     //Do call and get sampling
@@ -28,8 +29,25 @@ for ($i = 0; $i < $maxIterations; $i++)
     \DDTrace\close_span();
 	// Flush the span synchronously before reading from the request replayer
 	dd_trace_internal_fn("synchronous_flush");
-	$root = json_decode($rr->waitForDataAndReplay()["body"], true);
-    $spans = $root["chunks"][0]["spans"] ?? $root[0];
+	try {
+		$request = $rr->waitForDataAndReplay();
+	} catch (Exception $e) {
+		// If no request yet, try next iteration
+		continue;
+	}
+	$body = $request["body"] ?? null;
+	if ($body === null) {
+		continue;
+	}
+	$root = json_decode($body, true);
+	if (!is_array($root)) {
+		continue;
+	}
+    $spans = $root["chunks"][0]["spans"] ?? ($root[0] ?? null);
+	$spanRecords[] = $spans;
+	if (!is_array($spans) || !isset($spans[0]["metrics"]["_sampling_priority_v1"])) {
+		continue;
+	}
     $sampling = $spans[0]["metrics"]["_sampling_priority_v1"];
 
 	if ($sampling == 1) { // First pick this minute (or minute rollover)
@@ -54,6 +72,11 @@ for ($i = 0; $i < $maxIterations; $i++)
 
 if ($picked == 1 && $notPicked == 2) {
     echo "All good" . PHP_EOL;
+} else {
+	echo "Iterations: $i" . PHP_EOL;
+	echo "Picked: $picked" . PHP_EOL;
+	echo "notPicked: $notPicked" . PHP_EOL;
+	echo var_dump($spanRecords);
 }
 
 echo "Done" . PHP_EOL;
