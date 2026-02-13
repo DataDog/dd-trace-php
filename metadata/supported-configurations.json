@@ -15,11 +15,49 @@
         "default": ""
       }
     ],
+    "DD_API_SECURITY_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_API_SECURITY_SAMPLE_DELAY": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "30.0"
+      }
+    ],
     "DD_APM_TRACING_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE": [
+      {
+        "implementation": "D",
+        "type": "string",
+        "default": "ident",
+        "aliases": [
+          "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING"
+        ]
+      }
+    ],
+    "DD_APPSEC_CLI_START_ON_RINIT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_APPSEC_ENABLED": [
@@ -29,6 +67,111 @@
         "default": "false"
       }
     ],
+    "DD_APPSEC_EXTRA_HEADERS": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_HELPER_LAUNCH": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_APPSEC_HELPER_LOG_FILE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "/dev/null"
+      }
+    ],
+    "DD_APPSEC_HELPER_LOG_LEVEL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "info"
+      }
+    ],
+    "DD_APPSEC_HELPER_PATH": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "/opt/datadog-php/"
+      }
+    ],
+    "DD_APPSEC_HELPER_RUNTIME_PATH": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "/tmp"
+      }
+    ],
+    "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_LOG_FILE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "php_error_reporting"
+      }
+    ],
+    "DD_APPSEC_LOG_LEVEL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "warn"
+      }
+    ],
+    "DD_APPSEC_MAX_BODY_BUFF_SIZE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "524288"
+      }
+    ],
+    "DD_APPSEC_MAX_STACK_TRACES": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "2"
+      }
+    ],
+    "DD_APPSEC_MAX_STACK_TRACE_DEPTH": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "32"
+      }
+    ],
+    "DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": "(?i)pass|pw(?:or)?d|secret|(?:api|private|public|access)[_-]?key|token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)|bearer|authorization|jsessionid|phpsessid|asp\\.net[_-]sessionid|sid|jwt"
+      }
+    ],
+    "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:[_-]?phrase)?|secret(?:[_-]?key)?|(?:(?:api|private|public|access)[_-]?)key(?:[_-]?id)?|(?:(?:auth|access|id|refresh)[_-]?)?token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?|jsessionid|phpsessid|asp\\.net(?:[_-]|-)sessionid|sid|jwt)(?:\\s*=([^;&]+)|\"\\s*:\\s*(\"[^\"]+\"|\\d+))|bearer\\s+([a-z0-9\\._\\-]+)|token\\s*:\\s*([a-z0-9]{13})|gh[opsu]_([0-9a-zA-Z]{36})|ey[I-L][\\w=-]+\\.(ey[I-L][\\w=-]+(?:\\.[\\w.+\\/=-]+)?)|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}([^\\-]+)[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*([a-z0-9\\/\\.+]{100,})"
+      }
+    ],
     "DD_APPSEC_RASP_ENABLED": [
       {
         "implementation": "A",
@@ -36,11 +179,67 @@
         "default": "true"
       }
     ],
+    "DD_APPSEC_RULES": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
     "DD_APPSEC_SCA_ENABLED": [
       {
         "implementation": "C",
         "type": "boolean",
         "default": "false"
+      }
+    ],
+    "DD_APPSEC_STACK_TRACE_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_APPSEC_TESTING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_ABORT_RINIT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_HELPER_METRICS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_RAW_BODY": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TRACE_RATE_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_APPSEC_WAF_TIMEOUT": [
+      {
+        "implementation": "D",
+        "type": "int",
+        "default": "10000"
       }
     ],
     "DD_AUTOFINISH_SPANS": [
@@ -169,6 +368,13 @@
         "default": "false"
       }
     ],
+    "DD_EXTRA_SERVICES": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
     "DD_GIT_COMMIT_SHA": [
       {
         "implementation": "B",
@@ -274,11 +480,119 @@
         "default": "1.0"
       }
     ],
+    "DD_PROFILING_ALLOCATION_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "4194304"
+      }
+    ],
+    "DD_PROFILING_ENABLED": [
+      {
+        "implementation": "D",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_ENDPOINT_COLLECTION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_EXCEPTION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_EXCEPTION_MESSAGE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_CPU_ENABLED"
+        ]
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_IO_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_LOG_LEVEL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "off"
+      }
+    ],
+    "DD_PROFILING_OUTPUT_PPROF": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_PROFILING_TIMELINE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_WALLTIME_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
     "DD_REMOTE_CONFIG_ENABLED": [
       {
         "implementation": "A",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_REMOTE_CONFIG_POLL_INTERVAL": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "1000"
       }
     ],
     "DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS": [

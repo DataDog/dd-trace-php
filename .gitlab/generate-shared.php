@@ -116,6 +116,19 @@ stages:
       - artifacts
     when: "always"
 
+"Config Verification Test":
+  tags: [ "arch:amd64" ]
+  stage: test
+  needs: []
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6"
+  script:
+    - bash tooling/generate-supported-configurations.sh
+    - if ! git diff --exit-code -- metadata/supported-configurations.json ext/configuration.h; then
+        echo "ERROR: @metadata/supported-configurations.json got out of sync with implemented configurations. Please run tooling/generate-supported-configurations.sh locally."
+        git --no-pager diff -- metadata/supported-configurations.json ext/configuration.h
+        exit 1
+      fi
+
 <?php
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
