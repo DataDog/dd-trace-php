@@ -588,13 +588,6 @@
         "default": "true"
       }
     ],
-    "DD_REMOTE_CONFIG_POLL_INTERVAL": [
-      {
-        "implementation": "A",
-        "type": "int",
-        "default": "1000"
-      }
-    ],
     "DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS": [
       {
         "implementation": "A",
