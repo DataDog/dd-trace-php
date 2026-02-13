@@ -1364,6 +1364,7 @@ endforeach;
     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
       when: on_success
     - when: manual
+      allow_failure: true
   needs:
     - job: "prepare code"
       artifacts: true
@@ -1436,6 +1437,7 @@ foreach ($arch_targets as $arch) {
 
 deploy_to_reliability_env:
   stage: shared-pipeline
+  allow_failure: true
   needs:
     - job: "bundle for reliability env"
   rules:
