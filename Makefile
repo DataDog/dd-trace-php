@@ -1569,7 +1569,7 @@ test_web_custom: global_test_run_dependencies tests/Frameworks/Custom/Version_Au
 	$(call run_tests_debug,--testsuite=custom-framework-autoloading-test)
 
 tests/Frameworks/Drupal/%/composer.lock-php: tests/Frameworks/Drupal/%/composer.json
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs)
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs --no-dev)
 	touch tests/Frameworks/Drupal/$(*)/composer.lock-php
 
 tests/%/composer.lock-php$(PHP_MAJOR_MINOR): tests/%/composer.json
