@@ -7,7 +7,6 @@ pub mod module_globals;
 pub mod profiling;
 mod pthread;
 mod sapi;
-mod thin_str;
 mod wall_time;
 
 #[cfg(php_run_time_cache)]
