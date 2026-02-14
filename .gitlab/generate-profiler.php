@@ -46,6 +46,8 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# NTS'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}"
+    - phpize
+    - ./configure --with-php-config="$(command -v php-config)"
     - cargo build --profile profiler-release --all-features
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
 
@@ -53,6 +55,8 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - '# ZTS'
     - command -v switch-php && switch-php "${PHP_MAJOR_MINOR}-zts"
+    - phpize
+    - ./configure --with-php-config="$(command -v php-config)"
     - cargo build --profile profiler-release --all-features
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/zts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
   after_script:
@@ -85,6 +89,8 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - switch-php nts # not compatible with debug
     - cd profiling
+    - phpize
+    - ./configure --with-php-config="$(command -v php-config)"
     - sed -i -e "s/crate-type.*$/crate-type = [\"rlib\"]/g" Cargo.toml
     - cargo clippy --all-targets --all-features -- -D warnings -Aunknown-lints
 
@@ -101,4 +107,6 @@ foreach ($profiler_minor_major_targets as $version) {
   script:
     - switch-php nts # not compatible with debug
     - cd profiling
+    - phpize
+    - ./configure --with-php-config="$(command -v php-config)"
     - cargo test --all-features

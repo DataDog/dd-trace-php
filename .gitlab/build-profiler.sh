@@ -38,6 +38,8 @@ else
 fi
 
 cd profiling
+phpize
+./configure --with-php-config="$(command -v php-config)"
 CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
 echo "${CARGO_TARGET_DIR}"
 if [ "$thread_safety" = "zts" ]; then
