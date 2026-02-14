@@ -1,3 +1,4 @@
+use crate::bytes::{dangling_zend_string, OwnedZendString, ZendString};
 use crate::sidecar::MaybeShmLimiter;
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
@@ -6,20 +7,20 @@ use datadog_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluat
 use datadog_live_debugger_ffi::send_data::{
     ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
 };
+use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_remote_config::fetch::ConfigInvariants;
 use datadog_remote_config::{
     RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target,
 };
-use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
 use datadog_sidecar_ffi::ddog_sidecar_send_debugger_diagnostics;
+use itertools::Itertools;
 use libdd_common::tag::Tag;
 use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{CharSlice, MaybeError};
-use itertools::Itertools;
 use regex_automata::dfa::regex::Regex;
 use serde::Serialize;
 use std::borrow::Cow;
@@ -30,7 +31,6 @@ use std::mem;
 use std::ptr::NonNull;
 use std::sync::Arc;
 use tracing::debug;
-use crate::bytes::{ZendString, OwnedZendString, dangling_zend_string};
 
 pub const DYANMIC_CONFIG_UPDATE_UNMODIFIED: *mut ZendString = 1isize as *mut ZendString;
 
@@ -53,7 +53,8 @@ static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
 
 type VecRemoteConfigProduct = libdd_common_ffi::Vec<RemoteConfigProduct>;
 #[no_mangle]
-pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = libdd_common_ffi::Vec::new();
+pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct =
+    libdd_common_ffi::Vec::new();
 
 type VecRemoteConfigCapabilities = libdd_common_ffi::Vec<RemoteConfigCapabilities>;
 #[no_mangle]
@@ -232,10 +233,15 @@ fn map_config_value(config: &Configs) -> Cow<'_, str> {
 
 fn use_rc_config<'a>(config: &Configs, user_value: &'a [u8], _rc_value: &'a str) -> bool {
     match config {
-        Configs::DynamicInstrumentationEnabled(_) | Configs::ExceptionReplayEnabled(_) | Configs::CodeOriginEnabled(_) => {
+        Configs::DynamicInstrumentationEnabled(_)
+        | Configs::ExceptionReplayEnabled(_)
+        | Configs::CodeOriginEnabled(_) => {
             let user_str = String::from_utf8_lossy(user_value);
-            user_str.parse::<i32>().unwrap_or(0) != 0 || user_str.eq_ignore_ascii_case("true") || user_str.eq_ignore_ascii_case("yes") || user_str.eq_ignore_ascii_case("on")
-        },
+            user_str.parse::<i32>().unwrap_or(0) != 0
+                || user_str.eq_ignore_ascii_case("true")
+                || user_str.eq_ignore_ascii_case("yes")
+                || user_str.eq_ignore_ascii_case("on")
+        }
         _ => true,
     }
 }
@@ -245,7 +251,11 @@ fn reset_old_config(name: &str, val: Option<OwnedZendString>) {
         if let Some(val) = val {
             DYNAMIC_CONFIG_UPDATE.unwrap()(name.into(), val, DynamicConfigUpdateMode::Write);
         } else {
-            DYNAMIC_CONFIG_UPDATE.unwrap()(name.into(), dangling_zend_string(), DynamicConfigUpdateMode::Restore);
+            DYNAMIC_CONFIG_UPDATE.unwrap()(
+                name.into(),
+                dangling_zend_string(),
+                DynamicConfigUpdateMode::Restore,
+            );
         }
     }
 }
@@ -271,25 +281,51 @@ fn insert_new_configs(
             let user_value = if let Some(old_zstr) = old_value {
                 old_zstr.as_ref().map(|v| v.0)
             } else {
-                let val = unsafe { DYNAMIC_CONFIG_UPDATE.unwrap()(name.into(), dangling_zend_string(), DynamicConfigUpdateMode::Read) };
+                let val = unsafe {
+                    DYNAMIC_CONFIG_UPDATE.unwrap()(
+                        name.into(),
+                        dangling_zend_string(),
+                        DynamicConfigUpdateMode::Read,
+                    )
+                };
                 if val == DYANMIC_CONFIG_UPDATE_UNMODIFIED {
                     None
                 } else {
                     Some(NonNull::new(val).unwrap())
                 }
             };
-            (old_value.is_some(), user_value.map(|v| {
-                if use_rc_config(config, unsafe { v.as_ref() }.as_ref(), val.as_ref()) {
-                    val.as_ref().into()
-                } else {
-                    OwnedZendString::from_copy(v)
-                }
-            }).unwrap_or_else(|| val.as_ref().into()))
+            (
+                old_value.is_some(),
+                user_value
+                    .map(|v| {
+                        if use_rc_config(config, unsafe { v.as_ref() }.as_ref(), val.as_ref()) {
+                            val.as_ref().into()
+                        } else {
+                            OwnedZendString::from_copy(v)
+                        }
+                    })
+                    .unwrap_or_else(|| val.as_ref().into()),
+            )
         };
 
-        let original = unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(name.into(), merged, if is_update { DynamicConfigUpdateMode::Write } else { DynamicConfigUpdateMode::ReadWrite });
+        let original = unsafe { DYNAMIC_CONFIG_UPDATE }.unwrap()(
+            name.into(),
+            merged,
+            if is_update {
+                DynamicConfigUpdateMode::Write
+            } else {
+                DynamicConfigUpdateMode::ReadWrite
+            },
+        );
         if let Some(original) = NonNull::new(original) {
-            old_config_values.insert(name.into(), if original.as_ptr() == DYANMIC_CONFIG_UPDATE_UNMODIFIED { None } else { Some(OwnedZendString(original)) });
+            old_config_values.insert(
+                name.into(),
+                if original.as_ptr() == DYANMIC_CONFIG_UPDATE_UNMODIFIED {
+                    None
+                } else {
+                    Some(OwnedZendString(original))
+                },
+            );
         }
         found_configs.insert(mem::discriminant(config));
     }

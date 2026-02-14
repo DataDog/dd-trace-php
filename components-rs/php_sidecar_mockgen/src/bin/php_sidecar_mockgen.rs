@@ -41,7 +41,8 @@ fn main() {
     }
 
     let source_modified = fs::metadata("mock_php_syms.c").unwrap().modified().unwrap();
-    if fs::metadata("mock_php.shared_lib").map_or(true, |m| m.modified().unwrap() < source_modified) {
+    if fs::metadata("mock_php.shared_lib").map_or(true, |m| m.modified().unwrap() < source_modified)
+    {
         env::set_var("OPT_LEVEL", "2");
 
         let mut cc_build = cc::Build::new();
@@ -76,11 +77,17 @@ fn main() {
             }
         };
 
-        let comma_separated = bin.iter().map(|byte| format!("{byte:#X}")).collect::<Vec<String>>().join(",");
-        let out = format!(r#"
+        let comma_separated = bin
+            .iter()
+            .map(|byte| format!("{byte:#X}"))
+            .collect::<Vec<String>>()
+            .join(",");
+        let out = format!(
+            r#"
             const unsigned char DDTRACE_MOCK_PHP[] = {{{comma_separated}}};
             const void *DDTRACE_MOCK_PHP_SIZE = (void *) sizeof(DDTRACE_MOCK_PHP);
-            "#);
+            "#
+        );
 
         if let Err(err) = fs::write(output_path, out) {
             eprintln!("Failed generating {:?}: {}", output_path, err);
