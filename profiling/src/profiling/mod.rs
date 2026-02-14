@@ -30,10 +30,12 @@ use core::mem::forget;
 use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
-use libdd_profiling::api::{Period, UpscalingInfo, ValueType as ApiValueType};
+use libdd_common::tag::Tag;
+use libdd_profiling::api::{
+    Period, SampleType as ApiSampleType, UpscalingInfo, ValueType as ApiValueType,
+};
 #[cfg(php_opcache_restart_hook)]
 use libdd_profiling::api2::{Label as Api2Label, Location2};
-use libdd_profiling::exporter::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
@@ -422,16 +424,29 @@ impl TimeCollector {
         let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        let dict_arc = crate::interning::dictionary_arc()
-            .try_clone()
-            .expect("failed to clone dictionary Arc for profile");
-        let mut profile = InternalProfile::try_new_with_dictionary(
+        #[cfg(php_opcache_restart_hook)]
+        let mut profile = {
+            let dict_arc = crate::interning::dictionary_arc()
+                .try_clone()
+                .expect("failed to clone dictionary Arc for profile");
+            InternalProfile::try_new_with_dictionary(
+                &sample_types,
+                Some(Period {
+                    sample_type: ApiSampleType::WallTime,
+                    value: period.min(i64::MAX as u128) as i64,
+                }),
+                dict_arc,
+            )
+            .expect("failed to create a new InternalProfile object")
+        };
+
+        #[cfg(not(php_opcache_restart_hook))]
+        let mut profile = InternalProfile::try_new(
             &sample_types,
             Some(Period {
                 sample_type: ApiSampleType::WallTime,
                 value: period.min(i64::MAX as u128) as i64,
             }),
-            dict_arc,
         )
         .expect("failed to create a new InternalProfile object");
         let _ = profile.set_start_time(started_at);
@@ -1742,7 +1757,7 @@ mod tests {
     use super::*;
     use crate::config::SystemSettingsState;
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
-    use libdd_profiling::exporter::Uri;
+    use http::Uri;
     use log::LevelFilter;
 
     fn get_frames() -> Backtrace {

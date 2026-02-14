@@ -1307,10 +1307,11 @@ dependencies = [
  "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
- "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?tag=v27.0.0)",
+ "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?rev=82137ef3fd67442b8b47902ad2fba6782827ca09)",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log 0.4.25",
+ "no-panic",
  "perfcnt",
  "rand 0.8.5",
  "rand_distr",
@@ -1590,6 +1591,15 @@ name = "either"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60b1af1c220855b6ceac025d3f6ecdd2b7c4894bfe9cd9bda4fbb4bc7c0d4cf0"
+
+[[package]]
+name = "encoding_rs"
+version = "0.8.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+dependencies = [
+ "cfg-if",
+]
 
 [[package]]
 name = "enum-ordinalize"
@@ -2681,7 +2691,7 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
+source = "git+https://github.com/DataDog/libdatadog?rev=82137ef3fd67442b8b47902ad2fba6782827ca09#82137ef3fd67442b8b47902ad2fba6782827ca09"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
@@ -2731,9 +2741,10 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "1.1.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
+source = "git+https://github.com/DataDog/libdatadog?rev=82137ef3fd67442b8b47902ad2fba6782827ca09#82137ef3fd67442b8b47902ad2fba6782827ca09"
 dependencies = [
  "anyhow",
+ "bytes",
  "cc",
  "const_format",
  "futures",
@@ -2749,7 +2760,7 @@ dependencies = [
  "hyper-util",
  "libc 0.2.177",
  "mime 0.3.17",
- "multipart",
+ "multer",
  "nix 0.29.0",
  "pin-project",
  "rand 0.8.5",
@@ -2937,7 +2948,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
+source = "git+https://github.com/DataDog/libdatadog?rev=82137ef3fd67442b8b47902ad2fba6782827ca09#82137ef3fd67442b8b47902ad2fba6782827ca09"
 dependencies = [
  "allocator-api2",
  "anyhow",
@@ -2953,8 +2964,9 @@ dependencies = [
  "http-body-util",
  "httparse",
  "indexmap 2.12.1",
+ "libc 0.2.177",
  "libdd-alloc",
- "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?tag=v27.0.0)",
+ "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?rev=82137ef3fd67442b8b47902ad2fba6782827ca09)",
  "libdd-profiling-protobuf",
  "mime 0.3.17",
  "parking_lot",
@@ -2968,13 +2980,14 @@ dependencies = [
  "thiserror 2.0.12",
  "tokio",
  "tokio-util",
+ "windows-sys 0.52.0",
  "zstd",
 ]
 
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
+source = "git+https://github.com/DataDog/libdatadog?rev=82137ef3fd67442b8b47902ad2fba6782827ca09#82137ef3fd67442b8b47902ad2fba6782827ca09"
 dependencies = [
  "prost",
 ]
@@ -3360,6 +3373,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes",
+ "encoding_rs",
+ "futures-util",
+ "http",
+ "httparse",
+ "memchr",
+ "mime 0.3.17",
+ "spin",
+ "version_check 0.9.5",
+]
+
+[[package]]
 name = "multimap"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3441,6 +3471,17 @@ dependencies = [
  "cfg-if",
  "cfg_aliases",
  "libc 0.2.177",
+]
+
+[[package]]
+name = "no-panic"
+version = "0.1.36"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f967505aabc8af5752d098c34146544a43684817cdba8f9725b292530cabbf53"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -4090,7 +4131,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "059a34f111a9dee2ce1ac2826a68b24601c4298cfeb1a587c3cb493d5ab46f52"
 dependencies = [
  "libc 0.2.177",
- "nix 0.29.0",
+ "nix 0.30.1",
 ]
 
 [[package]]
@@ -5331,6 +5372,12 @@ dependencies = [
  "winapi 0.2.8",
  "windows 0.51.1",
 ]
+
+[[package]]
+name = "spin"
+version = "0.9.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
 
 [[package]]
 name = "stable_deref_trait"
