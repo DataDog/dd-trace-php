@@ -2883,8 +2883,7 @@ TEST(ClientTest, SchemasOverTheLimitAreCompressed)
             auto schema = parameter::array();
             schema.add(parameter::int64(4));
             expected_schemas.add(std::to_string(i), std::move(schema));
-            body_length =
-                parameter_to_json(parameter_view(expected_schemas)).length();
+            body_length = parameter_to_json(*&expected_schemas).length();
             i++;
         }
         msg.data.add("server.request.body", std::move(body));
@@ -2957,7 +2956,7 @@ TEST(ClientTest, RaspCalls)
         {
             network::request_exec::request msg;
 
-            msg.rasp_rule = "lfi";
+            msg.options.rasp_rule = "lfi";
             msg.data = parameter::map();
 
             network::request req(std::move(msg));

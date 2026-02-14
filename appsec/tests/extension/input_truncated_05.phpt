@@ -41,16 +41,16 @@ rshutdown();
 
 $commands = $helper->get_commands();
 
-$test1_data = $commands[2][1][1];
+$test1_data = $commands[2][1][0];
 // outer array + container + 2046
 echo "test1: number of elements inside: ", count(reset($test1_data)), "\n";
 
-$test2_data = $commands[3][1][1];
+$test2_data = $commands[3][1][0];
 // outer array + container + 2000 + container + 44
 echo "test2: number of elements inside 1st array: ", count($test2_data['test2'][0]), "\n";
 echo "test2: number of elements inside 2st array: ", count($test2_data['test2'][1]), "\n";
 
-$test3_data = $commands[4][1][1];
+$test3_data = $commands[4][1][0];
 $d = $test3_data['test3'];
 $num_arrs = count(array_filter($d, function ($x) { return $x === array(1); }));
 $num_nils = count(array_filter($d, function ($x) { return $x === null; }));

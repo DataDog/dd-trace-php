@@ -207,7 +207,7 @@
       "on_match": [
         "block"
       ]
-    },    
+    },
     {
       "id": "redirect-001-001",
       "name": "Redirected IP Addresses",
@@ -6933,6 +6933,243 @@
       "on_match": [
         "stack_trace"
       ]
+    },
+    {
+      "id": "CUSTOM-001",
+      "name": "Block on client request body content",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.body"
+              }
+            ],
+            "list": [
+              "blocked_request_body"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-002",
+      "name": "Block on client response body content",
+      "tags": {
+        "type": "block_response",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.response.body"
+              }
+            ],
+            "list": [
+              "blocked_response_body"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-003",
+      "name": "Block on client request headers",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers"
+              }
+            ],
+            "list": [
+              "blocked_request_headers"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-003b",
+      "name": "Block on client request cookies",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.headers",
+                "key_path": ["cookie"]
+              }
+            ],
+            "regex": "blocked_request_cookies"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-004",
+      "name": "Block on client response headers",
+      "tags": {
+        "type": "block_response",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.response.headers"
+              }
+            ],
+            "list": [
+              "blocked_response_headers"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-004b",
+      "name": "Block on client response cookies",
+      "tags": {
+        "type": "block_response",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.response.headers",
+                "key_path": ["set-cookie"]
+              }
+            ],
+            "regex": "blocked_response_cookies"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-005",
+      "name": "Block on client request query parameter",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "\\?.*blocked_query_param"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-006",
+      "name": "Block on client request URI",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.url"
+              }
+            ],
+            "regex": "/blocked_uri_path"
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    },
+    {
+      "id": "CUSTOM-007",
+      "name": "Block PUT requests",
+      "tags": {
+        "type": "block_request",
+        "category": "security_response"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.net.request.method"
+              }
+            ],
+            "list": [
+              "PUT"
+            ]
+          },
+          "operator": "exact_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
     }
   ],
   "rules_compat": [
@@ -7135,7 +7372,7 @@
           "expiration": 0
         }
       ]
-    },    
+    },
     {
       "id": "blocked_users_with_stack",
       "type": "data_with_expiration",

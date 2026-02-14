@@ -64,6 +64,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withCreateContainerCmdModifier(cmd -> {
             cmd.hostConfig.withInit(true)
         })
+        withEnv 'DD_API_SECURITY_DOWNSTREAM_BODY_ANALYSIS_SAMPLE_RATE', '1.0'
         withExposedPorts(80)
     }
 
