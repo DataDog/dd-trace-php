@@ -12,6 +12,7 @@ variables:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
   SYSTEM_TESTS_LIBRARY: php
+  REPO_NOTIFICATION_CHANNEL: "#apm-php"
 
 include:
   - project: DataDog/apm-reliability/libdatadog-build
