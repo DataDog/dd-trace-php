@@ -226,6 +226,24 @@ trait CommonTests {
     }
 
     @Test
+    void 'trace without event'() {
+        def respContentType = null
+        def respContentLength = null
+        def trace = container.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            def headerContentType = resp.headers().firstValue('Content-Type')
+            if (headerContentType.isPresent()) {
+                respContentType = headerContentType.get()
+            }
+        }
+
+        Span span = trace.first()
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert respContentType != null && respContentType.length() > 0
+        assert span.meta."http.response.headers.content-type" == respContentType
+    }
+
+    @Test
     void 'trace with an attack'() {
         HttpRequest req = container.buildReq('/hello.php')
                 .header('User-Agent', 'Arachni/v1').GET().build()
