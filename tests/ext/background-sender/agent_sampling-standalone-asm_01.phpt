@@ -17,33 +17,54 @@ datadog.trace.agent_test_session_token=background-sender/agent_samplingc
 include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
-$rr->maxIteration = 2000;
 
 $picked = 0;
 $notPicked = 0;
-$maxIterations = 10;
+$maxIterations = 15;
+$spanRecords = [];
 for ($i = 0; $i < $maxIterations; $i++)
 {
     //Do call and get sampling
     \DDTrace\start_span();
     \DDTrace\close_span();
-    $root = json_decode($rr->waitForDataAndReplay()["body"], true);
-    $spans = $root["chunks"][0]["spans"] ?? $root[0];
+	// Flush the span synchronously before reading from the request replayer
+	dd_trace_internal_fn("synchronous_flush");
+	try {
+		$request = $rr->waitForDataAndReplay();
+	} catch (Exception $e) {
+		// If no request yet, try next iteration
+		continue;
+	}
+	$body = $request["body"] ?? null;
+	if ($body === null) {
+		continue;
+	}
+	$root = json_decode($body, true);
+	if (!is_array($root)) {
+		continue;
+	}
+    $spans = $root["chunks"][0]["spans"] ?? ($root[0] ?? null);
+	$spanRecords[] = $spans;
+	if (!is_array($spans) || !isset($spans[0]["metrics"]["_sampling_priority_v1"])) {
+		continue;
+	}
     $sampling = $spans[0]["metrics"]["_sampling_priority_v1"];
-    dd_trace_internal_fn("synchronous_flush");
 
-    if($sampling == 1 && $picked == 1) //Start again, probably different minute
-    {
-        $notPicked = 0;
-        continue;
-    } else if ($sampling == 1) { //First picked
+	if ($sampling == 1) { // First pick this minute (or minute rollover)
         $picked = 1;
-    } else if ($sampling == 0) {
-       $notPicked++;
-    } else if($picked == 0 && $sampling == 0) {
-        //If this happen means something is odd already
-        break;
+		$notPicked = 0;
+		continue;
     }
+
+	// Ignore zeros until we've seen the first 1
+	if ($picked == 0) {
+		continue;
+	}
+
+	// After first 1, count zeros
+	if ($sampling == 0) {
+		$notPicked++;
+	}
     if ($picked == 1 && $notPicked == 2) {
         break;
     }
@@ -51,6 +72,11 @@ for ($i = 0; $i < $maxIterations; $i++)
 
 if ($picked == 1 && $notPicked == 2) {
     echo "All good" . PHP_EOL;
+} else {
+	echo "Iterations: $i" . PHP_EOL;
+	echo "Picked: $picked" . PHP_EOL;
+	echo "notPicked: $notPicked" . PHP_EOL;
+	echo var_dump($spanRecords);
 }
 
 echo "Done" . PHP_EOL;

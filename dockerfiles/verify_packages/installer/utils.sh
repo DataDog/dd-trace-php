@@ -116,7 +116,7 @@ assert_appsec_installed() {
 
 assert_appsec_enabled() {
     output="$(php --ri ddappsec)"
-    if [ -z "${output##*datadog.appsec.enabled => On*}" ]; then
+    if [ -z "${output##*Current state => Enabled*}" ]; then
         echo "---\nOk: ddappsec is enabled\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong ddappsec should be enabled\n---\n${output}\n---\n"
@@ -126,7 +126,7 @@ assert_appsec_enabled() {
 
 assert_appsec_disabled() {
     output="$(php --ri ddappsec)"
-    if [ -n "${output##*datadog.appsec.enabled => On*}" ]; then
+    if [ -n "${output##*Current state => Enabled*}" ]; then
         echo "---\nOk: ddappsec is not enabled\n---\n${output}\n---\n"
     else
         echo "---\nError: Wrong ddappsec should not be enabled\n---\n${output}\n---\n"

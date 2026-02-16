@@ -23,16 +23,16 @@ cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 dynasmrt = "2.0"
-libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", tag = "v25.0.0" }
-libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", tag = "v25.0.0" }
-libdd-common = {  git = "https://github.com/DataDog/libdatadog", tag = "v25.0.0" }
+http = { version = "1.4" }
+libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", tag = "v27.0.0" }
+libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", tag = "v27.0.0" }
+libdd-common = {  git = "https://github.com/DataDog/libdatadog", tag = "v27.0.0" }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }
 libc = "0.2"
 # TRACE set to max to support runtime configuration.
 log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"]}
-once_cell = { version = "1.12" }
 serde_json = {version = "1.0"}
 rand = { version = "0.8.5" }
 rand_distr = { version = "0.4.3" }
@@ -76,9 +76,6 @@ trigger_time_sample = []
 [build-dependencies]
 bindgen = { version = "0.69.4" }
 cc = { version = "1.0" }
-
-# We can remove this when we're using Rust 1.80+
-rustc_version = "0.4"
 
 # profiling release options in root Cargo.toml
 

@@ -446,7 +446,7 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 			mkdir -pv "$(BUILD_DIR)"; \
 			export CARGO_TARGET_DIR="$(BUILD_DIR)/target"; \
 		fi; \
-		cargo run -p tools -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h $(PROJECT_ROOT)/components-rs/library-config.h \
+		cargo run -p tools --bin dedup_headers -- $(PROJECT_ROOT)/components-rs/common.h $(PROJECT_ROOT)/components-rs/ddtrace.h $(PROJECT_ROOT)/components-rs/live-debugger.h $(PROJECT_ROOT)/components-rs/telemetry.h $(PROJECT_ROOT)/components-rs/sidecar.h $(PROJECT_ROOT)/components-rs/crashtracker.h $(PROJECT_ROOT)/components-rs/library-config.h \
 	)
 
 cbindgen_binary:
@@ -1569,7 +1569,7 @@ test_web_custom: global_test_run_dependencies tests/Frameworks/Custom/Version_Au
 	$(call run_tests_debug,--testsuite=custom-framework-autoloading-test)
 
 tests/Frameworks/Drupal/%/composer.lock-php: tests/Frameworks/Drupal/%/composer.json
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs)
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs --no-dev)
 	touch tests/Frameworks/Drupal/$(*)/composer.lock-php
 
 tests/%/composer.lock-php$(PHP_MAJOR_MINOR): tests/%/composer.json

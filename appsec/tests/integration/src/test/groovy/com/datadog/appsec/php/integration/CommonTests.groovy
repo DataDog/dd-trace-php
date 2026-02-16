@@ -5,6 +5,7 @@ import com.datadog.appsec.php.mock_agent.MsgpackHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -19,7 +20,6 @@ import org.msgpack.core.MessagePack
 import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static java.net.http.HttpResponse.BodyHandlers.ofString
 import static org.hamcrest.MatcherAssert.assertThat
-
 trait CommonTests {
 
     AppSecContainer getContainer() {

@@ -19,13 +19,6 @@
 #include <mpack.h>
 #include <stdatomic.h>
 
-static const char WAF_REQUEST_METRIC[] = "waf.requests";
-static const size_t WAF_REQUEST_METRIC_LEN = sizeof(WAF_REQUEST_METRIC) - 1;
-static const char TRUNCATED_TAG[] = "input_truncated=true";
-static const size_t TRUNCATED_TAG_LEN = sizeof(TRUNCATED_TAG);
-static const char TAG_SEPARATOR = ',';
-static const size_t TAG_SEPARATOR_LEN = sizeof(TAG_SEPARATOR);
-
 typedef struct _dd_omsg {
     zend_llist iovecs;
     mpack_writer_t writer;
@@ -509,8 +502,6 @@ static void dd_command_process_settings(mpack_node_t root);
  *    2: [force keep: bool]
  *    3: [meta: map]
  *    4: [metrics: map]
- *    5: [telemetry metrics: map string ->
- *         array(array(value: double, tags: string)])
  * )
  */
 #define RESP_INDEX_ACTION_PARAMS 0
@@ -519,7 +510,6 @@ static void dd_command_process_settings(mpack_node_t root);
 #define RESP_INDEX_SETTINGS 3
 #define RESP_INDEX_SPAN_META 4
 #define RESP_INDEX_SPAN_METRICS 5
-#define RESP_INDEX_TELEMETRY_METRICS 6
 
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, void *unspecnull _ctx)
@@ -556,11 +546,6 @@ dd_result dd_command_proc_resp_verd_span_data(
         mpack_node_t metrics =
             mpack_node_array_at(root, RESP_INDEX_SPAN_METRICS);
         dd_command_process_metrics(metrics, span);
-    }
-
-    if (mpack_node_array_length(root) >= RESP_INDEX_TELEMETRY_METRICS + 1) {
-        dd_command_process_telemetry_metrics(
-            mpack_node_array_at(root, RESP_INDEX_TELEMETRY_METRICS));
     }
 
     return res;
@@ -794,132 +779,6 @@ bool dd_command_process_metrics(mpack_node_t root, zend_object *nonnull span)
     }
 
     return true;
-}
-
-static void _handle_telemetry_metric(const char *nonnull key_str,
-    size_t key_len, double value, const char *nonnull tags_str,
-    size_t tags_len);
-
-bool dd_command_process_telemetry_metrics(mpack_node_t metrics)
-{
-    if (mpack_node_type(metrics) != mpack_type_map) {
-        return false;
-    }
-
-    if (!ddtrace_metric_register_buffer) {
-        mlog_g(dd_log_debug, "ddtrace_metric_register_buffer unavailable");
-        return true;
-    }
-
-    for (size_t i = 0; i < mpack_node_map_count(metrics); i++) {
-        mpack_node_t key = mpack_node_map_key_at(metrics, i);
-
-        const char *key_str = mpack_node_str(key);
-        if (!key_str) {
-            continue;
-        }
-
-        size_t key_len = mpack_node_strlen(key);
-        mpack_node_t arr_value = mpack_node_map_value_at(metrics, i);
-
-        for (size_t j = 0; j < mpack_node_array_length(arr_value); j++) {
-            mpack_node_t value = mpack_node_array_at(arr_value, j);
-            mpack_node_t dval_node = mpack_node_array_at(value, 0);
-            double dval = mpack_node_double(dval_node);
-
-            const char *tags_str = "";
-            char *modified_tags_str = NULL;
-            size_t tags_len = 0;
-            if (mpack_node_array_length(value) >= 2) {
-                mpack_node_t tags = mpack_node_array_at(value, 1);
-                tags_str = mpack_node_str(tags);
-                tags_len = mpack_node_strlen(tags);
-            }
-            if (mpack_node_error(metrics) != mpack_ok) {
-                break;
-            }
-            if (dd_msgpack_helpers_is_data_truncated() &&
-                WAF_REQUEST_METRIC_LEN == key_len &&
-                memcmp(WAF_REQUEST_METRIC, key_str, WAF_REQUEST_METRIC_LEN) ==
-                    0) {
-                size_t separator = 0;
-                if (tags_len > 0) {
-                    separator = TAG_SEPARATOR_LEN;
-                }
-                modified_tags_str =
-                    emalloc(tags_len + TRUNCATED_TAG_LEN + 1 + separator);
-                if (modified_tags_str) {
-                    memcpy(modified_tags_str, tags_str, tags_len);
-                    if (separator > 0) {
-                        modified_tags_str[tags_len] = TAG_SEPARATOR;
-                    }
-                    memcpy(modified_tags_str + tags_len + separator,
-                        TRUNCATED_TAG, TRUNCATED_TAG_LEN);
-                    tags_len += TRUNCATED_TAG_LEN + separator;
-                    tags_str = modified_tags_str;
-                }
-            }
-
-            _handle_telemetry_metric(
-                key_str, key_len, dval, tags_str, tags_len);
-            if (modified_tags_str) {
-                efree(modified_tags_str);
-            }
-        }
-    }
-
-    return true;
-}
-
-static void _init_zstr(
-    zend_string *_Atomic *nonnull zstr, const char *nonnull str, size_t len)
-{
-    zend_string *zstr_cur = atomic_load_explicit(zstr, memory_order_acquire);
-    if (zstr_cur != NULL) {
-        return;
-    }
-    zend_string *zstr_new = zend_string_init(str, len, 1);
-    if (atomic_compare_exchange_strong_explicit(zstr, &(zend_string *){NULL},
-            zstr_new, memory_order_release, memory_order_relaxed)) {
-        return;
-    }
-    zend_string_release(zstr_new);
-}
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-void _handle_telemetry_metric(const char *nonnull key_str, size_t key_len,
-    double value, const char *nonnull tags_str, size_t tags_len)
-{
-#define HANDLE_METRIC(name, type)                                              \
-    do {                                                                       \
-        if (key_len == LSTRLEN(name) && memcmp(key_str, name, key_len) == 0) { \
-            static zend_string *_Atomic key_zstr;                              \
-            _init_zstr(&key_zstr, name, LSTRLEN(name));                        \
-            zend_string *tags_zstr = zend_string_init(tags_str, tags_len, 0);  \
-            dd_telemetry_add_metric(key_zstr, value, tags_zstr, type);         \
-            zend_string_release(tags_zstr);                                    \
-            mlog_g(dd_log_debug,                                               \
-                "Telemetry metric %.*s added with tags %.*s and value %f",     \
-                (int)key_len, key_str, (int)tags_len, tags_str, value);        \
-            return;                                                            \
-        }                                                                      \
-    } while (0)
-
-    HANDLE_METRIC("waf.requests", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("waf.updates", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("waf.init", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("waf.config_errors", DDTRACE_METRIC_TYPE_COUNT);
-
-    HANDLE_METRIC("remote_config.first_pull", DDTRACE_METRIC_TYPE_GAUGE);
-    HANDLE_METRIC("remote_config.last_success", DDTRACE_METRIC_TYPE_GAUGE);
-
-    // Rasp
-    HANDLE_METRIC("rasp.timeout", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("rasp.rule.match", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("rasp.rule.eval", DDTRACE_METRIC_TYPE_COUNT);
-    HANDLE_METRIC("rasp.error", DDTRACE_METRIC_TYPE_COUNT);
-
-    mlog_g(dd_log_info, "Unknown telemetry metric %.*s", (int)key_len, key_str);
 }
 
 static void _dump_in_msg(

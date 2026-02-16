@@ -17,8 +17,7 @@ $helper = Helper::createInitedRun([
     response_list(response_request_exec([[['ok', []]]])),  // Test 1
     response_list(response_request_exec([[['ok', []]]])),  // Test 2
     response_list(response_request_exec([[['ok', []]]])),  // Test 3
-    response_list(response_request_shutdown([[['ok', []]], [], false, [],
-    [], [], ["waf.requests" => [[3.0, ""]]]]))
+    response_list(response_request_shutdown([[['ok', []]]]))
 ]);
 
 rinit();
@@ -60,9 +59,6 @@ echo "test3: number of nulls: ", $num_nils, "\n";
 
 ?>
 --EXPECTF--
-Notice: datadog\appsec\testing\rshutdown(): Would call ddtrace_metric_register_buffer with name=waf.requests type=1 ns=3 in %s on line %d
-
-Notice: datadog\appsec\testing\rshutdown(): Would call to ddtrace_metric_add_point with name=waf.requests value=3.000000 tags=input_truncated=true in %s on line %d
 test1: number of elements inside: 2046
 test2: number of elements inside 1st array: 2000
 test2: number of elements inside 2st array: 44
