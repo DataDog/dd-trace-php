@@ -20,9 +20,6 @@ function map_type($raw) {
         if ($inner === 'INT') {
             return 'string';
         }
-        if ($inner === 'uint32_t' || $inner === 'uint64_t') {
-            return 'int';
-        }
         if ($inner === 'MAP') {
             return 'map';
         }
@@ -33,16 +30,11 @@ function map_type($raw) {
         'MAP' => 'map', 'JSON' => 'array', 'SET_OR_MAP_LOWERCASE' => 'map',
         'SET' => 'array', 'SET_LOWERCASE' => 'array',
         'uint32_t' => 'int', 'uint64_t' => 'int',
-        'CUSTOM(INT)' => 'string', 'CUSTOM(MAP)' => 'map',
     ];
     return $map[$raw] ?? 'string';
 }
 
 function normalize_default($v, $type, $name) {
-    $v = preg_replace('/\s*ALT\s*$/', '', trim($v));
-    if ($v === '"' || $v === '') {
-        return '';
-    }
     if (strtoupper($v) === 'NULL') {
         // OTEL env vars are string-typed and use "" (not null) as their "unset" default.
         if (strpos($name, 'OTEL_') === 0) {
@@ -65,8 +57,7 @@ function normalize_default($v, $type, $name) {
 function normalize_aliases($aliases, $canonical) {
     $out = [];
     foreach ($aliases as $a) {
-        $a = trim(preg_replace('/\s*ALT\s*$/', '', $a));
-        if ($a !== '' && $a !== $canonical && $a !== 'ALT') {
+        if ($a !== '' && $a !== $canonical) {
             $out[$a] = true;
         }
     }
@@ -103,6 +94,7 @@ function add_supported_entry(&$supported, $name, $entry) {
     }
 }
 
+// temporary solution until we merge configs
 function map_rust_type($rawType, $parser) {
     $map = [
         'ZAI_CONFIG_TYPE_BOOL' => 'boolean',
@@ -352,6 +344,7 @@ extract_c_supported_configurations() {
 #endif
 // Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.
 #define ALTCALIASES(...) ,##__VA_ARGS__
+#define ALT
 #define EXPAND(x) x
 #define CUSTOM(id) id
 // Preserve the literal config type tokens (e.g. CUSTOM(INT)) so the generator can
