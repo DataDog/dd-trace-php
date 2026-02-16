@@ -288,4 +288,46 @@ mod tests {
         );
         assert_eq!(values, vec![10, 20, 30, 70]);
     }
+
+    #[test]
+    fn filter_with_io_profiling() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_io_enabled = true;
+
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
+
+        assert_eq!(
+            types,
+            vec![
+                ValueType::new("sample", "count"),
+                ValueType::new("wall-time", "nanoseconds"),
+                ValueType::new("socket-read-time", "nanoseconds"),
+                ValueType::new("socket-read-time-samples", "count"),
+                ValueType::new("socket-write-time", "nanoseconds"),
+                ValueType::new("socket-write-time-samples", "count"),
+                ValueType::new("file-io-read-time", "nanoseconds"),
+                ValueType::new("file-io-read-time-samples", "count"),
+                ValueType::new("file-io-write-time", "nanoseconds"),
+                ValueType::new("file-io-write-time-samples", "count"),
+                ValueType::new("socket-read-size", "bytes"),
+                ValueType::new("socket-read-size-samples", "count"),
+                ValueType::new("socket-write-size", "bytes"),
+                ValueType::new("socket-write-size-samples", "count"),
+                ValueType::new("file-io-read-size", "bytes"),
+                ValueType::new("file-io-read-size-samples", "count"),
+                ValueType::new("file-io-write-size", "bytes"),
+                ValueType::new("file-io-write-size-samples", "count"),
+            ]
+        );
+        assert_eq!(
+            values,
+            vec![
+                10, 20, 80, 81, 90, 91, 100, 101, 110, 111, 120, 121, 130,
+                131, 140, 141, 150, 151
+            ]
+        );
+    }
 }

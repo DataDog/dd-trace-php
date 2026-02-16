@@ -1,0 +1,36 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_io",
+  "stacks": [
+    {
+      "profile-type": "file-io-write-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;big_write;standard\\|file_put_contents$",
+          "percent": 66,
+          "error_margin": 10
+        },
+        {
+          "regular_expression": "<?php;main;small_write;standard\\|file_put_contents$",
+          "percent": 33,
+          "error_margin": 10
+        }
+      ]
+    },
+    {
+      "profile-type": "file-io-read-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;big_read;standard\\|file_get_contents$",
+          "percent": 66,
+          "error_margin": 10
+        },
+        {
+          "regular_expression": "<?php;main;small_read;standard\\|file_get_contents$",
+          "percent": 33,
+          "error_margin": 10
+        }
+      ]
+    }
+  ]
+}
