@@ -290,6 +290,14 @@ mod frameless {
         #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
         trampoline::install();
     }
+
+    #[cfg(test)]
+    mod tests {
+        use crate::bindings::zend_function;
+
+        #[no_mangle]
+        pub static mut zend_flf_functions: *mut *mut zend_function = std::ptr::null_mut();
+    }
 }
 
 /// A wrapper for the `ddog_php_prof_interrupt_function` to call the

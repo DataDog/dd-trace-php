@@ -133,7 +133,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
             return FAILURE;
         }
     }
-    
+
     _is_post_startup = true;
 
     return SUCCESS;
@@ -556,9 +556,6 @@ void ddog_php_test_free_fake_zend_function(zend_function *func) {
     free(func);
 }
 
-// Stub for zend_flf_functions (PHP 8.4+ frameless calls) to allow tests to link
-// without the real PHP runtime. The test doesn't exercise frameless code paths.
-__attribute__((weak)) zend_function **zend_flf_functions;
 #endif // CFG_STACK_WALKING_TESTS || CFG_TEST
 
 void *opcache_handle = NULL;
