@@ -43,28 +43,13 @@ $rr->waitForRequest(function ($request) {
         if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
             continue;
         }
+        echo $json["application"]["process_tags"];
 
-        foreach ($json["payload"]["logs"] as $payload) {
-            $payload["message"] = json_decode($payload["message"], true);
-            $output = json_encode($payload, JSON_PRETTY_PRINT);
-
-            echo $output;
-
-            return true;
-        }
+        return true;
     }
 
     return false;
 });
 ?>
 --EXPECTF--
-%A{
-    "message": {
-%A
-        "metadata": {
-            "library_name": "dd-trace-php",
-            "library_version": "%s",
-            "family": "php",
-            "tags": [%A
-                "process_tags:entrypoint.name:standard_input_code,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli"%A
-}%A
+%Aentrypoint.name:standard_input_code,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli
