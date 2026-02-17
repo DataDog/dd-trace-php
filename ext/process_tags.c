@@ -32,6 +32,7 @@ typedef struct {
     size_t count;
     size_t capacity;
     zend_string *serialized;
+    ddog_Vec_Tag vec;
 } process_tags_t;
 
 static process_tags_t process_tags = {0};
@@ -190,10 +191,33 @@ static void serialize_process_tags(void) {
     }
 
     smart_str_free(&buf);
+
+    process_tags.vec = ddog_Vec_Tag_new();
+    for (size_t i = 0; i < process_tags.count; i++) {
+        const char* key = process_tags.tag_list[i].key;
+        const char* value = process_tags.tag_list[i].value;
+
+        UNUSED(ddog_Vec_Tag_push(&process_tags.vec,
+            (ddog_CharSlice) {.ptr = key, .len = strlen(key)},
+            (ddog_CharSlice) {.ptr = value, .len = strlen(value)}
+        ));
+    }
 }
 
 zend_string *ddtrace_process_tags_get_serialized(void) {
     return (ddtrace_process_tags_enabled() && process_tags.serialized) ? process_tags.serialized : ZSTR_EMPTY_ALLOC();
+}
+
+const ddog_Vec_Tag *ddtrace_process_tags_get_vec(void) {
+    if (ddtrace_process_tags_enabled()) {
+        return &process_tags.vec;
+    }
+
+    static ddog_Vec_Tag empty_vec;
+    if (!empty_vec.ptr) {
+        empty_vec = ddog_Vec_Tag_new();
+    }
+    return &empty_vec;
 }
 
 bool ddtrace_process_tags_enabled(void){
@@ -224,5 +248,10 @@ void ddtrace_process_tags_mshutdown(void) {
     if (process_tags.serialized) {
         zend_string_release(process_tags.serialized);
     }
+
+    if (process_tags.vec.ptr) {
+        ddog_Vec_Tag_drop(process_tags.vec);
+    }
+
     memset(&process_tags, 0, sizeof(process_tags));
 }
