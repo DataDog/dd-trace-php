@@ -161,9 +161,21 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
             ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
             ddog_CharSlice version = dd_zend_string_to_CharSlice(DDTRACE_G(last_version));
 
+            ddog_DynamicInstrumentationConfigState dynamic_instrumentation_state;
+#if ZTS
+            // With the current architecture of config it's not accessible via the TSRMLS_CACHE and thus may be actually invalid on the current thread.
+            // This is a known issue and will be fixed with refactor of the module_globals usage of config. The current behaviour is not perfect, but has to be considered acceptable.
+            if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_DYNAMIC_INSTRUMENTATION_ENABLED].name_index >= 0) {
+                dynamic_instrumentation_state = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED() ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED;
+            } else {
+                dynamic_instrumentation_state = DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET;
+            }
+#else
+            dynamic_instrumentation_state = ddtrace_dynamic_instrumentation_state();
+#endif
             ddtrace_ffi_try("Failed sending config data",
                             ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
-                                                                    env_name, version, &DDTRACE_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
+                                                                    env_name, version, &DDTRACE_G(active_global_tags), dynamic_instrumentation_state));
         }
 
         tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
