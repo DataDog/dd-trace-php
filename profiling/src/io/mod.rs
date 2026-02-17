@@ -15,6 +15,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
+#[inline]
+unsafe fn get_errno() -> c_int {
+    *libc::__errno_location()
+}
+
+#[inline]
+unsafe fn set_errno(errno: c_int) {
+    *libc::__errno_location() = errno;
+}
+
 static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, u64, c_int) -> i32 = libc::poll;
 /// The `poll()` libc call has only every been observed when reading/writing to/from a socket,
 /// never when reading/writing to a file. There is two known cases in PHP:
@@ -27,6 +37,7 @@ static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, u64, c_int) -> i32
 unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c_int) -> i32 {
     let start = Instant::now();
     let ret = ORIG_POLL(fds, nfds, timeout);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     if !fds.is_null() {
@@ -62,6 +73,7 @@ unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c
         }
     }
 
+    set_errno(ret_errno);
     ret
 }
 
@@ -75,6 +87,7 @@ unsafe extern "C" fn observed_recv(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_RECV(socket, buf, length, flags);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -89,6 +102,7 @@ unsafe extern "C" fn observed_recv(
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -102,6 +116,7 @@ unsafe extern "C" fn observed_recvmsg(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_RECVMSG(socket, msg, flags);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -116,6 +131,7 @@ unsafe extern "C" fn observed_recvmsg(
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -138,6 +154,7 @@ unsafe extern "C" fn observed_recvfrom(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_RECVFROM(socket, buf, length, flags, address, address_len);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -152,6 +169,7 @@ unsafe extern "C" fn observed_recvfrom(
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -165,6 +183,7 @@ unsafe extern "C" fn observed_send(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_SEND(socket, buf, length, flags);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -179,6 +198,7 @@ unsafe extern "C" fn observed_send(
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -191,6 +211,7 @@ unsafe extern "C" fn observed_sendmsg(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_SENDMSG(socket, msg, flags);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -205,6 +226,7 @@ unsafe extern "C" fn observed_sendmsg(
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -222,6 +244,7 @@ unsafe extern "C" fn observed_fwrite(
 ) -> usize {
     let start = Instant::now();
     let len = ORIG_FWRITE(ptr, size, nobj, stream);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -235,6 +258,7 @@ unsafe extern "C" fn observed_fwrite(
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -242,6 +266,7 @@ static mut ORIG_WRITE: unsafe extern "C" fn(c_int, *const c_void, usize) -> isiz
 unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize) -> isize {
     let start = Instant::now();
     let len = ORIG_WRITE(fd, buf, count);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -274,6 +299,7 @@ unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize)
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -290,6 +316,7 @@ unsafe extern "C" fn observed_fread(
 ) -> usize {
     let start = Instant::now();
     let len = ORIG_FREAD(ptr, size, nobj, stream);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -303,6 +330,7 @@ unsafe extern "C" fn observed_fread(
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -310,6 +338,7 @@ static mut ORIG_READ: unsafe extern "C" fn(c_int, *mut c_void, usize) -> isize =
 unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) -> isize {
     let start = Instant::now();
     let len = ORIG_READ(fd, buf, count);
+    let ret_errno = get_errno();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -340,6 +369,7 @@ unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) ->
         }
     }
 
+    set_errno(ret_errno);
     len
 }
 
@@ -347,9 +377,11 @@ static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
 /// The sole purpose of this function is to remove the `fd` from the `FD_CACHE`
 unsafe extern "C" fn observed_close(fd: i32) -> i32 {
     let ret = ORIG_CLOSE(fd);
+    let ret_errno = get_errno();
     let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     let mut cache = cache.lock().unwrap();
     cache.remove(&fd);
+    set_errno(ret_errno);
     ret
 }
 
