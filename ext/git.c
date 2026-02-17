@@ -272,6 +272,8 @@ void replace_git_metadata(git_metadata_t *git_metadata, zend_string *commit_sha,
 void refresh_git_metadata_if_needed(zend_string *cwd, git_metadata_t *git_metadata) {
     zend_string *git_dir = find_git_dir(ZSTR_VAL(cwd));
     if (!git_dir) {
+        // Git directory no longer exists - invalidate cached entry
+        zend_hash_del(&DDTRACE_G(git_metadata), cwd);
         return;
     }
     zend_string *commit_sha = get_commit_sha(ZSTR_VAL(git_dir));
@@ -286,6 +288,9 @@ void refresh_git_metadata_if_needed(zend_string *cwd, git_metadata_t *git_metada
     } else if (commit_sha) {
         zend_string *repository_url = get_repository_url(ZSTR_VAL(git_dir));
         replace_git_metadata(git_metadata, commit_sha, repository_url);
+    } else if (git_metadata->property_commit) {
+        // If we previously had a commit SHA but now can't read it, the git folder became invalid
+        zend_hash_del(&DDTRACE_G(git_metadata), cwd);
     }
 
     zend_string_release(git_dir);

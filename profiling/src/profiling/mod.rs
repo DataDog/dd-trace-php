@@ -18,7 +18,10 @@ use crate::bindings::ddog_php_prof_get_active_fiber;
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
+use crate::bindings::{
+    datadog_php_profiling_get_process_tags_serialized, datadog_php_profiling_get_profiling_context,
+    zai_str_from_zstr, zend_execute_data,
+};
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 use crate::{Clocks, CLOCKS, TAGS};
@@ -27,11 +30,11 @@ use core::mem::forget;
 use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
+use libdd_common::tag::Tag;
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
     UpscalingInfo, ValueType as ApiValueType,
 };
-use libdd_common::tag::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
@@ -718,12 +721,24 @@ impl Profiler {
             upload_period: UPLOAD_PERIOD,
         };
 
+        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
+        // we're getting the process tags of a PHP thread
+        let process_tags: Option<String> = unsafe {
+            let raw_ptr = datadog_php_profiling_get_process_tags_serialized.unwrap_unchecked()();
+            zai_str_from_zstr(raw_ptr.as_mut())
+                .into_utf8()
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_owned())
+        };
+
         let uploader = Uploader::new(
             fork_barrier.clone(),
             upload_receiver,
             system_settings.output_pprof.clone(),
             system_settings.uri.clone(),
             Utc::now(),
+            process_tags,
         );
 
         let sample_types_filter = SampleTypeFilter::new(system_settings);

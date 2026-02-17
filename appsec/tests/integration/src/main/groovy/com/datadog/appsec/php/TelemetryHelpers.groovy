@@ -47,6 +47,16 @@ class TelemetryHelpers {
             path = m.path
             resourceName = m.resource_name
         }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", Endpoint.class.getSimpleName() + "[", "]")
+                    .add("method='" + method + "'")
+                    .add("operationName='" + operationName + "'")
+                    .add("path='" + path + "'")
+                    .add("resourceName='" + resourceName + "'")
+                    .toString();
+        }
     }
 
     static class Metric {

@@ -12,6 +12,7 @@ CentOS:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
@@ -40,6 +41,7 @@ Alpine:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
@@ -68,6 +70,7 @@ Bookworm:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
@@ -98,6 +101,7 @@ Buster:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h

@@ -767,3 +767,4 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     - if: $CI_COMMIT_REF_NAME == "master"
       when: always
     - when: manual
+      allow_failure: true
