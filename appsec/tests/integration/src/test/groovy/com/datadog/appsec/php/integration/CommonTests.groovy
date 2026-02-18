@@ -241,6 +241,8 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.enabled" == 1.0d
         assert respContentType != null && respContentType.length() > 0
         assert span.meta."http.response.headers.content-type" == respContentType
+        assert span.meta."http.response.headers.content-encoding" == 'foobar'
+        assert span.meta."http.response.headers.content-language" == 'en'
     }
 
     @Test
