@@ -398,7 +398,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
         addVolumeMount("php-tracer-$phpVersion-$phpVariant", '/project/tmp')
         if (System.getProperty('USE_HELPER_RUST')) {
-            // libddwaf.so is bundled in the helper-rust volume (downloaded by cargo/libddwaf-sys)
+            // libddwaf is statically linked into the helper-rust binary
             String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
                 'php-helper-rust-coverage' : 'php-helper-rust'
             addVolumeMount(helperVolume, '/helper-rust')

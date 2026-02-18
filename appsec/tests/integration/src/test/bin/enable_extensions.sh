@@ -20,8 +20,6 @@ HELPER_PATH=/appsec/libddappsec-helper.so
 if [[ -n $USE_HELPER_RUST ]]; then
   echo "Using Rust helper" >&2
   HELPER_PATH=/helper-rust/libddappsec-helper.so
-  # Symlink libddwaf.so from helper-rust volume (contains the version the Rust helper was linked against)
-  ln -sf /helper-rust/libddwaf.so /usr/lib/libddwaf.so
 fi
 
 if [[ -f /appsec/ddappsec.so && -d /project ]]; then

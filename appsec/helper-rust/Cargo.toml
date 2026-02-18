@@ -30,7 +30,7 @@ libc = "0.2"
 arc-swap = "1.7"
 crossbeam-epoch = "0.9"  # Epoch-based memory reclamation
 libddwaf = { path = "../third_party/libddwaf-rust/crates/libddwaf" }
-libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false, features = ["dynamic-link"] }
+libddwaf-sys = { path = "../third_party/libddwaf-rust/crates/libddwaf-sys", default-features = false }
 base64 = "0.22.1"
 flate2 = "1.0"         # gzip compression for schemas
 

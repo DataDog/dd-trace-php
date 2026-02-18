@@ -602,7 +602,7 @@ buildRunInDockerTask(
         inputs: helperRustInputs,
         outputs: [
                 volume: 'php-helper-rust',
-                files: ['libddappsec-helper.so', 'libddwaf.so'],
+                files: ['libddappsec-helper.so'],
         ],
         volumes: [
                 'php-helper-rust': [mountPoint: '/helper-rust-build'],
@@ -613,9 +613,6 @@ buildRunInDockerTask(
                 ${helperRustEnvSetup}
                 cargo build -v
                 cp /helper-rust-build/cargo-target/debug/libddappsec_helper_rust.so /helper-rust-build/libddappsec-helper.so
-
-                # Copy libddwaf.so from Cargo's downloaded release
-                find /helper-rust-build/cargo-target/debug/build/libddwaf-sys-*/out -name 'libddwaf.so*' -exec cp {} /helper-rust-build/libddwaf.so \\;
                 """
         ]
 )
@@ -695,7 +692,7 @@ buildRunInDockerTask(
         inputs: helperRustInputs,
         outputs: [
                 volume: 'php-helper-rust-coverage',
-                files: ['libddappsec-helper.so', 'libddwaf.so'],
+                files: ['libddappsec-helper.so'],
         ],
         volumes: [
                 'php-helper-rust-coverage': [mountPoint: '/helper-rust-build'],
@@ -730,9 +727,6 @@ EOF
                 chmod 777 /helper-rust-build/coverage
                 cargo build --release --target \$RUST_TARGET --features coverage
                 cp /helper-rust-build/cargo-target/\$RUST_TARGET/release/libddappsec_helper_rust.so /helper-rust-build/libddappsec-helper.so
-
-                # Copy libddwaf.so from Cargo's downloaded release
-                find /helper-rust-build/cargo-target/\$RUST_TARGET/release/build/libddwaf-sys-*/out -name 'libddwaf.so*' -exec cp {} /helper-rust-build/libddwaf.so \\;
 
                 # Clean up generated config
                 rm -rf .cargo
