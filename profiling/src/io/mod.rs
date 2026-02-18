@@ -30,12 +30,12 @@ struct ErrnoBackup {
 impl ErrnoBackup {
     /// Snapshots the current `errno` value.
     #[inline]
-    unsafe fn new() -> Self {
-        let location = libc::__errno_location();
-        Self {
-            errno: *location,
-            location,
-        }
+    fn new() -> Self {
+        // SAFETY: errno location is initialized in program/thread startup.
+        let location = unsafe { libc::__errno_location() };
+        // SAFETY: errno pointer is safe to read from same thread.
+        let errno = unsafe { location.read() };
+        Self { errno, location }
     }
 }
 
@@ -43,9 +43,8 @@ impl Drop for ErrnoBackup {
     /// Restores `errno` value.
     #[inline]
     fn drop(&mut self) {
-        unsafe {
-            *self.location = self.errno;
-        }
+        // SAFETY: points to thread's errno (cached in new), safe for writes.
+        unsafe { self.location.write(self.errno) }
     }
 }
 
@@ -699,4 +698,12 @@ pub fn io_prof_first_rinit() {
             );
         };
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ErrnoBackup;
+    use static_assertions::assert_not_impl_any;
+
+    assert_not_impl_any!(ErrnoBackup: Send, Sync);
 }

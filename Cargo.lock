@@ -1337,6 +1337,7 @@ dependencies = [
  "rand_distr",
  "rustc-hash 1.1.0",
  "serde_json",
+ "static_assertions",
  "thiserror 2.0.12",
  "tracing",
  "tracing-subscriber",
