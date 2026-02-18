@@ -150,28 +150,28 @@ fn convert_literal_to_bytes_string(string: *const c_char) -> BytesString {
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_span_service_zstr(ptr: &mut Span<BytesData>, str: &mut ZendString) {
+pub extern "C" fn ddog_set_span_service_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
     ptr.service = convert_zend_to_bytes_string(str);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_span_name_zstr(ptr: &mut Span<BytesData>, str: &mut ZendString) {
+pub extern "C" fn ddog_set_span_name_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
     ptr.name = convert_zend_to_bytes_string(str);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_span_resource_zstr(ptr: &mut Span<BytesData>, str: &mut ZendString) {
+pub extern "C" fn ddog_set_span_resource_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
     ptr.resource = convert_zend_to_bytes_string(str);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_set_span_type_zstr(ptr: &mut Span<BytesData>, str: &mut ZendString) {
+pub extern "C" fn ddog_set_span_type_zstr(ptr: &mut SpanBytes, str: &mut ZendString) {
     ptr.r#type = convert_zend_to_bytes_string(str);
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_add_span_meta_zstr(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: &mut ZendString,
     val: &mut ZendString,
 ) {
@@ -183,7 +183,7 @@ pub extern "C" fn ddog_add_span_meta_zstr(
 
 #[no_mangle]
 pub extern "C" fn ddog_add_CharSlice_span_meta_zstr(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: CharSlice,
     val: &mut ZendString,
 ) {
@@ -195,7 +195,7 @@ pub extern "C" fn ddog_add_CharSlice_span_meta_zstr(
 
 #[no_mangle]
 pub extern "C" fn ddog_add_zstr_span_meta_str(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: &mut ZendString,
     val: *const c_char,
 ) {
@@ -207,7 +207,7 @@ pub extern "C" fn ddog_add_zstr_span_meta_str(
 
 #[no_mangle]
 pub extern "C" fn ddog_add_str_span_meta_str(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: *const c_char,
     val: *const c_char,
 ) {
@@ -219,7 +219,7 @@ pub extern "C" fn ddog_add_str_span_meta_str(
 
 #[no_mangle]
 pub extern "C" fn ddog_add_str_span_meta_zstr(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: *const c_char,
     val: &mut ZendString,
 ) {
@@ -231,7 +231,7 @@ pub extern "C" fn ddog_add_str_span_meta_zstr(
 
 #[no_mangle]
 pub extern "C" fn ddog_add_str_span_meta_CharSlice(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: *const c_char,
     val: CharSlice,
 ) {
@@ -242,28 +242,28 @@ pub extern "C" fn ddog_add_str_span_meta_CharSlice(
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_del_span_meta_zstr(ptr: &mut Span<BytesData>, key: &mut ZendString) {
+pub extern "C" fn ddog_del_span_meta_zstr(ptr: &mut SpanBytes, key: &mut ZendString) {
     ptr.meta.remove(&convert_zend_to_bytes_string(key));
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_del_span_meta_str(ptr: &mut Span<BytesData>, key: *const c_char) {
+pub extern "C" fn ddog_del_span_meta_str(ptr: &mut SpanBytes, key: *const c_char) {
     ptr.meta.remove(&convert_literal_to_bytes_string(key));
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_has_span_meta_zstr(ptr: &mut Span<BytesData>, key: &mut ZendString) -> bool {
+pub extern "C" fn ddog_has_span_meta_zstr(ptr: &mut SpanBytes, key: &mut ZendString) -> bool {
     ptr.meta.contains_key(&convert_zend_to_bytes_string(key))
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_has_span_meta_str(ptr: &mut Span<BytesData>, key: *const c_char) -> bool {
+pub extern "C" fn ddog_has_span_meta_str(ptr: &mut SpanBytes, key: *const c_char) -> bool {
     ptr.meta.contains_key(&convert_literal_to_bytes_string(key))
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_get_span_meta_str(
-    span: &mut Span<BytesData>,
+    span: &mut SpanBytes,
     key: *const c_char,
 ) -> CharSlice<'static> {
     match span.meta.get(&convert_literal_to_bytes_string(key)) {
@@ -276,29 +276,29 @@ pub extern "C" fn ddog_get_span_meta_str(
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_add_span_metrics_zstr(ptr: &mut Span<BytesData>, key: &mut ZendString, val: f64) {
+pub extern "C" fn ddog_add_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut ZendString, val: f64) {
     ptr.metrics.insert(convert_zend_to_bytes_string(key), val);
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_has_span_metrics_zstr(ptr: &mut Span<BytesData>, key: &mut ZendString) -> bool {
+pub extern "C" fn ddog_has_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut ZendString) -> bool {
     ptr.metrics.contains_key(&convert_zend_to_bytes_string(key))
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_del_span_metrics_zstr(ptr: &mut Span<BytesData>, key: &mut ZendString) {
+pub extern "C" fn ddog_del_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut ZendString) {
     ptr.metrics.remove(&convert_zend_to_bytes_string(key));
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_add_span_metrics_str(ptr: &mut Span<BytesData>, key: *const c_char, val: f64) {
+pub extern "C" fn ddog_add_span_metrics_str(ptr: &mut SpanBytes, key: *const c_char, val: f64) {
     ptr.metrics
         .insert(convert_literal_to_bytes_string(key), val);
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_get_span_metrics_str(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: *const c_char,
     result: &mut f64,
 ) -> bool {
@@ -312,13 +312,13 @@ pub extern "C" fn ddog_get_span_metrics_str(
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_del_span_metrics_str(ptr: &mut Span<BytesData>, key: *const c_char) {
+pub extern "C" fn ddog_del_span_metrics_str(ptr: &mut SpanBytes, key: *const c_char) {
     ptr.metrics.remove(&convert_literal_to_bytes_string(key));
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_add_span_meta_struct_zstr(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: &mut ZendString,
     val: &mut ZendString,
 ) {
@@ -328,7 +328,7 @@ pub extern "C" fn ddog_add_span_meta_struct_zstr(
 
 #[no_mangle]
 pub extern "C" fn ddog_add_zstr_span_meta_struct_CharSlice(
-    ptr: &mut Span<BytesData>,
+    ptr: &mut SpanBytes,
     key: &mut ZendString,
     val: CharSlice,
 ) {
