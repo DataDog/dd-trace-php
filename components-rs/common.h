@@ -356,6 +356,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
+  DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
 } ddog_RemoteConfigProduct;
 
@@ -1015,19 +1016,6 @@ typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
 } ddog_DynamicInstrumentationConfigState;
-
-typedef enum ddog_Method {
-  DDOG_METHOD_GET = 0,
-  DDOG_METHOD_POST = 1,
-  DDOG_METHOD_PUT = 2,
-  DDOG_METHOD_DELETE = 3,
-  DDOG_METHOD_PATCH = 4,
-  DDOG_METHOD_HEAD = 5,
-  DDOG_METHOD_OPTIONS = 6,
-  DDOG_METHOD_TRACE = 7,
-  DDOG_METHOD_CONNECT = 8,
-  DDOG_METHOD_OTHER = 9,
-} ddog_Method;
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
