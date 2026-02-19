@@ -285,18 +285,52 @@ switch ($uri) {
 
                 $strUnpacker = new BufferUnpacker($raw, UnpackOptions::BIGINT_AS_STR);
                 $strTraces = $strUnpacker->unpack();
-                $traces = isset($strTraces["chunks"]) ? [&$strTraces["chunks"]] : [&$strTraces];
-                foreach ($traces[0] as &$trace) {
-                    $spans = isset($trace["spans"]) ? [&$trace["spans"]] : [&$trace];
-                    foreach ($spans[0] as &$span) {
-                        foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
-                            if (!isset($span[$field])) {
-                                continue;
+                if (isset($strTraces["chunks"])) {
+                    foreach ($strTraces["chunks"] as &$chunk) {
+                        if (isset($chunk["spans"])) {
+                            foreach ($chunk["spans"] as &$span) {
+                                foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
+                                    if (isset($span[$field])) {
+                                        $span[$field] = (string)$span[$field];
+                                    }
+                                }
                             }
-
-                            $span[$field] = (string)$span[$field];
+                            unset($span);
+                        } else {
+                            foreach ($chunk as &$span) {
+                                foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
+                                    if (isset($span[$field])) {
+                                        $span[$field] = (string)$span[$field];
+                                    }
+                                }
+                            }
+                            unset($span);
                         }
                     }
+                    unset($chunk);
+                } else {
+                    foreach ($strTraces as &$trace) {
+                        if (isset($trace["spans"])) {
+                            foreach ($trace["spans"] as &$span) {
+                                foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
+                                    if (isset($span[$field])) {
+                                        $span[$field] = (string)$span[$field];
+                                    }
+                                }
+                            }
+                            unset($span);
+                        } else {
+                            foreach ($trace as &$span) {
+                                foreach (['trace_id', 'span_id', 'parent_id'] as $field) {
+                                    if (isset($span[$field])) {
+                                        $span[$field] = (string)$span[$field];
+                                    }
+                                }
+                            }
+                            unset($span);
+                        }
+                    }
+                    unset($trace);
                 }
 
                 $body = json_encode($strTraces);
