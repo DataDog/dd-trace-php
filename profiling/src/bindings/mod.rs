@@ -376,6 +376,13 @@ extern "C" {
     /// `zend_system_id` hash (PHP 8.0+). Returns the handle (>= 0) on
     /// success, or -1 if all slots are taken.
     pub fn zend_get_resource_handle(module_name: *const c_char) -> c_int;
+
+    /// Iterates all internal functions (global + class methods) and calls
+    /// `callback(func, ctx)` for each one. Used to pre-intern names at startup.
+    pub fn datadog_php_profiling_foreach_internal_function(
+        callback: unsafe extern "C" fn(*mut zend_function, *mut c_void),
+        ctx: *mut c_void,
+    );
 }
 
 #[cfg(php_post_startup_cb)]

@@ -1031,6 +1031,9 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         return ZendResult::Failure;
     }
 
+    #[cfg(php_opcache_shm_cache)]
+    shm_cache::pre_intern_internal_functions();
+
     ZendResult::Success
 }
 
@@ -1066,7 +1069,9 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     unsafe { bindings::zai_config_mshutdown() };
     unsafe { bindings::zai_json_shutdown_bindings() };
 
-    // Unmap the SHM string table region.
+    // Null the global pointer and decrement the refcount. If the
+    // time_collector thread is still alive, its ShmRef keeps the region
+    // mapped until it finishes and drops the ref.
     unsafe { shm_cache::shutdown() };
 }
 
