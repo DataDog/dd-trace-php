@@ -52,13 +52,37 @@ libddwaf
 
 ## Key Components
 
-- **src/main.rs** - Entry point, Unix socket server
-- **src/client.rs** - Client connection handler, request processing
-- **src/service.rs** - Service management, rate limiting, WAF lifecycle
-- **src/rc.rs** - Remote configuration client (shared memory reader)
-- **src/telemetry.rs** - Telemetry definitions (not yet implemented)
-- **src/client/protocol.rs** - Msgpack protocol codec
+Core modules:
+- **src/lib.rs** - C FFI entry point (`appsec_helper_main()`), initialization, runtime management
+- **src/server.rs** - Unix socket server that accepts client connections
+- **src/client.rs** - Client connection handler, request processing, WAF execution orchestration
+- **src/service.rs** - Service management, maintains WAF instances per service configuration
+- **src/config.rs** - Configuration management (from environment variables)
+- **src/rc.rs** - Remote configuration reader using shared memory polling
+- **src/rc_notify.rs** - Remote configuration callback system to receive updates from sidecar
+- **src/telemetry.rs** - Telemetry traits and definitions for metrics and logs
+- **src/ffi.rs** - FFI helpers and symbol resolution for calling sidecar functions
+- **src/lock.rs** - Lock file and abstract socket uniqueness enforcement
+
+Client sub-modules:
+- **src/client/protocol.rs** - Msgpack protocol codec for PHP extension communication
+- **src/client/log.rs** - Logging utilities
+- **src/client/metrics.rs** - Request-level metrics collection
+- **src/client/attributes.rs** - Request attributes processing
+
+Service sub-modules:
 - **src/service/updateable_waf.rs** - Thread-safe WAF wrapper with atomic updates
+- **src/service/config_manager.rs** - ASM feature configuration from remote config
+- **src/service/limiter.rs** - Rate limiting for trace submission
+- **src/service/sampler.rs** - Trace sampling
+- **src/service/metrics.rs** - Service-level metrics
+- **src/service/waf_diag.rs** - WAF diagnostics collection
+- **src/service/waf_ruleset.rs** - WAF ruleset management and loading
+
+Telemetry sub-modules:
+- **src/telemetry/sidecar.rs** - Sidecar FFI telemetry submission
+- **src/telemetry/error_tel_ctx.rs** - Error telemetry context management
+- **src/telemetry/tel_aware_logger.rs** - Logger that integrates with telemetry system
 
 ## Building
 
@@ -98,6 +122,19 @@ Integration tests run via Gradle from `tests/integration/`:
 
 Logs for the helper are available at `tests/integration/build/test-logs/{helper,appsec}.log`
 
+**Important**: When validating changes, run tests on **both glibc and musl** systems:
+- Glibc (Debian): `test8.3-debug` or other standard test targets
+- Musl (Alpine): `test8.5-release-musl`
+
+The helper-rust binary is built to work universally on both platforms. Example:
+```bash
+# Test on glibc
+./gradlew test8.3-debug --tests "*NginxFpmTests*" -PuseHelperRust
+
+# Test on musl
+./gradlew test8.5-release-musl --tests "*NginxFpmTests*" -PuseHelperRust
+```
+
 ### Test Targets by PHP Version/Variant
 
 Some test classes require specific PHP versions or ZTS (Zend Thread Safety) variants:
@@ -111,8 +148,8 @@ Some test classes require specific PHP versions or ZTS (Zend Thread Safety) vari
  | RoadRunnerTests        | test7.4-debug (or later) | PHP >= 7.4, non-ZTS |
 
 Available gradle targets follow the pattern: `test{version}-{variant}` where:
-- version: 7.0, 7.1, 7.2, 7.3, 7.4, 8.0, 8.1, 8.2, 8.3, 8.4
-- variant: debug, release, release-zts
+- version: 7.0, 7.1, 7.2, 7.3, 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5
+- variant: debug, release, release-zts, release-musl (for Alpine/musl testing: 8.5-release only)
 
 ## Style
 

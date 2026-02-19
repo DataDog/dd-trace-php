@@ -160,6 +160,7 @@ stages:
           - test8.4-release-zts
           - test8.5-release
           - test8.5-release-zts
+          - test8.5-release-musl
 
 "appsec integration tests (helper-rust)":
   extends: .appsec_integration_tests

@@ -341,7 +341,7 @@ impl Decoder for CommandCodec {
         }
 
         let header_bytes = &src[..std::mem::size_of::<Header>()];
-        let header = unsafe { std::ptr::read(header_bytes.as_ptr() as *const Header) };
+        let header = unsafe { std::ptr::read_unaligned(header_bytes.as_ptr() as *const Header) };
         if !header.is_valid_marker() {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,

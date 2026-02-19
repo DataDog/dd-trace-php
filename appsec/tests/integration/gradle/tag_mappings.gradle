@@ -136,5 +136,6 @@ ext.tag_mappings = [
     'apache2-mod-php-8.5-debug': 'sha256:1ce0570b1e8fba34db0e4ec0f18134fb30c1d50ba795b6f42f0cbe3f19c7a68f',
     'nginx-fpm-php-8.5-release-zts': 'sha256:527f2ba273685ff7e3f72a74076fd6d99cbc87d51fb3485fef4dc80a0cfddeee',
     'nginx-fpm-php-8.5-release': 'sha256:fc2eea1ed06dfcf8102bdbfb2596f9a32bbe6493ca83d53370e1438289caa6aa',
-    'nginx-fpm-php-8.5-debug': 'sha256:915d0155897e4f42cf1867b93edbb928afcc1c5b3bd3eccdb2d56ac50510cd82'
+    'nginx-fpm-php-8.5-debug': 'sha256:915d0155897e4f42cf1867b93edbb928afcc1c5b3bd3eccdb2d56ac50510cd82',
+	'nginx-fpm-php-8.5-release-musl': 'sha256:73857002765b217e1076adc04f9ebc88505b0fa77fc48e2ad3005594b2f39bc9',
 ]

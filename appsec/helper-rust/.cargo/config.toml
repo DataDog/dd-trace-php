@@ -1,0 +1,22 @@
+target-applies-to-host=false
+
+[profile.release]
+debug = 2
+lto = "thin"
+codegen-units = 1
+
+[unstable]
+build-std = ["std", "panic_unwind"]
+build-std-features = ["llvm-libunwind"]
+
+[target.aarch64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=-crt-static", "-C", "link-arg=-Wl,--compress-debug-sections=zlib"]
+
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=-crt-static", "-C", "link-arg=-Wl,--compress-debug-sections=zlib"]
+
+[host.aarch64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=-crt-static"]
+
+[host.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=-crt-static"]

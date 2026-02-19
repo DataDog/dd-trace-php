@@ -398,15 +398,26 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
         addVolumeMount("php-tracer-$phpVersion-$phpVariant", '/project/tmp')
         if (System.getProperty('USE_HELPER_RUST')) {
-            // libddwaf is statically linked into the helper-rust binary
-            String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
-                'php-helper-rust-coverage' : 'php-helper-rust'
-            addVolumeMount(helperVolume, '/helper-rust')
-            withEnv 'USE_HELPER_RUST', '1'
-            if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
-                // Enable LLVM coverage profiling for the helper binary
-                withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
+            String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
+            if (helperBinaryPath) {
+                // Bind-mount explicit helper binary directly to the expected path
+                File helperFile = new File(helperBinaryPath)
+                if (!helperFile.isAbsolute()) {
+                    helperFile = new File(System.getProperty('user.dir'), helperBinaryPath)
+                }
+                withFileSystemBind(helperFile.absolutePath,
+                        '/helper-rust/libddappsec-helper.so', BindMode.READ_ONLY)
+            } else {
+                // libddwaf is statically linked into the helper-rust binary
+                String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
+                    'php-helper-rust-coverage' : 'php-helper-rust'
+                addVolumeMount(helperVolume, '/helper-rust')
+                if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
+                    // Enable LLVM coverage profiling for the helper binary
+                    withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
+                }
             }
+            withEnv 'USE_HELPER_RUST', '1'
         }
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"

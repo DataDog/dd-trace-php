@@ -54,11 +54,14 @@ public:
     // store a shared_ptr to the engine
     class context {
     public:
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         explicit context(engine &engine)
             : common_{std::atomic_load_explicit(
                   &engine.common_, std::memory_order_acquire)},
               limiter_{engine.limiter_}
         {}
+#pragma GCC diagnostic pop
         context(const context &) = delete;
         context &operator=(const context &) = delete;
         context(context &&) = delete;
