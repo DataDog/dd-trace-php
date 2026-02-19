@@ -13,10 +13,10 @@ mysql_publish: redis_build
 
 # It requires buildx to be able to build cross-architecture images
 request-replayer_linux_push:
-	docker buildx build --platform=linux/arm64,linux/amd64 -t datadog/dd-trace-ci:php-request-replayer-2.0-debug ./request-replayer -f request-replayer/linux.Dockerfile --push
+	docker buildx build --platform=linux/arm64,linux/amd64 -t datadog/dd-trace-ci:php-request-replayer-2.0 ./request-replayer -f request-replayer/linux.Dockerfile --push
 
 request-replayer_windows_push:
-	docker build -t datadog/dd-trace-ci:php-request-replayer-2.0-windows-debug ./request-replayer -f request-replayer/windows.Dockerfile
+	docker build -t datadog/dd-trace-ci:php-request-replayer-2.0-windows ./request-replayer -f request-replayer/windows.Dockerfile
 	docker push datadog/dd-trace-ci:php-request-replayer-2.0-windows
 
 httpbin_windows_push:

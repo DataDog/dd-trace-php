@@ -44,9 +44,6 @@ $rr->waitForRequest(function ($request) {
 
         foreach ($json["payload"]["logs"] as $payload) {
             $payload["message"] = json_decode($payload["message"], true);
-            if (!isset($payload["message"]["metadata"])) {
-                continue; // Not a crash report
-            }
             $output = json_encode($payload, JSON_PRETTY_PRINT);
 
             echo $output;

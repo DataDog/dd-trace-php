@@ -104,7 +104,7 @@ foreach ($arch_targets as $arch_target) {
       SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
 
   request-replayer:
-    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0-debug
+    name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
     alias: request-replayer
     command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:
