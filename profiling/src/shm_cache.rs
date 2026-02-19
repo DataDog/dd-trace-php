@@ -254,8 +254,6 @@ pub unsafe extern "C" fn startup() -> bindings::ZendResult {
     let php_open_tag = intern("<?php");
     let suspiciously_large = intern("[suspiciously large string]");
 
-    drop(intern);
-
     let globals = ShmGlobals {
         refcount: AtomicU32::new(1),
         table,
