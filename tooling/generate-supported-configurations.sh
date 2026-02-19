@@ -378,7 +378,10 @@ fi
 
 extract_c_supported_configurations() {
     local header="$1"
+    # Normalize to non-Linux defaults so generated metadata stays stable
+    # across developer machines and CI runners.
     "${CPP_COMPILER_CMD[@]}" $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2
+#undef __linux__
 #include "$header"
 
 #undef PHP_VERSION_ID
