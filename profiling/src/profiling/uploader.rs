@@ -12,13 +12,13 @@ use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
 use std::str;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Barrier};
 
 #[cfg(feature = "debug_stats")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 #[cfg(feature = "debug_stats")]
 use crate::exception::EXCEPTION_PROFILING_EXCEPTION_COUNT;
-use std::sync::atomic::Ordering;
 
 pub struct Uploader {
     fork_barrier: Arc<Barrier>,
@@ -84,6 +84,7 @@ impl Uploader {
                 json!(ALLOCATION_PROFILING_SIZE.swap(0, Ordering::Relaxed)),
             );
         }
+
         Some(serde_json::Value::Object(metadata))
     }
 

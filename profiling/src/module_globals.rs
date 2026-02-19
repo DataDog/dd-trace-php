@@ -64,8 +64,6 @@ mod zts {
 pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
     #[cfg(php_zts)]
     {
-        // SAFETY: As long as this is called during the times documented by
-        // our own safety requirements, GLOBALS_ID will be set by PHP.
         let id = ptr::addr_of!(GLOBALS_ID).read();
         zts::tsrmg_bulk(id).cast()
     }
@@ -85,8 +83,6 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
-    // this was already done in its const initializer.
     #[cfg(php_zts)]
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
@@ -105,10 +101,6 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
 pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_gshutdown();
-
-    // TODO: Florian, do we need this?
-    // let globals = globals_ptr.cast::<ProfilerGlobals>();
-    // (*globals).zend_mm_state = ZendMMState::new();
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();

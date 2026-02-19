@@ -9,9 +9,6 @@ mod pthread;
 mod sapi;
 mod wall_time;
 
-#[cfg(php_run_time_cache)]
-mod string_set;
-
 #[macro_use]
 mod allocation;
 
@@ -22,6 +19,9 @@ mod exception;
 
 mod timeline;
 mod vec_ext;
+
+pub mod interning;
+mod shm_cache;
 
 use crate::config::SystemSettings;
 use crate::zend::datadog_sapi_globals_request_info;
@@ -207,6 +207,12 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
         ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
         ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
     }
+
+    // Initialize the global ProfilesDictionary and pre-intern known
+    // strings (label keys, special frame names). This is the very first
+    // entry point into the extension — nothing runs before get_module.
+    interning::init();
+
     module
 }
 
@@ -348,7 +354,8 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // zend_llist_element. Every time a new PHP version is released, we should
     // double-check zend_register_extension to ensure the address is not
     // mutated nor stored. Well, hopefully we catch it _before_ a release.
-    let extension = ZendExtension {
+    #[allow(unused_mut)]
+    let mut extension = ZendExtension {
         name: PROFILER_NAME.as_ptr(),
         version: PROFILER_VERSION.as_ptr().cast::<c_char>(),
         author: c"Datadog".as_ptr(),
@@ -359,6 +366,16 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         activate: Some(activate),
         ..Default::default()
     };
+
+    // Acquire the opcache SHM reserved[] slot and set resource_number +
+    // persist hooks on the extension before zend_register_extension copies it.
+    #[cfg(php_opcache_shm_cache)]
+    {
+        if unsafe { shm_cache::minit(&mut extension) } == ZendResult::Failure {
+            error!("Failed to acquire opcache SHM resource handle");
+            // Non-fatal: collect_call_frame will fall back to sentinels.
+        }
+    }
 
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };
@@ -522,10 +539,7 @@ fn runtime_id() -> &'static Uuid {
         .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
 }
 
-extern "C" fn activate() {
-    // SAFETY: calling in activate as required.
-    unsafe { profiling::stack_walking::activate() };
-}
+extern "C" fn activate() {}
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
 static mut ZAI_CONFIG_ONCE: Once = Once::new();
@@ -1010,6 +1024,13 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
     allocation::alloc_prof_startup();
 
+    // Allocate the SHM string table. This must happen in startup (zend
+    // extension), before worker forks, so the mmap'd region is shared
+    // across all worker processes.
+    if unsafe { shm_cache::startup() } == ZendResult::Failure {
+        return ZendResult::Failure;
+    }
+
     ZendResult::Success
 }
 
@@ -1044,6 +1065,9 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // of mshutdown.
     unsafe { bindings::zai_config_mshutdown() };
     unsafe { bindings::zai_json_shutdown_bindings() };
+
+    // Unmap the SHM string table region.
+    unsafe { shm_cache::shutdown() };
 }
 
 /// Notifies the profiler a trace has finished so it can update information

@@ -473,8 +473,7 @@ static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
     profiling_endpoint_collection_enabled: true,
     profiling_experimental_cpu_time_enabled: true,
     profiling_allocation_enabled: true,
-    // SAFETY: value is > 0.
-    profiling_allocation_sampling_distance: unsafe { NonZeroU32::new_unchecked(1024 * 4096) },
+    profiling_allocation_sampling_distance: NonZeroU32::new(1024 * 4096).unwrap(),
     profiling_timeline_enabled: true,
     profiling_exception_enabled: true,
     profiling_exception_message_enabled: false,

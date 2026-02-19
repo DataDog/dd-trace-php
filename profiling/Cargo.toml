@@ -23,15 +23,18 @@ cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 http = { version = "1.4" }
-libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", tag = "v27.0.0" }
-libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", tag = "v27.0.0" }
-libdd-common = {  git = "https://github.com/DataDog/libdatadog", tag = "v27.0.0" }
+# branch levi/profiling-shm
+libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
+libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
+libdd-profiling-shm = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
+libdd-common = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }
 libc = "0.2"
 # TRACE set to max to support runtime configuration.
 log = { version = "0.4", features = ["max_level_trace", "release_max_level_trace"]}
+no-panic = { version = "0.1" }
 serde_json = {version = "1.0"}
 rand = { version = "0.8.5" }
 rand_distr = { version = "0.4.3" }
