@@ -290,6 +290,7 @@ mod detail {
     /// Resolves a `zend_function` to a [`Frame`] using its `reserved[handle]`
     /// slot, with the given line number. Used for frameless icalls where
     /// we have the function pointer but no execute_data.
+    #[cfg(php_frameless)]
     unsafe fn collect_call_frame_for_func(func: &zend_function, line: u32) -> Option<Frame> {
         let g = shm_cache::shm_globals()?;
 
