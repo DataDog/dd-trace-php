@@ -376,7 +376,7 @@ pub fn pre_intern_internal_functions() {
     }
 
     let elapsed = start.elapsed();
-    log::debug!(
+    log::info!(
         "Pre-interned {} internal functions in {:.1}ms",
         ctx.count,
         elapsed.as_secs_f64() * 1000.0,
