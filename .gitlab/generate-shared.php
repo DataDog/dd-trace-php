@@ -129,12 +129,18 @@ stages:
         sudo apt-get update
         sudo apt-get install -y build-essential
       fi
-    - GENERATED_CONFIG_INPUTS="$(bash tooling/generate-supported-configurations.sh --print-input-files | tr '\n' ' ')"
-    - bash tooling/generate-supported-configurations.sh
     - |
-      if ! git -C "$CI_PROJECT_DIR" diff --exit-code -- metadata/supported-configurations.json; then
+      GENERATED_CONFIG_INPUTS="$(bash tooling/generate-supported-configurations.sh --print-input-files | tr '\n' ' ')"
+      BASELINE_CONFIG="$(mktemp)"
+      trap 'rm -f "$BASELINE_CONFIG"' EXIT
+      cp metadata/supported-configurations.json "$BASELINE_CONFIG"
+
+      bash tooling/generate-supported-configurations.sh
+
+      if ! cmp -s "$BASELINE_CONFIG" metadata/supported-configurations.json; then
         echo "ERROR: @metadata/supported-configurations.json got out of sync with implemented configurations. Please run tooling/generate-supported-configurations.sh locally."
-        git -C "$CI_PROJECT_DIR" --no-pager diff -- metadata/supported-configurations.json $GENERATED_CONFIG_INPUTS
+        echo "Generator inputs: $GENERATED_CONFIG_INPUTS"
+        diff -u "$BASELINE_CONFIG" metadata/supported-configurations.json || true
         exit 1
       fi
 
