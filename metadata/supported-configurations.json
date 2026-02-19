@@ -74,13 +74,6 @@
         "default": ""
       }
     ],
-    "DD_APPSEC_HELPER_LAUNCH": [
-      {
-        "implementation": "A",
-        "type": "boolean",
-        "default": "true"
-      }
-    ],
     "DD_APPSEC_HELPER_LOG_FILE": [
       {
         "implementation": "A",
@@ -99,7 +92,7 @@
       {
         "implementation": "A",
         "type": "string",
-        "default": "/opt/datadog-php/"
+        "default": "/opt/datadog-php/bin/libddappsec-helper.so"
       }
     ],
     "DD_APPSEC_HELPER_RUNTIME_PATH": [
@@ -366,13 +359,6 @@
         "implementation": "A",
         "type": "boolean",
         "default": "false"
-      }
-    ],
-    "DD_EXTRA_SERVICES": [
-      {
-        "implementation": "A",
-        "type": "array",
-        "default": ""
       }
     ],
     "DD_GIT_COMMIT_SHA": [
