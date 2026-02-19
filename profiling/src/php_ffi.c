@@ -199,6 +199,27 @@ void datadog_php_profiling_install_internal_function_handler(
     }
 }
 
+void datadog_php_profiling_foreach_internal_function(
+    void (*callback)(zend_function *func, void *ctx), void *ctx) {
+    zend_function *func;
+    ZEND_HASH_FOREACH_PTR(CG(function_table), func) {
+        if (func->type == ZEND_INTERNAL_FUNCTION) {
+            callback(func, ctx);
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    zend_class_entry *ce;
+    ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+        if (ce->type == ZEND_INTERNAL_CLASS) {
+            ZEND_HASH_FOREACH_PTR(&ce->function_table, func) {
+                if (func->type == ZEND_INTERNAL_FUNCTION) {
+                    callback(func, ctx);
+                }
+            } ZEND_HASH_FOREACH_END();
+        }
+    } ZEND_HASH_FOREACH_END();
+}
+
 void datadog_php_profiling_copy_string_view_into_zval(zval *dest, zai_str view,
                                                       bool persistent) {
     ZEND_ASSERT(dest);

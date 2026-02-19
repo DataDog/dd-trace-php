@@ -6,28 +6,35 @@
 //!
 //! ## Lifecycle
 //!
-//! 1. **`startup`** (zend extension startup, before forks): mmaps a
-//!    `SHM_REGION_SIZE` region, initializes the [`ShmStringTable`], and
-//!    interns sentinel strings into [`ShmGlobals`].
-//! 2. **`minit`**: acquires a `reserved[]` slot via
-//!    `zend_get_resource_handle` and, on PHP 8.4+, sets the persist hooks.
-//! 3. **`op_array_persist`** (PHP 8.4+, opcache): interns function name
+//! 1. **`minit`** (module init, PHP 8.0+): acquires a `reserved[]` slot
+//!    via `zend_get_resource_handle` and sets the persist hooks.
+//! 2. **`startup`** (zend extension startup, before forks): mmaps a
+//!    region, writes [`ShmGlobals`] at offset 0 (with refcount=1),
+//!    initializes the [`ShmStringTable`] in the remaining space, and
+//!    interns sentinel strings.
+//! 3. **`pre_intern_internal_functions`** (called right after `startup`,
+//!    PHP 8.0+): iterates all internal functions and class methods,
+//!    interns their names, and stores the [`ShmStringId`] in each
+//!    function's `reserved[handle]` slot.
+//! 4. **`op_array_persist`** (opcache, PHP 8.0+): interns function name
 //!    and filename into the SHM table and packs two [`ShmStringId`] values
 //!    into `op_array->reserved[handle]`.
-//! 4. **`shutdown`** (zend extension shutdown): unmaps the SHM region.
+//! 5. **`shutdown`** (zend extension shutdown): nulls the global pointer
+//!    and decrements the refcount. If no [`ShmRef`] holders remain, the
+//!    region is munmap'd immediately; otherwise the last [`ShmRef::drop`]
+//!    does it.
 //!
-//! On PHP versions without persist hooks, `reserved[]` is always zero and
-//! `collect_call_frame` falls back to sentinel strings like
-//! `"[user function]"` or `"[internal function]"`.
+//! On PHP < 8.0, `reserved[]` is not used and `collect_call_frame` falls
+//! back to sentinel strings like `"[user function]"` or
+//! `"[internal function]"`.
 
 use crate::bindings;
 #[cfg(php_opcache_shm_cache)]
 use crate::bindings::ZendExtension;
 use libc::{c_int, c_void};
 use libdd_profiling_shm::{ShmStringId, ShmStringTable, SHM_REGION_SIZE};
-use std::mem::MaybeUninit;
 use std::ptr::{self, NonNull};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicPtr, AtomicU32, Ordering};
 
 #[cfg(php_opcache_shm_cache)]
 use crate::bindings::{
@@ -41,18 +48,23 @@ use crate::vec_ext;
 /// The acquired `reserved[]` slot handle. -1 means not acquired.
 static mut RESOURCE_HANDLE: c_int = -1;
 
-/// Pointer to the mmap'd region backing the [`ShmStringTable`].
-static mut SHM_REGION: *mut u8 = ptr::null_mut();
+// TODO: revisit mmap size — could adjust ShmStringTable::init to accept
+// smaller regions instead of over-allocating by size_of::<ShmGlobals>().
+const TOTAL_MMAP_SIZE: usize = std::mem::size_of::<ShmGlobals>() + SHM_REGION_SIZE;
 
-/// The global SHM string table and pre-interned sentinel IDs.
-static mut SHM_GLOBALS: MaybeUninit<ShmGlobals> = MaybeUninit::uninit();
+/// Global pointer to the active [`ShmGlobals`], which lives at offset 0
+/// of the mmap'd region. Null when no region is active.
+static SHM_GLOBALS_PTR: AtomicPtr<ShmGlobals> = AtomicPtr::new(ptr::null_mut());
 
-/// Guard: `true` after [`SHM_GLOBALS`] has been fully initialized.
-static SHM_INITIALIZED: AtomicBool = AtomicBool::new(false);
-
-/// Pre-interned string IDs and the SHM table handle.
+/// Pre-interned string IDs, the SHM table handle, and a refcount that
+/// controls the lifetime of the backing mmap region.
+///
+/// Stored at offset 0 of the mmap'd region. The [`ShmStringTable`] data
+/// occupies the remaining bytes after this struct.
 #[allow(dead_code)]
 pub struct ShmGlobals {
+    refcount: AtomicU32,
+
     pub table: ShmStringTable,
 
     // Sentinel IDs for fallback frames.
@@ -77,23 +89,76 @@ pub struct ShmGlobals {
 }
 
 // SAFETY: ShmStringTable uses internal synchronization (spinlock) and its
-// backing memory is MAP_SHARED. ShmStringId is Copy. Access is mediated by
-// the AtomicBool guard.
+// backing memory is MAP_SHARED. ShmStringId is Copy. The refcount is atomic.
 unsafe impl Send for ShmGlobals {}
 unsafe impl Sync for ShmGlobals {}
 
-/// Returns a reference to the initialized SHM globals, or `None` if
-/// [`startup`] hasn't been called or failed.
+/// A counted reference to [`ShmGlobals`]. When the last `ShmRef` is
+/// dropped, the backing mmap region is munmap'd.
+///
+/// Clone increments the refcount; Drop decrements it using the same
+/// fence protocol as `Arc`.
+pub struct ShmRef {
+    ptr: NonNull<ShmGlobals>,
+}
+
+// SAFETY: ShmGlobals is Send + Sync, and we manage lifetime via refcount.
+unsafe impl Send for ShmRef {}
+unsafe impl Sync for ShmRef {}
+
+impl ShmRef {
+    #[inline]
+    pub fn globals(&self) -> &ShmGlobals {
+        unsafe { self.ptr.as_ref() }
+    }
+}
+
+impl Clone for ShmRef {
+    fn clone(&self) -> Self {
+        self.globals().refcount.fetch_add(1, Ordering::Relaxed);
+        ShmRef { ptr: self.ptr }
+    }
+}
+
+impl Drop for ShmRef {
+    fn drop(&mut self) {
+        let g = self.globals();
+        if g.refcount.fetch_sub(1, Ordering::Release) == 1 {
+            std::sync::atomic::fence(Ordering::Acquire);
+            unsafe {
+                libc::munmap(self.ptr.as_ptr() as *mut libc::c_void, TOTAL_MMAP_SIZE);
+            }
+        }
+    }
+}
+
+/// Returns a reference to the active SHM globals, or `None` if
+/// [`startup`] hasn't been called or [`shutdown`] has already run.
+///
+/// This is the hot-path accessor used by stack walking on PHP threads.
+/// No refcount is touched — the pointer is valid because the PHP thread
+/// that calls this is the same thread that will later call shutdown.
 #[inline(always)]
 pub fn shm_globals() -> Option<&'static ShmGlobals> {
-    if SHM_INITIALIZED.load(Ordering::Acquire) {
-        // SAFETY: the Acquire load synchronizes with the Release store in
-        // startup, guaranteeing SHM_GLOBALS is fully written. Using
-        // addr_of! avoids creating a reference to the static mut.
-        Some(unsafe { (*ptr::addr_of!(SHM_GLOBALS)).assume_init_ref() })
-    } else {
+    let ptr = SHM_GLOBALS_PTR.load(Ordering::Acquire);
+    if ptr.is_null() {
         None
+    } else {
+        Some(unsafe { &*ptr })
     }
+}
+
+/// Acquires a counted reference ([`ShmRef`]) to the active SHM globals.
+/// Returns `None` if no region is active.
+///
+/// The caller's `ShmRef` keeps the mmap region alive even after
+/// [`shutdown`] nulls the global pointer.
+pub fn acquire_ref() -> Option<ShmRef> {
+    let ptr = SHM_GLOBALS_PTR.load(Ordering::Acquire);
+    let nn = NonNull::new(ptr)?;
+    let g = unsafe { nn.as_ref() };
+    g.refcount.fetch_add(1, Ordering::Relaxed);
+    Some(ShmRef { ptr: nn })
 }
 
 /// Returns the `reserved[]` slot handle, or `None` if not acquired.
@@ -130,8 +195,9 @@ pub fn unpack(ptr: *mut c_void) -> (ShmStringId, ShmStringId) {
 
 // ─── Lifecycle ───────────────────────────────────────────────────────
 
-/// Allocates the SHM region, initializes the [`ShmStringTable`], and
-/// interns all sentinel/synthetic strings into [`ShmGlobals`].
+/// Allocates the SHM region, writes [`ShmGlobals`] at offset 0 (with
+/// refcount=1), initializes the [`ShmStringTable`] in the remaining
+/// space, and interns all sentinel/synthetic strings.
 ///
 /// Must be called during zend extension startup (before worker forks)
 /// so the mmap'd region is inherited by all workers.
@@ -143,7 +209,7 @@ pub unsafe extern "C" fn startup() -> bindings::ZendResult {
     let region_ptr = unsafe {
         libc::mmap(
             ptr::null_mut(),
-            SHM_REGION_SIZE,
+            TOTAL_MMAP_SIZE,
             libc::PROT_READ | libc::PROT_WRITE,
             libc::MAP_SHARED | libc::MAP_ANON,
             -1,
@@ -154,66 +220,89 @@ pub unsafe extern "C" fn startup() -> bindings::ZendResult {
         return bindings::ZendResult::Failure;
     }
 
-    unsafe { SHM_REGION = region_ptr as *mut u8 };
+    let globals_ptr = region_ptr as *mut ShmGlobals;
 
-    let slice_ptr = ptr::slice_from_raw_parts_mut(region_ptr as *mut u8, SHM_REGION_SIZE);
-    let Some(nn) = NonNull::new(slice_ptr) else {
-        unsafe { libc::munmap(region_ptr, SHM_REGION_SIZE) };
-        unsafe { SHM_REGION = ptr::null_mut() };
+    // ShmStringTable sub-region starts right after ShmGlobals.
+    let table_base = unsafe { (region_ptr as *mut u8).add(std::mem::size_of::<ShmGlobals>()) };
+    let table_slice = ptr::slice_from_raw_parts_mut(table_base, SHM_REGION_SIZE);
+    let Some(nn) = NonNull::new(table_slice) else {
+        unsafe { libc::munmap(region_ptr, TOTAL_MMAP_SIZE) };
         return bindings::ZendResult::Failure;
     };
 
     let Some(table) = (unsafe { ShmStringTable::init(nn) }) else {
-        unsafe { libc::munmap(region_ptr, SHM_REGION_SIZE) };
-        unsafe { SHM_REGION = ptr::null_mut() };
+        unsafe { libc::munmap(region_ptr, TOTAL_MMAP_SIZE) };
         return bindings::ZendResult::Failure;
     };
 
     let intern = |s: &str| -> ShmStringId { table.intern(s).unwrap_or(ShmStringTable::EMPTY) };
 
+    let trampoline = intern("[trampoline]");
+    let user_function = intern("[user function]");
+    let internal_function = intern("[internal function]");
+    let truncated = intern("[truncated]");
+    let idle = intern("[idle]");
+    let gc = intern("[gc]");
+    let include = intern("[include]");
+    let require = intern("[require]");
+    let include_unknown = intern("[]");
+    let thread_start = intern("[thread start]");
+    let thread_stop = intern("[thread stop]");
+    let eval = intern("[eval]");
+    let fatal = intern("[fatal]");
+    let opcache_restart = intern("[opcache restart]");
+    let php_open_tag = intern("<?php");
+    let suspiciously_large = intern("[suspiciously large string]");
+
+    drop(intern);
+
     let globals = ShmGlobals {
-        trampoline: intern("[trampoline]"),
-        user_function: intern("[user function]"),
-        internal_function: intern("[internal function]"),
-        truncated: intern("[truncated]"),
-        idle: intern("[idle]"),
-        gc: intern("[gc]"),
-        include: intern("[include]"),
-        require: intern("[require]"),
-        include_unknown: intern("[]"),
-        thread_start: intern("[thread start]"),
-        thread_stop: intern("[thread stop]"),
-        eval: intern("[eval]"),
-        fatal: intern("[fatal]"),
-        opcache_restart: intern("[opcache restart]"),
-        php_open_tag: intern("<?php"),
-        suspiciously_large: intern("[suspiciously large string]"),
+        refcount: AtomicU32::new(1),
         table,
+        trampoline,
+        user_function,
+        internal_function,
+        truncated,
+        idle,
+        gc,
+        include,
+        require,
+        include_unknown,
+        thread_start,
+        thread_stop,
+        eval,
+        fatal,
+        opcache_restart,
+        php_open_tag,
+        suspiciously_large,
     };
 
-    unsafe { ptr::addr_of_mut!(SHM_GLOBALS).write(MaybeUninit::new(globals)) };
-    SHM_INITIALIZED.store(true, Ordering::Release);
+    unsafe { ptr::write(globals_ptr, globals) };
+    SHM_GLOBALS_PTR.store(globals_ptr, Ordering::Release);
 
     bindings::ZendResult::Success
 }
 
-/// Unmaps the SHM region.
+/// Nulls the global pointer and decrements the refcount. If this was
+/// the last reference, the region is munmap'd immediately.
 ///
 /// # Safety
 /// Must be called during zend extension shutdown, single-threaded.
 #[cfg_attr(not(debug_assertions), no_panic::no_panic)]
 pub unsafe extern "C" fn shutdown() {
-    SHM_INITIALIZED.store(false, Ordering::Release);
-
-    let region = unsafe { SHM_REGION };
-    if !region.is_null() {
-        unsafe { libc::munmap(region as *mut libc::c_void, SHM_REGION_SIZE) };
-        unsafe { SHM_REGION = ptr::null_mut() };
+    let ptr = SHM_GLOBALS_PTR.swap(ptr::null_mut(), Ordering::AcqRel);
+    if ptr.is_null() {
+        return;
+    }
+    let g = unsafe { &*ptr };
+    if g.refcount.fetch_sub(1, Ordering::Release) == 1 {
+        std::sync::atomic::fence(Ordering::Acquire);
+        unsafe { libc::munmap(ptr as *mut libc::c_void, TOTAL_MMAP_SIZE) };
     }
 }
 
 /// Acquires a `reserved[]` slot via `zend_get_resource_handle` and
-/// configures the persist hooks for SHM op-array caching.
+/// configures the persist hooks.
 ///
 /// # Safety
 /// Must be called during module init (minit), single-threaded.
@@ -230,6 +319,68 @@ pub unsafe fn minit(extension: &mut ZendExtension) -> bindings::ZendResult {
     extension.op_array_persist = Some(op_array_persist);
 
     bindings::ZendResult::Success
+}
+
+/// Context passed through the C callback for pre-interning internal functions.
+#[cfg(php_opcache_shm_cache)]
+struct InternCtx {
+    handle: usize,
+    count: u32,
+}
+
+/// Callback invoked by `datadog_php_profiling_foreach_internal_function`
+/// for each internal function/method.
+#[cfg(php_opcache_shm_cache)]
+#[cfg_attr(not(debug_assertions), no_panic::no_panic)]
+unsafe extern "C" fn intern_internal_func(func: *mut zend_function, ctx: *mut c_void) {
+    let ctx = unsafe { &mut *(ctx as *mut InternCtx) };
+    let Some(func_ref) = (unsafe { func.as_ref() }) else {
+        return;
+    };
+    let Some(g) = shm_globals() else { return };
+
+    let Ok(name) = extract_function_name(func_ref) else {
+        return;
+    };
+    let Some(name_id) = g.table.intern(&name) else {
+        return;
+    };
+
+    let packed = pack(name_id, ShmStringTable::EMPTY);
+    unsafe {
+        *(*func)
+            .internal_function
+            .reserved
+            .get_unchecked_mut(ctx.handle) = packed;
+    }
+    ctx.count += 1;
+}
+
+/// Pre-interns all internal function and method names into the SHM
+/// string table. Must be called during zend extension startup, after
+/// [`startup`] and [`minit`] have both succeeded.
+#[cfg(php_opcache_shm_cache)]
+pub fn pre_intern_internal_functions() {
+    let Some(handle) = resource_handle() else {
+        return;
+    };
+
+    let start = std::time::Instant::now();
+    let mut ctx = InternCtx { handle, count: 0 };
+
+    unsafe {
+        bindings::datadog_php_profiling_foreach_internal_function(
+            intern_internal_func,
+            &mut ctx as *mut InternCtx as *mut c_void,
+        );
+    }
+
+    let elapsed = start.elapsed();
+    log::debug!(
+        "Pre-interned {} internal functions in {:.1}ms",
+        ctx.count,
+        elapsed.as_secs_f64() * 1000.0,
+    );
 }
 
 // ─── Persist hooks ───────────────────────────────────────────────────

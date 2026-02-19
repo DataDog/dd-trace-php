@@ -320,6 +320,7 @@ struct TimeCollector {
     message_receiver: Receiver<ProfilerMessage>,
     upload_sender: Sender<UploadMessage>,
     upload_period: Duration,
+    shm_ref: Option<crate::shm_cache::ShmRef>,
 }
 
 impl TimeCollector {
@@ -593,6 +594,7 @@ impl TimeCollector {
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
         function_cache: &mut FxHashMap<(ShmStringId, ShmStringId), FunctionId2>,
+        shm_globals: Option<&crate::shm_cache::ShmGlobals>,
     ) {
         if message.key.sample_types.is_empty() {
             warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
@@ -615,7 +617,7 @@ impl TimeCollector {
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
         let dict = crate::interning::dictionary();
-        let g = crate::shm_cache::shm_globals();
+        let g = shm_globals;
 
         let mut locations = Vec::with_capacity(message.value.frames.len());
 
@@ -725,7 +727,7 @@ impl TimeCollector {
                     match result {
                         Ok(message) => match message {
                             ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export, &mut function_cache),
+                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export, &mut function_cache, self.shm_ref.as_ref().map(|r| r.globals())),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
@@ -820,6 +822,7 @@ impl Profiler {
             message_receiver,
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
+            shm_ref: crate::shm_cache::acquire_ref(),
         };
 
         // SAFETY: this is set to a noop version if ddtrace wasn't found, and

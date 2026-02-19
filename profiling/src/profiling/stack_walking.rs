@@ -8,7 +8,8 @@ use std::collections::TryReserveError;
 
 #[cfg(php_frameless)]
 use crate::bindings::{
-    ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
+    zend_flf_functions, ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2,
+    ZEND_FRAMELESS_ICALL_3,
 };
 
 const STR_LEN_LIMIT: usize = u16::MAX as usize;
@@ -257,12 +258,12 @@ mod detail {
                             | ZEND_FRAMELESS_ICALL_1
                             | ZEND_FRAMELESS_ICALL_2
                             | ZEND_FRAMELESS_ICALL_3 => {
-                                if let Some(g) = shm_cache::shm_globals() {
-                                    samples.try_push(Frame {
-                                        function_name: g.internal_function,
-                                        filename: ShmStringTable::EMPTY,
-                                        line: 0,
-                                    })?;
+                                let flf = unsafe {
+                                    &**zend_flf_functions.offset(opline.extended_value as isize)
+                                };
+                                if let Some(frame) = unsafe { collect_call_frame_for_func(flf, 0) }
+                                {
+                                    samples.try_push(frame)?;
                                 }
                             }
                             _ => {}
@@ -284,6 +285,36 @@ mod detail {
             execute_data_ptr = execute_data.prev_execute_data;
         }
         Ok(Backtrace::new(samples))
+    }
+
+    /// Resolves a `zend_function` to a [`Frame`] using its `reserved[handle]`
+    /// slot, with the given line number. Used for frameless icalls where
+    /// we have the function pointer but no execute_data.
+    unsafe fn collect_call_frame_for_func(func: &zend_function, line: u32) -> Option<Frame> {
+        let g = shm_cache::shm_globals()?;
+
+        if let Some(handle) = shm_cache::resource_handle() {
+            let packed = unsafe { func.internal_function.reserved[handle] };
+            let (function_name, filename) = shm_cache::unpack(packed);
+            if function_name != ShmStringTable::EMPTY {
+                return Some(Frame {
+                    function_name,
+                    filename,
+                    line,
+                });
+            }
+        }
+
+        if log::log_enabled!(log::Level::Trace) {
+            if let Ok(name) = extract_function_name(func) {
+                log::trace!("internal function not pre-interned (frameless): {}", name);
+            }
+        }
+        Some(Frame {
+            function_name: g.internal_function,
+            filename: ShmStringTable::EMPTY,
+            line,
+        })
     }
 
     unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<Frame> {
@@ -320,14 +351,24 @@ mod detail {
             }
         }
 
-        // Fallback: no cached data — use sentinel.
+        // Fallback: no cached data -- use sentinel.
         if func.is_internal() {
+            if log::log_enabled!(log::Level::Trace) {
+                if let Ok(name) = extract_function_name(func) {
+                    log::trace!("internal function not pre-interned: {}", name);
+                }
+            }
             Some(Frame {
                 function_name: g.internal_function,
                 filename: ShmStringTable::EMPTY,
                 line: 0,
             })
         } else {
+            if log::log_enabled!(log::Level::Trace) {
+                if let Ok(name) = extract_function_name(func) {
+                    log::trace!("user function not interned: {}", name);
+                }
+            }
             Some(Frame {
                 function_name: g.user_function,
                 filename: ShmStringTable::EMPTY,
