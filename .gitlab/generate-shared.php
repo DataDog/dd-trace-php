@@ -116,16 +116,25 @@ stages:
       - artifacts
     when: "always"
 
-"Config Verification Test":
+"Configuration Consistency":
   tags: [ "arch:amd64" ]
   stage: test
   needs: []
+  variables:
+    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6"
   script:
+    - |
+      if ! command -v cc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+      fi
+    - GENERATED_CONFIG_INPUTS="$(bash tooling/generate-supported-configurations.sh --print-input-files | tr '\n' ' ')"
     - bash tooling/generate-supported-configurations.sh
-    - if ! git diff --exit-code -- metadata/supported-configurations.json ext/configuration.h; then
+    - |
+      if ! git -C "$CI_PROJECT_DIR" diff --exit-code -- metadata/supported-configurations.json; then
         echo "ERROR: @metadata/supported-configurations.json got out of sync with implemented configurations. Please run tooling/generate-supported-configurations.sh locally."
-        git --no-pager diff -- metadata/supported-configurations.json ext/configuration.h
+        git -C "$CI_PROJECT_DIR" --no-pager diff -- metadata/supported-configurations.json $GENERATED_CONFIG_INPUTS
         exit 1
       fi
 

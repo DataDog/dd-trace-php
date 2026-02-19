@@ -5,6 +5,29 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+readonly CONFIG_HEADER_FILES=(
+    "ext/configuration.h"
+    "appsec/src/extension/configuration.h"
+)
+readonly OTEL_CONFIG_FILE="ext/otel_config.c"
+readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
+readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
+readonly CONFIG_GENERATION_INPUT_FILES=(
+    "${CONFIG_HEADER_FILES[@]}"
+    "${OTEL_CONFIG_FILE}"
+    "${PROFILING_CONFIG_FILE}"
+    "${GENERATOR_SCRIPT_FILE}"
+)
+
+if [[ "${1:-}" == "--print-input-files" ]]; then
+    printf '%s\n' "${CONFIG_GENERATION_INPUT_FILES[@]}"
+    exit 0
+fi
+if [[ $# -gt 0 ]]; then
+    echo "Usage: $0 [--print-input-files]" >&2
+    exit 1
+fi
+
 # Maps C config type to JSON schema type.
 PHP_CODE_FILE=$(mktemp "${TMPDIR:-/tmp}/ddtrace-supported-configurations.XXXXXX.php")
 trap 'rm -f "$PHP_CODE_FILE"' EXIT
@@ -246,7 +269,7 @@ foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLi
     add_supported_entry($supported, $name, $entry);
 }
 
-$otelPath = "../ext/otel_config.c";
+$otelPath = getenv('DDTRACE_SUPPORTED_CONFIG_OTEL_FILE') ?: "../ext/otel_config.c";
 if (file_exists($otelPath)) {
     preg_match_all('/ZAI_STRL\("(OTEL_[A-Z0-9_]+)"\)/', file_get_contents($otelPath), $m);
     $otelVars = array_unique($m[1]);
@@ -256,7 +279,7 @@ if (file_exists($otelPath)) {
     }
 }
 
-$profilingPath = "../profiling/src/config.rs";
+$profilingPath = getenv('DDTRACE_SUPPORTED_CONFIG_PROFILING_FILE') ?: "../profiling/src/config.rs";
 add_rust_profiling_configurations($supported, $profilingPath);
 
 if (empty($supported)) {
@@ -281,23 +304,24 @@ if (file_exists($outputPath)) {
         foreach ($supported as $name => $entries) {
             $generatedEntry = $entries[0];
             $existingEntries = normalize_supported_entries($existingSupported[$name] ?? [], $name);
-            $updated = false;
-            foreach ($existingEntries as $idx => $existingEntry) {
-                if (($existingEntry["implementation"] ?? null) === "A") {
-                    $existingEntries[$idx] = $generatedEntry;
-                    $updated = true;
-                    break;
+            if (!empty($existingEntries)) {
+                // Existing keys must keep their implementation labels exactly as-is.
+                // Update the "A" entry when present, otherwise update the first entry.
+                $targetIdx = 0;
+                foreach ($existingEntries as $idx => $existingEntry) {
+                    if (($existingEntry["implementation"] ?? null) === "A") {
+                        $targetIdx = $idx;
+                        break;
+                    }
                 }
-            }
-            // If the existing JSON uses a different implementation label (e.g. "C", "E"),
-            // update the entry in-place but preserve that label instead of adding a new "A".
-            if (!$updated && !empty($existingEntries)) {
-                $impl = $existingEntries[0]["implementation"] ?? $generatedEntry["implementation"];
-                $existingEntries[0] = $generatedEntry;
-                $existingEntries[0]["implementation"] = $impl;
-                $updated = true;
-            }
-            if (!$updated) {
+                $impl = $existingEntries[$targetIdx]["implementation"] ?? null;
+                $existingEntries[$targetIdx] = $generatedEntry;
+                if ($impl !== null) {
+                    $existingEntries[$targetIdx]["implementation"] = $impl;
+                } else {
+                    unset($existingEntries[$targetIdx]["implementation"]);
+                }
+            } else {
                 $existingEntries[] = $generatedEntry;
             }
             $merged[$name] = $existingEntries;
@@ -329,9 +353,32 @@ EOT
 
 PHP_VERSION_ID=${PHP_VERSION_ID:-0}
 
+CPP_COMPILER=${CPP_COMPILER:-${CC:-}}
+CPP_COMPILER_CMD=()
+if [[ -n "$CPP_COMPILER" ]]; then
+    read -r -a CPP_COMPILER_CMD <<<"$CPP_COMPILER"
+    # If CC/CPP_COMPILER points to a missing wrapper (e.g. "ccache cc" without ccache),
+    # fall back to auto-discovery below.
+    if [[ ${#CPP_COMPILER_CMD[@]} -gt 0 ]] && ! command -v "${CPP_COMPILER_CMD[0]}" >/dev/null 2>&1; then
+        CPP_COMPILER_CMD=()
+    fi
+fi
+if [[ ${#CPP_COMPILER_CMD[@]} -eq 0 ]]; then
+    for candidate in cc clang gcc; do
+        if command -v "$candidate" >/dev/null 2>&1; then
+            CPP_COMPILER_CMD=("$candidate")
+            break
+        fi
+    done
+fi
+if [[ ${#CPP_COMPILER_CMD[@]} -eq 0 ]]; then
+    echo "Error: no C compiler found (tried CC, cc, clang, gcc)" >&2
+    exit 1
+fi
+
 extract_c_supported_configurations() {
     local header="$1"
-    gcc $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2
+    "${CPP_COMPILER_CMD[@]}" $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2
 #include "$header"
 
 #undef PHP_VERSION_ID
@@ -360,6 +407,7 @@ CODE
 }
 
 {
-    extract_c_supported_configurations "../ext/configuration.h"
-    extract_c_supported_configurations "../appsec/src/extension/configuration.h"
-} | php "$PHP_CODE_FILE"
+    for header in "${CONFIG_HEADER_FILES[@]}"; do
+        extract_c_supported_configurations "../$header"
+    done
+} | DDTRACE_SUPPORTED_CONFIG_OTEL_FILE="../${OTEL_CONFIG_FILE}" DDTRACE_SUPPORTED_CONFIG_PROFILING_FILE="../${PROFILING_CONFIG_FILE}" php "$PHP_CODE_FILE"
