@@ -99,6 +99,7 @@ package-trigger:
     RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH
 
 validate_supported_configurations_v2_local_file:
+  needs: []
   extends: .validate_supported_configurations_v2_local_file
   variables:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
