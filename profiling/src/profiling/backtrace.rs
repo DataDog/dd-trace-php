@@ -1,13 +1,13 @@
-use crate::profiling::stack_walking::ZendFrame;
+use crate::profiling::stack_walking::Frame;
 use core::ops::Deref;
 
 #[derive(Debug)]
 pub struct Backtrace {
-    frames: Vec<ZendFrame>,
+    frames: Vec<Frame>,
 }
 
 impl Backtrace {
-    pub const fn new(frames: Vec<ZendFrame>) -> Self {
+    pub const fn new(frames: Vec<Frame>) -> Self {
         Self { frames }
     }
 
@@ -19,13 +19,13 @@ impl Backtrace {
         self.frames.is_empty()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &ZendFrame> {
+    pub fn iter(&self) -> impl Iterator<Item = &Frame> {
         self.frames.iter()
     }
 }
 
 impl Deref for Backtrace {
-    type Target = [ZendFrame];
+    type Target = [Frame];
 
     fn deref(&self) -> &Self::Target {
         self.frames.as_slice()

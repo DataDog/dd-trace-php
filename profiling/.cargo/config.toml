@@ -1,9 +1,2 @@
-[target.x86_64-apple-darwin]
-# Leaving syntax here in case we decide to list them all specifically
-#rustflags = ["-C", "link-args=-Wl,-U,_zend_register_extension -Wl,-U,_zend_getenv -Wl,-U,_sapi_module -Wl,-U,_executor_globals"]
-rustflags = ["-C", "link-args=-undefined dynamic_lookup"]
-
-[target.aarch64-apple-darwin]
-# Leaving syntax here in case we decide to list them all specifically
-#rustflags = ["-C", "link-args=-Wl,-U,_zend_register_extension -Wl,-U,_zend_getenv -Wl,-U,_sapi_module -Wl,-U,_executor_globals"]
-rustflags = ["-C", "link-args=-undefined dynamic_lookup"]
+# macOS linker flags for undefined symbols are set in build.rs based on the
+# build profile. See the `cfg_apple_linker_flags()` function.

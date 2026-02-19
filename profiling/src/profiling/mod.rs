@@ -32,11 +32,14 @@ use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use libdd_common::tag::Tag;
 use libdd_profiling::api::{
-    Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
-    UpscalingInfo, ValueType as ApiValueType,
+    Period, SampleType as ApiSampleType, UpscalingInfo, ValueType as ApiValueType,
 };
+use libdd_profiling::api2::{Label as Api2Label, Location2};
 use libdd_profiling::internal::Profile as InternalProfile;
+use libdd_profiling::profiles::datatypes::{Function2, FunctionId2, StringId2};
+use libdd_profiling_shm::ShmStringId;
 use log::{debug, info, trace, warn};
+use rustc_hash::FxHashMap;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -140,6 +143,75 @@ impl WallTime {
     }
 }
 
+/// Closed set of label keys used across all profiling samples.
+///
+/// This enum decouples label-creation code (producers) from the
+/// version-specific sample-building API (consumer). The consumer maps
+/// each variant to the concrete key representation required by the
+/// profile format (`StringId2` on 8.4+, `&str` on older versions).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum LabelKey {
+    ThreadId,         // "thread id"
+    ThreadName,       // "thread name"
+    LocalRootSpanId,  // "local root span id"
+    SpanId,           // "span id"
+    Fiber,            // "fiber"
+    ExceptionType,    // "exception type"
+    ExceptionMessage, // "exception message"
+    Event,            // "event"
+    Filename,         // "filename"
+    Message,          // "message"
+    Reason,           // "reason"
+    GcReason,         // "gc reason"
+    GcRuns,           // "gc runs"
+    GcCollected,      // "gc collected"
+}
+
+impl LabelKey {
+    /// Returns the pprof label key string for this variant.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::ThreadId => "thread id",
+            Self::ThreadName => "thread name",
+            Self::LocalRootSpanId => "local root span id",
+            Self::SpanId => "span id",
+            Self::Fiber => "fiber",
+            Self::ExceptionType => "exception type",
+            Self::ExceptionMessage => "exception message",
+            Self::Event => "event",
+            Self::Filename => "filename",
+            Self::Message => "message",
+            Self::Reason => "reason",
+            Self::GcReason => "gc reason",
+            Self::GcRuns => "gc runs",
+            Self::GcCollected => "gc collected",
+        }
+    }
+
+    /// Maps this label key to a pre-interned [`StringId2`] from the
+    /// global [`ProfilesDictionary`].
+    pub fn to_string_id2(self) -> StringId2 {
+        let ks = crate::interning::known_strings();
+        match self {
+            Self::ThreadId => ks.thread_id,
+            Self::ThreadName => ks.thread_name,
+            Self::LocalRootSpanId => ks.local_root_span_id,
+            Self::SpanId => ks.span_id,
+            Self::Fiber => ks.fiber,
+            Self::ExceptionType => ks.exception_type,
+            Self::ExceptionMessage => ks.exception_message,
+            Self::Event => ks.event,
+            Self::Filename => ks.label_filename,
+            Self::Message => ks.message,
+            Self::Reason => ks.reason,
+            Self::GcReason => ks.gc_reason,
+            Self::GcRuns => ks.gc_runs,
+            Self::GcCollected => ks.gc_collected,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum LabelValue {
     Str(Cow<'static, str>),
@@ -148,28 +220,8 @@ pub enum LabelValue {
 
 #[derive(Debug, Clone)]
 pub struct Label {
-    pub key: &'static str,
+    pub key: LabelKey,
     pub value: LabelValue,
-}
-
-impl<'a> From<&'a Label> for ApiLabel<'a> {
-    fn from(label: &'a Label) -> Self {
-        let key = label.key;
-        match label.value {
-            LabelValue::Str(ref str) => Self {
-                key,
-                str,
-                num: 0,
-                num_unit: "",
-            },
-            LabelValue::Num(num, num_unit) => Self {
-                key,
-                str: "",
-                num,
-                num_unit,
-            },
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -373,14 +425,20 @@ impl TimeCollector {
         let exception_samples_offset = get_offset("exception-samples");
 
         let period = WALL_TIME_PERIOD.as_nanos();
-        let mut profile = InternalProfile::try_new(
-            &sample_types,
-            Some(Period {
-                sample_type: ApiSampleType::WallTime,
-                value: period.min(i64::MAX as u128) as i64,
-            }),
-        )
-        .expect("failed to create a new InternalProfile object");
+        let mut profile = {
+            let dict_arc = crate::interning::dictionary_arc()
+                .try_clone()
+                .expect("failed to clone dictionary Arc for profile");
+            InternalProfile::try_new_with_dictionary(
+                &sample_types,
+                Some(Period {
+                    sample_type: ApiSampleType::WallTime,
+                    value: period.min(i64::MAX as u128) as i64,
+                }),
+                dict_arc,
+            )
+            .expect("failed to create a new InternalProfile object")
+        };
         let _ = profile.set_start_time(started_at);
 
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =
@@ -534,9 +592,9 @@ impl TimeCollector {
         message: SampleMessage,
         profiles: &mut HashMap<ProfileIndex, InternalProfile>,
         started_at: &WallTime,
+        function_cache: &mut FxHashMap<(ShmStringId, ShmStringId), FunctionId2>,
     ) {
         if message.key.sample_types.is_empty() {
-            // profiling disabled, this should not happen!
             warn!("A sample with no sample types was recorded in the profiler. Please report this to Datadog.");
             return;
         }
@@ -553,35 +611,78 @@ impl TimeCollector {
                 .expect("entry to exist; just inserted it")
         };
 
-        let mut locations = Vec::with_capacity(message.value.frames.len());
-
         let values = message.value.sample_values;
-        let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
-
-        for frame in message.value.frames.iter() {
-            let location = Location {
-                function: Function {
-                    name: frame.function.as_ref(),
-                    system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
-                },
-                line: frame.line as i64,
-                ..Location::default()
-            };
-
-            locations.push(location);
-        }
-
-        let sample = Sample {
-            locations,
-            values: &values,
-            labels,
-        };
-
         let timestamp = NonZeroI64::new(message.value.timestamp);
 
-        match profile.try_add_sample(sample, timestamp) {
-            Ok(_id) => {}
+        let dict = crate::interning::dictionary();
+        let g = crate::shm_cache::shm_globals();
+
+        let mut locations = Vec::with_capacity(message.value.frames.len());
+
+        for frame in message.value.frames.iter() {
+            let key = (frame.function_name, frame.filename);
+            let function_id = if let Some(&cached) = function_cache.get(&key) {
+                cached
+            } else if let Some(g) = g {
+                let name_str = g.table.get(frame.function_name);
+                let file_str = g.table.get(frame.filename);
+                let name_id = match dict.try_insert_str2(name_str) {
+                    Ok(id) => id,
+                    Err(_) => continue,
+                };
+                let file_id = match dict.try_insert_str2(file_str) {
+                    Ok(id) => id,
+                    Err(_) => continue,
+                };
+                let func2 = Function2 {
+                    name: name_id,
+                    system_name: StringId2::default(),
+                    file_name: file_id,
+                };
+                let fid = match dict.try_insert_function2(func2) {
+                    Ok(id) => id,
+                    Err(_) => continue,
+                };
+                function_cache.insert(key, fid);
+                fid
+            } else {
+                continue;
+            };
+
+            locations.push(Location2 {
+                function: function_id,
+                line: frame.line as i64,
+                ..Location2::default()
+            });
+        }
+
+        let labels: Vec<Api2Label> = message
+            .value
+            .labels
+            .iter()
+            .map(|label| {
+                let key = label.key.to_string_id2();
+                match label.value {
+                    LabelValue::Str(ref str) => Api2Label {
+                        key,
+                        str,
+                        num: 0,
+                        num_unit: "",
+                    },
+                    LabelValue::Num(num, num_unit) => Api2Label {
+                        key,
+                        str: "",
+                        num,
+                        num_unit,
+                    },
+                }
+            })
+            .collect();
+
+        match unsafe {
+            profile.try_add_sample2(&locations, &values, labels.into_iter().map(Ok), timestamp)
+        } {
+            Ok(()) => {}
             Err(err) => {
                 warn!("Failed to add sample to the profile: {err}")
             }
@@ -591,6 +692,8 @@ impl TimeCollector {
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
         let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(1);
+        let mut function_cache: FxHashMap<(ShmStringId, ShmStringId), FunctionId2> =
+            FxHashMap::default();
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -622,7 +725,7 @@ impl TimeCollector {
                     match result {
                         Ok(message) => match message {
                             ProfilerMessage::Sample(sample) =>
-                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export),
+                                Self::handle_sample_message(sample, &mut profiles, &last_wall_export, &mut function_cache),
                             ProfilerMessage::LocalRootSpanResource(message) =>
                                 Self::handle_resource_message(message, &mut profiles),
                             ProfilerMessage::Cancel => {
@@ -686,8 +789,6 @@ pub enum UploadMessage {
     Pause,
     Upload(Box<UploadRequest>),
 }
-
-const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
 
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
@@ -1080,13 +1181,13 @@ impl Profiler {
                 let mut labels = Profiler::common_labels(2);
 
                 labels.push(Label {
-                    key: "exception type",
+                    key: LabelKey::ExceptionType,
                     value: LabelValue::Str(exception.clone().into()),
                 });
 
                 if let Some(message) = message {
                     labels.push(Label {
-                        key: "exception message",
+                        key: LabelKey::ExceptionMessage,
                         value: LabelValue::Str(message.into()),
                     });
                 }
@@ -1118,23 +1219,28 @@ impl Profiler {
         }
     }
 
-    const TIMELINE_COMPILE_FILE_LABELS: &'static [Label] = &[Label {
-        key: "event",
-        value: LabelValue::Str(Cow::Borrowed("compilation")),
-    }];
+    fn timeline_compile_file_labels() -> Vec<Label> {
+        vec![Label {
+            key: LabelKey::Event,
+            value: LabelValue::Str(Cow::Borrowed("compilation")),
+        }]
+    }
 
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
-        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
-        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
+        let compile_labels = Self::timeline_compile_file_labels();
+        let mut labels = Profiler::common_labels(compile_labels.len());
+        labels.extend(compile_labels);
         let n_labels = labels.len();
 
+        let Some(frame) =
+            Frame::from_synthetic_with_file(SyntheticFrameName::Eval, &filename, line)
+        else {
+            return;
+        };
+
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(Cow::Owned(filename)),
-                line,
-            }]),
+            Backtrace::new(vec![frame]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1161,21 +1267,23 @@ impl Profiler {
         filename: String,
         include_type: &str,
     ) {
-        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
-        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
+        let compile_labels = Self::timeline_compile_file_labels();
+        let mut labels = Profiler::common_labels(compile_labels.len() + 1);
+        labels.extend(compile_labels);
         labels.push(Label {
-            key: "filename",
+            key: LabelKey::Filename,
             value: LabelValue::Str(Cow::from(filename)),
         });
 
         let n_labels = labels.len();
+        let sf = match include_type {
+            "include" => SyntheticFrame::Include,
+            "require" => SyntheticFrame::Require,
+            _ => SyntheticFrame::IncludeUnknown,
+        };
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(sf, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1201,18 +1309,20 @@ impl Profiler {
         let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
-            key: "event",
+            key: LabelKey::Event,
             value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
         });
 
         let n_labels = labels.len();
 
+        let sf = match event {
+            "thread start" => SyntheticFrame::ThreadStart,
+            "thread stop" => SyntheticFrame::ThreadStop,
+            _ => return, // unknown event, nothing to report
+        };
+
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: format!("[{event}]").into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(sf, 0)]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1235,22 +1345,23 @@ impl Profiler {
         let mut labels = Profiler::common_labels(2);
 
         labels.push(Label {
-            key: "event",
+            key: LabelKey::Event,
             value: LabelValue::Str("fatal".into()),
         });
         labels.push(Label {
-            key: "message",
+            key: LabelKey::Message,
             value: LabelValue::Str(message.into()),
         });
 
         let n_labels = labels.len();
 
+        let Some(frame) = Frame::from_synthetic_with_file(SyntheticFrameName::Fatal, &file, line)
+        else {
+            return;
+        };
+
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[fatal]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }]),
+            Backtrace::new(vec![frame]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1282,22 +1393,23 @@ impl Profiler {
         let mut labels = Profiler::common_labels(2);
 
         labels.push(Label {
-            key: "event",
+            key: LabelKey::Event,
             value: LabelValue::Str("opcache_restart".into()),
         });
         labels.push(Label {
-            key: "reason",
+            key: LabelKey::Reason,
             value: LabelValue::Str(reason.into()),
         });
 
         let n_labels = labels.len();
+        let Some(frame) =
+            Frame::from_synthetic_with_file(SyntheticFrameName::OpcacheRestart, &file, line)
+        else {
+            return;
+        };
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[opcache restart]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }]),
+            Backtrace::new(vec![frame]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1320,18 +1432,14 @@ impl Profiler {
         let mut labels = Profiler::common_labels(1);
 
         labels.push(Label {
-            key: "event",
+            key: LabelKey::Event,
             value: LabelValue::Str(reason.into()),
         });
 
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[idle]".into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(SyntheticFrame::Idle, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1362,32 +1470,27 @@ impl Profiler {
         let mut labels = Profiler::common_labels(4);
 
         labels.push(Label {
-            key: "event",
+            key: LabelKey::Event,
             value: LabelValue::Str(Cow::Borrowed("gc")),
         });
 
         labels.push(Label {
-            key: "gc reason",
+            key: LabelKey::GcReason,
             value: LabelValue::Str(Cow::from(reason)),
         });
 
         #[cfg(php_gc_status)]
         labels.push(Label {
-            key: "gc runs",
+            key: LabelKey::GcRuns,
             value: LabelValue::Num(runs, "count"),
         });
         labels.push(Label {
-            key: "gc collected",
+            key: LabelKey::GcCollected,
             value: LabelValue::Num(collected, "count"),
         });
         let n_labels = labels.len();
-
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![Frame::from_synthetic(SyntheticFrame::Gc, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1521,12 +1624,12 @@ impl Profiler {
     fn common_labels(n_extra_labels: usize) -> Vec<Label> {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
-            key: "thread id",
+            key: LabelKey::ThreadId,
             value: LabelValue::Num(unsafe { libc::pthread_self() as i64 }, "id"),
         });
 
         labels.push(Label {
-            key: "thread name",
+            key: LabelKey::ThreadName,
             value: LabelValue::Str(get_current_thread_name().into()),
         });
 
@@ -1540,12 +1643,12 @@ impl Profiler {
             let span_id = context.span_id as i64;
 
             labels.push(Label {
-                key: "local root span id",
+                key: LabelKey::LocalRootSpanId,
                 value: LabelValue::Num(local_root_span_id, ""),
             });
 
             labels.push(Label {
-                key: "span id",
+                key: LabelKey::SpanId,
                 value: LabelValue::Num(span_id, ""),
             });
         }
@@ -1557,9 +1660,9 @@ impl Profiler {
             // there's nothing changing that value in all of fibers
             // afterwards, from start to destruction of the fiber itself.
             let func = unsafe { &*fiber.fci_cache.function_handler };
-            if let Some(functionname) = extract_function_name(func) {
+            if let Ok(functionname) = extract_function_name(func) {
                 labels.push(Label {
-                    key: "fiber",
+                    key: LabelKey::Fiber,
                     value: LabelValue::Str(functionname),
                 });
             }
@@ -1622,11 +1725,7 @@ mod tests {
     use log::LevelFilter;
 
     fn get_frames() -> Backtrace {
-        Backtrace::new(vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }])
+        Backtrace::new(vec![Frame::from_synthetic(SyntheticFrame::Idle, 42)])
     }
 
     pub fn get_system_settings() -> SystemSettings {

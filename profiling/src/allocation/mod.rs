@@ -13,7 +13,7 @@ use libc::size_t;
 use log::{debug, trace};
 use rand_distr::{Distribution, Poisson};
 use std::ffi::c_void;
-use std::num::{NonZero, NonZeroU32, NonZeroU64};
+use std::num::{NonZeroU32, NonZeroU64};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(not(php_zts))]
@@ -72,9 +72,7 @@ pub mod allocation_ge84;
 pub mod allocation_le83;
 
 /// Default sampling interval in bytes (4 MiB).
-// SAFETY: value is > 0.
-pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 =
-    unsafe { NonZero::new_unchecked(1024 * 4096) };
+pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 = NonZeroU32::new(1024 * 4096).unwrap();
 
 /// Sampling distance feed into poison sampling algo. This must be > 0.
 pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
