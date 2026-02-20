@@ -1278,7 +1278,7 @@ dependencies = [
  "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
- "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?rev=6f5544cc58f63f0cf3d49a91567fe7d224cf5190)",
+ "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?rev=c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca)",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "libdd-profiling-shm",
@@ -2668,7 +2668,7 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=6f5544cc58f63f0cf3d49a91567fe7d224cf5190#6f5544cc58f63f0cf3d49a91567fe7d224cf5190"
+source = "git+https://github.com/DataDog/libdatadog?rev=c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca#c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
@@ -2719,7 +2719,7 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "1.1.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=6f5544cc58f63f0cf3d49a91567fe7d224cf5190#6f5544cc58f63f0cf3d49a91567fe7d224cf5190"
+source = "git+https://github.com/DataDog/libdatadog?rev=c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca#c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2926,7 +2926,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=6f5544cc58f63f0cf3d49a91567fe7d224cf5190#6f5544cc58f63f0cf3d49a91567fe7d224cf5190"
+source = "git+https://github.com/DataDog/libdatadog?rev=c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca#c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca"
 dependencies = [
  "allocator-api2",
  "anyhow",
@@ -2943,7 +2943,7 @@ dependencies = [
  "httparse",
  "indexmap 2.12.1",
  "libdd-alloc",
- "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?rev=6f5544cc58f63f0cf3d49a91567fe7d224cf5190)",
+ "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?rev=c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca)",
  "libdd-profiling-protobuf",
  "mime",
  "parking_lot",
@@ -2963,7 +2963,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=6f5544cc58f63f0cf3d49a91567fe7d224cf5190#6f5544cc58f63f0cf3d49a91567fe7d224cf5190"
+source = "git+https://github.com/DataDog/libdatadog?rev=c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca#c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca"
 dependencies = [
  "prost",
 ]
@@ -2971,7 +2971,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-shm"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=6f5544cc58f63f0cf3d49a91567fe7d224cf5190#6f5544cc58f63f0cf3d49a91567fe7d224cf5190"
+source = "git+https://github.com/DataDog/libdatadog?rev=c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca#c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca"
 dependencies = [
  "allocator-api2",
  "hashbrown 0.16.0",
