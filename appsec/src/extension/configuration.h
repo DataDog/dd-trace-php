@@ -28,6 +28,12 @@ extern bool runtime_config_first_init;
 
 #define DD_BASE(path) "/opt/datadog-php/"
 
+#if PHP_VERSION_ID >= 80500
+#define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
+#else
+#define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "false"
+#endif
+
 // clang-format off
 #define DD_CONFIGURATION_GENERAL \
     CONFIG(BOOL, DD_APPSEC_ENABLED, "false", .ini_change = zai_config_system_ini_change)                                                                                          \
@@ -47,6 +53,7 @@ extern bool runtime_config_first_init;
     SYSCFG(STRING, DD_APPSEC_LOG_FILE, "php_error_reporting")                                                                         \
     SYSCFG(BOOL, DD_APPSEC_HELPER_LAUNCH, "true")                                                                                     \
     CONFIG(STRING, DD_APPSEC_HELPER_PATH, DD_BASE("bin/libddappsec-helper.so"))                                                       \
+    SYSCFG(BOOL, DD_APPSEC_HELPER_RUST_REDIRECTION, DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT)                                        \
     SYSCFG(BOOL, DD_APPSEC_STACK_TRACE_ENABLED, "true")                                                                               \
     SYSCFG(BOOL, DD_APPSEC_RASP_ENABLED , "true")                                                                                     \
     SYSCFG(INT, DD_APPSEC_MAX_STACK_TRACE_DEPTH, "32")                                                                                \
