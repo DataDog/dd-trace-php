@@ -30,38 +30,33 @@ $args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
 $cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);'";
 system($cmd);
 
-try {
-    $rr->waitForRequest(function ($request) {
-        if ($request["uri"] != "/telemetry/proxy/api/v2/apmtelemetry") {
-            return false;
-        }
-        $body = json_decode($request["body"], true);
-        $batch = $body["request_type"] == "message-batch" ? $body["payload"] : [$body];
-
-        foreach ($batch as $json) {
-            if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
-                continue;
-            }
-
-            foreach ($json["payload"]["logs"] as $payload) {
-                if (!($payload["is_crash"] ?? false)) {
-                    continue; // Not an actual crash report (crash pings have is_crash: false)
-                }
-                $output = json_encode($payload, JSON_PRETTY_PRINT);
-
-                echo $output;
-
-                return true;
-            }
-        }
-
+$rr->waitForRequest(function ($request) {
+    if ($request["uri"] != "/telemetry/proxy/api/v2/apmtelemetry") {
         return false;
-    });
-    echo "unexpected: crash report received when crashtracking is disabled\n";
-} catch (Exception $e) {
-    echo $e->getMessage() . "\n";
-}
+    }
+    $body = json_decode($request["body"], true);
+    $batch = $body["request_type"] == "message-batch" ? $body["payload"] : [$body];
+
+    foreach ($batch as $json) {
+        if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
+            continue;
+        }
+
+        foreach ($json["payload"]["logs"] as $payload) {
+            $payload["message"] = json_decode($payload["message"], true);
+            $output = json_encode($payload, JSON_PRETTY_PRINT);
+
+            echo $output;
+
+            return true;
+        }
+    }
+
+    return false;
+});
 
 ?>
 --EXPECTF--
-%Await for replay timeout
+%A
+Fatal error: Uncaught Exception: wait for replay timeout in %s
+%A
