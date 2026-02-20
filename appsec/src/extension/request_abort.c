@@ -364,10 +364,6 @@ zend_array *nonnull dd_request_abort_redirect_spec(
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 void _request_abort_static_page(struct block_params *nonnull block_params)
 {
-    SG(sapi_headers).http_response_code = block_params->response_code
-                                              ? block_params->response_code
-                                              : DEFAULT_BLOCKING_RESPONSE_CODE;
-
     dd_response_type response_type = block_params->response_type;
     if (response_type == response_type_auto) {
         zval *server =
@@ -401,6 +397,10 @@ void _request_abort_static_page(struct block_params *nonnull block_params)
         zend_string_release(body);
         return;
     }
+
+    SG(sapi_headers).http_response_code = block_params->response_code
+                                              ? block_params->response_code
+                                              : DEFAULT_BLOCKING_RESPONSE_CODE;
 
     _set_content_type(content_type);
     _set_output_zstr(body);

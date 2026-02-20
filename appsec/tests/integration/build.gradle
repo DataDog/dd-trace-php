@@ -361,7 +361,8 @@ def buildAppSecTask = { String version, String variant ->
                               -DCMAKE_INSTALL_PREFIX=/appsec \\
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
                               -DGIT_COMMIT=${libddwafCommit()} \\
-                              -DDD_APPSEC_TESTING=ON /project/appsec
+                              -DDD_APPSEC_TESTING=ON \\
+                              -DBOOST_CACHE_PREFIX=/root/.boost /project/appsec
                     make -j extension ddappsec-helper && \\
                         touch ddappsec.so libddappsec-helper.so
                 """

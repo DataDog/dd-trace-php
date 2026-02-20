@@ -195,7 +195,7 @@ RUN set -eux; \
     (echo "${GDB_SHA256} gdb-${GDB_VERSION}.tar.gz" | sha256sum -c -); \
     mkdir gdb && cd gdb; \
     tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
-    ./configure; \
+    ./configure --with-debuginfod; \
     make -j "$((`nproc`+1))"; \
     make install
 
@@ -345,9 +345,13 @@ RUN set -eux; \
 # Handy aliases
     echo "alias ll='ls -al'" | \
         tee -a /home/circleci/.bash_aliases; \
-# Please remember gdb history
+# Please remember gdb history. debuginfod disabled by dfault to avoid prompting
     echo 'set history save on' >> /home/circleci/.gdbinit; \
-        chmod 600 /home/circleci/.gdbinit;
+    echo 'set debuginfod enabled off' >> /home/circleci/.gdbinit; \
+        chmod 600 /home/circleci/.gdbinit; \
+# Enable debuginfod for automatic debug symbol downloading
+    echo 'export DEBUGINFOD_URLS="https://debuginfod.debian.net"' | \
+        tee -a /home/circleci/.bashrc;
 
 COPY install-ext-from-source /usr/local/bin/install-ext-from-source
 COPY switch-php /usr/local/bin/

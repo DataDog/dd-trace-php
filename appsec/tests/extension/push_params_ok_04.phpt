@@ -39,11 +39,14 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    string(3) "lfi"
-    [1]=>
     array(1) {
       ["server.request.path_params"]=>
       int(1234)
+    }
+    [1]=>
+    array(1) {
+      ["rasp_rule"]=>
+      string(3) "lfi"
     }
   }
 }

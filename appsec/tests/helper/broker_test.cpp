@@ -401,20 +401,25 @@ TEST(BrokerTest, RecvRequestInit)
     EXPECT_STREQ(request.method.c_str(), "request_init");
 
     auto &command = request.as<network::request_init>();
-    parameter_view pv(command.data);
+    parameter_view pv{*&command.data};
     EXPECT_TRUE(pv.is_map());
     EXPECT_EQ(pv.size(), 3);
-    EXPECT_STREQ(pv[0].key().data(), "server.request.query");
-    EXPECT_STREQ(std::string_view(pv[0]).data(), "Arachni");
-    EXPECT_STREQ(pv[1].key().data(), "server.request.uri");
-    EXPECT_STREQ(std::string_view(pv[1]).data(), "arachni.com");
-    EXPECT_STREQ(pv[2].key().data(), "server.request.headers.no_cookies");
-    EXPECT_FLOAT_EQ(ddwaf_object_get_float(pv[2][0]), 123.456);
-    EXPECT_TRUE(ddwaf_object_get_bool(pv[2][1]));
-    EXPECT_FALSE(ddwaf_object_get_bool(pv[2][2]));
-    EXPECT_FLOAT_EQ(ddwaf_object_get_signed(pv[2][3]), -123);
-    EXPECT_FLOAT_EQ(ddwaf_object_get_unsigned(pv[2][4]), 456);
-    EXPECT_EQ(ddwaf_object_type(pv[2][5]), DDWAF_OBJ_NULL);
+
+    auto map_it = pv.map_iterable();
+    auto it = map_it.begin();
+    EXPECT_EQ((*it).first, "server.request.query");
+    EXPECT_EQ(std::string_view((*it).second), "Arachni");
+    ++it;
+    EXPECT_EQ((*it).first, "server.request.uri");
+    EXPECT_EQ(std::string_view((*it).second), "arachni.com");
+    ++it;
+    EXPECT_EQ((*it).first, "server.request.headers.no_cookies");
+    EXPECT_FLOAT_EQ(ddwaf_object_get_float(&(*it).second[0]), 123.456);
+    EXPECT_TRUE(ddwaf_object_get_bool(&(*it).second[1]));
+    EXPECT_FALSE(ddwaf_object_get_bool(&(*it).second[2]));
+    EXPECT_FLOAT_EQ(ddwaf_object_get_signed(&(*it).second[3]), -123);
+    EXPECT_FLOAT_EQ(ddwaf_object_get_unsigned(&(*it).second[4]), 456);
+    EXPECT_EQ(ddwaf_object_get_type(&(*it).second[5]), DDWAF_OBJ_NULL);
 }
 
 TEST(BrokerTest, RecvRequestShutdown)
@@ -443,11 +448,13 @@ TEST(BrokerTest, RecvRequestShutdown)
     EXPECT_STREQ(request.method.c_str(), "request_shutdown");
 
     auto command = std::move(request.as<network::request_shutdown>());
-    parameter_view pv(command.data);
+    parameter_view pv{*&command.data};
     EXPECT_TRUE(pv.is_map());
     EXPECT_EQ(pv.size(), 1);
-    EXPECT_STREQ(pv[0].key().data(), "server.response.code");
-    EXPECT_STREQ(std::string_view(pv[0]).data(), "1729");
+    auto map_it = pv.map_iterable();
+    auto it = map_it.begin();
+    EXPECT_EQ((*it).first, "server.response.code");
+    EXPECT_EQ(std::string_view((*it).second), "1729");
 }
 
 TEST(BrokerTest, NoBytesForHeader)

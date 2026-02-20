@@ -11,21 +11,12 @@
 
 #include "parameter_base.hpp"
 
-namespace {
-template <typename T>
-concept StrictDDwafObjectSubtype =
-    std::is_base_of_v<ddwaf_object, std::decay_t<T>> &&
-    !std::is_same_v<ddwaf_object, std::decay_t<T>>;
-}
-
 namespace dds {
 
-class parameter : public parameter_base {
+class __attribute__((__may_alias__)) parameter : public parameter_base {
 public:
     parameter() = default;
     explicit parameter(const ddwaf_object &arg);
-
-    template <StrictDDwafObjectSubtype T> parameter(T &&t) = delete;
 
     parameter(const parameter &) = delete;
     parameter &operator=(const parameter &) = delete;
@@ -33,13 +24,16 @@ public:
     parameter(parameter &&) noexcept;
     parameter &operator=(parameter &&) noexcept;
 
-    ~parameter() { ddwaf_object_free(this); }
+    ~parameter()
+    {
+        auto *alloc = ddwaf_get_default_allocator();
+        ddwaf_object_destroy(&obj_, alloc);
+    }
 
     static parameter map() noexcept;
     static parameter array() noexcept;
     static parameter uint64(uint64_t value) noexcept;
     static parameter int64(int64_t value) noexcept;
-    static parameter string(const std::string &str) noexcept;
     static parameter string(std::string_view str) noexcept;
     static parameter string(uint64_t value) noexcept;
     static parameter string(int64_t value) noexcept;

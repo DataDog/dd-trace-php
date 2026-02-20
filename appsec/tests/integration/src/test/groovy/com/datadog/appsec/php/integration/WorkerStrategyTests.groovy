@@ -139,6 +139,7 @@ trait WorkerStrategyTests {
                  "rule" : {
                     "id" : "poison-in-json",
                     "name" : "poison-in-json",
+                    "on_match" : [],
                     "tags" : {
                        "category" : "attack_attempt",
                        "type" : "security_scanner"
@@ -156,7 +157,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "message",
-                                "3"
+                                3
                              ],
                              "value" : "poison"
                           }
@@ -207,7 +208,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "message",
-                                "3"
+                                3
                              ],
                              "value" : "block_this"
                           }
@@ -236,6 +237,7 @@ trait WorkerStrategyTests {
                  "rule" : {
                     "id" : "poison-in-xml",
                     "name" : "poison-in-xml",
+                    "on_match" : [],
                     "tags" : {
                        "category" : "attack_attempt",
                        "type" : "security_scanner"
@@ -253,7 +255,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "note",
-                                "2"
+                                2
                              ],
                              "value" : "\\n  poison\\n"
                           }
@@ -288,6 +290,7 @@ trait WorkerStrategyTests {
                  "rule" : {
                     "id" : "poison-in-json",
                     "name" : "poison-in-json",
+                    "on_match" : [],
                     "tags" : {
                        "category" : "attack_attempt",
                        "type" : "security_scanner"
@@ -305,7 +308,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "message",
-                                "3"
+                                3
                              ],
                              "value" : "poison"
                           }
@@ -339,6 +342,7 @@ trait WorkerStrategyTests {
                  "rule" : {
                     "id" : "poison-in-xml",
                     "name" : "poison-in-xml",
+                    "on_match" : [],
                     "tags" : {
                        "category" : "attack_attempt",
                        "type" : "security_scanner"
@@ -356,7 +360,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "note",
-                                "2"
+                                2
                              ],
                              "value" : "poison"
                           }

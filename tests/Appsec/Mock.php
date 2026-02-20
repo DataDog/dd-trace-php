@@ -74,7 +74,7 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
                 'token' => $token
             ]);
             $eventIsBlocked = $stmt->rowCount() > 0;
-        
+
             $stmt = $this->getDbPdo()->prepare("INSERT INTO appsec_events VALUES (:event, :token)");
             $stmt->execute([
                 'event' => $jsonEvent,
@@ -278,13 +278,20 @@ if (!function_exists('datadog\appsec\track_authenticated_user_event')) {
 if (!function_exists('datadog\appsec\push_addresses')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
-     * @param array $params
+     * @param ?array|string $params keys: rasp_rule, subctx_id, subctx_last_call
      */
-    function push_addresses($addresses, $rasp = "")
+    function push_addresses($addresses, $params = '')
     {
         if (!appsecMockEnabled()) {
             return;
         }
-        AppsecStatus::getInstance()->addEvent(['rasp_rule' => $rasp, $addresses], 'push_addresses');
+        if (is_string($params)) {
+            $rasp_rule = $params;
+        } elseif (is_array($params)) {
+            $rasp_rule = $params['rasp_rule'] ?? '';
+        } else {
+            $rasp_rule = '';
+        }
+        AppsecStatus::getInstance()->addEvent(['rasp_rule' => $rasp_rule, $addresses], 'push_addresses');
     }
 }

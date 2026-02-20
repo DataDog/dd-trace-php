@@ -7,6 +7,7 @@
 
 #include "action.hpp"
 #include "engine_settings.hpp"
+#include "network/proto.hpp"
 #include "parameter.hpp"
 #include "rate_limit.hpp"
 #include "subscriber/base.hpp"
@@ -65,7 +66,7 @@ public:
         ~context() = default;
 
         std::optional<result> publish(
-            parameter &&param, const std::string &rasp_rule = "");
+            parameter &&param, const network::request_exec_options &options);
         // NOLINTNEXTLINE(google-runtime-references)
         void get_metrics(telemetry::telemetry_submitter &msubmitter);
         [[nodiscard]] bool get_input_truncated() const
