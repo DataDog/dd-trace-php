@@ -237,6 +237,17 @@ class LogsIntegration extends Integration
         );
         \DDTrace\remove_hook($hook, NullLogger::class);
 
+        \DDTrace\install_hook(
+            'Monolog\Formatter\JsonFormatter::toJson',
+            function (HookData $hook) {
+                /** @var array $normalized */
+                $normalized = $hook->args[0];
+                $normalized['source'] = 'php';
+                $hook->args[0] = $normalized;
+                $hook->overrideArguments($hook->args);
+            }
+        );
+
         return Integration::LOADED;
     }
 }
