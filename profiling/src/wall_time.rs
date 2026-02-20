@@ -137,6 +137,169 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
     }
 }
 
+#[cfg(php_frameless)]
+mod frameless {
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    mod trampoline {
+        #[cfg(target_arch = "aarch64")]
+        use dynasmrt::aarch64::Assembler;
+        #[cfg(target_arch = "aarch64")]
+        use dynasmrt::DynasmLabelApi;
+        #[cfg(target_arch = "x86_64")]
+        use dynasmrt::x64::Assembler;
+        use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
+        use std::ffi::c_void;
+        use std::sync::atomic::Ordering;
+        use log::error;
+        use crate::bindings::{zend_flf_functions, zend_flf_handlers, zend_frameless_function_info};
+        use crate::{profiling::Profiler, RefCellExt, REQUEST_LOCALS, zend};
+
+        // This ensures that the memory stays reachable and is replaced on apache reload for example
+        static mut INFOS: Vec<zend_frameless_function_info> = Vec::new();
+        static mut BUFFER: Option<ExecutableBuffer> = None;
+
+        pub unsafe fn install() {
+            // Collect frameless functions ahead of time to batch-process them.
+            // Otherwise we get a new memory page per function.
+            let mut originals = Vec::new();
+            let mut i = 0;
+            loop {
+                let original = *zend_flf_handlers.add(i);
+                if original.is_null() {
+                    break;
+                }
+                originals.push(original);
+                i += 1;
+            }
+
+            let mut assembler = match Assembler::new() {
+                Ok(assembler) => assembler,
+                Err(e) => {
+                    error!("Failed to create assembler for FLF trampolines: {e}. Frameless functions will not appear in wall-time profiles.");
+                    return;
+                }
+            };
+            let interrupt_addr = ddog_php_prof_icall_trampoline_target as *const ();
+            let mut offsets = Vec::new();  // keep function offsets
+            for orig in originals.iter() {
+                offsets.push(assembler.offset());
+                // Calls original function, then calls interrupt function.
+                #[cfg(target_arch = "aarch64")]
+                {
+                    // We need labels on aarch64 as immediates cannot be more than 16 bits
+                    dynasm!(assembler
+                        ; stp x29, x30, [sp, -16]! // save link register and allow clobber of x29
+                        ; mov x29, sp // store stack pointer
+                        ; ldr x16, >orig_label
+                        ; blr x16
+                        ; ldp x29, x30, [sp], 16 // restore link register and x29
+                        ; ldr x16, >interrupt_label
+                        ; br x16  // tail call
+                        ; orig_label: ; .qword *orig as i64
+                    );
+                }
+                #[cfg(target_arch = "x86_64")]
+                dynasm!(assembler
+                    ; push rbp  // align stack
+                    ; mov rax, QWORD *orig as i64
+                    ; call rax
+                    ; pop rbp  // restore stack
+                    ; mov rax, QWORD interrupt_addr as i64
+                    ; jmp rax  // tail call
+                );
+            }
+            #[cfg(target_arch = "aarch64")]
+            dynasm!(assembler
+                ; interrupt_label: ; .qword interrupt_addr as i64 );
+
+            // Allocate enough space for all frameless_function_infos including trailing NULLs
+            let mut infos = Vec::with_capacity(originals.len() * 2);
+
+            let buffer = match assembler.finalize() {
+                Ok(buffer) => buffer,
+                Err(_) => {
+                    error!("Failed to finalize FLF trampolines (mprotect PROT_EXEC denied?). Frameless functions will not appear in cpu/wall-time profiles. This may be caused by security policies (SELinux, seccomp, etc.).");
+                    return;
+                }
+            };
+            let mut last_infos = std::ptr::null_mut();
+            for (i, offset) in offsets.iter().enumerate() {
+                let wrapper = buffer.as_ptr().add(offset.0) as *mut c_void;
+                *zend_flf_handlers.add(i) = wrapper;
+                let func = &mut **zend_flf_functions.add(i);
+
+                // We need to do copies of frameless_function_infos as they may be readonly memory
+                let original_info = func.internal_function.frameless_function_infos;
+                if original_info != last_infos {
+                    let info_size = infos.len();
+                    let mut ptr = original_info;
+                    loop {
+                        let info = *ptr;
+                        infos.push(info);
+                        if info.handler.is_null() {
+                            break;
+                        }
+                        ptr = ptr.add(1);
+                    }
+                    last_infos = infos.as_ptr().add(info_size) as *mut _;
+                    func.internal_function.frameless_function_infos = last_infos;
+                }
+                let mut ptr = last_infos;
+                loop {
+                    let info = &mut *ptr;
+                    if info.handler.is_null() {
+                        break;
+                    }
+                    if info.handler == originals[i] {
+                        info.handler = wrapper;
+                    }
+                    ptr = ptr.add(1);
+                }
+            }
+
+            INFOS = infos;
+            BUFFER = Some(buffer);
+        }
+
+        #[no_mangle]
+        #[inline(never)]
+        pub extern "C" fn ddog_php_prof_icall_trampoline_target() {
+            let interrupt_count = REQUEST_LOCALS
+                .try_with_borrow(|locals| {
+                    if !locals.system_settings().profiling_enabled {
+                        return 0;
+                    }
+                    locals.interrupt_count.swap(0, Ordering::SeqCst)
+                })
+                .unwrap_or(0);
+
+            if interrupt_count == 0 {
+                return;
+            }
+
+            if let Some(profiler) = Profiler::get() {
+                // SAFETY: profiler doesn't mutate execute_data
+                let execute_data = unsafe { zend::ddog_php_prof_get_current_execute_data() };
+                profiler.collect_time(execute_data, interrupt_count);
+            }
+        }
+    }
+
+    #[no_mangle]
+    pub unsafe extern "C" fn ddog_php_prof_post_startup() {
+        #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+        trampoline::install();
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use crate::bindings::zend_function;
+
+        #[no_mangle]
+        pub static mut zend_flf_functions: *mut *mut zend_function = std::ptr::null_mut();
+    }
+}
+
 /// A wrapper for the `ddog_php_prof_interrupt_function` to call the
 /// previous interrupt handler, if there was one.
 #[no_mangle]
