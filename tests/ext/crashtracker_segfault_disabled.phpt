@@ -63,5 +63,6 @@ try {
 }
 
 ?>
---EXPECT--
-wait for replay timeout
+--EXPECTF--
+%Await for replay timeout
+%A
