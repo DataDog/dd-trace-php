@@ -65,4 +65,3 @@ try {
 ?>
 --EXPECTF--
 %Await for replay timeout
-%A
