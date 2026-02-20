@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{select, Receiver};
 use libdd_common::Endpoint;
+use libdd_profiling::exporter::TlsConfig;
 use log::{debug, info, warn};
 use serde_json::json;
 use std::borrow::Cow;
@@ -27,6 +28,7 @@ pub struct Uploader {
     endpoint: AgentEndpoint,
     start_time: String,
     process_tags: Option<String>,
+    tls_config: TlsConfig,
 }
 
 impl Uploader {
@@ -37,6 +39,7 @@ impl Uploader {
         endpoint: AgentEndpoint,
         start_time: DateTime<Utc>,
         process_tags: Option<String>,
+        tls_config: TlsConfig,
     ) -> Self {
         Self {
             fork_barrier,
@@ -45,6 +48,7 @@ impl Uploader {
             endpoint,
             start_time: start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
             process_tags,
+            tls_config,
         }
     }
 
@@ -110,12 +114,13 @@ impl Uploader {
         let endpoint = Endpoint::try_from(agent_endpoint)?;
 
         let tags = Arc::unwrap_or_clone(index.tags);
-        let mut exporter = libdd_profiling::exporter::ProfileExporter::new(
+        let mut exporter = libdd_profiling::exporter::ProfileExporter::new_with_tls(
             profiling_library_name,
             profiling_library_version,
             "php",
             tags,
             endpoint,
+            self.tls_config.clone(),
         )?;
 
         let serialized =

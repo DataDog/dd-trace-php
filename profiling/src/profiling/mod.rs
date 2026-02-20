@@ -732,6 +732,9 @@ impl Profiler {
                 .map(|s| s.to_owned())
         };
 
+        let tls_config = libdd_profiling::exporter::TlsConfig::new()
+            .expect("failed to initialize TLS configuration");
+
         let uploader = Uploader::new(
             fork_barrier.clone(),
             upload_receiver,
@@ -739,6 +742,7 @@ impl Profiler {
             system_settings.uri.clone(),
             Utc::now(),
             process_tags,
+            tls_config,
         );
 
         let sample_types_filter = SampleTypeFilter::new(system_settings);
