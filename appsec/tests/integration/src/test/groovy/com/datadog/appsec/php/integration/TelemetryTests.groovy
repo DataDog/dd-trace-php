@@ -365,29 +365,23 @@ class TelemetryTests {
         assert messages.any {
             it.level == 'ERROR' &&
                     it.message == "bad cast, expected 'array', obtained 'string'" &&
-                    it.parsedTags == [
-                    log_type: 'rc::asm_data::diagnostic',
-                    appsec_config_key: 'rules_data',
-                    rc_config_id: 'bad_config',
-            ]
+                    it.parsedTags.log_type == 'rc::asm_data::diagnostic' &&
+                    it.parsedTags.appsec_config_key == 'rules_data' &&
+                    it.parsedTags.rc_config_id == 'bad_config'
         }
         assert messages.any {
             it.level == 'ERROR' &&
                     it.message == "{\"missing key 'conditions'\":[\"bad_rule\"]}" &&
-                    it.parsedTags == [
-                    log_type: 'rc::asm_dd::diagnostic',
-                    appsec_config_key: 'rules',
-                    rc_config_id: 'bad_rule',
-            ]
+                    it.parsedTags.log_type == 'rc::asm_dd::diagnostic' &&
+                    it.parsedTags.appsec_config_key == 'rules' &&
+                    it.parsedTags.rc_config_id == 'bad_rule'
         }
         assert messages.any {
             it.level == 'WARN' &&
                     it.message == "{\"unknown operator: 'unknown_operator'\":[\"bad_condition_rule\"]}" &&
-                    it.parsedTags == [
-                    log_type: 'rc::asm_dd::diagnostic',
-                    appsec_config_key: 'rules',
-                    rc_config_id: 'warning_rule',
-            ]
+                    it.parsedTags.log_type == 'rc::asm_dd::diagnostic' &&
+                    it.parsedTags.appsec_config_key == 'rules' &&
+                    it.parsedTags.rc_config_id == 'warning_rule'
         }
     }
 
@@ -681,7 +675,7 @@ class TelemetryTests {
             HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
         }
 
-        def messages = waitForTelemetryLogs(30) { List<TelemetryHelpers.Logs> logs ->
+        def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
             def relevantLogs = logs.collectMany { it.logs.findAll { it.tags.contains('log_type:helper::logged_error') } }
             !relevantLogs.empty
         }.collectMany { it.logs }
