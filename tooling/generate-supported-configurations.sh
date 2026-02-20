@@ -249,6 +249,7 @@ function add_rust_profiling_configurations(&$supported, $path) {
 
 $supported = [];
 foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLine) {
+    $configLine = preg_replace('((\\\\{2})*\K"\s*")', '', $configLine);
     $config = str_getcsv(trim($configLine), ",", '"', '\\');
     if (count($config) < 3) {
         continue;
