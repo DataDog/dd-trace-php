@@ -2,6 +2,10 @@ package com.datadog.appsec.php
 
 import groovy.transform.Canonical
 import groovy.transform.ToString
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import com.datadog.appsec.php.docker.AppSecContainer
+import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 /**
  * @link https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md
@@ -20,6 +24,40 @@ class TelemetryHelpers {
 
         GenerateMetrics(Map m) {
             series = m.series.collect { new Metric(it as Map) }
+        }
+    }
+
+    @ToString
+    static class AppEndpoints {
+        static names = ['app-endpoints']
+        List<Endpoint> endpoints
+
+        AppEndpoints(Map m) {
+            endpoints = m.endpoints.collect { new Endpoint(it as Map) }
+        }
+    }
+
+    static class Endpoint {
+        String method
+        String operationName
+        String path
+        String resourceName
+
+        Endpoint(Map m) {
+            method = m.method
+            operationName = m.operation_name
+            path = m.path
+            resourceName = m.resource_name
+        }
+
+        @Override
+        public String toString() {
+            return new StringJoiner(", ", Endpoint.class.getSimpleName() + "[", "]")
+                    .add("method='" + method + "'")
+                    .add("operationName='" + operationName + "'")
+                    .add("path='" + path + "'")
+                    .add("resourceName='" + resourceName + "'")
+                    .toString();
         }
     }
 
@@ -47,6 +85,10 @@ class TelemetryHelpers {
     static class Logs {
         static names = ['logs']
         List<Log> logs
+
+        Logs(Map m) {
+            this(m.logs as List)
+        }
 
         Logs(List m) {
             logs = m.collect { new Log(it as Map) }
@@ -139,5 +181,44 @@ class TelemetryHelpers {
             compatible = m.compatible
             autoEnabled = m.autoEnabled
         }
+    }
+
+    public static <T> List<T> waitForTelemetryData(AppSecContainer container, int timeoutSec, Closure<Boolean> cl, Class<T> cls, String path = '/hello.php') {
+        List<T> messages = []
+        def deadline = System.currentTimeSeconds() + timeoutSec
+        def lastHttpReq = System.currentTimeSeconds() - 6
+        while (System.currentTimeSeconds() < deadline) {
+            if (System.currentTimeSeconds() - lastHttpReq > 5) {
+                lastHttpReq = System.currentTimeSeconds()
+                // used to flush global (not request-bound) telemetry metrics
+                def request = container.buildReq(path).GET().build()
+                def trace = container.traceFromRequest(request, ofString()) { HttpResponse<String> resp ->
+                    assert resp.body().size() > 0
+                }
+            }
+            def telData = container.drainTelemetry(500)
+            messages.addAll(
+                    TelemetryHelpers.filterMessages(telData, cls))
+            if (cl.call(messages)) {
+                break
+            }
+        }
+        messages
+    }
+
+    public static List<AppEndpoints> waitForAppEndpoints(AppSecContainer container, int timeoutSec, Closure<Boolean> cl, String path = '/') {
+        waitForTelemetryData(container, timeoutSec, cl, AppEndpoints, path)
+    }
+
+    public static List<GenerateMetrics> waitForMetrics(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
+        waitForTelemetryData(container, timeoutSec, cl, GenerateMetrics)
+    }
+
+    public static List<WithIntegrations> waitForIntegrations(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
+        waitForTelemetryData(container, timeoutSec, cl, WithIntegrations)
+    }
+
+    public static List<Logs> waitForLogs(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
+        waitForTelemetryData(container, timeoutSec, cl, Logs)
     }
 }

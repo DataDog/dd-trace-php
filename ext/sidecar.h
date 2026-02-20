@@ -23,6 +23,7 @@ DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
+void ddtrace_sidecar_update_process_tags(void);
 void ddtrace_sidecar_finalize(bool clear_id);
 void ddtrace_sidecar_shutdown(void);
 void ddtrace_reset_sidecar(void);
@@ -50,6 +51,9 @@ void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
 bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str);
 
 static inline ddog_CharSlice dd_zend_string_to_CharSlice(zend_string *str) {
+    if (str == NULL) {
+        return (ddog_CharSlice){ .len = 0, .ptr = NULL };
+    }
     return (ddog_CharSlice){ .len = str->len, .ptr = str->val };
 }
 

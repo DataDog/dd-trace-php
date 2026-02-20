@@ -134,7 +134,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
             foreach ($traces as $trace) {
                 foreach ($trace as $span) {
-                    if ($span && isset($span["name"]) && $span["name"] === "laravel.request") {
+                    if ($span
+                        && isset($span["name"])
+                        && $span["name"] === "laravel.request"
+                        && str_contains($span["resource"], 'App\\Http\\Controllers')
+                    ) {
                         return true;
                     }
                 }
@@ -219,7 +223,11 @@ class CommonScenariosTest extends WebFrameworkTestCase
 
             foreach ($traces as $trace) {
                 foreach ($trace as $span) {
-                    if ($span && isset($span["name"]) && $span["name"] === "laravel.request") {
+                    if ($span
+                        && isset($span["name"])
+                        && $span["name"] === "laravel.request"
+                        && str_contains($span["resource"], 'App\\Http\\Controllers')
+                    ) {
                         return true;
                     }
                 }

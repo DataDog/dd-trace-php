@@ -272,6 +272,7 @@ typedef enum ddog_ConfigurationOrigin {
   DDOG_CONFIGURATION_ORIGIN_DEFAULT,
   DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
   DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_CALCULATED,
 } ddog_ConfigurationOrigin;
 
 typedef enum ddog_DynamicConfigUpdateMode {
@@ -386,6 +387,7 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -396,6 +398,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
+  DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
 } ddog_RemoteConfigProduct;
 
@@ -776,6 +779,7 @@ typedef struct ddog_DebuggerValue ddog_DebuggerValue;
 
 typedef enum ddog_DebuggerType {
   DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
+  DDOG_DEBUGGER_TYPE_SNAPSHOTS,
   DDOG_DEBUGGER_TYPE_LOGS,
 } ddog_DebuggerType;
 
@@ -954,6 +958,20 @@ typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
  */
 typedef struct ddog_TelemetryWorkerHandle ddog_TelemetryWorkerHandle;
 
+typedef enum ddog_Option_U64_Tag {
+  DDOG_OPTION_U64_SOME_U64,
+  DDOG_OPTION_U64_NONE_U64,
+} ddog_Option_U64_Tag;
+
+typedef struct ddog_Option_U64 {
+  ddog_Option_U64_Tag tag;
+  union {
+    struct {
+      uint64_t some;
+    };
+  };
+} ddog_Option_U64;
+
 typedef enum ddog_Option_Bool_Tag {
   DDOG_OPTION_BOOL_SOME_BOOL,
   DDOG_OPTION_BOOL_NONE_BOOL,
@@ -985,6 +1003,19 @@ typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
 } ddog_DynamicInstrumentationConfigState;
+
+typedef enum ddog_Method {
+  DDOG_METHOD_GET = 0,
+  DDOG_METHOD_POST = 1,
+  DDOG_METHOD_PUT = 2,
+  DDOG_METHOD_DELETE = 3,
+  DDOG_METHOD_PATCH = 4,
+  DDOG_METHOD_HEAD = 5,
+  DDOG_METHOD_OPTIONS = 6,
+  DDOG_METHOD_TRACE = 7,
+  DDOG_METHOD_CONNECT = 8,
+  DDOG_METHOD_OTHER = 9,
+} ddog_Method;
 
 typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
@@ -1291,7 +1322,7 @@ typedef struct ddog_crasht_Config {
   /**
    * Timeout in milliseconds before the signal handler starts tearing things down to return.
    * If 0, uses the default timeout as specified in
-   * `datadog_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
+   * `libdd_crashtracker::shared::constants::DD_CRASHTRACK_DEFAULT_TIMEOUT`. Otherwise, uses
    * the specified timeout value.
    * This is given as a uint32_t, but the actual timeout needs to fit inside of an i32 (max
    * 2^31-1). This is a limitation of the various interfaces used to guarantee the timeout.
@@ -1411,13 +1442,17 @@ typedef struct  ddog_crasht_CrashInfoBuilder_NewResult {
   };
 }  ddog_crasht_CrashInfoBuilder_NewResult;
 
-typedef enum ddog_crasht_CrashInfo_NewResult_Tag {
-  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_OK,
-  DDOG_CRASHT_CRASH_INFO_NEW_RESULT_ERR,
-} ddog_crasht_CrashInfo_NewResult_Tag;
+/**
+ * A generic result type for when an operation may fail,
+ * or may return <T> in case of success.
+ */
+typedef enum ddog_crasht_Result_HandleCrashInfo_Tag {
+  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_OK_HANDLE_CRASH_INFO,
+  DDOG_CRASHT_RESULT_HANDLE_CRASH_INFO_ERR_HANDLE_CRASH_INFO,
+} ddog_crasht_Result_HandleCrashInfo_Tag;
 
-typedef struct ddog_crasht_CrashInfo_NewResult {
-  ddog_crasht_CrashInfo_NewResult_Tag tag;
+typedef struct ddog_crasht_Result_HandleCrashInfo {
+  ddog_crasht_Result_HandleCrashInfo_Tag tag;
   union {
     struct {
       struct ddog_crasht_Handle_CrashInfo ok;
@@ -1426,7 +1461,9 @@ typedef struct ddog_crasht_CrashInfo_NewResult {
       struct ddog_Error err;
     };
   };
-} ddog_crasht_CrashInfo_NewResult;
+} ddog_crasht_Result_HandleCrashInfo;
+
+typedef struct ddog_crasht_Result_HandleCrashInfo ddog_crasht_CrashInfo_NewResult;
 
 typedef struct ddog_crasht_OsInfo {
   ddog_CharSlice architecture;
@@ -1437,6 +1474,10 @@ typedef struct ddog_crasht_OsInfo {
 
 typedef struct ddog_crasht_ProcInfo {
   uint32_t pid;
+  /**
+   * Optional crashing thread id; 0 means unset.
+   */
+  uint32_t tid;
 } ddog_crasht_ProcInfo;
 
 typedef struct ddog_crasht_SigInfo {

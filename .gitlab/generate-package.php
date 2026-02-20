@@ -98,7 +98,7 @@ include:
 # One pipeline job overrides
 configure_system_tests:
   variables:
-    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,lib-injection,lib-injection-profiling,docker-ssi"
+    SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
 
 package-oci:
@@ -488,17 +488,31 @@ foreach ($windows_build_platforms as $platform) {
     IMAGE: "<?= $image ?>"
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
-    GIT_STRATEGY: clone
-    GIT_CONFIG_COUNT: 2
-    GIT_CONFIG_KEY_0: core.longpaths
-    GIT_CONFIG_VALUE_0: true
-    GIT_CONFIG_KEY_1: core.symlinks
-    GIT_CONFIG_VALUE_1: true
+    GIT_STRATEGY: none
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
+    # Aggressive Git cleanup
+    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
+    cmd /c "if exist .git rmdir /s /q .git" 2>$null
+    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
+    cmd /c "del /f /s /q *" 2>$null
+    Write-Host "Cleanup complete."
+
     # Make sure we actually fail if a command fails
     $ErrorActionPreference = 'Stop'
     $PSNativeCommandUseErrorActionPreference = $true
+
+    # Manual git clone with proper config
+    Write-Host "Cloning repository..."
+    git config --global core.longpaths true
+    git config --global core.symlinks true
+    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    git checkout $env:CI_COMMIT_SHA
+
+    # Initialize submodules
+    Write-Host "Initializing submodules..."
+    git submodule update --init --recursive
+    Write-Host "Git setup complete."
 
     mkdir extensions_x86_64
     mkdir extensions_x86_64_debugsymbols
@@ -1348,8 +1362,9 @@ endforeach;
   tags: [ "arch:amd64" ]
   rules:
     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
-      when: always
+      when: on_success
     - when: manual
+      allow_failure: true
   needs:
     - job: "prepare code"
       artifacts: true
@@ -1394,9 +1409,9 @@ foreach ($arch_targets as $arch) {
   tags: [ "runner:main", "size:large" ]
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
-      when: always
+      when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
-      when: always
+      when: on_success
     - when: manual
       allow_failure: true
   needs:
@@ -1422,6 +1437,7 @@ foreach ($arch_targets as $arch) {
 
 deploy_to_reliability_env:
   stage: shared-pipeline
+  allow_failure: true
   needs:
     - job: "bundle for reliability env"
   rules:

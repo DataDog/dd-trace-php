@@ -48,7 +48,8 @@ typedef struct _dd_helper_mgr {
 static _Atomic(dd_helper_shared_state) *_shared_state;
 
 static THREAD_LOCAL_ON_ZTS dd_helper_mgr _mgr;
-static THREAD_LOCAL_ON_ZTS helper_runtime _helper_runtime = HELPER_RUNTIME_UNKNOWN;
+static THREAD_LOCAL_ON_ZTS helper_runtime _helper_runtime =
+    HELPER_RUNTIME_UNKNOWN;
 
 static const double _backoff_initial = 3.0;
 static const double _backoff_base = 2.0;

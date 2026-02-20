@@ -15,6 +15,39 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
+/// RAII guard that snapshots `errno` on creation and restores it on drop.
+///
+/// I/O profiling wrappers intercept libc calls and run additional logic (timing, sampling) that
+/// can clobber `errno`. Callers of the original syscall expect `errno` to reflect the syscall
+/// result, not our wrapper internals. Create an `ErrnoBackup` right after the original syscall
+/// returns and let it live until the end of the wrapper function, its `Drop` impl will
+/// transparently restore the original `errno` value.
+struct ErrnoBackup {
+    errno: c_int,
+    location: *mut c_int,
+}
+
+impl ErrnoBackup {
+    /// Snapshots the current `errno` value.
+    #[inline]
+    fn new() -> Self {
+        // SAFETY: errno location is initialized in program/thread startup.
+        let location = unsafe { libc::__errno_location() };
+        // SAFETY: errno pointer is safe to read from same thread.
+        let errno = unsafe { location.read() };
+        Self { errno, location }
+    }
+}
+
+impl Drop for ErrnoBackup {
+    /// Restores `errno` value.
+    #[inline]
+    fn drop(&mut self) {
+        // SAFETY: points to thread's errno (cached in new), safe for writes.
+        unsafe { self.location.write(self.errno) }
+    }
+}
+
 static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, u64, c_int) -> i32 = libc::poll;
 /// The `poll()` libc call has only every been observed when reading/writing to/from a socket,
 /// never when reading/writing to a file. There is two known cases in PHP:
@@ -27,6 +60,7 @@ static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, u64, c_int) -> i32
 unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: u64, timeout: c_int) -> i32 {
     let start = Instant::now();
     let ret = ORIG_POLL(fds, nfds, timeout);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     if !fds.is_null() {
@@ -75,6 +109,7 @@ unsafe extern "C" fn observed_recv(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_RECV(socket, buf, length, flags);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -102,6 +137,7 @@ unsafe extern "C" fn observed_recvmsg(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_RECVMSG(socket, msg, flags);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -138,6 +174,7 @@ unsafe extern "C" fn observed_recvfrom(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_RECVFROM(socket, buf, length, flags, address, address_len);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -165,6 +202,7 @@ unsafe extern "C" fn observed_send(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_SEND(socket, buf, length, flags);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -191,6 +229,7 @@ unsafe extern "C" fn observed_sendmsg(
 ) -> isize {
     let start = Instant::now();
     let len = ORIG_SENDMSG(socket, msg, flags);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -222,6 +261,7 @@ unsafe extern "C" fn observed_fwrite(
 ) -> usize {
     let start = Instant::now();
     let len = ORIG_FWRITE(ptr, size, nobj, stream);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -242,6 +282,7 @@ static mut ORIG_WRITE: unsafe extern "C" fn(c_int, *const c_void, usize) -> isiz
 unsafe extern "C" fn observed_write(fd: c_int, buf: *const c_void, count: usize) -> isize {
     let start = Instant::now();
     let len = ORIG_WRITE(fd, buf, count);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -290,6 +331,7 @@ unsafe extern "C" fn observed_fread(
 ) -> usize {
     let start = Instant::now();
     let len = ORIG_FREAD(ptr, size, nobj, stream);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -310,6 +352,7 @@ static mut ORIG_READ: unsafe extern "C" fn(c_int, *mut c_void, usize) -> isize =
 unsafe extern "C" fn observed_read(fd: c_int, buf: *mut c_void, count: usize) -> isize {
     let start = Instant::now();
     let len = ORIG_READ(fd, buf, count);
+    let _errno_backup = ErrnoBackup::new();
     let duration = start.elapsed();
 
     let duration_nanos = duration.as_nanos() as u64;
@@ -347,6 +390,7 @@ static mut ORIG_CLOSE: unsafe extern "C" fn(i32) -> i32 = libc::close;
 /// The sole purpose of this function is to remove the `fd` from the `FD_CACHE`
 unsafe extern "C" fn observed_close(fd: i32) -> i32 {
     let ret = ORIG_CLOSE(fd);
+    let _errno_backup = ErrnoBackup::new();
     let cache = FD_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     let mut cache = cache.lock().unwrap();
     cache.remove(&fd);
@@ -654,4 +698,12 @@ pub fn io_prof_first_rinit() {
             );
         };
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ErrnoBackup;
+    use static_assertions::assert_not_impl_any;
+
+    assert_not_impl_any!(ErrnoBackup: Send, Sync);
 }

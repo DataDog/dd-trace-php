@@ -12,8 +12,10 @@
 #include "sidecar.h"
 #include "live_debugger.h"
 #include "telemetry.h"
+#include "process_tags.h"
 #include "serializer.h"
 #include "remote_config.h"
+#include "process_tags.h"
 #ifndef _WIN32
 #include "coms.h"
 #endif
@@ -108,11 +110,27 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.ptr,
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.len,
                                     get_global_DD_REMOTE_CONFIG_ENABLED(),
-                                    is_fork);
+                                    is_fork,
+                                    dd_zend_string_to_CharSlice(ddtrace_process_tags_get_serialized())
+                                );
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddtrace_telemetry_register_services(transport);
     }
+}
+
+void ddtrace_sidecar_update_process_tags(void) {
+    if (!ddtrace_sidecar) {
+        return;
+    }
+
+    zend_string *process_tags = ddtrace_process_tags_get_serialized();
+    if (!process_tags || ZSTR_LEN(process_tags) == 0) {
+        return;
+    }
+
+    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
+    ddog_sidecar_session_set_process_tags(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(process_tags));
 }
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
@@ -144,9 +162,21 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
             ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
             ddog_CharSlice version = dd_zend_string_to_CharSlice(DDTRACE_G(last_version));
 
+            ddog_DynamicInstrumentationConfigState dynamic_instrumentation_state;
+#if ZTS
+            // With the current architecture of config it's not accessible via the TSRMLS_CACHE and thus may be actually invalid on the current thread.
+            // This is a known issue and will be fixed with refactor of the module_globals usage of config. The current behaviour is not perfect, but has to be considered acceptable.
+            if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_DYNAMIC_INSTRUMENTATION_ENABLED].name_index >= 0) {
+                dynamic_instrumentation_state = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED() ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED;
+            } else {
+                dynamic_instrumentation_state = DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET;
+            }
+#else
+            dynamic_instrumentation_state = ddtrace_dynamic_instrumentation_state();
+#endif
             ddtrace_ffi_try("Failed sending config data",
                             ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
-                                                                    env_name, version, &DDTRACE_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
+                                                                    env_name, version, &DDTRACE_G(active_global_tags), dynamic_instrumentation_state));
         }
 
         tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
@@ -628,6 +658,11 @@ ddog_crasht_Metadata ddtrace_setup_crashtracking_metadata(ddog_Vec_Tag *tags) {
 
     const char *runtime_version = zend_get_module_version("Reflection");
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime_version"), (ddog_CharSlice) {.ptr = (char *) runtime_version, .len = strlen(runtime_version)});
+
+    zend_string *process_tags = ddtrace_process_tags_get_serialized();
+    if (ZSTR_LEN(process_tags)) {
+        ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("process_tags"), (ddog_CharSlice) {.ptr = ZSTR_VAL(process_tags), .len = ZSTR_LEN(process_tags)});
+    }
 
     return (ddog_crasht_Metadata){
         .library_name = DDOG_CHARSLICE_C_BARE("dd-trace-php"),

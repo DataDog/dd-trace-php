@@ -1,6 +1,6 @@
 use crate::SAPI;
 use libc::sched_yield;
-use once_cell::sync::OnceCell;
+use std::cell::OnceCell;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};

@@ -433,6 +433,7 @@ stages:
       - ARCH: ["amd64", "arm64"]
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   script:
     - cd appsec/tests/integration

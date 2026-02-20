@@ -545,6 +545,7 @@ static void _add_basic_tags_to_meta(
     _dd_http_client_ip(meta_ht);
 
     _dd_request_headers(meta_ht, _server, headers);
+    _dd_response_headers(meta_ht);
 }
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)

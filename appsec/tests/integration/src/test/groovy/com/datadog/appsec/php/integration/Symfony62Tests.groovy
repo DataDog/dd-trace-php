@@ -6,6 +6,7 @@ import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.MethodOrderer
+import org.junit.jupiter.api.Order
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.api.condition.EnabledIf
@@ -17,6 +18,7 @@ import java.net.http.HttpResponse
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
+import com.datadog.appsec.php.TelemetryHelpers
 import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 @Testcontainers
@@ -45,6 +47,7 @@ class Symfony62Tests {
             )
 
     @Test
+    @Order(4)
     void 'login success automated event'() {
         //The user ciuser@example.com is already on the DB
         String body = '_username=test-user%40email.com&_password=test'
@@ -62,6 +65,7 @@ class Symfony62Tests {
     }
 
     @Test
+    @Order(5)
     void 'login failure automated event'() {
         String body = '_username=aa&_password=ee'
         HttpRequest req = container.buildReq('/login')
@@ -78,6 +82,7 @@ class Symfony62Tests {
     }
 
     @Test
+    @Order(6)
     void 'sign up automated event'() {
         String body = 'registration_form[email]=some@email.com&registration_form[plainPassword]=somepassword&registration_form[agreeTerms]=1'
         HttpRequest req = container.buildReq('/register')
@@ -94,6 +99,7 @@ class Symfony62Tests {
     }
 
     @Test
+    @Order(7)
     void 'test path params'() {
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
@@ -110,6 +116,7 @@ class Symfony62Tests {
     }
 
     @Test
+    @Order(8)
     void 'symfony http route disabled'() {
         try {
             def res = CONTAINER.execInContainer(
@@ -133,5 +140,46 @@ class Symfony62Tests {
                        service apache2 restart''')
             assert res.exitCode == 0
         }
+    }
+
+    @Test
+    @Order(1)
+    void 'Endpoints are not collected before the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: false')
+        }
+    }
+    @Order(3)
+    void 'Endpoints are collected after the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: true')
+        }
+    }
+    @Order(2)
+    void 'Endpoints are sent'() {
+        def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.traceId != null
+
+        List<TelemetryHelpers.Endpoint> endpoints
+
+        TelemetryHelpers.waitForAppEndpoints(container, 30, { List<TelemetryHelpers.Endpoint> messages ->
+            endpoints = messages.collectMany { it.endpoints }
+            endpoints.size() > 0
+        })
+
+        assert endpoints.size() == 6
+        assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
+        assert endpoints.find { it.path == '/dynamic-path/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path/{param01}' } != null
+        assert endpoints.find { it.path == '/login' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /login' } != null
+        assert endpoints.find { it.path == '/_error/{code}.{_format}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /_error/{code}.{_format}' } != null
+        assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
+        assert endpoints.find { it.path == '/caminho-dinamico/{param01}' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /caminho-dinamico/{param01}' } != null
     }
 }

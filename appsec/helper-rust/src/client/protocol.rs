@@ -535,6 +535,7 @@ mod tests {
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),
+            helper_runtime: None,
         });
 
         let mut buf = BytesMut::new();

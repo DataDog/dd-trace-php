@@ -481,8 +481,7 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 
     struct block_params block_params = {0};
     struct req_exec_opts opts = {0};
-    if (dd_request_exec(conn, data, &opts, &block_params) !=
-        dd_success) {
+    if (dd_request_exec(conn, data, &opts, &block_params) != dd_success) {
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;
@@ -490,8 +489,8 @@ static PHP_FUNCTION(datadog_appsec_testing_request_exec)
     dd_request_abort_destroy_block_params(&block_params);
 }
 
-static dd_result _pack_invalid_command(mpack_writer_t *nonnull w,
-    ATTR_UNUSED void *nullable ctx)
+static dd_result _pack_invalid_command(
+    mpack_writer_t *nonnull w, ATTR_UNUSED void *nullable ctx)
 {
     UNUSED(ctx);
     mpack_start_map(w, 1);
@@ -501,8 +500,8 @@ static dd_result _pack_invalid_command(mpack_writer_t *nonnull w,
     return dd_success;
 }
 
-static dd_result _process_invalid_response(mpack_node_t root,
-    ATTR_UNUSED void *nullable ctx)
+static dd_result _process_invalid_response(
+    mpack_node_t root, ATTR_UNUSED void *nullable ctx)
 {
     UNUSED(root);
     UNUSED(ctx);
@@ -520,9 +519,11 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
         struct req_info ctx = {
             .root_span = dd_trace_get_active_root_span(),
         };
-        conn = dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
+        conn =
+            dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &ctx);
         if (conn == NULL) {
-            mlog_g(dd_log_debug, "Failed to acquire connection for invalid message test");
+            mlog_g(dd_log_debug,
+                "Failed to acquire connection for invalid message test");
             RETURN_FALSE;
         }
     }
@@ -588,8 +589,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         UNUSED(clock_gettime(CLOCK_MONOTONIC_RAW, &end));
         double elapsed_us =
             (((double)(end.tv_sec - start.tv_sec) *
-                    // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                    (int64_t)1000000) +
+                 // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
+                 (int64_t)1000000) +
                 // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
                 ((double)(end.tv_nsec - start.tv_nsec) / 1000.0));
         dd_rasp_account_duration_us(elapsed_us);

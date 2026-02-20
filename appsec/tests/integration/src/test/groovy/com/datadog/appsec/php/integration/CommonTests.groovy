@@ -5,6 +5,7 @@ import com.datadog.appsec.php.mock_agent.MsgpackHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestMethodOrder
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -21,7 +22,6 @@ import org.msgpack.core.MessagePack
 import static com.datadog.appsec.php.test.JsonMatcher.matchesJson
 import static java.net.http.HttpResponse.BodyHandlers.ofString
 import static org.hamcrest.MatcherAssert.assertThat
-
 trait CommonTests {
 
     AppSecContainer getContainer() {
@@ -266,6 +266,26 @@ trait CommonTests {
         assert span.metrics."_dd.appsec.enabled" == 1.0d
         assert span.metrics."_dd.appsec.waf.duration" > 0.0d
         assert span.meta."_dd.appsec.event_rules.version" != ''
+    }
+
+    @Test
+    void 'trace without event'() {
+        def respContentType = null
+        def respContentLength = null
+        def trace = container.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            def headerContentType = resp.headers().firstValue('Content-Type')
+            if (headerContentType.isPresent()) {
+                respContentType = headerContentType.get()
+            }
+        }
+
+        Span span = trace.first()
+        assert span.metrics."_dd.appsec.enabled" == 1.0d
+        assert respContentType != null && respContentType.length() > 0
+        assert span.meta."http.response.headers.content-type" == respContentType
+        assert span.meta."http.response.headers.content-encoding" == 'foobar'
+        assert span.meta."http.response.headers.content-language" == 'en'
     }
 
     @Test

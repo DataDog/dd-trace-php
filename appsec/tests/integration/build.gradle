@@ -358,6 +358,7 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
 }
 
 def buildAppSecTask = { String version, String variant, altBaseTag = null ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildAppsec',
             baseTag: altBaseTag ?: 'php',
@@ -381,9 +382,10 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
             command: [
                     '-e', '-c',
                     """
+                    git config --global --add safe.directory '*'
                     cd /appsec
                     test -f CMakeCache.txt || \\
-                        cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
+                        cmake -DCMAKE_BUILD_TYPE=$buildType \\
                               -DCMAKE_INSTALL_PREFIX=/appsec \\
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
                               -DGIT_COMMIT=${libddwafCommit()} \\
@@ -761,7 +763,8 @@ buildRunInDockerTask(
                     RUST_TARGET="x86_64-unknown-linux-gnu"
                 fi
 
-                export CARGO_TARGET_\${RUST_TARGET//-/_}_RUSTFLAGS="-C instrument-coverage"
+                RUST_TARGET_UPPER=\$(echo "\${RUST_TARGET//-/_}" | tr '[:lower:]' '[:upper:]')
+                export CARGO_TARGET_\${RUST_TARGET_UPPER}_RUSTFLAGS="-C instrument-coverage"
                 export LLVM_PROFILE_FILE='/helper-rust-build/coverage/default-%m-%p.profraw'
 
                 mkdir -p /helper-rust-build/coverage
