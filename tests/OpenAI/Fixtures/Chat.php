@@ -30,16 +30,6 @@ function chatCompletion(): array
     ];
 }
 
-function response(): array
-{
-    return [
-        'id' => 'chatcmpl-123',
-        'object' => 'chat.completion',
-        'created' => 1677652288,
-        'model' => 'gpt-3.5-turbo-0125',
-    ];
-}
-
 function chatCompletionDefaultExample(): array
 {
     return [
@@ -145,12 +135,4 @@ function chatCompletionStream()
 function chatCompletionStreamError()
 {
     return fopen(__DIR__.'/Streams/ChatCompletionCreateError.txt', 'r');
-}
-
-/**
- * @return resource
- */
-function responseStream()
-{
-    return fopen(__DIR__.'/Streams/ResponseCreate.txt', 'r');
 }
