@@ -14,6 +14,15 @@ class OpenAITest extends IntegrationTestCase
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
+        self::putEnv('APPSEC_MOCK_ENABLED=true');
+        AppsecStatus::getInstance(true);
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+        parent::ddTearDownAfterClass();
+        AppsecStatus::clearInstances();
+        self::putEnv('APPSEC_MOCK_ENABLED');
     }
 
     private function checkErrors()
@@ -48,6 +57,7 @@ class OpenAITest extends IntegrationTestCase
         } else {
             $this->errorLogSize = 0;
         }
+        AppsecStatus::getInstance()->setDefaults();
     }
 
     protected function envsToCleanUpAtTearDown()
