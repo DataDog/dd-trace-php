@@ -135,7 +135,13 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        $handleRequestPrehook = fn ($streamed, $operationID, $reportApm) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm) {
+        $handleRequestPrehook = fn ($streamed, $operationID, $reportApm, $reportAppsec) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm, $reportAppsec) {
+            if ($reportAppsec && function_exists('datadog\appsec\push_addresses')) {
+                \datadog\appsec\push_addresses(["server.business_logic.llm.event" => [
+                    'provider' => 'openai',
+                    'model' => $args[0]['model'] ?? null,
+                ]]);
+            }
             if (!$reportApm) {
                 return;
             }
@@ -162,8 +168,8 @@ class OpenAIIntegration extends Integration
                 $class,
                 $method,
                 [
-                    'prehook' => $handleRequestPrehook(false, $operationID, $reportApm),
-                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm, $reportAppsec) {
+                    'prehook' => $handleRequestPrehook(false, $operationID, $reportApm, $reportAppsec),
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
                         /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
                         // Files::download - i.e., downloadFile - returns a string instead of a Response instance
                         self::handleResponse(
@@ -174,7 +180,6 @@ class OpenAIIntegration extends Integration
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
                             reportApm: $reportApm,
-                            reportAppsec: $reportAppsec,
                         );
                     }
                 ]
@@ -186,8 +191,8 @@ class OpenAIIntegration extends Integration
                 $class,
                 $method,
                 [
-                    'prehook' => $handleRequestPrehook(true, $operationID, $reportApm),
-                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm, $reportAppsec) {
+                    'prehook' => $handleRequestPrehook(true, $operationID, $reportApm, $reportAppsec),
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
                         /** @var \OpenAI\Responses\StreamResponse $response */
                         self::handleStreamedResponse(
                             span: $span,
@@ -197,7 +202,6 @@ class OpenAIIntegration extends Integration
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
                             reportApm: $reportApm,
-                            reportAppsec: $reportAppsec,
                         );
                     }
                 ]
@@ -429,17 +433,8 @@ class OpenAIIntegration extends Integration
         string          $httpMethod,
         string          $endpoint,
         bool            $reportApm = true,
-        bool            $reportAppsec = false,
     )
     {
-        $model = $headers['openai-model'] ?? $response['model'] ?? null;
-        if ($reportAppsec && function_exists('datadog\appsec\push_addresses')) {
-            \datadog\appsec\push_addresses(["server.business_logic.llm.event" => [
-                'provider' => 'openai',
-                'model' => $model,   
-            ]]);
-        }
-
         if (!$reportApm) {
             return;
         }
@@ -450,8 +445,6 @@ class OpenAIIntegration extends Integration
             $response = ['bytes' => \strlen($response)];
         }
 
-        
-
         $tags = [
             'openai.request.endpoint' => $endpoint,
             'openai.request.method' => $httpMethod,
@@ -459,7 +452,7 @@ class OpenAIIntegration extends Integration
             'openai.organization.id' => $response['organization_id'] ?? null, // Only available in fine-tunes endpoint
             'openai.organization.name' => $headers['openai-organization'] ?? null,
 
-            'openai.response.model' => $model, // Specific model, often undefined
+            'openai.response.model' => $headers['openai-model'] ?? $response['model'] ?? null, // Specific model, often undefined
             'openai.response.id' => $headers['x-request-id'] ?? $response['id'] ?? null, // Common creation value, numeric epoch
             'openai.response.deleted' => $response['deleted'] ?? null, // Common boolean field in delete responses
 
@@ -1037,17 +1030,8 @@ class OpenAIIntegration extends Integration
         string          $httpMethod,
         string          $endpoint,
         bool            $reportApm = true,
-        bool            $reportAppsec = false,
     )
     {
-        $model = $headers['openai-model'] ?? null;
-        if ($reportAppsec && function_exists('datadog\appsec\push_addresses')) {
-            \datadog\appsec\push_addresses(["server.business_logic.llm.event" => [
-                'provider' => 'openai',
-                'model' => $model,   
-            ]]);
-        }
-
         if (!$reportApm) {
             return;
         }
@@ -1060,7 +1044,7 @@ class OpenAIIntegration extends Integration
             'openai.request.endpoint' => $endpoint,
             'openai.request.method' => $httpMethod,
             'openai.organization.name' => $headers['openai-organization'] ?? null,
-            'openai.response.model' => $model, // Specific model, often undefined
+            'openai.response.model' => $headers['openai-model'] ?? null, // Specific model, often undefined
             'openai.response.id' => $headers['x-request-id'] ?? null, // Common creation value, numeric epoch
         ];
 
