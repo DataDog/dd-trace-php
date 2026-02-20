@@ -135,14 +135,17 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        $handleRequestPrehook = fn ($streamed, $operationID) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed) {
+        $handleRequestPrehook = fn ($streamed, $operationID, $reportApm) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm) {
+            if (!$reportApm) {
+                return;
+            }
             OpenAIIntegration::setServiceName($span);
             $clientData = ObjectKVStore::get($this, 'client_data');
             if (\is_null($clientData)) {
                 $transporter = ObjectKVStore::get($this, 'transporter');
                 $clientData = ObjectKVStore::get($transporter, 'client_data');
                 ObjectKVStore::put($this, 'client_data', $clientData);
-            }
+            }            
             /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
             OpenAIIntegration::handleRequest(
                 span: $span,
@@ -159,7 +162,7 @@ class OpenAIIntegration extends Integration
                 $class,
                 $method,
                 [
-                    'prehook' => $handleRequestPrehook(false, $operationID),
+                    'prehook' => $handleRequestPrehook(false, $operationID, $reportApm),
                     'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm, $reportAppsec) {
                         /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
                         // Files::download - i.e., downloadFile - returns a string instead of a Response instance
@@ -178,12 +181,12 @@ class OpenAIIntegration extends Integration
             );
         }
 
-        foreach ($streamedTargets as [$class, $method, $operationID, $httpMethod, $endpoint, $reportAppsec]) {
+        foreach ($streamedTargets as [$class, $method, $operationID, $httpMethod, $endpoint, $reportApm, $reportAppsec]) {
             \DDTrace\trace_method(
                 $class,
                 $method,
                 [
-                    'prehook' => $handleRequestPrehook(true, $operationID),
+                    'prehook' => $handleRequestPrehook(true, $operationID, $reportApm),
                     'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm, $reportAppsec) {
                         /** @var \OpenAI\Responses\StreamResponse $response */
                         self::handleStreamedResponse(
