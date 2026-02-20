@@ -20,7 +20,7 @@
     "minimum-stability": "stable",
     "require": {
         "php": ">=5.4.0",
-        "yiisoft/yii2": "2.0.53",
+        "yiisoft/yii2": "2.0.54",
         "yiisoft/yii2-bootstrap": "~2.0.0",
         "yiisoft/yii2-swiftmailer": "~2.0.0 || ~2.1.0",
         "yidas/yii2-bower-asset": "2.0.13"
