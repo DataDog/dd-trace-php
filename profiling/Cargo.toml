@@ -23,11 +23,11 @@ cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 http = { version = "1.4" }
-# branch levi/profiling-shm
-libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
-libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
-libdd-profiling-shm = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
-libdd-common = {  git = "https://github.com/DataDog/libdatadog", rev = "6f5544cc58f63f0cf3d49a91567fe7d224cf5190" }
+# branch levi/profiling-shm-remove-legacy
+libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", rev = "c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca" }
+libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", rev = "c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca" }
+libdd-profiling-shm = {  git = "https://github.com/DataDog/libdatadog", rev = "c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca" }
+libdd-common = {  git = "https://github.com/DataDog/libdatadog", rev = "c74d08f34fb4f9e60aee3bb94f1201ce0e7ceaca" }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }
