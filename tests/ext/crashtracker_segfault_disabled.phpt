@@ -43,7 +43,9 @@ $rr->waitForRequest(function ($request) {
         }
 
         foreach ($json["payload"]["logs"] as $payload) {
-            $payload["message"] = json_decode($payload["message"], true);
+            if (!($payload["is_crash"] ?? false)) {
+                continue; // Not an actual crash report (crash pings have is_crash: false)
+            }
             $output = json_encode($payload, JSON_PRETTY_PRINT);
 
             echo $output;
