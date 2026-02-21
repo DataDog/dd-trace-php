@@ -6,9 +6,12 @@ use DDTrace\Tests\Common\IntegrationTestCase;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Stream;
 use datadog\appsec\AppsecStatus;
+use DDTrace\Tests\Common\SnapshotTestTrait;
 
 class OpenAITest extends IntegrationTestCase
 {
+    use SnapshotTestTrait
+;
     private $errorLogSize = 0;
 
     public static function ddSetUpBeforeClass()
@@ -51,6 +54,7 @@ class OpenAITest extends IntegrationTestCase
             'DD_SERVICE=openai-test',
             'DD_ENV=test',
             'DD_VERSION=1.0',
+            'APPSEC_MOCK_ENABLED=true',
         ]);
         if (file_exists(__DIR__ . "/openai.log")) {
             $this->errorLogSize = (int)filesize(__DIR__ . "/openai.log");
@@ -58,6 +62,8 @@ class OpenAITest extends IntegrationTestCase
             $this->errorLogSize = 0;
         }
         AppsecStatus::getInstance()->setDefaults();
+        $token = $this->generateToken();
+        update_test_agent_session_token($token);
     }
 
     protected function envsToCleanUpAtTearDown()
@@ -127,7 +133,6 @@ class OpenAITest extends IntegrationTestCase
             ],
             'user' => 'dd-trace'
         ]);
-
         $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.business_logic.llm.event']);
         $this->assertEquals(1, count($events));
         $this->assertEquals('openai', $events[0][0]["server.business_logic.llm.event"]['provider']);

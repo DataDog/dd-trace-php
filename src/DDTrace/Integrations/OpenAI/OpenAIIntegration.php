@@ -96,7 +96,7 @@ class OpenAIIntegration extends Integration
             ['OpenAI\Resources\Completions', 'createStreamed', 'createCompletion', 'POST', '/v1/completions', true, true],
             ['OpenAI\Resources\Chat', 'createStreamed', 'createChatCompletion', 'POST', '/v1/chat/completions', true, true],
             ['OpenAI\Resources\FineTunes', 'listEventsStreamed', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events', true, false],
-            ['OpenAI\Resources\Responses', 'create', 'createResponse', 'POST', '/v1/responses', false, true],
+            ['OpenAI\Resources\Responses', 'createStreamed', 'createResponse', 'POST', '/v1/responses', false, true],
         ];
 
         \DDTrace\hook_method(
