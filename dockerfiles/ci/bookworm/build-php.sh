@@ -17,6 +17,11 @@ if [[ ${INSTALL_VERSION} == *asan* ]]; then
   export LDFLAGS='-fsanitize=address -shared-libasan'
 fi
 
+# Release variants: optimized with debug symbols (no --enable-debug)
+if [[ ${INSTALL_VERSION} == release-* ]]; then
+  export CFLAGS="${CFLAGS:-} -O2 -g"
+fi
+
 if [[ ${PHP_VERSION_ID} -le 73 ]]; then
   export CFLAGS="${CFLAGS:-} -Wno-implicit-function-declaration -DHAVE_POSIX_READDIR_R=1 -DHAVE_OLD_READDIR_R=0 -DTRUE=1 -DFALSE=0"
   export CXXFLAGS="-DTRUE=true -DFALSE=false"
