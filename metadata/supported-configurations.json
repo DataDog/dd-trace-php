@@ -1,0 +1,2590 @@
+{
+  "version": "2",
+  "supportedConfigurations": {
+    "DD_AGENT_HOST": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "localhost"
+      }
+    ],
+    "DD_API_KEY": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_API_SECURITY_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_API_SECURITY_SAMPLE_DELAY": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "30"
+      }
+    ],
+    "DD_APM_TRACING_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE": [
+      {
+        "implementation": "D",
+        "type": "string",
+        "default": "ident",
+        "aliases": [
+          "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING"
+        ]
+      }
+    ],
+    "DD_APPSEC_CLI_START_ON_RINIT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_EXTRA_HEADERS": [
+      {
+        "implementation": "B",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_HELPER_LOG_FILE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "/dev/null"
+      }
+    ],
+    "DD_APPSEC_HELPER_LOG_LEVEL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "info"
+      }
+    ],
+    "DD_APPSEC_HELPER_PATH": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "/opt/datadog-php/bin/libddappsec-helper.so"
+      }
+    ],
+    "DD_APPSEC_HELPER_RUNTIME_PATH": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "/tmp"
+      }
+    ],
+    "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_LOG_FILE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "php_error_reporting"
+      }
+    ],
+    "DD_APPSEC_LOG_LEVEL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "warn"
+      }
+    ],
+    "DD_APPSEC_MAX_BODY_BUFF_SIZE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "524288"
+      }
+    ],
+    "DD_APPSEC_MAX_STACK_TRACES": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "2"
+      }
+    ],
+    "DD_APPSEC_MAX_STACK_TRACE_DEPTH": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "32"
+      }
+    ],
+    "DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": "(?i)pass|pw(?:or)?d|secret|(?:api|private|public|access)[_-]?key|token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)|bearer|authorization|jsessionid|phpsessid|asp\\.net[_-]sessionid|sid|jwt"
+      }
+    ],
+    "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP": [
+      {
+        "implementation": "G",
+        "type": "string",
+        "default": "(?i)(?:p(?:ass)?w(?:or)?d|pass(?:[_-]?phrase)?|secret(?:[_-]?key)?|(?:(?:api|private|public|access)[_-]?)key(?:[_-]?id)?|(?:(?:auth|access|id|refresh)[_-]?)?token|consumer[_-]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?|jsessionid|phpsessid|asp\\.net(?:[_-]|-)sessionid|sid|jwt)(?:\\s*=([^;&]+)|\"\\s*:\\s*(\"[^\"]+\"|\\d+))|bearer\\s+([a-z0-9\\._\\-]+)|token\\s*:\\s*([a-z0-9]{13})|gh[opsu]_([0-9a-zA-Z]{36})|ey[I-L][\\w=-]+\\.(ey[I-L][\\w=-]+(?:\\.[\\w.+\\/=-]+)?)|[\\-]{5}BEGIN[a-z\\s]+PRIVATE\\sKEY[\\-]{5}([^\\-]+)[\\-]{5}END[a-z\\s]+PRIVATE\\sKEY|ssh-rsa\\s*([a-z0-9\\/\\.+]{100,})"
+      }
+    ],
+    "DD_APPSEC_RASP_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_APPSEC_RULES": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_APPSEC_SCA_ENABLED": [
+      {
+        "implementation": "C",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_STACK_TRACE_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_APPSEC_TESTING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_ABORT_RINIT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_HELPER_METRICS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_RAW_BODY": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TRACE_RATE_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_APPSEC_WAF_TIMEOUT": [
+      {
+        "implementation": "D",
+        "type": "int",
+        "default": "10000"
+      }
+    ],
+    "DD_AUTOFINISH_SPANS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_AUTOLOAD_NO_COMPILE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_CODE_ORIGIN_FOR_SPANS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_CODE_ORIGIN_MAX_USER_FRAMES": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "8"
+      }
+    ],
+    "DD_CRASHTRACKING_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_DBM_PROPAGATION_MODE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "disabled"
+      }
+    ],
+    "DD_DISTRIBUTED_TRACING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_DOGSTATSD_HOST": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "localhost"
+      }
+    ],
+    "DD_DOGSTATSD_PORT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "8125"
+      }
+    ],
+    "DD_DOGSTATSD_URL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "http://localhost:8125"
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_ENV": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "3600"
+      }
+    ],
+    "DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES": [
+      {
+        "implementation": "C",
+        "type": "int",
+        "default": "-1"
+      }
+    ],
+    "DD_EXCEPTION_REPLAY_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_GIT_COMMIT_SHA": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_GIT_REPOSITORY_URL": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_HOSTNAME": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_HTTP_SERVER_ROUTE_BASED_NAMING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_INJECT_FORCE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_INSTRUMENTATION_TELEMETRY_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_INTEGRATION_METRICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_LOG_BACKTRACE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_METRICS_OTEL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_OPENAI_LOGS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_OPENAI_LOG_PROMPT_COMPLETION_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "0.1"
+      }
+    ],
+    "DD_OPENAI_METRICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_OPENAI_SERVICE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_OPENAI_SPAN_CHAR_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "128"
+      }
+    ],
+    "DD_OPENAI_SPAN_PROMPT_COMPLETION_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0"
+      }
+    ],
+    "DD_PROFILING_ALLOCATION_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "4194304"
+      }
+    ],
+    "DD_PROFILING_ENABLED": [
+      {
+        "implementation": "D",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_ENDPOINT_COLLECTION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_EXCEPTION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_EXCEPTION_MESSAGE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_EXCEPTION_SAMPLING_DISTANCE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": [
+          "DD_PROFILING_EXPERIMENTAL_CPU_ENABLED"
+        ]
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_EXPERIMENTAL_IO_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_PROFILING_LOG_LEVEL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "off"
+      }
+    ],
+    "DD_PROFILING_OUTPUT_PPROF": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_PROFILING_TIMELINE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_PROFILING_WALLTIME_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_REMOTE_CONFIG_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "5.0"
+      }
+    ],
+    "DD_SERVICE": [
+      {
+        "implementation": "F",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_SERVICE_MAPPING": [
+      {
+        "implementation": "C",
+        "type": "map",
+        "default": ""
+      }
+    ],
+    "DD_SPAN_SAMPLING_RULES": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": "[]"
+      }
+    ],
+    "DD_SPAN_SAMPLING_RULES_FILE": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_TAGS": [
+      {
+        "implementation": "A",
+        "type": "map",
+        "default": ""
+      }
+    ],
+    "DD_TELEMETRY_HEARTBEAT_INTERVAL": [
+      {
+        "implementation": "C",
+        "type": "int",
+        "default": "60"
+      }
+    ],
+    "DD_TELEMETRY_LOG_COLLECTION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_AGENTLESS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_AGENT_CONNECT_TIMEOUT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_TRACE_AGENT_DEBUG_VERBOSE_CURL": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "0"
+      }
+    ],
+    "DD_TRACE_AGENT_FLUSH_INTERVAL": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "1001"
+      }
+    ],
+    "DD_TRACE_AGENT_MAX_PAYLOAD_SIZE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "52428800"
+      }
+    ],
+    "DD_TRACE_AGENT_PORT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "8126"
+      }
+    ],
+    "DD_TRACE_AGENT_RETRIES": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "0"
+      }
+    ],
+    "DD_TRACE_AGENT_STACK_BACKLOG": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "12"
+      }
+    ],
+    "DD_TRACE_AGENT_STACK_INITIAL_SIZE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "131072"
+      }
+    ],
+    "DD_TRACE_AGENT_TEST_SESSION_TOKEN": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_AGENT_TIMEOUT": [
+      {
+        "implementation": "B",
+        "type": "int",
+        "default": "500"
+      }
+    ],
+    "DD_TRACE_AGENT_URL": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_AMQP_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_AMQP_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_AMQP_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_AMQP_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_AMQP_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_APPEND_TRACE_IDS_TO_LOGS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_AUTO_FLUSH_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_BAGGAGE_MAX_BYTES": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "8192"
+      }
+    ],
+    "DD_TRACE_BAGGAGE_MAX_ITEMS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "64"
+      }
+    ],
+    "DD_TRACE_BAGGAGE_TAG_KEYS": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": "user.id, session.id, account.id"
+      }
+    ],
+    "DD_TRACE_BETA_HIGH_MEMORY_PRESSURE_PERCENT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "80"
+      }
+    ],
+    "DD_TRACE_BGS_CONNECT_TIMEOUT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "2000"
+      }
+    ],
+    "DD_TRACE_BGS_TIMEOUT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "5000"
+      }
+    ],
+    "DD_TRACE_BUFFER_SIZE": [
+      {
+        "implementation": "B",
+        "type": "int",
+        "default": "2097152"
+      }
+    ],
+    "DD_TRACE_CAKEPHP_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_CAKEPHP_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_CAKEPHP_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_CAKEPHP_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_CAKEPHP_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_CLIENT_IP_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_CLIENT_IP_HEADER": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_CLI_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_CODEIGNITER_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_CODEIGNITER_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_CODEIGNITER_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_CODEIGNITER_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_CODEIGNITER_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_CURL_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_CURL_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_CURL_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_CURL_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_CURL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_DEBUG": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_DEBUG_CURL_OUTPUT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_DEBUG_PRNG_SEED": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "-1"
+      }
+    ],
+    "DD_TRACE_DRUPAL_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_DRUPAL_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_DRUPAL_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_DRUPAL_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_DRUPAL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_ELASTICSEARCH_ANALYTICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_ELASTICSEARCH_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_ELASTICSEARCH_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_ELASTICSEARCH_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_ELOQUENT_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_ELOQUENT_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_ELOQUENT_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_ELOQUENT_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_ELOQUENT_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_EXEC_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_EXEC_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_EXEC_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_EXEC_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_EXEC_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_FILESYSTEM_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_FILESYSTEM_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_FILESYSTEM_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_FILESYSTEM_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_FILESYSTEM_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_FLUSH_COLLECT_CYCLES": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_FORCE_FLUSH_ON_SIGINT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_FORCE_FLUSH_ON_SIGTERM": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_FORKED_PROCESS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_FRANKENPHP_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_FRANKENPHP_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_FRANKENPHP_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_FRANKENPHP_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_FRANKENPHP_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_GENERATE_ROOT_SPAN": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_GIT_METADATA_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_GOOGLESPANNER_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_GOOGLESPANNER_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_GOOGLESPANNER_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_GOOGLESPANNER_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_GOOGLESPANNER_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_GUZZLE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_GUZZLE_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_GUZZLE_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_GUZZLE_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_GUZZLE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_HEADER_TAGS": [
+      {
+        "implementation": "B",
+        "type": "map",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_HEALTH_METRICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "0.001"
+      }
+    ],
+    "DD_TRACE_HOOK_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_TRACE_HTTPSTREAM_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_HTTPSTREAM_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_HTTPSTREAM_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_HTTPSTREAM_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_HTTPSTREAM_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_HTTP_CLIENT_ERROR_STATUSES": [
+      {
+        "implementation": "B",
+        "type": "array",
+        "default": "400-499"
+      }
+    ],
+    "DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_HTTP_SERVER_ERROR_STATUSES": [
+      {
+        "implementation": "C",
+        "type": "array",
+        "default": "500-599"
+      }
+    ],
+    "DD_TRACE_HTTP_URL_QUERY_PARAM_ALLOWED": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": "*"
+      }
+    ],
+    "DD_TRACE_IGNORE_AGENT_SAMPLING_RATES": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_KAFKA_ANALYTICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_KAFKA_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_KAFKA_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_KAFKA_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_KAFKA_DISTRIBUTED_TRACING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_KAFKA_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_LAMINAS_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_LAMINAS_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_LAMINAS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_LAMINAS_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_LAMINAS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_LARAVELQUEUE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_LARAVELQUEUE_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_LARAVELQUEUE_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_LARAVELQUEUE_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_LARAVELQUEUE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_LARAVEL_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_LARAVEL_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_LARAVEL_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_LARAVEL_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_LARAVEL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_LARAVEL_QUEUE_DISTRIBUTED_TRACING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_LOGS_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_LOGS_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_LOGS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_LOGS_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_LOGS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": [
+          "DD_LOGS_INJECTION"
+        ]
+      }
+    ],
+    "DD_TRACE_LOG_FILE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_LOG_LEVEL": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": "error"
+      }
+    ],
+    "DD_TRACE_LUMEN_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_LUMEN_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_LUMEN_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_LUMEN_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_LUMEN_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MAGENTO_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_MAGENTO_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_MAGENTO_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_MAGENTO_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_MAGENTO_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MEASURE_COMPILE_TIME": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MEASURE_PEAK_MEMORY_USAGE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MEMCACHED_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_MEMCACHED_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_MEMCACHED_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_MEMCACHED_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_MEMCACHED_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MEMCACHED_OBFUSCATION": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MEMCACHE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_MEMCACHE_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_MEMCACHE_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_MEMCACHE_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_MEMCACHE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MEMORY_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_MONGODB_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_MONGODB_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_MONGODB_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_MONGODB_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_MONGODB_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MONGODB_OBFUSCATION": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MONGO_ANALYTICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_MONGO_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_MONGO_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_MONGO_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_MONGO_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_MYSQLI_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_MYSQLI_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_MYSQLI_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_MYSQLI_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_MYSQLI_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_NETTE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_NETTE_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_NETTE_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_NETTE_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_NETTE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP": [
+      {
+        "implementation": "E",
+        "type": "string",
+        "default": "(?i)(?:(?:\"|%22)?)(?:(?:old[-_]?|new[-_]?)?p(?:ass)?w(?:or)?d(?:1|2)?|pass(?:[-_]?phrase)?|secret|(?:api[-_]?|private[-_]?|public[-_]?|access[-_]?|secret[-_]?|app(?:lication)?[-_]?)key(?:[-_]?id)?|token|consumer[-_]?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\\s|%20)*(?:=|%3D)[^&]+|(?:\"|%22)(?:\\s|%20)*(?::|%3A)(?:\\s|%20)*(?:\"|%22)(?:%2[^2]|%[^2]|[^\"%])+(?:\"|%22))|(?:bearer(?:\\s|%20)+[a-z0-9._\\-]+|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\\w=-]|%3D)+\\.ey[I-L](?:[\\w=-]|%3D)+(?:\\.(?:[\\w.+/=-]|%3D|%2F|%2B)+)?|-{5}BEGIN(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY-{5}[^\\-]+-{5}END(?:[a-z\\s]|%20)+PRIVATE(?:\\s|%20)KEY(?:-{5})?(?:\\n|%0A)?|(?:ssh-(?:rsa|dss)|ecdsa-[a-z0-9]+-[a-z0-9]+)(?:\\s|%20|%09)+(?:[a-z0-9/.+]|%2F|%5C|%2B){100,}(?:=|%3D)*(?:(?:\\s|%20|%09)+[a-z0-9._-]+)?)"
+      }
+    ],
+    "DD_TRACE_ONCE_LOGS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_OPENAI_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_OPENAI_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_OPENAI_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_OPENAI_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_OPENAI_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_OTEL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_PCNTL_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_PCNTL_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_PCNTL_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_PCNTL_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_PCNTL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_PDO_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_PDO_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_PDO_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_PDO_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_PDO_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_PEER_SERVICE_MAPPING": [
+      {
+        "implementation": "A",
+        "type": "map",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_PHPREDIS_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_PHPREDIS_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_PHPREDIS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_PHPREDIS_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_PHPREDIS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_PREDIS_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_PREDIS_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_PREDIS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_PREDIS_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_PREDIS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_PROPAGATE_SERVICE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_PROPAGATE_USER_ID_DEFAULT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_PROPAGATION_STYLE": [
+      {
+        "implementation": "D",
+        "type": "array",
+        "default": "datadog,tracecontext,baggage"
+      }
+    ],
+    "DD_TRACE_PROPAGATION_STYLE_EXTRACT": [
+      {
+        "implementation": "E",
+        "type": "array",
+        "default": "datadog,tracecontext,B3,B3 single header,baggage"
+      }
+    ],
+    "DD_TRACE_PROPAGATION_STYLE_INJECT": [
+      {
+        "implementation": "D",
+        "type": "array",
+        "default": "datadog,tracecontext,baggage"
+      }
+    ],
+    "DD_TRACE_PSR18_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_PSR18_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_PSR18_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_PSR18_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_PSR18_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_RATCHET_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_RATCHET_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_RATCHET_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_RATCHET_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_RATCHET_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_RATE_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_REMOVE_ROOT_SPAN_LARAVEL_QUEUE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_REMOVE_ROOT_SPAN_SYMFONY_MESSENGER": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_REPORT_HOSTNAME": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_RESOURCE_RENAMING_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_RESOURCE_URI_MAPPING_INCOMING": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_RETAIN_THREAD_CAPABILITIES": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_ROADRUNNER_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_ROADRUNNER_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_ROADRUNNER_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_ROADRUNNER_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_ROADRUNNER_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SAMPLE_RATE": [
+      {
+        "implementation": "D",
+        "type": "decimal",
+        "default": "-1"
+      }
+    ],
+    "DD_TRACE_SAMPLING_RULES": [
+      {
+        "implementation": "D",
+        "type": "array",
+        "default": "[]"
+      }
+    ],
+    "DD_TRACE_SAMPLING_RULES_FORMAT": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "glob"
+      }
+    ],
+    "DD_TRACE_SHUTDOWN_TIMEOUT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "5000"
+      }
+    ],
+    "DD_TRACE_SIDECAR_TRACE_SENDER": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_SLIM_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_SLIM_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_SLIM_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_SLIM_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_SLIM_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SOURCES_PATH": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_SPANS_LIMIT": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "1000"
+      }
+    ],
+    "DD_TRACE_SQLSRV_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_SQLSRV_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_SQLSRV_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_SQLSRV_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_SQLSRV_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_STARTUP_LOGS": [
+      {
+        "implementation": "C",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SWOOLE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_SWOOLE_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_SWOOLE_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_SWOOLE_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_SWOOLE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SYMFONYMESSENGER_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_SYMFONYMESSENGER_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_SYMFONYMESSENGER_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_SYMFONYMESSENGER_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_SYMFONYMESSENGER_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SYMFONY_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_SYMFONY_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_SYMFONY_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_SYMFONY_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_SYMFONY_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SYMFONY_HTTP_ROUTE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SYMFONY_MESSENGER_DISTRIBUTED_TRACING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_TRACED_INTERNAL_FUNCTIONS": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_WARN_LEGACY_DD_TRACE": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_WEBSOCKET_MESSAGES_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_WEB_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_WEB_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_WEB_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_WEB_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_WEB_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS": [
+      {
+        "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_TRACE_WORDPRESS_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_WORDPRESS_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_WORDPRESS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_WORDPRESS_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_WORDPRESS_CALLBACKS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_WORDPRESS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "512"
+      }
+    ],
+    "DD_TRACE_YII_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_YII_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_YII_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_YII_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_YII_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_ZENDFRAMEWORK_ANALYTICS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_ZENDFRAMEWORK_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_ZENDFRAMEWORK_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_ZENDFRAMEWORK_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_ZENDFRAMEWORK_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_VERSION": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_LOG_LEVEL": [
+      {
+        "implementation": "E",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_METRICS_EXPORTER": [
+      {
+        "implementation": "D",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_PROPAGATORS": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_RESOURCE_ATTRIBUTES": [
+      {
+        "implementation": "B",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_SERVICE_NAME": [
+      {
+        "implementation": "C",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_TRACES_EXPORTER": [
+      {
+        "implementation": "E",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_TRACES_SAMPLER": [
+      {
+        "implementation": "D",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_TRACES_SAMPLER_ARG": [
+      {
+        "implementation": "E",
+        "type": "string",
+        "default": ""
+      }
+    ]
+  },
+  "deprecations": {}
+}

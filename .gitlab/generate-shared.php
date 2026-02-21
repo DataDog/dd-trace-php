@@ -116,6 +116,34 @@ stages:
       - artifacts
     when: "always"
 
+"Configuration Consistency":
+  tags: [ "arch:amd64" ]
+  stage: test
+  needs: []
+  variables:
+    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6"
+  script:
+    - |
+      if ! command -v cc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+      fi
+    - |
+      GENERATED_CONFIG_INPUTS="$(bash tooling/generate-supported-configurations.sh --print-input-files | tr '\n' ' ')"
+      BASELINE_CONFIG="$(mktemp)"
+      trap 'rm -f "$BASELINE_CONFIG"' EXIT
+      cp metadata/supported-configurations.json "$BASELINE_CONFIG"
+
+      bash tooling/generate-supported-configurations.sh
+
+      if ! cmp -s "$BASELINE_CONFIG" metadata/supported-configurations.json; then
+        echo "ERROR: @metadata/supported-configurations.json got out of sync with implemented configurations. Please run tooling/generate-supported-configurations.sh locally."
+        echo "Generator inputs: $GENERATED_CONFIG_INPUTS"
+        diff -u "$BASELINE_CONFIG" metadata/supported-configurations.json || true
+        exit 1
+      fi
+
 <?php
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
