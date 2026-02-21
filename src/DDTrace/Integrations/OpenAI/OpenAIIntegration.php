@@ -67,34 +67,36 @@ class OpenAIIntegration extends Integration
         $logger = \dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
 
         $targets = [
-            ['OpenAI\Resources\Completions', 'create', 'createCompletion', 'POST', '/v1/completions'],
-            ['OpenAI\Resources\Chat', 'create', 'createChatCompletion', 'POST', '/v1/chat/completions'],
-            ['OpenAI\Resources\Embeddings', 'create', 'createEmbedding', 'POST', '/v1/embeddings'],
-            ['OpenAI\Resources\Models', 'list', 'listModels', 'GET', '/v1/models'],
-            ['OpenAI\Resources\Files', 'list', 'listFiles', 'GET', '/v1/files'],
-            ['OpenAI\Resources\FineTuning', 'listJobs', 'listFineTunes', 'GET', '/v1/fine-tunes'],
-            ['OpenAI\Resources\Models', 'retrieve', 'retrieveModel', 'GET', '/v1/models/*'],
-            ['OpenAI\Resources\Files', 'retrieve', 'retrieveFile', 'GET', '/v1/files/*'],
-            ['OpenAI\Resources\FineTuning', 'retrieveJob', 'retrieveFineTune', 'GET', '/v1/fine-tunes/*'],
-            ['OpenAI\Resources\Models', 'delete', 'deleteModel', 'DELETE', '/v1/models/*'],
-            ['OpenAI\Resources\Files', 'delete', 'deleteFile', 'DELETE', '/v1/files/*'],
-            ['OpenAI\Resources\Images', 'create', 'createImage', 'POST', '/v1/images/generations'],
-            ['OpenAI\Resources\Images', 'edit', 'createImageEdit', 'POST', '/v1/images/edits'],
-            ['OpenAI\Resources\Images', 'variation', 'createImageVariation', 'POST', '/v1/images/variations'],
-            ['OpenAI\Resources\Audio', 'transcribe', 'createTranscription', 'POST', '/v1/audio/transcriptions'],
-            ['OpenAI\Resources\Audio', 'translate', 'createTranslation', 'POST', '/v1/audio/translations'],
-            ['OpenAI\Resources\Moderations', 'create', 'createModeration', 'POST', '/v1/moderations'],
-            ['OpenAI\Resources\Files', 'upload', 'createFile', 'POST', '/v1/files'],
-            ['OpenAI\Resources\Files', 'download', 'downloadFile', 'GET', '/v1/files/*/content'],
-            ['OpenAI\Resources\FineTuning', 'createJob', 'createFineTune', 'POST', '/v1/fine-tunes'],
-            ['OpenAI\Resources\FineTunes', 'cancel', 'cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel'],
-            ['OpenAI\Resources\FineTunes', 'listEvents', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
+            ['OpenAI\Resources\Completions', 'create', 'createCompletion', 'POST', '/v1/completions', true, true],
+            ['OpenAI\Resources\Chat', 'create', 'createChatCompletion', 'POST', '/v1/chat/completions', true, true],
+            ['OpenAI\Resources\Embeddings', 'create', 'createEmbedding', 'POST', '/v1/embeddings', true, false],
+            ['OpenAI\Resources\Models', 'list', 'listModels', 'GET', '/v1/models', true, false],
+            ['OpenAI\Resources\Files', 'list', 'listFiles', 'GET', '/v1/files', true, false],
+            ['OpenAI\Resources\FineTuning', 'listJobs', 'listFineTunes', 'GET', '/v1/fine-tunes', true, false],
+            ['OpenAI\Resources\Models', 'retrieve', 'retrieveModel', 'GET', '/v1/models/*', true, false],
+            ['OpenAI\Resources\Files', 'retrieve', 'retrieveFile', 'GET', '/v1/files/*', true, false],
+            ['OpenAI\Resources\FineTuning', 'retrieveJob', 'retrieveFineTune', 'GET', '/v1/fine-tunes/*', true, false],
+            ['OpenAI\Resources\Models', 'delete', 'deleteModel', 'DELETE', '/v1/models/*', true, false],
+            ['OpenAI\Resources\Files', 'delete', 'deleteFile', 'DELETE', '/v1/files/*', true, false],
+            ['OpenAI\Resources\Images', 'create', 'createImage', 'POST', '/v1/images/generations', true, false],
+            ['OpenAI\Resources\Images', 'edit', 'createImageEdit', 'POST', '/v1/images/edits', true, false],
+            ['OpenAI\Resources\Images', 'variation', 'createImageVariation', 'POST', '/v1/images/variations', true, false],
+            ['OpenAI\Resources\Audio', 'transcribe', 'createTranscription', 'POST', '/v1/audio/transcriptions', true, false],
+            ['OpenAI\Resources\Audio', 'translate', 'createTranslation', 'POST', '/v1/audio/translations', true, false],
+            ['OpenAI\Resources\Moderations', 'create', 'createModeration', 'POST', '/v1/moderations', true, false],
+            ['OpenAI\Resources\Files', 'upload', 'createFile', 'POST', '/v1/files', true, false],
+            ['OpenAI\Resources\Files', 'download', 'downloadFile', 'GET', '/v1/files/*/content', true, false],
+            ['OpenAI\Resources\FineTuning', 'createJob', 'createFineTune', 'POST', '/v1/fine-tunes', true, false],
+            ['OpenAI\Resources\FineTunes', 'cancel', 'cancelFineTune', 'POST', '/v1/fine-tunes/*/cancel', true, false],
+            ['OpenAI\Resources\FineTunes', 'listEvents', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events', true, false],
+            ['OpenAI\Resources\Responses', 'create', 'createResponse', 'POST', '/v1/responses', false, true],
         ];
 
         $streamedTargets = [
-            ['OpenAI\Resources\Completions', 'createStreamed', 'createCompletion', 'POST', '/v1/completions'],
-            ['OpenAI\Resources\Chat', 'createStreamed', 'createChatCompletion', 'POST', '/v1/chat/completions'],
-            ['OpenAI\Resources\FineTunes', 'listEventsStreamed', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events'],
+            ['OpenAI\Resources\Completions', 'createStreamed', 'createCompletion', 'POST', '/v1/completions', true, true],
+            ['OpenAI\Resources\Chat', 'createStreamed', 'createChatCompletion', 'POST', '/v1/chat/completions', true, true],
+            ['OpenAI\Resources\FineTunes', 'listEventsStreamed', 'listFineTuneEvents', 'GET', '/v1/fine-tunes/*/events', true, false],
+            ['OpenAI\Resources\Responses', 'createStreamed', 'createResponse', 'POST', '/v1/responses', false, true],
         ];
 
         \DDTrace\hook_method(
@@ -133,14 +135,23 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        $handleRequestPrehook = fn ($streamed, $operationID) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed) {
+        $handleRequestPrehook = fn ($streamed, $operationID, $reportApm, $reportAppsec) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm, $reportAppsec) {
+            if ($reportAppsec && function_exists('datadog\appsec\push_addresses')) {
+                \datadog\appsec\push_addresses(["server.business_logic.llm.event" => [
+                    'provider' => 'openai',
+                    'model' => $args[0]['model'] ?? null,
+                ]]);
+            }
+            if (!$reportApm) {
+                return;
+            }
             OpenAIIntegration::setServiceName($span);
             $clientData = ObjectKVStore::get($this, 'client_data');
             if (\is_null($clientData)) {
                 $transporter = ObjectKVStore::get($this, 'transporter');
                 $clientData = ObjectKVStore::get($transporter, 'client_data');
                 ObjectKVStore::put($this, 'client_data', $clientData);
-            }
+            }            
             /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
             OpenAIIntegration::handleRequest(
                 span: $span,
@@ -152,13 +163,13 @@ class OpenAIIntegration extends Integration
             );
         };
 
-        foreach ($targets as [$class, $method, $operationID, $httpMethod, $endpoint]) {
+        foreach ($targets as [$class, $method, $operationID, $httpMethod, $endpoint, $reportApm, $reportAppsec]) {
             \DDTrace\trace_method(
                 $class,
                 $method,
                 [
-                    'prehook' => $handleRequestPrehook(false, $operationID),
-                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
+                    'prehook' => $handleRequestPrehook(false, $operationID, $reportApm, $reportAppsec),
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
                         /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
                         // Files::download - i.e., downloadFile - returns a string instead of a Response instance
                         self::handleResponse(
@@ -168,19 +179,20 @@ class OpenAIIntegration extends Integration
                             response: \is_string($response) ? $response : ($response ? $response->toArray() : []),
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
+                            reportApm: $reportApm,
                         );
                     }
                 ]
             );
         }
 
-        foreach ($streamedTargets as [$class, $method, $operationID, $httpMethod, $endpoint]) {
+        foreach ($streamedTargets as [$class, $method, $operationID, $httpMethod, $endpoint, $reportApm, $reportAppsec]) {
             \DDTrace\trace_method(
                 $class,
                 $method,
                 [
-                    'prehook' => $handleRequestPrehook(true, $operationID),
-                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint) {
+                    'prehook' => $handleRequestPrehook(true, $operationID, $reportApm, $reportAppsec),
+                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
                         /** @var \OpenAI\Responses\StreamResponse $response */
                         self::handleStreamedResponse(
                             span: $span,
@@ -189,6 +201,7 @@ class OpenAIIntegration extends Integration
                             response: $response,
                             httpMethod: $httpMethod,
                             endpoint: $endpoint,
+                            reportApm: $reportApm,
                         );
                     }
                 ]
@@ -419,8 +432,13 @@ class OpenAIIntegration extends Integration
         array|string    $response,
         string          $httpMethod,
         string          $endpoint,
+        bool            $reportApm = true,
     )
     {
+        if (!$reportApm) {
+            return;
+        }
+
         $operationID = \explode('/', $span->resource)[0];
 
         if ($operationID === 'downloadFile') {
@@ -1011,12 +1029,17 @@ class OpenAIIntegration extends Integration
         StreamResponse  $response,
         string          $httpMethod,
         string          $endpoint,
+        bool            $reportApm = true,
     )
     {
+        if (!$reportApm) {
+            return;
+        }
+
         $responseArray = self::readAndStoreStreamedResponse($span, $response);
 
         $operationID = \explode('/', $span->resource)[0];
-
+        
         $tags = [
             'openai.request.endpoint' => $endpoint,
             'openai.request.method' => $httpMethod,
