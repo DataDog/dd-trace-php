@@ -375,6 +375,20 @@ static int dd_call_prev_handler(bool flush) {
 }
 
 static int dd_sigterm_cleanup_thread(void *arg) {
+    // Block all signals to prevent delivery to this thread
+    sigset_t set;
+    sigfillset(&set);
+    sigprocmask(SIG_BLOCK, &set, NULL);
+
+    // Make the Go runtime believe, we are actually running on a signal stack
+    stack_t altstack;
+    altstack.ss_sp = dd_signal_async_stack;
+    if (altstack.ss_sp) {
+        altstack.ss_size = dd_signal_async_stack_size;
+        altstack.ss_flags = 0;
+        sigaltstack(&altstack, NULL);
+    }
+
     return dd_call_prev_handler(true);
 }
 
