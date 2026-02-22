@@ -126,7 +126,7 @@ TEST(WafTest, RunWithInvalidParam)
         auto ctx = wi->get_listener();
         parameter_view pv;
         dds::event e;
-        EXPECT_THROW(ctx->call(pv, e), invalid_object);
+        EXPECT_THROW(ctx->call(pv, e, {}), invalid_object);
     }
     { // Rasp
         NiceMock<mock::tel_submitter> submitm{};
@@ -163,7 +163,7 @@ TEST(WafTest, RunWithInvalidParam)
         parameter_view pv;
         dds::event e;
         std::string rasp = "lfi";
-        EXPECT_THROW(ctx->call(pv, e, rasp), invalid_object);
+        EXPECT_THROW(ctx->call(pv, e, {.rasp_rule = rasp}), invalid_object);
         ctx->submit_metrics(submitm);
         Mock::VerifyAndClearExpectations(&submitm);
     }
@@ -183,7 +183,7 @@ TEST(WafTest, RunWithTimeout)
 
         parameter_view pv(p);
         dds::event e;
-        EXPECT_THROW(ctx->call(pv, e), timeout_error);
+        EXPECT_THROW(ctx->call(pv, e, {}), timeout_error);
     }
     { // Rasp
         NiceMock<mock::tel_submitter> submitm{};
@@ -204,7 +204,7 @@ TEST(WafTest, RunWithTimeout)
         parameter_view pv(p);
         dds::event e;
         std::string rasp = "lfi";
-        EXPECT_THROW(ctx->call(pv, e, rasp), timeout_error);
+        EXPECT_THROW(ctx->call(pv, e, {.rasp_rule = rasp}), timeout_error);
 
         ctx->submit_metrics(submitm);
         Mock::VerifyAndClearExpectations(&submitm);
@@ -224,7 +224,7 @@ TEST(WafTest, ValidRunGood)
 
         parameter_view pv(p);
         dds::event e;
-        ctx->call(pv, e); // default to rasp=false
+        ctx->call(pv, e, {}); // default to rasp=false
 
         EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
                                  std::string{"1.2.3"}));
@@ -253,7 +253,7 @@ TEST(WafTest, ValidRunGood)
         parameter_view pv(p);
         dds::event e;
         std::string rasp = "lfi";
-        ctx->call(pv, e, rasp);
+        ctx->call(pv, e, {.rasp_rule = rasp});
 
         double rasp_duration;
         double duration;
@@ -309,7 +309,7 @@ TEST(WafTest, ValidRunMonitor)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, e);
+    ctx->call(pv, e, {});
 
     for (auto &match : e.triggers) {
         rapidjson::Document doc;
@@ -350,7 +350,7 @@ TEST(WafTest, ValidRunMonitorObfuscated)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, e);
+    ctx->call(pv, e, {});
 
     EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
@@ -384,7 +384,7 @@ TEST(WafTest, ValidRunMonitorObfuscatedFromSettings)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, e);
+    ctx->call(pv, e, {});
 
     EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
@@ -418,7 +418,7 @@ TEST(WafTest, UpdateRuleData)
 
         parameter_view pv(p);
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
     }
 
     auto param = json_to_parameter(
@@ -441,7 +441,7 @@ TEST(WafTest, UpdateRuleData)
 
         parameter_view pv(p);
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
 
         EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
@@ -475,7 +475,7 @@ TEST(WafTest, UpdateInvalid)
 
         parameter_view pv(p);
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
     }
 
     changeset cs;
@@ -506,7 +506,7 @@ TEST(WafTest, SchemasAreAdded)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, e);
+    ctx->call(pv, e, {});
 
     EXPECT_EQ(e.triggers.size(), 1);
     rapidjson::Document doc;
@@ -545,7 +545,7 @@ TEST(WafTest, FingerprintAreNotAdded)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, e);
+    ctx->call(pv, e, {});
 
     EXPECT_CALL(submitm,
         submit_span_meta_copy_key(MatchesRegex("_dd\\.appsec\\.fp\\..+"), _))
@@ -588,7 +588,7 @@ TEST(WafTest, FingerprintAreAdded)
 
     parameter_view pv(p);
     dds::event e;
-    ctx->call(pv, e);
+    ctx->call(pv, e, {});
 
     EXPECT_CALL(
         submitm, submit_span_meta_copy_key("_dd.appsec.fp.http.endpoint",
@@ -627,7 +627,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
 
         EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
@@ -666,7 +666,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
 
         EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
@@ -705,7 +705,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
 
         EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
@@ -739,7 +739,7 @@ TEST(WafTest, ActionsAreSentAndParsed)
         auto ctx = wi->get_listener();
 
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
 
         EXPECT_EQ(e.triggers.size(), 1);
         rapidjson::Document doc;
@@ -781,12 +781,12 @@ TEST(WafTest, TelemetryIsSent)
         parameter_view pv(p);
         dds::event e;
         std::string rasp = "ssrf";
-        ctx->call(pv, e, rasp);
+        ctx->call(pv, e, {.rasp_rule = rasp});
 
         // Now rasp call without match
         auto p2 = parameter::map();
         parameter_view pv2(p2);
-        ctx->call(pv2, e, rasp);
+        ctx->call(pv2, e, {.rasp_rule = rasp});
 
         // Now lfi with match
         auto p3 = parameter::map();
@@ -795,13 +795,13 @@ TEST(WafTest, TelemetryIsSent)
         query.add("query", parameter::string("../somefile"sv));
         p3.add("server.request.query", std::move(query));
         parameter_view pv3(p3);
-        ctx->call(pv3, e, "lfi");
+        ctx->call(pv3, e, {.rasp_rule = "lfi"});
 
         parameter_view pv4;
-        EXPECT_THROW(ctx->call(pv4, e, "lfi"), invalid_object);
+        EXPECT_THROW(ctx->call(pv4, e, {.rasp_rule = "lfi"}), invalid_object);
 
         parameter_view pv5;
-        EXPECT_THROW(ctx->call(pv5, e, "lfi"), invalid_object);
+        EXPECT_THROW(ctx->call(pv5, e, {.rasp_rule = "lfi"}), invalid_object);
 
         EXPECT_CALL(submitm, submit_span_meta(metrics::event_rules_version,
                                  std::string{"1.2.3"}));
@@ -883,7 +883,7 @@ TEST(WafTest, TelemetryTimeoutMetric)
     parameter_view pv(p);
     dds::event e;
     std::string rasp = "lfi";
-    EXPECT_THROW(ctx->call(pv, e, rasp), timeout_error);
+    EXPECT_THROW(ctx->call(pv, e, {.rasp_rule = rasp}), timeout_error);
 
     EXPECT_CALL(submitm,
         submit_span_meta(metrics::event_rules_version, std::string{"1.2.3"}));
@@ -952,7 +952,7 @@ TEST(WafTest, TraceAttributesAreSent)
 
         auto ctx = wi->get_listener();
         dds::event e;
-        ctx->call(pv, e);
+        ctx->call(pv, e, {});
         ctx->submit_metrics(submitm);
         Mock::VerifyAndClearExpectations(&submitm);
     }

@@ -92,7 +92,7 @@ stages:
       -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache"
     - make -j 4 xtest
 
-"appsec integration tests":
+.appsec_integration_tests:
   stage: test
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with java pre-installed?
   tags: [ "docker-in-docker:amd64" ]
@@ -101,6 +101,40 @@ stages:
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
     ARCH: amd64
+    HELPER_RUST_FLAG: ""
+  before_script:
+<?php echo $ecrLoginSnippet, "\n"; ?>
+<?php dockerhub_login() ?>
+  script:
+    - apt update && apt install -y openjdk-17-jre
+    - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
+    - |
+      cd appsec/tests/integration
+      CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
+      if [ -f "$CACHE_PATH" ]; then
+        echo "Loading cache from $CACHE_PATH"
+        TERM=dumb ./gradlew loadCaches --info
+      fi
+
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan $HELPER_RUST_FLAG
+      TERM=dumb ./gradlew saveCaches --info
+  after_script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts"
+    - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \;
+    - .gitlab/upload-junit-to-datadog.sh "test.source.file:appsec"
+  artifacts:
+    reports:
+      junit: "artifacts/**/test-results/**/TEST-*.xml"
+    paths:
+      - "artifacts/"
+    when: "always"
+  cache:
+    - key: "appsec int test cache"
+      paths:
+        - appsec/tests/integration/build/*.tar.gz
+
+"appsec integration tests":
+  extends: .appsec_integration_tests
   parallel:
     matrix:
       - targets:
@@ -126,12 +160,40 @@ stages:
           - test8.4-release-zts
           - test8.5-release
           - test8.5-release-zts
+          - test8.5-release-musl
+
+"appsec integration tests (helper-rust)":
+  extends: .appsec_integration_tests
+  variables:
+    HELPER_RUST_FLAG: "-PuseHelperRust"
+  parallel:
+    matrix:
+      - targets:
+          - test7.4-release
+          - test8.1-release
+          - test8.3-debug
+          - test8.4-release-zts
+          - test8.5-release-musl
+
+"helper-rust build and test":
+  stage: test
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  tags: [ "docker-in-docker:amd64" ]
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
+    ARCH: amd64
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
   script:
     - apt update && apt install -y openjdk-17-jre
-    - find "$CI_PROJECT_DIR"/appsec/tests/integration/build || true
     - |
       cd appsec/tests/integration
       CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
@@ -139,12 +201,142 @@ stages:
         echo "Loading cache from $CACHE_PATH"
         TERM=dumb ./gradlew loadCaches --info
       fi
-
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan
+      # Build and test helper-rust (includes formatting check and cargo test)
+      TERM=dumb ./gradlew testHelperRust --info -Pbuildscan --scan
       TERM=dumb ./gradlew saveCaches --info
+  cache:
+    - key: "appsec int test cache"
+      paths:
+        - appsec/tests/integration/build/*.tar.gz
+
+"helper-rust code coverage":
+  stage: test
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  tags: [ "docker-in-docker:amd64" ]
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 10Gi
+    ARCH: amd64
+  before_script:
+<?php echo $ecrLoginSnippet, "\n"; ?>
+<?php dockerhub_login() ?>
+  script:
+    - apt update && apt install -y openjdk-17-jre
+    - |
+      echo "Installing codecov CLI"
+      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      CODECOV_VERSION=0.6.1
+      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
+      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
+      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM.sig
+      gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+      shasum -a 256 -c codecov.SHA256SUM
+      rm codecov.SHA256SUM.sig codecov.SHA256SUM
+      chmod +x codecov
+      mv codecov /usr/local/bin/codecov
+    - |
+      echo "Installing vault for codecov token"
+      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
+      unzip vault.zip
+      mv vault /usr/local/bin/vault
+      rm vault.zip
+    - |
+      cd appsec/tests/integration
+      CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
+      if [ -f "$CACHE_PATH" ]; then
+        echo "Loading cache from $CACHE_PATH"
+        TERM=dumb ./gradlew loadCaches --info
+      fi
+      # Run unit tests with coverage instrumentation
+      TERM=dumb ./gradlew coverageHelperRust --info -Pbuildscan --scan
+      TERM=dumb ./gradlew saveCaches --info
+    - |
+      echo "Extracting coverage data from Docker volume"
+      mkdir -p "$CI_PROJECT_DIR"/appsec/helper-rust
+      docker run --rm -v php-helper-rust-coverage:/vol alpine cat /vol/coverage-unit.lcov > "$CI_PROJECT_DIR"/appsec/helper-rust/coverage-unit.lcov
+    - |
+      echo "Uploading helper-rust unit test coverage to codecov"
+      cd "$CI_PROJECT_DIR"
+      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+      codecov -t "$CODECOV_TOKEN" -n helper-rust-unit -F helper-rust-unit -v -f appsec/helper-rust/coverage-unit.lcov
+  artifacts:
+    paths:
+      - appsec/helper-rust/coverage-unit.lcov
+    when: always
+  cache:
+    - key: "appsec int test cache"
+      paths:
+        - appsec/tests/integration/build/*.tar.gz
+
+"helper-rust integration coverage":
+  stage: test
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  tags: [ "docker-in-docker:amd64" ]
+  interruptible: true
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      interruptible: false
+    - when: on_success
+  variables:
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_MEMORY_REQUEST: 24Gi
+    KUBERNETES_MEMORY_LIMIT: 30Gi
+    ARCH: amd64
+  before_script:
+<?php echo $ecrLoginSnippet, "\n"; ?>
+<?php dockerhub_login() ?>
+  script:
+    - apt update && apt install -y openjdk-17-jre
+    - |
+      echo "Installing codecov CLI"
+      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      CODECOV_VERSION=0.6.1
+      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
+      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
+      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM.sig
+      gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+      shasum -a 256 -c codecov.SHA256SUM
+      rm codecov.SHA256SUM.sig codecov.SHA256SUM
+      chmod +x codecov
+      mv codecov /usr/local/bin/codecov
+    - |
+      echo "Installing vault for codecov token"
+      curl -o vault.zip https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip
+      unzip vault.zip
+      mv vault /usr/local/bin/vault
+      rm vault.zip
+    - |
+      cd appsec/tests/integration
+      CACHE_PATH=build/php-appsec-volume-caches-${ARCH}.tar.gz
+      if [ -f "$CACHE_PATH" ]; then
+        echo "Loading cache from $CACHE_PATH"
+        TERM=dumb ./gradlew loadCaches --info
+      fi
+      # Build helper-rust with coverage instrumentation
+      TERM=dumb ./gradlew buildHelperRustWithCoverage --info -Pbuildscan --scan
+      # Run integration tests with coverage-instrumented binary
+      TERM=dumb ./gradlew test8.3-debug --info -Pbuildscan --scan -PuseHelperRustCoverage
+      # Generate coverage report from profraw files
+      TERM=dumb ./gradlew generateHelperRustIntegrationCoverage --info -Pbuildscan --scan
+      TERM=dumb ./gradlew saveCaches --info
+    - |
+      echo "Extracting coverage data from Docker volume"
+      mkdir -p "$CI_PROJECT_DIR"/appsec/helper-rust
+      docker run --rm -v php-helper-rust-coverage:/vol alpine cat /vol/coverage-integration.lcov > "$CI_PROJECT_DIR"/appsec/helper-rust/coverage-integration.lcov
+    - |
+      echo "Uploading helper-rust integration test coverage to codecov"
+      cd "$CI_PROJECT_DIR"
+      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+      codecov -t "$CODECOV_TOKEN" -n helper-rust-integration -F helper-rust-integration -v -f appsec/helper-rust/coverage-integration.lcov
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
-    - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \;
+    - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \; || true
     - cp -r appsec/tests/integration/build/test-logs "${CI_PROJECT_DIR}/artifacts/" 2>/dev/null || true
     - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:appsec"
   artifacts:
@@ -152,7 +344,8 @@ stages:
       junit: "artifacts/**/test-results/**/TEST-*.xml"
     paths:
       - "artifacts/"
-    when: "always"
+      - appsec/helper-rust/coverage-integration.lcov
+    when: always
   cache:
     - key: "appsec int test cache"
       paths:

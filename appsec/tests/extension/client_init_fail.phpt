@@ -10,7 +10,7 @@ $obj = new ArrayObject();
 $helper = Helper::createRun(
     [
         response_list(
-            response_client_init(['not-ok', phpversion('ddappsec'), ['such and such error occurred'], $obj, $obj])
+            response_client_init(['not-ok', phpversion('ddappsec'), ['such and such error occurred'], $obj, $obj, null])
         )
     ]);
 

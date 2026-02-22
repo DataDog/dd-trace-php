@@ -1,6 +1,7 @@
 #include "telemetry.h"
 #include "configuration.h"
 #include "ddtrace.h"
+#include "helper_process.h"
 #include "logging.h"
 #include "php_compat.h"
 #include "string_helpers.h"
@@ -57,8 +58,13 @@ static void _add_helper_conn_metric(zend_string *nonnull name_zstr)
     }
     zend_string *runtime_path = get_DD_APPSEC_HELPER_RUNTIME_PATH();
     char *tags = NULL;
-    size_t tags_len =
+    if (dd_helper_is_rust()) {
+        spprintf(&tags, 0, "runtime_path:%s,helper_runtime:rust",
+            ZSTR_VAL(runtime_path));
+    } else {
         spprintf(&tags, 0, "runtime_path:%s", ZSTR_VAL(runtime_path));
+    }
+    size_t tags_len = strlen(tags);
     zend_string *tags_zstr = zend_string_init(tags, tags_len, 0);
     dd_telemetry_add_metric(name_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
     zend_string_release(tags_zstr);

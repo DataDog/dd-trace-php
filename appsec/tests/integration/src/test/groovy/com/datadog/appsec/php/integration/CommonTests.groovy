@@ -10,6 +10,8 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.testcontainers.containers.Container
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
 
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -24,6 +26,47 @@ trait CommonTests {
 
     AppSecContainer getContainer() {
         getClass().CONTAINER
+    }
+
+    void cleanupHelperBeforeRestart() {
+        // Clean up helper before restarting services to ensure coverage is flushed
+        container.flushProfilingData()
+    }
+
+    /**
+     * Normalizes AppSec JSON to handle differences between libddwaf versions.
+     * - Converts array indices in key_path to strings (libddwaf 1.x format)
+     * - Removes on_match field (added in libddwaf 2.x)
+     */
+    String normalizeAppsecJson(String json) {
+        def slurper = new JsonSlurper()
+        def parsed = slurper.parseText(json)
+
+        // Recursively process the structure
+        def normalized = normalizeAppsecObject(parsed)
+
+        JsonOutput.toJson(normalized)
+    }
+
+    private Object normalizeAppsecObject(Object obj) {
+        if (obj instanceof Map) {
+            def result = [:]
+            obj.each { key, value ->
+                // Skip on_match field (libddwaf 2.x addition)
+                if (key != 'on_match') {
+                    // Convert array indices to strings in key_path
+                    if (key == 'key_path' && value instanceof List) {
+                        result[key] = value.collect { it instanceof Number ? it.toString() : it }
+                    } else {
+                        result[key] = normalizeAppsecObject(value)
+                    }
+                }
+            }
+            return result
+        } else if (obj instanceof List) {
+            return obj.collect { normalizeAppsecObject(it) }
+        }
+        return obj
     }
 
     @Test
@@ -628,7 +671,9 @@ trait CommonTests {
               }
            ]
         }'''
-        assertThat appsecJson, matchesJson(expJson, false, true)
+        // Normalize to handle libddwaf version differences (array index types, on_match field)
+        def normalizedAppsecJson = normalizeAppsecJson(appsecJson)
+        assertThat normalizedAppsecJson, matchesJson(expJson, false, true)
     }
 
     @Test
@@ -674,7 +719,9 @@ trait CommonTests {
               }
            ]
         }'''
-        assertThat appsecJson, matchesJson(expJson, false, true)
+        // Normalize to handle libddwaf version differences (array index types, on_match field)
+        def normalizedAppsecJson = normalizeAppsecJson(appsecJson)
+        assertThat normalizedAppsecJson, matchesJson(expJson, false, true)
     }
 
 

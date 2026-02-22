@@ -32,11 +32,12 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    string(0) ""
-    [1]=>
     array(1) {
       ["server.request.path_params"]=>
       string(11) "some string"
+    }
+    [1]=>
+    array(0) {
     }
   }
 }

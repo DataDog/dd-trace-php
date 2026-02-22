@@ -37,7 +37,12 @@ def phpVersions = [
         '8.5': '8.5.0',
 ]
 
-def arch = System.getProperty('os.arch')
+def nativeArch = System.getProperty('os.arch')
+def arch = project.hasProperty('dockerArch') ? project.property('dockerArch') : nativeArch
+def archToSuffix = { a -> a == 'arm64' ? 'aarch64' : a }
+def archSuffix = archToSuffix(arch)
+def isCrossBuilding = arch != nativeArch
+def dockerPlatform = arch == 'arm64' ? 'linux/arm64' : 'linux/amd64'
 
 def imageUpToDate = { inputs, String image ->
     return {
@@ -55,6 +60,7 @@ def imageIsNewerThan = { image1, image2 ->
 
 final List<String> dockerBuildCommand = [
     'docker', 'buildx', 'build', '--progress=plain', '--load',
+    *(isCrossBuilding ? ['--platform', dockerPlatform] : []),
 ]
 
 tasks.register('buildToolchain', Exec) {
@@ -201,18 +207,32 @@ tasks.register('buildFrankenPHP-8.4-release-zts', Exec) {
             'src/docker/frankenphp', '-f', 'src/docker/frankenphp/Dockerfile')
 }
 
+tasks.register('buildNginxFpm-8.5-release-musl', Exec) {
+    String image = "$repo:nginx-fpm-php-8.5-release-musl"
+    description = "Build the musl-nginx image for Alpine testing"
+    inputs.file file('src/docker/nginx-fpm-musl/Dockerfile')
+    inputs.file file('src/docker/nginx-fpm-musl/nginx.conf')
+    outputs.upToDateWhen imageUpToDate(inputs, image)
+
+    commandLine(*dockerBuildCommand, *dockerMirrorArgs,
+            '-t', image,
+            '-f', 'src/docker/nginx-fpm-musl/Dockerfile',
+            'src/docker/nginx-fpm-musl')
+}
+
 task buildAll {
     dependsOn 'buildAllPhp',
             'buildAllApache2Mod',
             'buildAllApache2Fpm',
             'buildAllNginxFpm',
-            'buildFrankenPHP-8.4-release-zts'
+            'buildFrankenPHP-8.4-release-zts',
+            'buildNginxFpm-8.5-release-musl'
 }
 
 def buildPushTask = { String tag, requirement ->
     tasks.register("pushImage-${tag}", Exec) {
         String image = "$repo:$tag"
-        String pushedImage = image + "-$arch"
+        String pushedImage = image + "-$archSuffix"
         description = "Push image $image"
 
         doFirst {
@@ -243,6 +263,7 @@ def allPushTasks = [
             buildPushTask("nginx-fpm-php-${spec[0]}-${spec[1]}", "buildNginxFpm-${spec[0]}-${spec[1]}")
         },
         buildPushTask("frankenphp-8.4-release-zts", 'buildFrankenPHP-8.4-release-zts'),
+        buildPushTask("nginx-fpm-php-8.5-release-musl", 'buildNginxFpm-8.5-release-musl'),
 ]
 tasks.register('pushAll') {
     dependsOn allPushTasks
@@ -279,7 +300,8 @@ def allMultiArchTasks = [
         *testMatrix.collect { spec ->
             buildMultiArchTask("nginx-fpm-php-${spec[0]}-${spec[1]}")
         },
-        buildMultiArchTask("frankenphp-8.4-release-zts")
+        buildMultiArchTask("frankenphp-8.4-release-zts"),
+        buildMultiArchTask("nginx-fpm-php-8.5-release-musl"),
 ]
 tasks.register('pushMultiArch') {
     dependsOn allMultiArchTasks
