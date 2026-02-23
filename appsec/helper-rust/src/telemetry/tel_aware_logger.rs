@@ -116,7 +116,7 @@ fn submit_error_to_telemetry(record: &Record) {
 
     let stack_trace = extract_anyhow_backtrace(record).or_else(|| {
         // Fall back to capturing backtrace at the logger (less useful but better than nothing)
-        let backtrace = Backtrace::capture();
+        let backtrace = Backtrace::force_capture();
         match backtrace.status() {
             std::backtrace::BacktraceStatus::Captured => Some(backtrace.to_string()),
             _ => None,

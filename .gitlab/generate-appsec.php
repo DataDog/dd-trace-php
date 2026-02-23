@@ -173,6 +173,7 @@ stages:
           - test8.1-release
           - test8.3-debug
           - test8.4-release-zts
+          - test8.5-release-musl
 
 "helper-rust build and test":
   stage: test
