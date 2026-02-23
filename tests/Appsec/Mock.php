@@ -41,7 +41,7 @@ if (!class_exists('datadog\appsec\AppsecStatusBase')) {
         /**
          * @param array<string, mixed> $event
          */
-        abstract public function addEvent(array $event, string $eventName): void;
+        abstract public function addEvent(array $event, $eventName): void;
 
         /**
          * @return array<int, array<string, mixed>>
