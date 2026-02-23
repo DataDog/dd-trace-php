@@ -10,33 +10,69 @@ task_local! {
 /// Key used to pass anyhow backtrace through log's key-value API
 pub const ANYHOW_BACKTRACE_KEY: &str = "__anyhow_backtrace";
 
-/// Wrapper to pass backtrace through log's kv API
-pub struct BacktraceValue<'a>(pub &'a Backtrace);
-
-impl log::kv::ToValue for BacktraceValue<'_> {
-    fn to_value(&self) -> log::kv::Value<'_> {
-        log::kv::Value::from_display(self.0)
-    }
-}
-
-/// Internal helper for error logging with optional backtrace
+/// Logs an error with an optional backtrace, forcing the emitted record location.
 #[doc(hidden)]
-pub fn log_error_with_backtrace(msg: &str, backtrace: Option<&Backtrace>) {
+pub fn log_error_with_backtrace_at(
+    file: &'static str,
+    line: u32,
+    module_path: &'static str,
+    msg: &str,
+    backtrace: Option<&Backtrace>,
+) {
+    if !log::log_enabled!(log::Level::Error) {
+        return;
+    }
+
     let formatted_msg = if let Ok(client_id) = CLIENT_ID.try_with(|id| *id) {
         format!("Client #{}: {}", client_id, msg)
     } else {
         msg.to_string()
     };
 
-    if let Some(bt) = backtrace {
-        log::error!(
-            { ANYHOW_BACKTRACE_KEY } = BacktraceValue(bt);
-            "{}",
-            formatted_msg
-        );
-    } else {
-        log::error!("{}", formatted_msg);
+    struct BacktraceKvs<'a> {
+        bt: &'a Backtrace,
     }
+
+    impl<'kvs> log::kv::Source for BacktraceKvs<'kvs> {
+        fn visit<'a>(
+            &'a self,
+            visitor: &mut dyn log::kv::VisitSource<'a>,
+        ) -> Result<(), log::kv::Error> {
+            visitor.visit_pair(
+                log::kv::Key::from_str(ANYHOW_BACKTRACE_KEY),
+                log::kv::Value::from_display(self.bt),
+            )
+        }
+    }
+
+    struct EmptSource;
+    impl log::kv::Source for EmptSource {
+        fn visit<'a>(
+            &'a self,
+            _visitor: &mut dyn log::kv::VisitSource<'a>,
+        ) -> Result<(), log::kv::Error> {
+            Ok(())
+        }
+    }
+
+    let kvs: Box<dyn log::kv::Source> = if let Some(bt) = backtrace {
+        Box::new(BacktraceKvs { bt })
+    } else {
+        Box::new(EmptSource)
+    };
+
+    let args = format_args!("{}", formatted_msg);
+    let record = log::Record::builder()
+        .args(args)
+        .level(log::Level::Error)
+        .target(module_path)
+        .module_path(Some(module_path))
+        .file(Some(file))
+        .line(Some(line))
+        .key_values(&kvs)
+        .build();
+
+    log::logger().log(&record);
 }
 
 pub trait TryGetBacktrace {
@@ -105,7 +141,13 @@ pub(crate) use warning;
 macro_rules! error {
     // No arguments - just format string
     ($fmt:literal) => {{
-        $crate::client::log::log_error_with_backtrace($fmt, None);
+        $crate::client::log::log_error_with_backtrace_at(
+            file!(),
+            line!(),
+            module_path!(),
+            $fmt,
+            None,
+        );
     }};
 
     // With arguments - check for anyhow backtrace
@@ -117,13 +159,25 @@ macro_rules! error {
         $(
             if !__found {
                 if let Some(bt) = (&$arg).try_get_backtrace() {
-                    $crate::client::log::log_error_with_backtrace(&__msg, Some(bt));
+                    $crate::client::log::log_error_with_backtrace_at(
+                        file!(),
+                        line!(),
+                        module_path!(),
+                        &__msg,
+                        Some(bt),
+                    );
                     __found = true;
                 }
             }
         )*
         if !__found {
-            $crate::client::log::log_error_with_backtrace(&__msg, None);
+            $crate::client::log::log_error_with_backtrace_at(
+                file!(),
+                line!(),
+                module_path!(),
+                &__msg,
+                None,
+            );
         }
     }};
 }
