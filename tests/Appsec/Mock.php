@@ -116,6 +116,18 @@ if (!class_exists('datadog\appsec\AppsecStatusInMemory')) {
 if (!class_exists('datadog\appsec\AppsecStatusMysql')) {
     final class AppsecStatusMysql extends AppsecStatusBase
     {
+        private $connection = null;
+
+        protected function getDbPdo()
+        {
+            if (!isset($this->connection)) {
+                $pdo = new \PDO('mysql:host=mysql-integration', 'test', 'test');
+                $pdo->exec("CREATE DATABASE IF NOT EXISTS test");
+                $this->connection = new \PDO('mysql:host=mysql-integration;dbname=test', 'test', 'test');
+                $this->connection->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
+            }
+            return $this->connection;
+        }
 
         private function initiated(): bool
         {
