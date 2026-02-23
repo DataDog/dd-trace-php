@@ -45,7 +45,8 @@ typedef struct _dd_helper_mgr {
 
     char *nonnull socket_path; // if abstract, starts with @
     char *nonnull lock_path;   // set, but not used with abstract ns sockets
-    char *nullable resolved_helper_path; // resolved helper path (after redirection check)
+    char *nullable
+        resolved_helper_path; // resolved helper path (after redirection check)
 } dd_helper_mgr;
 
 static _Atomic(dd_helper_shared_state) *_shared_state;
@@ -270,19 +271,22 @@ static char *nullable _compute_helper_path(void)
         return NULL;
     }
 
-    // Compute the Rust helper path: dirname(helper_path)/libddappsec-helper-rust.so
+    // Compute the Rust helper path:
+    // dirname(helper_path)/libddappsec-helper-rust.so
     size_t dir_len = strlen(dir);
     size_t rust_helper_len = sizeof(RUST_HELPER_FILENAME) - 1;
     size_t total_len = dir_len + 1 + rust_helper_len; // dir + / + filename
 
     char *rust_helper_path = safe_pemalloc(total_len, sizeof(char), 1, 1);
-    snprintf(rust_helper_path, total_len + 1, "%s/%s", dir, RUST_HELPER_FILENAME);
+    snprintf(
+        rust_helper_path, total_len + 1, "%s/%s", dir, RUST_HELPER_FILENAME);
 
     pefree(path_copy, 1);
 
     struct stat sb;
     if (stat(rust_helper_path, &sb) == 0 && S_ISREG(sb.st_mode)) {
-        mlog(dd_log_debug, "Rust helper found at %s, using it", rust_helper_path);
+        mlog(dd_log_debug, "Rust helper found at %s, using it",
+            rust_helper_path);
         _mgr.resolved_helper_path = rust_helper_path;
         return _mgr.resolved_helper_path;
     }
@@ -315,8 +319,8 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
     ddog_CharSlice helper_path;
     char *resolved_path = _compute_helper_path();
     if (resolved_path) {
-        helper_path = (ddog_CharSlice){.ptr = resolved_path,
-            .len = strlen(resolved_path)};
+        helper_path = (ddog_CharSlice){
+            .ptr = resolved_path, .len = strlen(resolved_path)};
     } else {
         helper_path = to_char_slice(get_DD_APPSEC_HELPER_PATH());
     }
