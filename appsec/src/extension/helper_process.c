@@ -7,6 +7,7 @@
 // NOLINTNEXTLINE(misc-header-include-cycle)
 #include <components-rs/ddtrace.h>
 #include <libgen.h>
+#include <limits.h>
 #include <php.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -257,12 +258,22 @@ static char *nullable _compute_helper_path(void)
 
     zend_string *helper_path_zs = get_DD_APPSEC_HELPER_PATH();
     const char *helper_path = ZSTR_VAL(helper_path_zs);
-    size_t helper_path_len = ZSTR_LEN(helper_path_zs);
 
-    // We need to copy to use dirname since it may modify the string
+#ifdef __APPLE__
+    char dir_buf[PATH_MAX];
+    char *dir = dirname_r(helper_path, dir_buf);
+    if (!dir) {
+        mlog(dd_log_warning, "Failed to get dirname of helper path");
+        _mgr.resolved_helper_path = pecalloc(1, 1, 1); // cache negative result
+        return NULL;
+    }
+#else
+    size_t helper_path_len = ZSTR_LEN(helper_path_zs);
     char *path_copy = safe_pemalloc(helper_path_len, sizeof(char), 1, 1);
     memcpy(path_copy, helper_path, helper_path_len + 1);
 
+    // dirname is thread-safe on Linux
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     char *dir = dirname(path_copy);
     if (!dir) {
         pefree(path_copy, 1);
@@ -270,6 +281,7 @@ static char *nullable _compute_helper_path(void)
         _mgr.resolved_helper_path = pecalloc(1, 1, 1); // cache negative result
         return NULL;
     }
+#endif
 
     // Compute the Rust helper path:
     // dirname(helper_path)/libddappsec-helper-rust.so
@@ -281,7 +293,9 @@ static char *nullable _compute_helper_path(void)
     snprintf(
         rust_helper_path, total_len + 1, "%s/%s", dir, RUST_HELPER_FILENAME);
 
+#ifndef __APPLE__
     pefree(path_copy, 1);
+#endif
 
     struct stat sb;
     if (stat(rust_helper_path, &sb) == 0 && S_ISREG(sb.st_mode)) {
