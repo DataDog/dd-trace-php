@@ -19,8 +19,9 @@ foreach ($profiler_minor_major_targets as $version) {
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
   variables:
     KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 5Gi
+    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
