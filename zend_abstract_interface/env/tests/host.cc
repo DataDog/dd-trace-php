@@ -14,8 +14,8 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "non-empty string", {
     ZAI_ENV_BUFFER_INIT(buf, 64);
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
+    REQUIRE(res == ZAI_ENV_NOT_SET);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
@@ -26,7 +26,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
     ZAI_ENV_BUFFER_INIT(buf, 64);
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
-    REQUIRE(res == ZAI_ENV_SUCCESS);
+    REQUIRE(res == ZAI_ENV_NOT_SET);
     REQUIRE_BUF_EQ("", buf);
 })
 
@@ -50,8 +50,8 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "max buffer size", {
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
+    REQUIRE(res == ZAI_ENV_NOT_SET);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too small", {
@@ -62,7 +62,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too small", {
     ZAI_ENV_BUFFER_INIT(buf, 3);  // No room for null terminator
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
-    REQUIRE(res == ZAI_ENV_BUFFER_TOO_SMALL);
+    REQUIRE(res == ZAI_ENV_NOT_SET);
     REQUIRE_BUF_EQ("", buf);
 })
 

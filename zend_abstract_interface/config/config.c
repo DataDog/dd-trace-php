@@ -12,11 +12,26 @@ HashTable zai_config_name_map = {0};
 uint16_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
-static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf) {
-    // TODO Handle other return codes
-    // We want to explicitly allow pre-RINIT access to env vars here. So that callers can have an early view at config.
-    // But in general allmost all configurations shall only be accessed after first RINIT. (the trivial getter will
-    return zai_getenv_ex(name, buf, true) == ZAI_ENV_SUCCESS;
+static bool zai_config_get_process_env_value(zai_str name, zai_env_buffer buf) {
+    char *value = getenv(name.ptr);
+    if (!value) {
+        return false;
+    }
+
+    size_t len = strlen(value);
+    if (len >= buf.len) {
+        return false;
+    }
+
+    memcpy(buf.ptr, value, len + 1);
+    return true;
+}
+
+static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf, bool in_request) {
+    if (in_request) {
+        return zai_getenv_ex(name, buf, false) == ZAI_ENV_SUCCESS;
+    }
+    return zai_config_get_process_env_value(name, buf);
 }
 
 static inline void zai_config_process_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, zai_option_str *value) {
@@ -31,7 +46,7 @@ static inline void zai_config_process_env(zai_config_memoized_entry *memoized, z
     }
 }
 
-static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id) {
+static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id, bool in_request) {
     // TODO Use less buffer space
     // TODO Make a more generic zai_string_buffer
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
@@ -48,7 +63,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
             memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
-        } else if (zai_config_get_env_value(name, buf)) {
+        } else if (zai_config_get_env_value(name, buf, in_request)) {
             zai_config_process_env(memoized, buf, &value);
             break;
         } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG) {
@@ -239,7 +254,7 @@ void zai_config_first_time_rinit(bool in_request) {
 
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        zai_config_find_and_set_value(memoized, i);
+        zai_config_find_and_set_value(memoized, i, in_request);
 #if PHP_VERSION_ID >= 70300
         zai_config_intern_zval(&memoized->decoded_value);
 #else

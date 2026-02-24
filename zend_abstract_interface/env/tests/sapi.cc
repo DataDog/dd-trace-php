@@ -63,8 +63,8 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set (with host env fallback)", {
     ZAI_ENV_BUFFER_INIT(buf, 64);
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
+    REQUIRE(res == ZAI_ENV_NOT_SET);
+    REQUIRE_BUF_EQ("", buf);
 })
 
 /****************************** Access from RINIT *****************************/
@@ -109,6 +109,6 @@ TEA_TEST_CASE_WITH_TAGS_WITH_PROLOGUE("env/host", "rinit non-empty string", "[ad
 
     REQUIRE_SETENV("FROM_RINIT", "bar");
 },{
-    REQUIRE(zai_rinit_last_res == ZAI_ENV_SUCCESS);
-    REQUIRE(0 == strcmp("bar", zai_rinit_str_buf));
+    REQUIRE(zai_rinit_last_res == ZAI_ENV_NOT_SET);
+    REQUIRE(0 == strcmp("", zai_rinit_str_buf));
 })

@@ -52,8 +52,10 @@ typedef struct zai_env_buffer_s {
  * 'name'. Must be called after the SAPI envrionment variables are available
  * which is as early as module RINIT. If the active SAPI has a custom
  * environment variable handler, the SAPI handler is used to access the
- * environment variable. If there is no custom handler, the environment variable
- * is accessed from the host using getenv().
+ * environment variable.
+ *
+ * This API does not fall back to process getenv(). Callers that need process
+ * environment semantics must call getenv() directly.
  *
  * For error conditions, a return value other than ZAI_ENV_SUCCESS is returned
  * and 'buf.ptr' is made an empty string. If the buffer size 'buf.len' is not

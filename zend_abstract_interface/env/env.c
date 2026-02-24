@@ -26,18 +26,10 @@ zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
      */
     if (!pre_rinit && !PG(modules_activated) && !PG(during_request_startup)) return ZAI_ENV_NOT_READY;
 
-    /* sapi_getenv may or may not include process environment variables.
-     * It will return NULL when it is not found in the possibly synthetic SAPI environment.
-     * Hence we need to do a getenv() in any case.
+    /* This API intentionally only checks SAPI-managed environment values.
+     * Callers that want process getenv() behavior must call getenv() directly.
      */
-    bool use_sapi_env = false;
     char *value = sapi_getenv_compat(name.ptr, name.len);
-    if (value) {
-        use_sapi_env = true;
-    } else {
-        value = getenv(name.ptr);
-    }
-
     if (!value) return ZAI_ENV_NOT_SET;
 
     zai_env_result res;
@@ -49,7 +41,7 @@ zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
         res = ZAI_ENV_BUFFER_TOO_SMALL;
     }
 
-    if (use_sapi_env) efree(value);
+    efree(value);
 
     return res;
 }

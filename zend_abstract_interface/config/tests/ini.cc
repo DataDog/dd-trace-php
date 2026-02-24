@@ -320,9 +320,8 @@ TEST_INI("INI: invalid perdir value", {}, {
 
 TEST_INI("env overrides system INI", {
     REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_BAR_ALIASED_STRING", "system string"));
-}, {
     REQUIRE_SETENV("INI_BAR_ALIASED_STRING_OLD", "1");
-
+}, {
     REQUEST_BEGIN()
 
     zval *value = zai_config_get_value(EXT_CFG_INI_BAR_ALIASED_STRING);
@@ -397,9 +396,9 @@ TEST_INI("runtime INI update reflected in all aliases", {
     REQUEST_END()
 })
 
-TEST_INI("env followed by ini_restore", { }, {
+TEST_INI("env followed by ini_restore", {
     REQUIRE_SETENV("INI_BAR_ALIASED_STRING_OLD", "1");
-
+}, {
     REQUEST_BEGIN()
 
     zval *value = zai_config_get_value(EXT_CFG_INI_BAR_ALIASED_STRING);
@@ -541,9 +540,9 @@ TEST_INI("setting perdir INI setting for multiple ZAI config users", {
 })
 
 
-TEST_INI("setting an env value after memoization for multiple ZAI config users", {}, {
+TEST_INI("setting an env value after memoization for multiple ZAI config users", {
     REQUIRE_SETENV("INI_FOO_STRING", "value");
-
+}, {
     REQUEST_BEGIN()
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
@@ -570,7 +569,7 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "value2"));
+    REQUIRE(zval_string_equals(value, "value"));
 
     REQUEST_END()
 })

@@ -7,10 +7,26 @@ extern "C" {
 
 #include "zai_tests_common.hpp"
 
-#define TEST_ENV(description, ...)     TEA_TEST_CASE_BARE("config/env", description, ZAI_CONFIG_TEST_BODY(__VA_ARGS__))
+#if PHP_VERSION_ID >= 80000
+#define TEST_SAPI_GETENV_FUNCTION(fn) static char *fn(const char *name, size_t name_len)
+#else
+#define TEST_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len)
+#endif
+
+#define TEST_ENV(description, pre_minit_setup, test_body) \
+    TEA_TEST_CASE_BARE("config/env", description, { \
+        REQUIRE(tea_sapi_sinit()); \
+        ext_zai_config_ctor(PHP_MINIT(zai_config_env)); \
+        { pre_minit_setup } \
+        REQUIRE(tea_sapi_minit()); \
+        { test_body } \
+        tea_sapi_mshutdown(); \
+        tea_sapi_sshutdown(); \
+    })
 
 TEST_ENV("bool", {
     REQUIRE_SETENV("FOO_BOOL", "false");
+}, {
 
     REQUEST_BEGIN()
 
@@ -24,6 +40,7 @@ TEST_ENV("bool", {
 
 TEST_ENV("double", {
     REQUIRE_SETENV("FOO_DOUBLE", "0");
+}, {
 
     REQUEST_BEGIN()
 
@@ -38,6 +55,7 @@ TEST_ENV("double", {
 
 TEST_ENV("double (decoding error)", {
     REQUIRE_SETENV("FOO_DOUBLE", "zero");
+}, {
 
     REQUEST_BEGIN()
 
@@ -52,6 +70,7 @@ TEST_ENV("double (decoding error)", {
 
 TEST_ENV("int", {
     REQUIRE_SETENV("FOO_INT", "0");
+}, {
 
     REQUEST_BEGIN()
 
@@ -66,6 +85,7 @@ TEST_ENV("int", {
 
 TEST_ENV("int (decoding error)", {
     REQUIRE_SETENV("FOO_INT", "zero");
+}, {
 
     REQUEST_BEGIN()
 
@@ -80,6 +100,7 @@ TEST_ENV("int (decoding error)", {
 
 TEST_ENV("map", {
     REQUIRE_SETENV("FOO_MAP", "env1:one,env2:two,env3:three");
+}, {
 
     REQUEST_BEGIN()
 
@@ -98,6 +119,7 @@ TEST_ENV("map", {
 
 TEST_ENV("map (empty)", {
     REQUIRE_SETENV("FOO_MAP", "");
+}, {
 
     REQUEST_BEGIN()
 
@@ -112,6 +134,7 @@ TEST_ENV("map (empty)", {
 
 TEST_ENV("map (decoding error)", {
     REQUIRE_SETENV("FOO_MAP", "env1,one,env2,two,env3,three");
+}, {
 
     REQUEST_BEGIN()
 
@@ -129,6 +152,7 @@ TEST_ENV("map (decoding error)", {
 
 TEST_ENV("string", {
     REQUIRE_SETENV("FOO_STRING", "env string");
+}, {
 
     REQUEST_BEGIN()
 
@@ -143,6 +167,7 @@ TEST_ENV("string", {
 
 TEST_ENV("string (empty)", {
     REQUIRE_SETENV("FOO_STRING", "");
+}, {
 
     REQUEST_BEGIN()
 
@@ -157,6 +182,7 @@ TEST_ENV("string (empty)", {
 
 TEST_ENV("alias", {
     REQUIRE_SETENV("BAR_ALIASED_INT_OLDER", "1");
+}, {
 
     REQUEST_BEGIN()
 
@@ -197,13 +223,39 @@ TEA_TEST_CASE_BARE("config/env", "change after memoization", {
 
     REQUIRE(value != NULL);
 #if PHP_VERSION_ID > 70000
+    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
+#else
+    REQUIRE(Z_TYPE_P(value) == IS_BOOL);
+    REQUIRE(Z_BVAL_P(value) == 0);
+#endif
+
+    REQUEST_END();
+    tea_sapi_mshutdown();
+    tea_sapi_sshutdown();
+})
+
+TEST_SAPI_GETENV_FUNCTION(zai_config_test_getenv_true) {
+    if (strncmp(name, "FOO_BOOL", name_len) == 0 && name_len == strlen("FOO_BOOL")) {
+        return (char *)"true";
+    }
+    return NULL;
+}
+
+TEST_ENV("sapi overrides process getenv in request", {
+    REQUIRE_SETENV("FOO_BOOL", "false");
+    tea_sapi_module.getenv = zai_config_test_getenv_true;
+}, {
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
+
+    REQUIRE(value != NULL);
+#if PHP_VERSION_ID > 70000
     REQUIRE(Z_TYPE_P(value) == IS_TRUE);
 #else
     REQUIRE(Z_TYPE_P(value) == IS_BOOL);
     REQUIRE(Z_BVAL_P(value) == 1);
 #endif
 
-    REQUEST_END();
-    tea_sapi_mshutdown();
-    tea_sapi_sshutdown();
+    REQUEST_END()
 })
