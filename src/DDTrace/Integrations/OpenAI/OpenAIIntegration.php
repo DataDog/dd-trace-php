@@ -66,6 +66,7 @@ class OpenAIIntegration extends Integration
     {
         $logger = \dd_trace_env_config('DD_OPENAI_LOGS_ENABLED') ? new DatadogLogger() : null;
 
+        // [class, method, operationID, httpMethod, endpoint, reportApm, reportAppsec]
         $targets = [
             ['OpenAI\Resources\Completions', 'create', 'createCompletion', 'POST', '/v1/completions', true, true],
             ['OpenAI\Resources\Chat', 'create', 'createChatCompletion', 'POST', '/v1/chat/completions', true, true],
@@ -92,6 +93,7 @@ class OpenAIIntegration extends Integration
             ['OpenAI\Resources\Responses', 'create', 'createResponse', 'POST', '/v1/responses', false, true],
         ];
 
+        // [class, method, operationID, httpMethod, endpoint, reportApm, reportAppsec]
         $streamedTargets = [
             ['OpenAI\Resources\Completions', 'createStreamed', 'createCompletion', 'POST', '/v1/completions', true, true],
             ['OpenAI\Resources\Chat', 'createStreamed', 'createChatCompletion', 'POST', '/v1/chat/completions', true, true],
