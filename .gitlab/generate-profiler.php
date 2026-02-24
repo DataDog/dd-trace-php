@@ -18,8 +18,8 @@ foreach ($profiler_minor_major_targets as $version) {
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
   variables:
-    KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_CPU_LIMIT: 5
+    KUBERNETES_CPU_REQUEST: 3
+    KUBERNETES_CPU_LIMIT: 3
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
@@ -39,7 +39,6 @@ foreach ($profiler_minor_major_targets as $version) {
     - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
 
     - cd profiling
-    - 'echo "nproc: $(nproc)"'
     - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
     - |
       if [ -n "${KUBERNETES_CPU_REQUEST:-}" ]; then
