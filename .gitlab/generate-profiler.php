@@ -19,7 +19,6 @@ foreach ($profiler_minor_major_targets as $version) {
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
   variables:
     KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 5Gi
     KUBERNETES_MEMORY_LIMIT: 5Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
@@ -39,11 +38,11 @@ foreach ($profiler_minor_major_targets as $version) {
     - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
 
     - cd profiling
-    - echo "nproc: $(nproc)"
-    - echo "KUBERNETES_CPU_LIMIT: ${KUBERNETES_CPU_LIMIT:-<unset>}"
+    - 'echo "nproc: $(nproc)"'
+    - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
     - |
-      if [ -n "${KUBERNETES_CPU_LIMIT:-}" ]; then
-        export CARGO_BUILD_JOBS="${KUBERNETES_CPU_LIMIT}"
+      if [ -n "${KUBERNETES_CPU_REQUEST:-}" ]; then
+        export CARGO_BUILD_JOBS="${KUBERNETES_CPU_REQUEST}"
       fi
       echo "CARGO_BUILD_JOBS: ${CARGO_BUILD_JOBS}"
     - export TEST_PHP_EXECUTABLE=$(which php)
