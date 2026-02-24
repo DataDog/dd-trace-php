@@ -39,6 +39,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
 
     - cd profiling
+    - 'echo "nproc: $(nproc)"'
     - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
     - |
       if [ -n "${KUBERNETES_CPU_REQUEST:-}" ]; then
