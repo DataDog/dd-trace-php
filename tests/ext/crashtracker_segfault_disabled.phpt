@@ -22,6 +22,7 @@ datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault_disabled.
 include __DIR__ . '/includes/request_replayer.inc';
 $rr = new RequestReplayer();
 $rr->replayRequest(); // cleanup possible leftover
+$rr->maxIteration = 100;
 
 usleep(100000); // Let time to the sidecar to open the crashtracker socket
 
@@ -44,10 +45,15 @@ $rr->waitForRequest(function ($request) {
 
         foreach ($json["payload"]["logs"] as $payload) {
             $payload["message"] = json_decode($payload["message"], true);
+            if (!isset($payload["message"]["metadata"])) {
+                continue;
+            }
+            if (($payload["message"]["kind"] ?? "") == "Crash ping") {
+                continue;
+            }
+
             $output = json_encode($payload, JSON_PRETTY_PRINT);
-
             echo $output;
-
             return true;
         }
     }
