@@ -22,6 +22,10 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_CPU_LIMIT: 3
     KUBERNETES_MEMORY_REQUEST: 6Gi
     KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
