@@ -811,13 +811,18 @@ impl Profiler {
         self.fork_barrier.wait();
     }
 
+    #[inline]
     pub fn send_sample(
         &self,
-        message: SampleMessage,
+        _message: SampleMessage,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+        // Just seeing what happens with the aggregator thread's behavior if
+        // we don't send the sample. Suspect it's overhead remains "high" in
+        // the native profiler.
+        Ok(())
+        // self.message_sender
+        //     .try_send(ProfilerMessage::Sample(message))
+        //     .map_err(Box::new)
     }
 
     pub fn send_local_root_span_resource(
@@ -1575,9 +1580,7 @@ impl Profiler {
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
         let message = self.prepare_sample_message(frames, samples, labels, timestamp);
-        self.message_sender
-            .try_send(ProfilerMessage::Sample(message))
-            .map_err(Box::new)
+        self.send_sample(message)
     }
 
     fn prepare_sample_message(
