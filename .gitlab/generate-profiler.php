@@ -39,6 +39,13 @@ foreach ($profiler_minor_major_targets as $version) {
     - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
 
     - cd profiling
+    - echo "nproc: $(nproc)"
+    - echo "KUBERNETES_CPU_LIMIT: ${KUBERNETES_CPU_LIMIT:-<unset>}"
+    - |
+      if [ -n "${KUBERNETES_CPU_LIMIT:-}" ]; then
+        export CARGO_BUILD_JOBS="${KUBERNETES_CPU_LIMIT}"
+      fi
+      echo "CARGO_BUILD_JOBS: ${CARGO_BUILD_JOBS}"
     - export TEST_PHP_EXECUTABLE=$(which php)
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests
