@@ -232,6 +232,59 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
     }
 
+    /**
+     * Apply remote config with raw byte content instead of JSON-encoded maps.
+     * This allows testing with malformed/corrupted config data.
+     *
+     * @param target The RC target
+     * @param files Map of config paths to raw byte arrays
+     * @return Supplier that waits for RC request confirmation
+     */
+    Supplier<RemoteConfigRequest> applyRemoteConfigRaw(Target target, Map<String, byte[]> files) {
+        Map<String, byte[]> encodedFiles = files.findAll { it.value != null }
+        long newVersion = Instant.now().epochSecond
+        def rcr = new RemoteConfigResponse()
+        rcr.clientConfigs = files.keySet() as List
+        rcr.targetFiles = encodedFiles.collect {
+            new RemoteConfigResponse.TargetFile(
+                    path: it.key,
+                    raw: new String(
+                            Base64.encoder.encode(it.value),
+                            StandardCharsets.ISO_8859_1)
+            )
+        }
+        rcr.targets = new RemoteConfigResponse.Targets(
+                signatures: [],
+                targetsSigned: new RemoteConfigResponse.Targets.TargetsSigned(
+                        type: 'root',
+                        custom: new RemoteConfigResponse.Targets.TargetsSigned.TargetsCustom(
+                                opaqueBackendState: 'ABCDEF'
+                        ),
+                        specVersion: '1.0.0',
+                        expires: Instant.parse('2030-01-01T00:00:00Z'),
+                        version: newVersion,
+                        targets: encodedFiles.collectEntries {
+                            [
+                                    it.key,
+                                    new RemoteConfigResponse.Targets.ConfigTarget(
+                                            hashes: [sha256: RemoteConfigResponse.sha256(it.value).toString(16).padLeft(64, '0')],
+                                            length: it.value.size(),
+                                            custom: new RemoteConfigResponse.Targets.ConfigTarget.ConfigTargetCustom(
+                                                    version: newVersion
+                                            )
+                                    )
+                            ]
+                        }
+                ),
+        )
+
+        setNextRCResponse(target, rcr)
+
+        long start = System.currentTimeMillis()
+        return { -> waitForRCVersion(target, newVersion,
+                5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
+    }
+
     void flushProfilingData() {
         if (!System.getProperty('USE_HELPER_RUST_COVERAGE')) {
             return

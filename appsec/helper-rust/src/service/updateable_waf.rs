@@ -6,7 +6,7 @@ use libddwaf::{
     Builder, Config, Handle,
 };
 
-use crate::client::log::error;
+use crate::client::log::{error, warning};
 
 /// A WAF instance that can be shared (through clone()) and updated by any thread.
 ///
@@ -97,17 +97,24 @@ impl UpdateableWafInstance {
         path: &str,
         ruleset: &impl AsRef<libddwaf_sys::ddwaf_object>,
         diagnostics: Option<&mut WafOwnedDefaultAllocator<WafMap>>,
-    ) -> bool {
+    ) -> anyhow::Result<()> {
         let mut guard = self.inner.prot_state.lock().unwrap();
 
         if guard.initial_ruleset_added && path.contains("/ASM_DD/") {
             guard.initial_ruleset_added = false;
-            guard.builder.remove_config(Self::INITIAL_RULESET);
+            let res = guard.builder.remove_config(Self::INITIAL_RULESET);
+            if !res {
+                warning!("Failed to remove initial ruleset: probably not present, but we it should have been");
+            }
         }
 
-        guard
+        let res = guard
             .builder
-            .add_or_update_config(path, ruleset, diagnostics)
+            .add_or_update_config(path, ruleset, diagnostics);
+        if !res {
+            anyhow::bail!("Failed to add/update config {path}");
+        }
+        Ok(())
     }
 
     /// Removes a configuration at the specified path.
@@ -122,7 +129,7 @@ impl UpdateableWafInstance {
     /// If the last ASM_DD config is removed, the initial ruleset will be added back.
     /// Consequently, when doing an update, first add the new ASM_DD config, and only
     /// then remove the old one.
-    pub fn remove_config(&self, path: &str) -> bool {
+    pub fn remove_config(&self, path: &str) -> anyhow::Result<bool> {
         let mut guard = self.inner.prot_state.lock().unwrap();
         let removed = guard.builder.remove_config(path);
         if removed && path.contains("/ASM_DD/") && !guard.initial_ruleset_added {
@@ -137,12 +144,11 @@ impl UpdateableWafInstance {
                 if res {
                     log::debug!("Restored initial ruleset after removing last ASM_DD config");
                 } else {
-                    error!("Failed to add initial ruleset after removing ASM_DD config");
-                    return false;
+                    anyhow::bail!("Failed to add initial ruleset after removing ASM_DD config");
                 }
             }
         }
-        removed
+        Ok(removed)
     }
 
     /// Returns the number of configuration paths currently loaded.
@@ -308,12 +314,14 @@ mod tests {
                             &disable_ruleset,
                             None,
                         );
-                        if !res {
+                        if res.is_err() {
                             panic!("add_or_update_config failed");
                         }
                         println!("disable");
                     } else {
-                        upd_waf_copy.remove_config(DISABLE_ARACHNI_RULE_PATH);
+                        upd_waf_copy
+                            .remove_config(DISABLE_ARACHNI_RULE_PATH)
+                            .unwrap();
                         println!("enable");
                     }
                     upd_waf_copy.update().expect("update did not succeed");

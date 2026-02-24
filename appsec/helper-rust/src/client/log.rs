@@ -61,18 +61,17 @@ pub fn log_error_with_backtrace_at(
         Box::new(EmptSource)
     };
 
-    let args = format_args!("{}", formatted_msg);
-    let record = log::Record::builder()
-        .args(args)
-        .level(log::Level::Error)
-        .target(module_path)
-        .module_path(Some(module_path))
-        .file(Some(file))
-        .line(Some(line))
-        .key_values(&kvs)
-        .build();
-
-    log::logger().log(&record);
+    log::logger().log(
+        &log::Record::builder()
+            .args(format_args!("{}", formatted_msg))
+            .level(log::Level::Error)
+            .target(module_path)
+            .module_path(Some(module_path))
+            .file(Some(file))
+            .line(Some(line))
+            .key_values(&kvs)
+            .build(),
+    );
 }
 
 pub trait TryGetBacktrace {

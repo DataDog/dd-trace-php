@@ -304,7 +304,7 @@ impl<'a> Config<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Product<'a>(&'a str);
+pub struct Product<'a>(pub &'a str);
 
 impl<'a> Product<'a> {
     pub fn name(&self) -> &'a str {

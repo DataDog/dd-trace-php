@@ -19,6 +19,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
 import java.util.function.Supplier
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
@@ -707,5 +708,51 @@ class TelemetryTests {
                 "Expected helper_runtime:rust tag in log tags, got: ${errorLog.tags}"
 
         CONTAINER.clearTraces()
+    }
+
+    @Test
+    @Order(8)
+    void 'telemetry log for malformed RC config JSON'() {
+        def enableSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        def trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+        assert enableSup.get() != null
+
+        def malformedJson = 'this is not valid JSON {][ at all'.getBytes(StandardCharsets.UTF_8)
+
+        def requestSup = CONTAINER.applyRemoteConfigRaw(RC_TARGET, [
+                'datadog/2/ASM_DD/malformed_config/config': malformedJson
+        ])
+
+        // Wait for telemetry logs with rc::asm_dd::exception
+        def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
+            def relevantLogs = logs.collectMany {
+                it.logs.findAll { it.tags?.contains('log_type:rc::asm_dd::exception') }
+            }
+            !relevantLogs.empty
+        }.collectMany { it.logs }
+
+        assert requestSup.get() != null
+
+        def exceptionLog = messages.find {
+            it.tags?.contains('log_type:rc::asm_dd::exception') &&
+            it.tags?.contains('rc_config_id:malformed_config')
+        }
+
+        assert exceptionLog != null : "Expected to find rc::asm_dd::exception log. " +
+                "All logs: ${messages.collect { [identifier: it.identifier, tags: it.tags, message: it.message] }}"
+        assert exceptionLog.level == 'ERROR' : "Expected ERROR level, got ${exceptionLog.level}"
+        assert exceptionLog.message?.contains('malformed') ||
+               exceptionLog.message?.contains('parse') ||
+               exceptionLog.message?.contains('JSON') ||
+               exceptionLog.message?.contains('Failed to apply config') :
+                "Expected error message about parse/JSON failure, got: ${exceptionLog.message}"
     }
 }
