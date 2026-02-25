@@ -1,6 +1,7 @@
 package com.datadog.appsec.php.docker
 
 import com.datadog.appsec.php.mock_agent.MockDatadogAgent
+import com.datadog.appsec.php.mock_agent.MockOpenAIServer
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
 import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigResponse
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
@@ -56,11 +57,13 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                     .build()
 
     private MockDatadogAgent mockDatadogAgent = new MockDatadogAgent()
+    public MockOpenAIServer mockOpenAIServer = new MockOpenAIServer()
 
     AppSecContainer(Map options) {
         super(imageNameFuture(options))
         processOptions(options)
         dependsOn mockDatadogAgent
+        dependsOn mockOpenAIServer
         withCreateContainerCmdModifier(cmd -> {
             cmd.hostConfig.withInit(true)
         })
