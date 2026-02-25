@@ -10,7 +10,6 @@ import org.testcontainers.lifecycle.Startable
 @Slf4j
 @CompileStatic
 class MockOpenAIServer implements Startable {
-    private static final int PORT = 8089
     Javalin httpServer
 
     @Override
@@ -35,11 +34,11 @@ class MockOpenAIServer implements Startable {
             ctx.status(405).json(['error': 'Method Not Allowed'])
         })
 
-        this.httpServer.start(PORT)
+        this.httpServer.start(0)
     }
 
     int getPort() {
-        PORT
+        this.httpServer.port()
     }
 
     @Override
