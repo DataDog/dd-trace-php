@@ -1,0 +1,155 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# ///
+"""Docker wrapper for run-clang-tidy that automatically maps all required paths."""
+
+import json
+import os
+import re
+import subprocess
+import sys
+
+DOCKER_IMAGE = "datadog/dd-appsec-php-ci:clang-tools"
+
+
+def find_git_root() -> str:
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True
+    )
+    return result.stdout.strip() if result.returncode == 0 else os.getcwd()
+
+
+def get_build_dir(args: list[str]) -> str | None:
+    for i, arg in enumerate(args):
+        if arg == "-p" and i + 1 < len(args):
+            return os.path.realpath(args[i + 1])
+    return None
+
+
+def parse_include_paths(command: str) -> list[str]:
+    return [
+        os.path.normpath(m.group(1))
+        for m in re.finditer(r"-(?:I|isystem)\s*(\S+)", command)
+    ]
+
+
+def get_implicit_includes(compiler: str) -> list[str]:
+    """Get the compiler's implicit system header search paths."""
+    try:
+        result = subprocess.run(
+            [compiler, "-xc++", "-v", "-", "-fsyntax-only"],
+            input="",
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        paths: list[str] = []
+        capturing = False
+        for line in result.stderr.splitlines():
+            if "#include <...> search starts here" in line:
+                capturing = True
+                continue
+            if "End of search list" in line:
+                break
+            if capturing:
+                # Strip trailing annotations like " (framework directory)"
+                p = line.strip().split(" ")[0]
+                if p:
+                    paths.append(os.path.normpath(p))
+        return paths
+    except Exception:
+        return []
+
+
+def collect_build_info(
+    build_dir: str, git_root: str
+) -> tuple[set[str], list[str]]:
+    """Return (external_paths_to_mount, implicit_include_paths_to_inject).
+
+    external_paths_to_mount: all include paths outside the git root that need
+        to be volume-mounted into the container.
+    implicit_include_paths_to_inject: the host compiler's default system header
+        search paths (not listed in compile_commands.json) that must be
+        forwarded to clang-tidy via --extra-arg=-isystem so it can find
+        standard library headers like <map>, <vector>, etc.
+    """
+    ccdb_path = os.path.join(build_dir, "compile_commands.json")
+    if not os.path.exists(ccdb_path):
+        return set(), []
+
+    with open(ccdb_path) as f:
+        db = json.load(f)
+
+    external: set[str] = set()
+    compiler: str | None = None
+
+    for entry in db:
+        cmd = entry.get("command", "")
+        if not compiler:
+            compiler = cmd.split()[0]
+        for p in parse_include_paths(cmd):
+            if not p.startswith(git_root) and os.path.exists(p):
+                external.add(p)
+
+    implicit: list[str] = []
+    if compiler and os.path.exists(compiler):
+        for p in get_implicit_includes(compiler):
+            if os.path.exists(p):
+                implicit.append(p)
+                if not p.startswith(git_root):
+                    external.add(p)
+
+    return external, implicit
+
+
+def minimal_mounts(paths: set[str]) -> list[str]:
+    """Reduce paths to a minimal set of mount points.
+
+    Deliberately avoids computing common ancestors: mounting a shallow
+    ancestor like /usr/local would shadow the container's own binaries
+    at /usr/local/bin/. Instead, mount each path individually and only
+    skip paths already covered by a shorter path already in the list.
+    """
+    if not paths:
+        return []
+
+    result: list[str] = []
+    for path in sorted(paths, key=len):  # shorter (shallower) paths first
+        if not any(path == m or path.startswith(m + os.sep) for m in result):
+            result.append(path)
+
+    return result
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    git_root = find_git_root()
+    work_dir = os.getcwd()
+    build_dir = get_build_dir(args)
+
+    volumes = [f"{git_root}:{git_root}"]
+    extra_isystem: list[str] = []
+
+    if build_dir:
+        external, implicit = collect_build_info(build_dir, git_root)
+        for mount in minimal_mounts(external):
+            volumes.append(f"{mount}:{mount}")
+        # Inject the host compiler's implicit search paths so clang-tidy inside
+        # Docker can find standard library headers (<map>, <vector>, etc.)
+        extra_isystem = [f"-extra-arg=-isystem{p}" for p in implicit]
+
+    docker_cmd = [
+        "docker", "run", "--rm",
+        "-u", f"{os.getuid()}:{os.getgid()}",
+        "-w", work_dir,
+    ]
+    for v in volumes:
+        docker_cmd += ["-v", v]
+    docker_cmd += [DOCKER_IMAGE, "run-clang-tidy"] + extra_isystem + args
+
+    os.execvp("docker", docker_cmd)
+
+
+if __name__ == "__main__":
+    main()

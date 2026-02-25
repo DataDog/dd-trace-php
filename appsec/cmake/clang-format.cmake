@@ -1,7 +1,11 @@
 find_program(CLANG_FORMAT clang-format)
 if(CLANG_FORMAT STREQUAL CLANG_FORMAT-NOTFOUND)
-    message(STATUS "Cannot find clang-format, either set CLANG_FORMAT or make it discoverable")
-    return()
+    set(CLANG_FORMAT ${CMAKE_CURRENT_LIST_DIR}/clang-tools/clang-format)
+    if(NOT EXISTS ${CLANG_FORMAT})
+        message(STATUS "Cannot find clang-format, either set CLANG_FORMAT or make it discoverable")
+        return()
+    endif()
+    message(STATUS "Using Docker-based clang-format wrapper: ${CLANG_FORMAT}")
 endif()
 
 set(FILE_LIST "")

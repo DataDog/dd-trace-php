@@ -1,7 +1,11 @@
 find_program(CLANG_TIDY run-clang-tidy)
 if(CLANG_TIDY STREQUAL CLANG_TIDY-NOTFOUND)
-    message(STATUS "Cannot find clang-tidy, either set CLANG_TIDY or make it discoverable")
-    return()
+    set(CLANG_TIDY ${CMAKE_CURRENT_LIST_DIR}/clang-tools/run-clang-tidy)
+    if(NOT EXISTS ${CLANG_TIDY})
+        message(STATUS "Cannot find clang-tidy, either set CLANG_TIDY or make it discoverable")
+        return()
+    endif()
+    message(STATUS "Using Docker-based run-clang-tidy wrapper: ${CLANG_TIDY}")
 endif()
 
 set(FILE_LIST "")
