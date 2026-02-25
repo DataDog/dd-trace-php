@@ -422,43 +422,109 @@ class SymfonyIntegration extends Integration
         );
 
         if (\dd_trace_env_config('DD_TRACE_SYMFONY_HTTP_ROUTE')) {
+            /**
+             * Resolves the http.route tag for a given route name by looking up
+             * the route path in a cached map of all routes.
+             *
+             * Caching strategy:
+             * - Caches the entire route path map under a single key: '_datadog.symfony.route_paths'
+             * - Stores: ['mtime' => timestamp, 'paths' => ['route_name' => '/path', ...]]
+             * - Invalidates cache when Symfony's compiled routes file is newer than cached mtime
+             * - Falls back gracefully if cache.app is unavailable (no http.route tag)
+             */
             $handle_http_route = static function($route_name, $request, $rootSpan) {
                 if (self::$kernel === null) {
                     return;
                 }
+
                 /** @var ContainerInterface $container */
                 $container = self::$kernel->getContainer();
+
                 try {
                     $cache = $container->get('cache.app');
                 } catch (\Exception $e) {
                     return;
                 }
 
-                /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
-                $router = $container->get('router');
                 if (!\method_exists($cache, 'getItem')) {
                     return;
                 }
-                $itemName = "_datadog.route.path.$route_name";
-                $locale = $request->get('_locale');
-                if ($locale !== null) {
-                    $itemName .= ".$locale";
+
+                /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
+                try {
+                    $router = $container->get('router');
+                } catch (\Exception $e) {
+                    return;
                 }
-                $item = $cache->getItem($itemName);
-                if ($item->isHit()) {
-                    $route = $item->get();
-                } else {
-                    $routeCollection = $router->getRouteCollection();
-                    $route = $routeCollection->get($route_name);
-                    if ($route == null && $locale !== null) {
-                        $route = $routeCollection->get($route_name . '.' . $locale);
+
+                // Get the compiled routes file mtime for cache invalidation
+                $compiledRoutesMtime = null;
+                $cacheDir = \method_exists($router, 'getOption') ? $router->getOption('cache_dir') : null;
+                if ($cacheDir !== null) {
+                    $compiledRoutesFile = $cacheDir . '/url_generating_routes.php';
+                    if (\file_exists($compiledRoutesFile)) {
+                        $compiledRoutesMtime = @\filemtime($compiledRoutesFile);
                     }
-                    $item->set($route);
-                    $item->expiresAfter(3600);
+                }
+
+                $cacheKey = '_datadog.symfony.route_paths';
+                /** @var ItemInterface $item */
+                $item = $cache->getItem($cacheKey);
+                $cachedData = $item->isHit() ? $item->get() : null;
+
+                $routePathMap = null;
+                $needsRebuild = true;
+
+                if (\is_array($cachedData) && isset($cachedData['paths']) && \is_array($cachedData['paths'])) {
+                    // Check if cache is still valid
+                    if ($compiledRoutesMtime === null) {
+                        // No compiled file to check against - cache is valid
+                        $needsRebuild = false;
+                        $routePathMap = $cachedData['paths'];
+                    } elseif (isset($cachedData['mtime']) && $cachedData['mtime'] >= $compiledRoutesMtime) {
+                        // Cached data is newer than or equal to compiled routes - cache is valid
+                        $needsRebuild = false;
+                        $routePathMap = $cachedData['paths'];
+                    }
+                    // Otherwise: compiled routes file is newer, rebuild cache
+                }
+
+                if ($needsRebuild) {
+                    $startTime = \function_exists('hrtime') ? \hrtime(true) : null;
+
+                    $routePathMap = [];
+                    $routeCollection = $router->getRouteCollection();
+                    foreach ($routeCollection->all() as $name => $route) {
+                        $routePathMap[$name] = $route->getPath();
+                    }
+
+                    if ($startTime !== null) {
+                        $durationNanoseconds = \hrtime(true) - $startTime;
+                        $durationMicroseconds = (int)($durationNanoseconds / 1000);
+                        $rootSpan->metrics['_dd.symfony.route.map_build_duration_us'] = $durationMicroseconds;
+                    }
+
+                    $item->set([
+                        'mtime' => \time(),
+                        'paths' => $routePathMap,
+                    ]);
                     $cache->save($item);
                 }
-                if (isset($route)) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
+
+                // Look up the route path
+                $path = null;
+                if (isset($routePathMap[$route_name])) {
+                    $path = $routePathMap[$route_name];
+                } else {
+                    // Try with locale suffix (Symfony i18n routing convention)
+                    $locale = $request->get('_locale');
+                    if ($locale !== null && isset($routePathMap[$route_name . '.' . $locale])) {
+                        $path = $routePathMap[$route_name . '.' . $locale];
+                    }
+                }
+
+                if ($path !== null) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                 }
             };
 
