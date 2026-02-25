@@ -21,8 +21,7 @@ datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault_disabled.
 
 include __DIR__ . '/includes/request_replayer.inc';
 $rr = new RequestReplayer();
-$rr->replayRequest(); // cleanup possible leftover
-$rr->maxIteration = 100;
+$rr->clearDumpedData(); // ensure clean state (avoids stale /v0.7/config entries in dump)
 
 usleep(100000); // Let time to the sidecar to open the crashtracker socket
 
@@ -31,38 +30,34 @@ $args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
 $cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);'";
 system($cmd);
 
-$rr->waitForRequest(function ($request) {
-    if ($request["uri"] != "/telemetry/proxy/api/v2/apmtelemetry") {
-        return false;
-    }
-    $body = json_decode($request["body"], true);
-    $batch = $body["request_type"] == "message-batch" ? $body["payload"] : [$body];
-
-    foreach ($batch as $json) {
-        if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
+// Poll up to 5s to confirm no crash report (is_crash:true) arrives.
+// Using is_crash:true as the definitive discriminator avoids false positives
+// from regular telemetry or remote config requests stored in the same dump.
+$crashReportFound = false;
+for ($i = 0; $i < 10 && !$crashReportFound; $i++) {
+    usleep(500000); // 0.5s per iteration = 5s total max
+    foreach ($rr->replayAllRequests() ?: [] as $request) {
+        if ($request["uri"] != "/telemetry/proxy/api/v2/apmtelemetry") {
             continue;
         }
-
-        foreach ($json["payload"]["logs"] as $payload) {
-            $payload["message"] = json_decode($payload["message"], true);
-            if (!isset($payload["message"]["metadata"])) {
+        $body = json_decode($request["body"], true);
+        $batch = $body["request_type"] == "message-batch" ? $body["payload"] : [$body];
+        foreach ($batch as $json) {
+            if ($json["request_type"] != "logs" || !isset($json["payload"]["logs"])) {
                 continue;
             }
-            if (($payload["message"]["kind"] ?? "") == "Crash ping") {
-                continue;
+            foreach ($json["payload"]["logs"] as $payload) {
+                if ($payload["is_crash"] ?? false) {
+                    $crashReportFound = true;
+                    break 3;
+                }
             }
-
-            $output = json_encode($payload, JSON_PRETTY_PRINT);
-            echo $output;
-            return true;
         }
     }
+}
 
-    return false;
-});
+echo $crashReportFound ? "FAIL: unexpected crash report sent\n" : "OK\n";
 
 ?>
---EXPECTF--
-%A
-Fatal error: Uncaught Exception: wait for replay timeout in %s
-%A
+--EXPECT--
+OK
