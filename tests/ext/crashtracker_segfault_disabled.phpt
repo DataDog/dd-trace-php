@@ -21,21 +21,19 @@ datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault_disabled.
 
 include __DIR__ . '/includes/request_replayer.inc';
 $rr = new RequestReplayer();
-$rr->clearDumpedData(); // ensure clean state (avoids stale /v0.7/config entries in dump)
+$rr->clearDumpedData(); // ensure clean state
 
 usleep(100000); // Let time to the sidecar to open the crashtracker socket
 
 $php = getenv('TEST_PHP_EXECUTABLE');
 $args = getenv('TEST_PHP_ARGS')." ".getenv("TEST_PHP_EXTRA_ARGS");
-$cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);'";
+$cmd = $php." ".$args." -r 'posix_kill(posix_getpid(), 11);' 2>/dev/null";
 system($cmd);
 
 // Poll up to 5s to confirm no crash report (is_crash:true) arrives.
-// Using is_crash:true as the definitive discriminator avoids false positives
-// from regular telemetry or remote config requests stored in the same dump.
 $crashReportFound = false;
 for ($i = 0; $i < 10 && !$crashReportFound; $i++) {
-    usleep(500000); // 0.5s per iteration = 5s total max
+    usleep(500000);
     foreach ($rr->replayAllRequests() ?: [] as $request) {
         if ($request["uri"] != "/telemetry/proxy/api/v2/apmtelemetry") {
             continue;
