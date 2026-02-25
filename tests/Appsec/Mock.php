@@ -34,14 +34,21 @@ if (!class_exists('datadog\appsec\AppsecStatusBase')) {
             return $result;
         }
 
-        abstract public function init(): void;
+        /**
+         * @return void
+         */
+        abstract public function init();
 
-        abstract public function setDefaults(): void;
+        /**
+         * @return void
+         */
+        abstract public function setDefaults();
 
         /**
          * @param array<string, mixed> $event
+         * @return void
          */
-        abstract public function addEvent(array $event, $eventName): void;
+        abstract public function addEvent(array $event, $eventName);
 
         /**
          * @return array<int, array<string, mixed>>
@@ -50,8 +57,9 @@ if (!class_exists('datadog\appsec\AppsecStatusBase')) {
 
         /**
          * @param array<string, mixed> $event
+         * @return void
          */
-        abstract public function simulateBlockOnEvent($event): void;
+        abstract public function simulateBlockOnEvent($event);
     }
 }
 if (!class_exists('datadog\appsec\AppsecStatusInMemory')) {
@@ -62,13 +70,13 @@ if (!class_exists('datadog\appsec\AppsecStatusInMemory')) {
         /** @var array<int, array{event: string, token: string}> */
         private $blockedEvents = [];
 
-        public function init(): void
+        public function init()
         {
             $this->events = [];
             $this->blockedEvents = [];
         }
 
-        public function setDefaults(): void
+        public function setDefaults()
         {
             $token = ini_get("datadog.trace.agent_test_session_token");
             $this->events = array_values(array_filter($this->events, function ($row) use ($token) {
@@ -79,7 +87,7 @@ if (!class_exists('datadog\appsec\AppsecStatusInMemory')) {
             }));
         }
 
-        public function addEvent(array $event, $eventName): void
+        public function addEvent(array $event, $eventName)
         {
             $event['eventName'] = $eventName;
             $jsonEvent = json_encode($event);
@@ -104,7 +112,7 @@ if (!class_exists('datadog\appsec\AppsecStatusInMemory')) {
             return self::filterEventsByNamesAndAddresses($this->events, $token, $names, $addresses);
         }
 
-        public function simulateBlockOnEvent($event): void
+        public function simulateBlockOnEvent($event)
         {
             $jsonEvent = json_encode($event);
             $token = ini_get("datadog.trace.agent_test_session_token");
@@ -136,13 +144,13 @@ if (!class_exists('datadog\appsec\AppsecStatusMysql')) {
             return $stmt->rowCount() > 0;
         }
 
-        public function init(): void
+        public function init()
         {
             $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_events (event varchar(1000), token varchar(100))");
             $this->getDbPdo()->exec("CREATE TABLE IF NOT EXISTS appsec_blocked_events (event varchar(1000), token varchar(100))");
         }
 
-        public function setDefaults(): void
+        public function setDefaults()
         {
             if (!$this->initiated()) {
                 return;
@@ -154,7 +162,7 @@ if (!class_exists('datadog\appsec\AppsecStatusMysql')) {
             $stmt->execute(['token' => $token]);
         }
 
-        public function addEvent(array $event, $eventName): void
+        public function addEvent(array $event, $eventName)
         {
             if (!$this->initiated()) {
                 return;
@@ -187,7 +195,7 @@ if (!class_exists('datadog\appsec\AppsecStatusMysql')) {
             return self::filterEventsByNamesAndAddresses($events, $token, $names, $addresses);
         }
 
-        public function simulateBlockOnEvent($event): void
+        public function simulateBlockOnEvent($event)
         {
             $jsonEvent = json_encode($event);
             $token = ini_get("datadog.trace.agent_test_session_token");
@@ -218,7 +226,10 @@ if (!class_exists('datadog\appsec\AppsecStatus')) {
             return self::$instance;
         }
 
-        public static function clearInstances(): void
+        /**
+         * @return void
+         */
+        public static function clearInstances()
         {
             self::$instance = null;
         }
