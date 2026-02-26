@@ -100,6 +100,11 @@ configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" || $CI_COMMIT_REF_NAME == "master"'
+      variables:
+        SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi,tracer-release"
+    - when: on_success
 
 package-oci:
   needs:
@@ -1223,6 +1228,13 @@ endforeach;
       when: always
       paths:
         - .cache/
+  after_script:
+    - mkdir -p artifacts
+    - |
+      for f in system-tests/logs*/reportJunit.xml; do
+        [ -f "$f" ] && cp "$f" "artifacts/$(basename $(dirname "$f"))_reportJunit.xml"
+      done
+    - .gitlab/silent-upload-junit-to-datadog.sh
   artifacts:
     paths:
       - "system-tests/logs_parametric/"
