@@ -1234,7 +1234,7 @@ endforeach;
       for f in system-tests/logs*/reportJunit.xml; do
         [ -f "$f" ] && cp "$f" "artifacts/$(basename $(dirname "$f"))_reportJunit.xml"
       done
-    - .gitlab/silent-upload-junit-to-datadog.sh
+    - .gitlab/upload-junit-to-datadog.sh || true
   artifacts:
     paths:
       - "system-tests/logs_parametric/"
