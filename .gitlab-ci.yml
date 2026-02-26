@@ -98,6 +98,13 @@ package-trigger:
     NIGHTLY_BUILD: $NIGHTLY_BUILD
     RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH
 
+# package-oci runs in the child pipeline (package-gen.yml) with the correct
+# needs: [package loader] override. The parent pipeline doesn't have package
+# loader artifacts, so we suppress it here.
+package-oci:
+  rules:
+    - when: never
+
 validate_supported_configurations_v2_local_file:
   needs: []
   extends: .validate_supported_configurations_v2_local_file
