@@ -9,6 +9,11 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
+  # Suppress shared-pipeline jobs (package-oci and its downstream) in the
+  # parent pipeline. They run in the child pipeline (package-gen.yml) where
+  # package loader artifacts are available. Override to "false" in
+  # package-trigger so the child pipeline runs them correctly.
+  SKIP_SHARED_PIPELINE: "true"
   RELIABILITY_ENV_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -97,11 +102,10 @@ package-trigger:
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
     NIGHTLY_BUILD: $NIGHTLY_BUILD
     RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH
+    SKIP_SHARED_PIPELINE: "false"
 
-# package-oci runs in the child pipeline (package-gen.yml) with the correct
-# needs: [package loader] override. The parent pipeline doesn't have package
-# loader artifacts, so we suppress it here.
-package-oci:
+# requirements_json_test doesn't check SKIP_SHARED_PIPELINE, suppress explicitly
+requirements_json_test:
   rules:
     - when: never
 
