@@ -49,6 +49,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set", {
 },{
     REQUIRE_UNSETENV("FOO");
     ZAI_ENV_BUFFER_INIT(buf, 64);
+    buf.ptr[0] = '\0';
     zai_env_result res = zai_getenv_literal("FOO", buf);
 
     REQUIRE(res == ZAI_ENV_NOT_SET);

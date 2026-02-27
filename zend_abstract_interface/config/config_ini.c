@@ -438,6 +438,9 @@ void zai_config_ini_rinit(void) {
         // makes only sense to update INIs once, avoid rereading env unnecessarily
         if (!env_to_ini_name || !memoized->original_on_modify) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
+                buf.ptr = buf_storage;
+                buf.len = sizeof(buf_storage);
+                buf.ptr[0] = '\0';
                 zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
                 zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
                 if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG
@@ -446,8 +449,8 @@ void zai_config_ini_rinit(void) {
                     memoized->name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
                     memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
                     goto next_entry;
-                } else if ((zai_getenv_ex(name, buf, false, false) == ZAI_ENV_SUCCESS
-                        || zai_config_get_cached_env_value(i, name_index, buf))
+                } else if ((zai_getenv(name, &buf) == ZAI_ENV_SUCCESS
+                        || zai_config_get_cached_env_value(i, name_index, &buf))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
                 } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG
@@ -459,7 +462,10 @@ void zai_config_ini_rinit(void) {
                 }
             }
 
-            if (memoized->env_config_fallback && memoized->env_config_fallback(buf, false) && zai_config_process_runtime_env(memoized, buf, in_startup, i, 0)) {
+            buf.ptr = buf_storage;
+            buf.len = sizeof(buf_storage);
+            buf.ptr[0] = '\0';
+            if (memoized->env_config_fallback && memoized->env_config_fallback(&buf, false) && zai_config_process_runtime_env(memoized, buf, in_startup, i, 0)) {
                 goto next_entry;
             }
         }
