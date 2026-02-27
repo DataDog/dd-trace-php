@@ -446,7 +446,8 @@ void zai_config_ini_rinit(void) {
                     memoized->name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
                     memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
                     goto next_entry;
-                } else if (zai_getenv_ex(name, buf, false) == ZAI_ENV_SUCCESS
+                } else if ((zai_getenv_ex(name, buf, false, false) == ZAI_ENV_SUCCESS
+                        || zai_config_get_cached_env_value(i, name_index, buf))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
                 } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG

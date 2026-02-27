@@ -21,7 +21,7 @@ static void report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *
 }
 
 static bool get_otel_value(zai_str str, zai_env_buffer buf, bool pre_rinit) {
-    if (zai_getenv_ex(str, buf, pre_rinit) == ZAI_ENV_SUCCESS) {
+    if (zai_getenv_ex(str, buf, pre_rinit, true) == ZAI_ENV_SUCCESS) {
         return true;
     }
 
