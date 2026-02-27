@@ -2,6 +2,7 @@ package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
+import com.datadog.appsec.php.mock_openai.MockOpenAIServer
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
@@ -35,6 +36,9 @@ class LlmEventsTests {
     }
 
     @Container
+    public static final MockOpenAIServer mockOpenAIServer = new MockOpenAIServer()
+
+    @Container
     @FailOnUnmatchedTraces
     public static final AppSecContainer CONTAINER =
             new AppSecContainer(
@@ -42,27 +46,19 @@ class LlmEventsTests {
                     baseTag: 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
-                    www: 'base',
+                    www: 'llm',
             ) {
+                {
+                    dependsOn mockOpenAIServer
+                }
+
                 @Override
                 void configure() {
                     super.configure()
                     org.testcontainers.Testcontainers.exposeHostPorts(mockOpenAIServer.port)
                     withEnv('OPENAI_BASE_URL', "http://host.testcontainers.internal:${mockOpenAIServer.port}/v1")
                 }
-            }
-
-    @BeforeAll
-    static void setMaxRequestWorkers() {
-        ExecResult res = CONTAINER.execInContainer(
-                'sed', '-i', 's/MaxRequestWorkers.*/MaxRequestWorkers 2/', '/etc/apache2/mods-available/mpm_prefork.conf')
-        assert res.exitCode == 0 : "Failed setting mpm_prefork MaxRequestWorkers: $res.stderr"
-        res = CONTAINER.execInContainer(
-                'sed', '-i', 's/MaxRequestWorkers.*/MaxRequestWorkers 2/', '/etc/apache2/mods-available/mpm_worker.conf')
-        assert res.exitCode == 0 : "Failed setting mpm_worker MaxRequestWorkers: $res.stderr"
-        res = CONTAINER.execInContainer('service', 'apache2', 'restart')
-        assert res.exitCode == 0 : "Failed restarting apache2: $res.stderr"
-    }
+            }    
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)

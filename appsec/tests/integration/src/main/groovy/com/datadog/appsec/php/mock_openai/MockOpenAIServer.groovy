@@ -1,4 +1,4 @@
-package com.datadog.appsec.php.mock_agent
+package com.datadog.appsec.php.mock_openai
 
 import groovy.json.JsonSlurper
 import groovy.transform.CompileStatic
