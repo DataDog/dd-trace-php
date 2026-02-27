@@ -58,7 +58,7 @@ RUN cmake -G Ninja ../llvm \
 RUN ninja clang-format clang-tidy clang-apply-replacements
 
 # Install binaries
-RUN ninja install-clang-format install-clang-tidy install-clang-apply-replacements
+RUN ninja install-clang-format install-clang-tidy install-clang-apply-replacements install-clang-resource-headers
 
 # Copy run-clang-tidy helper script
 RUN cp /src/llvm-project/clang-tools-extra/clang-tidy/tool/run-clang-tidy.py /opt/llvm/bin/run-clang-tidy && \
@@ -80,6 +80,9 @@ COPY --from=builder /opt/llvm/bin/clang-format /usr/local/bin/
 COPY --from=builder /opt/llvm/bin/clang-tidy /usr/local/bin/
 COPY --from=builder /opt/llvm/bin/clang-apply-replacements /usr/local/bin/
 COPY --from=builder /opt/llvm/bin/run-clang-tidy /usr/local/bin/
+
+# Copy clang resource headers so clang-tidy uses its own headers
+COPY --from=builder /opt/llvm/lib/clang/ /usr/local/lib/clang/
 
 # Verify installations
 RUN clang-format --version && \

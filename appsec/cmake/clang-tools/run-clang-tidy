@@ -7,6 +7,7 @@
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 
@@ -32,6 +33,32 @@ def parse_include_paths(command: str) -> list[str]:
         os.path.normpath(m.group(1))
         for m in re.finditer(r"-(?:I|isystem)\s*(\S+)", command)
     ]
+
+
+def get_target_triple(compiler: str) -> str | None:
+    """Get the compiler's default target triple."""
+    try:
+        result = subprocess.run(
+            [compiler, "-dumpmachine"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        triple = result.stdout.strip()
+        return triple if triple else None
+    except Exception:
+        return None
+
+
+def is_gcc_resource_dir(path: str) -> bool:
+    """Check if a path is GCC's internal resource directory for intrinsic headers.
+
+    GCC's resource dir (e.g. /usr/lib/gcc/x86_64-linux-gnu/12/include) contains
+    compiler-specific intrinsic headers like xmmintrin.h that use GCC builtins
+    unsupported by clang. These must not be forwarded to clang-tidy because
+    clang-tidy has its own resource headers for the same purpose.
+    """
+    return bool(re.match(r".*/lib/gcc/[^/]+/\d+/include$", path))
 
 
 def get_implicit_includes(compiler: str) -> list[str]:
@@ -64,8 +91,8 @@ def get_implicit_includes(compiler: str) -> list[str]:
 
 def collect_build_info(
     build_dir: str, git_root: str
-) -> tuple[set[str], list[str]]:
-    """Return (external_paths_to_mount, implicit_include_paths_to_inject).
+) -> tuple[set[str], list[str], str | None]:
+    """Return (external_paths_to_mount, implicit_include_paths_to_inject, target_triple).
 
     external_paths_to_mount: all include paths outside the git root that need
         to be volume-mounted into the container.
@@ -73,10 +100,13 @@ def collect_build_info(
         search paths (not listed in compile_commands.json) that must be
         forwarded to clang-tidy via --extra-arg=-isystem so it can find
         standard library headers like <map>, <vector>, etc.
+    target_triple: the host compiler's target triple (e.g. x86_64-linux-gnu),
+        forwarded via --extra-arg=--target so clang-tidy inside Docker does not
+        fall back to 'unknown' when the compiler binary is absent in the container.
     """
     ccdb_path = os.path.join(build_dir, "compile_commands.json")
     if not os.path.exists(ccdb_path):
-        return set(), []
+        return set(), [], None
 
     with open(ccdb_path) as f:
         db = json.load(f)
@@ -93,14 +123,20 @@ def collect_build_info(
                 external.add(p)
 
     implicit: list[str] = []
+    triple: str | None = None
     if compiler and os.path.exists(compiler):
+        triple = get_target_triple(compiler)
         for p in get_implicit_includes(compiler):
+            if is_gcc_resource_dir(p):
+                # Skip GCC's intrinsic header directory; clang-tidy has its
+                # own resource headers and GCC's use unsupported builtins.
+                continue
             if os.path.exists(p):
                 implicit.append(p)
                 if not p.startswith(git_root):
                     external.add(p)
 
-    return external, implicit
+    return external, implicit, triple
 
 
 def minimal_mounts(paths: set[str]) -> list[str]:
@@ -129,15 +165,19 @@ def main() -> None:
     build_dir = get_build_dir(args)
 
     volumes = [f"{git_root}:{git_root}"]
-    extra_isystem: list[str] = []
+    extra_args: list[str] = []
 
     if build_dir:
-        external, implicit = collect_build_info(build_dir, git_root)
+        external, implicit, triple = collect_build_info(build_dir, git_root)
         for mount in minimal_mounts(external):
             volumes.append(f"{mount}:{mount}")
+        # Pass the host target triple so clang-tidy inside Docker does not fall
+        # back to 'unknown' when the compiler binary is absent in the container.
+        if triple:
+            extra_args.append(f"-extra-arg=--target={triple}")
         # Inject the host compiler's implicit search paths so clang-tidy inside
         # Docker can find standard library headers (<map>, <vector>, etc.)
-        extra_isystem = [f"-extra-arg=-isystem{p}" for p in implicit]
+        extra_args += [f"-extra-arg=-isystem{p}" for p in implicit]
 
     docker_cmd = [
         "docker", "run", "--rm",
@@ -146,8 +186,9 @@ def main() -> None:
     ]
     for v in volumes:
         docker_cmd += ["-v", v]
-    docker_cmd += [DOCKER_IMAGE, "run-clang-tidy"] + extra_isystem + args
+    docker_cmd += [DOCKER_IMAGE, "run-clang-tidy"] + extra_args + args
 
+    print(" ".join(shlex.quote(a) for a in docker_cmd), file=sys.stderr)
     os.execvp("docker", docker_cmd)
 
 
