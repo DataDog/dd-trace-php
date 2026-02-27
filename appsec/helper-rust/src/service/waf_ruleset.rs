@@ -100,7 +100,9 @@ fn get_default_rules_file() -> anyhow::Result<PathBuf> {
 }
 
 fn get_helper_path() -> anyhow::Result<PathBuf> {
-    const LIBNAME: &str = "/libddappsec-helper.so";
+    // Match both libddappsec-helper.so (C++ helper) and
+    // libddappsec-helper-rust.so (Rust helper)
+    const LIBNAME_PREFIX: &str = "/libddappsec-helper";
     const MAPS_PATH: &str = "/proc/self/maps";
 
     let file = File::open(MAPS_PATH)?;
@@ -108,7 +110,7 @@ fn get_helper_path() -> anyhow::Result<PathBuf> {
 
     for line in reader.lines() {
         let line = line?;
-        if line.contains(LIBNAME) {
+        if line.contains(LIBNAME_PREFIX) {
             if let Some(pos) = line.find('/') {
                 return Ok(PathBuf::from(&line[pos..]));
             } else {
@@ -118,7 +120,7 @@ fn get_helper_path() -> anyhow::Result<PathBuf> {
     }
 
     Err(anyhow!(
-        "Could not find libddappsec-helper.so in /proc/self/maps"
+        "Could not find libddappsec-helper*.so in /proc/self/maps"
     ))
 }
 
