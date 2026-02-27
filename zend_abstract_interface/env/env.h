@@ -48,24 +48,27 @@ typedef struct zai_env_buffer_s {
     char name##_storage[size];          \
     zai_env_buffer name = {size, name##_storage}
 
-/* Fills 'buf.ptr' with the value of a target environment variable identified by
- * 'name'. Must be called after the SAPI envrionment variables are available
+/* Resolves a target environment variable identified by 'name'. Must be called
+ * after the SAPI envrionment variables are available
  * which is as early as module RINIT. If the active SAPI has a custom
  * environment variable handler, the SAPI handler is used to access the
  * environment variable. If there is no custom handler, the environment variable
  * is accessed from the host using getenv(), unless use_process_env is false.
  *
- * For error conditions, a return value other than ZAI_ENV_SUCCESS is returned
- * and 'buf.ptr' is made an empty string. If the buffer size 'buf.len' is not
- * big enough to contain the value, ZAI_ENV_BUFFER_TOO_SMALL will be returned
- * and 'buf.ptr' will be an empty string; e.g. this API does not attempt to
- * truncate the value to accommodate the buffer size.
+ * For SAPI values, this writes into the caller scratch buffer (`buf->ptr`).
+ * For process getenv() values, this may repoint `buf->ptr` to borrowed process
+ * env storage to avoid a temporary copy.
+ *
+ * For error conditions, a return value other than ZAI_ENV_SUCCESS is returned.
+ * No output-buffer contents are guaranteed on failure. If callers want an
+ * empty C-string on failure, they should initialize `buf->ptr[0] = '\\0'`
+ * before calling this API (when `buf->len > 0`).
  */
-zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit, bool use_process_env);
-static inline zai_env_result zai_getenv(zai_str name, zai_env_buffer buf) {
+zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer *buf, bool pre_rinit, bool use_process_env);
+static inline zai_env_result zai_getenv(zai_str name, zai_env_buffer *buf) {
     return zai_getenv_ex(name, buf, false, true);
 }
 
-#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL(name), buf)
+#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL(name), &(buf))
 
 #endif  // ZAI_ENV_H
