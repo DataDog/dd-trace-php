@@ -11,7 +11,7 @@
 #define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
 #endif
 
-zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
+zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit, bool use_process_env) {
     if (!buf.ptr || !buf.len) return ZAI_ENV_ERROR;
 
     buf.ptr[0] = '\0';
@@ -34,7 +34,7 @@ zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
     char *value = sapi_getenv_compat(name.ptr, name.len);
     if (value) {
         use_sapi_env = true;
-    } else {
+    } else if (use_process_env) {
         value = getenv(name.ptr);
     }
 
