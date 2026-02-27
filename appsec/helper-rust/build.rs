@@ -64,4 +64,35 @@ fn main() {
     }
 
     println!("cargo::rerun-if-env-changed=LIBDDWAF_PREFIX");
+
+    build_test_sidecar_lib();
+}
+
+fn build_test_sidecar_lib() {
+    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
+    let target = env::var("TARGET").expect("TARGET not set");
+    let host = env::var("HOST").expect("HOST not set");
+
+    let (lib_name, shared_flag) = if target.contains("darwin") || target.contains("apple") {
+        ("libtest_sidecar.dylib", "-dynamiclib")
+    } else {
+        ("libtest_sidecar.so", "-shared")
+    };
+
+    let src = "test_sidecar_lib.c";
+    let out = PathBuf::from(&out_dir).join(lib_name);
+
+    let status = cc::Build::new()
+        .target(&target)
+        .host(&host)
+        .get_compiler()
+        .to_command()
+        .args([shared_flag, "-fPIC", "-o"])
+        .arg(&out)
+        .arg(src)
+        .status()
+        .expect("Failed to run C compiler for test fixture");
+
+    assert!(status.success(), "Failed to compile test sidecar library");
+    println!("cargo::rerun-if-changed={}", src);
 }

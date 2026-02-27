@@ -122,57 +122,7 @@ impl<Func> std::fmt::Debug for SidecarSymbol<Func> {
 mod tests {
     use super::*;
     use std::ffi::CStr;
-    use std::io::Write;
     use std::path::PathBuf;
-    use std::process::Command;
-
-    /// Compiles a minimal Rust cdylib with exported extern "C" functions
-    /// Returns the path to the compiled shared library
-    fn compile_test_library() -> PathBuf {
-        let temp_dir = std::env::temp_dir().join("sidecar_symbol_test");
-        std::fs::create_dir_all(&temp_dir).expect("Failed to create temp dir");
-
-        let rust_source = r#"
-#[no_mangle]
-pub extern "C" fn test_add(a: i32, b: i32) -> i32 {
-    a + b
-}
-"#;
-
-        let rs_file = temp_dir.join("test_lib.rs");
-        let mut file = std::fs::File::create(&rs_file).expect("Failed to create Rust file");
-        file.write_all(rust_source.as_bytes())
-            .expect("Failed to write Rust source");
-
-        #[cfg(target_os = "macos")]
-        let lib_name = "libtest_sidecar.dylib";
-        #[cfg(target_os = "linux")]
-        let lib_name = "libtest_sidecar.so";
-
-        let lib_path = temp_dir.join(lib_name);
-
-        let mut cmd = Command::new("rustc");
-        cmd.args([
-            "--crate-type=cdylib",
-            "-o",
-            lib_path.to_str().unwrap(),
-            rs_file.to_str().unwrap(),
-        ]);
-
-        #[cfg(all(target_env = "musl", target_arch = "x86_64"))]
-        cmd.args(["--target", "x86_64-unknown-linux-musl"]);
-        #[cfg(all(target_env = "musl", target_arch = "aarch64"))]
-        cmd.args(["--target", "aarch64-unknown-linux-musl"]);
-        let output = cmd.output().expect("Failed to run rustc");
-
-        assert!(
-            output.status.success(),
-            "Failed to compile test library: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-
-        lib_path
-    }
 
     fn load_library(path: &std::path::Path) -> *mut libc::c_void {
         let path_cstr = std::ffi::CString::new(path.to_str().unwrap()).expect("Invalid path");
@@ -204,7 +154,11 @@ pub extern "C" fn test_add(a: i32, b: i32) -> i32 {
 
     #[test]
     fn test_sidecar_symbol_resolve_and_call() {
-        let lib_path = compile_test_library();
+        #[cfg(target_os = "macos")]
+        let lib_name = "libtest_sidecar.dylib";
+        #[cfg(target_os = "linux")]
+        let lib_name = "libtest_sidecar.so";
+        let lib_path = PathBuf::from(env!("OUT_DIR")).join(lib_name);
         let handle = load_library(&lib_path);
 
         static TEST_ADD_SYMBOL: SidecarSymbol<TestAddFn> = SidecarSymbol::new(c"test_add");
