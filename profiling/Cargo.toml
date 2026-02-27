@@ -23,9 +23,9 @@ cpu-time = { version = "1.0" }
 chrono = { version = "0.4" }
 crossbeam-channel = { version = "0.5", default-features = false, features = ["std"] }
 http = { version = "1.4" }
-libdd-alloc = {  git = "https://github.com/DataDog/libdatadog", rev = "e90e20c24054a6076179fec2e3cc01540758ea23" }
-libdd-profiling = {  git = "https://github.com/DataDog/libdatadog", rev = "e90e20c24054a6076179fec2e3cc01540758ea23" }
-libdd-common = {  git = "https://github.com/DataDog/libdatadog", rev = "e90e20c24054a6076179fec2e3cc01540758ea23" }
+libdd-alloc = { git = "https://github.com/DataDog/libdatadog.git", rev = "fdfb901ff41ed96a8f76d76872681ec969c844e9" }
+libdd-profiling = { git = "https://github.com/DataDog/libdatadog.git", rev = "fdfb901ff41ed96a8f76d76872681ec969c844e9" }
+libdd-common = { git = "https://github.com/DataDog/libdatadog.git", rev = "fdfb901ff41ed96a8f76d76872681ec969c844e9" }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }

@@ -381,6 +381,9 @@ impl TimeCollector {
             }),
         )
         .expect("failed to create a new InternalProfile object");
+        profile
+            .disable_internal_compression()
+            .expect("failed to disable internal observation compression");
         let _ = profile.set_start_time(started_at);
 
         if let (Some(alloc_size_offset), Some(alloc_samples_offset)) =

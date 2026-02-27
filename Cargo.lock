@@ -2754,7 +2754,7 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=e90e20c24054a6076179fec2e3cc01540758ea23#e90e20c24054a6076179fec2e3cc01540758ea23"
+source = "git+https://github.com/DataDog/libdatadog.git?rev=fdfb901ff41ed96a8f76d76872681ec969c844e9#fdfb901ff41ed96a8f76d76872681ec969c844e9"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
@@ -2805,7 +2805,7 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "2.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=e90e20c24054a6076179fec2e3cc01540758ea23#e90e20c24054a6076179fec2e3cc01540758ea23"
+source = "git+https://github.com/DataDog/libdatadog.git?rev=fdfb901ff41ed96a8f76d76872681ec969c844e9#fdfb901ff41ed96a8f76d76872681ec969c844e9"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3012,7 +3012,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=e90e20c24054a6076179fec2e3cc01540758ea23#e90e20c24054a6076179fec2e3cc01540758ea23"
+source = "git+https://github.com/DataDog/libdatadog.git?rev=fdfb901ff41ed96a8f76d76872681ec969c844e9#fdfb901ff41ed96a8f76d76872681ec969c844e9"
 dependencies = [
  "allocator-api2",
  "anyhow",
@@ -3051,7 +3051,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?rev=e90e20c24054a6076179fec2e3cc01540758ea23#e90e20c24054a6076179fec2e3cc01540758ea23"
+source = "git+https://github.com/DataDog/libdatadog.git?rev=fdfb901ff41ed96a8f76d76872681ec969c844e9#fdfb901ff41ed96a8f76d76872681ec969c844e9"
 dependencies = [
  "prost",
 ]
