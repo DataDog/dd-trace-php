@@ -151,15 +151,19 @@ pub extern "C" fn test_add(a: i32, b: i32) -> i32 {
 
         let lib_path = temp_dir.join(lib_name);
 
-        let output = Command::new("rustc")
-            .args([
-                "--crate-type=cdylib",
-                "-o",
-                lib_path.to_str().unwrap(),
-                rs_file.to_str().unwrap(),
-            ])
-            .output()
-            .expect("Failed to run rustc");
+        let mut cmd = Command::new("rustc");
+        cmd.args([
+            "--crate-type=cdylib",
+            "-o",
+            lib_path.to_str().unwrap(),
+            rs_file.to_str().unwrap(),
+        ]);
+
+        #[cfg(all(target_env = "musl", target_arch = "x86_64"))]
+        cmd.args(["--target", "x86_64-unknown-linux-musl"]);
+        #[cfg(all(target_env = "musl", target_arch = "aarch64"))]
+        cmd.args(["--target", "aarch64-unknown-linux-musl"]);
+        let output = cmd.output().expect("Failed to run rustc");
 
         assert!(
             output.status.success(),
