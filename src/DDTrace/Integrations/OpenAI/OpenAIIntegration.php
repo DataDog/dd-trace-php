@@ -137,13 +137,25 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        $handleRequestPrehook = fn ($streamed, $operationID, $reportApm, $reportAppsec) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm, $reportAppsec) {
+        $pushAppsecEvent = static function (bool $reportAppsec, array $args): void {
             if ($reportAppsec && function_exists('datadog\appsec\push_addresses')) {
                 \datadog\appsec\push_addresses(["server.business_logic.llm.event" => [
                     'provider' => 'openai',
                     'model' => $args[0]['model'] ?? null,
                 ]]);
             }
+        };
+
+        $appsecOnlyPrehook = static function (bool $reportAppsec) use ($pushAppsecEvent) {
+            return static function ($This, $scope, $args) use ($reportAppsec, $pushAppsecEvent): void {
+                $pushAppsecEvent($reportAppsec, $args);
+            };
+        };
+
+        $handleRequestPrehook = fn ($streamed, $operationID, $reportApm, $reportAppsec) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm, $reportAppsec, $pushAppsecEvent) {
+            $pushAppsecEvent($reportAppsec, $args);
+
+            // This should not happen but just in case
             if (!$reportApm) {
                 return;
             }
@@ -153,7 +165,7 @@ class OpenAIIntegration extends Integration
                 $transporter = ObjectKVStore::get($this, 'transporter');
                 $clientData = ObjectKVStore::get($transporter, 'client_data');
                 ObjectKVStore::put($this, 'client_data', $clientData);
-            }            
+            }
             /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
             OpenAIIntegration::handleRequest(
                 span: $span,
@@ -166,48 +178,59 @@ class OpenAIIntegration extends Integration
         };
 
         foreach ($targets as [$class, $method, $operationID, $httpMethod, $endpoint, $reportApm, $reportAppsec]) {
-            \DDTrace\trace_method(
-                $class,
-                $method,
-                [
-                    'prehook' => $handleRequestPrehook(false, $operationID, $reportApm, $reportAppsec),
-                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
-                        /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
-                        // Files::download - i.e., downloadFile - returns a string instead of a Response instance
-                        self::handleResponse(
-                            span: $span,
-                            logger: $logger,
-                            headers: $response ? (method_exists($response, 'meta') ? $response->meta()->toArray() : []) : [],
-                            response: \is_string($response) ? $response : ($response ? $response->toArray() : []),
-                            httpMethod: $httpMethod,
-                            endpoint: $endpoint,
-                            reportApm: $reportApm,
-                        );
-                    }
-                ]
-            );
+            if ($reportApm) {
+                \DDTrace\trace_method(
+                    $class,
+                    $method,
+                    [
+                        'prehook' => $handleRequestPrehook(false, $operationID, $reportApm, $reportAppsec),
+                        'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
+                            /** @var (\OpenAI\Contracts\ResponseContract&\OpenAI\Contracts\ResponseHasMetaInformationContract)|string $response */
+                            // Files::download - i.e., downloadFile - returns a string instead of a Response instance
+                            self::handleResponse(
+                                span: $span,
+                                logger: $logger,
+                                headers: $response ? (method_exists($response, 'meta') ? $response->meta()->toArray() : []) : [],
+                                response: \is_string($response) ? $response : ($response ? $response->toArray() : []),
+                                httpMethod: $httpMethod,
+                                endpoint: $endpoint,
+                                reportApm: $reportApm,
+                            );
+                        }
+                    ]
+                );
+            } elseif ($reportAppsec) {
+                // Only appsec reporting, use hook_method to avoid creating a span
+                \DDTrace\hook_method($class, $method, $appsecOnlyPrehook($reportAppsec));
+            }
         }
 
         foreach ($streamedTargets as [$class, $method, $operationID, $httpMethod, $endpoint, $reportApm, $reportAppsec]) {
-            \DDTrace\trace_method(
-                $class,
-                $method,
-                [
-                    'prehook' => $handleRequestPrehook(true, $operationID, $reportApm, $reportAppsec),
-                    'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
-                        /** @var \OpenAI\Responses\StreamResponse $response */
-                        self::handleStreamedResponse(
-                            span: $span,
-                            logger: $logger,
-                            headers: $response->meta()->toArray(),
-                            response: $response,
-                            httpMethod: $httpMethod,
-                            endpoint: $endpoint,
-                            reportApm: $reportApm,
-                        );
-                    }
-                ]
-            );
+            if ($reportApm) {
+                // Use trace_method which handles both APM and appsec in the prehook
+                \DDTrace\trace_method(
+                    $class,
+                    $method,
+                    [
+                        'prehook' => $handleRequestPrehook(true, $operationID, $reportApm, $reportAppsec),
+                        'posthook' => static function (\DDTrace\SpanData $span, $args, $response) use ($logger, $httpMethod, $endpoint, $reportApm) {
+                            /** @var \OpenAI\Responses\StreamResponse $response */
+                            self::handleStreamedResponse(
+                                span: $span,
+                                logger: $logger,
+                                headers: $response->meta()->toArray(),
+                                response: $response,
+                                httpMethod: $httpMethod,
+                                endpoint: $endpoint,
+                                reportApm: $reportApm,
+                            );
+                        }
+                    ]
+                );
+            } elseif ($reportAppsec) {
+                // Only appsec reporting, use hook_method to avoid creating a span
+                \DDTrace\hook_method($class, $method, $appsecOnlyPrehook($reportAppsec));
+            }
         }
 
         \DDTrace\install_hook(
@@ -437,6 +460,7 @@ class OpenAIIntegration extends Integration
         bool            $reportApm = true,
     )
     {
+        // This should not happen but just in case
         if (!$reportApm) {
             return;
         }
@@ -1041,7 +1065,7 @@ class OpenAIIntegration extends Integration
         $responseArray = self::readAndStoreStreamedResponse($span, $response);
 
         $operationID = \explode('/', $span->resource)[0];
-        
+
         $tags = [
             'openai.request.endpoint' => $endpoint,
             'openai.request.method' => $httpMethod,
