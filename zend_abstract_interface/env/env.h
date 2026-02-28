@@ -45,7 +45,7 @@ typedef struct zai_env_buffer_s {
 } zai_env_buffer;
 
 #define ZAI_ENV_BUFFER_INIT(name, size) \
-    char name##_storage[size];          \
+    char name##_storage[size] = {0};    \
     zai_env_buffer name = {size, name##_storage}
 
 /* Resolves a target environment variable identified by 'name'. Must be called

@@ -99,7 +99,6 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
     for (; name_index < memoized->names_count; name_index++) {
         buf.ptr = buf_storage;
         buf.len = sizeof(buf_storage);
-        buf.ptr[0] = '\0';
         zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
         zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
         if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG) {
@@ -122,9 +121,6 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
 
     buf.ptr = buf_storage;
     buf.len = sizeof(buf_storage);
-    if (zai_option_str_is_none(value) || value.ptr != buf_storage) {
-        buf.ptr[0] = '\0';
-    }
     if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(&buf, true)) {
         zai_config_process_env(memoized, buf, &value);
         name_index = ZAI_CONFIG_ORIGIN_MODIFIED;
