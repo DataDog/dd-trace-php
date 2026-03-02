@@ -1,0 +1,8 @@
+{
+    "name": "datadog/appsec-integration-tests",
+    "type": "project",
+    "require": {
+        "stripe/stripe-php": "^13.0",
+        "guzzlehttp/guzzle": "*"
+    }
+}
