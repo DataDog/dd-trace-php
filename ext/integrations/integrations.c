@@ -442,6 +442,8 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SLIM, "Slim\\App", "__construct",
                                          "DDTrace\\Integrations\\Slim\\SlimIntegration");
 
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Stripe", "setApiKey",
+                                         "DDTrace\\Integrations\\Stripe\\StripeIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\StripeClient", "__construct",
                                          "DDTrace\\Integrations\\Stripe\\StripeIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Service\\Checkout\\SessionService", "create",
@@ -449,6 +451,8 @@ void ddtrace_integrations_minit(void) {
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Service\\PaymentIntentService", "create",
                                          "DDTrace\\Integrations\\Stripe\\StripeIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Webhook", "constructEvent",
+                                         "DDTrace\\Integrations\\Stripe\\StripeIntegration");
+    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Event", "constructFrom",
                                          "DDTrace\\Integrations\\Stripe\\StripeIntegration");
 
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_SWOOLE, "Swoole\\Http\\Server", "__construct",
