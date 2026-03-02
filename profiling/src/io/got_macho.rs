@@ -6,7 +6,7 @@
 //
 // ## Mach-O layout (the parts we care about)
 //
-//   mach_header_64
+//   mach_header
 //   ├─ LC_SEGMENT_64 __TEXT, __DATA, __DATA_CONST, __LINKEDIT
 //   ├─ LC_SYMTAB      → symbol table + string table  (in __LINKEDIT)
 //   └─ LC_DYSYMTAB    → indirect symbol table         (in __LINKEDIT)
@@ -51,11 +51,12 @@
 
 // The libc crate deprecates Mach-O types in favor of the mach2 crate, but we only use a few
 // types and don't want to add a dependency just for that.
-#![allow(deprecated)]
+// #![allow(deprecated)]
 
 use super::GotSymbolOverwrite;
 use libc::{c_char, c_void};
 use log::{error, trace};
+use mach2::loader;
 use std::ffi::CStr;
 
 // ----- Mach-O load command types -----
@@ -152,6 +153,24 @@ struct Nlist64 {
     n_value: u64,
 }
 
+/// Corresponds to `struct mach_header_64` in <mach-o/loader.h>.
+/// Used only for computing the correct load-command offset on 64-bit images.
+/// We intentionally define this locally:
+/// - `libc::mach_header_64` has the right layout but is deprecated.
+/// - `mach2::loader::mach_header` is missing the 64-bit `reserved` field (28 bytes vs 32),
+///   so using it for `size_of`/offset calculations would misalign load-command parsing.
+#[repr(C)]
+struct MachHeader64 {
+    magic: u32,
+    cputype: libc::cpu_type_t,
+    cpusubtype: libc::cpu_subtype_t,
+    filetype: u32,
+    ncmds: u32,
+    sizeofcmds: u32,
+    flags: u32,
+    reserved: u32,
+}
+
 /// Corresponds to `struct section_64` in <mach-o/loader.h>.
 /// Describes a section within a segment (e.g. `__la_symbol_ptr` within `__DATA`).
 #[repr(C)]
@@ -183,8 +202,8 @@ struct Section64 {
 extern "C" {
     /// Returns the number of currently loaded Mach-O images.
     fn _dyld_image_count() -> u32;
-    /// Returns a pointer to the mach_header_64 for the image at the given index.
-    fn _dyld_get_image_header(image_index: u32) -> *const libc::mach_header_64;
+    /// Returns a pointer to the mach_header for the image at the given index.
+    fn _dyld_get_image_header(image_index: u32) -> *const loader::mach_header;
     /// Returns the ASLR slide for the image at the given index.
     fn _dyld_get_image_vmaddr_slide(image_index: u32) -> isize;
     /// Returns the file path of the image at the given index.
@@ -270,7 +289,7 @@ pub unsafe fn rebind_symbols(overwrites: &mut Vec<GotSymbolOverwrite>) {
 /// **Pass 2**: Walk `__DATA` and `__DATA_CONST` segments, find symbol pointer sections
 /// (`__la_symbol_ptr` / `__nl_symbol_ptr`), and patch matching entries.
 unsafe fn rebind_symbols_for_image(
-    header: *const libc::mach_header_64,
+    header: *const loader::mach_header,
     slide: isize,
     overwrites: &mut Vec<GotSymbolOverwrite>,
 ) -> bool {
@@ -281,7 +300,7 @@ unsafe fn rebind_symbols_for_image(
 
     // Load commands are stored sequentially right after the mach_header_64. Each command has
     // a `cmd` type and `cmdsize` telling us how many bytes to skip to reach the next command.
-    let mut cmd_ptr = (header as *const u8).add(std::mem::size_of::<libc::mach_header_64>());
+    let mut cmd_ptr = (header as *const u8).add(std::mem::size_of::<MachHeader64>());
     let ncmds = (*header).ncmds;
 
     let mut symtab_cmd: *const SymtabCommand = std::ptr::null();
@@ -338,7 +357,7 @@ unsafe fn rebind_symbols_for_image(
         (linkedit_base + (*dysymtab_cmd).indirectsymoff as usize) as *const u32;
 
     // ---- Pass 2: Find symbol pointer sections in __DATA / __DATA_CONST and patch them ----
-    cmd_ptr = (header as *const u8).add(std::mem::size_of::<libc::mach_header_64>());
+    cmd_ptr = (header as *const u8).add(std::mem::size_of::<MachHeader64>());
     let mut hooked = false;
 
     for _ in 0..ncmds {
@@ -406,7 +425,7 @@ unsafe fn rebind_symbols_in_section(
     symtab: *const Nlist64,
     strtab: *const c_char,
     indirect_symtab: *const u32,
-    overwrites: &mut Vec<GotSymbolOverwrite>,
+    overwrites: &mut [GotSymbolOverwrite],
     is_data_const: bool,
 ) -> bool {
     // Each slot in the section is one pointer (8 bytes on 64-bit). The number of slots is
