@@ -121,6 +121,10 @@ bool ddog_php_prof_is_post_startup(void) {
 static post_startup_cb_result (*orig_post_startup_cb)(void) = NULL;
 
 static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
+#if CFG_FRAMELESS
+    ddog_php_prof_post_startup(); // before preload+JIT (which may hardcode the flf handlers)
+#endif
+
     if (orig_post_startup_cb) {
         post_startup_cb_result (*cb)(void) = orig_post_startup_cb;
 
@@ -552,9 +556,6 @@ void ddog_php_test_free_fake_zend_function(zend_function *func) {
     free(func);
 }
 
-// Stub for zend_flf_functions (PHP 8.4+ frameless calls) to allow tests to link
-// without the real PHP runtime. The test doesn't exercise frameless code paths.
-__attribute__((weak)) zend_function **zend_flf_functions;
 #endif // CFG_STACK_WALKING_TESTS || CFG_TEST
 
 void *opcache_handle = NULL;
