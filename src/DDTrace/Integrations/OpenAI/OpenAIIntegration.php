@@ -59,6 +59,16 @@ class OpenAIIntegration extends Integration
         }
     }
 
+    public static function pushLlmEventForAppsec($model = null)
+    {
+        if (function_exists('datadog\appsec\push_addresses')) {
+            \datadog\appsec\push_addresses(["server.business_logic.llm.event" => [
+                'provider' => 'openai',
+                'model' => $model,
+            ]]);
+        }
+    }
+
     /**
      * Add instrumentation to OpenAI API Requests
      */
@@ -137,44 +147,41 @@ class OpenAIIntegration extends Integration
             }
         );
 
-        $pushAppsecEvent = static function (bool $reportAppsec, array $args): void {
-            if ($reportAppsec && function_exists('datadog\appsec\push_addresses')) {
-                \datadog\appsec\push_addresses(["server.business_logic.llm.event" => [
-                    'provider' => 'openai',
-                    'model' => $args[0]['model'] ?? null,
-                ]]);
-            }
-        };
-
-        $appsecOnlyPrehook = static function (bool $reportAppsec) use ($pushAppsecEvent) {
-            return static function ($This, $scope, $args) use ($reportAppsec, $pushAppsecEvent): void {
-                $pushAppsecEvent($reportAppsec, $args);
+        $appsecOnlyPrehook = static function (bool $reportAppsec) {
+            return static function ($This, $scope, $args) use ($reportAppsec): void {
+                if ($reportAppsec) {
+                    OpenAIIntegration::pushLlmEventForAppsec($args[0]['model'] ?? null);
+                }
             };
         };
 
-        $handleRequestPrehook = fn ($streamed, $operationID, $reportApm, $reportAppsec) => function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm, $reportAppsec, $pushAppsecEvent) {
-            $pushAppsecEvent($reportAppsec, $args);
+        $handleRequestPrehook = static function ($streamed, $operationID, $reportApm, $reportAppsec) {
+            return function (\DDTrace\SpanData $span, $args) use ($operationID, $streamed, $reportApm, $reportAppsec) {
+                if ($reportAppsec) {
+                    OpenAIIntegration::pushLlmEventForAppsec($args[0]['model'] ?? null);
+                }
 
-            // This should not happen but just in case
-            if (!$reportApm) {
-                return;
-            }
-            OpenAIIntegration::setServiceName($span);
-            $clientData = ObjectKVStore::get($this, 'client_data');
-            if (\is_null($clientData)) {
-                $transporter = ObjectKVStore::get($this, 'transporter');
-                $clientData = ObjectKVStore::get($transporter, 'client_data');
-                ObjectKVStore::put($this, 'client_data', $clientData);
-            }
-            /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
-            OpenAIIntegration::handleRequest(
-                span: $span,
-                operationID: $operationID,
-                args: $args,
-                basePath: $clientData['baseUri'],
-                apiKey: $clientData['apiKey'],
-                streamed: $streamed
-            );
+                // This should not happen but just in case
+                if (!$reportApm) {
+                    return;
+                }
+                OpenAIIntegration::setServiceName($span);
+                $clientData = ObjectKVStore::get($this, 'client_data');
+                if (\is_null($clientData)) {
+                    $transporter = ObjectKVStore::get($this, 'transporter');
+                    $clientData = ObjectKVStore::get($transporter, 'client_data');
+                    ObjectKVStore::put($this, 'client_data', $clientData);
+                }
+                /** @var array{baseUri: string, headers: string, apiKey: ?string} $clientData */
+                OpenAIIntegration::handleRequest(
+                    span: $span,
+                    operationID: $operationID,
+                    args: $args,
+                    basePath: $clientData['baseUri'],
+                    apiKey: $clientData['apiKey'],
+                    streamed: $streamed
+                );
+            };
         };
 
         foreach ($targets as [$class, $method, $operationID, $httpMethod, $endpoint, $reportApm, $reportAppsec]) {

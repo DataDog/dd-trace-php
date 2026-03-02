@@ -35,7 +35,6 @@ class LlmEventsTests {
         getClass().CONTAINER
     }
 
-    @Container
     public static final MockOpenAIServer mockOpenAIServer = new MockOpenAIServer()
 
     @Container
