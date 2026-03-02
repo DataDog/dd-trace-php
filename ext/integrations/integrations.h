@@ -48,6 +48,7 @@
     INTEGRATION(ROADRUNNER, "roadrunner")                                                                                \
     INTEGRATION(SQLSRV, "sqlsrv")                                                                                        \
     INTEGRATION(SLIM, "slim")                                                                                            \
+    INTEGRATION(STRIPE, "stripe")                                                                                        \
     INTEGRATION(SWOOLE, "swoole")                                                                                        \
     INTEGRATION(SYMFONY, "symfony")                                                                                      \
     INTEGRATION(SYMFONYMESSENGER, "symfonymessenger")                                                                    \
