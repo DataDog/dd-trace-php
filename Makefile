@@ -970,6 +970,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
@@ -1037,6 +1038,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
@@ -1099,6 +1101,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
@@ -1146,6 +1149,7 @@ TEST_INTEGRATIONS_85 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
@@ -1393,6 +1397,8 @@ test_integrations_openai_latest: global_test_run_dependencies tests/Integrations
 	$(eval TELEMETRY_ENABLED=1)
 	$(call run_tests_debug,tests/Integrations/OpenAI/Latest)
  	$(eval TELEMETRY_ENABLED=0)
+test_integrations_stripe_latest: global_test_run_dependencies tests/Integrations/Stripe/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Stripe/Latest)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies
