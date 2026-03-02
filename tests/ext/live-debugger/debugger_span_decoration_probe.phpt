@@ -98,7 +98,7 @@ array(2) {
   ["_dd.di.ret.probe_id"]=>
   string(1) "3"
 }
-string(%d) "/debugger/v1/input?ddtags=debugger_version:1.%s,env:none,version:,runtime_id:%s-%s-%s-%s-%s,host_name:%s"
+string(%d) "/debugger/v2/input?ddtags=debugger_version:1.%s,env:none,version:,runtime_id:%s-%s-%s-%s-%s,host_name:%s"
 array(1) {
   [0]=>
   array(6) {
