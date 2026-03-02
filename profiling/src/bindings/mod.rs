@@ -344,6 +344,10 @@ extern "C" {
     /// until mshutdown.
     pub(crate) fn ddog_php_prof_get_memoized_config(config_id: ConfigId) -> *mut zval;
 
+    /// Returns true if the config value was explicitly set by the user (not
+    /// just the compiled-in default), false otherwise.
+    pub(crate) fn ddog_php_prof_config_is_set_by_user(config_id: ConfigId) -> bool;
+
     /// Registers the run_time_cache slot with the engine. Must be done in
     /// module init or extension startup.
     pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
