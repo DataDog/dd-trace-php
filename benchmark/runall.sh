@@ -6,6 +6,9 @@ if [ "$SCENARIO" = "profiler" ]; then
   # Run Profiling Benchmarks
   cd ../profiling/
 
+  phpize
+  ./configure --with-php-config="$(command -v php-config)"
+
   cargo build --release --features trigger_time_sample
 
   sirun benches/timeline.json > "$ARTIFACTS_DIR/sirun_timeline.ndjson"
