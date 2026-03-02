@@ -5,14 +5,27 @@ namespace DDTrace\Tests\Integrations\OpenAI;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Stream;
+use datadog\appsec\AppsecStatus;
+use DDTrace\Tests\Common\SnapshotTestTrait;
 
 class OpenAITest extends IntegrationTestCase
 {
+    use SnapshotTestTrait
+;
     private $errorLogSize = 0;
 
     public static function ddSetUpBeforeClass()
     {
         parent::ddSetUpBeforeClass();
+        self::putEnv('APPSEC_MOCK_ENABLED=true');
+        AppsecStatus::getInstance(true);
+    }
+
+    public static function ddTearDownAfterClass()
+    {
+        parent::ddTearDownAfterClass();
+        AppsecStatus::clearInstances();
+        self::putEnv('APPSEC_MOCK_ENABLED');
     }
 
     private function checkErrors()
@@ -41,12 +54,16 @@ class OpenAITest extends IntegrationTestCase
             'DD_SERVICE=openai-test',
             'DD_ENV=test',
             'DD_VERSION=1.0',
+            'APPSEC_MOCK_ENABLED=true',
         ]);
         if (file_exists(__DIR__ . "/openai.log")) {
             $this->errorLogSize = (int)filesize(__DIR__ . "/openai.log");
         } else {
             $this->errorLogSize = 0;
         }
+        AppsecStatus::getInstance()->setDefaults();
+        $token = $this->generateToken();
+        update_test_agent_session_token($token);
     }
 
     protected function envsToCleanUpAtTearDown()
@@ -116,6 +133,10 @@ class OpenAITest extends IntegrationTestCase
             ],
             'user' => 'dd-trace'
         ]);
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.business_logic.llm.event']);
+        $this->assertEquals(1, count($events));
+        $this->assertEquals('openai', $events[0][0]["server.business_logic.llm.event"]['provider']);
+        $this->assertEquals('da-vince', $events[0][0]["server.business_logic.llm.event"]['model']);
     }
 
     public function testCreateChatCompletion()
@@ -124,6 +145,24 @@ class OpenAITest extends IntegrationTestCase
             'model' => 'gpt-3.5-turbo',
             'messages' => ['role' => 'user', 'content' => 'Hello!'],
         ]);
+
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.business_logic.llm.event']);
+        $this->assertEquals(1, count($events));
+        $this->assertEquals('openai', $events[0][0]["server.business_logic.llm.event"]['provider']);
+        $this->assertEquals('gpt-3.5-turbo', $events[0][0]["server.business_logic.llm.event"]['model']);
+    }
+
+    public function testCreateResponse()
+    {
+        $this->call('responses', 'create', metaHeaders(), response(), [
+            'model' => 'gpt-3.5-turbo',
+            'messages' => ['role' => 'user', 'content' => 'Hello!'],
+        ]);
+
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.business_logic.llm.event']);
+        $this->assertEquals(1, count($events));
+        $this->assertEquals('openai', $events[0][0]["server.business_logic.llm.event"]['provider']);
+        $this->assertEquals('gpt-3.5-turbo', $events[0][0]["server.business_logic.llm.event"]['model']);
     }
 
     public function testCreateChatCompletionWithMultipleRoles()
@@ -404,6 +443,11 @@ class OpenAITest extends IntegrationTestCase
             'model' => 'gpt-3.5-turbo-instruct',
             'prompt' => 'hi',
         ]);
+
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.business_logic.llm.event']);
+        $this->assertEquals(1, count($events));
+        $this->assertEquals('openai', $events[0][0]["server.business_logic.llm.event"]['provider']);
+        $this->assertEquals('gpt-3.5-turbo-instruct', $events[0][0]["server.business_logic.llm.event"]['model']);
     }
 
     public function testCreateChatCompletionStream()
@@ -412,6 +456,24 @@ class OpenAITest extends IntegrationTestCase
             'model' => 'gpt-3.5-turbo',
             'messages' => ['role' => 'user', 'content' => 'Hello!'],
         ]);
+
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.business_logic.llm.event']);
+        $this->assertEquals(1, count($events));
+        $this->assertEquals('openai', $events[0][0]["server.business_logic.llm.event"]['provider']);
+        $this->assertEquals('gpt-3.5-turbo', $events[0][0]["server.business_logic.llm.event"]['model']);
+    }
+
+    public function testCreateResponseStream()
+    {
+        $this->callStreamed('responses', 'createStreamed', metaHeaders(), responseStream(), [
+            'model' => 'gpt-3.5-turbo',
+            'messages' => ['role' => 'user', 'content' => 'Hello!'],
+        ]);
+
+        $events = AppsecStatus::getInstance()->getEvents(['push_addresses'], ['server.business_logic.llm.event']);
+        $this->assertEquals(1, count($events));
+        $this->assertEquals('openai', $events[0][0]["server.business_logic.llm.event"]['provider']);
+        $this->assertEquals('gpt-3.5-turbo', $events[0][0]["server.business_logic.llm.event"]['model']);
     }
 
     public function testListFineTuneEventsStream()
