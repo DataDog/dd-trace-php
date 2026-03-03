@@ -111,7 +111,25 @@ class Helper {
             }
         }
 
+        $this->wait_for_mock_agent_port_free();
         $this->process = false;
+    }
+
+    private function wait_for_mock_agent_port_free($port = 18126) {
+        // In the wild, we see very rarely a test starting within 7 microseconds
+        // of another and the socket being unavailable for binding (even with
+        // reuseaddr). Try to fix this by waiting for a connection to  fail
+        $attempts = 10;
+        while ($attempts-- > 0) {
+            $fp = @fsockopen('127.0.0.1', $port, $errno, $errstr, 0.1);
+            if ($fp !== false) {
+                fclose($fp);
+                // connection succeeded: we need to continue
+                usleep(20000);
+            } else {
+                break;
+            }
+        }
     }
 
     function get_output() {
