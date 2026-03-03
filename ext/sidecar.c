@@ -256,17 +256,24 @@ static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appse
 
     if (is_child_process || listener_available) {
         ddtrace_sidecar = dd_sidecar_connect(true, false);
-        if (!ddtrace_sidecar) {
-            LOG(WARN, "Failed to connect worker to sidecar (PID=%d, master=%d)",
-                (int32_t)current_pid, ddtrace_sidecar_master_pid);
+        if (ddtrace_sidecar) {
+            if (is_child_process) {
+                LOG(INFO, "Worker connected to sidecar master listener (worker PID=%d, master PID=%d)",
+                    (int32_t)current_pid, ddtrace_sidecar_master_pid);
+            }
             return;
         }
 
-        if (is_child_process) {
-            LOG(INFO, "Worker connected to sidecar master listener (worker PID=%d, master PID=%d)",
-                (int32_t)current_pid, ddtrace_sidecar_master_pid);
+        if (!is_child_process) {
+            // listener_available was true but connect failed (e.g. race: socket not yet bound)
+            LOG(WARN, "Failed to connect to own master listener (PID=%d)", (int32_t)current_pid);
+            return;
         }
-        return;
+
+        // Fall back to starting a new master listener in this process.
+        LOG(INFO, "Parent's sidecar listener not available (child PID=%d, master=%d), starting new master",
+            (int32_t)current_pid, ddtrace_sidecar_master_pid);
+        ddtrace_sidecar_master_pid = current_pid;
     }
 
     if (!ddtrace_ffi_try("Failed starting sidecar master listener", ddog_sidecar_connect_master((int32_t)ddtrace_sidecar_master_pid))) {
