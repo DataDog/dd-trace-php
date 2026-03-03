@@ -55,119 +55,125 @@ class StripeTest extends IntegrationTestCase
         ];
     }
 
+    /**
+     * Finds the first event in the wrappers array that contains the given key at index 0.
+     *
+     * @param array  $eventWrappers Array of event wrappers (each has [0] => event data)
+     * @param string $key           Key to look for (e.g. 'server.business_logic.payment.success')
+     * @return array|null The event data for that key, or null if not found
+     */
+    private function findEventByKey(array $eventWrappers, string $key): ?array
+    {
+        foreach ($eventWrappers as $eventWrapper) {
+            if (isset($eventWrapper[0][$key])) {
+                return $eventWrapper[0][$key];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Returns whether any event wrapper contains any of the given keys at index 0.
+     *
+     * @param array $eventWrappers Array of event wrappers
+     * @param array $keys          Keys to look for
+     * @return bool
+     */
+    private function hasEventWithAnyKey(array $eventWrappers, array $keys): bool
+    {
+        foreach ($eventWrappers as $eventWrapper) {
+            if (isset($eventWrapper[0])) {
+                $eventData = $eventWrapper[0];
+                foreach ($keys as $key) {
+                    if (isset($eventData[$key])) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     protected function ddTearDown()
     {
         parent::ddTearDown();
     }
 
     /**
-     * Test R1: Checkout Session Creation (Payment Mode)
+     * Note: R1 (Checkout Session Creation) and R2 (Payment Intent Creation) are fully tested
+     * in PaymentEventsTests.groovy with MockStripeServer, as they require actual HTTP calls.
+     * The Stripe PHP client doesn't support custom HTTP client injection like OpenAI does.
      */
-    public function testCheckoutSessionCreate()
-    {
-        $this->isolateTracer(function () {
-            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
-
-            // Mock the API call
-            $mockSession = [
-                'id' => 'cs_test_123',
-                'mode' => 'payment',
-                'amount_total' => 1000,
-                'currency' => 'usd',
-                'client_reference_id' => 'test_ref',
-                'livemode' => false,
-                'discounts' => [
-                    [
-                        'coupon' => 'SUMMER20',
-                        'promotion_code' => 'promo_123',
-                    ]
-                ],
-                'total_details' => [
-                    'amount_discount' => 200,
-                    'amount_shipping' => 500,
-                ],
-            ];
-
-            // Simulate checkout session creation
-            $client = new \Stripe\StripeClient('sk_test_fake_key_for_testing');
-
-            // Note: In real test, this would make actual API call
-            // For now, we're testing that the hook infrastructure works
-
-            $events = AppsecStatus::getInstance()->getEvents(
-                ['push_addresses'],
-                ['server.business_logic.payment.creation']
-            );
-
-            // Verify event was pushed (will be empty in this basic test,
-            // but structure is correct for integration testing)
-            $this->assertIsArray($events);
-        });
-    }
-
-    /**
-     * Test R2: Payment Intent Creation
-     */
-    public function testPaymentIntentCreate()
-    {
-        $this->isolateTracer(function () {
-            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
-
-            $client = new \Stripe\StripeClient('sk_test_fake_key_for_testing');
-
-            $events = AppsecStatus::getInstance()->getEvents(
-                ['push_addresses'],
-                ['server.business_logic.payment.creation']
-            );
-
-            $this->assertIsArray($events);
-        });
-    }
 
     /**
      * Test R3: Payment Success Webhook
+     *
+     * This test calls Event::constructFrom() which should trigger the hook
+     * and capture the event data in AppsecStatus.
      */
     public function testPaymentSuccessWebhook()
     {
         $this->isolateTracer(function () {
-            $payload = json_encode([
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            $payload = [
                 'id' => 'evt_test_webhook',
                 'type' => 'payment_intent.succeeded',
                 'data' => [
                     'object' => [
-                        'id' => 'pi_test_123',
+                        'id' => 'pi_test_success_123',
                         'amount' => 2000,
                         'currency' => 'usd',
                         'livemode' => false,
-                        'payment_method' => 'pm_test_123',
+                        'payment_method' => 'pm_test_success_123',
                     ]
                 ]
-            ]);
+            ];
 
-            // In real test, would use actual Stripe webhook signature
-            // For structure test, we verify the integration is set up
+            // Call the Stripe SDK method - this should trigger our hook
+            $event = \Stripe\Event::constructFrom($payload);
 
-            $events = AppsecStatus::getInstance()->getEvents(
-                ['push_addresses'],
-                ['server.business_logic.payment.success']
-            );
+            // Get all events captured
+            $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($events);
+            $this->assertIsArray($allEvents);
+            $this->assertNotEmpty($allEvents, 'Events should be captured by the hook');
+
+            // The events are in an array format: [{..., "0": {"server.business_logic.payment.success": {...}}, ...}]
+            // Find the event with our address
+            $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.success');
+
+            $this->assertNotNull($paymentEvent, 'Payment success event should be found in captured events');
+
+            // Verify integration field
+            $this->assertEquals('stripe', $paymentEvent['integration'], 'Integration should be stripe');
+
+            // Verify all payment intent fields were captured correctly
+            $this->assertEquals('pi_test_success_123', $paymentEvent['id'], 'Payment intent ID should match');
+            $this->assertEquals(2000, $paymentEvent['amount'], 'Amount should be 2000');
+            $this->assertEquals('usd', $paymentEvent['currency'], 'Currency should be usd');
+            $this->assertEquals(false, $paymentEvent['livemode'], 'Livemode should be false');
+            $this->assertEquals('pm_test_success_123', $paymentEvent['payment_method'], 'Payment method should match');
         });
     }
 
     /**
      * Test R4: Payment Failure Webhook
+     *
+     * This test calls Event::constructFrom() to trigger the hook
+     * and verifies error fields are captured.
      */
     public function testPaymentFailureWebhook()
     {
         $this->isolateTracer(function () {
-            $payload = json_encode([
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            $payload = [
                 'id' => 'evt_test_webhook',
                 'type' => 'payment_intent.payment_failed',
                 'data' => [
                     'object' => [
-                        'id' => 'pi_test_456',
+                        'id' => 'pi_test_failure_456',
                         'amount' => 1500,
                         'currency' => 'eur',
                         'livemode' => false,
@@ -175,103 +181,135 @@ class StripeTest extends IntegrationTestCase
                             'code' => 'card_declined',
                             'decline_code' => 'insufficient_funds',
                             'payment_method' => [
-                                'id' => 'pm_test_456',
+                                'id' => 'pm_test_failure_456',
                                 'type' => 'card',
                             ]
                         ]
                     ]
                 ]
-            ]);
+            ];
 
-            $events = AppsecStatus::getInstance()->getEvents(
-                ['push_addresses'],
-                ['server.business_logic.payment.failure']
-            );
+            // Call the Stripe SDK method - this should trigger our hook
+            $event = \Stripe\Event::constructFrom($payload);
 
-            $this->assertIsArray($events);
+            // Get all events captured
+            $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
+
+            $this->assertIsArray($allEvents);
+            $this->assertNotEmpty($allEvents, 'Events should be captured by the hook');
+
+            // Find the payment failure event
+            $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.failure');
+
+            $this->assertNotNull($paymentEvent, 'Payment failure event should be found in captured events');
+
+            // Verify integration field
+            $this->assertEquals('stripe', $paymentEvent['integration'], 'Integration should be stripe');
+
+            // Verify payment intent fields
+            $this->assertEquals('pi_test_failure_456', $paymentEvent['id'], 'Payment intent ID should match');
+            $this->assertEquals(1500, $paymentEvent['amount'], 'Amount should be 1500');
+            $this->assertEquals('eur', $paymentEvent['currency'], 'Currency should be eur');
+            $this->assertEquals(false, $paymentEvent['livemode'], 'Livemode should be false');
+
+            // Verify error fields were captured
+            $this->assertEquals('card_declined', $paymentEvent['last_payment_error.code'], 'Error code should be card_declined');
+            $this->assertEquals('insufficient_funds', $paymentEvent['last_payment_error.decline_code'], 'Decline code should be insufficient_funds');
+            $this->assertEquals('pm_test_failure_456', $paymentEvent['last_payment_error.payment_method.id'], 'Payment method ID should match');
+            $this->assertEquals('card', $paymentEvent['last_payment_error.payment_method.type'], 'Payment method type should be card');
         });
     }
 
     /**
      * Test R5: Payment Cancellation Webhook
+     *
+     * This test calls Event::constructFrom() to trigger the hook
+     * and verifies cancellation fields are captured.
      */
     public function testPaymentCancellationWebhook()
     {
         $this->isolateTracer(function () {
-            $payload = json_encode([
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            $payload = [
                 'id' => 'evt_test_webhook',
                 'type' => 'payment_intent.canceled',
                 'data' => [
                     'object' => [
-                        'id' => 'pi_test_789',
+                        'id' => 'pi_test_cancel_789',
                         'amount' => 3000,
                         'currency' => 'gbp',
                         'livemode' => false,
                         'cancellation_reason' => 'requested_by_customer',
                     ]
                 ]
-            ]);
+            ];
 
-            $events = AppsecStatus::getInstance()->getEvents(
-                ['push_addresses'],
-                ['server.business_logic.payment.cancellation']
-            );
+            // Call the Stripe SDK method - this should trigger our hook
+            $event = \Stripe\Event::constructFrom($payload);
 
-            $this->assertIsArray($events);
-        });
-    }
+            // Get all events captured
+            $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-    /**
-     * Test R1.1: Checkout Session with non-payment mode should be ignored
-     */
-    public function testCheckoutSessionNonPaymentModeIgnored()
-    {
-        $this->isolateTracer(function () {
-            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+            $this->assertIsArray($allEvents);
+            $this->assertNotEmpty($allEvents, 'Events should be captured by the hook');
 
-            // Mock session with 'subscription' mode
-            // Should NOT trigger payment.creation event
+            // Find the payment cancellation event
+            $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.cancellation');
 
-            $client = new \Stripe\StripeClient('sk_test_fake_key_for_testing');
+            $this->assertNotNull($paymentEvent, 'Payment cancellation event should be found in captured events');
 
-            // Verify no event was created for non-payment mode
-            $events = AppsecStatus::getInstance()->getEvents(
-                ['push_addresses'],
-                ['server.business_logic.payment.creation']
-            );
+            // Verify integration field
+            $this->assertEquals('stripe', $paymentEvent['integration'], 'Integration should be stripe');
 
-            $this->assertIsArray($events);
-            // In full test, would verify events array is empty for subscription mode
+            // Verify payment intent fields
+            $this->assertEquals('pi_test_cancel_789', $paymentEvent['id'], 'Payment intent ID should match');
+            $this->assertEquals(3000, $paymentEvent['amount'], 'Amount should be 3000');
+            $this->assertEquals('gbp', $paymentEvent['currency'], 'Currency should be gbp');
+            $this->assertEquals(false, $paymentEvent['livemode'], 'Livemode should be false');
+            $this->assertEquals('requested_by_customer', $paymentEvent['cancellation_reason'], 'Cancellation reason should match');
         });
     }
 
     /**
      * Test R6.1 & R6.2: Webhook with invalid signature or unsupported event type
+     *
+     * This test verifies that unsupported event types don't generate payment events.
      */
     public function testWebhookInvalidOrUnsupportedEvents()
     {
         $this->isolateTracer(function () {
-            // Test that unsupported event types are ignored (R6.2)
-            $payload = json_encode([
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            $payload = [
                 'id' => 'evt_test_webhook',
                 'type' => 'customer.created', // Not a payment_intent event
                 'data' => [
                     'object' => [
                         'id' => 'cus_test_123',
+                        'email' => 'test@example.com',
                     ]
                 ]
-            ]);
+            ];
 
-            // Should not create any payment events
-            $events = AppsecStatus::getInstance()->getEvents(
-                ['push_addresses'],
-                ['server.business_logic.payment.creation',
-                 'server.business_logic.payment.success',
-                 'server.business_logic.payment.failure',
-                 'server.business_logic.payment.cancellation']
-            );
+            // Call the Stripe SDK method - hook should ignore this event type
+            $event = \Stripe\Event::constructFrom($payload);
 
-            $this->assertIsArray($events);
+            // Get all events captured
+            $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
+
+            $this->assertIsArray($allEvents);
+
+            // Verify no payment events were captured for unsupported event type
+            $paymentEventKeys = [
+                'server.business_logic.payment.creation',
+                'server.business_logic.payment.success',
+                'server.business_logic.payment.failure',
+                'server.business_logic.payment.cancellation',
+            ];
+            $hasPaymentEvent = $this->hasEventWithAnyKey($allEvents, $paymentEventKeys);
+
+            $this->assertFalse($hasPaymentEvent, 'Should not capture any payment events for customer.created event type');
         });
     }
 }
