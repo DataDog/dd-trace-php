@@ -334,25 +334,39 @@ curl -s -H "PRIVATE-TOKEN: <TOKEN>" "https://gitlab.ddbuild.io/api/v4/projects/3
 
 ### Monitoring CI Jobs
 
-Use the helper script to check job status:
+Use the Python script to monitor a pipeline until all matching jobs complete:
 
 ```bash
-# Check helper-rust jobs in a pipeline (use numeric pipeline ID, not IID)
-./scripts/check-ci-jobs.sh <PIPELINE_ID> helper-rust
+# Monitor appsec jobs for HEAD commit (default) — blocks until done
+./scripts/check-ci-jobs.py
+
+# Monitor jobs for a specific commit
+./scripts/check-ci-jobs.py --commit <SHA>
+
+# Monitor a specific pipeline directly (numeric ID, not IID)
+./scripts/check-ci-jobs.py --pipeline <ID>
+
+# Use a different job name filter (default: appsec)
+./scripts/check-ci-jobs.py --filter helper-rust
+
+# Override the auto-detected timeout (in minutes)
+./scripts/check-ci-jobs.py --timeout 90
 ```
 
-To monitor a pipeline until completion and get notified, spawn a background agent with this prompt:
+When no `--pipeline` is given the script resolves the commit (HEAD or `--commit`) to a
+pipeline by walking parent pipelines and their child bridges to find one containing jobs
+that match the filter. It polls every 30 seconds with a default 60-minute timeout.
+Exit codes: 0 = all passed, 1 = failures, 2 = timed out.
+
+To monitor a pipeline and get a spoken notification when done, spawn a background agent
+(model: Haiku) with this prompt:
 
 ```
-Monitor GitLab pipeline <PIPELINE_ID> for helper-rust jobs. Run this loop:
-1. Run: ./scripts/check-ci-jobs.sh <PIPELINE_ID> helper-rust
-2. Parse the output to get RUNNING, PASSED, FAILED counts
-3. If FAILED > 0, use speak_when_done MCP to say "X helper rust jobs failed" and STOP
-4. If RUNNING > 0:
-   - First iteration: wait 60 seconds
-   - Subsequent iterations: wait 300 seconds
-   - Then repeat from step 1
-5. When RUNNING == 0 and FAILED == 0, use speak_when_done MCP to say "All helper rust jobs passed"
+Run: ./scripts/check-ci-jobs.py
+Wait for it to exit, then:
+- Exit 0: use speak_when_done MCP to say "All appsec jobs passed"
+- Exit 1: use speak_when_done MCP to say "Some appsec jobs failed"
+- Exit 2: use speak_when_done MCP to say "Pipeline monitoring timed out"
 ```
 
 ## Misc Notes
