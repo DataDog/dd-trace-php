@@ -9,6 +9,7 @@
 #include <php_ini.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <sys/wait.h>
 #include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
 
@@ -405,6 +406,10 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         return;
     }
     if (pid > 0) {
+
+        // FIXME: Test
+        // waitpid(pid, NULL, 0);
+
         return;  // parent
     }
 
