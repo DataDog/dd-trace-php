@@ -451,7 +451,7 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 
 cbindgen_binary:
 	if ! command -v cbindgen &> /dev/null; then \
-		cargo install cbindgen; \
+		cargo install cbindgen --version 0.29.0 --locked; \
 	fi
 
 EXT_DIR:=/opt/datadog-php

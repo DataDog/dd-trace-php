@@ -75,7 +75,13 @@ abstract class CLITestCase extends IntegrationTestCase
     public function getAgentRequestFromCommand($arguments = '', $overrideEnvs = [])
     {
         $this->executeCommand($arguments, $overrideEnvs);
-        return $this->retrieveDumpedTraceData()[0] ?? [];
+        foreach ($this->retrieveDumpedTraceData() as $request) {
+            $uri = $request['uri'] ?? '';
+            if (strpos($uri, '/v0.4/traces') === 0 || strpos($uri, '/v0.7/traces') === 0) {
+                return $request;
+            }
+        }
+        return [];
     }
 
     /**

@@ -71,7 +71,7 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
   parallel:
     matrix:

@@ -1,6 +1,7 @@
 use crate::bindings::zai_config_type::*;
 use crate::bindings::{
-    datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_get_memoized_config,
+    datadog_php_profiling_copy_string_view_into_zval, ddog_php_prof_config_is_set_by_user,
+    ddog_php_prof_get_memoized_config,
     zai_config_entry, zai_config_get_value, zai_config_minit, zai_config_name,
     zai_config_system_ini_change, zend_ini_entry, zend_long, zend_string, zend_write, zval,
     StringError, ZaiStr, IS_FALSE, IS_LONG, IS_TRUE, ZAI_CONFIG_NAME_BUFSIZ, ZEND_INI_DISPLAY_ORIG,
@@ -672,7 +673,11 @@ unsafe fn get_system_uint32(id: ConfigId, default: u32) -> u32 {
 /// This function must only be called after config has been initialized in
 /// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn agent_host() -> Option<Cow<'static, str>> {
-    get_system_str(AgentHost)
+    if ddog_php_prof_config_is_set_by_user(AgentHost) {
+        get_system_str(AgentHost)
+    } else {
+        None
+    }
 }
 
 /// # Safety
@@ -724,6 +729,9 @@ pub(crate) unsafe fn tags() -> (Vec<Tag>, Option<String>) {
 /// This function must only be called after config has been initialized in
 /// first rinit, and before it is uninitialized in mshutdown.
 unsafe fn trace_agent_port() -> Option<u16> {
+    if !ddog_php_prof_config_is_set_by_user(TraceAgentPort) {
+        return None;
+    }
     let port = get_system_zend_long(TraceAgentPort).unwrap_or(0);
     if port <= 0 || port > (u16::MAX as zend_long) {
         None
