@@ -195,6 +195,41 @@ class PaymentEventsTests {
     }
 
     @Test
+    void 'test checkout session creation with direct method call'() {
+        def trace = container.traceFromRequest("/payment.php?action=checkout_session_direct") { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            def body = new String(resp.body().readAllBytes())
+            assert body.contains('success')
+            assert body.contains('session_id')
+        }
+        assertPaymentCreationSpan(trace)
+
+        Span span = trace.first()
+        // Verify checkout session fields are present in persistent addresses
+        assert span.meta.'appsec.events.payments.creation.id' != null
+        assert span.metrics.'appsec.events.payments.creation.amount_total' != null
+        assert span.meta.'appsec.events.payments.creation.currency' != null
+        assert span.meta.'appsec.events.payments.creation.client_reference_id' != null
+    }
+
+    @Test
+    void 'test payment intent creation with direct method call'() {
+        def trace = container.traceFromRequest("/payment.php?action=payment_intent_direct") { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+            def body = new String(resp.body().readAllBytes())
+            assert body.contains('success')
+            assert body.contains('payment_intent_id')
+        }
+        assertPaymentCreationSpan(trace)
+
+        Span span = trace.first()
+        // Verify payment intent fields are present
+        assert span.meta.'appsec.events.payments.creation.id' != null
+        assert span.metrics.'appsec.events.payments.creation.amount' != null
+        assert span.meta.'appsec.events.payments.creation.currency' != null
+    }
+
+    @Test
     void 'Root has no Payment tags'() {
         def trace = container.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
