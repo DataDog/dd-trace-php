@@ -362,14 +362,19 @@ To monitor a pipeline and get a spoken notification when done, spawn a backgroun
 (model: Haiku) with this prompt:
 
 ```
-Run: ./scripts/check-ci-jobs.py
-Wait for it to exit, then:
-- Exit 0: use speak_when_done MCP to say "All appsec jobs passed"
-- Exit 1: use speak_when_done MCP to say "Some appsec jobs failed"
-- Exit 2: use speak_when_done MCP to say "Pipeline monitoring timed out"
+Run this command in the FOREGROUND (do NOT use run_in_background — you must block and
+wait for it to exit):
+
+  ./scripts/check-ci-jobs.py
+
+Once it exits, use the speak_when_done MCP tool to say:
+- Exit 0: "All appsec jobs passed"
+- Exit 1: "Some appsec jobs failed"
+- Exit 2: "Pipeline monitoring timed out"
 ```
 
 ## Misc Notes
 
 - Always ask for confirmation before reverting, committing, or pushing anything with git
 - Do not run commands with simply tail, as that prevents checking the progress. If you're to use tail, use also tee /tmp/&lt;logfile&gt;
+- `speak_when_done` MCP serverr can be installed with: `claude mcp add speak_when_done -s user -- uvx --from git+https://github.com/Marviel/speak_when_done@76aaaf79b99ec342450d9190d4a15ca4b71cad27 python -m speak_when_done.server`
