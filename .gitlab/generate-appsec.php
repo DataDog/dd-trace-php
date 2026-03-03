@@ -178,20 +178,12 @@ stages:
       sudo sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
       sudo apt-get update && sudo apt-get install -y jq gcovr llvm-17 clang-17
 
-      echo "Installing codecov"
-
-      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
-      CODECOV_VERSION=0.6.1
-      CODECOV_ARCH=linux
-      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM
-      curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM.sig
-      gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-      shasum -a 256 -c codecov.SHA256SUM
-      rm codecov.SHA256SUM.sig codecov.SHA256SUM
-      sudo mv codecov /usr/local/bin/codecov
-      sudo chmod +x /usr/local/bin/codecov
+      echo "Installing datadog-ci"
+      DATADOG_API_KEY=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key | jq -r .data.data.key)
+      export DATADOG_API_KEY
+      export DD_SITE="datadoghq.com"
+      curl -L --fail https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 --output /usr/local/bin/datadog-ci
+      chmod +x /usr/local/bin/datadog-ci
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
@@ -214,18 +206,18 @@ stages:
       llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
-      echo "Uploading extension coverage to codecov"
+      echo "Uploading extension coverage to Datadog"
       cd "$CI_PROJECT_DIR"
-      codecov -t "$CODECOV_TOKEN" -n appsec-extension -v -f appsec/build/coverage-ext.lcov
+      datadog-ci coverage upload --verbose --flags appsec-extension appsec/build/coverage-ext.lcov
     - |
       cd /tmp/cov-helper
       llvm-profdata-17 merge -sparse *.profraw -o default.profdata
       llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR/appsec/build/coverage-helper.lcov"
-      echo "Uploading helper coverage to codecov"
+      echo "Uploading helper coverage to Datadog"
       cd "$CI_PROJECT_DIR"
-      codecov -t "$CODECOV_TOKEN" -n appsec-helper -v -f appsec/build/coverage-helper.lcov
+      datadog-ci coverage upload --verbose --flags appsec-helper appsec/build/coverage-helper.lcov
 
 
 "push appsec images":

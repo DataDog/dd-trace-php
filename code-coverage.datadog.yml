@@ -1,0 +1,11 @@
+schema-version: v1
+
+ignore:
+  - "appsec/build/"
+  - "appsec/tests/"
+  - "appsec/third_party/"
+
+gates:
+  - type: patch_coverage_percentage
+    config:
+      threshold: 90
