@@ -223,8 +223,28 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
     if (as_worker) {
         if (!ddtrace_ffi_try("Failed connecting to sidecar as worker",
                              ddog_sidecar_connect_worker((int32_t)ddtrace_sidecar_master_pid, &sidecar_transport))) {
-            dd_free_endpoints();
-            return NULL;
+#ifdef _WIN32
+            int32_t current_pid = (int32_t)GetCurrentProcessId();
+#else
+            int32_t current_pid = (int32_t)getpid();
+#endif
+            // If we're an orphaned child, promote this process to master so traces can still be submitted.
+            if (current_pid != ddtrace_sidecar_master_pid) {
+                LOG(INFO, "Parent's sidecar listener gone (child PID=%d, master=%d), promoting to master",
+                    current_pid, ddtrace_sidecar_master_pid);
+                ddtrace_sidecar_master_pid = current_pid;
+                if (!ddtrace_ffi_try("Failed starting sidecar master listener as orphaned child",
+                        ddog_sidecar_connect_master((int32_t)ddtrace_sidecar_master_pid)) ||
+                    !ddtrace_ffi_try("Failed connecting to new sidecar master as orphaned child",
+                        ddog_sidecar_connect_worker((int32_t)ddtrace_sidecar_master_pid, &sidecar_transport))) {
+                    dd_free_endpoints();
+                    return NULL;
+                }
+            } else {
+                LOG(ERROR, "Failed connecting to own sidecar master listener (PID=%d)", current_pid);
+                dd_free_endpoints();
+                return NULL;
+            }
         }
         ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_THREAD;
     } else {
