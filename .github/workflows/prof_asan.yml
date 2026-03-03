@@ -5,7 +5,7 @@ on:
 
 jobs:
   prof-asan:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-8-core-latest
     strategy:
       matrix:
         php-version: [8.3, 8.4]
@@ -66,4 +66,4 @@ jobs:
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
-          php run-tests.php --show-diff --asan -d extension=datadog-profiling.so phpt
+          php run-tests.php -j8 --show-diff --asan -d extension=datadog-profiling.so phpt
