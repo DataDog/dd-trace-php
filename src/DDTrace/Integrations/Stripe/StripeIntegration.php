@@ -246,6 +246,51 @@ class StripeIntegration extends Integration
             }
         );
 
+        // Hook into Stripe\Checkout\Session::create() for direct static method calls
+        \DDTrace\hook_method(
+            'Stripe\Checkout\Session',
+            'create',
+            function ($This, $scope, $args) {
+                // Prehook
+            },
+            function ($This, $scope, $args, $retval) {
+                if ($retval === null) {
+                    return;
+                }
+
+                $mode = null;
+                if (is_object($retval) && isset($retval->mode)) {
+                    $mode = $retval->mode;
+                } elseif (is_array($retval) && isset($retval['mode'])) {
+                    $mode = $retval['mode'];
+                }
+
+                if ($mode !== 'payment') {
+                    return;
+                }
+
+                $payload = self::extractCheckoutSessionFields($retval);
+                self::pushPaymentEvent('server.business_logic.payment.creation', $payload);
+            }
+        );
+
+        // Hook into Stripe\PaymentIntent::create() for direct static method calls
+        \DDTrace\hook_method(
+            'Stripe\PaymentIntent',
+            'create',
+            function ($This, $scope, $args) {
+                // Prehook
+            },
+            function ($This, $scope, $args, $retval) {
+                if ($retval === null) {
+                    return;
+                }
+
+                $payload = self::extractPaymentIntentFields($retval);
+                self::pushPaymentEvent('server.business_logic.payment.creation', $payload);
+            }
+        );
+
         \DDTrace\hook_method(
             'Stripe\Webhook',
             'constructEvent',

@@ -299,6 +299,57 @@ try {
             ]);
             break;
 
+        case 'checkout_session_direct':
+            // Test Checkout Session Creation using direct static method
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            // Configure Stripe to use the mock server
+            $opts = ['api_base' => $stripeApiBase];
+
+            $session = \Stripe\Checkout\Session::create([
+                'mode' => 'payment',
+                'success_url' => 'https://example.com/success',
+                'cancel_url' => 'https://example.com/cancel',
+                'line_items' => [
+                    [
+                        'price_data' => [
+                            'currency' => 'usd',
+                            'product_data' => ['name' => 'Test Product Direct'],
+                            'unit_amount' => 2500,
+                        ],
+                        'quantity' => 2,
+                    ],
+                ],
+                'client_reference_id' => 'test_ref_direct_456',
+            ], $opts);
+
+            echo json_encode([
+                'status' => 'success',
+                'action' => 'checkout_session_direct',
+                'session_id' => $session->id
+            ]);
+            break;
+
+        case 'payment_intent_direct':
+            // Test Payment Intent Creation using direct static method
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            // Configure Stripe to use the mock server
+            $opts = ['api_base' => $stripeApiBase];
+
+            $paymentIntent = \Stripe\PaymentIntent::create([
+                'amount' => 3500,
+                'currency' => 'eur',
+                'payment_method_types' => ['card'],
+            ], $opts);
+
+            echo json_encode([
+                'status' => 'success',
+                'action' => 'payment_intent_direct',
+                'payment_intent_id' => $paymentIntent->id
+            ]);
+            break;
+
         default:
             echo json_encode([
                 'status' => 'error',

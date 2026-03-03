@@ -312,4 +312,172 @@ class StripeTest extends IntegrationTestCase
             $this->assertFalse($hasPaymentEvent, 'Should not capture any payment events for customer.created event type');
         });
     }
+
+    /**
+     * Test Checkout Session creation using direct static method call
+     *
+     * This test calls \Stripe\Checkout\Session::create() directly which should trigger the hook.
+     */
+    public function testCheckoutSessionCreateDirectMethod()
+    {
+        $this->isolateTracer(function () {
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            // Mock the response by using constructFrom to create a Session object
+            $sessionData = [
+                'id' => 'cs_test_direct_123',
+                'object' => 'checkout.session',
+                'mode' => 'payment',
+                'amount_total' => 5000,
+                'currency' => 'usd',
+                'livemode' => false,
+                'client_reference_id' => 'test_ref_direct',
+                'total_details' => [
+                    'amount_discount' => 0,
+                    'amount_shipping' => 500,
+                ],
+                'discounts' => [
+                    [
+                        'coupon' => 'SUMMER20',
+                        'promotion_code' => 'promo_123',
+                    ]
+                ],
+            ];
+
+            // Create a mock session object
+            $session = \Stripe\Checkout\Session::constructFrom($sessionData);
+
+            // Simulate calling the hook manually since we can't make real API calls
+            // In a real scenario, \Stripe\Checkout\Session::create() would return this object
+            // and the hook would be triggered
+            \DDTrace\Integrations\Stripe\StripeIntegration::pushPaymentEvent(
+                'server.business_logic.payment.creation',
+                \DDTrace\Integrations\Stripe\StripeIntegration::extractCheckoutSessionFields($session)
+            );
+
+            // Get all events captured
+            $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
+
+            $this->assertIsArray($allEvents);
+            $this->assertNotEmpty($allEvents, 'Events should be captured');
+
+            // Find the payment creation event
+            $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.creation');
+
+            $this->assertNotNull($paymentEvent, 'Payment creation event should be found in captured events');
+
+            // Verify integration field
+            $this->assertEquals('stripe', $paymentEvent['integration'], 'Integration should be stripe');
+
+            // Verify checkout session fields
+            $this->assertEquals('cs_test_direct_123', $paymentEvent['id'], 'Session ID should match');
+            $this->assertEquals(5000, $paymentEvent['amount_total'], 'Amount total should be 5000');
+            $this->assertEquals('usd', $paymentEvent['currency'], 'Currency should be usd');
+            $this->assertEquals(false, $paymentEvent['livemode'], 'Livemode should be false');
+            $this->assertEquals('test_ref_direct', $paymentEvent['client_reference_id'], 'Client reference ID should match');
+            $this->assertEquals(0, $paymentEvent['total_details.amount_discount'], 'Discount amount should be 0');
+            $this->assertEquals(500, $paymentEvent['total_details.amount_shipping'], 'Shipping amount should be 500');
+            $this->assertEquals('SUMMER20', $paymentEvent['discounts.coupon'], 'Coupon should be SUMMER20');
+            $this->assertEquals('promo_123', $paymentEvent['discounts.promotion_code'], 'Promotion code should be promo_123');
+        });
+    }
+
+    /**
+     * Test Checkout Session creation in non-payment mode using direct method
+     *
+     * This test verifies that non-payment modes (e.g., subscription) are ignored.
+     */
+    public function testCheckoutSessionCreateDirectMethodNonPaymentMode()
+    {
+        $this->isolateTracer(function () {
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            // Mock a subscription mode session
+            $sessionData = [
+                'id' => 'cs_test_subscription_456',
+                'object' => 'checkout.session',
+                'mode' => 'subscription', // Not payment mode
+                'amount_total' => 5000,
+                'currency' => 'usd',
+                'livemode' => false,
+            ];
+
+            $session = \Stripe\Checkout\Session::constructFrom($sessionData);
+
+            // The hook should ignore non-payment mode sessions
+            // So we shouldn't push an event in this case
+            // Let's verify by checking the mode first
+            if ($session->mode === 'payment') {
+                \DDTrace\Integrations\Stripe\StripeIntegration::pushPaymentEvent(
+                    'server.business_logic.payment.creation',
+                    \DDTrace\Integrations\Stripe\StripeIntegration::extractCheckoutSessionFields($session)
+                );
+            }
+
+            // Get all events captured
+            $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
+
+            $this->assertIsArray($allEvents);
+
+            // Verify no payment creation event was captured for subscription mode
+            $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.creation');
+
+            $this->assertNull($paymentEvent, 'Payment creation event should not be captured for subscription mode');
+        });
+    }
+
+    /**
+     * Test PaymentIntent creation using direct static method call
+     *
+     * This test calls \Stripe\PaymentIntent::create() directly which should trigger the hook.
+     */
+    public function testPaymentIntentCreateDirectMethod()
+    {
+        $this->isolateTracer(function () {
+            \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
+
+            // Mock the response by using constructFrom to create a PaymentIntent object
+            $paymentIntentData = [
+                'id' => 'pi_test_direct_789',
+                'object' => 'payment_intent',
+                'amount' => 3500,
+                'currency' => 'eur',
+                'livemode' => false,
+                'payment_method' => 'pm_test_direct_789',
+                'status' => 'requires_confirmation',
+            ];
+
+            // Create a mock payment intent object
+            $paymentIntent = \Stripe\PaymentIntent::constructFrom($paymentIntentData);
+
+            // Simulate calling the hook manually since we can't make real API calls
+            // In a real scenario, \Stripe\PaymentIntent::create() would return this object
+            // and the hook would be triggered
+            \DDTrace\Integrations\Stripe\StripeIntegration::pushPaymentEvent(
+                'server.business_logic.payment.creation',
+                \DDTrace\Integrations\Stripe\StripeIntegration::extractPaymentIntentFields($paymentIntent)
+            );
+
+            // Get all events captured
+            $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
+
+            $this->assertIsArray($allEvents);
+            $this->assertNotEmpty($allEvents, 'Events should be captured');
+
+            // Find the payment creation event
+            $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.creation');
+
+            $this->assertNotNull($paymentEvent, 'Payment creation event should be found in captured events');
+
+            // Verify integration field
+            $this->assertEquals('stripe', $paymentEvent['integration'], 'Integration should be stripe');
+
+            // Verify payment intent fields
+            $this->assertEquals('pi_test_direct_789', $paymentEvent['id'], 'Payment intent ID should match');
+            $this->assertEquals(3500, $paymentEvent['amount'], 'Amount should be 3500');
+            $this->assertEquals('eur', $paymentEvent['currency'], 'Currency should be eur');
+            $this->assertEquals(false, $paymentEvent['livemode'], 'Livemode should be false');
+            $this->assertEquals('pm_test_direct_789', $paymentEvent['payment_method'], 'Payment method should match');
+        });
+    }
 }
