@@ -79,10 +79,7 @@ fn set_ddappsec_version() {
         .unwrap_or_else(|_| env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".to_string()));
     let version = version.trim().to_string();
     println!("cargo::rustc-env=DDAPPSEC_VERSION={}", version);
-    println!(
-        "cargo::rerun-if-changed={}",
-        version_path.display()
-    );
+    println!("cargo::rerun-if-changed={}", version_path.display());
 }
 
 fn build_test_sidecar_lib() {
