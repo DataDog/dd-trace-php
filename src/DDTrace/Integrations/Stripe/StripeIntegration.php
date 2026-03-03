@@ -15,6 +15,7 @@ class StripeIntegration extends Integration
     {
         if (function_exists('datadog\appsec\push_addresses')) {
             \datadog\appsec\push_addresses([$address => $data]);
+        } else {
         }
     }
 
@@ -200,7 +201,6 @@ class StripeIntegration extends Integration
      */
     public static function init(): int
     {
-        error_log("STRIPE DEBUG: StripeIntegration::init() called!");
         file_put_contents('/tmp/stripe_init.log', "Stripe integration initialized at " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
         \DDTrace\hook_method(
             'Stripe\Service\Checkout\SessionService',
@@ -251,20 +251,14 @@ class StripeIntegration extends Integration
             'constructEvent',
             function ($This, $scope, $args) {
                 // Prehook
-                error_log("STRIPE DEBUG: Webhook::constructEvent prehook called");
             },
             function ($This, $scope, $args, $retval, $exception) {
-                error_log("STRIPE DEBUG: Webhook::constructEvent posthook called");
-                error_log("STRIPE DEBUG: exception: " . var_export($exception, true));
-                error_log("STRIPE DEBUG: retval type: " . (is_object($retval) ? get_class($retval) : gettype($retval)));
 
                 if ($exception !== null) {
-                    error_log("STRIPE DEBUG: Exception is not null, returning");
                     return;
                 }
 
                 if ($retval === null) {
-                    error_log("STRIPE DEBUG: retval is null for Webhook, returning");
                     return;
                 }
 
@@ -276,10 +270,8 @@ class StripeIntegration extends Integration
                     $eventType = $retval['type'];
                 }
 
-                error_log("STRIPE DEBUG: Webhook event type: " . var_export($eventType, true));
 
                 if ($eventType === null) {
-                    error_log("STRIPE DEBUG: Webhook event type is null, returning");
                     return;
                 }
 
@@ -323,14 +315,10 @@ class StripeIntegration extends Integration
             'constructFrom',
             function ($This, $scope, $args) {
                 // Prehook
-                error_log("STRIPE DEBUG: Event::constructFrom prehook called");
             },
             function ($This, $scope, $args, $retval) {
-                error_log("STRIPE DEBUG: Event::constructFrom posthook called");
-                error_log("STRIPE DEBUG: retval type: " . (is_object($retval) ? get_class($retval) : gettype($retval)));
 
                 if ($retval === null) {
-                    error_log("STRIPE DEBUG: retval is null, returning");
                     return;
                 }
 
@@ -342,10 +330,8 @@ class StripeIntegration extends Integration
                     $eventType = $retval['type'];
                 }
 
-                error_log("STRIPE DEBUG: Event type: " . var_export($eventType, true));
 
                 if ($eventType === null) {
-                    error_log("STRIPE DEBUG: Event type is null, returning");
                     return;
                 }
 
@@ -357,38 +343,29 @@ class StripeIntegration extends Integration
                     $eventObject = $retval['data']['object'] ?? $retval['object'] ?? null;
                 }
 
-                error_log("STRIPE DEBUG: Event object: " . (is_object($eventObject) ? get_class($eventObject) : gettype($eventObject)));
 
                 if ($eventObject === null) {
-                    error_log("STRIPE DEBUG: Event object is null, returning");
                     return;
                 }
 
-                error_log("STRIPE DEBUG: About to process event type: " . $eventType);
 
                 switch ($eventType) {
                     case 'payment_intent.succeeded':
-                        error_log("STRIPE DEBUG: Processing payment_intent.succeeded");
                         $payload = self::extractPaymentSuccessFields($eventObject);
-                        error_log("STRIPE DEBUG: Payload: " . json_encode($payload));
                         self::pushPaymentEvent('server.business_logic.payment.success', $payload);
-                        error_log("STRIPE DEBUG: Payment success event pushed");
                         break;
 
                     case 'payment_intent.payment_failed':
-                        error_log("STRIPE DEBUG: Processing payment_intent.payment_failed");
                         $payload = self::extractPaymentFailureFields($eventObject);
                         self::pushPaymentEvent('server.business_logic.payment.failure', $payload);
                         break;
 
                     case 'payment_intent.canceled':
-                        error_log("STRIPE DEBUG: Processing payment_intent.canceled");
                         $payload = self::extractPaymentCancellationFields($eventObject);
                         self::pushPaymentEvent('server.business_logic.payment.cancellation', $payload);
                         break;
 
                     default:
-                        error_log("STRIPE DEBUG: Unhandled event type: " . $eventType);
                         break;
                 }
             }
