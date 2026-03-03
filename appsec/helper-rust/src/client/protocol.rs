@@ -12,7 +12,7 @@ use tokio_util::codec::{Decoder, Encoder};
 
 use crate::client::log::{fmt_bin, trace};
 
-pub const VERSION_FOR_PROTO: &str = "1.16.0";
+pub const VERSION_FOR_PROTO: &str = env!("DDAPPSEC_VERSION");
 const MAX_MESSAGE_SIZE: u32 = 4 * 1024 * 1024;
 
 #[derive(Debug)]
