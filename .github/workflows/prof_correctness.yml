@@ -7,7 +7,7 @@ on:
 
 jobs:
   prof-correctness:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-8-core-latest
     strategy:
       fail-fast: false
       matrix:
