@@ -147,7 +147,7 @@ class StripeIntegration extends Integration
     /**
      * Extract fields for payment success webhook
      */
-    public static function extractPaymentSuccessFields(array $eventData): array
+    public static function extractPaymentSuccessFields($eventData): array
     {
         $fields = [
             'id',
@@ -163,7 +163,7 @@ class StripeIntegration extends Integration
     /**
      * Extract fields for payment failure webhook
      */
-    public static function extractPaymentFailureFields(array $eventData): array
+    public static function extractPaymentFailureFields($eventData): array
     {
         $fields = [
             'id',
@@ -182,7 +182,7 @@ class StripeIntegration extends Integration
     /**
      * Extract fields for payment cancellation webhook
      */
-    public static function extractPaymentCancellationFields(array $eventData): array
+    public static function extractPaymentCancellationFields($eventData): array
     {
         $fields = [
             'id',
