@@ -185,6 +185,8 @@ static void _dd_get_startup_config(HashTable *ht) {
     _dd_add_assoc_bool(ht, ZEND_STRL("enabled_from_env"), get_DD_TRACE_ENABLED());
     _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));
     _dd_add_assoc_bool(ht, ZEND_STRL("sidecar_trace_sender"), get_global_DD_TRACE_SIDECAR_TRACE_SENDER());
+    _dd_add_assoc_bool(ht, ZEND_STRL("dynamic_instrumentation_enabled"), get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED());
+    _dd_add_assoc_bool(ht, ZEND_STRL("exception_replay_enabled"), get_global_DD_EXCEPTION_REPLAY_ENABLED());
 
     _dd_add_assoc_bool(ht, ZEND_STRL("loaded_by_ssi"), ddtrace_loaded_by_ssi);
 }
