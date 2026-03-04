@@ -28,7 +28,7 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 @Testcontainers
 @EnabledIf('isExpectedVersion')
 class PaymentEventsTests {
-    static boolean expectedVersion = phpVersionAtLeast('8.2') && !variant.contains('zts')
+    static boolean expectedVersion = !variant.contains('zts')
 
     AppSecContainer getContainer() {
         getClass().CONTAINER
@@ -62,13 +62,11 @@ class PaymentEventsTests {
         InspectContainerHelper.run(CONTAINER)
     }
 
-    /** Common assertions for payment creation endpoint spans. */
     static void assertPaymentCreationSpan(Trace trace) {
         Span span = trace.first()
         assert span.meta.'appsec.events.payments.integration' == 'stripe'
     }
 
-    /** Common assertions for payment webhook endpoint spans. */
     static void assertPaymentWebhookSpan(Trace trace, String eventType) {
         Span span = trace.first()
         assert span.meta.'appsec.events.payments.integration' == 'stripe'
@@ -85,10 +83,9 @@ class PaymentEventsTests {
         assertPaymentCreationSpan(trace)
 
         Span span = trace.first()
-        // Verify checkout session fields are present in persistent addresses
-        assert span.meta.'appsec.events.payments.creation.id' != null
-        assert span.metrics.'appsec.events.payments.creation.amount_total' != null
-        assert span.meta.'appsec.events.payments.creation.currency' != null
+        assert span.meta.'appsec.events.payments.creation.id' ==~ /^cs_test_\d+$/
+        assert span.metrics.'appsec.events.payments.creation.amount_total' == 1000
+        assert span.meta.'appsec.events.payments.creation.currency' == 'usd'
     }
 
     @Test
@@ -100,8 +97,6 @@ class PaymentEventsTests {
         }
 
         Span span = trace.first()
-        // For subscription mode, no payment creation event should be created
-        // The span should exist but without payment creation metadata
         assert !span.meta.containsKey('appsec.events.payments.integration') ||
                span.meta.'appsec.events.payments.integration' == null
     }
@@ -117,10 +112,9 @@ class PaymentEventsTests {
         assertPaymentCreationSpan(trace)
 
         Span span = trace.first()
-        // Verify payment intent fields are present
-        assert span.meta.'appsec.events.payments.creation.id' != null
-        assert span.metrics.'appsec.events.payments.creation.amount' != null
-        assert span.meta.'appsec.events.payments.creation.currency' != null
+        assert span.meta.'appsec.events.payments.creation.id' ==~ /^pi_test_\d+$/
+        assert span.metrics.'appsec.events.payments.creation.amount' == 2000
+        assert span.meta.'appsec.events.payments.creation.currency' == 'usd'
     }
 
     @Test
@@ -134,11 +128,10 @@ class PaymentEventsTests {
         assertPaymentWebhookSpan(trace, 'success')
 
         Span span = trace.first()
-        // Verify webhook success fields are present
-        assert span.meta.'appsec.events.payments.success.id' != null
-        assert span.metrics.'appsec.events.payments.success.amount' != null
-        assert span.meta.'appsec.events.payments.success.currency' != null
-        assert span.meta.'appsec.events.payments.success.payment_method' != null
+        assert span.meta.'appsec.events.payments.success.id' == 'pi_test_success_123'
+        assert span.metrics.'appsec.events.payments.success.amount' == 2000
+        assert span.meta.'appsec.events.payments.success.currency' == 'usd'
+        assert span.meta.'appsec.events.payments.success.payment_method' == 'pm_test_123'
     }
 
     @Test
@@ -152,12 +145,11 @@ class PaymentEventsTests {
         assertPaymentWebhookSpan(trace, 'failure')
 
         Span span = trace.first()
-        // Verify webhook failure fields are present
-        assert span.meta.'appsec.events.payments.failure.id' != null
-        assert span.metrics.'appsec.events.payments.failure.amount' != null
-        assert span.meta.'appsec.events.payments.failure.currency' != null
-        assert span.meta.'appsec.events.payments.failure.last_payment_error.code' != null
-        assert span.meta.'appsec.events.payments.failure.last_payment_error.decline_code' != null
+        assert span.meta.'appsec.events.payments.failure.id' == 'pi_test_failure_456'
+        assert span.metrics.'appsec.events.payments.failure.amount' == 1500
+        assert span.meta.'appsec.events.payments.failure.currency' == 'eur'
+        assert span.meta.'appsec.events.payments.failure.last_payment_error.code' == 'card_declined'
+        assert span.meta.'appsec.events.payments.failure.last_payment_error.decline_code' == 'insufficient_funds'
     }
 
     @Test
@@ -171,11 +163,10 @@ class PaymentEventsTests {
         assertPaymentWebhookSpan(trace, 'cancellation')
 
         Span span = trace.first()
-        // Verify webhook cancellation fields are present
-        assert span.meta.'appsec.events.payments.cancellation.id' != null
-        assert span.metrics.'appsec.events.payments.cancellation.amount' != null
-        assert span.meta.'appsec.events.payments.cancellation.currency' != null
-        assert span.meta.'appsec.events.payments.cancellation.cancellation_reason' != null
+        assert span.meta.'appsec.events.payments.cancellation.id' == 'pi_test_cancel_789'
+        assert span.metrics.'appsec.events.payments.cancellation.amount' == 3000
+        assert span.meta.'appsec.events.payments.cancellation.currency' == 'gbp'
+        assert span.meta.'appsec.events.payments.cancellation.cancellation_reason' == 'requested_by_customer'
     }
 
     @Test
@@ -188,8 +179,6 @@ class PaymentEventsTests {
         }
 
         Span span = trace.first()
-        // For unsupported event types, no payment event should be created
-        // The request should succeed but without payment metadata
         assert !span.meta.containsKey('appsec.events.payments.integration') ||
                span.meta.'appsec.events.payments.integration' == null
     }
@@ -205,11 +194,10 @@ class PaymentEventsTests {
         assertPaymentCreationSpan(trace)
 
         Span span = trace.first()
-        // Verify checkout session fields are present in persistent addresses
-        assert span.meta.'appsec.events.payments.creation.id' != null
-        assert span.metrics.'appsec.events.payments.creation.amount_total' != null
-        assert span.meta.'appsec.events.payments.creation.currency' != null
-        assert span.meta.'appsec.events.payments.creation.client_reference_id' != null
+        assert span.meta.'appsec.events.payments.creation.id' ==~ /^cs_test_\d+$/
+        assert span.metrics.'appsec.events.payments.creation.amount_total' == 1000
+        assert span.meta.'appsec.events.payments.creation.currency' == 'usd'
+        assert span.meta.'appsec.events.payments.creation.client_reference_id' == 'test_ref_direct_456'
     }
 
     @Test
@@ -223,10 +211,9 @@ class PaymentEventsTests {
         assertPaymentCreationSpan(trace)
 
         Span span = trace.first()
-        // Verify payment intent fields are present
-        assert span.meta.'appsec.events.payments.creation.id' != null
-        assert span.metrics.'appsec.events.payments.creation.amount' != null
-        assert span.meta.'appsec.events.payments.creation.currency' != null
+        assert span.meta.'appsec.events.payments.creation.id' ==~ /^pi_test_\d+$/
+        assert span.metrics.'appsec.events.payments.creation.amount' == 3500
+        assert span.meta.'appsec.events.payments.creation.currency' == 'eur'
     }
 
     @Test
