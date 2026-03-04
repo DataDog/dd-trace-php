@@ -6,7 +6,7 @@ use libddwaf::{
     Builder, Config, Handle,
 };
 
-use crate::client::log::{error, warning};
+use crate::client::log::warning;
 
 /// A WAF instance that can be shared (through clone()) and updated by any thread.
 ///
@@ -167,7 +167,6 @@ impl UpdateableWafInstance {
     /// # Arguments
     /// * `filter` - Optional regex filter to return only matching paths
     #[must_use]
-    #[cfg(test)]
     pub fn config_paths(
         &self,
         filter: Option<&str>,

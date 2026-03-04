@@ -198,7 +198,7 @@ impl TelemetryLogSubmitter for TelemetrySidecarLogSubmitter<'_> {
         tags.add("helper_runtime", "rust");
         log.tags = Some(tags);
 
-        info!(
+        debug!(
             "Submitting telemetry log to sidecar: identifier={}, level={:?} (raw={}), message={}",
             log.identifier, log.level, log.level as u8, log.message
         );
@@ -430,7 +430,7 @@ impl TelemetryMetricSubmitter for TelemetrySidecarMetricSubmitter<'_> {
     fn submit_metric(&mut self, key: MetricName, value: f64, mut tags: TelemetryTags) {
         tags.add("helper_runtime", "rust");
 
-        info!(
+        debug!(
             "Submitting telemetry metric to sidecar: metric={}, value={}, tags={}",
             key.0,
             value,

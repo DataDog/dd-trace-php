@@ -418,7 +418,14 @@ impl Service {
         if waf_changed {
             // do WAF update
             let update_success = match self.waf.update() {
-                Ok(_) => true,
+                Ok(_) => {
+                    info!(
+                        "WAF updated successfully for service with config {:?}. RC configs: {:?}",
+                        self.fixed_config,
+                        self.waf.config_paths(None)
+                    );
+                    true
+                }
                 Err(e) => {
                     self.log_general_rc_error(
                         e.context("Failed to rebuild WAF after config update"),
