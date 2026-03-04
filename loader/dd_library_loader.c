@@ -9,6 +9,7 @@
 #include <php_ini.h>
 #include <stdbool.h>
 #include <errno.h>
+#include <pthread.h>
 #include <sys/wait.h>
 #include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
@@ -312,6 +313,12 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
     va_end(va);
 }
 
+static void *ddloader_reap_child(void *arg) {
+    pid_t pid = (pid_t)(intptr_t)arg;
+    waitpid(pid, NULL, 0);
+    return NULL;
+}
+
 /**
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
@@ -406,10 +413,13 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
         return;
     }
     if (pid > 0) {
-
-        // FIXME: Test
-        // waitpid(pid, NULL, 0);
-
+        // reap the child in a background thread to avoid leaking it
+        pthread_t reaper;
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        pthread_create(&reaper, &attr, ddloader_reap_child, (void *)(intptr_t)pid);
+        pthread_attr_destroy(&attr);
         return;  // parent
     }
 
