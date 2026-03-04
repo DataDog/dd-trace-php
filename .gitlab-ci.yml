@@ -108,6 +108,18 @@ deploy_to_reliability_env:
   variables:
     SKIP_SHARED_PIPELINE: "false"
 
+promote-oci-to-staging:
+  rules:
+    - when: never
+
+promote-oci-to-prod-beta:
+  rules:
+    - when: never
+
+promote-oci-to-prod:
+  rules:
+    - when: never
+
 # requirements_json_test doesn't check SKIP_SHARED_PIPELINE, suppress explicitly
 requirements_json_test:
   rules:
