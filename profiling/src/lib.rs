@@ -166,6 +166,10 @@ static MODULE_DEPS: [zend::ModuleDep; 8] = [
     zend::ModuleDep::end(),
 ];
 
+/// Guard to ensure zend_extension is registered at most once, even if
+/// get_module is called multiple times.
+static ZEND_EXTENSION_REGISTER_ONCE: Once = Once::new();
+
 /// The module entry for the profiler extension. Fields that aren't
 /// const-compatible are set in get_module().
 static mut MODULE: zend::ModuleEntry = zend::ModuleEntry {
@@ -207,6 +211,22 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
         ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
         ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
     }
+
+    ZEND_EXTENSION_REGISTER_ONCE.call_once(|| {
+        let extension = ZendExtension {
+            name: PROFILER_NAME.as_ptr(),
+            version: PROFILER_VERSION.as_ptr().cast::<c_char>(),
+            author: c"Datadog".as_ptr(),
+            url: c"https://github.com/DataDog/dd-trace-php".as_ptr(),
+            copyright: c"Copyright Datadog".as_ptr(),
+            startup: Some(startup),
+            shutdown: Some(shutdown),
+            activate: Some(activate),
+            ..Default::default()
+        };
+        unsafe { zend::zend_register_extension(&extension, ptr::null_mut()) };
+    });
+
     module
 }
 
@@ -313,59 +333,37 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // Use a hybrid extension hack to load as a module but have the
     // zend_extension hooks available:
     // https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
-    // In this case, use the same technique as the tracer: transfer the module
-    // handle to the zend_extension as extensions have longer lifetimes than
-    // modules in the engine.
-    let handle = {
-        // Levi modified the engine for PHP 8.2 to stop copying the module:
-        // https://github.com/php/php-src/pull/8551
-        // Before then, the engine copied the module entry we provided. We
-        // find the module entry in the registry and modify it there instead
-        // of just modifying the result of get_module().
+    // The zend_extension was registered in get_module with a null handle.
+    // Transfer the module handle to the extension so it owns the .so lifetime.
+    {
         let str = PROFILER_NAME.as_ptr();
         let len = PROFILER_NAME_STR.len();
 
         // SAFETY: str is valid for at least len values.
-        let ptr = unsafe { zend::datadog_get_module_entry(str, len) };
-        if ptr.is_null() {
-            error!("Unable to locate our own module in the engine registry.");
+        let module_ptr = unsafe { zend::datadog_get_module_entry(str, len) };
+        let extension_ptr =
+            unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
+
+        if module_ptr.is_null() || extension_ptr.is_null() {
+            error!(
+                "Unable to locate our module ({}) or zend_extension in the engine registry.",
+                *PROFILER_NAME_STR
+            );
             return ZendResult::Failure;
         }
 
-        // SAFETY: `ptr` was checked for nullability already. Transferring the
-        // handle from the module to the extension extends the lifetime, not
-        // shortens it, so it's safe. But of course, be sure the code below
-        // actually passes it to the extension.
+        // SAFETY: both pointers were checked for null. Transferring the handle
+        // from the module to the extension extends the lifetime; nulling
+        // module.handle prevents double-close if another extension's startup fails.
         unsafe {
-            let module = &mut *ptr;
-            let handle = module.handle;
+            let module = &mut *module_ptr;
+            (*extension_ptr).handle = module.handle;
             module.handle = ptr::null_mut();
-            handle
         }
-    };
-
-    // Currently, the engine is always copying this struct into a
-    // zend_llist_element. Every time a new PHP version is released, we should
-    // double-check zend_register_extension to ensure the address is not
-    // mutated nor stored. Well, hopefully we catch it _before_ a release.
-    let extension = ZendExtension {
-        name: PROFILER_NAME.as_ptr(),
-        version: PROFILER_VERSION.as_ptr().cast::<c_char>(),
-        author: c"Datadog".as_ptr(),
-        url: c"https://github.com/DataDog/dd-trace-php".as_ptr(),
-        copyright: c"Copyright Datadog".as_ptr(),
-        startup: Some(startup),
-        shutdown: Some(shutdown),
-        activate: Some(activate),
-        ..Default::default()
-    };
+    }
 
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };
-
-    // SAFETY: all arguments are valid for this C call.
-    // Note that on PHP 7 this never fails, and on PHP 8 it returns void.
-    unsafe { zend::zend_register_extension(&extension, handle) };
 
     timeline::timeline_minit();
 
