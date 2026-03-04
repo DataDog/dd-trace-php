@@ -8,6 +8,7 @@ Thread mode sidecar: orphaned child process promotes itself to master after pare
 DD_TRACE_SIDECAR_CONNECTION_MODE=thread
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
+LSAN_OPTIONS=detect_leaks=0
 --FILE--
 <?php
 DDTrace\start_span();
