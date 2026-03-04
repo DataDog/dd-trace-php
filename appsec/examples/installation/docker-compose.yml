@@ -1,0 +1,24 @@
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      DD_TRACE_AGENT_URL: http://agent:8126
+      DD_APPSEC_HELPER_LOG_FILE: /var/log/apache2/ddappsec.log
+      DD_ENV: dev
+      DD_SERVICE: php-app
+    depends_on:
+      - agent
+
+  agent:
+    image: datadog/agent:latest
+    environment:
+      DD_API_KEY: ${DD_API_KEY:?DD_API_KEY environment variable is required}
+      DD_SITE: datad0g.com
+      DD_APM_ENABLED: "true"
+      DD_APM_NON_LOCAL_TRAFFIC: "true"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
