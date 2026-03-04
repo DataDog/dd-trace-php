@@ -199,11 +199,24 @@ def download_artifact(token: str, pipeline_id: str, artifact_key: str, output_di
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
         with zipfile.ZipFile(tmp_path) as zf:
-            zf.extractall(output_dir)
             names = zf.namelist()
+            # GitLab archives artifacts with their project-relative path, so entries
+            # look like "packages/foo.tar.gz". Strip the common leading directory so
+            # files land directly in output_dir instead of output_dir/packages/.
+            prefix = ""
+            parts = [n.split("/") for n in names if not n.endswith("/")]
+            if parts and all(p[0] == parts[0][0] for p in parts):
+                prefix = parts[0][0] + "/"
+            for member in zf.infolist():
+                if member.filename.endswith("/"):
+                    continue
+                member.filename = member.filename.removeprefix(prefix)
+                zf.extract(member, output_dir)
         print(f"Extracted {len(names)} file(s) to {output_dir}:")
         for name in names:
-            p = output_dir / name
+            if name.endswith("/"):
+                continue
+            p = output_dir / name.removeprefix(prefix)
             size = p.stat().st_size if p.is_file() else 0
             print(f"  {p}" + (f"  ({size / 1e6:.1f} MB)" if size else ""))
     finally:
