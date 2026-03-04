@@ -108,6 +108,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_array propagated_root_span_tags;
     zend_string *tracestate;
     zend_array tracestate_unknown_dd_keys;
+    zend_string *received_opm; // OPM received from extracted headers
     zend_bool backtrace_handler_already_run;
     ddtrace_error_data active_error;
     HashTable baggage;
@@ -147,6 +148,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     ddog_AgentInfoReader *agent_info_reader;
+    zend_string *opm; // org propagation marker (persistently cached from agent /info)
     zend_arena *debugger_capture_arena;
     HashTable debugger_capture_ephemerals;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;

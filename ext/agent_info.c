@@ -2,6 +2,7 @@
 #include "ddtrace.h"
 #include "sidecar.h"
 #include "configuration.h"
+#include "span.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -15,8 +16,25 @@ void ddtrace_check_agent_info_env() {
     }
 }
 
+void ddtrace_check_agent_info_opm() {
+    if (DDTRACE_G(agent_info_reader) && !DDTRACE_G(opm)) {
+        bool changed;
+        ddog_CharSlice opm = ddog_get_agent_info_opm(DDTRACE_G(agent_info_reader), &changed);
+        if (opm.len) {
+            DDTRACE_G(opm) = zend_string_init(opm.ptr, opm.len, 1);
+        }
+    }
+
+    if (DDTRACE_G(opm)) {
+        ddtrace_root_span_data *root_span = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->root_span : NULL;
+        if (root_span && Z_TYPE(root_span->property_org_propagation_marker) != IS_STRING) {
+            ZVAL_STR_COPY(&root_span->property_org_propagation_marker, DDTRACE_G(opm));
+        }
+    }
+}
+
 void ddtrace_agent_info_rinit() {
-    if (ddtrace_endpoint && !DDTRACE_G(agent_info_reader) && !ZSTR_LEN(get_global_DD_ENV())) {
+    if (ddtrace_endpoint && !DDTRACE_G(agent_info_reader)) {
         DDTRACE_G(agent_info_reader) = ddog_get_agent_info_reader(ddtrace_endpoint);
     }
 }

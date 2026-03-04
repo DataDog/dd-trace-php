@@ -17,6 +17,7 @@ typedef struct {
     int priority_sampling;
     enum dd_sampling_mechanism sampling_mechanism;
     bool conflicting_sampling_priority; // propagated priority does not match tracestate priority
+    zend_string *opm; // Org Propagation Marker
 } ddtrace_distributed_tracing_result;
 
 typedef bool (ddtrace_read_header)(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data);

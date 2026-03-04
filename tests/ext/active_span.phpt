@@ -28,7 +28,7 @@ var_dump(DDTrace\active_span() == DDTrace\active_span());
 Hello, Datadog.
 greet tracer.
 bool(true)
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (25) {
   ["name"]=>
   string(15) "active_span.php"
   ["resource"]=>
@@ -100,7 +100,9 @@ object(DDTrace\RootSpanData)#%d (24) {
   int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
-  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+  }
+  ["orgPropgationMarker"]=>
+  string(0) ""%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
   ["gitMetadata"]=>

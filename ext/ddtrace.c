@@ -689,6 +689,10 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     if (ddtrace_globals->agent_info_reader) {
         ddog_drop_agent_info_reader(ddtrace_globals->agent_info_reader);
     }
+    if (ddtrace_globals->opm) {
+        zend_string_release(ddtrace_globals->opm);
+        ddtrace_globals->opm = NULL;
+    }
     zai_hook_gshutdown();
     if (ddtrace_globals->telemetry_buffer) {
         ddog_sidecar_telemetry_buffer_drop(ddtrace_globals->telemetry_buffer);
@@ -896,7 +900,7 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     zend_hash_copy(Z_ARR(link->property_attributes), &result.meta_tags, NULL);
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result.propagated_tags, &result.meta_tags);
-    zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, 0, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
+    zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, 0, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys, result.opm);
     if (propagated_tags) {
         zend_string_release(propagated_tags);
     }
@@ -912,6 +916,9 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
 
     if (result.origin) {
         zend_string_release(result.origin);
+    }
+    if (result.opm) {
+        zend_string_release(result.opm);
     }
     if (result.tracestate) {
         zend_string_release(result.tracestate);
@@ -1784,6 +1791,11 @@ static void dd_clean_globals(void) {
     if (DDTRACE_G(tracestate)) {
         zend_string_release(DDTRACE_G(tracestate));
         DDTRACE_G(tracestate) = NULL;
+    }
+
+    if (DDTRACE_G(received_opm)) {
+        zend_string_release(DDTRACE_G(received_opm));
+        DDTRACE_G(received_opm) = NULL;
     }
 
     ddtrace_internal_handlers_rshutdown();

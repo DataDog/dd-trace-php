@@ -26,7 +26,7 @@ var_dump(dd_trace_serialize_closed_spans());
 
 ?>
 --EXPECTF--
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (25) {
   ["name"]=>
   string(3) "foo"
   ["resource"]=>
@@ -98,7 +98,9 @@ object(DDTrace\RootSpanData)#%d (24) {
   int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
-  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+  }
+  ["orgPropgationMarker"]=>
+  string(0) ""%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
   ["gitMetadata"]=>
@@ -106,7 +108,7 @@ object(DDTrace\RootSpanData)#%d (24) {
   ["inferredSpan"]=>
   NULL
 }
-object(DDTrace\RootSpanData)#%d (24) {
+object(DDTrace\RootSpanData)#%d (25) {
   ["name"]=>
   string(5) "dummy"
   ["resource"]=>
@@ -160,7 +162,7 @@ object(DDTrace\RootSpanData)#%d (24) {
       }
     }
     ["active"]=>
-    object(DDTrace\RootSpanData)#%d (24) {
+    object(DDTrace\RootSpanData)#%d (25) {
       ["name"]=>
       string(3) "foo"
       ["resource"]=>
@@ -216,7 +218,9 @@ object(DDTrace\RootSpanData)#%d (24) {
       int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
       ["tracestateTags"]=>
       array(0) {
-      }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+      }
+      ["orgPropgationMarker"]=>
+      string(0) ""%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
       ["traceId"]=>
       string(32) "%s"
       ["gitMetadata"]=>
@@ -241,7 +245,9 @@ object(DDTrace\RootSpanData)#%d (24) {
   int(1073741824)%r(\s*\["propagatedSamplingPriority"\]=>\s+uninitialized\(int\)\s*\["tracestate"\]=>\s+uninitialized\(string\))?%r
   ["tracestateTags"]=>
   array(0) {
-  }%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
+  }
+  ["orgPropgationMarker"]=>
+  string(0) ""%r(\s*\["parentId"\]=>\s+uninitialized\(string\))?%r
   ["traceId"]=>
   string(32) "%s"
   ["gitMetadata"]=>

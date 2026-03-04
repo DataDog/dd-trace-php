@@ -161,6 +161,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_d
     ddtrace_distributed_tracing_result result = dd_init_empty_result();
 
     read_header((zai_str)ZAI_STRL("X_DATADOG_ORIGIN"), "x-datadog-origin", &result.origin, data);
+    read_header((zai_str)ZAI_STRL("X_DD_OPM"), "x-dd-opm", &result.opm, data);
 
     if (read_header((zai_str)ZAI_STRL("X_DATADOG_TRACE_ID"), "x-datadog-trace-id", &trace_id_str, data)) {
         zval trace_zv;
@@ -401,6 +402,10 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
                                     *valptr = '=';
                                 }
                             }
+                        } else if (keylen == 3 && keystart[0] == 'o' && keystart[1] == 'p' && keystart[2] == 'm') {
+                            if (!result.opm) {
+                                result.opm = zend_string_init(valuestart, valuelen, 0);
+                            }
                         } else if (keylen > 2 && keystart[0] == 't' && keystart[1] == '.') {
                             zend_string *tag_name = zend_strpprintf(0, "_dd.p.%.*s", (int) keylen - 2, keystart + 2);
                             zval zv;
@@ -480,6 +485,7 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
 
         if (!has_trace) {
             zend_string *existing_origin = result.origin;
+            zend_string *existing_opm = result.opm;
 
             if (result.meta_tags.arData) {
                 zend_hash_destroy(&result.meta_tags);
@@ -502,6 +508,15 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                         zend_string_release(result.origin);
                     }
                     result.origin = existing_origin;
+                }
+            }
+
+            // Prefer the first OPM received
+            if (existing_opm) {
+                if (result.opm) {
+                    zend_string_release(existing_opm);
+                } else {
+                    result.opm = existing_opm;
                 }
             }
         } else {
@@ -530,6 +545,10 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
                     }
                     result.parent_id = new_result.parent_id;
                 }
+                if (!result.opm && new_result.opm) {
+                    result.opm = new_result.opm;
+                    new_result.opm = NULL;
+                }
             }
 
             if (new_result.tracestate) {
@@ -537,6 +556,9 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
             }
             if (new_result.origin) {
                 zend_string_release(new_result.origin);
+            }
+            if (new_result.opm) {
+                zend_string_release(new_result.opm);
             }
 
             zend_hash_destroy(&new_result.meta_tags);
@@ -587,8 +609,37 @@ void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *meta) {
     Z_TRY_ADDREF_P(val);
 }
 
+static void dd_apply_opm_enforcement(ddtrace_distributed_tracing_result *result) {
+    if (!get_DD_TRACE_ORG_GUARD_ENFORCE()) {
+        return;
+    }
+
+    // Enforcement only applies when both parties have OPM information
+    if (!DDTRACE_G(opm) || !result->opm) {
+        return;
+    }
+
+    // Check if OPM matches local OPM or is in trusted list
+    if (!zend_string_equals(result->opm, DDTRACE_G(opm))
+        && !zend_hash_exists(get_DD_TRACE_ORG_GUARD_TRUSTED_OPM(), result->opm)) {
+        // Foreign org: ignore context except trace_id and parent_id
+        zend_hash_clean(&result->meta_tags);
+        zend_hash_clean(&result->propagated_tags);
+        result->priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
+        result->conflicting_sampling_priority = false;
+        if (result->origin) {
+            zend_string_release(result->origin);
+            result->origin = NULL;
+        }
+        // Clear dd tracestate (vendor-specific tracestate is kept)
+        zend_hash_clean(&result->tracestate_unknown_dd_keys);
+    }
+}
+
 void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result *result, ddtrace_root_span_data *span) {
     zval zv;
+
+    dd_apply_opm_enforcement(result);
 
     zend_array *root_meta = span ? ddtrace_property_array(&span->property_meta) : &DDTRACE_G(root_span_tags_preset);
     if (span) {
@@ -617,6 +668,18 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
             ZVAL_STR(&zv, result->tracestate);
             ddtrace_assign_variable(&span->property_tracestate, &zv);
         }
+
+        if (result->opm) {
+            if (!DDTRACE_G(opm)) {
+                ZVAL_STR(&zv, result->opm);
+            } else {
+                zend_string_release(result->opm);
+                ZVAL_EMPTY_STRING(&zv);
+            }
+        } else {
+            ZVAL_EMPTY_STRING(&zv);
+        }
+        ddtrace_assign_variable(&span->property_org_propagation_marker, &zv);
 
         ZVAL_ARR(&zv, emalloc(sizeof(HashTable)));
         *Z_ARR(zv) = result->tracestate_unknown_dd_keys;
@@ -665,6 +728,18 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
                 apply_baggage_span_tags(key, val, &DDTRACE_G(root_span_tags_preset));
             }
         } ZEND_HASH_FOREACH_END();
+
+        if (DDTRACE_G(received_opm)) {
+            zend_string_release(DDTRACE_G(received_opm));
+            DDTRACE_G(received_opm) = NULL;
+        }
+        if (result->opm) {
+            if (!DDTRACE_G(opm)) {
+                DDTRACE_G(received_opm) = result->opm;
+            } else  {
+                zend_string_release(result->opm);
+            }
+        }
 
         if (result->trace_id.low || result->trace_id.high) {
             DDTRACE_G(distributed_trace_id) = result->trace_id;

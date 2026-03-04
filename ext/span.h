@@ -137,6 +137,7 @@ struct ddtrace_root_span_data {
     zval property_propagated_sampling_priority;
     zval property_tracestate;
     zval property_tracestate_tags;
+    zval property_org_propagation_marker;
     zval property_parent_id;
     zval property_trace_id;
     zval property_git_metadata;

@@ -2,6 +2,7 @@
 #include "trace_source.h"
 #include "configuration.h"
 #include "ddtrace.h"
+#include "agent_info.h"
 #include "priority_sampling/priority_sampling.h"
 #include "tracer_tag_propagation/tracer_tag_propagation.h"
 #include "span.h"
@@ -10,11 +11,19 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, uint64_t span_id, zend_string *origin, zend_long sampling_priority, zend_string *propagated_tags, zend_array *tracestate_unknown_dd_keys) {
+static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, uint64_t span_id, zend_string *origin, zend_long sampling_priority, zend_string *propagated_tags, zend_array *tracestate_unknown_dd_keys, zend_string *opm) {
     smart_str str = {0};
 
     if (span_id) {
         smart_str_append_printf(&str, "p:%016" PRIx64, span_id);
+    }
+
+    if (opm && ZSTR_LEN(opm)) {
+        if (str.s) {
+            smart_str_appendc(&str, ';');
+        }
+        smart_str_appends(&str, "opm:");
+        smart_str_append(&str, opm);
     }
 
     if (origin) {
@@ -315,6 +324,21 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         return;
     }
 
+    // Lazily fetch OPM from agent info on first injection.
+    ddtrace_check_agent_info_opm();
+
+    zend_string *opm;
+    if (root_span) {
+        zval *opm_prop = &root_span->property_org_propagation_marker;
+        if (Z_TYPE_P(opm_prop) == IS_STRING && Z_STRLEN_P(opm_prop) != 0) {
+            opm = Z_STR_P(opm_prop);
+        } else {
+            opm = DDTRACE_G(opm);
+        }
+    } else {
+        opm = DDTRACE_G(received_opm) ? DDTRACE_G(received_opm) : DDTRACE_G(opm);
+    }
+
     HashTable header_keys;
     ddtrace_init_header_keys_set(array, format, &header_keys);
 
@@ -360,6 +384,9 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
         if (origin) {
             ADD_HEADER("x-datadog-origin", "%s", ZSTR_VAL(origin));
         }
+        if (opm) {
+            ADD_HEADER("x-dd-opm", "%.*s", (int)ZSTR_LEN(opm), ZSTR_VAL(opm));
+        }
     }
     ddtrace_trace_id trace_id = ddtrace_peek_trace_id();
     uint64_t span_id = ddtrace_peek_span_id();
@@ -396,7 +423,7 @@ static inline void ddtrace_inject_distributed_headers_config(zend_array *array, 
                     propagated_span_id = ddtrace_parse_hex_span_id(old_parent_id);
                 }
 
-                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys);
+                zend_string *full_tracestate = ddtrace_format_tracestate(tracestate, propagated_span_id, origin, sampling_priority, propagated_tags, tracestate_unknown_dd_keys, opm);
                 if (full_tracestate) {
                     ADD_HEADER("tracestate", "%.*s", (int)ZSTR_LEN(full_tracestate), ZSTR_VAL(full_tracestate));
                     zend_string_release(full_tracestate);

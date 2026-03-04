@@ -284,6 +284,12 @@ namespace DDTrace {
         public array $tracestateTags = [];
 
         /**
+         * @var string The originally received Org Propagation Marker, as it will be propagated to upstream
+         * distributed tracing targets.
+         */
+        public string $orgPropgationMarker = "";
+
+        /**
          * @var string The unique identifier of the parent span as a decimal number.
          * Assignment of an invalid id will unset the parent id.
          * This variable cannot be accessed by reference.
