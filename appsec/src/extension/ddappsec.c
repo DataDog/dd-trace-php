@@ -361,8 +361,23 @@ static PHP_MINFO_FUNCTION(ddappsec)
         : DDAPPSEC_G(to_be_configured) ? "Not configured"
                                        : "Disabled");
     php_info_print_table_row(2, "Version", PHP_DDAPPSEC_VERSION);
-    php_info_print_table_row(
-        2, "Connected to helper?", dd_helper_mgr_cur_conn() ? "Yes" : "No");
+    const char *connected_str;
+    if (!dd_helper_mgr_cur_conn()) {
+        connected_str = "No";
+    } else {
+        switch (dd_helper_get_runtime()) {
+        case HELPER_RUNTIME_RUST:
+            connected_str = "Yes (Rust)";
+            break;
+        case HELPER_RUNTIME_CPP:
+            connected_str = "Yes (C++)";
+            break;
+        default:
+            connected_str = "Yes";
+            break;
+        }
+    }
+    php_info_print_table_row(2, "Connected to helper?", connected_str);
     php_info_print_table_end();
 
     DISPLAY_INI_ENTRIES();
