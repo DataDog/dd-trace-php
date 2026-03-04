@@ -28,11 +28,11 @@ class MockStripeServer implements Startable {
 
         httpServer.error(404, ctx -> {
             log.info("Unmatched Stripe mock request: ${ctx.method()} ${ctx.path()}")
-            ctx.status(404).json(['error': 'Not Found'])
+            ctx.status(404).json(['StripeMock error': 'Not Found'])
         })
 
         httpServer.error(405, ctx -> {
-            ctx.status(405).json(['error': 'Method Not Allowed'])
+            ctx.status(405).json(['StripeMock error': 'Method Not Allowed'])
         })
 
         httpServer.start(0)
@@ -51,8 +51,8 @@ class MockStripeServer implements Startable {
     }
 
     private void handleCheckoutSessionCreate(Context ctx) {
-        def body = ctx.body()
-        def mode = extractParam(body, "mode")
+        def mode = ctx.formParam("mode")
+        def clientRefId = ctx.formParam("client_reference_id")
 
         def response = [
             id: "cs_test_${System.currentTimeMillis()}",
@@ -60,7 +60,7 @@ class MockStripeServer implements Startable {
             mode: mode ?: "payment",
             amount_total: 1000,
             currency: "usd",
-            client_reference_id: extractParam(body, "client_reference_id") ?: "test_ref",
+            client_reference_id: clientRefId ?: "test_ref",
             livemode: false,
             payment_status: "unpaid",
             status: "open",
@@ -83,13 +83,14 @@ class MockStripeServer implements Startable {
     }
 
     private void handlePaymentIntentCreate(Context ctx) {
-        def body = ctx.body()
+        def amountStr = ctx.formParam("amount")
+        def currency = ctx.formParam("currency")
 
         def response = [
             id: "pi_test_${System.currentTimeMillis()}",
             object: "payment_intent",
-            amount: extractParam(body, "amount") ? Integer.parseInt(extractParam(body, "amount")) : 2000,
-            currency: extractParam(body, "currency") ?: "usd",
+            amount: amountStr ? Integer.parseInt(amountStr) : 2000,
+            currency: currency ?: "usd",
             livemode: false,
             payment_method: "pm_test_123",
             status: "requires_payment_method"
@@ -98,18 +99,6 @@ class MockStripeServer implements Startable {
         ctx.status(200)
         ctx.contentType("application/json")
         ctx.result(JsonOutput.toJson(response))
-    }
-
-    private String extractParam(String body, String param) {
-        // Parse form-encoded body (Stripe SDK sends form data)
-        def params = [:]
-        body?.split('&')?.each { pair ->
-            def kv = pair.split('=', 2)
-            if (kv.length == 2) {
-                params[URLDecoder.decode(kv[0], 'UTF-8')] = URLDecoder.decode(kv[1], 'UTF-8')
-            }
-        }
-        return params[param]
     }
 
     static Map<String, Object> createWebhookSuccessEvent() {

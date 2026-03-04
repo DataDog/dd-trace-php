@@ -2,17 +2,14 @@
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-// Get Stripe API base URL from environment (mock server URL)
 $stripeApiBase = getenv('STRIPE_API_BASE') ?: 'http://localhost:8086';
 $action = $_GET['action'] ?? 'checkout_session';
 
-// Set Stripe API key
 \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
 
 try {
     switch ($action) {
         case 'checkout_session':
-            // Test R1: Checkout Session Creation (Payment Mode)
             $client = new \Stripe\StripeClient([
                 'api_key' => 'sk_test_fake_key_for_testing',
                 'api_base' => $stripeApiBase
@@ -43,7 +40,6 @@ try {
             break;
 
         case 'checkout_session_subscription':
-            // Test R1.1: Checkout Session with non-payment mode (should be ignored)
             $client = new \Stripe\StripeClient([
                 'api_key' => 'sk_test_fake_key_for_testing',
                 'api_base' => $stripeApiBase
@@ -69,7 +65,6 @@ try {
             break;
 
         case 'payment_intent':
-            // Test R2: Payment Intent Creation
             $client = new \Stripe\StripeClient([
                 'api_key' => 'sk_test_fake_key_for_testing',
                 'api_base' => $stripeApiBase
@@ -88,13 +83,8 @@ try {
             ]);
             break;
 
-            // Ensure Stripe integration is loaded
-            $_ = new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
-
         case 'webhook_success':
-            // Test R3: Payment Success Webhook
-            // Ensure Stripe integration is loaded
-            $_ = new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
+            new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
 
             $payload = json_encode([
                 'id' => 'evt_test_success_' . time(),
@@ -113,26 +103,17 @@ try {
                 ]
             ]);
 
-            // Generate a valid Stripe webhook signature for testing
             $timestamp = time();
             $secret = 'whsec_test_secret';
             $signedPayload = $timestamp . '.' . $payload;
             $signature = hash_hmac('sha256', $signedPayload, $secret);
             $sigHeader = "t={$timestamp},v1={$signature}";
 
-            error_log("DEBUG: About to construct webhook event");
             try {
-                error_log("DEBUG: Calling Webhook::constructEvent");
                 $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);
-                error_log("DEBUG: Webhook::constructEvent succeeded");
             } catch (\Exception $e) {
-                // Fallback to direct construction if webhook fails
-                error_log("DEBUG: Webhook::constructEvent failed: " . $e->getMessage());
-                error_log("DEBUG: Calling Event::constructFrom");
                 $event = \Stripe\Event::constructFrom(json_decode($payload, true));
-                error_log("DEBUG: Event::constructFrom completed");
             }
-            error_log("DEBUG: Event construction complete, event type: " . $event->type);
 
             echo json_encode([
                 'status' => 'success',
@@ -144,9 +125,7 @@ try {
             break;
 
         case 'webhook_failure':
-            // Test R4: Payment Failure Webhook
-            // Ensure Stripe integration is loaded
-            $_ = new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
+            new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
 
             $payload = json_encode([
                 'id' => 'evt_test_failure_' . time(),
@@ -172,26 +151,17 @@ try {
                 ]
             ]);
 
-            // Generate a valid Stripe webhook signature for testing
             $timestamp = time();
             $secret = 'whsec_test_secret';
             $signedPayload = $timestamp . '.' . $payload;
             $signature = hash_hmac('sha256', $signedPayload, $secret);
             $sigHeader = "t={$timestamp},v1={$signature}";
 
-            error_log("DEBUG: About to construct webhook event");
             try {
-                error_log("DEBUG: Calling Webhook::constructEvent");
                 $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);
-                error_log("DEBUG: Webhook::constructEvent succeeded");
             } catch (\Exception $e) {
-                // Fallback to direct construction if webhook fails
-                error_log("DEBUG: Webhook::constructEvent failed: " . $e->getMessage());
-                error_log("DEBUG: Calling Event::constructFrom");
                 $event = \Stripe\Event::constructFrom(json_decode($payload, true));
-                error_log("DEBUG: Event::constructFrom completed");
             }
-            error_log("DEBUG: Event construction complete, event type: " . $event->type);
 
             echo json_encode([
                 'status' => 'success',
@@ -202,9 +172,7 @@ try {
             break;
 
         case 'webhook_cancellation':
-            // Test R5: Payment Cancellation Webhook
-            // Ensure Stripe integration is loaded
-            $_ = new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
+            new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
 
             $payload = json_encode([
                 'id' => 'evt_test_cancel_' . time(),
@@ -223,26 +191,17 @@ try {
                 ]
             ]);
 
-            // Generate a valid Stripe webhook signature for testing
             $timestamp = time();
             $secret = 'whsec_test_secret';
             $signedPayload = $timestamp . '.' . $payload;
             $signature = hash_hmac('sha256', $signedPayload, $secret);
             $sigHeader = "t={$timestamp},v1={$signature}";
 
-            error_log("DEBUG: About to construct webhook event");
             try {
-                error_log("DEBUG: Calling Webhook::constructEvent");
                 $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);
-                error_log("DEBUG: Webhook::constructEvent succeeded");
             } catch (\Exception $e) {
-                // Fallback to direct construction if webhook fails
-                error_log("DEBUG: Webhook::constructEvent failed: " . $e->getMessage());
-                error_log("DEBUG: Calling Event::constructFrom");
                 $event = \Stripe\Event::constructFrom(json_decode($payload, true));
-                error_log("DEBUG: Event::constructFrom completed");
             }
-            error_log("DEBUG: Event construction complete, event type: " . $event->type);
 
             echo json_encode([
                 'status' => 'success',
@@ -253,9 +212,7 @@ try {
             break;
 
         case 'webhook_unsupported':
-            // Test R6.2: Unsupported Event Type (should be ignored)
-            // Ensure Stripe integration is loaded
-            $_ = new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
+            new \Stripe\StripeClient(['api_key' => 'sk_test_fake_key_for_testing']);
 
             $payload = json_encode([
                 'id' => 'evt_test_unsupported_' . time(),
@@ -270,26 +227,18 @@ try {
                 ]
             ]);
 
-            // Generate a valid Stripe webhook signature for testing
             $timestamp = time();
             $secret = 'whsec_test_secret';
             $signedPayload = $timestamp . '.' . $payload;
             $signature = hash_hmac('sha256', $signedPayload, $secret);
             $sigHeader = "t={$timestamp},v1={$signature}";
 
-            error_log("DEBUG: About to construct webhook event");
             try {
-                error_log("DEBUG: Calling Webhook::constructEvent");
                 $event = \Stripe\Webhook::constructEvent($payload, $sigHeader, $secret);
-                error_log("DEBUG: Webhook::constructEvent succeeded");
             } catch (\Exception $e) {
                 // Fallback to direct construction if webhook fails
-                error_log("DEBUG: Webhook::constructEvent failed: " . $e->getMessage());
-                error_log("DEBUG: Calling Event::constructFrom");
                 $event = \Stripe\Event::constructFrom(json_decode($payload, true));
-                error_log("DEBUG: Event::constructFrom completed");
             }
-            error_log("DEBUG: Event construction complete, event type: " . $event->type);
 
             echo json_encode([
                 'status' => 'success',
@@ -300,10 +249,8 @@ try {
             break;
 
         case 'checkout_session_direct':
-            // Test Checkout Session Creation using direct static method
             \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
 
-            // Configure Stripe to use the mock server
             $opts = ['api_base' => $stripeApiBase];
 
             $session = \Stripe\Checkout\Session::create([
@@ -331,10 +278,8 @@ try {
             break;
 
         case 'payment_intent_direct':
-            // Test Payment Intent Creation using direct static method
             \Stripe\Stripe::setApiKey('sk_test_fake_key_for_testing');
 
-            // Configure Stripe to use the mock server
             $opts = ['api_base' => $stripeApiBase];
 
             $paymentIntent = \Stripe\PaymentIntent::create([
