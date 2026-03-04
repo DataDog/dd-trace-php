@@ -76,6 +76,7 @@ define('REQUEST_LATEST_DUMP_FILE', getenv('REQUEST_LATEST_DUMP_FILE') ?: ("$temp
 define('REQUEST_NEXT_RESPONSE_FILE', getenv('REQUEST_NEXT_RESPONSE_FILE') ?: ("$temp_location/response.json"));
 define('REQUEST_LOG_FILE', getenv('REQUEST_LOG_FILE') ?: ("$temp_location/requests-log.txt"));
 define('REQUEST_RC_CONFIGS_FILE', getenv('REQUEST_RC_CONFIGS_FILE') ?: ("$temp_location/rc_configs.json"));
+define('REQUEST_RC_REQUESTS_FILE', getenv('REQUEST_RC_REQUESTS_FILE') ?: ("$temp_location/rc_requests.json"));
 define('REQUEST_METRICS_FILE', getenv('REQUEST_METRICS_FILE') ?: ("$temp_location/metrics.json"));
 define('REQUEST_METRICS_LOG_FILE', getenv('REQUEST_METRICS_LOG_FILE') ?: ("$temp_location/metrics-log.txt"));
 define('REQUEST_AGENT_INFO_FILE', getenv('REQUEST_AGENT_INFO_FILE') ?: ("$temp_location/agent-info.txt"));
@@ -124,6 +125,16 @@ switch ($uri) {
         unlink(REQUEST_METRICS_LOG_FILE);
         logRequest('Returned last metrics and deleted metrics log', $request);
         break;
+    case '/replay-rc-requests':
+        if (!file_exists(REQUEST_RC_REQUESTS_FILE)) {
+            logRequest('Cannot replay RC requests; RC requests log does not exist');
+            break;
+        }
+        $request = file_get_contents(REQUEST_RC_REQUESTS_FILE);
+        echo $request;
+        unlink(REQUEST_RC_REQUESTS_FILE);
+        logRequest('Returned RC requests and deleted RC requests log', $request);
+        break;
     case '/clear-dumped-data':
         if (!file_exists(REQUEST_LATEST_DUMP_FILE) && !file_exists(REQUEST_METRICS_FILE) && !file_exists(REQUEST_RC_CONFIGS_FILE)) {
             logRequest('Cannot delete request log; request log does not exist');
@@ -146,6 +157,9 @@ switch ($uri) {
         if (file_exists(REQUEST_AGENT_INFO_FILE)) {
             unlink(REQUEST_AGENT_INFO_FILE);
         }
+        if (file_exists(REQUEST_RC_REQUESTS_FILE)) {
+            unlink(REQUEST_RC_REQUESTS_FILE);
+        }
         logRequest('Deleted request log');
         break;
     case '/next-response':
@@ -164,13 +178,13 @@ switch ($uri) {
         $request = file_get_contents('php://input');
         logRequest("Requested remote config", $request);
 
-        if (file_exists(REQUEST_LATEST_DUMP_FILE)) {
-            $tracesStack = json_decode(file_get_contents(REQUEST_LATEST_DUMP_FILE), true);
+        if (file_exists(REQUEST_RC_REQUESTS_FILE)) {
+            $tracesStack = json_decode(file_get_contents(REQUEST_RC_REQUESTS_FILE), true);
         } else {
             $tracesStack = [];
         }
         $tracesStack[] = ['uri' => $_SERVER['REQUEST_URI'], 'headers' => getallheaders(), 'body' => $request];
-        file_put_contents(REQUEST_LATEST_DUMP_FILE, json_encode($tracesStack));
+        file_put_contents(REQUEST_RC_REQUESTS_FILE, json_encode($tracesStack));
 
         $request = json_decode($request, true);
         $recentUpdate = @filemtime(REQUEST_RC_CONFIGS_FILE) > time() - 2;

@@ -104,6 +104,10 @@ package-trigger:
     RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH
     SKIP_SHARED_PIPELINE: "false"
 
+deploy_to_reliability_env:
+  variables:
+    SKIP_SHARED_PIPELINE: "false"
+
 # requirements_json_test doesn't check SKIP_SHARED_PIPELINE, suppress explicitly
 requirements_json_test:
   rules:
