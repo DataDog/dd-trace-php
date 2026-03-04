@@ -103,6 +103,7 @@ stages:
     DOCKER_LOOPBACK_SIZE: 30G
     ARCH: amd64
     HELPER_RUST_FLAG: ""
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -133,6 +134,7 @@ stages:
     - key: "appsec int test cache"
       paths:
         - appsec/tests/integration/build/*.tar.gz
+        - .gradle-home/wrapper/dists/
 
 "appsec integration tests":
   extends: .appsec_integration_tests
@@ -209,6 +211,7 @@ stages:
     - key: "appsec int test cache"
       paths:
         - appsec/tests/integration/build/*.tar.gz
+        - .gradle-home/wrapper/dists/
 
 "helper-rust code coverage":
   stage: test
@@ -274,6 +277,7 @@ stages:
     - key: "appsec int test cache"
       paths:
         - appsec/tests/integration/build/*.tar.gz
+        - .gradle-home/wrapper/dists/
 
 "helper-rust integration coverage":
   stage: test
@@ -351,6 +355,7 @@ stages:
     - key: "appsec int test cache"
       paths:
         - appsec/tests/integration/build/*.tar.gz
+        - .gradle-home/wrapper/dists/
 
 "appsec code coverage":
   stage: test
