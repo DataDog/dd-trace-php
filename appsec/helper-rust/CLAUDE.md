@@ -24,7 +24,7 @@ This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provi
 
 - **libddwaf Rust bindings**: `../third_party/libddwaf-rust/` (path dependency)
 
-- **libddwaf C++ library**: `../third_party/libddwaf/` (built separately for LIBDDWAF\_PREFIX)
+- **libddwaf C++ library**: `../third_party/libddwaf/` (linked statically into `libddappsec-helper.so`)
 
 ## Architecture
 
@@ -91,17 +91,11 @@ Telemetry sub-modules:
 The helper-rust is built via Gradle for integration testing. From `tests/integration/`:
 
 ```bash
-# Build helper-rust and libddwaf
 ./gradlew buildHelperRust --info
 
-# The output files are in the php-helper-rust Docker volume:
-# - libddappsec-helper-rust.so
-# - libddwaf.so
+# The output file is in the php-helper-rust Docker volume:
+# - libddappsec-helper.so  (libddwaf is statically linked in)
 ```
-
-The build task:
-1. Builds libddwaf as a shared library using CMake
-2. Builds helper-rust with Cargo, setting `LIBDDWAF_PREFIX` to point to the libddwaf installation
 
 ## Development Notes
 
@@ -169,9 +163,8 @@ Before running system tests with the Rust helper, copy the required binaries:
 cd tests/integration
 ./gradlew buildHelperRust --info
 
-# Extract binaries from Docker volume
-docker run -i --rm -v php-helper-rust:/vol alpine cat /vol/libddappsec-helper-rust.so > ../../system-tests/binaries/libddappsec-helper.so
-docker run -i --rm -v php-helper-rust:/vol alpine cat /vol/libddwaf.so > ../../system-tests/binaries/libddwaf.so
+# Extract binary from Docker volume (libddwaf is statically linked in)
+docker run -i --rm -v php-helper-rust:/vol alpine cat /vol/libddappsec-helper.so > ../../system-tests/binaries/libddappsec-helper.so
 
 # If there were modifications in ddtrace or the extension relative to the latest origin/master:
 ./gradlew buildAppsec-8.0-release buildTracer-8.0-release --info
