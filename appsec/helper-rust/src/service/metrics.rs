@@ -35,7 +35,7 @@ impl WorkerCountState {
     #[inline]
     fn consume_dirty(&self) -> Option<u64> {
         let prev = self.state.fetch_and(Self::COUNT_MASK, Ordering::Relaxed); // clears dirty bit
-        (prev & Self::DIRTY_BIT != 0).then(|| prev & Self::COUNT_MASK)
+        (prev & Self::DIRTY_BIT != 0).then_some(prev & Self::COUNT_MASK)
     }
 }
 impl TelemetryMetricsGenerator for WorkerCountState {
