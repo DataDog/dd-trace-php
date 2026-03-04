@@ -1,8 +1,7 @@
 --TEST--
-Thread mode sidecar: socket name encodes master uid for setuid compatibility
+Thread mode sidecar: uses abstract Unix socket (no filesystem permissions needed)
 --SKIPIF--
-<?php if (PHP_OS != "Linux") die('skip: Linux-specific socket path test'); ?>
-<?php if (!function_exists('posix_geteuid')) die('skip: requires posix extension'); ?>
+<?php if (PHP_OS != "Linux") die('skip: Linux abstract socket test'); ?>
 <?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: thread mode not available on Windows'); ?>
 <?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip: valgrind incompatible with thread mode sidecar'); ?>
 --ENV--
@@ -11,18 +10,18 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 --FILE--
 <?php
+// Trigger sidecar initialization
+DDTrace\start_span();
+DDTrace\close_span();
+
 $pid = getmypid();
-$uid = posix_geteuid();
+$pattern = sys_get_temp_dir() . "/libdatadog/libdd.*@{$pid}.sock";
 
-$pattern = sys_get_temp_dir() . "/libdatadog/libdd.*@{$uid}-{$pid}.sock";
+// Wait briefly then verify no filesystem socket was created (abstract socket is used instead)
+usleep(200000); // 200ms
+
 $sockets = glob($pattern);
-
-if (count($sockets) > 0) {
-    echo "Socket found with correct uid-pid encoding\n";
-} else {
-    echo "No thread-mode socket found (sidecar may not have started)\n";
-}
-
+echo count($sockets) === 0 ? "Sidecar uses abstract socket\n" : "Unexpected filesystem socket found\n";
 ?>
 --EXPECT--
-Socket found with correct uid-pid encoding
+Sidecar uses abstract socket
