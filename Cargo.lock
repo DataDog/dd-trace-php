@@ -3106,7 +3106,7 @@ dependencies = [
  "httparse",
  "indexmap 2.12.1",
  "libdd-alloc",
- "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?tag=v27.0.0)",
+ "libdd-common 1.1.0",
  "libdd-profiling-protobuf",
  "mime 0.3.17",
  "parking_lot",
