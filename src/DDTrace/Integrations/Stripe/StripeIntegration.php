@@ -8,7 +8,12 @@ class StripeIntegration extends Integration
 {
     const NAME = 'stripe';
 
-    public static function pushPaymentEvent(string $address, array $data)
+    private const EVENT_PAYMENT_SUCCEEDED = 'payment_intent.succeeded';
+    private const EVENT_PAYMENT_FAILED = 'payment_intent.payment_failed';
+    private const EVENT_PAYMENT_CANCELED = 'payment_intent.canceled';
+    private const CHECKOUT_MODE_PAYMENT = 'payment';
+
+    public static function pushPaymentEvent(string $address, array $data): void
     {
         if (function_exists('datadog\appsec\push_addresses')) {
             \datadog\appsec\push_addresses([$address => $data]);
@@ -17,7 +22,7 @@ class StripeIntegration extends Integration
 
     public static function flattenFields($data, array $fieldPaths): array
     {
-        $result = ['integration' => 'stripe'];
+        $result = ['integration' => self::NAME];
 
         foreach ($fieldPaths as $path) {
             $value = self::getNestedValue($data, $path);
@@ -31,8 +36,8 @@ class StripeIntegration extends Integration
 
     private static function getNestedValue($data, string $path)
     {
-        $keys = explode('.', $path);
         $value = $data;
+        $keys = explode('.', $path);
 
         foreach ($keys as $key) {
             if (is_array($value) && isset($value[$key])) {
@@ -55,27 +60,6 @@ class StripeIntegration extends Integration
         }
 
         return $value;
-    }
-
-    private static function objectToArray($obj)
-    {
-        if (is_object($obj) && method_exists($obj, 'toArray')) {
-            return $obj->toArray();
-        }
-
-        if (is_object($obj)) {
-            $vars = get_object_vars($obj);
-            if (!empty($vars)) {
-                return array_map([self::class, 'objectToArray'], $vars);
-            }
-            $obj = (array)$obj;
-        }
-
-        if (is_array($obj)) {
-            return array_map([self::class, 'objectToArray'], $obj);
-        }
-
-        return $obj;
     }
 
     public static function extractCheckoutSessionFields($result): array
@@ -107,33 +91,29 @@ class StripeIntegration extends Integration
 
     public static function extractPaymentIntentFields($result): array
     {
-        $fields = [
+        return self::flattenFields($result, [
             'id',
             'amount',
             'currency',
             'livemode',
             'payment_method',
-        ];
-
-        return self::flattenFields($result, $fields);
+        ]);
     }
 
     public static function extractPaymentSuccessFields($eventData): array
     {
-        $fields = [
+        return self::flattenFields($eventData, [
             'id',
             'amount',
             'currency',
             'livemode',
             'payment_method',
-        ];
-
-        return self::flattenFields($eventData, $fields);
+        ]);
     }
 
     public static function extractPaymentFailureFields($eventData): array
     {
-        $fields = [
+        return self::flattenFields($eventData, [
             'id',
             'amount',
             'currency',
@@ -142,222 +122,114 @@ class StripeIntegration extends Integration
             'last_payment_error.decline_code',
             'last_payment_error.payment_method.id',
             'last_payment_error.payment_method.type',
-        ];
-
-        return self::flattenFields($eventData, $fields);
+        ]);
     }
 
     public static function extractPaymentCancellationFields($eventData): array
     {
-        $fields = [
+        return self::flattenFields($eventData, [
             'id',
             'amount',
             'cancellation_reason',
             'currency',
             'livemode',
-        ];
-
-        return self::flattenFields($eventData, $fields);
+        ]);
     }
 
     public static function init(): int
     {
-        file_put_contents('/tmp/stripe_init.log', "Stripe integration initialized at " . date('Y-m-d H:i:s') . "\n", FILE_APPEND);
-        \DDTrace\hook_method(
-            'Stripe\Service\Checkout\SessionService',
-            'create',
-            null,
-            static function ($This, $scope, $args, $retval) {
-                if ($retval === null) {
-                    return;
-                }
+        self::hookCheckoutSessionCreate();
+        self::hookPaymentIntentCreate();
+        self::hookWebhookConstructEvent();
+        self::hookEventConstructFrom();
 
-                $mode = null;
-                if (is_object($retval) && isset($retval->mode)) {
-                    $mode = $retval->mode;
-                } elseif (is_array($retval) && isset($retval['mode'])) {
-                    $mode = $retval['mode'];
-                }
+        return Integration::LOADED;
+    }
 
-                if ($mode !== 'payment') {
-                    return;
-                }
-
+    private static function hookCheckoutSessionCreate(): void
+    {
+        $onCreate = static function ($This, $scope, $args, $retval) {
+            if ($retval !== null && self::isCheckoutSessionPaymentMode($retval)) {
                 $payload = self::extractCheckoutSessionFields($retval);
                 self::pushPaymentEvent('server.business_logic.payment.creation', $payload);
             }
-        );
+        };
 
-        \DDTrace\hook_method(
-            'Stripe\Service\PaymentIntentService',
-            'create',
-            null,
-            static function ($This, $scope, $args, $retval) {
-                if ($retval === null) {
-                    return;
-                }
+        \DDTrace\hook_method('Stripe\Service\Checkout\SessionService', 'create', null, $onCreate);
+        \DDTrace\hook_method('Stripe\Checkout\Session', 'create', null, $onCreate);
+    }
 
-
+    private static function hookPaymentIntentCreate(): void
+    {
+        $onCreate = static function ($This, $scope, $args, $retval) {
+            if ($retval !== null) {
                 $payload = self::extractPaymentIntentFields($retval);
                 self::pushPaymentEvent('server.business_logic.payment.creation', $payload);
             }
-        );
+        };
 
-        \DDTrace\hook_method(
-            'Stripe\Checkout\Session',
-            'create',
-            null,
-            static function ($This, $scope, $args, $retval) {
-                if ($retval === null) {
-                    return;
-                }
+        \DDTrace\hook_method('Stripe\Service\PaymentIntentService', 'create', null, $onCreate);
+        \DDTrace\hook_method('Stripe\PaymentIntent', 'create', null, $onCreate);
+    }
 
-                $mode = null;
-                if (is_object($retval) && isset($retval->mode)) {
-                    $mode = $retval->mode;
-                } elseif (is_array($retval) && isset($retval['mode'])) {
-                    $mode = $retval['mode'];
-                }
-
-                if ($mode !== 'payment') {
-                    return;
-                }
-
-                $payload = self::extractCheckoutSessionFields($retval);
-                self::pushPaymentEvent('server.business_logic.payment.creation', $payload);
-            }
-        );
-
-        \DDTrace\hook_method(
-            'Stripe\PaymentIntent',
-            'create',
-            null,
-            static function ($This, $scope, $args, $retval) {
-                if ($retval === null) {
-                    return;
-                }
-
-                $payload = self::extractPaymentIntentFields($retval);
-                self::pushPaymentEvent('server.business_logic.payment.creation', $payload);
-            }
-        );
-
+    private static function hookWebhookConstructEvent(): void
+    {
         \DDTrace\hook_method(
             'Stripe\Webhook',
             'constructEvent',
             null,
             static function ($This, $scope, $args, $retval, $exception) {
-
-                if ($exception !== null) {
-                    return;
-                }
-
-                if ($retval === null) {
-                    return;
-                }
-
-                $eventType = null;
-                if (is_object($retval) && isset($retval->type)) {
-                    $eventType = $retval->type;
-                } elseif (is_array($retval) && isset($retval['type'])) {
-                    $eventType = $retval['type'];
-                }
-
-
-                if ($eventType === null) {
-                    return;
-                }
-
-                $eventObject = null;
-                if (is_object($retval)) {
-                    $eventObject = $retval->data->object ?? null;
-                } elseif (is_array($retval)) {
-                    $eventObject = $retval['data']['object'] ?? $retval['object'] ?? null;
-                }
-
-                if ($eventObject === null) {
-                    return;
-                }
-
-                switch ($eventType) {
-                    case 'payment_intent.succeeded':
-                        $payload = self::extractPaymentSuccessFields($eventObject);
-                        self::pushPaymentEvent('server.business_logic.payment.success', $payload);
-                        break;
-
-                    case 'payment_intent.payment_failed':
-                        $payload = self::extractPaymentFailureFields($eventObject);
-                        self::pushPaymentEvent('server.business_logic.payment.failure', $payload);
-                        break;
-
-                    case 'payment_intent.canceled':
-                        $payload = self::extractPaymentCancellationFields($eventObject);
-                        self::pushPaymentEvent('server.business_logic.payment.cancellation', $payload);
-                        break;
-
-                    default:
-                        break;
+                if ($exception === null && $retval !== null) {
+                    self::processWebhookEvent($retval);
                 }
             }
         );
+    }
 
+    private static function hookEventConstructFrom(): void
+    {
         \DDTrace\hook_method(
             'Stripe\Event',
             'constructFrom',
             null,
             static function ($This, $scope, $args, $retval) {
-
-                if ($retval === null) {
-                    return;
-                }
-
-                $eventType = null;
-                if (is_object($retval) && isset($retval->type)) {
-                    $eventType = $retval->type;
-                } elseif (is_array($retval) && isset($retval['type'])) {
-                    $eventType = $retval['type'];
-                }
-
-
-                if ($eventType === null) {
-                    return;
-                }
-
-                $eventObject = null;
-                if (is_object($retval)) {
-                    $eventObject = $retval->data->object ?? null;
-                } elseif (is_array($retval)) {
-                    $eventObject = $retval['data']['object'] ?? $retval['object'] ?? null;
-                }
-
-
-                if ($eventObject === null) {
-                    return;
-                }
-
-
-                switch ($eventType) {
-                    case 'payment_intent.succeeded':
-                        $payload = self::extractPaymentSuccessFields($eventObject);
-                        self::pushPaymentEvent('server.business_logic.payment.success', $payload);
-                        break;
-
-                    case 'payment_intent.payment_failed':
-                        $payload = self::extractPaymentFailureFields($eventObject);
-                        self::pushPaymentEvent('server.business_logic.payment.failure', $payload);
-                        break;
-
-                    case 'payment_intent.canceled':
-                        $payload = self::extractPaymentCancellationFields($eventObject);
-                        self::pushPaymentEvent('server.business_logic.payment.cancellation', $payload);
-                        break;
-
-                    default:
-                        break;
+                if ($retval !== null) {
+                    self::processWebhookEvent($retval);
                 }
             }
         );
+    }
 
-        return Integration::LOADED;
+    private static function isCheckoutSessionPaymentMode($session): bool
+    {
+        $mode = self::getNestedValue($session, 'mode');
+        return $mode === self::CHECKOUT_MODE_PAYMENT;
+    }
+
+    private static function processWebhookEvent($event): void
+    {
+        $eventType = self::getNestedValue($event, 'type');
+        $eventObject = self::getNestedValue($event, 'data.object') ?? self::getNestedValue($event, 'object');
+
+        if ($eventType === null || $eventObject === null) {
+            return;
+        }
+
+        switch ($eventType) {
+            case self::EVENT_PAYMENT_SUCCEEDED:
+                $payload = self::extractPaymentSuccessFields($eventObject);
+                self::pushPaymentEvent('server.business_logic.payment.success', $payload);
+                break;
+            case self::EVENT_PAYMENT_FAILED:
+                $payload = self::extractPaymentFailureFields($eventObject);
+                self::pushPaymentEvent('server.business_logic.payment.failure', $payload);
+                break;
+            case self::EVENT_PAYMENT_CANCELED:
+                $payload = self::extractPaymentCancellationFields($eventObject);
+                self::pushPaymentEvent('server.business_logic.payment.cancellation', $payload);
+                break;
+            default:
+                break;
+        }
     }
 }
