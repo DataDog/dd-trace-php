@@ -22,14 +22,12 @@ void zai_uhook_minit(int module_number);
 void zai_uhook_mshutdown();
 
 void dd_uhook_callback_apply_scope(dd_uhook_callback *cb, zend_class_entry *scope);
-static inline void dd_uhook_callback_ensure_scope(dd_uhook_callback *cb, zend_execute_data *execute_data) {
-    zend_class_entry *scope;
+// Note that we cannot access zend_get_called_scope(execute_data) here - we need to have it provided from earlier, it might have been invalidated by now, e.g. in ZEND_NAMED_FUNCTION(zend_closure_internal_handler).
+static inline void dd_uhook_callback_ensure_scope(dd_uhook_callback *cb, zend_execute_data *execute_data, zend_class_entry *scope) {
     if (!cb->fcc.function_handler) {
-        scope = zend_get_called_scope(execute_data);
         goto apply_scope;
     } else if (!cb->is_static) {
         bool has_this;
-        scope = zend_get_called_scope(execute_data);
         if (scope != cb->fcc.called_scope) {
 apply_scope:
             dd_uhook_callback_apply_scope(cb, scope);
