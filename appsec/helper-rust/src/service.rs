@@ -134,6 +134,22 @@ pub struct InitDiagnosticsLegacy {
     pub rules_failed: u32,
     pub rules_errors: String,
 }
+impl InitDiagnosticsLegacy {
+    fn merge(&mut self, other: Self) {
+        self.rules_loaded += other.rules_loaded;
+        self.rules_failed += other.rules_failed;
+        if other.rules_errors != "{}" {
+            let mut base: serde_json::Map<String, serde_json::Value> =
+                serde_json::from_str(&self.rules_errors).unwrap_or_default();
+            if let Ok(other_map) =
+                serde_json::from_str::<serde_json::Map<_, _>>(&other.rules_errors)
+            {
+                base.extend(other_map);
+            }
+            self.rules_errors = serde_json::to_string(&base).unwrap_or_else(|_| "{}".to_string());
+        }
+    }
+}
 impl SpanMetricsGenerator for InitDiagnosticsLegacy {
     fn generate_span_metrics(&'_ self, submitter: &mut dyn SpanMetricsSubmitter) {
         submitter.submit_metric(telemetry::EVENT_RULES_LOADED, self.rules_loaded as f64);
@@ -433,6 +449,17 @@ impl Service {
                     false
                 }
             };
+
+            // Legacy span metrics/meta (e.g. _dd.appsec.event_rules.loaded)
+            state.pending_init_diagnostics_legacy = Some(
+                all_diagnostics
+                    .iter()
+                    .map(|(_, d)| waf_diag::extract_init_diagnostics_legacy(d))
+                    .fold(InitDiagnosticsLegacy::default(), |mut acc, d| {
+                        acc.merge(d);
+                        acc
+                    }),
+            );
 
             // Telemetry waf.updates
             let mut tags = TelemetryTags::new();
