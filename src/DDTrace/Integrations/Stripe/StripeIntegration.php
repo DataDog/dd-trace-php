@@ -192,8 +192,8 @@ class StripeIntegration extends Integration
             'Stripe\Event',
             'constructFrom',
             null,
-            static function ($This, $scope, $args, $retval) {
-                if ($retval !== null) {
+            static function ($This, $scope, $args, $retval, $exception) {
+                if ($exception === null && $retval !== null) {
                     self::processWebhookEvent($retval);
                 }
             }
