@@ -100,11 +100,6 @@ configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
     ALLOW_MULTIPLE_CHILD_LEVELS: "false"
-  rules:
-    # - if: '$CI_PIPELINE_SOURCE == "schedule"'
-    - when: on_success
-      variables:
-        SYSTEM_TESTS_SCENARIOS_GROUPS: "tracer-release"
 
 package-oci:
   needs:
