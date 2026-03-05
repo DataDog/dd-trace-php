@@ -71,10 +71,6 @@ def api_get(token: str, path: str, params: dict | None = None) -> list | dict:
     return resp.json()
 
 
-def get_pipeline_jobs(token: str, pipeline_id: int | str, filter_str: str) -> list:
-    return [j for j in _iter_pipeline_jobs(token, pipeline_id) if filter_str in j["name"]]
-
-
 def get_head_sha() -> str:
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
@@ -165,10 +161,6 @@ def _iter_pipeline_jobs(token: str, pipeline_id: int | str):
             break
 
 
-def get_all_pipeline_jobs(token: str, pipeline_id: int | str) -> list:
-    return list(_iter_pipeline_jobs(token, pipeline_id))
-
-
 def download_artifact(token: str, pipeline_id: str, artifact_key: str, output_dir: Path) -> None:
     job_name = ARTIFACT_JOBS[artifact_key]
     job = next((j for j in _iter_pipeline_jobs(token, pipeline_id) if j["name"] == job_name), None)
@@ -230,6 +222,110 @@ def classify_jobs(jobs: list) -> tuple[list, list, list]:
     return running, passed, failed
 
 
+def _make_jobs_getter(token: str, filter_str: str | None, get_roots):
+    """Return a callable that collects jobs across all matching pipelines.
+
+    get_roots: called on every poll, returns pipeline IDs to use as discovery roots.
+    Each root is checked for matching jobs once (result cached in known_ids/seen_ids).
+    Bridges of every root are re-checked on each poll so downstream pipelines triggered
+    mid-run are discovered. filter_str=None means no filtering (all jobs included).
+    """
+    known_ids: set[str] = set()  # pipeline IDs confirmed to have at least one matching job
+    seen_ids: set[str] = set()   # all pipeline IDs already probed (match or not)
+
+    def getter() -> list:
+        for pid in get_roots():
+            pid = str(pid)
+            if pid not in seen_ids:
+                seen_ids.add(pid)
+                if filter_str is None or any(
+                    filter_str in j["name"] for j in _iter_pipeline_jobs(token, pid)
+                ):
+                    known_ids.add(pid)
+            # Always re-check bridges: new downstream pipelines appear as bridges complete.
+            bridges = api_get(
+                token,
+                f"projects/{PROJECT_ID}/pipelines/{pid}/bridges",
+                {"per_page": 100},
+            )
+            for bridge in bridges:
+                downstream = bridge.get("downstream_pipeline")
+                if not downstream:
+                    continue
+                child_id = str(downstream["id"])
+                if child_id not in seen_ids:
+                    seen_ids.add(child_id)
+                    if filter_str is None or any(
+                        filter_str in j["name"] for j in _iter_pipeline_jobs(token, child_id)
+                    ):
+                        known_ids.add(child_id)
+
+        all_jobs = []
+        for pid in known_ids:
+            all_jobs.extend(
+                j for j in _iter_pipeline_jobs(token, pid)
+                if filter_str is None or filter_str in j["name"]
+            )
+        return all_jobs
+
+    return getter
+
+
+def _wait_for_first_match(getter, sha: str, filter_str: str | None) -> None:
+    """Block until getter() returns at least one job, or PIPELINE_WAIT_TIMEOUT elapses."""
+    deadline = time.monotonic() + PIPELINE_WAIT_TIMEOUT
+    attempt = 0
+    while True:
+        if getter():
+            return
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            desc = f"matching '{filter_str}'" if filter_str else "any"
+            print(f"ERROR: No {desc} jobs found for commit {sha}", file=sys.stderr)
+            sys.exit(1)
+        attempt += 1
+        wait = min(PIPELINE_WAIT_INTERVAL, remaining)
+        desc = f"matching '{filter_str}' " if filter_str else ""
+        print(f"No {desc}jobs yet for {sha[:12]}, retrying in {wait:.0f}s "
+              f"(attempt {attempt}, {remaining:.0f}s remaining)...")
+        time.sleep(wait)
+
+
+def _monitor_loop(jobs_getter, label: str, timeout_sec: float) -> None:
+    deadline = time.monotonic() + timeout_sec
+    while True:
+        jobs = jobs_getter()
+        running, passed, failed = classify_jobs(jobs)
+        now = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        print(
+            f"[{now}] {label}  "
+            f"total={len(jobs)}  running={len(running)}  "
+            f"passed={len(passed)}  failed={len(failed)}"
+        )
+
+        if failed:
+            print("\nFailed jobs:")
+            for j in failed:
+                print(f"  [{j['id']}] {j['name']}")
+            sys.exit(1)
+
+        if not running:
+            print(f"\nAll {len(passed)} jobs passed.")
+            sys.exit(0)
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            print(
+                f"\nTIMEOUT after {timeout_sec / 60:.1f} minutes — jobs still running:",
+                file=sys.stderr,
+            )
+            for j in running:
+                print(f"  [{j['id']}] {j['name']} ({j['status']})", file=sys.stderr)
+            sys.exit(2)
+
+        time.sleep(min(POLL_INTERVAL, remaining))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Monitor GitLab CI pipeline jobs until completion, or download artifacts."
@@ -248,7 +344,9 @@ def main() -> None:
     parser.add_argument(
         "--filter",
         default="appsec",
-        help="Substring to filter job names for monitoring (default: appsec)",
+        metavar="STR",
+        help='Substring to filter job names (default: appsec). '
+             'Pass "" or "none" to monitor all jobs across the full pipeline tree.',
     )
     parser.add_argument(
         "--timeout",
@@ -299,57 +397,27 @@ def main() -> None:
         return
 
     # Monitoring mode
+    timeout_sec = args.timeout * 60
+    filter_str = args.filter if args.filter and args.filter.lower() != "none" else None
+
     if args.pipeline:
         pipeline_id = args.pipeline
         print(f"Using pipeline {pipeline_id}")
+        getter = _make_jobs_getter(token, filter_str, lambda: [pipeline_id])
+        _monitor_loop(getter, f"pipeline={pipeline_id}", timeout_sec)
     else:
         sha = args.commit or get_head_sha()
         if not args.commit:
             print(f"Using HEAD commit: {sha[:12]}")
-        pipeline_id = find_pipeline_for_commit(token, sha, args.filter)
-
-    timeout_sec = args.timeout * 60
-    deadline = time.monotonic() + timeout_sec
-
-    while True:
-        jobs = get_pipeline_jobs(token, pipeline_id, args.filter)
-
-        if not jobs:
-            print(
-                f"ERROR: No jobs found matching filter '{args.filter}' in pipeline {pipeline_id}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
-        running, passed, failed = classify_jobs(jobs)
-        now = datetime.now(timezone.utc).strftime("%H:%M:%S")
-        print(
-            f"[{now}] pipeline={pipeline_id}  "
-            f"total={len(jobs)}  running={len(running)}  "
-            f"passed={len(passed)}  failed={len(failed)}"
-        )
-
-        if failed:
-            print("\nFailed jobs:")
-            for j in failed:
-                print(f"  [{j['id']}] {j['name']}")
-            sys.exit(1)
-
-        if not running:
-            print(f"\nAll {len(passed)} jobs passed.")
-            sys.exit(0)
-
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            print(
-                f"\nTIMEOUT after {timeout_sec / 60:.1f} minutes — jobs still running:",
-                file=sys.stderr,
-            )
-            for j in running:
-                print(f"  [{j['id']}] {j['name']} ({j['status']})", file=sys.stderr)
-            sys.exit(2)
-
-        time.sleep(min(POLL_INTERVAL, remaining))
+        def get_roots():
+            return [
+                str(p["id"])
+                for p in api_get(token, f"projects/{PROJECT_ID}/pipelines", {"sha": sha, "per_page": 20})
+            ]
+        getter = _make_jobs_getter(token, filter_str, get_roots)
+        label = f"filter={filter_str!r}" if filter_str else f"sha={sha[:12]}"
+        _wait_for_first_match(getter, sha, filter_str)
+        _monitor_loop(getter, label, timeout_sec)
 
 
 if __name__ == "__main__":
