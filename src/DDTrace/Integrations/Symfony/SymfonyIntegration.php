@@ -527,50 +527,52 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                 }
             };
-
-            \DDTrace\trace_method(
-                'Symfony\Component\HttpKernel\HttpKernel',
-                'handle',
-                static function(SpanData $span, $args, $response) use ($handle_http_route) {
-                    /** @var Request $request */
-                    list($request) = $args;
-
-                    $span->name = 'symfony.kernel.handle';
-                    $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
-                    $span->type = Type::WEB_SERVLET;
-                    $span->meta[Tag::COMPONENT] = self::NAME;
-
-                    $rootSpan = \DDTrace\root_span();
-                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->meta[Tag::COMPONENT] = self::$frameworkPrefix;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
-
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
-                    }
-                    if (isset($response)) {
-                        $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                    }
-
-                    $route_name = $request->get('_route');
-                    if ($route_name !== null) {
-                        if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                            $rootSpan->resource = $route_name;
-                        }
-                        $rootSpan->meta['symfony.route.name'] = $route_name;
-                        $handle_http_route($route_name, $request, $rootSpan);
-                    }
-
-                    $parameters = $request->get('_route_params');
-                    if (!empty($parameters) &&
-                        is_array($parameters) &&
-                        function_exists('datadog\appsec\push_addresses')) {
-                        \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
-                    }
-                }
-            );
+        } else {
+            $handle_http_route = static function() { /* noop */ };
         }
+
+        \DDTrace\trace_method(
+            'Symfony\Component\HttpKernel\HttpKernel',
+            'handle',
+            static function(SpanData $span, $args, $response) use ($handle_http_route) {
+                /** @var Request $request */
+                list($request) = $args;
+
+                $span->name = 'symfony.kernel.handle';
+                $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                $span->type = Type::WEB_SERVLET;
+                $span->meta[Tag::COMPONENT] = self::NAME;
+
+                $rootSpan = \DDTrace\root_span();
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->meta[Tag::COMPONENT] = self::$frameworkPrefix;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                self::addTraceAnalyticsIfEnabled($rootSpan);
+
+                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
+                }
+                if (isset($response)) {
+                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                }
+
+                $route_name = $request->get('_route');
+                if ($route_name !== null) {
+                    if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                        $rootSpan->resource = $route_name;
+                    }
+                    $rootSpan->meta['symfony.route.name'] = $route_name;
+                    $handle_http_route($route_name, $request, $rootSpan);
+                }
+
+                $parameters = $request->get('_route_params');
+                if (!empty($parameters) &&
+                    is_array($parameters) &&
+                    function_exists('datadog\appsec\push_addresses')) {
+                    \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
+                }
+            }
+        );
 
         /*
          * EventDispatcher v4.3 introduced an arg hack that mutates the arguments.
