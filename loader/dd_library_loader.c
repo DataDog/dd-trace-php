@@ -301,7 +301,7 @@ void ddloader_logv(injected_ext *config, log_level level, const char *format, va
 
     char full[512];
     snprintf(full, sizeof(full), "[dd_library_loader][%s] %s", level_str, msg);
-    _php_error_log(0, full, NULL, NULL);
+    php_log_err(full);
 }
 
 void ddloader_logf(injected_ext *config, log_level level, const char *format, ...) {
