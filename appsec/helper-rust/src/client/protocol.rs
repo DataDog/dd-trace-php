@@ -26,7 +26,7 @@ pub enum Command {
 
 #[derive(Debug)]
 pub enum CommandResponse<'a> {
-    ProtocolError,
+    FatalError,
     ClientInit(ClientInitResp),
     ConfigSync,
     ConfigFeatures(ConfigFeaturesResp),
@@ -393,7 +393,7 @@ impl Serialize for CommandResponse<'_> {
     {
         let mut state = serializer.serialize_seq(Some(2))?;
         match self {
-            CommandResponse::ProtocolError => {
+            CommandResponse::FatalError => {
                 state.serialize_element("error")?;
                 state.serialize_element(&())?;
                 state.end()
@@ -711,7 +711,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_error_response() {
-        let resp = CommandResponse::ProtocolError;
+        let resp = CommandResponse::FatalError;
         let mut buf = BytesMut::new();
         let mut encoder = CommandCodec;
         encoder.encode(resp, &mut buf).unwrap();

@@ -147,6 +147,12 @@ struct CleanShutdown;
 #[error("Client disconnected with incomplete data: {0}")]
 struct ForcefulDisconnect(io::Error);
 
+/// A fatal error occurred while processing a request.  The client will be sent
+/// a FatalError response and the connection will be closed.
+#[derive(Debug, Error)]
+#[error("{0}")]
+struct FatalRequestError(anyhow::Error);
+
 async fn do_client_entrypoint(
     client: &mut Client,
     stream: UnixStream,
@@ -211,6 +217,16 @@ async fn do_client_entrypoint_inner(
             }
             Err(err) if err.is::<ForcefulDisconnect>() => {
                 info!("client disconnected unexpectedly");
+                return Err(err);
+            }
+            Err(err) if err.is::<FatalRequestError>() => {
+                info!(
+                    "fatal error, closing connection after signalling error to client: {}",
+                    err
+                );
+                if let Err(e) = send_command_resp(&mut framed, CommandResponse::FatalError).await {
+                    info!("error sending fatal error response: {}", e);
+                }
                 return Err(err);
             }
             Err(err) => {
@@ -358,7 +374,9 @@ async fn do_request_loop_iter(
             }
 
             let mut req_ctx = ReqContext::new(service, config_snapshot.clone());
-            let result = req_ctx.run_waf(req.data, &protocol::RequestExecOptions::regular())?;
+            let result = req_ctx
+                .run_waf(req.data, &protocol::RequestExecOptions::regular())
+                .map_err(FatalRequestError)?;
 
             let resp = protocol::CommandResponse::RequestInit(protocol::RequestInitResp {
                 triggers: &result.triggers,
@@ -414,7 +432,9 @@ async fn do_request_loop_iter(
                     }
                 };
 
-                let result = req_ctx.run_waf(req.data, req_options)?;
+                let result = req_ctx
+                    .run_waf(req.data, req_options)
+                    .map_err(FatalRequestError)?;
 
                 let resp = protocol::CommandResponse::RequestExec(protocol::RequestExecResp {
                     triggers: result.triggers,
@@ -444,7 +464,9 @@ async fn do_request_loop_iter(
                     req.data
                 };
 
-                let result = req_ctx.run_waf(data, &protocol::RequestExecOptions::regular())?;
+                let result = req_ctx
+                    .run_waf(data, &protocol::RequestExecOptions::regular())
+                    .map_err(FatalRequestError)?;
 
                 // span metrics / meta
                 let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
@@ -580,7 +602,7 @@ impl ReqContext {
             Ok(res) => res,
             Err(err) => {
                 self.waf_metrics.record_non_rasp_error_eval();
-                anyhow::bail!("WAF evaluation error: {:?}", err);
+                anyhow::bail!("WAF evaluation error: {}", err);
             }
         };
 
@@ -859,8 +881,10 @@ async fn recv_command(
                     } else {
                         // Protocol error: invalid header marker, bad msgpack, unknown command
                         error!("Protocol error receiving command: {}", err);
-                        let _ = framed.send(CommandResponse::ProtocolError).await;
-                        Err(err.into())
+                        // convert std error to anyhow error,
+                        // wrap in FatalRequestError and convert again to anyhow error...
+                        let new_err = anyhow::Error::new(err).context("Protocol error receiving command");
+                        Err(FatalRequestError(new_err).into())
                     }
                 }
                 None => {
