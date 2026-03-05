@@ -1,7 +1,6 @@
 stages:
   - build
   - tests
-  - shared-pipeline
   - deploy
   - ci-build
 
@@ -9,11 +8,6 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
-  # Suppress shared-pipeline jobs (package-oci and its downstream) in the
-  # parent pipeline. They run in the child pipeline (package-gen.yml) where
-  # package loader artifacts are available. Override to "false" in
-  # package-trigger so the child pipeline runs them correctly.
-  SKIP_SHARED_PIPELINE: "true"
   RELIABILITY_ENV_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
@@ -23,7 +17,6 @@ include:
   - project: DataDog/apm-reliability/libdatadog-build
     ref: 5826819695d93286569e70ed087ae6bf906ce2c3
     file: templates/ci_authenticated_job.yml
-  - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/ci-images.yml
 
 generate-templates:
@@ -102,28 +95,3 @@ package-trigger:
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
     NIGHTLY_BUILD: $NIGHTLY_BUILD
     RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH
-    SKIP_SHARED_PIPELINE: "false"
-
-deploy_to_reliability_env:
-  variables:
-    SKIP_SHARED_PIPELINE: "false"
-
-# requirements_json_test doesn't check SKIP_SHARED_PIPELINE, suppress explicitly
-requirements_json_test:
-  rules:
-    - when: never
-
-validate_supported_configurations_v2_local_file:
-  needs: []
-  extends: .validate_supported_configurations_v2_local_file
-  variables:
-    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
-    BACKFILLED: "true"
-
-update_central_configurations_version_range_v2:
-  extends: .update_central_configurations_version_range_v2
-  variables:
-    LOCAL_REPO_NAME: "dd-trace-php"
-    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
-    LANGUAGE_NAME: "php"
-    MULTIPLE_RELEASE_LINES: "false"
