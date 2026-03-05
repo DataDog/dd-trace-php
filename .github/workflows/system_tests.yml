@@ -20,7 +20,6 @@ jobs:
       packages: write
     with:
       library: php
-      ref: master
       scenarios_groups: tracer-release
       skip_empty_scenarios: true
       _system_tests_dev_mode: true
