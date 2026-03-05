@@ -9,7 +9,7 @@ include __DIR__ . '/inc/mock_helper.php';
 $obj = new ArrayObject();
 $helper = Helper::createRun([
     response_list(
-        response_client_init(['ok', '0.0.0',[],$obj,$obj])
+        response_client_init(['ok', '0.0.0',[],$obj,$obj,null])
     )
 ]);
 

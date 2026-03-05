@@ -295,6 +295,24 @@ if ($suffix == "-alpine") {
     paths:
       - "appsec_*"
 
+"compile appsec helper rust":
+  stage: appsec
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
+  tags: [ "arch:$ARCH" ]
+  needs: [ "prepare code" ]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64" ]
+  variables:
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+  script: .gitlab/build-appsec-helper-rust.sh
+  artifacts:
+    paths:
+      - "appsec_*"
+
 "pecl build":
   stage: tracing
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
@@ -628,8 +646,15 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-    # Compile appsec helper
+    # Compile appsec helper (C++)
     - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $platform['arch'] ?>"
+      artifacts: true
+
+    # Compile appsec helper (Rust)
+    - job: "compile appsec helper rust"
       parallel:
         matrix:
           - ARCH: "<?= $platform['arch'] ?>"
@@ -701,6 +726,11 @@ foreach ($asan_build_platforms as $platform) {
     - job: "prepare code"
       artifacts: true
     - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $arch ?>"
+      artifacts: true
+    - job: "compile appsec helper rust"
       parallel:
         matrix:
           - ARCH: "<?= $arch ?>"

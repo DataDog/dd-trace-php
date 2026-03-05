@@ -151,23 +151,40 @@ def buildRunInDockerTask = { Map options ->
     String baseName = options.get('baseName')
     def version = options.get('version')
     def variant = options.get('variant')
-    String imageTag = "${options.get('baseTag', 'php')}-$version-$variant"
-    String imageName = "$dockerMirror/${repo}${map_tag(imageTag)}"
-    def pullTask = dockerPullTask(imageTag)
+    def hasVersionVariant = version && variant
+    def suffix = hasVersionVariant ? "-${version}-${variant}" : ''
 
-    def volumes = [:]
+    String imageName
+    def pullTask
+    if (options.containsKey('externalImage')) {
+        // Use external Docker image (e.g., rust:alpine3.23)
+        imageName = "$dockerMirror/${options['externalImage']}"
+        pullTask = null // No pull task for external images
+    } else {
+        String imageTag = options.get('imageTag') ?: "${options.get('baseTag', 'php')}-$version-$variant"
+        imageName = "$dockerMirror/${repo}${map_tag(imageTag)}"
+        pullTask = dockerPullTask(imageTag)
+    }
+
+    def volumes = options.get('volumes', [:]).collectEntries { k, v ->
+        [k, v + [task: createVolumeTask(k)]]
+    }
     def binds = [
             ("${projectDir}/../../..".toString()):  '/project'
     ]
 
-    if (options.get('needsTracer', true)) {
-        volumes["php-tracer-${version}-${variant}"] = [
+    if (hasVersionVariant && options.get('needsTracer', true)) {
+        def volName = "php-tracer-${version}-${variant}"
+        volumes[volName] = [
                 mountPoint: '/project/tmp',
+                task: createVolumeTask(volName),
         ]
     }
-    if (options.get('needsAppsec', true)) {
-        volumes["php-appsec-${version}-${variant}"] = [
+    if (hasVersionVariant && options.get('needsAppsec', true)) {
+        def volName = "php-appsec-${version}-${variant}"
+        volumes[volName] = [
                 mountPoint: '/appsec',
+                task: createVolumeTask(volName),
         ]
     }
     if (options.get('needsBoostCache', true)) {
@@ -176,15 +193,18 @@ def buildRunInDockerTask = { Map options ->
         } else {
             volumes['php-appsec-boost-cache'] = [
                     mountPoint: '/root/.boost',
+                    task: createVolumeTask('php-appsec-boost-cache'),
             ]
         }
     }
     if (options.get('needsCargoCache', true)) {
         volumes['php-tracer-cargo-cache'] = [
                 mountPoint: '/root/.cargo/registry',
+                task: createVolumeTask('php-tracer-cargo-cache'),
         ]
         volumes['php-tracer-cargo-cache-git'] = [
                 mountPoint: '/root/.cargo/git',
+                task: createVolumeTask('php-tracer-cargo-cache-git'),
         ]
     }
 
@@ -199,13 +219,9 @@ def buildRunInDockerTask = { Map options ->
         binds[composerFile] = '/usr/local/bin/composer'
     }
 
-    volumes.keySet().each { volumeName ->
-        volumes[volumeName]['task'] = createVolumeTask(volumeName)
-    }
-
-    def t = tasks.register("$baseName-$version-$variant", Exec) {
+    def t = tasks.register("$baseName$suffix", Exec) {
         if (options['description']) {
-            description = "${options['description']} for PHP $version $variant"
+            description = hasVersionVariant ? "${options['description']} for PHP $version $variant" : options['description']
 
             def inputsSpec = options.get('inputs', [:])
             inputsSpec.get('dirs', []).each { dir ->
@@ -231,13 +247,13 @@ def buildRunInDockerTask = { Map options ->
             if (!options['outputs']) {
                 outputs.upToDateWhen { false }
             } else {
-                String volumeName = "${options['outputs']['volume']}-${version}-${variant}"
+                String volumeName = hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']
                 def files = options['outputs']['files']
                 outputs.upToDateWhen {
                     Process proc = ['docker', 'run', '--rm', '--mount',
                                     "type=volume,src=$volumeName,dst=/vol",
                                     "$dockerMirror/library/busybox", 'sh', '-c',
-                                    "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')} | sort -n | head -1"]
+                                    "stat -c %Y ${files.collect { "'/vol/$it'" }.join(' ')} 2>/dev/null | sort -n | head -1"]
                             .execute()
 
                     proc.waitForOrKill(5_000)
@@ -261,20 +277,27 @@ def buildRunInDockerTask = { Map options ->
 
             def commandLine = [
                     'docker', 'run', '--init', '--rm',
-                    '--entrypoint', '/bin/bash',
-                    '--user', uuid,
-                    '-e', 'HOME=/tmp',
+                    '--entrypoint', options.get('entrypoint', '/bin/bash'),
             ]
+            if (!options.get('runAsRoot', false)) {
+                commandLine.addAll(['--user', uuid, '-e', 'HOME=/tmp'])
+            }
             binds.each { source, dest ->
                 commandLine.addAll(['--mount', "type=bind,src=${source},dst=${dest}"])
             }
             volumes.each { volumeName, volumeSpec ->
                 commandLine << '--mount'
-                commandLine << "type=volume,src=${volumeName},dst=${volumeSpec['mountPoint']}"
+                def mountOpts = "type=volume,src=${volumeName},dst=${volumeSpec['mountPoint']}"
+                if (volumeSpec.get('readonly', false)) {
+                    mountOpts += ',readonly'
+                }
+                commandLine << mountOpts
                 dependsOn volumeSpec['task']
             }
             commandLine << imageName
-            dependsOn pullTask
+            if (pullTask) {
+                dependsOn pullTask
+            }
 
             commandLine.addAll(options['command'])
             it.commandLine commandLine
@@ -282,15 +305,20 @@ def buildRunInDockerTask = { Map options ->
             if (composerDlTask) {
                 dependsOn composerDlTask
             }
+
+            options.get('taskDependencies', []).each { dep ->
+                dependsOn dep
+            }
         }
     }
 
     if (options.containsKey('outputs') && options['outputs'].containsKey('volume')) {
-        String taskName = "cleanVolume-${options['outputs']['volume']}-${version}-${variant}"
+        String volName = hasVersionVariant ? "${options['outputs']['volume']}${suffix}" : options['outputs']['volume']
+        String taskName = "cleanVolume-${volName}"
         if (!tasks.findByName(taskName)) {
             def task = tasks.register(taskName, Exec) {
-                description = "Clean volume ${options['outputs']['volume']} for PHP $version $variant"
-                commandLine 'docker', 'volume', 'rm', '-f', "${options['outputs']['volume']}-${version}-${variant}"
+                description = hasVersionVariant ? "Clean volume ${options['outputs']['volume']} for PHP $version $variant" : "Clean volume ${options['outputs']['volume']}"
+                commandLine 'docker', 'volume', 'rm', '-f', volName
             }
             tasks['clean'].dependsOn task
         }
@@ -299,10 +327,10 @@ def buildRunInDockerTask = { Map options ->
     t
 }
 
-def buildTracerTask = { String version, String variant ->
+def buildTracerTask = { String version, String variant, altBaseTag = null ->
     buildRunInDockerTask(
             baseName: 'buildTracer',
-            baseTag: 'php',
+            baseTag: altBaseTag ?: 'php',
             version: version,
             variant: variant,
             needsAppsec: false,
@@ -329,11 +357,11 @@ def buildTracerTask = { String version, String variant ->
     )
 }
 
-def buildAppSecTask = { String version, String variant ->
+def buildAppSecTask = { String version, String variant, altBaseTag = null ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
             baseName: 'buildAppsec',
-            baseTag: 'php',
+            baseTag: altBaseTag ?: 'php',
             version: version,
             variant: variant,
             needsTracer: false,
@@ -407,18 +435,39 @@ def runMainTask = { String phpVersion, String variant ->
         systemProperty 'PHP_VERSION', phpVersion
         systemProperty 'VARIANT', variant
 
+        if (project.hasProperty('helperBinary')) {
+            systemProperty 'USE_HELPER_RUST', '1'
+            systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
+        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
+            systemProperty 'USE_HELPER_RUST', '1'
+        }
+        if (project.hasProperty('useHelperRustCoverage')) {
+            systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
+        }
+
         dependsOn "buildTracer-$phpVersion-$variant"
         dependsOn "buildAppsec-$phpVersion-$variant"
+        if (project.hasProperty('helperBinary')) {
+            // Skip building helper-rust when explicit binary path is provided
+        } else if (project.hasProperty('useHelperRustCoverage')) {
+            dependsOn 'buildHelperRustWithCoverage'
+        } else if (project.hasProperty('useHelperRust')) {
+            dependsOn 'buildHelperRust'
+        }
     }
 }
 
-testMatrix.each { spec ->
+(testMatrix + [['8.5', 'release-musl']]).each { spec ->
     String phpVersion = spec[0]
     String variant = spec[1]
 
-    buildTracerTask(phpVersion, variant)
-    buildAppSecTask(phpVersion, variant)
-    runUnitTestsTask(phpVersion, variant)
+    def isMusl = variant =~ /\bmusl\b/
+
+    buildTracerTask(phpVersion, variant, isMusl ? 'nginx-fpm-php' : null)
+    buildAppSecTask(phpVersion, variant, isMusl ? 'nginx-fpm-php' : null)
+    if (!isMusl) {
+        runUnitTestsTask(phpVersion, variant)
+    }
     if (project.hasProperty('testClass')) {
         runMainTask(phpVersion, variant)
     }
@@ -432,6 +481,10 @@ testMatrix.each { spec ->
         it.useJUnitPlatform {
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
+
+            if (isMusl) {
+                includeTags('musl')
+            }
         }
 
         it.testClassesDirs = sourceSets.test.output.classesDirs
@@ -442,6 +495,15 @@ testMatrix.each { spec ->
         if (project.hasProperty('XDEBUG')) {
             it.systemProperty 'XDEBUG', '1'
         }
+        if (project.hasProperty('helperBinary')) {
+            it.systemProperty 'USE_HELPER_RUST', '1'
+            it.systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
+        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
+            it.systemProperty 'USE_HELPER_RUST', '1'
+        }
+        if (project.hasProperty('useHelperRustCoverage')) {
+            it.systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
+        }
 
         it.systemProperty 'DOCKER_MIRROR', dockerMirror
         if (!project.hasProperty("floatingImageTags")) {
@@ -450,8 +512,15 @@ testMatrix.each { spec ->
 
         dependsOn "buildTracer-${phpVersion}-${variant}"
         dependsOn "buildAppsec-${phpVersion}-${variant}"
+        if (project.hasProperty('helperBinary')) {
+            // Skip building helper-rust when explicit binary path is provided
+        } else if (project.hasProperty('useHelperRustCoverage')) {
+            dependsOn 'buildHelperRustWithCoverage'
+        } else if (project.hasProperty('useHelperRust')) {
+            dependsOn 'buildHelperRust'
+        }
 
-        if (version in ['7.0', '7.1']) {
+        if (phpVersion in ['7.0', '7.1']) {
             dependsOn downloadComposerOld
         } else {
             dependsOn downloadComposer
@@ -495,6 +564,269 @@ task saveCaches(type: Exec) {
               -C /caches php-tracer-cargo-cache php-tracer-cargo-cache-git php-appsec-boost-cache && \
               chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
 }
+
+// libddwaf shared library build (for helper-rust)
+buildRunInDockerTask(
+        baseName: 'buildLibddwaf',
+        imageTag: 'php-deps',
+        description: 'Build libddwaf shared library',
+        needsBoostCache: false,
+        needsCargoCache: false,
+        inputs: [
+                dirs: ['../../third_party/libddwaf'],
+        ],
+        outputs: [
+                volume: 'php-libddwaf',
+                files: ['lib/libddwaf.so', 'include/ddwaf.h'],
+        ],
+        volumes: [
+                'php-libddwaf': [mountPoint: '/libddwaf-prefix'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                git config --global --add safe.directory '*'
+
+                mkdir -p /tmp/libddwaf-build
+                cd /tmp/libddwaf-build
+                cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
+                      -DCMAKE_INSTALL_PREFIX=/libddwaf-prefix \\
+                      -DLIBDDWAF_BUILD_SHARED=ON \\
+                      -DLIBDDWAF_BUILD_STATIC=OFF \\
+                      -DLIBDDWAF_TESTING=OFF \\
+                      /project/appsec/third_party/libddwaf
+                make -j install
+                touch /libddwaf-prefix/lib/libddwaf.so /libddwaf-prefix/include/ddwaf.h
+                """
+        ]
+)
+
+// Shared configuration for helper-rust tasks
+def helperRustInputs = [
+        dirs: ['../../helper-rust/src', '../../third_party/libddwaf-rust'],
+        files: [
+                '../../helper-rust/Cargo.toml',
+                '../../helper-rust/Cargo.lock',
+                '../../helper-rust/build.rs',
+                '../../helper-rust/glibc_compat.c',
+                '../../helper-rust/coverage_init.c',
+                '../../helper-rust/outline_atomics.c',
+                '../../helper-rust/.cargo/config.toml',
+        ],
+]
+
+def helperRustEnvSetup = '''
+git config --global --add safe.directory '*'
+export PATH="/root/.cargo/bin:$PATH"
+export RUSTUP_HOME=/root/.rustup
+export CARGO_HOME=/root/.cargo
+cd /project/appsec/helper-rust
+export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
+'''
+
+buildRunInDockerTask(
+        baseName: 'buildHelperRust',
+        imageTag: 'nginx-fpm-php-8.5-release-musl',
+        entrypoint: '/bin/sh',
+        description: 'Build helper-rust with musl for universal compatibility',
+        needsBoostCache: false,
+        needsCargoCache: false,
+        inputs: helperRustInputs,
+        outputs: [
+                volume: 'php-helper-rust',
+                files: ['libddappsec-helper.so'],
+        ],
+        volumes: [
+                'php-helper-rust': [mountPoint: '/helper-rust-build'],
+                'php-tracer-cargo-cache': [mountPoint: '/usr/local/cargo/registry'],
+                'php-tracer-cargo-cache-git': [mountPoint: '/usr/local/cargo/git'],
+        ],
+        command: [
+                '-e', '-c',
+                '''
+                export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
+                RUST_TARGET=$(uname -m)-unknown-linux-musl
+
+                git config --global --add safe.directory '*'
+
+                cd /project/appsec/helper-rust
+
+                # Build using nightly toolchain with unstable features
+                # -Z build-std: Rebuild std library for musl
+                # -Z build-std-features=llvm-libunwind: Use LLVM libunwind instead of libgcc_s
+                cargo +nightly-"$RUST_TARGET" build \\
+                    -Zhost-config \\
+                    -Ztarget-applies-to-host \\
+                    --target "$RUST_TARGET"
+
+                # Remove musl libc dependency using patchelf (makes binary work on both musl and glibc)
+                BINARY_PATH="/helper-rust-build/cargo-target/$RUST_TARGET/debug/libddappsec_helper_rust.so"
+                ARCH=$(uname -m)
+                if [ "$ARCH" = "x86_64" ]; then
+                    patchelf --remove-needed libc.musl-x86_64.so.1 "$BINARY_PATH" 2>/dev/null || true
+                elif [ "$ARCH" = "aarch64" ]; then
+                    patchelf --remove-needed libc.musl-aarch64.so.1 "$BINARY_PATH" 2>/dev/null || true
+                fi
+
+                cp "$BINARY_PATH" /helper-rust-build/libddappsec-helper.so'''.stripLeading()
+        ]
+)
+
+buildRunInDockerTask(
+        baseName: 'testHelperRust',
+        imageTag: 'php-deps',
+        description: 'Test and lint helper-rust',
+        needsBoostCache: false,
+        inputs: helperRustInputs,
+        volumes: [
+                'php-helper-rust': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${helperRustEnvSetup}
+
+                echo '=== Checking formatting ==='
+                cargo fmt --check
+
+                echo '=== Building helper-rust ==='
+                cargo build --release
+
+                echo '=== Running cargo test ==='
+                cargo test --release
+
+                echo '=== Build and test successful ==='
+                """
+        ]
+)
+
+buildRunInDockerTask(
+        baseName: 'coverageHelperRust',
+        imageTag: 'php-deps',
+        description: 'Generate coverage for helper-rust unit tests',
+        needsBoostCache: false,
+        inputs: helperRustInputs,
+        outputs: [
+                volume: 'php-helper-rust-coverage',
+                files: ['coverage-unit.lcov'],
+        ],
+        volumes: [
+                'php-helper-rust-coverage': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${helperRustEnvSetup}
+
+                echo '=== Installing cargo-llvm-cov ==='
+                rustup component add llvm-tools-preview
+                ARCH=\$(uname -m)
+                if [ "\$ARCH" = "aarch64" ]; then
+                    LLVM_COV_ARCH="aarch64-unknown-linux-musl"
+                else
+                    LLVM_COV_ARCH="x86_64-unknown-linux-musl"
+                fi
+                curl -LsSf "https://github.com/taiki-e/cargo-llvm-cov/releases/download/v0.6.23/cargo-llvm-cov-\${LLVM_COV_ARCH}.tar.gz" | tar xzf - -C /root/.cargo/bin
+
+                echo '=== Running cargo test with coverage ==='
+                cargo llvm-cov test --release --lcov --output-path /helper-rust-build/coverage-unit.lcov
+
+                echo '=== Coverage data generated ==='
+                """
+        ]
+)
+
+// Build helper-rust with coverage instrumentation for integration tests
+buildRunInDockerTask(
+        baseName: 'buildHelperRustWithCoverage',
+        imageTag: 'php-deps',
+        description: 'Build helper-rust with coverage instrumentation',
+        needsBoostCache: false,
+        inputs: helperRustInputs,
+        outputs: [
+                volume: 'php-helper-rust-coverage',
+                files: ['libddappsec-helper.so'],
+        ],
+        volumes: [
+                'php-helper-rust-coverage': [mountPoint: '/helper-rust-build'],
+        ],
+        command: [
+                '-e', '-c',
+                """
+                ${helperRustEnvSetup}
+
+                # Determine target triple
+                ARCH=\$(uname -m)
+                if [ "\$ARCH" = "aarch64" ]; then
+                    RUST_TARGET="aarch64-unknown-linux-gnu"
+                else
+                    RUST_TARGET="x86_64-unknown-linux-gnu"
+                fi
+
+                RUST_TARGET_UPPER=\$(echo "\${RUST_TARGET//-/_}" | tr '[:lower:]' '[:upper:]')
+                export CARGO_TARGET_\${RUST_TARGET_UPPER}_RUSTFLAGS="-C instrument-coverage"
+                export LLVM_PROFILE_FILE='/helper-rust-build/coverage/default-%m-%p.profraw'
+
+                mkdir -p /helper-rust-build/coverage
+                # Make coverage dir world-writable so sidecar (running as www-data) can write profraw files
+                chmod 777 /helper-rust-build/coverage
+
+                cargo build --release --target \$RUST_TARGET --features coverage
+                cp /helper-rust-build/cargo-target/\$RUST_TARGET/release/libddappsec_helper_rust.so /helper-rust-build/libddappsec-helper.so
+                """
+        ]
+)
+
+// Generate coverage report from integration test profraw files
+buildRunInDockerTask(
+        baseName: 'generateHelperRustIntegrationCoverage',
+        imageTag: 'php-deps',
+        description: 'Generate coverage report from helper-rust integration tests',
+        needsBoostCache: false,
+        inputs: [dirs: []],
+        outputs: [
+                volume: 'php-helper-rust-coverage',
+                files: ['coverage-integration.lcov'],
+        ],
+        volumes: [
+                'php-helper-rust-coverage': [mountPoint: '/helper-rust-build'],
+        ],
+        taskDependencies: [],
+        command: [
+                '-e', '-c',
+                """
+                export PATH="/root/.cargo/bin:\$PATH"
+                export RUSTUP_HOME=/root/.rustup
+                export CARGO_HOME=/root/.cargo
+
+                cd /helper-rust-build/coverage
+                if ls *.profraw 1>/dev/null 2>&1; then
+                    echo 'Found profraw files:'
+                    ls -la *.profraw
+
+                    # Detect the architecture-specific toolchain path
+                    ARCH=\$(uname -m)
+                    if [ "\$ARCH" = "aarch64" ]; then
+                        RUST_TARGET="aarch64-unknown-linux-gnu"
+                    else
+                        RUST_TARGET="x86_64-unknown-linux-gnu"
+                    fi
+                    LLVM_TOOLS="/root/.rustup/toolchains/1.84.1-\${RUST_TARGET}/lib/rustlib/\${RUST_TARGET}/bin"
+
+                    \${LLVM_TOOLS}/llvm-profdata merge -sparse *.profraw -o merged.profdata
+                    \${LLVM_TOOLS}/llvm-cov export \\
+                        /helper-rust-build/libddappsec-helper.so \\
+                        -format=lcov \\
+                        -instr-profile=merged.profdata \\
+                        > /helper-rust-build/coverage-integration.lcov
+                    echo 'Coverage report generated'
+                else
+                    echo 'No profraw files found - coverage may not have been collected'
+                    exit 1
+                fi
+                """
+        ]
+)
 
 if (hasProperty('buildScan')) {
     buildScan {

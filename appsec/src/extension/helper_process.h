@@ -7,10 +7,21 @@
 #define DD_HELPER_MGR_H
 
 #include <components-rs/ddtrace.h>
+#include <stdbool.h>
 
 #include "attributes.h"
 #include "dddefs.h"
 #include "network.h"
+
+typedef enum _helper_runtime {
+    HELPER_RUNTIME_UNKNOWN = 0,
+    HELPER_RUNTIME_CPP = 1,
+    HELPER_RUNTIME_RUST = 2,
+} helper_runtime;
+
+helper_runtime dd_helper_get_runtime(void);
+void dd_helper_set_runtime(helper_runtime rt);
+bool dd_helper_is_rust(void);
 
 typedef typeof(&ddog_sidecar_enable_appsec) sidecar_enable_appsec_t;
 
