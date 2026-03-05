@@ -28,7 +28,7 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
 @Testcontainers
 @EnabledIf('isExpectedVersion')
 class PaymentEventsTests {
-    static boolean expectedVersion = !variant.contains('zts')
+    static boolean expectedVersion = phpVersionAtLeast('7.3') && !variant.contains('zts')
 
     AppSecContainer getContainer() {
         getClass().CONTAINER

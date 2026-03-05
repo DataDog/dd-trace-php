@@ -576,7 +576,8 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
 	test_integrations_ratchet \
-	test_integrations_sqlsrv
+	test_integrations_sqlsrv \
+	test_integrations_stripe_latest
 
 TEST_WEB_70 := \
 	test_metrics \
@@ -620,6 +621,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_predis_1 \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_71 := \
@@ -676,6 +678,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_72 := \
@@ -738,6 +741,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_73 := \
@@ -802,6 +806,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_ratchet \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_74 := \
@@ -869,6 +874,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_integrations_swoole_5 \
 	test_opentracing_10
 
@@ -925,6 +931,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_integrations_swoole_5 \
 	test_opentracing_10
 
