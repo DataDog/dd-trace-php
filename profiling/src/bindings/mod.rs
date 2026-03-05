@@ -246,6 +246,13 @@ pub struct ZendExtension {
 
 pub use ZendExtension as zend_extension;
 
+/// Version info for zend_extension loading. Used when loading as zend_extension=.
+#[repr(C)]
+pub struct ZendExtensionVersionInfo {
+    pub zend_extension_api_no: c_int,
+    pub build_id: *const c_char,
+}
+
 impl ModuleEntry {
     /// Creates a new ModuleEntry with default values for const-compatible fields.
     /// Non-const fields (functions, build_id) are set to null and should be initialized separately.
@@ -317,6 +324,10 @@ impl Default for ZendExtension {
 }
 
 extern "C" {
+    /// Registers an internal module with the engine. Used when loading as
+    /// zend_extension= to register our module from build_id_check.
+    pub fn zend_register_internal_module(module_entry: *mut ModuleEntry) -> *mut ModuleEntry;
+
     /// Retrieves the VM interrupt address of the calling PHP thread.
     /// # Safety
     /// Must be called from a PHP thread during a request.

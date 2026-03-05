@@ -27,10 +27,10 @@ use crate::config::SystemSettings;
 use crate::zend::datadog_sapi_globals_request_info;
 use bindings::{
     self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
-    ZendResult,
+    ZendExtensionVersionInfo, ZendResult,
 };
 use clocks::*;
-use core::ffi::{c_char, c_int, CStr};
+use core::ffi::{c_char, c_int};
 use core::ptr;
 use lazy_static::lazy_static;
 use libdd_common::{cstr, tag, tag::Tag};
@@ -39,8 +39,9 @@ use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
+use std::ffi::CStr;
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
 use std::sync::{Arc, Once, OnceLock};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
@@ -170,6 +171,26 @@ static MODULE_DEPS: [zend::ModuleDep; 8] = [
 /// get_module is called multiple times.
 static ZEND_EXTENSION_REGISTER_ONCE: Once = Once::new();
 
+/// Has our module been registered? Set when we register via
+/// zend_register_internal_module (zend_extension path) or when the engine
+/// registers it after get_module (module path).
+static MODULE_REGISTERED: AtomicBool = AtomicBool::new(false);
+
+/// Has our zend_extension been registered? Set when we register the hybrid
+/// in get_module (module path), or when the engine registers it (zend_extension
+/// path—set in build_id_check before returning SUCCESS).
+static ZEND_EXTENSION_REGISTERED: AtomicBool = AtomicBool::new(false);
+
+/// API number from the engine, stored in api_no_check for use in build_id_check.
+static LAST_API_NO: AtomicI32 = AtomicI32::new(0);
+
+/// Placeholder build_id so the engine always invokes api_no_check/build_id_check.
+static BUILD_ID_PLACEHOLDER: &CStr = c"API0,NTS";
+
+/// Static buffer for module build_id (extension format → module format).
+/// Extension: API420240924,NTS. Module: API20240924,NTS (remove 4th char).
+static mut MODULE_BUILD_ID_BUF: [u8; 32] = [0; 32];
+
 /// The module entry for the profiler extension. Fields that aren't
 /// const-compatible are set in get_module().
 static mut MODULE: zend::ModuleEntry = zend::ModuleEntry {
@@ -194,6 +215,99 @@ static mut MODULE: zend::ModuleEntry = zend::ModuleEntry {
     ..zend::ModuleEntry::new()
 };
 
+/// Converts extension build_id (API420240924,NTS) to module build_id (API20240924,NTS)
+/// by removing the 4th character. Returns pointer to static buffer or null on failure.
+unsafe fn extension_to_module_build_id(build_id: *const c_char) -> *const c_char {
+    if build_id.is_null() {
+        return ptr::null();
+    }
+    let s = CStr::from_ptr(build_id).to_bytes();
+    if s.len() < 12 || s.len() > 32 {
+        return ptr::null();
+    }
+    // Copy first 3 chars (API), then from index 4 onwards (skip 4th char).
+    let buf = ptr::addr_of_mut!(MODULE_BUILD_ID_BUF);
+    ptr::copy_nonoverlapping(s.as_ptr(), (*buf).as_mut_ptr(), 3);
+    ptr::copy_nonoverlapping(s.as_ptr().add(4), (*buf).as_mut_ptr().add(3), s.len() - 4);
+    (*buf)[s.len() - 1] = b'\0';
+    (*buf).as_ptr().cast::<c_char>()
+}
+
+unsafe extern "C" fn api_no_check(api_no: c_int) -> ZendResult {
+    LAST_API_NO.store(api_no, Ordering::Relaxed);
+    ZendResult::Success
+}
+
+unsafe extern "C" fn build_id_check(build_id: *const c_char) -> ZendResult {
+    if MODULE_REGISTERED.load(Ordering::SeqCst) {
+        error!("datadog-profiling already loaded; cannot load as zend_extension= again");
+        return ZendResult::Failure;
+    }
+
+    let module_build_id_ptr = extension_to_module_build_id(build_id);
+    if module_build_id_ptr.is_null() {
+        return ZendResult::Failure;
+    }
+
+    let runtime_build_id = CStr::from_ptr(build_id).to_string_lossy();
+    let is_zts = runtime_build_id.contains(",TS");
+
+    // Prepare MODULE for registration.
+    let module = ptr::addr_of_mut!(MODULE);
+    ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
+    ptr::addr_of_mut!((*module).build_id).write(module_build_id_ptr);
+    ptr::addr_of_mut!((*module).handle).write(ptr::null_mut());
+    (*module).zts = if is_zts { 1 } else { 0 };
+
+    let registered = zend::zend_register_internal_module(module);
+    if registered.is_null() {
+        return ZendResult::Failure;
+    }
+
+    MODULE_REGISTERED.store(true, Ordering::SeqCst);
+    ZEND_EXTENSION_REGISTERED.store(true, Ordering::SeqCst);
+    ZendResult::Success
+}
+
+/// Exported for zend_extension= loading. Placeholder forces engine to call
+/// api_no_check and build_id_check.
+#[no_mangle]
+pub static mut extension_version_info: ZendExtensionVersionInfo = ZendExtensionVersionInfo {
+    zend_extension_api_no: 0,
+    build_id: BUILD_ID_PLACEHOLDER.as_ptr(),
+};
+
+/// Exported for zend_extension= loading.
+#[no_mangle]
+pub static mut zend_extension_entry: ZendExtension = ZendExtension {
+    name: PROFILER_NAME.as_ptr(),
+    version: PROFILER_VERSION.as_ptr().cast::<c_char>(),
+    author: c"Datadog".as_ptr(),
+    url: c"https://github.com/DataDog/dd-trace-php".as_ptr(),
+    copyright: c"Copyright Datadog".as_ptr(),
+    startup: Some(startup),
+    shutdown: Some(shutdown),
+    activate: Some(activate),
+    deactivate: None,
+    message_handler: None,
+    op_array_handler: None,
+    statement_handler: None,
+    fcall_begin_handler: None,
+    fcall_end_handler: None,
+    op_array_ctor: None,
+    op_array_dtor: None,
+    api_no_check: Some(api_no_check),
+    build_id_check: Some(build_id_check),
+    op_array_persist_calc: None,
+    op_array_persist: None,
+    reserved5: ptr::null_mut(),
+    reserved6: ptr::null_mut(),
+    reserved7: ptr::null_mut(),
+    reserved8: ptr::null_mut(),
+    handle: ptr::null_mut(),
+    resource_number: -1,
+};
+
 /// The function `get_module` is what makes this a PHP module.
 ///
 /// # Safety
@@ -212,6 +326,12 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
         ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
     }
 
+    // If zend_extension= ran first, we are the second load. Do not register
+    // hybrid; return MODULE so PHP fails with "Module already loaded".
+    if ZEND_EXTENSION_REGISTERED.load(Ordering::SeqCst) {
+        return module;
+    }
+
     ZEND_EXTENSION_REGISTER_ONCE.call_once(|| {
         let extension = ZendExtension {
             name: PROFILER_NAME.as_ptr(),
@@ -225,6 +345,8 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
             ..Default::default()
         };
         unsafe { zend::zend_register_extension(&extension, ptr::null_mut()) };
+        ZEND_EXTENSION_REGISTERED.store(true, Ordering::SeqCst);
+        MODULE_REGISTERED.store(true, Ordering::SeqCst);
     });
 
     module
@@ -329,38 +451,6 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
 
     // Initialize the lazy lock holding the env var for new origin detection.
     _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
-
-    // Use a hybrid extension hack to load as a module but have the
-    // zend_extension hooks available:
-    // https://www.phpinternalsbook.com/php7/extensions_design/zend_extensions.html#hybrid-extensions
-    // The zend_extension was registered in get_module with a null handle.
-    // Transfer the module handle to the extension so it owns the .so lifetime.
-    {
-        let str = PROFILER_NAME.as_ptr();
-        let len = PROFILER_NAME_STR.len();
-
-        // SAFETY: str is valid for at least len values.
-        let module_ptr = unsafe { zend::datadog_get_module_entry(str, len) };
-        let extension_ptr =
-            unsafe { zend::zend_get_extension(PROFILER_NAME.as_ptr() as *const c_char) };
-
-        if module_ptr.is_null() || extension_ptr.is_null() {
-            error!(
-                "Unable to locate our module ({}) or zend_extension in the engine registry.",
-                *PROFILER_NAME_STR
-            );
-            return ZendResult::Failure;
-        }
-
-        // SAFETY: both pointers were checked for null. Transferring the handle
-        // from the module to the extension extends the lifetime; nulling
-        // module.handle prevents double-close if another extension's startup fails.
-        unsafe {
-            let module = &mut *module_ptr;
-            (*extension_ptr).handle = module.handle;
-            module.handle = ptr::null_mut();
-        }
-    }
 
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };
@@ -989,6 +1079,22 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("startup({:p})", extension);
+
+    // Handle ownership: the zend_extension must own the dlopen handle.
+    // extension= path: module owns handle, we transfer from module to extension.
+    // zend_extension= path: extension already has handle from engine.
+    if !extension.is_null() && unsafe { (*extension).handle.is_null() } {
+        let module_ptr = unsafe {
+            zend::datadog_get_module_entry(PROFILER_NAME.as_ptr(), PROFILER_NAME_STR.len())
+        };
+        if !module_ptr.is_null() {
+            let module = unsafe { &mut *module_ptr };
+            unsafe {
+                (*extension).handle = module.handle;
+                module.handle = ptr::null_mut();
+            }
+        }
+    }
 
     // SAFETY: called during startup hook with correct params.
     unsafe { zend::datadog_php_profiling_startup(extension) };
