@@ -8,12 +8,12 @@ class StripeIntegration extends Integration
 {
     const NAME = 'stripe';
 
-    private const EVENT_PAYMENT_SUCCEEDED = 'payment_intent.succeeded';
-    private const EVENT_PAYMENT_FAILED = 'payment_intent.payment_failed';
-    private const EVENT_PAYMENT_CANCELED = 'payment_intent.canceled';
-    private const CHECKOUT_MODE_PAYMENT = 'payment';
+    const EVENT_PAYMENT_SUCCEEDED = 'payment_intent.succeeded';
+    const EVENT_PAYMENT_FAILED = 'payment_intent.payment_failed';
+    const EVENT_PAYMENT_CANCELED = 'payment_intent.canceled';
+    const CHECKOUT_MODE_PAYMENT = 'payment';
 
-    public static function pushPaymentEvent(string $address, array $data): void
+    public static function pushPaymentEvent(string $address, array $data)
     {
         if (function_exists('datadog\appsec\push_addresses')) {
             \datadog\appsec\push_addresses([$address => $data]);
@@ -146,7 +146,7 @@ class StripeIntegration extends Integration
         return Integration::LOADED;
     }
 
-    private static function hookCheckoutSessionCreate(): void
+    private static function hookCheckoutSessionCreate()
     {
         $onCreate = static function ($This, $scope, $args, $retval) {
             if ($retval !== null && self::isCheckoutSessionPaymentMode($retval)) {
@@ -159,7 +159,7 @@ class StripeIntegration extends Integration
         \DDTrace\hook_method('Stripe\Checkout\Session', 'create', null, $onCreate);
     }
 
-    private static function hookPaymentIntentCreate(): void
+    private static function hookPaymentIntentCreate()
     {
         $onCreate = static function ($This, $scope, $args, $retval) {
             if ($retval !== null) {
@@ -172,7 +172,7 @@ class StripeIntegration extends Integration
         \DDTrace\hook_method('Stripe\PaymentIntent', 'create', null, $onCreate);
     }
 
-    private static function hookWebhookConstructEvent(): void
+    private static function hookWebhookConstructEvent()
     {
         \DDTrace\hook_method(
             'Stripe\Webhook',
@@ -186,7 +186,7 @@ class StripeIntegration extends Integration
         );
     }
 
-    private static function hookEventConstructFrom(): void
+    private static function hookEventConstructFrom()
     {
         \DDTrace\hook_method(
             'Stripe\Event',
@@ -206,7 +206,7 @@ class StripeIntegration extends Integration
         return $mode === self::CHECKOUT_MODE_PAYMENT;
     }
 
-    private static function processWebhookEvent($event): void
+    private static function processWebhookEvent($event)
     {
         $eventType = self::getNestedValue($event, 'type');
         $eventObject = self::getNestedValue($event, 'data.object') ?? self::getNestedValue($event, 'object');

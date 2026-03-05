@@ -48,7 +48,7 @@ class StripeTest extends IntegrationTestCase
         ];
     }
 
-    private function findEventByKey(array $eventWrappers, string $key): ?array
+    private function findEventByKey(array $eventWrappers, string $key)
     {
         foreach ($eventWrappers as $eventWrapper) {
             if (isset($eventWrapper[0][$key])) {
@@ -101,7 +101,7 @@ class StripeTest extends IntegrationTestCase
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
             $this->assertNotEmpty($allEvents, 'Events should be captured by the hook');
 
             $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.success');
@@ -148,7 +148,7 @@ class StripeTest extends IntegrationTestCase
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
             $this->assertNotEmpty($allEvents, 'Events should be captured by the hook');
 
             $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.failure');
@@ -192,7 +192,7 @@ class StripeTest extends IntegrationTestCase
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
             $this->assertNotEmpty($allEvents, 'Events should be captured by the hook');
 
             $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.cancellation');
@@ -229,7 +229,7 @@ class StripeTest extends IntegrationTestCase
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
 
             $paymentEventKeys = [
                 'server.business_logic.payment.creation',
@@ -273,7 +273,7 @@ class StripeTest extends IntegrationTestCase
             $this->assertSame('payment_intent.succeeded', $event->type);
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
             $this->assertNotEmpty($allEvents);
 
             $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.success');
@@ -320,7 +320,7 @@ class StripeTest extends IntegrationTestCase
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
             $this->assertNotEmpty($allEvents, 'Events should be captured');
 
             $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.creation');
@@ -366,7 +366,7 @@ class StripeTest extends IntegrationTestCase
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
 
             $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.creation');
 
@@ -398,7 +398,7 @@ class StripeTest extends IntegrationTestCase
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
-            $this->assertIsArray($allEvents);
+            $this->assertInternalType('array', $allEvents);
             $this->assertNotEmpty($allEvents, 'Events should be captured');
 
             $paymentEvent = $this->findEventByKey($allEvents, 'server.business_logic.payment.creation');
