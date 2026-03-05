@@ -14,6 +14,7 @@ include __DIR__ . '/includes/skipif_no_dev_env.inc';
 DD_TRACE_LOG_LEVEL=0
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=3188
+DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=1
 --INI--
 datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault_windows.phpt
 --FILE--
@@ -56,6 +57,8 @@ $rr->waitForRequest(function ($request) {
             continue;
         }
 
+        echo $json["application"]["process_tags"], PHP_EOL;
+
         foreach ($json["payload"]["logs"] as $payload) {
             $payload["message"] = json_decode($payload["message"], true);
             if (!isset($payload["message"]["metadata"])) {
@@ -73,6 +76,7 @@ $rr->waitForRequest(function ($request) {
 });
 ?>
 --EXPECTF--
+%Aentrypoint.name:standard_input_code,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli
 %A{
     "message": {
         "data_schema_version": "1.2",

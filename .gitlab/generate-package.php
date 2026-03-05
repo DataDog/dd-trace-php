@@ -96,6 +96,21 @@ include:
   - local: .gitlab/benchmarks.yml
 
 # One pipeline job overrides
+validate_supported_configurations_v2_local_file:
+  needs: []
+  extends: .validate_supported_configurations_v2_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    BACKFILLED: "true"
+
+update_central_configurations_version_range_v2:
+  extends: .update_central_configurations_version_range_v2
+  variables:
+    LOCAL_REPO_NAME: "dd-trace-php"
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    LANGUAGE_NAME: "php"
+    MULTIPLE_RELEASE_LINES: "false"
+
 configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
@@ -1397,7 +1412,11 @@ foreach ($arch_targets as $arch) {
     VERSION="$(<VERSION)"
     [[ -z "${VERSION}" ]] && echo "VERSION file is empty or not present" && exit 1
     cd packages/ && aws s3 cp --recursive . "s3://dd-trace-php-builds/${VERSION}/"
-    aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
+    if [ "${CI_COMMIT_REF_NAME}" = "${CI_DEFAULT_BRANCH}" ]; then
+      aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
+    else
+      echo "Skipping latest upload for non-default branch: ${CI_COMMIT_REF_NAME} (default: ${CI_DEFAULT_BRANCH})"
+    fi
     echo "https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/$(echo $VERSION | sed 's/+/%2B/')/datadog-setup.php"
   artifacts:
     paths:

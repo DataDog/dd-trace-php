@@ -170,6 +170,7 @@ ext/standard/tests/general_functions/floatval.phpt
 ext/standard/tests/general_functions/floatval_variation1.phpt
 ext/standard/tests/general_functions/get_included_files.phpt
 ext/standard/tests/general_functions/gettype_settype_basic.phpt
+ext/standard/tests/general_functions/phpinfo.phpt
 ext/standard/tests/general_functions/print_r.phpt
 ext/standard/tests/general_functions/print_r_64bit.phpt
 ext/standard/tests/general_functions/proc_open_null.phpt
