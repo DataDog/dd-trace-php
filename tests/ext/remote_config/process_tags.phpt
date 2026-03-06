@@ -28,7 +28,13 @@ $path = put_dynamic_config_file([
 
 try {
     $request = $rr->waitForRcRequest(function($req) {
-        return strpos($req["uri"], '/v0.7/config') !== false;
+        if (strpos($req["uri"], '/v0.7/config') === false) {
+            return false;
+        }
+
+        $body = json_decode($req["body"], true);
+        return isset($body["client"]["client_tracer"]["process_tags"])
+            && !empty($body["client"]["client_tracer"]["process_tags"]);
     });
     $body = json_decode($request["body"], true);
 } catch (Exception $e) {
