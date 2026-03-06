@@ -1,5 +1,8 @@
 use crate::profiling::Profiler;
-use crate::zend::{self, zend_execute_data, zend_generator, zval, InternalFunctionHandler};
+use crate::universal::runtime;
+use crate::zend::{
+    self, zend_execute_data, zend_generator, zend_string, zval, InternalFunctionHandler,
+};
 use crate::{RefCellExt, REQUEST_LOCALS};
 use log::{error, info};
 use rand::rngs::ThreadRng;
@@ -67,35 +70,25 @@ impl ExceptionProfilingStats {
 }
 
 #[cold]
-fn collect_exception(
-    #[cfg(php7)] exception: *mut zend::zval,
-    #[cfg(php8)] exception: *mut zend::zend_object,
-) {
-    #[cfg(php7)]
-    let exception = unsafe { (*exception).value.obj };
-
+fn collect_exception(exception: *mut zend::zend_object) {
     let exception_name = unsafe { (*exception).class_name() };
 
     let collect_message = REQUEST_LOCALS
         .borrow_or_false(|locals| locals.system_settings().profiling_exception_message_enabled);
 
     let message = if collect_message {
-        Some(unsafe {
-            zend::zai_str_from_zstr(zend::zai_exception_message(exception).as_mut()).into_string()
-        })
+        let msg = unsafe { crate::universal::exception_message(exception) };
+        // Pure Rust always returns a valid string (message or fallback), never NULL.
+        Some(unsafe { crate::zend_string::zend_string_to_zai_str(Some(msg)).into_string() })
     } else {
         None
     };
 
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_exception(
-                zend::ddog_php_prof_get_current_execute_data(),
-                exception_name,
-                message,
-            )
-        };
+        // SAFETY: exception observer callback runs on a PHP thread.
+        let php_thread = unsafe { crate::OnPhpThread::new() };
+        let execute_data = crate::universal::profiling_current_execute_data(php_thread);
+        profiler.collect_exception(execute_data, exception_name, message, php_thread);
     }
 }
 
@@ -147,7 +140,7 @@ pub fn exception_profiling_minit() {
 
         for handler in method_handlers.into_iter() {
             // Safety: we've set all the parameters correctly for this C call.
-            zend::datadog_php_install_method_handler(handler);
+            zend::install_method_handler(handler);
         }
     }
 }
@@ -181,10 +174,8 @@ pub fn exception_profiling_mshutdown() {
     }
 }
 
-unsafe extern "C" fn exception_profiling_throw_exception_hook(
-    #[cfg(php7)] exception: *mut zend::zval,
-    #[cfg(php8)] exception: *mut zend::zend_object,
-) {
+unsafe extern "C" fn exception_profiling_throw_exception_hook(ex: *mut core::ffi::c_void) {
+    let exception = ex as *mut zend::zend_object;
     #[cfg(feature = "debug_stats")]
     EXCEPTION_PROFILING_EXCEPTION_COUNT.fetch_add(1, Ordering::Relaxed);
 
@@ -204,6 +195,24 @@ unsafe extern "C" fn exception_profiling_throw_exception_hook(
     }
 
     if let Some(prev) = PREV_ZEND_THROW_EXCEPTION_HOOK {
-        prev(exception);
+        prev(ex);
     }
+}
+
+type ZendObserverErrorRegisterFn = unsafe extern "C" fn(
+    Option<unsafe extern "C" fn(i32, *mut zend_string, u32, *mut zend_string)>,
+);
+
+/// Wrapper for PHP's zend_observer_error_register (PHP 8.0+ API).
+/// Resolved at runtime to avoid a hard ELF dependency on PHP 7.x builds.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_zend_observer_error_register(
+    handler: Option<unsafe extern "C" fn(i32, *mut zend_string, u32, *mut zend_string)>,
+) {
+    let sym = runtime::symbol_addr("zend_observer_error_register");
+    if sym.is_null() {
+        return;
+    }
+    let f: ZendObserverErrorRegisterFn = core::mem::transmute(sym);
+    f(handler)
 }

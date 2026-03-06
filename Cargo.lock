@@ -1314,8 +1314,6 @@ dependencies = [
  "ahash",
  "allocator-api2",
  "anyhow",
- "bindgen",
- "cc",
  "cfg-if",
  "chrono",
  "cpu-time",

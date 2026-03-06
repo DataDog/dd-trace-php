@@ -12,15 +12,10 @@ pub use stack_walking::*;
 use thread_utils::get_current_thread_name;
 use uploader::*;
 
-#[cfg(all(php_has_fibers, not(test)))]
-use crate::bindings::ddog_php_prof_get_active_fiber;
-#[cfg(all(php_has_fibers, test))]
-use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
-
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
 use crate::bindings::{
     datadog_php_profiling_get_process_tags_serialized, datadog_php_profiling_get_profiling_context,
-    zai_str_from_zstr, zend_execute_data,
+    zend_execute_data,
 };
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
@@ -725,7 +720,7 @@ impl Profiler {
         // we're getting the process tags of a PHP thread
         let process_tags: Option<String> = unsafe {
             let raw_ptr = datadog_php_profiling_get_process_tags_serialized.unwrap_unchecked()();
-            zai_str_from_zstr(raw_ptr.as_mut())
+            crate::zend_string::zend_string_to_zai_str(raw_ptr.as_mut().map(|r| r as *mut _))
                 .into_utf8()
                 .ok()
                 .filter(|s| !s.is_empty())
@@ -969,7 +964,12 @@ impl Profiler {
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
     /// it's enabled and available.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_time(&self, execute_data: *mut zend_execute_data, interrupt_count: u32) {
+    pub fn collect_time(
+        &self,
+        execute_data: *mut zend_execute_data,
+        interrupt_count: u32,
+        php_thread: crate::OnPhpThread,
+    ) {
         // todo: should probably exclude the wall and CPU time used by collecting the sample.
         let interrupt_count = interrupt_count as i64;
         let result = self.collect_stack_sample_timed(execute_data);
@@ -978,7 +978,7 @@ impl Profiler {
                 let depth = frames.len();
                 let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
-                let labels = Profiler::common_labels(0);
+                let labels = Profiler::common_labels(0, php_thread);
                 let n_labels = labels.len();
 
                 let timestamp = self.get_timeline_timestamp();
@@ -1019,6 +1019,7 @@ impl Profiler {
         alloc_samples: i64,
         alloc_size: i64,
         interrupt_count: Option<u32>,
+        php_thread: crate::OnPhpThread,
     ) {
         let result = self.collect_stack_sample_timed(execute_data);
         match result {
@@ -1035,7 +1036,7 @@ impl Profiler {
                         (0, 0, 0, NO_TIMESTAMP)
                     };
 
-                let labels = Profiler::common_labels(0);
+                let labels = Profiler::common_labels(0, php_thread);
                 let n_labels = labels.len();
 
                 match self.prepare_and_send_message(
@@ -1072,12 +1073,13 @@ impl Profiler {
         execute_data: *mut zend_execute_data,
         exception: String,
         message: Option<String>,
+        php_thread: crate::OnPhpThread,
     ) {
         let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let mut labels = Profiler::common_labels(2);
+                let mut labels = Profiler::common_labels(2, php_thread);
 
                 labels.push(Label {
                     key: "exception type",
@@ -1124,8 +1126,16 @@ impl Profiler {
     }];
 
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
-    pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
-        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
+    pub fn collect_compile_string(
+        &self,
+        now: i64,
+        duration: i64,
+        filename: String,
+        line: u32,
+        php_thread: crate::OnPhpThread,
+    ) {
+        let mut labels =
+            Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len(), php_thread);
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         let n_labels = labels.len();
 
@@ -1160,8 +1170,10 @@ impl Profiler {
         duration: i64,
         filename: String,
         include_type: &str,
+        php_thread: crate::OnPhpThread,
     ) {
-        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
+        let mut labels =
+            Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1, php_thread);
         labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
         labels.push(Label {
             key: "filename",
@@ -1195,10 +1207,14 @@ impl Profiler {
     }
 
     /// This function will collect a thread start or stop timeline event
-    #[cfg(php_zts)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
-        let mut labels = Profiler::common_labels(1);
+    pub fn collect_thread_start_end(
+        &self,
+        now: i64,
+        event: &'static str,
+        php_thread: crate::OnPhpThread,
+    ) {
+        let mut labels = Profiler::common_labels(1, php_thread);
 
         labels.push(Label {
             key: "event",
@@ -1231,8 +1247,15 @@ impl Profiler {
 
     /// This function can be called to collect any fatal errors
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
-        let mut labels = Profiler::common_labels(2);
+    pub fn collect_fatal(
+        &self,
+        now: i64,
+        file: String,
+        line: u32,
+        message: String,
+        php_thread: crate::OnPhpThread,
+    ) {
+        let mut labels = Profiler::common_labels(2, php_thread);
 
         labels.push(Label {
             key: "event",
@@ -1270,7 +1293,6 @@ impl Profiler {
     }
 
     /// This function can be called to collect an opcache restart
-    #[cfg(php_opcache_restart_hook)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub(crate) fn collect_opcache_restart(
         &self,
@@ -1278,8 +1300,9 @@ impl Profiler {
         file: String,
         line: u32,
         reason: &'static str,
+        php_thread: crate::OnPhpThread,
     ) {
-        let mut labels = Profiler::common_labels(2);
+        let mut labels = Profiler::common_labels(2, php_thread);
 
         labels.push(Label {
             key: "event",
@@ -1316,8 +1339,14 @@ impl Profiler {
 
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
-    pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
-        let mut labels = Profiler::common_labels(1);
+    pub fn collect_idle(
+        &self,
+        now: i64,
+        duration: i64,
+        reason: &'static str,
+        php_thread: crate::OnPhpThread,
+    ) {
+        let mut labels = Profiler::common_labels(1, php_thread);
 
         labels.push(Label {
             key: "event",
@@ -1357,9 +1386,10 @@ impl Profiler {
         duration: i64,
         reason: &'static str,
         collected: i64,
-        #[cfg(php_gc_status)] runs: i64,
+        runs: Option<i64>,
+        php_thread: crate::OnPhpThread,
     ) {
-        let mut labels = Profiler::common_labels(4);
+        let mut labels = Profiler::common_labels(4, php_thread);
 
         labels.push(Label {
             key: "event",
@@ -1371,11 +1401,12 @@ impl Profiler {
             value: LabelValue::Str(Cow::from(reason)),
         });
 
-        #[cfg(php_gc_status)]
-        labels.push(Label {
-            key: "gc runs",
-            value: LabelValue::Num(runs, "count"),
-        });
+        if let Some(runs) = runs {
+            labels.push(Label {
+                key: "gc runs",
+                value: LabelValue::Num(runs, "count"),
+            });
+        }
         labels.push(Label {
             key: "gc collected",
             value: LabelValue::Num(collected, "count"),
@@ -1405,79 +1436,155 @@ impl Profiler {
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_read_time = socket_io_read_time;
-            vals.socket_read_time_samples = 1;
-        })
+    pub fn collect_socket_read_time(
+        &self,
+        ed: *mut zend_execute_data,
+        socket_io_read_time: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.socket_read_time = socket_io_read_time;
+                vals.socket_read_time_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_write_time = socket_io_write_time;
-            vals.socket_write_time_samples = 1;
-        })
+    pub fn collect_socket_write_time(
+        &self,
+        ed: *mut zend_execute_data,
+        socket_io_write_time: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.socket_write_time = socket_io_write_time;
+                vals.socket_write_time_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_read_time = file_io_read_time;
-            vals.file_read_time_samples = 1;
-        })
+    pub fn collect_file_read_time(
+        &self,
+        ed: *mut zend_execute_data,
+        file_io_read_time: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.file_read_time = file_io_read_time;
+                vals.file_read_time_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_write_time = file_io_write_time;
-            vals.file_write_time_samples = 1;
-        })
+    pub fn collect_file_write_time(
+        &self,
+        ed: *mut zend_execute_data,
+        file_io_write_time: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.file_write_time = file_io_write_time;
+                vals.file_write_time_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_read_size = socket_io_read_size;
-            vals.socket_read_size_samples = 1;
-        })
+    pub fn collect_socket_read_size(
+        &self,
+        ed: *mut zend_execute_data,
+        socket_io_read_size: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.socket_read_size = socket_io_read_size;
+                vals.socket_read_size_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.socket_write_size = socket_io_write_size;
-            vals.socket_write_size_samples = 1;
-        })
+    pub fn collect_socket_write_size(
+        &self,
+        ed: *mut zend_execute_data,
+        socket_io_write_size: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.socket_write_size = socket_io_write_size;
+                vals.socket_write_size_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_read_size = file_io_read_size;
-            vals.file_read_size_samples = 1;
-        })
+    pub fn collect_file_read_size(
+        &self,
+        ed: *mut zend_execute_data,
+        file_io_read_size: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.file_read_size = file_io_read_size;
+                vals.file_read_size_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
-        self.collect_io(ed, |vals| {
-            vals.file_write_size = file_io_write_size;
-            vals.file_write_size_samples = 1;
-        })
+    pub fn collect_file_write_size(
+        &self,
+        ed: *mut zend_execute_data,
+        file_io_write_size: i64,
+        php_thread: crate::OnPhpThread,
+    ) {
+        self.collect_io(
+            ed,
+            |vals| {
+                vals.file_write_size = file_io_write_size;
+                vals.file_write_size_samples = 1;
+            },
+            php_thread,
+        )
     }
 
     #[cfg(all(feature = "io_profiling", target_os = "linux"))]
-    pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
-    where
+    pub fn collect_io<F>(
+        &self,
+        execute_data: *mut zend_execute_data,
+        set_value: F,
+        php_thread: crate::OnPhpThread,
+    ) where
         F: FnOnce(&mut SampleValues),
     {
         let result = self.collect_stack_sample_timed(execute_data);
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let labels = Profiler::common_labels(0);
+                let labels = Profiler::common_labels(0, php_thread);
 
                 let n_labels = labels.len();
 
@@ -1518,7 +1625,7 @@ impl Profiler {
     ///
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///   caller adds gc or exception labels.
-    fn common_labels(n_extra_labels: usize) -> Vec<Label> {
+    fn common_labels(n_extra_labels: usize, php_thread: crate::OnPhpThread) -> Vec<Label> {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
             key: "thread id",
@@ -1527,7 +1634,7 @@ impl Profiler {
 
         labels.push(Label {
             key: "thread name",
-            value: LabelValue::Str(get_current_thread_name().into()),
+            value: LabelValue::Str(get_current_thread_name(php_thread).into()),
         });
 
         // SAFETY: this is set to a noop version if ddtrace wasn't found, and
@@ -1550,18 +1657,25 @@ impl Profiler {
             });
         }
 
-        #[cfg(php_has_fibers)]
-        if let Some(fiber) = unsafe { ddog_php_prof_get_active_fiber().as_mut() } {
-            // Safety: the fcc is set by Fiber::__construct as part of zpp,
-            // which will always set the function_handler on success, and
-            // there's nothing changing that value in all of fibers
-            // afterwards, from start to destruction of the fiber itself.
-            let func = unsafe { &*fiber.fci_cache.function_handler };
-            if let Some(functionname) = extract_function_name(func) {
-                labels.push(Label {
-                    key: "fiber",
-                    value: LabelValue::Str(functionname),
-                });
+        if crate::universal::has_fibers() {
+            let fiber_ptr = crate::universal::get_active_fiber(php_thread);
+            if !fiber_ptr.is_null() {
+                // Safety: when has_fibers(), fiber_ptr is a valid zend_fiber* from executor_globals.
+                let fiber = unsafe { &*fiber_ptr.cast::<crate::bindings::zend_fiber>() };
+                // Safety: the fcc is set by Fiber::__construct as part of zpp,
+                // which will always set the function_handler on success, and
+                // there's nothing changing that value in all of fibers
+                // afterwards, from start to destruction of the fiber itself.
+                let func_ptr = fiber.fci_cache.function_handler;
+                if !func_ptr.is_null() {
+                    let func = unsafe { &*func_ptr };
+                    if let Some(functionname) = extract_function_name(func) {
+                        labels.push(Label {
+                            key: "fiber",
+                            value: LabelValue::Str(functionname),
+                        });
+                    }
+                }
             }
         }
         labels
@@ -1681,9 +1795,13 @@ mod tests {
     #[test]
     #[cfg(not(miri))]
     fn profiler_prepare_sample_message_works_cpu_time_and_timeline() {
+        crate::init_matrix_for_tests();
         let frames = get_frames();
         let samples = get_samples();
-        let labels = Profiler::common_labels(0);
+        crate::ON_PHP_THREAD_ACTIVE.with(|b| b.set(true));
+        // SAFETY: test helper; ON_PHP_THREAD_ACTIVE set above to satisfy debug_assert.
+        let labels = Profiler::common_labels(0, unsafe { crate::OnPhpThread::new() });
+        crate::ON_PHP_THREAD_ACTIVE.with(|b| b.set(false));
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
@@ -1705,4 +1823,18 @@ mod tests {
         assert_eq!(message.value.sample_values, vec![10, 20, 30, 60]);
         assert_eq!(message.value.timestamp, 900);
     }
+}
+
+type ZendGcGetStatusFn = unsafe extern "C" fn(*mut crate::bindings::zend_gc_status);
+
+/// Wrapper for PHP's zend_gc_get_status (PHP 7.4+ API).
+/// Resolved at runtime to avoid a hard ELF dependency on older PHP versions.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_gc_get_status(status: *mut crate::bindings::zend_gc_status) {
+    let sym = crate::universal::runtime::symbol_addr("zend_gc_get_status");
+    if sym.is_null() {
+        return;
+    }
+    let f: ZendGcGetStatusFn = core::mem::transmute(sym);
+    f(status)
 }

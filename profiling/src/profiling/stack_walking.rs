@@ -1,17 +1,9 @@
-use crate::bindings::{
-    zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
-};
+use crate::bindings::{zend_execute_data, zend_function, zend_op, zend_op_array};
 use crate::profiling::Backtrace;
+use crate::universal::runtime::symbol_addr;
 use crate::vec_ext::VecExt;
+use core::ffi::c_char;
 use std::borrow::Cow;
-
-#[cfg(php_frameless)]
-use crate::bindings::zend_flf_functions;
-
-#[cfg(php_frameless)]
-use crate::bindings::{
-    ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
-};
 
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
@@ -141,8 +133,13 @@ unsafe fn extract_file_and_line(
     // This should be Some, just being cautious.
     match execute_data.func.as_ref() {
         Some(func) if !func.is_internal() => {
-            // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
+            let bytes = unsafe {
+                crate::zend_string::zend_string_to_zai_str(
+                    func.op_array()
+                        .and_then(|oa| oa.filename.as_mut().map(|r| r as *mut _)),
+                )
+                .as_bytes()
+            };
             let file = if bytes.len() < STR_LEN_LIMIT {
                 Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
             } else {
@@ -158,7 +155,6 @@ unsafe fn extract_file_and_line(
     }
 }
 
-#[cfg(php_run_time_cache)]
 mod detail {
     use super::*;
     use crate::string_set::StringSet;
@@ -296,31 +292,25 @@ mod detail {
         samples.try_reserve(max_depth >> 3)?;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            // allowed because it's only used on the frameless path
-            #[allow(unused_variables)]
             if let Some(func) = unsafe { execute_data.func.as_ref() } {
-                // It's possible that this is a fake frame put there by the
-                // engine, see accel_preload on PHP 8.4 and the local variable
-                // `fake_execute_data`. The frame is zeroed in this case, so
-                // we can check for null.
-                #[cfg(php_frameless)]
-                if !func.is_internal() {
+                // Frameless path (PHP 8.4+): fake frames for ICALL opcodes.
+                // Resolved at runtime via matrix and symbol_addr.
+                if crate::matrix_entry().has_frameless() && !func.is_internal() {
                     if let Some(opline) = safely_get_opline(execute_data) {
-                        match opline.opcode as u32 {
-                            ZEND_FRAMELESS_ICALL_0
-                            | ZEND_FRAMELESS_ICALL_1
-                            | ZEND_FRAMELESS_ICALL_2
-                            | ZEND_FRAMELESS_ICALL_3 => {
-                                let func = unsafe {
-                                    &**zend_flf_functions.offset(opline.extended_value as isize)
-                                };
+                        let (f0, f1, f2, f3) = crate::matrix_entry().frameless_icall_opcodes();
+                        let op = opline.opcode as u32;
+                        if op == f0 || op == f1 || op == f2 || op == f3 {
+                            let flf = symbol_addr("zend_flf_functions");
+                            if !flf.is_null() {
+                                let arr = flf as *const *const zend_function;
+                                let ptr = unsafe { *arr.add(opline.extended_value as usize) };
+                                let func_ptr = unsafe { &*ptr };
                                 samples.try_push(ZendFrame {
-                                    function: extract_function_name(func).unwrap(),
+                                    function: extract_function_name(func_ptr).unwrap(),
                                     file: None,
                                     line: 0,
                                 })?;
                             }
-                            _ => {}
                         }
                     }
                 }
@@ -344,7 +334,7 @@ mod detail {
                 }
             }
 
-            execute_data_ptr = execute_data.prev_execute_data;
+            execute_data_ptr = execute_data.prev_execute_data as *mut _;
         }
         Ok(Backtrace::new(samples))
     }
@@ -439,8 +429,11 @@ mod detail {
                     return None;
                 };
 
-                // SAFETY: calling C function with correct args.
-                let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
+                let file = crate::zend_string::zend_string_to_zai_str(
+                    func.op_array()
+                        .and_then(|oa| oa.filename.as_mut().map(|r| r as *mut _)),
+                )
+                .into_string();
                 Some(file)
             }
         });
@@ -457,74 +450,6 @@ mod detail {
     }
 }
 
-#[cfg(not(php_run_time_cache))]
-mod detail {
-    use super::*;
-
-    /// # Safety
-    /// This is actually safe, but it is marked unsafe for symmetry when the
-    /// run_time_cache is enabled.
-    #[inline]
-    pub unsafe fn activate() {}
-
-    #[inline]
-    pub fn rshutdown() {}
-
-    #[inline(never)]
-    pub fn collect_stack_sample(
-        top_execute_data: *mut zend_execute_data,
-    ) -> Result<Backtrace, CollectStackSampleError> {
-        #[cfg(feature = "tracing")]
-        let _span = tracing::trace_span!("collect_stack_sample").entered();
-
-        let max_depth = 512;
-        let mut samples = Vec::with_capacity(max_depth >> 3);
-        let mut execute_data_ptr = top_execute_data;
-
-        while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            let maybe_frame = unsafe { collect_call_frame(execute_data) };
-            if let Some(frame) = maybe_frame {
-                samples.try_push(frame)?;
-
-                /* -1 to reserve room for the [truncated] message. In case the
-                 * backend and/or frontend have the same limit, without the -1
-                 * then ironically the [truncated] message would be truncated.
-                 */
-                if samples.len() == max_depth - 1 {
-                    samples.try_push(ZendFrame {
-                        function: COW_TRUNCATED,
-                        file: None,
-                        line: 0,
-                    })?;
-                    break;
-                }
-            }
-
-            execute_data_ptr = execute_data.prev_execute_data;
-        }
-        Ok(Backtrace::new(samples))
-    }
-
-    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
-        if let Some(func) = execute_data.func.as_ref() {
-            let function = extract_function_name(func);
-            let (file, line) = extract_file_and_line(execute_data);
-
-            // Only create a new frame if there's file or function info.
-            if file.is_some() || function.is_some() {
-                // If there's no function name, use a fake name.
-                let function = function.unwrap_or(COW_PHP_OPEN_TAG);
-                return Some(ZendFrame {
-                    function,
-                    file,
-                    line,
-                });
-            }
-        }
-        None
-    }
-}
-
 pub use detail::*;
 
 #[cfg(test)]
@@ -532,6 +457,7 @@ mod tests {
     use super::*;
     use crate::bindings as zend;
 
+    #[cfg(feature = "stack_walking_tests")]
     extern "C" {
         fn ddog_php_test_create_fake_zend_function_with_name_len(
             len: libc::size_t,
@@ -568,6 +494,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_extract_function_name_short_string() {
         unsafe {
             let func = ddog_php_test_create_fake_zend_function_with_name_len(10);
@@ -581,6 +508,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_extract_function_name_at_limit_minus_one() {
         unsafe {
             let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT - 1);
@@ -595,6 +523,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_extract_function_name_at_limit() {
         unsafe {
             let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT);
@@ -608,6 +537,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "stack_walking_tests")]
     fn test_extract_function_name_over_limit() {
         unsafe {
             let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT + 1000);
@@ -619,4 +549,16 @@ mod tests {
             ddog_php_test_free_fake_zend_function(func);
         }
     }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_function_run_time_cache_init(_module_name: *const c_char) {
+    // Stub: needs zend_get_op_array_extension_handles via dlsym
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_php_prof_function_run_time_cache(
+    _func: &zend_function,
+) -> Option<&mut [usize; 2]> {
+    None
 }

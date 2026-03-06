@@ -1,7 +1,45 @@
-use crate::bindings::{
-    Elf64_Dyn, Elf64_Rela, Elf64_Sym, Elf64_Xword, DT_JMPREL, DT_NULL, DT_PLTRELSZ, DT_STRTAB,
-    DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
-};
+// ELF64 types (not exposed by libc on all platforms/versions).
+pub type Elf64_Xword = u64;
+
+#[repr(C)]
+pub union Elf64_DynUnion {
+    pub d_val: u64,
+    pub d_ptr: u64,
+}
+#[repr(C)]
+pub struct Elf64_Dyn {
+    pub d_tag: i64,
+    pub d_un: Elf64_DynUnion,
+}
+
+#[repr(C)]
+pub struct Elf64_Rela {
+    pub r_offset: u64,
+    pub r_info: Elf64_Xword,
+    pub r_addend: i64,
+}
+
+#[repr(C)]
+pub struct Elf64_Sym {
+    pub st_name: u32,
+    pub st_info: u8,
+    pub st_other: u8,
+    pub st_shndx: u16,
+    pub st_value: u64,
+    pub st_size: u64,
+}
+
+// Dynamic section tag constants
+const DT_NULL: u32 = 0;
+const DT_PLTRELSZ: u32 = 2;
+const DT_STRTAB: u32 = 5;
+const DT_SYMTAB: u32 = 6;
+const DT_JMPREL: u32 = 23;
+const PT_DYNAMIC: u32 = 2;
+
+// ELF relocation types
+const R_AARCH64_JUMP_SLOT: u32 = 1026;
+const R_X86_64_JUMP_SLOT: u32 = 7;
 use libc::{c_char, c_int, c_void, dl_phdr_info};
 use log::{error, trace};
 use std::ffi::CStr;

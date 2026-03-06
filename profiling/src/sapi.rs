@@ -1,5 +1,41 @@
 use crate::zend::sapi_request_info;
+use libc;
 use log::warn;
+
+/// Returns SG(request_info). Ported from php_ffi.c.
+/// Works across PHP 7.1–8.5 via sapi_globals and matrix offsets.
+pub fn get_sapi_request_info() -> sapi_request_info {
+    let entry = crate::matrix_entry();
+    let sg = crate::universal::get_sapi_globals(entry);
+    let null_ri = || sapi_request_info {
+        request_method: core::ptr::null(),
+        query_string: core::ptr::null(),
+        content_type: core::ptr::null(),
+        content_length: 0,
+        argv: core::ptr::null_mut(),
+        argc: 0,
+    };
+    if sg.is_null() {
+        return null_ri();
+    }
+    let ri_off = entry.offsets.sg_request_info;
+    let argc_off = entry.offsets.sapi_request_info_argc;
+    let argv_off = entry.offsets.sapi_request_info_argv;
+    if ri_off < 0 || argc_off < 0 || argv_off < 0 {
+        return null_ri();
+    }
+    let ri = unsafe { sg.add(ri_off as usize) };
+    let argc = unsafe { *(ri.add(argc_off as usize) as *const libc::c_int) };
+    let argv = unsafe { *(ri.add(argv_off as usize) as *const *mut *mut libc::c_char) };
+    sapi_request_info {
+        request_method: core::ptr::null(),
+        query_string: core::ptr::null(),
+        content_type: core::ptr::null(),
+        content_length: 0,
+        argv,
+        argc,
+    }
+}
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::ffi::{CStr, OsStr};

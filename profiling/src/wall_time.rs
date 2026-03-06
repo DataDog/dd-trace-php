@@ -7,12 +7,13 @@ use core::ptr;
 use log::debug;
 use std::sync::atomic::Ordering;
 
-#[cfg(not(php_frameless))]
+/// Hook for zend_execute_internal on PHP < 8.4. On 8.4+ (frameless), the VM handles
+/// interrupts differently so this hook is not installed.
 mod execute_internal {
     use super::*;
     use crate::zend;
     use std::mem::MaybeUninit;
-    use zend::{zend_execute_internal, zval, ZEND_ACC_CALL_VIA_TRAMPOLINE};
+    use zend::{zend_execute_internal, zval};
 
     /// The engine's previous [zend::zend_execute_internal] value, or
     /// [zend::execute_internal] if none. This is a highly active path, so
@@ -38,7 +39,8 @@ mod execute_internal {
         if (*execute_data).func.is_null() {
             return false;
         }
-        ((*(*execute_data).func).common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) != 0
+        ((*(*execute_data).func).common.fn_flags & crate::matrix_entry().trampoline_flag_mask())
+            != 0
     }
 
     /// Overrides the engine's zend_execute_internal hook to process pending
@@ -66,7 +68,7 @@ mod execute_internal {
         // SAFETY: called before executing the trampoline.
         let leaf_frame = if unsafe { execute_data_func_is_trampoline(execute_data) } {
             // SAFETY: if is_trampoline is set, then there must be a valid execute_data.
-            unsafe { *execute_data }.prev_execute_data
+            unsafe { (*execute_data).prev_execute_data }
         } else {
             execute_data
         };
@@ -80,14 +82,18 @@ mod execute_internal {
 
         // See safety section of `execute_data_func_is_trampoline` docs for why
         // the leaf frame is used  instead of the execute_data ptr.
-        ddog_php_prof_interrupt_function(leaf_frame);
+        ddog_php_prof_interrupt_function(leaf_frame as *mut _);
     }
 
     /// # Safety
     /// Only call during extension MINIT.
     pub unsafe fn minit() {
-        (*ptr::addr_of_mut!(PREV_EXECUTE_INTERNAL))
-            .write(zend_execute_internal.unwrap_or(zend::execute_internal));
+        // zend_execute_internal is PHP's hook (null by default); fall back to the
+        // engine's concrete execute_internal function when the hook is unset.
+        let prev = zend_execute_internal.unwrap_or(
+            zend::execute_internal as unsafe extern "C" fn(*mut zend_execute_data, *mut zval),
+        );
+        (*ptr::addr_of_mut!(PREV_EXECUTE_INTERNAL)).write(prev);
         zend_execute_internal = Some(execute_internal);
     }
 }
@@ -128,7 +134,10 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
 
         if let Some(profiler) = Profiler::get() {
             // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-            profiler.collect_time(execute_data, interrupt_count);
+            // SAFETY: ddog_php_prof_interrupt_function is a PHP engine callback.
+            profiler.collect_time(execute_data, interrupt_count, unsafe {
+                crate::OnPhpThread::new()
+            });
         }
     });
 
@@ -163,6 +172,7 @@ pub unsafe fn minit() {
     };
     interrupt_function.write(Some(function));
 
-    #[cfg(not(php_frameless))]
-    execute_internal::minit();
+    if !crate::matrix_entry().has_frameless() {
+        execute_internal::minit();
+    }
 }

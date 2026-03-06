@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod bindings;
 pub mod capi;
 mod clocks;
@@ -7,9 +9,9 @@ pub mod module_globals;
 pub mod profiling;
 mod pthread;
 mod sapi;
+mod universal;
 mod wall_time;
 
-#[cfg(php_run_time_cache)]
 mod string_set;
 
 #[macro_use]
@@ -22,15 +24,13 @@ mod exception;
 
 mod timeline;
 mod vec_ext;
+mod zend_string;
 
 use crate::config::SystemSettings;
-use crate::zend::datadog_sapi_globals_request_info;
-use bindings::{
-    self as zend, ddog_php_prof_php_version, ddog_php_prof_php_version_id, ZendExtension,
-    ZendExtensionVersionInfo, ZendResult,
-};
+use crate::zend::get_sapi_request_info;
+use bindings::{self as zend, ZendExtension, ZendExtensionVersionInfo, ZendResult};
 use clocks::*;
-use core::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int, c_void};
 use core::ptr;
 use lazy_static::lazy_static;
 use libdd_common::{cstr, tag, tag::Tag};
@@ -38,14 +38,68 @@ use log::{debug, error, info, trace, warn};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
 use sapi::Sapi;
 use std::borrow::Cow;
-use std::cell::{BorrowError, BorrowMutError, RefCell};
+use std::cell::{BorrowError, BorrowMutError, Cell, RefCell};
 use std::ffi::CStr;
+use std::mem::MaybeUninit;
 use std::ops::{Deref, DerefMut};
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicPtr, AtomicU32, Ordering};
 use std::sync::{Arc, Once, OnceLock};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
+
+thread_local! {
+    /// Tracks whether the current thread is within the GINIT–GSHUTDOWN window.
+    /// Set to `true` at the very start of `ginit`, cleared to `false` at the
+    /// very end of `gshutdown`. Used to back the `debug_assert!` in
+    /// [`OnPhpThread::new`] and to guard optional shutdown work in the
+    /// post-fork child handler.
+    pub(crate) static ON_PHP_THREAD_ACTIVE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Returns `true` if the current thread is within the GINIT–GSHUTDOWN window.
+#[inline]
+pub(crate) fn is_on_php_thread() -> bool {
+    ON_PHP_THREAD_ACTIVE.with(Cell::get)
+}
+
+/// Token that proves the current code is executing on a PHP thread within the
+/// window from `GINIT` through the end of `GSHUTDOWN` (inclusive).
+///
+/// Not [`Send`] — the guarantee is only valid for the thread that created it.
+/// `Copy` because being on a PHP thread is a property of the thread, not a
+/// resource that can be consumed.
+#[derive(Clone, Copy)]
+pub struct OnPhpThread(core::marker::PhantomData<*const ()>);
+
+impl OnPhpThread {
+    /// Assert that this code is running on a PHP thread between GINIT and
+    /// GSHUTDOWN (inclusive).
+    ///
+    /// # Safety
+    /// The caller must be executing on a PHP thread at a point no earlier
+    /// than GINIT and no later than GSHUTDOWN for that thread.
+    pub unsafe fn new() -> Self {
+        let result = Self::try_new();
+        debug_assert!(
+            result.is_some(),
+            "OnPhpThread::new() called outside GINIT–GSHUTDOWN window"
+        );
+
+        // SAFETY: the caller promised this, and we've debug checked it.
+        unsafe { result.unwrap_unchecked() }
+    }
+
+    /// Returns `Some` if the current thread is within the GINIT–GSHUTDOWN
+    /// window, `None` otherwise. Safe to call from any thread.
+    pub fn try_new() -> Option<Self> {
+        if is_on_php_thread() {
+            Some(OnPhpThread(core::marker::PhantomData))
+        } else {
+            None
+        }
+    }
+}
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -55,23 +109,126 @@ static PROFILER_NAME: &CStr = c"datadog-profiling";
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("PROFILER_VERSION"), "\0").as_bytes();
 
-/// Version ID of PHP at run-time, not the version it was built against at
-/// compile-time. Its value is overwritten during minit.
-static RUNTIME_PHP_VERSION_ID: AtomicU32 = AtomicU32::new(zend::PHP_VERSION_ID);
+/// Version ID of PHP at run-time. Initialized to 0 and overwritten at load time.
+static RUNTIME_PHP_VERSION_ID: AtomicU32 = AtomicU32::new(0);
 
-/// Version str of PHP at run-time, not the version it was built against at
-/// compile-time. Its value is overwritten during minit, unless there are
-/// errors at run-time, and then the compile-time value will still remain.
-static mut RUNTIME_PHP_VERSION: &str = {
-    // This takes a weird path in order to be const.
-    let ptr: *const u8 = zend::PHP_VERSION.as_ptr();
-    let len = zend::PHP_VERSION.len() - 1;
-    let bytes = unsafe { core::slice::from_raw_parts(ptr, len) };
-    match core::str::from_utf8(bytes) {
-        Ok(str) => str,
-        Err(_) => panic!("PHP_VERSION string was not valid UTF-8"),
+/// Version str of PHP at run-time. Initialized to "" and overwritten at load time.
+static mut RUNTIME_PHP_VERSION: &str = "";
+
+/// Set to `true` once `ddog_php_prof_post_startup_cb` fires (PHP 7.3+), or
+/// immediately at startup time for PHP 7.1/7.2 which lack the callback.
+static IS_POST_STARTUP: AtomicBool = AtomicBool::new(false);
+
+/// The original value of `zend_post_startup_cb` that we displaced when
+/// installing our hook. `null` means no prior hook was registered.
+static ORIG_POST_STARTUP_CB: AtomicPtr<c_void> = AtomicPtr::new(ptr::null_mut());
+
+/// Returns `true` once the PHP post-startup phase has completed.
+///
+/// On PHP 7.1/7.2 this is always `true` (those versions have no post-startup
+/// callback and no preloading). On PHP 7.3+ it becomes `true` when
+/// `zend_post_startup_cb` fires.
+pub fn is_post_startup() -> bool {
+    IS_POST_STARTUP.load(Ordering::Relaxed)
+}
+
+/// Our `zend_post_startup_cb` hook installed by [`post_startup_init`].
+///
+/// Chains to the previous hook (if any), then sets [`IS_POST_STARTUP`].
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_post_startup_cb() -> ZendResult {
+    // ORIG_POST_STARTUP_CB is null when no other extension registered a hook
+    // before us. PHP initialises zend_post_startup_cb to NULL, so null means
+    // "nobody else was there" — calling a null pointer would crash.
+    let ptr = ORIG_POST_STARTUP_CB.load(Ordering::Relaxed);
+    if !ptr.is_null() {
+        let orig: unsafe extern "C" fn() -> ZendResult = core::mem::transmute(ptr);
+        if orig() != ZendResult::Success {
+            return ZendResult::Failure;
+        }
     }
-};
+    IS_POST_STARTUP.store(true, Ordering::Release);
+    ZendResult::Success
+}
+
+/// Installs [`ddog_php_prof_post_startup_cb`] into `zend_post_startup_cb`.
+///
+/// Called from [`startup`]. On PHP 7.1/7.2 where the symbol doesn't exist,
+/// marks post-startup as complete immediately (no preloading on those versions).
+fn post_startup_init() {
+    // zend_post_startup_cb is a **pointer to a function pointer** in PHP's
+    // data segment. symbol_addr returns the address of that variable, so we
+    // must read/write through it as a pointer-to-pointer.
+    let cb_ptr = universal::runtime::symbol_addr("zend_post_startup_cb");
+    if cb_ptr.is_null() {
+        // PHP 7.1/7.2: symbol absent, no preloading, mark done immediately.
+        IS_POST_STARTUP.store(true, Ordering::Relaxed);
+        return;
+    }
+    let fn_ptr_ptr = cb_ptr as *mut *mut c_void;
+    let orig = unsafe { fn_ptr_ptr.read() };
+    ORIG_POST_STARTUP_CB.store(orig, Ordering::Relaxed);
+    unsafe { fn_ptr_ptr.write(ddog_php_prof_post_startup_cb as *mut c_void) };
+}
+
+/// Initialize `RUNTIME_PHP_VERSION` and `RUNTIME_PHP_VERSION_ID`.
+///
+/// Lookup order:
+/// 1. `php_version` runtime symbol, then `_php_version` (some platforms prefix with `_`).
+/// 2. `php_version_id` runtime symbol, then `_php_version_id`, for the numeric ID.
+/// 3. `fallback_version_ptr` — e.g. a bundled module's `version` field such as Reflection's.
+///    Both the string and the numeric ID (parsed from it) come from this pointer.
+///
+/// The string symbols and the fallback pointer must be `'static` (they must point into the
+/// loaded PHP binary, not into temporary storage).
+///
+/// # Safety
+/// Any non-null pointer passed must be a valid, null-terminated, UTF-8 C string.
+unsafe fn init_runtime_php_version(fallback_version_ptr: *const u8) {
+    use universal::runtime::symbol_addr;
+
+    // php_version() and php_version_id() are functions introduced in PHP 8.3.
+    // On older versions the symbols don't exist; symbol_addr returns null.
+    // transmute is required — Rust has no as-cast from data pointer to fn pointer.
+    type PhpVersionFn = unsafe extern "C" fn() -> *const c_char;
+    type PhpVersionIdFn = unsafe extern "C" fn() -> u32;
+
+    // 1. Try php_version() (PHP 8.3+); fall back to Reflection's version field.
+    let ver_str_ptr: *const c_char = {
+        let p = symbol_addr("php_version");
+        if !p.is_null() {
+            let f: PhpVersionFn = core::mem::transmute(p);
+            f()
+        } else {
+            fallback_version_ptr as *const c_char
+        }
+    };
+    if !ver_str_ptr.is_null() {
+        if let Ok(s) = CStr::from_ptr(ver_str_ptr).to_str() {
+            RUNTIME_PHP_VERSION = s;
+        }
+    }
+
+    // 2. Try php_version_id() (PHP 8.3+); fall back to parsing the string set above.
+    let p = symbol_addr("php_version_id");
+    if !p.is_null() {
+        let f: PhpVersionIdFn = core::mem::transmute(p);
+        RUNTIME_PHP_VERSION_ID.store(f(), Ordering::Relaxed);
+    } else if !RUNTIME_PHP_VERSION.is_empty() {
+        let mut parts = RUNTIME_PHP_VERSION.split('.');
+        let major: u32 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+        let minor: u32 = parts.next().and_then(|p| p.parse().ok()).unwrap_or(0);
+        // Patch may have a suffix like "-dev"; take only leading digits.
+        let patch: u32 = parts
+            .next()
+            .and_then(|p| p.split(|c: char| !c.is_ascii_digit()).next())
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(0);
+        if major > 0 {
+            RUNTIME_PHP_VERSION_ID.store(major * 10000 + minor * 100 + patch, Ordering::Relaxed);
+        }
+    }
+}
 
 lazy_static! {
     /// # Safety
@@ -96,7 +253,7 @@ lazy_static! {
         // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
         // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
         // `zend-nts-ndebug`
-        let runtime_engine = if cfg!(php_zts) {
+        let runtime_engine = if universal::is_zts() {
             "zend-zts-ndebug"
         } else {
             "zend-nts-ndebug"
@@ -109,17 +266,18 @@ lazy_static! {
     static ref SAPI: Sapi = {
         #[cfg(not(test))]
         {
-            // SAFETY: sapi_module is initialized before minit and there should be
-            // no concurrent threads.
-            let sapi_module = unsafe { zend::sapi_module };
-            if sapi_module.name.is_null() {
+            let sapi_module = &raw const zend::sapi_module;
+            // SAFETY: sapi_module is initialized before minit and there
+            // should be no concurrent threads.
+            let sapi_name = unsafe { (*sapi_module).name };
+            if sapi_name.is_null() {
                 panic!("the sapi_module's name is a null pointer");
             }
 
             // SAFETY: value has been checked for NULL; I haven't checked that the
             // engine ensures its length is less than `isize::MAX`, but it is a
             // risk I'm willing to take.
-            let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
+            let sapi_name = unsafe { CStr::from_ptr(sapi_name) };
             Sapi::from_name(sapi_name.to_string_lossy().as_ref())
         }
         // When running `cargo test` we do not link against PHP, so `zend::sapi_name` is not
@@ -148,10 +306,6 @@ lazy_static! {
 /// so whatever it is replaced with needs to also follow the
 /// initialize-on-first-use pattern.
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
-// If ddtrace is loaded, we fetch the uuid from there instead
-extern "C" {
-    pub static ddtrace_runtime_id: *const Uuid;
-}
 
 /// Module dependencies for the profiler extension.
 static MODULE_DEPS: [zend::ModuleDep; 8] = [
@@ -191,29 +345,117 @@ static BUILD_ID_PLACEHOLDER: &CStr = c"API0,NTS";
 /// Extension: API420240924,NTS. Module: API20240924,NTS (remove 4th char).
 static mut MODULE_BUILD_ID_BUF: [u8; 32] = [0; 32];
 
-/// The module entry for the profiler extension. Fields that aren't
-/// const-compatible are set in get_module().
-static mut MODULE: zend::ModuleEntry = zend::ModuleEntry {
-    deps: MODULE_DEPS.as_ptr(),
-    name: PROFILER_NAME.as_ptr(),
-    functions: ptr::null(), // Will be set in get_module()
-    module_startup_func: Some(minit),
-    module_shutdown_func: Some(mshutdown),
-    request_startup_func: Some(rinit),
-    request_shutdown_func: Some(rshutdown),
-    info_func: Some(minfo),
-    version: PROFILER_VERSION.as_ptr(),
-    globals_size: core::mem::size_of::<module_globals::ProfilerGlobals>(),
-    #[cfg(php_zts)]
-    globals_id_ptr: ptr::addr_of_mut!(module_globals::GLOBALS_ID),
-    #[cfg(not(php_zts))]
-    globals_ptr: ptr::addr_of_mut!(module_globals::GLOBALS).cast(),
-    globals_ctor: Some(module_globals::ginit),
-    globals_dtor: Some(module_globals::gshutdown),
-    post_deactivate_func: Some(prshutdown),
-    build_id: ptr::null(), // Will be set in get_module()
-    ..zend::ModuleEntry::new()
-};
+/// Wrapper that embeds the matrix entry and executor_globals cache with the module.
+/// Module is first so PHP sees valid layout.
+/// Initialized only when we register; MODULE_REGISTERED implies this is init.
+#[repr(C)]
+struct ProfilingModuleEntry {
+    module: zend::ModuleEntry,
+    matrix_entry: &'static universal::MatrixEntry,
+    executor_globals_cache: universal::ExecutorGlobalsCache,
+}
+
+static mut PROFILER_MODULE: MaybeUninit<ProfilingModuleEntry> = MaybeUninit::uninit();
+
+/// In unit tests, a lightweight matrix entry override so tests don't need a
+/// fully initialised `PROFILER_MODULE`. Set via [`init_matrix_for_tests`].
+#[cfg(test)]
+static TEST_MATRIX_ENTRY: std::sync::OnceLock<&'static universal::MatrixEntry> =
+    std::sync::OnceLock::new();
+
+/// Inject a `MatrixEntry` for unit tests that exercise code paths which call
+/// [`matrix_entry`]. Picks the first NTS entry from the compile-time table.
+#[cfg(test)]
+pub(crate) fn init_matrix_for_tests() {
+    TEST_MATRIX_ENTRY.get_or_init(|| {
+        universal::first_nts_entry()
+            .expect("at least one NTS entry in the compile-time matrix table")
+    });
+}
+
+/// Matrix entry for the loaded profiler. Infallible—only call when module is loaded.
+pub(crate) fn matrix_entry() -> &'static universal::MatrixEntry {
+    #[cfg(test)]
+    if let Some(entry) = TEST_MATRIX_ENTRY.get() {
+        return entry;
+    }
+    debug_assert!(
+        MODULE_REGISTERED.load(Ordering::SeqCst),
+        "matrix_entry called before module registered; MaybeUninit not yet initialized"
+    );
+    // SAFETY: MODULE_REGISTERED is set only after we write PROFILER_MODULE; callbacks only run when registered
+    unsafe { PROFILER_MODULE.assume_init_ref().matrix_entry }
+}
+
+/// Cached executor_globals symbols. Infallible—only call when module is loaded.
+pub(crate) fn executor_globals_cache() -> &'static universal::ExecutorGlobalsCache {
+    debug_assert!(
+        MODULE_REGISTERED.load(Ordering::SeqCst),
+        "executor_globals_cache called before module registered; MaybeUninit not yet initialized"
+    );
+    // SAFETY: MODULE_REGISTERED is set only after we write PROFILER_MODULE; callbacks only run when registered
+    unsafe { &PROFILER_MODULE.assume_init_ref().executor_globals_cache }
+}
+
+/// Base module entry (const parts). Variable fields (functions, build_id, handle, zts, globals) set at init.
+fn base_module_entry(is_zts: bool) -> zend::ModuleEntry {
+    let globals = if is_zts {
+        zend::ModuleGlobalsUnion {
+            globals_id_ptr: ptr::addr_of_mut!(module_globals::GLOBALS_ID),
+        }
+    } else {
+        zend::ModuleGlobalsUnion {
+            globals_ptr: ptr::addr_of_mut!(module_globals::GLOBALS).cast(),
+        }
+    };
+    zend::ModuleEntry {
+        deps: MODULE_DEPS.as_ptr(),
+        name: PROFILER_NAME.as_ptr(),
+        functions: ptr::null(),
+        module_startup_func: Some(minit),
+        module_shutdown_func: Some(mshutdown),
+        request_startup_func: Some(rinit),
+        request_shutdown_func: Some(rshutdown),
+        info_func: Some(minfo),
+        version: PROFILER_VERSION.as_ptr(),
+        globals_size: core::mem::size_of::<module_globals::ProfilerGlobals>(),
+        globals,
+        globals_ctor: Some(module_globals::ginit),
+        globals_dtor: Some(module_globals::gshutdown),
+        post_deactivate_func: Some(prshutdown),
+        build_id: ptr::null(),
+        ..zend::ModuleEntry::new()
+    }
+}
+
+/// ZEND_EXTENSION_API_NO for PHP 7.1. Any api_no below this is too old.
+const PHP71_MIN_EXTENSION_API_NO: i32 = 320160303;
+
+/// Prepare profiler for registration. Returns Some((entry, cache)) iff all checks pass.
+fn prepare_profiler_module(
+    api_no: i32,
+    build_id: &str,
+    is_zts: bool,
+) -> Option<(
+    &'static universal::MatrixEntry,
+    universal::ExecutorGlobalsCache,
+)> {
+    if api_no < PHP71_MIN_EXTENSION_API_NO {
+        error!(
+            "datadog-profiling: PHP version is too old (api_no={}); minimum supported version is PHP 7.1",
+            api_no
+        );
+        return None;
+    }
+    universal::find_entry(api_no, build_id, is_zts, false).and_then(|entry| {
+        let cache = universal::build_executor_globals_cache(entry)?;
+        // Don't eagerly validate cache.get() here: for ZTS the thread-local
+        // storage isn't set up until the first request, so the pointer is always
+        // null at module-registration time. Defer validation to request time for
+        // consistency across NTS and ZTS.
+        Some((entry, cache))
+    })
+}
 
 /// Converts extension build_id (API420240924,NTS) to module build_id (API20240924,NTS)
 /// by removing the 4th character. Returns pointer to static buffer or null on failure.
@@ -250,22 +492,76 @@ unsafe extern "C" fn build_id_check(build_id: *const c_char) -> ZendResult {
     }
 
     let runtime_build_id = CStr::from_ptr(build_id).to_string_lossy();
-    let is_zts = runtime_build_id.contains(",TS");
 
-    // Prepare MODULE for registration.
-    let module = ptr::addr_of_mut!(MODULE);
-    ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
-    ptr::addr_of_mut!((*module).build_id).write(module_build_id_ptr);
-    ptr::addr_of_mut!((*module).handle).write(ptr::null_mut());
-    (*module).zts = if is_zts { 1 } else { 0 };
-
-    let registered = zend::zend_register_internal_module(module);
-    if registered.is_null() {
+    if runtime_build_id.contains(",debug") {
+        error!(
+            "datadog-profiling: debug PHP builds are not supported (build_id={})",
+            runtime_build_id
+        );
         return ZendResult::Failure;
     }
 
+    let is_zts = universal::build_id_is_zts(build_id);
+
+    let api_no = LAST_API_NO.load(Ordering::Relaxed);
+    let (entry, executor_globals_cache) = match prepare_profiler_module(
+        api_no,
+        runtime_build_id.as_ref(),
+        is_zts,
+    ) {
+        Some(p) => p,
+        None => {
+            error!(
+                "datadog-profiling: no matrix entry or missing PHP symbols for api_no={} build_id={} zts={}",
+                api_no, runtime_build_id, is_zts
+            );
+            return ZendResult::Failure;
+        }
+    };
+
+    let mut module = base_module_entry(is_zts);
+    ptr::addr_of_mut!(module.functions).write(bindings::ddog_php_prof_functions.0);
+    ptr::addr_of_mut!(module.build_id).write(module_build_id_ptr);
+    ptr::addr_of_mut!(module.handle).write(ptr::null_mut());
+    module.zts = if is_zts { 1 } else { 0 };
+    // Patch the compile-time zend_api constant to match the runtime PHP version.
+    module.zend_api = (api_no % 100_000_000) as u32;
+
+    // Set PHP version: try php_version/php_version_id symbols first, fall back to Reflection's
+    // version field if available (Reflection may not be loaded yet at build_id_check time).
+    let refl = find_module_entry(c"reflection");
+    let refl_version = if refl.is_null() {
+        ptr::null()
+    } else {
+        (*refl).version
+    };
+    init_runtime_php_version(refl_version);
+
+    let pm = ptr::addr_of_mut!(PROFILER_MODULE);
+    unsafe {
+        (*pm).write(ProfilingModuleEntry {
+            module,
+            matrix_entry: entry,
+            executor_globals_cache,
+        })
+    };
+
+    // Set MODULE_REGISTERED before zend_register_internal_module: in ZTS mode that call
+    // triggers ts_allocate_fast_id → ginit for every existing thread, and ginit reads
+    // from PROFILER_MODULE (which is now initialized above).
     MODULE_REGISTERED.store(true, Ordering::SeqCst);
     ZEND_EXTENSION_REGISTERED.store(true, Ordering::SeqCst);
+
+    let registered = unsafe {
+        zend::zend_register_internal_module(ptr::addr_of_mut!((*pm).assume_init_mut().module))
+    };
+    if registered.is_null() {
+        // Roll back the flag — we failed to register.
+        MODULE_REGISTERED.store(false, Ordering::SeqCst);
+        ZEND_EXTENSION_REGISTERED.store(false, Ordering::SeqCst);
+        return ZendResult::Failure;
+    }
+
     ZendResult::Success
 }
 
@@ -308,6 +604,7 @@ pub static mut zend_extension_entry: ZendExtension = ZendExtension {
     resource_number: -1,
 };
 
+/// Reflection module name for obtaining api_no/build_id when loaded as extension=.
 /// The function `get_module` is what makes this a PHP module.
 ///
 /// # Safety
@@ -318,20 +615,116 @@ pub static mut zend_extension_entry: ZendExtension = ZendExtension {
 /// and not use the consecutive return value.
 #[no_mangle]
 pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
-    let module = ptr::addr_of_mut!(MODULE);
+    let pm = ptr::addr_of_mut!(PROFILER_MODULE);
 
-    // Set fields that aren't const-compatible.
+    let reflection_module = find_module_entry(c"reflection");
+
+    // extension= path: engine does not call api_no_check/build_id_check.
+    // Obtain api_no and build_id from Reflection; require matrix match to load.
+    if !ZEND_EXTENSION_REGISTERED.load(Ordering::SeqCst) {
+        eprintln!("[ddog-prof] get_module: looking up reflection");
+        eprintln!("[ddog-prof] get_module: refl={:p}", reflection_module);
+        if reflection_module.is_null() {
+            eprintln!("[ddog-prof] get_module: Reflection not found");
+            return ptr::null_mut();
+        }
+        // Set PHP version info as early as possible; the Reflection module's
+        // version field always holds the PHP version string and is static.
+        unsafe { init_runtime_php_version((*reflection_module).version) };
+        let build_id_ptr = unsafe { (*reflection_module).build_id };
+        eprintln!(
+            "[ddog-prof] get_module: build_id_ptr={:p} refl_size={} our_size={}",
+            build_id_ptr,
+            unsafe { (*reflection_module).size },
+            core::mem::size_of::<zend::ModuleEntry>()
+        );
+        if build_id_ptr.is_null() {
+            eprintln!("[ddog-prof] get_module: build_id null");
+            return ptr::null_mut();
+        }
+        let build_id_bytes = unsafe { CStr::from_ptr(build_id_ptr).to_bytes() };
+        eprintln!("[ddog-prof] get_module: build_id={:?}", unsafe {
+            CStr::from_ptr(build_id_ptr)
+        });
+        let (api_no, ext_build_id) =
+            match universal::module_to_extension_api_and_build_id(build_id_bytes) {
+                Some(t) => t,
+                None => {
+                    eprintln!("[ddog-prof] get_module: cannot parse build_id");
+                    return ptr::null_mut();
+                }
+            };
+        eprintln!(
+            "[ddog-prof] get_module: api_no={} ext_build_id={} is_zts={}",
+            api_no,
+            ext_build_id,
+            ext_build_id.contains(",TS")
+        );
+
+        if ext_build_id.contains(",debug") {
+            eprintln!("[ddog-prof] get_module: debug PHP builds are not supported");
+            return ptr::null_mut();
+        }
+
+        let is_zts = ext_build_id.contains(",TS");
+        let (entry, executor_globals_cache) =
+            match prepare_profiler_module(api_no, &ext_build_id, is_zts) {
+                Some(p) => p,
+                None => {
+                    eprintln!(
+                        "[ddog-prof] get_module: no matrix entry for api_no={} build_id={} zts={}",
+                        api_no, ext_build_id, is_zts
+                    );
+                    return ptr::null_mut();
+                }
+            };
+        eprintln!("[ddog-prof] get_module: prepare_profiler_module ok");
+
+        let mut module = base_module_entry(is_zts);
+        ptr::addr_of_mut!(module.functions).write(bindings::ddog_php_prof_functions.0);
+        ptr::addr_of_mut!(module.build_id).write(build_id_ptr);
+        ptr::addr_of_mut!(module.handle).write(ptr::null_mut());
+        module.zts = if is_zts { 1 } else { 0 };
+        module.zend_api = (api_no % 100_000_000) as u32;
+
+        unsafe {
+            (*pm).write(ProfilingModuleEntry {
+                module,
+                matrix_entry: entry,
+                executor_globals_cache,
+            })
+        };
+    }
+
+    eprintln!("[ddog-prof] get_module: setting fields");
+    // Set fields that aren't const-compatible (may overwrite when zend_extension ran first).
     unsafe {
-        ptr::addr_of_mut!((*module).functions).write(bindings::ddog_php_prof_functions);
-        ptr::addr_of_mut!((*module).build_id).write(bindings::datadog_module_build_id());
+        let m = ptr::addr_of_mut!((*pm).assume_init_mut().module);
+        ptr::addr_of_mut!((*m).functions).write(bindings::ddog_php_prof_functions.0);
+        let build_id_ptr = if reflection_module.is_null() {
+            ptr::null()
+        } else {
+            (*reflection_module).build_id
+        };
+        if !build_id_ptr.is_null() {
+            ptr::addr_of_mut!((*m).build_id).write(build_id_ptr);
+            // Keep zend_api consistent with build_id.
+            let build_id_bytes = CStr::from_ptr(build_id_ptr).to_bytes();
+            if let Some((ext_api_no, _)) =
+                universal::module_to_extension_api_and_build_id(build_id_bytes)
+            {
+                (*m).zend_api = (ext_api_no % 100_000_000) as u32;
+            }
+        }
     }
 
     // If zend_extension= ran first, we are the second load. Do not register
-    // hybrid; return MODULE so PHP fails with "Module already loaded".
+    // hybrid; return module so PHP fails with "Module already loaded".
     if ZEND_EXTENSION_REGISTERED.load(Ordering::SeqCst) {
-        return module;
+        return ptr::addr_of_mut!((*pm).assume_init_mut().module);
     }
 
+    eprintln!("[ddog-prof] get_module: about to call zend_register_extension");
     ZEND_EXTENSION_REGISTER_ONCE.call_once(|| {
         let extension = ZendExtension {
             name: PROFILER_NAME.as_ptr(),
@@ -345,11 +738,19 @@ pub unsafe extern "C" fn get_module() -> *mut zend::ModuleEntry {
             ..Default::default()
         };
         unsafe { zend::zend_register_extension(&extension, ptr::null_mut()) };
+        eprintln!("[ddog-prof] get_module: zend_register_extension returned");
         ZEND_EXTENSION_REGISTERED.store(true, Ordering::SeqCst);
         MODULE_REGISTERED.store(true, Ordering::SeqCst);
     });
+    eprintln!("[ddog-prof] get_module: after register_once");
 
-    module
+    let ret = ptr::addr_of_mut!((*pm).assume_init_mut().module);
+    eprintln!(
+        "[ddog-prof] get_module: returning {:p}, size={}",
+        ret,
+        unsafe { (*ret).size }
+    );
+    ret
 }
 
 // Important note on the PHP lifecycle:
@@ -370,6 +771,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // occur before the user can configure the log level. However, if we
     // initialized the logger here unconditionally, then they'd have no way to
     // hide these messages. That's why it's done only for debug builds.
+    eprintln!("[ddog-prof] MINIT({_type}, {module_number}) enter");
     #[cfg(debug_assertions)]
     {
         logging::log_init(log::LevelFilter::Trace);
@@ -421,22 +823,26 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         // let _ = ddcommon::connector::load_root_certs();
     }
 
-    // Update the runtime PHP_VERSION and PHP_VERSION_ID.
-    {
-        // SAFETY: safe to call any time in a module because the engine is
-        // initialized before modules are ever loaded.
-        let php_version_id = unsafe { ddog_php_prof_php_version_id() };
-        RUNTIME_PHP_VERSION_ID.store(php_version_id, Ordering::Relaxed);
-
-        // SAFETY: calling zero-arg fn that is safe to call in minit.
-        let ptr = unsafe { ddog_php_prof_php_version() };
-        // SAFETY: the version str is always in static memory, either
-        // PHP_VERSION or the Reflection module version.
-        let cstr: &'static CStr = unsafe { CStr::from_ptr(ptr) };
-        match cstr.to_str() {
-            Ok(str) => unsafe { RUNTIME_PHP_VERSION = str },
-            Err(err) => warn!("failed to detect PHP_VERSION at runtime: {err}"),
+    // RUNTIME_PHP_VERSION is normally set in get_module()/build_id_check() before MINIT.
+    // If it is still unset (exotic load order or future SAPI), try again now with
+    // Reflection as the string fallback. init_runtime_php_version() always tries the
+    // php_version/php_version_id symbols first.
+    if RUNTIME_PHP_VERSION_ID.load(Ordering::Relaxed) == 0 {
+        let refl = find_module_entry(c"reflection");
+        let fallback = if refl.is_null() {
+            ptr::null()
+        } else {
+            unsafe { (*refl).version }
         };
+        unsafe { init_runtime_php_version(fallback) };
+        if RUNTIME_PHP_VERSION_ID.load(Ordering::Relaxed) == 0 {
+            eprintln!(
+                "[datadog-profiling] MINIT: failed to detect PHP version; \
+                 php_version/_php_version symbols not found and Reflection module unavailable. \
+                 Cannot load."
+            );
+            return ZendResult::Failure;
+        }
     }
 
     config::minit(module_number);
@@ -479,7 +885,7 @@ extern "C" fn prshutdown() -> ZendResult {
 
     // ZAI config may be accessed indirectly via other modules RSHUTDOWN, so
     // delay this until the last possible time.
-    unsafe { bindings::zai_config_rshutdown() };
+    bindings::ddog_php_prof_config_rshutdown();
 
     timeline::timeline_prshutdown();
 
@@ -606,13 +1012,17 @@ thread_local! {
 
 /// Gets the runtime-id for the process. Do not call before RINIT!
 fn runtime_id() -> &'static Uuid {
-    RUNTIME_ID
-        .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+    RUNTIME_ID.get_or_init(|| {
+        capi::ddtrace_runtime_id_ptr()
+            .and_then(|p| unsafe { p.as_ref() })
+            .map_or_else(Uuid::new_v4, |u| *u)
+    })
 }
 
-extern "C" fn activate() {
+extern "C" fn activate() -> i32 {
     // SAFETY: calling in activate as required.
     unsafe { profiling::stack_walking::activate() };
+    0
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -642,20 +1052,23 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // SAFETY: not being mutated during rinit.
     let once = unsafe { &*ptr::addr_of!(ZAI_CONFIG_ONCE) };
     once.call_once(|| unsafe {
-        bindings::zai_config_first_time_rinit(true);
+        bindings::ddog_php_prof_config_first_rinit();
         config::first_rinit();
     });
 
-    unsafe { bindings::zai_config_rinit() };
+    bindings::ddog_php_prof_config_rinit();
 
     // Needs to come after config::first_rinit, because that's what sets the
     // values to the ones in the configuration.
     let system_settings = SystemSettings::get();
 
+    // Universal-only: vm_interrupt_addr validated at load; guaranteed non-null here.
+    // SAFETY: rinit is within GINIT–GSHUTDOWN.
+    let vm_interrupt_addr = universal::profiling_vm_interrupt_addr(unsafe { OnPhpThread::new() });
+
     // initialize the thread local storage and cache some items
     let result = REQUEST_LOCALS.try_with_borrow_mut(|locals| {
-        // SAFETY: we are in rinit on a PHP thread.
-        locals.vm_interrupt_addr = unsafe { zend::datadog_php_profiling_vm_interrupt_addr() };
+        locals.vm_interrupt_addr = vm_interrupt_addr;
 
         // SAFETY: We are after first rinit and before mshutdown.
         unsafe {
@@ -664,7 +1077,7 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 match *SAPI {
                     Sapi::Cli => {
                         // SAFETY: sapi globals are safe to access during rinit
-                        SAPI.request_script_name(datadog_sapi_globals_request_info())
+                        SAPI.request_script_name(get_sapi_request_info())
                             .map(Cow::into_owned)
                             .or(Some(String::from("cli.command")))
                     }
@@ -712,12 +1125,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     // Profiler's channels were full; this has been fixed. See:
     // https://github.com/DataDog/dd-trace-php/issues/1919
     //
-    // There are a few ways to handle this preloading scenario with the fork,
-    // but the  simplest is to not enable the profiler until the engine's
-    // startup is complete. This means the preloading will not be profiled,
-    // but this should be okay.
-    #[cfg(php_preload)]
-    if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
+    // When preloading, defer until post_startup. When not preloading, this is a no-op.
+    if !is_post_startup() {
         debug!("zend_post_startup_cb hasn't happened yet; not enabling profiler.");
         return ZendResult::Success;
     }
@@ -814,7 +1223,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
         TAGS.set(Arc::default());
     }
 
-    allocation::rinit();
+    // SAFETY: called exactly once per RINIT on a PHP thread within GINIT–GSHUTDOWN.
+    unsafe { allocation::rinit(OnPhpThread::new()) };
 
     // SAFETY: called after config is initialized.
     unsafe { timeline::timeline_rinit() };
@@ -844,8 +1254,7 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     #[cfg(debug_assertions)]
     trace!("RSHUTDOWN({_type}, {_module_number})");
 
-    #[cfg(php_preload)]
-    if !unsafe { bindings::ddog_php_prof_is_post_startup() } {
+    if !is_post_startup() {
         return ZendResult::Success;
     }
 
@@ -869,7 +1278,8 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
         }
     });
 
-    allocation::alloc_prof_rshutdown();
+    // SAFETY: called exactly once per RSHUTDOWN on a PHP thread within GINIT–GSHUTDOWN.
+    unsafe { allocation::alloc_prof_rshutdown(OnPhpThread::new()) };
 
     #[cfg(feature = "tracing")]
     REQUEST_SPAN.take();
@@ -894,7 +1304,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
         let no = c"false".as_ptr();
         let no_all = c"false (profiling disabled)".as_ptr();
         zend::php_info_print_table_start();
-        zend::php_info_print_table_row(2, c"Version".as_ptr(), module.version);
+        zend::php_info_print_table_row(2, c"Version".as_ptr(), module.version.cast::<c_char>());
         zend::php_info_print_table_row(
             2,
             c"Profiling Enabled".as_ptr(),
@@ -934,9 +1344,9 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     c"Allocation Profiling Enabled".as_ptr(),
                     if system_settings.profiling_allocation_enabled {
                         yes
-                    } else if zend::ddog_php_jit_enabled() {
+                    } else if crate::allocation::jit_enabled() {
                         // Work around version-specific issues.
-                        if cfg!(not(php_zend_mm_set_custom_handlers_ex)) {
+                        if !universal::has_zend_mm_set_custom_handlers_ex() {
                             c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/2088 for more information.".as_ptr()
                         } else {
                             c"Not available due to JIT being active, see https://github.com/DataDog/dd-trace-php/pull/3199 for more information.".as_ptr()
@@ -1032,7 +1442,7 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
 
         let key = c"Profiling Agent Endpoint".as_ptr();
         let agent_endpoint = format!("{}\0", system_settings.uri);
-        zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr());
+        zend::php_info_print_table_row(2, key, agent_endpoint.as_ptr().cast::<c_char>());
 
         let vars = [
             (c"Application's Environment (DD_ENV)".as_ptr(), &locals.env),
@@ -1076,6 +1486,8 @@ extern "C" fn mshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
 }
 
 extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
+    eprintln!("[ddog-prof] startup({:p}) enter", extension);
+
     // todo: merge these lifecycle things to tracing feature?
     #[cfg(debug_assertions)]
     trace!("startup({:p})", extension);
@@ -1084,9 +1496,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // extension= path: module owns handle, we transfer from module to extension.
     // zend_extension= path: extension already has handle from engine.
     if !extension.is_null() && unsafe { (*extension).handle.is_null() } {
-        let module_ptr = unsafe {
-            zend::datadog_get_module_entry(PROFILER_NAME.as_ptr(), PROFILER_NAME_STR.len())
-        };
+        let module_ptr = find_module_entry(PROFILER_NAME);
         if !module_ptr.is_null() {
             let module = unsafe { &mut *module_ptr };
             unsafe {
@@ -1096,14 +1506,11 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         }
     }
 
-    // SAFETY: called during startup hook with correct params.
-    unsafe { zend::datadog_php_profiling_startup(extension) };
+    zend::datadog_php_profiling_startup(extension);
 
-    #[cfg(php_run_time_cache)]
-    // SAFETY: calling this in startup/minit as required.
-    unsafe {
-        bindings::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME.as_ptr())
-    };
+    if crate::matrix_entry().has_run_time_cache() {
+        bindings::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME.as_ptr());
+    }
 
     // SAFETY: calling this in zend_extension startup.
     unsafe {
@@ -1111,7 +1518,7 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
         timeline::timeline_startup();
     }
 
-    #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+    post_startup_init();
     allocation::alloc_prof_startup();
 
     ZendResult::Success
@@ -1144,10 +1551,9 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // data race condition.
     unsafe { config::shutdown() };
 
-    // SAFETY: zai_config_mshutdown should be safe to call in shutdown instead
+    // SAFETY: ddog_php_prof_config_mshutdown should be safe to call in shutdown instead
     // of mshutdown.
-    unsafe { bindings::zai_config_mshutdown() };
-    unsafe { bindings::zai_json_shutdown_bindings() };
+    bindings::ddog_php_prof_config_mshutdown();
 }
 
 /// Notifies the profiler a trace has finished so it can update information
@@ -1183,4 +1589,24 @@ fn notify_trace_finished(local_root_span_id: u64, span_type: Cow<str>, resource:
     if let Err(err) = result {
         debug!("tracer failed to notify profiler about a finished trace because the request locals could not be borrowed: {err}");
     }
+}
+
+/// Looks up a module by name in PHP's module_registry.
+///
+/// Works across PHP 7.1–8.5 via runtime symbol resolution which means it's not
+/// meant to be called in hot paths.
+pub fn find_module_entry(name: &CStr) -> *mut zend::ModuleEntry {
+    let hash_find_sym = universal::runtime::symbol_addr("zend_hash_str_find");
+    let module_registry_sym = universal::runtime::symbol_addr("module_registry");
+    if hash_find_sym.is_null() || module_registry_sym.is_null() {
+        return ptr::null_mut();
+    }
+    type ZendHashStrFindFn =
+        unsafe extern "C" fn(*const core::ffi::c_void, *const c_char, usize) -> *mut zend::zval;
+    let hash_find: ZendHashStrFindFn = unsafe { core::mem::transmute(hash_find_sym) };
+    let zv = unsafe { hash_find(module_registry_sym, name.as_ptr(), name.to_bytes().len()) };
+    if zv.is_null() {
+        return ptr::null_mut();
+    }
+    unsafe { (*zv).value.ptr as *mut zend::ModuleEntry }
 }

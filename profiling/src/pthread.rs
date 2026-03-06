@@ -13,7 +13,7 @@ extern "C" fn prepare() {
     // the threads while the fork is occurring, they cannot acquire locks
     // since this thread holds them, preventing a deadlock situation.
     if let Some(profiler) = Profiler::get() {
-        trace!("Preparing profiler for upcomming fork call.");
+        trace!("Preparing profiler for upcoming fork call.");
         let _ = profiler.fork_prepare();
     }
 }
@@ -26,18 +26,21 @@ extern "C" fn parent() {
 }
 
 unsafe extern "C" fn child() {
-    if Profiler::get().is_none() {
-        // No profiler, so nothing to do. This can happen in Apache forking SAPI, where Apache
-        // would first go through MINIT phase and then fork(), so we'd observe the fork but there
-        // is no profiler yet.
-        return;
-    }
     trace!("Shutting down profiler for child process after fork");
-    // Disable the profiler because this is the child, and we don't support this yet.
-    // And then leak the old profiler. Its drop method is not safe to run in these situations.
+
+    // Disable the profiler because this is the child, and we don't support
+    // this yet. And then leak the old profiler; its drop method is not safe
+    // to run in these situations.
     Profiler::kill();
 
-    alloc_prof_rshutdown();
+    // If fork() was not called from a PHP thread within GINIT–GSHUTDOWN, then
+    // there  are no per-thread PHP globals/state/config to clean up.
+    let Some(php_thread) = crate::OnPhpThread::try_new() else {
+        return;
+    };
+
+    // SAFETY: serves as this thread's RSHUTDOWN, called exactly once.
+    alloc_prof_rshutdown(php_thread);
 
     // Reset some global state to prevent further profiling and to not handle
     // any pending interrupts.

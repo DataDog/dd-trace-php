@@ -1,8 +1,10 @@
+#[cfg(target_os = "linux")]
 pub mod got;
 
 use crate::profiling::Profiler;
 use crate::{zend, RefCellExt, REQUEST_LOCALS};
 use ahash::{HashMap, HashMapExt};
+#[cfg(target_os = "linux")]
 use got::GotSymbolOverwrite;
 use libc::{c_int, c_void, fstat, stat, S_IFMT, S_IFSOCK};
 use rand::rngs::ThreadRng;
@@ -443,104 +445,112 @@ pub static FILE_WRITE_SIZE_PROFILING_INTERVAL: AtomicU64 = AtomicU64::new(1024 *
 #[cold]
 fn collect_socket_read_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_socket_read_time(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_socket_read_time(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
 #[cold]
 fn collect_socket_write_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_socket_write_time(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_socket_write_time(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
 #[cold]
 fn collect_file_read_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_file_read_time(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_file_read_time(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
 #[cold]
 fn collect_file_write_time(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_file_write_time(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_file_write_time(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
 #[cold]
 fn collect_socket_read_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_socket_read_size(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_socket_read_size(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
 #[cold]
 fn collect_socket_write_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_socket_write_size(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_socket_write_size(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
 #[cold]
 fn collect_file_read_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_file_read_size(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_file_read_size(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
 #[cold]
 fn collect_file_write_size(value: u64) {
     if let Some(profiler) = Profiler::get() {
-        // Safety: execute_data was provided by the engine, and the profiler doesn't mutate it.
-        unsafe {
-            profiler.collect_file_write_size(
-                zend::ddog_php_prof_get_current_execute_data(),
-                value as i64,
-            )
-        };
+        // SAFETY: called from an IO hook on a PHP thread.
+        profiler.collect_file_write_size(
+            unsafe {
+                universal::profiling_current_execute_data(unsafe { crate::OnPhpThread::new() })
+            },
+            value as i64,
+            unsafe { crate::OnPhpThread::new() },
+        );
     }
 }
 
@@ -633,6 +643,10 @@ pub fn io_prof_first_rinit() {
     let io_profiling =
         REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_io_enabled);
 
+    #[cfg(not(target_os = "linux"))]
+    let _ = io_profiling;
+
+    #[cfg(target_os = "linux")]
     if io_profiling {
         unsafe {
             let mut overwrites = vec![
@@ -698,6 +712,9 @@ pub fn io_prof_first_rinit() {
             );
         };
     }
+
+    #[cfg(not(target_os = "linux"))]
+    {}
 }
 
 #[cfg(test)]

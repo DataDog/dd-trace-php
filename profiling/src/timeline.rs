@@ -1,17 +1,18 @@
 use crate::profiling::{extract_function_name, Profiler};
 use crate::sapi::Sapi;
+use crate::universal;
+use crate::universal::runtime::symbol_addr;
 use crate::zend::{
-    self, zai_str_from_zstr, zend_execute_data, zend_get_executed_filename_ex, zval,
-    InternalFunctionHandler,
+    self, zend_execute_data, zend_get_executed_filename_ex, zval, InternalFunctionHandler,
 };
 use crate::{RefCellExt, REQUEST_LOCALS, SAPI};
 use libc::c_char;
 use libdd_common::cstr;
 use log::{error, trace};
-#[cfg(php_zts)]
 use std::cell::Cell;
 use std::cell::RefCell;
 use std::ptr;
+use std::sync::atomic::{AtomicPtr, Ordering};
 use std::time::Instant;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
@@ -28,15 +29,18 @@ static mut PREV_ZEND_COMPILE_FILE: Option<zend::VmZendCompileFile> = None;
 static mut PREV_FRANKEN_PHP_SAPI_ACTIVATE: Option<unsafe extern "C" fn() -> i32> = None;
 static mut PREV_FRANKEN_PHP_SAPI_DEACTIVATE: Option<unsafe extern "C" fn() -> i32> = None;
 
-/// The engine's original (or neighbouring extensions) `zend_accel_schedule_restart_hook()`
-/// function
-#[cfg(php_opcache_restart_hook)]
+/// Pointer to the engine's `zend_accel_schedule_restart_hook` global variable.
+/// Resolved via dlsym at minit to avoid a load-time strong symbol dependency that would
+/// prevent loading on PHP versions without opcache (PHP < 8.4, or 8.4 without opcache).
+static ZEND_ACCEL_RESTART_HOOK_VAR: AtomicPtr<Option<zend::VmZendAccelScheduleRestartHook>> =
+    AtomicPtr::new(ptr::null_mut());
+
+/// The engine's original (or neighbouring extensions) `zend_accel_schedule_restart_hook()` function
 static mut PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK: Option<zend::VmZendAccelScheduleRestartHook> =
     None;
 
 thread_local! {
     static IDLE_SINCE: RefCell<Instant> = RefCell::new(Instant::now());
-    #[cfg(php_zts)]
     static IS_NEW_THREAD: Cell<bool> = const { Cell::new(false) };
 }
 
@@ -44,9 +48,7 @@ enum State {
     Idle,
     Sleeping,
     Select,
-    #[cfg(php_zts)]
     ThreadStart,
-    #[cfg(php_zts)]
     ThreadStop,
 }
 
@@ -56,9 +58,7 @@ impl State {
             State::Idle => "idle",
             State::Sleeping => "sleeping",
             State::Select => "select",
-            #[cfg(php_zts)]
             State::ThreadStart => "thread start",
-            #[cfg(php_zts)]
             State::ThreadStop => "thread stop",
         }
     }
@@ -78,13 +78,16 @@ fn is_in_frankenphp_handle_request(execute_data: *mut zend_execute_data) -> bool
 }
 
 extern "C" fn frankenphp_sapi_module_activate() -> i32 {
+    // todo: revisit after talking to Florian about this.
+    // SAFETY: frankenphp's sapi module_activate is called on a PHP thread, by
+    // definition.
+    let on_php_thread = unsafe { crate::OnPhpThread::new() };
+
     let timeline_enabled = REQUEST_LOCALS
         .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled);
 
     if timeline_enabled
-        && is_in_frankenphp_handle_request(unsafe {
-            zend::ddog_php_prof_get_current_execute_data()
-        })
+        && is_in_frankenphp_handle_request(universal::profiling_current_execute_data(on_php_thread))
     {
         timeline_idle_stop();
     }
@@ -99,13 +102,16 @@ extern "C" fn frankenphp_sapi_module_activate() -> i32 {
 }
 
 extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
+    // todo: revisit after talking to Florian about this.
+    // SAFETY: frankenphp's sapi module_deactivate is called on a PHP thread,
+    // by definition.
+    let on_php_thread = unsafe { crate::OnPhpThread::new() };
+
     let timeline_enabled = REQUEST_LOCALS
         .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled);
 
     if timeline_enabled
-        && is_in_frankenphp_handle_request(unsafe {
-            zend::ddog_php_prof_get_current_execute_data()
-        })
+        && is_in_frankenphp_handle_request(universal::profiling_current_execute_data(on_php_thread))
     {
         timeline_idle_start();
     }
@@ -115,7 +121,6 @@ extern "C" fn frankenphp_sapi_module_deactivate() -> i32 {
             return deactivate();
         }
     }
-
     0
 }
 
@@ -153,7 +158,10 @@ fn sleeping_fn(
         // Safety: `unwrap` can be unchecked, as we checked for `is_err()`
         let now = unsafe { now.unwrap_unchecked().as_nanos() } as i64;
         let duration = duration.as_nanos() as i64;
-        profiler.collect_idle(now, duration, state.as_str());
+        // SAFETY: sleeping_fn is called from a PHP engine hook on a PHP thread.
+        profiler.collect_idle(now, duration, state.as_str(), unsafe {
+            crate::OnPhpThread::new()
+        });
     }
 }
 
@@ -225,17 +233,48 @@ create_sleeping_fn!(
     State::Select
 );
 
-/// Will be called by the ZendEngine on all errors happening. This is a PHP 8 API
-#[cfg(zend_error_observer)]
+/// Will be called by the ZendEngine on all errors happening.
+/// PHP 8.2+ API: (int type, zend_string *error_filename, uint32_t error_lineno, zend_string *message)
+#[no_mangle]
 unsafe extern "C" fn ddog_php_prof_zend_error_observer(
     _type: i32,
-    #[cfg(zend_error_observer_80)] file: *const c_char,
-    #[cfg(not(zend_error_observer_80))] file: *mut zend::ZendString,
+    file: *mut zend::ZendString,
     line: u32,
     message: *mut zend::ZendString,
 ) {
-    // we are only interested in FATAL errors
+    zend_error_observer_impl(
+        _type,
+        crate::zend_string::zend_string_to_zai_str(file.as_mut().map(|r| r as *mut _))
+            .into_string(),
+        line,
+        message,
+    );
+}
 
+/// Will be called by the ZendEngine on all errors happening.
+/// PHP 8.0–8.1 API: (int type, const char *error_filename, uint32_t error_lineno, zend_string *message)
+#[no_mangle]
+unsafe extern "C" fn ddog_php_prof_zend_error_observer_80(
+    _type: i32,
+    file: *const c_char,
+    line: u32,
+    message: *mut zend::ZendString,
+) {
+    use std::ffi::CStr;
+    let filename = if file.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(file).to_string_lossy().into_owned()
+    };
+    zend_error_observer_impl(_type, filename, line, message);
+}
+
+fn zend_error_observer_impl(
+    _type: i32,
+    filename: String,
+    line: u32,
+    message: *mut zend::ZendString,
+) {
     if _type & zend::E_FATAL_ERRORS as i32 == 0 {
         return;
     }
@@ -245,18 +284,16 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
         return;
     }
 
-    #[cfg(zend_error_observer_80)]
-    let filename_str = unsafe { core::ffi::CStr::from_ptr(file) };
-    #[cfg(not(zend_error_observer_80))]
-    let filename_str = unsafe { zai_str_from_zstr(file.as_mut()) };
-
-    let filename = filename_str.to_string_lossy().into_owned();
-
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     if let Some(profiler) = Profiler::get() {
         let now = now.as_nanos() as i64;
-        profiler.collect_fatal(now, filename, line, unsafe {
-            zend::zai_str_from_zstr(message.as_mut()).into_string()
+        let message = unsafe {
+            crate::zend_string::zend_string_to_zai_str(message.as_mut().map(|r| r as *mut _))
+                .into_string()
+        };
+        // SAFETY: error observer callback runs on a PHP thread.
+        profiler.collect_fatal(now, filename, line, message, unsafe {
+            crate::OnPhpThread::new()
         });
     }
 }
@@ -270,7 +307,6 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
 /// } zend_accel_restart_reason;
 /// ```
 #[no_mangle]
-#[cfg(php_opcache_restart_hook)]
 unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32) {
     if REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
@@ -278,9 +314,14 @@ unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32)
         if let Some(profiler) = Profiler::get() {
             let now = now.as_nanos() as i64;
             let file = unsafe {
-                zend::zai_str_from_zstr(zend::zend_get_executed_filename_ex().as_mut())
-                    .into_string()
+                crate::zend_string::zend_string_to_zai_str(
+                    zend::zend_get_executed_filename_ex(0)
+                        .as_mut()
+                        .map(|r| r as *mut _),
+                )
+                .into_string()
             };
+            // SAFETY: opcache restart hook runs on a PHP thread.
             profiler.collect_opcache_restart(
                 now,
                 file,
@@ -291,6 +332,7 @@ unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32)
                     2 => "`opcache_restart()` called",
                     _ => "unknown",
                 },
+                unsafe { crate::OnPhpThread::new() },
             );
         }
     }
@@ -303,14 +345,29 @@ unsafe extern "C" fn ddog_php_prof_zend_accel_schedule_restart_hook(reason: i32)
 /// This functions needs to be called in MINIT of the module
 pub fn timeline_minit() {
     unsafe {
-        #[cfg(zend_error_observer)]
-        zend::zend_observer_error_register(Some(ddog_php_prof_zend_error_observer));
+        if universal::has_zend_error_observer() {
+            if universal::zend_error_observer_has_cstr_filename() {
+                // PHP 8.0–8.1: filename is `const char*`; transmute to match the
+                // binding's zend_string* signature for registration purposes.
+                let cb: unsafe extern "C" fn(i32, *const c_char, u32, *mut zend::ZendString) =
+                    ddog_php_prof_zend_error_observer_80;
+                zend::ddog_php_prof_zend_observer_error_register(Some(std::mem::transmute(cb)));
+            } else {
+                // PHP 8.2+: filename is `zend_string*`.
+                zend::ddog_php_prof_zend_observer_error_register(Some(
+                    ddog_php_prof_zend_error_observer,
+                ));
+            }
+        }
 
-        #[cfg(php_opcache_restart_hook)]
-        {
-            PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK = zend::zend_accel_schedule_restart_hook;
-            zend::zend_accel_schedule_restart_hook =
-                Some(ddog_php_prof_zend_accel_schedule_restart_hook);
+        if universal::has_opcache_restart_hook() {
+            let var_ptr = symbol_addr("zend_accel_schedule_restart_hook")
+                as *mut Option<zend::VmZendAccelScheduleRestartHook>;
+            if !var_ptr.is_null() {
+                ZEND_ACCEL_RESTART_HOOK_VAR.store(var_ptr, Ordering::Release);
+                PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK = *var_ptr;
+                *var_ptr = Some(ddog_php_prof_zend_accel_schedule_restart_hook);
+            }
         }
 
         // register our function in the `gc_collect_cycles` pointer
@@ -397,7 +454,7 @@ pub unsafe fn timeline_startup() {
 
     for handler in handlers.into_iter() {
         // Safety: we've set all the parameters correctly for this C call.
-        zend::datadog_php_install_handler(handler);
+        zend::install_handler(handler);
     }
 
     let handlers = [
@@ -426,7 +483,7 @@ pub unsafe fn timeline_startup() {
 
     for handler in handlers.into_iter() {
         // Safety: we've set all the parameters correctly for this C call.
-        zend::datadog_php_install_method_handler(handler);
+        zend::install_method_handler(handler);
     }
 }
 
@@ -444,6 +501,7 @@ fn timeline_idle_stop() {
         }
 
         if let Some(profiler) = Profiler::get() {
+            // SAFETY: timeline_idle_stop runs on a PHP thread (called from rinit/prshutdown hooks).
             profiler.collect_idle(
                 // Safety: checked for `is_err()` above
                 SystemTime::now()
@@ -452,6 +510,7 @@ fn timeline_idle_stop() {
                     .as_nanos() as i64,
                 idle_since.elapsed().as_nanos() as i64,
                 State::Idle.as_str(),
+                unsafe { crate::OnPhpThread::new() },
             );
         }
     });
@@ -476,29 +535,32 @@ pub unsafe fn timeline_rinit() {
 
     timeline_idle_stop();
 
-    #[cfg(php_zts)]
-    IS_NEW_THREAD.with(|cell| {
-        if !cell.get() {
-            return;
-        }
-        cell.set(false);
-        if !REQUEST_LOCALS
-            .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
-        {
-            return;
-        }
+    if universal::is_zts() {
+        IS_NEW_THREAD.with(|cell| {
+            if !cell.get() {
+                return;
+            }
+            cell.set(false);
+            if !REQUEST_LOCALS
+                .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
+            {
+                return;
+            }
 
-        if let Some(profiler) = Profiler::get() {
-            profiler.collect_thread_start_end(
-                // Safety: checked for `is_err()` above
-                SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos() as i64,
-                State::ThreadStart.as_str(),
-            );
-        }
-    });
+            if let Some(profiler) = Profiler::get() {
+                // SAFETY: timeline_rinit runs on a PHP thread.
+                profiler.collect_thread_start_end(
+                    // Safety: checked for `is_err()` above
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_nanos() as i64,
+                    State::ThreadStart.as_str(),
+                    unsafe { crate::OnPhpThread::new() },
+                );
+            }
+        });
+    }
 }
 
 /// This function is run during the P-RSHUTDOWN phase and resets the `IDLE_SINCE` thread local to
@@ -520,6 +582,13 @@ pub fn timeline_prshutdown() {
 pub(crate) fn timeline_mshutdown() {
     timeline_idle_stop();
 
+    // Restore zend_accel_schedule_restart_hook if we hooked it in minit.
+    let var_ptr = ZEND_ACCEL_RESTART_HOOK_VAR.swap(ptr::null_mut(), Ordering::AcqRel);
+    if !var_ptr.is_null() {
+        unsafe { *var_ptr = PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK };
+        unsafe { PREV_ZEND_ACCEL_SCHEDULE_RESTART_HOOK = None };
+    }
+
     // Unhook `sapi_module.activate` / `sapi_module.deactivate` in case SAPI is FrankenPHP. This
     // hook was installed in `timeline_minit`
     if *SAPI == Sapi::FrankenPHP {
@@ -531,11 +600,11 @@ pub(crate) fn timeline_mshutdown() {
         }
     }
 
-    #[cfg(php_zts)]
-    timeline_gshutdown();
+    if universal::is_zts() {
+        timeline_gshutdown();
+    }
 }
 
-#[cfg(php_zts)]
 pub(crate) fn timeline_ginit() {
     // During GINIT in "this" thread, the request locals are not initialized, which happens in
     // RINIT, so we currently do not know if profile is enabled at all and if, if timeline is
@@ -543,7 +612,6 @@ pub(crate) fn timeline_ginit() {
     IS_NEW_THREAD.set(true);
 }
 
-#[cfg(php_zts)]
 pub(crate) fn timeline_gshutdown() {
     if !REQUEST_LOCALS.borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
     {
@@ -556,11 +624,10 @@ pub(crate) fn timeline_gshutdown() {
             .unwrap_or_default()
             .as_nanos()
             .min(i64::MAX as u128) as i64;
-        profiler.collect_thread_start_end(
-            // Safety: checked for `is_err()` above
-            now,
-            State::ThreadStop.as_str(),
-        );
+        // SAFETY: timeline_gshutdown runs on a PHP thread.
+        profiler.collect_thread_start_end(now, State::ThreadStop.as_str(), unsafe {
+            crate::OnPhpThread::new()
+        });
     }
 }
 
@@ -569,26 +636,17 @@ pub(crate) fn timeline_gshutdown() {
 /// When called, we call the previous function and measure the wall-time it took to compile the
 /// given string which will then be reported to the profiler.
 unsafe extern "C" fn ddog_php_prof_compile_string(
-    #[cfg(php7)] source_string: *mut zend::_zval_struct,
-    #[cfg(php8)] source_string: *mut zend::ZendString,
-    #[cfg(php7)] filename: *mut c_char,
-    #[cfg(php8)] filename: *const c_char,
-    #[cfg(php_zend_compile_string_has_position)] position: zend::zend_compile_position,
+    source_string: *mut zend::ZendString,
+    filename: *const c_char,
 ) -> *mut zend::_zend_op_array {
     if let Some(prev) = PREV_ZEND_COMPILE_STRING {
         if !REQUEST_LOCALS
             .borrow_or_false(|locals| locals.system_settings().profiling_timeline_enabled)
         {
-            #[cfg(php_zend_compile_string_has_position)]
-            return prev(source_string, filename, position);
-            #[cfg(not(php_zend_compile_string_has_position))]
             return prev(source_string, filename);
         }
 
         let start = Instant::now();
-        #[cfg(php_zend_compile_string_has_position)]
-        let op_array = prev(source_string, filename, position);
-        #[cfg(not(php_zend_compile_string_has_position))]
         let op_array = prev(source_string, filename);
         let duration = start.elapsed();
         let now = SystemTime::now().duration_since(UNIX_EPOCH);
@@ -600,7 +658,11 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
             return op_array;
         }
 
-        let filename = zai_str_from_zstr(zend_get_executed_filename_ex().as_mut()).into_string();
+        let filename = unsafe {
+            let ptr = zend_get_executed_filename_ex(0);
+            crate::zend_string::zend_string_to_zai_str(if ptr.is_null() { None } else { Some(ptr) })
+                .into_string()
+        };
 
         let line = zend::zend_get_executed_lineno();
 
@@ -610,12 +672,13 @@ unsafe extern "C" fn ddog_php_prof_compile_string(
         );
 
         if let Some(profiler) = Profiler::get() {
+            // SAFETY: ddog_php_prof_compile_string is a PHP engine hook, called on a PHP thread.
             profiler.collect_compile_string(
-                // Safety: checked for `is_err()` above
                 now.unwrap().as_nanos() as i64,
                 duration.as_nanos() as i64,
                 filename,
                 line,
+                unsafe { crate::OnPhpThread::new() },
             );
         }
         return op_array;
@@ -648,7 +711,12 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         // backwards
         // TODO we might collect this event anyway and label it accordingly in a later stage of
         // this feature
-        if op_array.is_null() || (*op_array).filename.is_null() || now.is_err() {
+        let op_array_z = op_array as *mut zend::zend_op_array;
+        if op_array.is_null()
+            || op_array_z.is_null()
+            || (*op_array_z).filename.is_null()
+            || now.is_err()
+        {
             return op_array;
         }
 
@@ -664,7 +732,12 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         // for example "/var/www/html/../vendor/foo/bar.php" while during stack walking we get
         // "/var/html/vendor/foo/bar.php". This makes sure it is the exact same string we'd
         // collect in stack walking and therefore we are fully utilizing the pprof string table
-        let filename = zai_str_from_zstr((*op_array).filename.as_mut()).into_string();
+        let filename = unsafe {
+            crate::zend_string::zend_string_to_zai_str(
+                (*op_array_z).filename.as_mut().map(|r| r as *mut _),
+            )
+            .into_string()
+        };
 
         trace!(
             "Compile file \"{filename}\" with include type \"{include_type}\" took {} nanoseconds",
@@ -672,12 +745,13 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
         );
 
         if let Some(profiler) = Profiler::get() {
+            // SAFETY: ddog_php_prof_compile_file is a PHP engine hook, called on a PHP thread.
             profiler.collect_compile_file(
-                // Safety: checked for `is_err()` above
                 now.unwrap().as_nanos() as i64,
                 duration.as_nanos() as i64,
                 filename,
                 include_type,
+                unsafe { crate::OnPhpThread::new() },
             );
         }
         return op_array;
@@ -690,8 +764,8 @@ unsafe extern "C" fn ddog_php_prof_compile_file(
 /// a `gc_collect_cycles` function at the top of the call stack, it is because
 /// of a userland call  to `gc_collect_cycles()`, otherwise the engine decided
 /// to run it.
-unsafe fn gc_reason() -> &'static str {
-    let execute_data = zend::ddog_php_prof_get_current_execute_data();
+unsafe fn gc_reason(php_thread: crate::OnPhpThread) -> &'static str {
+    let execute_data = universal::profiling_current_execute_data(php_thread);
     let fname = || execute_data.as_ref()?.func.as_ref()?.name();
     match fname() {
         Some(name) if name == b"gc_collect_cycles" => "induced",
@@ -713,8 +787,8 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             return prev();
         }
 
-        #[cfg(php_gc_status)]
         let mut status = core::mem::MaybeUninit::<zend::zend_gc_status>::uninit();
+        let has_gc_status = universal::has_gc_status();
 
         let start = Instant::now();
         let collected = prev();
@@ -725,12 +799,13 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
             return collected;
         }
 
-        let reason = gc_reason();
+        // SAFETY: ddog_php_prof_gc_collect_cycles is a PHP engine hook, called on a PHP thread.
+        let php_thread = crate::OnPhpThread::new();
+        let reason = gc_reason(php_thread);
 
-        #[cfg(php_gc_status)]
-        zend::zend_gc_get_status(status.as_mut_ptr());
-        #[cfg(php_gc_status)]
-        let status = status.assume_init();
+        if has_gc_status {
+            zend::ddog_php_prof_gc_get_status(status.as_mut_ptr());
+        }
 
         trace!(
             "Garbage collection with reason \"{reason}\" took {} nanoseconds",
@@ -738,26 +813,17 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         );
 
         if let Some(profiler) = Profiler::get() {
-            cfg_if::cfg_if! {
-                if #[cfg(php_gc_status)] {
-                    profiler.collect_garbage_collection(
-                        // Safety: checked for `is_err()` above
-                        now.unwrap().as_nanos() as i64,
-                        duration.as_nanos() as i64,
-                        reason,
-                        collected as i64,
-                        status.runs as i64,
-                    );
-                } else {
-                    profiler.collect_garbage_collection(
-                        // Safety: checked for `is_err()` above
-                        now.unwrap().as_nanos() as i64,
-                        duration.as_nanos() as i64,
-                        reason,
-                        collected as i64,
-                    );
-                }
-            }
+            let now_ns = now.unwrap().as_nanos() as i64;
+            let duration_ns = duration.as_nanos() as i64;
+            let runs = has_gc_status.then(|| status.assume_init().runs as i64);
+            profiler.collect_garbage_collection(
+                now_ns,
+                duration_ns,
+                reason,
+                collected as i64,
+                runs,
+                php_thread,
+            );
         }
         collected
     } else {

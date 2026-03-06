@@ -1,16 +1,11 @@
+use crate::sapi::Sapi;
 use crate::SAPI;
-use libc::sched_yield;
+use core::ffi::c_void;
+use libc::{c_char, sched_yield};
 use std::cell::OnceCell;
 use std::mem::MaybeUninit;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-
-#[cfg(php_zts)]
-use crate::bindings::ddog_php_prof_is_parallel_thread;
-#[cfg(php_zts)]
-use crate::sapi::Sapi;
-#[cfg(php_zts)]
-use libc::c_char;
 
 /// Spawns a thread and masks off the signals that the Zend Engine uses.
 pub fn spawn<F, T>(name: &str, f: F) -> JoinHandle<T>
@@ -86,6 +81,90 @@ pub fn join_timeout(handle: JoinHandle<()>, timeout: Duration) -> Result<(), Tim
     Ok(())
 }
 
+/// Returns true if the current PHP thread is a worker spawned by ext-parallel.
+///
+/// Strategy:
+///  1. Look up the "parallel" module in PHP's module_registry via the matrix.
+///  2. Call `php_parallel_is_parallel_worker_thread` if present, added in
+///     parallel 1.2.9.
+///  3. Otherwise, fall back to reading the `php_parallel_scheduler_context`
+///     TLS variable:
+///     - Linux/musl: dlsym returns the resolved per-thread address directly.
+///     - macOS: dlsym returns a TLS descriptor struct; call its thunk to get
+///       the address.
+fn is_parallel_thread(_: crate::OnPhpThread) -> bool {
+    let module = crate::find_module_entry(c"parallel");
+    if module.is_null() {
+        return false;
+    }
+    let handle = unsafe { (*module).handle };
+    if handle.is_null() {
+        return false;
+    }
+
+    // Try the public API added in parallel 1.2.9.
+    let new_api = unsafe {
+        libc::dlsym(
+            handle,
+            b"php_parallel_is_parallel_worker_thread\0".as_ptr() as *const c_char,
+        )
+    };
+    if !new_api.is_null() {
+        type IsWorkerFn = unsafe extern "C" fn() -> bool;
+        let is_worker: IsWorkerFn = unsafe { core::mem::transmute(new_api) };
+        return unsafe { is_worker() };
+    }
+
+    // Fallback: TLS variable present in older parallel versions.
+    let tls_sym = unsafe {
+        libc::dlsym(
+            handle,
+            b"php_parallel_scheduler_context\0".as_ptr() as *const c_char,
+        )
+    };
+    if tls_sym.is_null() {
+        return false;
+    }
+
+    // Resolve the per-thread TLS address, then check whether it's non-null.
+    // A non-null context means PHP initialised this thread as a parallel worker.
+    let tls_ptr = resolve_tls_ptr(tls_sym);
+    if tls_ptr.is_null() {
+        return false;
+    }
+    unsafe { !(*tls_ptr).is_null() }
+}
+
+/// Resolve a TLS symbol address to the per-thread pointer.
+///
+/// On macOS, `dlsym` returns a *descriptor* (thunk + metadata) rather than
+/// the variable's address. We must call the thunk to get the real address.
+/// See dyld source and https://developer.apple.com/library/archive/.
+///
+/// On Linux (glibc and musl), `dlsym` handles STT_TLS symbols internally and
+/// returns the already-resolved per-thread address.
+fn resolve_tls_ptr(sym: *mut c_void) -> *const *mut c_void {
+    #[cfg(target_os = "macos")]
+    {
+        /// Layout of the TLS descriptor returned by dlsym on macOS.
+        #[repr(C)]
+        struct TlsDescriptor {
+            thunk: Option<unsafe extern "C" fn(*mut c_void) -> *mut c_void>,
+            key: usize,
+            offset: usize,
+        }
+        let desc = sym as *mut TlsDescriptor;
+        match unsafe { (*desc).thunk } {
+            None => core::ptr::null(),
+            Some(thunk) => unsafe { thunk(sym) as *const *mut c_void },
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        sym as *const *mut c_void
+    }
+}
+
 thread_local! {
     /// This is a cache for the thread name. It will not change after the thread has been
     /// created, as SAPI's do not change thread names and ext-pthreads / ext-parallel do not
@@ -93,43 +172,36 @@ thread_local! {
     static THREAD_NAME: OnceCell<String> = const { OnceCell::new() };
 }
 
-pub fn get_current_thread_name() -> String {
+pub fn get_current_thread_name(php_thread: crate::OnPhpThread) -> String {
     THREAD_NAME.with(|name| {
         name.get_or_init(|| -> String {
-            #[cfg(not(php_zts))]
-            return SAPI.to_string();
-
-            #[cfg(php_zts)]
-            {
-                if unsafe { ddog_php_prof_is_parallel_thread() } {
-                    return "parallel worker".to_string();
-                }
-                let mut thread_name = SAPI.to_string();
-                // So far, only FrankenPHP sets meaningful thread names
-                if *SAPI == Sapi::FrankenPHP {
-                    let mut name = [0u8; 32];
-
-                    let result = unsafe {
-                        libc::pthread_getname_np(
-                            libc::pthread_self(),
-                            name.as_mut_ptr() as *mut c_char,
-                            name.len(),
-                        )
-                    };
-
-                    if result == 0 {
-                        // If successful, convert the result to a Rust String
-                        let cstr =
-                            unsafe { std::ffi::CStr::from_ptr(name.as_ptr() as *const c_char) };
-                        let str_slice: &str = cstr.to_str().unwrap_or_default();
-                        if !str_slice.is_empty() {
-                            thread_name.push_str(": ");
-                            thread_name.push_str(str_slice);
-                        }
+            if !crate::matrix_entry().is_zts() {
+                return SAPI.to_string();
+            }
+            if is_parallel_thread(php_thread) {
+                return "parallel worker".to_string();
+            }
+            let mut thread_name = SAPI.to_string();
+            // So far, only FrankenPHP sets meaningful thread names
+            if *SAPI == Sapi::FrankenPHP {
+                let mut buf = [0u8; 32];
+                let result = unsafe {
+                    libc::pthread_getname_np(
+                        libc::pthread_self(),
+                        buf.as_mut_ptr() as *mut c_char,
+                        buf.len(),
+                    )
+                };
+                if result == 0 {
+                    let cstr = unsafe { std::ffi::CStr::from_ptr(buf.as_ptr() as *const c_char) };
+                    let str_slice = cstr.to_str().unwrap_or_default();
+                    if !str_slice.is_empty() {
+                        thread_name.push_str(": ");
+                        thread_name.push_str(str_slice);
                     }
                 }
-                thread_name
             }
+            thread_name
         })
         .clone()
     })
@@ -142,6 +214,7 @@ mod tests {
 
     #[test]
     fn test_get_current_thread_name() {
+        crate::init_matrix_for_tests();
         unsafe {
             // When running `cargo test`, the thread name for this test will be set to
             // `profiling::thread_utils::tests:` which would interfer with this test
@@ -151,6 +224,12 @@ mod tests {
                 c"".as_ptr() as *const c_char,
             );
         }
-        assert_eq!(get_current_thread_name(), "unknown");
+        crate::ON_PHP_THREAD_ACTIVE.with(|b| b.set(true));
+        // SAFETY: test runs in a PHP-like context; ON_PHP_THREAD_ACTIVE set above.
+        assert_eq!(
+            get_current_thread_name(unsafe { crate::OnPhpThread::new() }),
+            "unknown"
+        );
+        crate::ON_PHP_THREAD_ACTIVE.with(|b| b.set(false));
     }
 }

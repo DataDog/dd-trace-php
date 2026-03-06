@@ -8,44 +8,49 @@ use libc::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void, size_t};
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::marker::PhantomData;
-use std::sync::atomic::AtomicBool;
 use std::{ptr, str};
 
-extern "C" {
-    pub static ddog_php_prof_functions: *const zend_function_entry;
-}
+pub use crate::sapi::get_sapi_request_info;
+pub use crate::universal::{install_handler, install_method_handler};
+
+// Re-exports from their canonical homes so callers use `zend::name`.
+pub use crate::allocation::{
+    ddog_php_prof_zend_mm_get_custom_handlers_ex, ddog_php_prof_zend_mm_set_custom_handlers,
+    ddog_php_prof_zend_mm_set_custom_handlers_ex,
+};
+pub use crate::capi::{
+    datadog_php_profiling_get_process_tags_serialized, datadog_php_profiling_get_profiling_context,
+    datadog_php_profiling_startup, ddog_php_prof_copy_long_into_zval, ddog_php_prof_functions,
+    ddtrace_profiling_context, SyncFnTable,
+};
+pub use crate::config::{
+    ddog_php_prof_config_first_rinit, ddog_php_prof_config_get,
+    ddog_php_prof_config_is_set_by_user, ddog_php_prof_config_minit,
+    ddog_php_prof_config_mshutdown, ddog_php_prof_config_rinit, ddog_php_prof_config_rshutdown,
+};
+pub use crate::exception::ddog_php_prof_zend_observer_error_register;
+pub use crate::profiling::{
+    ddog_php_prof_function_run_time_cache, ddog_php_prof_function_run_time_cache_init,
+    ddog_php_prof_gc_get_status,
+};
 
 pub type VmInterruptFn = unsafe extern "C" fn(execute_data: *mut zend_execute_data);
 
 pub type VmGcCollectCyclesFn = unsafe extern "C" fn() -> i32;
 pub type VmZendCompileFile =
     unsafe extern "C" fn(*mut zend_file_handle, i32) -> *mut _zend_op_array;
-#[cfg(php_opcache_restart_hook)]
 pub type VmZendAccelScheduleRestartHook = unsafe extern "C" fn(i32);
-#[cfg(php_zend_compile_string_has_position)]
-pub type VmZendCompileString = unsafe extern "C" fn(
-    *mut zend_string,
-    *const c_char,
-    zend_compile_position,
-) -> *mut _zend_op_array;
-#[cfg(all(not(php_zend_compile_string_has_position), php8))]
+/// Universal: PHP 8 style (zend_string, c_char) -> op_array
 pub type VmZendCompileString =
     unsafe extern "C" fn(*mut zend_string, *const c_char) -> *mut _zend_op_array;
-#[cfg(all(not(php_zend_compile_string_has_position), php7))]
-pub type VmZendCompileString =
-    unsafe extern "C" fn(*mut _zval_struct, *mut c_char) -> *mut _zend_op_array;
 
-#[cfg(php7)]
-pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zval);
-#[cfg(php8)]
-pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zend_object);
+/// PHP 7: *mut zval, PHP 8: *mut zend_object. Use *mut c_void for universal.
+pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut c_void);
 
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
 pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
-#[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub type VmMmCustomGcFn = unsafe extern "C" fn() -> size_t;
-#[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub type VmMmCustomShutdownFn = unsafe extern "C" fn(bool, bool);
 
 // todo: this a lie on some PHP versions; is it a problem even though zend_bool
@@ -90,7 +95,12 @@ pub struct ZendString {
 
 impl _zend_object {
     pub fn class_name(&self) -> String {
-        unsafe { zai_str_from_zstr((*self.ce).name.as_mut()).into_string() }
+        unsafe {
+            crate::zend_string::zend_string_to_zai_str(
+                (*self.ce).name.as_mut().map(|r| r as *mut _),
+            )
+            .into_string()
+        }
     }
 }
 
@@ -98,11 +108,9 @@ impl _zend_function {
     /// Returns a slice to the zend_string's data if it's present and not
     /// empty; otherwise returns None.
     fn zend_string_to_optional_bytes(zstr: Option<&mut zend_string>) -> Option<&[u8]> {
-        /* Safety: zai_str_from_zstr can be called with any valid zend_string
-         * pointer, and the tailing .into_bytes() will be safe as the former
-         * will always return a view with a non-null pointer.
-         */
-        let bytes = unsafe { zai_str_from_zstr(zstr) }.into_bytes();
+        let bytes = unsafe {
+            crate::zend_string::zend_string_to_zai_str(zstr.map(|r| r as *mut _)).into_bytes()
+        };
         if bytes.is_empty() {
             None
         } else {
@@ -132,7 +140,7 @@ impl _zend_function {
         if self.is_internal() {
             // Safety: union access is guarded by is_internal(), and assume
             // its module is valid.
-            unsafe { self.internal_function.module.as_ref() }
+            unsafe { self.u.internal_function.module.as_ref() }
                 .filter(|module| !module.name.is_null())
                 // Safety: assume module.name has a valid c string.
                 .map(|module| unsafe { CStr::from_ptr(module.name as *const c_char) }.to_bytes())
@@ -143,17 +151,16 @@ impl _zend_function {
 
     #[inline]
     pub fn is_internal(&self) -> bool {
-        // SAFETY: the function's type field is always safe to access.
-        unsafe { self.type_ == ZEND_INTERNAL_FUNCTION }
+        self.type_ == ZEND_INTERNAL_FUNCTION
     }
 
     /// Returns the op_array if this is a user function or eval code.
     #[inline]
-    pub fn op_array(&self) -> Option<&_zend_op_array> {
+    pub fn op_array(&self) -> Option<&zend_op_array> {
         if !self.is_internal() {
             // SAFETY: If it's not internal, then both user and eval types use
             // the op_array field.
-            unsafe { Some(&self.op_array) }
+            unsafe { Some(&self.u.op_array) }
         } else {
             None
         }
@@ -163,6 +170,14 @@ impl _zend_function {
 // In general, modify definitions which return int to return ZendResult if
 // they are suppose to be doing that already.
 // Across PHP versions, some things switch from mut to const; use const.
+
+/// ZTS uses globals_id_ptr, NTS uses globals_ptr. Same offset in C struct.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub union ModuleGlobalsUnion {
+    pub globals_id_ptr: *mut ts_rsrc_id,
+    pub globals_ptr: *mut c_void,
+}
 
 #[repr(C)]
 pub struct ModuleEntry {
@@ -188,14 +203,8 @@ pub struct ModuleEntry {
     /// thread for module globals. The function pointers in [`ModuleEntry::globals_ctor`] and
     /// [`ModuleEntry::globals_dtor`] will only be called if this is a non-zero.
     pub globals_size: size_t,
-    /// Pointer to a `ts_rsrc_id` (which is a [`i32`]). For C-Extension this is created using the
-    /// `ZEND_DECLARE_MODULE_GLOBALS(module_name)` macro.
-    /// See <https://heap.space/xref/PHP-8.3/Zend/zend_API.h?r=a89d22cc#249>
-    #[cfg(php_zts)]
-    pub globals_id_ptr: *mut ts_rsrc_id,
-    /// Pointer to the module globals struct in NTS mode
-    #[cfg(not(php_zts))]
-    pub globals_ptr: *mut c_void,
+    /// ZTS: globals_id_ptr. NTS: globals_ptr. Same offset in C; set the appropriate variant at runtime.
+    pub globals: ModuleGlobalsUnion,
     /// Constructor for module globals.
     /// Be aware this will only be called in case [`ModuleEntry::globals_size`] is non-zero and for
     /// ZTS you need to make sure [`ModuleEntry::globals_id_ptr`] is a valid, non-null pointer.
@@ -274,10 +283,9 @@ impl ModuleEntry {
             info_func: None,
             version: ptr::null(),
             globals_size: 0,
-            #[cfg(php_zts)]
-            globals_id_ptr: ptr::null_mut(),
-            #[cfg(not(php_zts))]
-            globals_ptr: ptr::null_mut(),
+            globals: ModuleGlobalsUnion {
+                globals_ptr: ptr::null_mut(),
+            },
             globals_ctor: None,
             globals_dtor: None,
             post_deactivate_func: None,
@@ -328,72 +336,47 @@ extern "C" {
     /// zend_extension= to register our module from build_id_check.
     pub fn zend_register_internal_module(module_entry: *mut ModuleEntry) -> *mut ModuleEntry;
 
-    /// Retrieves the VM interrupt address of the calling PHP thread.
-    /// # Safety
-    /// Must be called from a PHP thread during a request.
-    pub fn datadog_php_profiling_vm_interrupt_addr() -> *const AtomicBool;
-
     /// Registers the extension. Note that it's kept in a zend_llist and gets
     /// pemalloc'd + memcpy'd into place. The engine says this is a mutable
     /// pointer, but in practice it's const.
-    #[cfg(php8)]
     pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void);
-
-    #[cfg(php7)]
-    pub fn zend_register_extension(extension: &ZendExtension, handle: *mut c_void) -> ZendResult;
 
     /// Writes a string to the output.
     pub static zend_write: Option<unsafe extern "C" fn(*const c_char, usize) -> usize>;
 
-    /// Converts the `zstr` into a `zai_str`. A None as well as empty
-    /// strings will be converted into a string view to a static empty string
-    /// (single byte of null, len of 0).
-    pub fn zai_str_from_zstr(zstr: Option<&mut zend_string>) -> zai_str<'_>;
-
-    /// Returns the configuration item for the given config id. Note that the
-    /// lifetime is roughly static, but technically it is from first rinit
-    /// until mshutdown.
-    pub(crate) fn ddog_php_prof_get_memoized_config(config_id: ConfigId) -> *mut zval;
-
-    /// Returns true if the config value was explicitly set by the user (not
-    /// just the compiled-in default), false otherwise.
-    pub(crate) fn ddog_php_prof_config_is_set_by_user(config_id: ConfigId) -> bool;
-
-    /// Registers the run_time_cache slot with the engine. Must be done in
-    /// module init or extension startup.
-    pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
-
-    /// Gets the address of a function's run_time_cache slot. May return None
-    /// if it detects incomplete initialization, which is always a bug but
-    /// none-the-less has been seen in the wild. It may also return None if
-    /// the run_time_cache is not available on this function type.
-    #[cfg(not(feature = "stack_walking_tests"))]
-    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
-
-    /// mock for testing
-    #[cfg(feature = "stack_walking_tests")]
-    pub fn ddog_test_php_prof_function_run_time_cache(
-        func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
-
-    /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
-    /// the extension was built against at compile-time.
-    pub fn ddog_php_prof_php_version_id() -> u32;
-
-    /// Returns the PHP_VERSION of the engine at run-time, not the version the
-    /// extension was built against at compile-time.
-    pub fn ddog_php_prof_php_version() -> *const c_char;
+    /// Default VM internal-call handler. Use as the fallback when zend_execute_internal is null.
+    pub fn execute_internal(execute_data: *mut zend_execute_data, return_value: *mut zval);
+    pub static mut zend_execute_internal:
+        Option<unsafe extern "C" fn(*mut zend_execute_data, *mut zval)>;
+    pub static mut zend_interrupt_function: Option<unsafe extern "C" fn(*mut zend_execute_data)>;
+    pub static mut sapi_module: sapi_module_struct;
+    pub static mut zend_throw_exception_hook: Option<VmZendThrowExceptionHook>;
+    pub static mut gc_collect_cycles: Option<VmGcCollectCyclesFn>;
+    pub static mut zend_compile_file: Option<VmZendCompileFile>;
+    pub static mut zend_compile_string: Option<VmZendCompileString>;
+    pub fn zend_get_executed_filename_ex(flags: i32) -> *mut zend_string;
+    pub fn zend_get_executed_lineno() -> u32;
+    pub fn datadog_extension_build_id() -> *const c_char;
+    pub fn is_zend_mm() -> c_int;
+    pub fn zend_mm_get_heap() -> *mut zend_mm_heap;
+    pub fn zend_mm_gc(heap: *mut zend_mm_heap) -> size_t;
+    pub fn zend_mm_shutdown(heap: *mut zend_mm_heap, full: bool, silent: bool);
+    pub fn zend_mm_get_custom_handlers(
+        heap: *mut zend_mm_heap,
+        malloc: *mut *mut c_void,
+        free: *mut *mut c_void,
+        realloc: *mut *mut c_void,
+    );
+    pub fn _zend_mm_alloc(heap: *mut zend_mm_heap, size: usize) -> *mut c_void;
+    pub fn _zend_mm_free(heap: *mut zend_mm_heap, ptr: *mut c_void);
+    pub fn _zend_mm_realloc(heap: *mut zend_mm_heap, ptr: *mut c_void, size: usize) -> *mut c_void;
+    pub fn zend_get_extension(name: *const c_char) -> *mut ZendExtension;
+    pub fn php_info_print_table_start();
+    pub fn php_info_print_table_row(cols: c_int, a: *const c_char, b: *const c_char);
+    pub fn php_info_print_table_end();
+    pub fn display_ini_entries(module: *mut ModuleEntry);
 }
 
-#[cfg(php_post_startup_cb)]
-extern "C" {
-    /// Returns true after zend_post_startup_cb has been called for the current
-    /// startup/shutdown cycle. This is useful to know. For example,
-    /// preloading occurs while this is false.
-    pub fn ddog_php_prof_is_post_startup() -> bool;
-}
-
-use crate::config::ConfigId;
 pub use zend_module_dep as ModuleDep;
 
 impl ModuleDep {
@@ -463,11 +446,29 @@ impl datadog_php_zif_handler {
     }
 }
 
+impl zval {
+    /// Returns the PHP type tag (IS_LONG, IS_STRING, …).
+    /// The type byte is the first byte of `u1` in little-endian order,
+    /// matching PHP's `Z_TYPE()` macro on all supported platforms.
+    #[inline]
+    pub fn get_type(&self) -> u8 {
+        self.u1.to_le_bytes()[0]
+    }
+
+    /// Sets the PHP type tag, preserving the remaining bytes of `u1`.
+    #[inline]
+    pub fn set_type(&mut self, type_: u8) {
+        let mut bytes = self.u1.to_le_bytes();
+        bytes[0] = type_;
+        self.u1 = u32::from_le_bytes(bytes);
+    }
+}
+
 impl<'a> TryFrom<&'a mut zval> for &'a mut zend_long {
     type Error = u8;
 
     fn try_from(zval: &'a mut zval) -> Result<Self, Self::Error> {
-        let r#type = unsafe { zval.u1.v.type_ };
+        let r#type = zval.get_type();
         if r#type == IS_LONG {
             Ok(unsafe { &mut zval.value.lval })
         } else {
@@ -480,7 +481,7 @@ impl TryFrom<&mut zval> for zend_long {
     type Error = u8;
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
-        let r#type = unsafe { zval.u1.v.type_ };
+        let r#type = zval.get_type();
         if r#type == IS_LONG {
             Ok(unsafe { zval.value.lval })
         } else {
@@ -493,7 +494,7 @@ impl TryFrom<&mut zval> for u32 {
     type Error = u8;
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
-        let r#type = unsafe { zval.u1.v.type_ };
+        let r#type = zval.get_type();
         if r#type == IS_LONG {
             match u32::try_from(unsafe { zval.value.lval }) {
                 Err(_) => Err(r#type),
@@ -525,7 +526,7 @@ impl TryFrom<&mut zval> for bool {
     type Error = u8;
 
     fn try_from(zval: &mut zval) -> Result<Self, Self::Error> {
-        let r#type = unsafe { zval.u1.v.type_ };
+        let r#type = zval.get_type();
         if r#type == IS_FALSE {
             Ok(false)
         } else if r#type == IS_TRUE {
@@ -554,7 +555,7 @@ impl<'a> TryFrom<&'a mut zval> for Cow<'a, str> {
     type Error = StringError;
 
     fn try_from(zval: &'a mut zval) -> Result<Self, Self::Error> {
-        let r#type = unsafe { zval.u1.v.type_ };
+        let r#type = zval.get_type();
         if r#type == IS_STRING {
             // This shouldn't happen, very bad, something screwed up.
             if unsafe { zval.value.str_.is_null() } {
@@ -563,8 +564,10 @@ impl<'a> TryFrom<&'a mut zval> for Cow<'a, str> {
             // SAFETY: checked the pointer wasn't null above.
             let reference: Option<&'a mut zend_string> = unsafe { zval.value.str_.as_mut() };
 
-            // SAFETY: calling extern "C" with correct params.
-            let str = unsafe { zai_str_from_zstr(reference) }.into_string_lossy();
+            let str = unsafe {
+                crate::zend_string::zend_string_to_zai_str(reference.map(|r| r as *mut _))
+                    .into_string_lossy()
+            };
             Ok(str)
         } else {
             Err(StringError::Type(r#type))
@@ -612,6 +615,25 @@ impl<'a> ZaiStr<'a> {
         Self {
             len: 0,
             ptr: NULL.as_ptr() as *const c_char,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Create from raw pointer and length. Replaces zai_str_from_zstr for zend_string.
+    ///
+    /// # Safety
+    /// - ptr must be valid for reads of len bytes, or be non-null for len 0.
+    /// - For len 0, ptr may be null or point to any byte.
+    #[inline]
+    pub const unsafe fn from_raw_parts(ptr: *const c_char, len: size_t) -> ZaiStr<'a> {
+        let ptr = if len == 0 && ptr.is_null() {
+            b"\0".as_ptr() as *const c_char
+        } else {
+            ptr
+        };
+        Self {
+            ptr,
+            len,
             _marker: PhantomData,
         }
     }
@@ -673,46 +695,6 @@ impl<'a> ZaiStr<'a> {
         let bytes = self.as_bytes();
         String::from_utf8_lossy(bytes)
     }
-}
-
-#[repr(C)]
-pub struct ZaiConfigEntry {
-    pub id: zai_config_id,
-    pub name: zai_str<'static>,
-    pub type_: zai_config_type,
-    pub default_encoded_value: zai_str<'static>,
-    pub aliases: *const zai_str<'static>,
-    pub aliases_count: u8,
-    pub ini_change: zai_config_apply_ini_change,
-    pub parser: zai_custom_parse,
-    pub displayer: zai_custom_display,
-    pub env_config_fallback: zai_env_config_fallback,
-}
-
-#[repr(C)]
-pub struct ZaiConfigMemoizedEntry {
-    pub names: [zai_config_name; 4usize],
-    pub ini_entries: [*mut zend_ini_entry; 4usize],
-    pub names_count: u8,
-    pub type_: zai_config_type,
-    pub decoded_value: zval,
-    pub default_encoded_value: zai_str<'static>,
-    pub name_index: i16,
-    pub config_id: zai_str<'static>,
-    pub ini_change: zai_config_apply_ini_change,
-    pub parser: zai_custom_parse,
-    pub displayer: zai_custom_display,
-    pub env_config_fallback: zai_env_config_fallback,
-    pub original_on_modify: Option<
-        unsafe extern "C" fn(
-            entry: *mut zend_ini_entry,
-            new_value: *mut zend_string,
-            mh_arg1: *mut c_void,
-            mh_arg2: *mut c_void,
-            mh_arg3: *mut c_void,
-            stage: c_int,
-        ) -> c_int,
-    >,
 }
 
 #[cfg(test)]
