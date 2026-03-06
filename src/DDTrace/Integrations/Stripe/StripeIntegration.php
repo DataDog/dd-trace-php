@@ -62,7 +62,7 @@ class StripeIntegration extends Integration
         return $value;
     }
 
-    public static function extractCheckoutSessionFields($result): array
+    public static function extractCheckoutSessionFields($session): array
     {
         $fields = [
             'id',
@@ -74,9 +74,9 @@ class StripeIntegration extends Integration
             'total_details.amount_shipping',
         ];
 
-        $payload = self::flattenFields($result, $fields);
+        $payload = self::flattenFields($session, $fields);
 
-        $discounts = self::getNestedValue($result, 'discounts');
+        $discounts = self::getNestedValue($session, 'discounts');
         if (is_array($discounts) && count($discounts) > 0) {
             $discount = $discounts[0];
             $payload['discounts.coupon'] = self::getNestedValue($discount, 'coupon');
@@ -89,9 +89,9 @@ class StripeIntegration extends Integration
         return $payload;
     }
 
-    public static function extractPaymentIntentFields($result): array
+    public static function extractPaymentIntentFields($paymentIntent): array
     {
-        return self::flattenFields($result, [
+        return self::flattenFields($paymentIntent, [
             'id',
             'amount',
             'currency',
