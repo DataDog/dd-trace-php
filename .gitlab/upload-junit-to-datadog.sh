@@ -63,7 +63,7 @@ elif command -v apt-get &> /dev/null; then
 
   echo "Installing packages individually..."
   # Install packages one by one, continue if some fail
-  for pkg in curl jq unzip nodejs npm; do
+  for pkg in curl jq unzip nodejs npm xsltproc; do
     if ! command -v $pkg &> /dev/null; then
       echo "Installing $pkg..."
       $use_sudo apt-get install -y $pkg || echo "Warning: Failed to install $pkg, continuing..."
@@ -183,6 +183,14 @@ fi
 
 echo "Found JUnit files to upload:"
 echo "${junit_files}"
+
+echo "Add final_status proeprty"
+find . -name '*.xml' | while read -r xml_file; do
+    echo "Fixing $xml_file"
+    tmp_file="$(mktemp)"
+    xsltproc --output "$tmp_file" ".gitlab/add_final_status.xsl" "$xml_file"
+    mv "$tmp_file" "$xml_file"
+done
 
 mapfile -t files_array <<< "${junit_files}"
 
