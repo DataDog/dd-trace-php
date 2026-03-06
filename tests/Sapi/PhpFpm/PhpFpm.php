@@ -45,24 +45,32 @@ final class PhpFpm implements Sapi
     private $port;
 
     /**
+     * @var int
+     */
+    private $maxChildren;
+
+    /**
      * @param string $rootPath
      * @param string $host
      * @param int $port
      * @param array $envs
      * @param array $inis
+     * @param int $maxChildren
      */
-    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [])
+    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [], $maxChildren = 1)
     {
         $this->envs = $envs;
         $this->inis = $inis;
         $this->host = $host;
         $this->port = $port;
+        $this->maxChildren = $maxChildren;
 
         $logPath = $rootPath . '/' . self::ERROR_LOG;
 
         $replacements = [
             '{{fcgi_host}}' => $host,
             '{{fcgi_port}}' => $port,
+            '{{max_children}}' => $maxChildren,
             '{{envs}}' => $this->envsForConfFile(),
             '{{inis}}' => $this->inisForConfFile(),
             '{{error_log}}' => $logPath,
@@ -88,10 +96,17 @@ final class PhpFpm implements Sapi
 
     public function start()
     {
+        $allowRoot = '';
+        // Check if running as root and add --allow-to-run-as-root flag
+        if (function_exists('posix_getuid') && posix_getuid() === 0) {
+            $allowRoot = ' --allow-to-run-as-root';
+        }
+
         $cmd = sprintf(
-            'php-fpm -p %s --fpm-config %s -F',
+            'php-fpm -p %s --fpm-config %s -F%s',
             __DIR__,
-            $this->configFile
+            $this->configFile,
+            $allowRoot
         );
         $processCmd = "exec $cmd";
 

@@ -92,6 +92,18 @@ void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
  */
 ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
+ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
+
+void ddog_sidecar_set_shm_open_mode(uint32_t mode);
+
+ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid, struct ddog_SidecarTransport **connection);
+
+ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
+
+bool ddog_sidecar_is_master_listener_active(int32_t pid);
+
+ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
+
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);
