@@ -170,7 +170,6 @@ fn build_zend_php_ffis(
                 .chain([Path::new("../zend_abstract_interface")])
                 .chain([Path::new("../")]),
         )
-        .flag_if_supported("-fuse-ld=lld")
         .flag_if_supported("-std=c11")
         .flag_if_supported("-std=c17");
     #[cfg(feature = "test")]
