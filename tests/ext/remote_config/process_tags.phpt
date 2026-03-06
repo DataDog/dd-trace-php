@@ -27,7 +27,7 @@ $path = put_dynamic_config_file([
 ]);
 
 try {
-    $request = $rr->waitForRequest(function($req) {
+    $request = $rr->waitForRcRequest(function($req) {
         return strpos($req["uri"], '/v0.7/config') !== false;
     });
     $body = json_decode($request["body"], true);
@@ -60,3 +60,4 @@ entrypoint.name:process_tags
 entrypoint.type:script
 entrypoint.workdir:%s
 runtime.sapi:cli
+
