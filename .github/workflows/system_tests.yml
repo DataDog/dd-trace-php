@@ -1,0 +1,26 @@
+name: System Tests
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+  schedule:
+    - cron:  '00 03 * * 1-5'
+  pull_request:
+
+jobs:
+  system-tests:
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main
+    secrets:
+      DD_API_KEY: ${{ secrets.DD_API_KEY }}
+      TEST_OPTIMIZATION_API_KEY: ${{ secrets.DD_API_KEY }}
+    permissions:
+      contents: read
+      packages: write
+    with:
+      library: php
+      scenarios_groups: tracer-release
+      skip_empty_scenarios: true
+      _system_tests_dev_mode: true
+      push_to_test_optimization: true
