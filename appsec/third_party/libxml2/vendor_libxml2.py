@@ -206,6 +206,18 @@ def extract_needed_files(tarball: Path, dest_dir: Path) -> None:
 
         print(f"Extracted {extracted_count} files")
 
+    patch_cmake(dest_dir)
+
+
+def patch_cmake(dest_dir: Path) -> None:
+    """Remove private headers we don't vendor from LIBXML2_PRIVATE_HDRS."""
+    cmake_path = dest_dir / "CMakeLists.txt"
+    content = cmake_path.read_text()
+    for header in EXCLUDED_PRIVATE_HEADERS:
+        content = content.replace(f"    {header}\n", "")
+    cmake_path.write_text(content)
+    print(f"Patched CMakeLists.txt: removed {EXCLUDED_PRIVATE_HEADERS}")
+
 
 def get_version_url(version: str) -> str:
     """Get the download URL for a given libxml2 version."""
