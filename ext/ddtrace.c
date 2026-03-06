@@ -3214,7 +3214,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
 
     ddtrace_span_data *span;
 
-    if (get_DD_TRACE_ENABLED() && !ddtrace_tracer_is_limited()) {
+    if (get_DD_TRACE_ENABLED()) {
         span = ddtrace_open_span(DDTRACE_USER_SPAN);
     } else {
         span = ddtrace_init_dummy_span();
@@ -3224,7 +3224,7 @@ static inline void dd_start_span(INTERNAL_FUNCTION_PARAMETERS) {
         span->start = (uint64_t)(start_time_seconds * ZEND_NANO_IN_SEC);
     }
 
-    if (get_DD_TRACE_ENABLED() && !ddtrace_tracer_is_limited()) {
+    if (get_DD_TRACE_ENABLED()) {
         ddtrace_observe_opened_span(span);
     }
 
@@ -3238,7 +3238,7 @@ PHP_FUNCTION(DDTrace_start_span) {
 
 /* {{{ proto string DDTrace\start_trace_span() */
 PHP_FUNCTION(DDTrace_start_trace_span) {
-    if (get_DD_TRACE_ENABLED() && !ddtrace_tracer_is_limited()) {
+    if (get_DD_TRACE_ENABLED()) {
         ddtrace_span_stack *stack = ddtrace_init_root_span_stack();
         ddtrace_switch_span_stack(stack);
         GC_DELREF(&stack->std); // We don't retain a ref to it, it's now the active_stack
