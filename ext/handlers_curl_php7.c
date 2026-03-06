@@ -158,7 +158,7 @@ static int dd_inject_distributed_tracing_headers(zval *ch) {
 }
 
 static int dd_inject_distributed_tracing_headers_multi(zval *ch) {
-    if (DDTRACE_G(curl_multi_injecting_spans) && Z_TYPE(DDTRACE_G(curl_multi_injecting_spans)->val) == IS_ARRAY) {
+    if (!ddtrace_tracer_is_limited() && DDTRACE_G(curl_multi_injecting_spans) && Z_TYPE(DDTRACE_G(curl_multi_injecting_spans)->val) == IS_ARRAY) {
         ddtrace_span_data *span = ddtrace_open_span(DDTRACE_INTERNAL_SPAN);
         int ret = dd_inject_distributed_tracing_headers(ch);
         ddtrace_close_span(span);
