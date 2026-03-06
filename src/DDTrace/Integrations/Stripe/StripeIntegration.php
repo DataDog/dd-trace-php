@@ -140,7 +140,6 @@ class StripeIntegration extends Integration
     {
         self::hookCheckoutSessionCreate();
         self::hookPaymentIntentCreate();
-        self::hookWebhookConstructEvent();
         self::hookEventConstructFrom();
 
         return Integration::LOADED;
@@ -170,20 +169,6 @@ class StripeIntegration extends Integration
 
         \DDTrace\hook_method('Stripe\Service\PaymentIntentService', 'create', null, $onCreate);
         \DDTrace\hook_method('Stripe\PaymentIntent', 'create', null, $onCreate);
-    }
-
-    private static function hookWebhookConstructEvent()
-    {
-        \DDTrace\hook_method(
-            'Stripe\Webhook',
-            'constructEvent',
-            null,
-            static function ($This, $scope, $args, $retval, $exception) {
-                if ($exception === null && $retval !== null) {
-                    self::processWebhookEvent($retval);
-                }
-            }
-        );
     }
 
     private static function hookEventConstructFrom()
