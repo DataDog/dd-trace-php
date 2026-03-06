@@ -1,10 +1,10 @@
 //! Definitions for interacting with the profiler from a C API, such as the
 //! ddtrace extension.
 
-use crate::bindings::{zend_function_entry, zend_string, ZaiStr};
+use crate::bindings::{zend_execute_data, zend_function_entry, zend_string, ZaiStr};
 use crate::runtime_id;
 use crate::universal::runtime;
-use libc::c_long;
+use libc::{c_char, c_long};
 use std::sync::OnceLock;
 
 #[no_mangle]

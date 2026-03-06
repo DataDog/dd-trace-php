@@ -2,7 +2,8 @@
 pub mod got;
 
 use crate::profiling::Profiler;
-use crate::{zend, RefCellExt, REQUEST_LOCALS};
+use crate::universal;
+use crate::{RefCellExt, REQUEST_LOCALS};
 use ahash::{HashMap, HashMapExt};
 #[cfg(target_os = "linux")]
 use got::GotSymbolOverwrite;

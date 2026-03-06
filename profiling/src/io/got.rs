@@ -1,4 +1,5 @@
 // ELF64 types (not exposed by libc on all platforms/versions).
+#[allow(non_camel_case_types)]
 pub type Elf64_Xword = u64;
 
 #[repr(C)]

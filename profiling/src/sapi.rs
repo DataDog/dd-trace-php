@@ -1,5 +1,4 @@
 use crate::zend::sapi_request_info;
-use libc;
 use log::warn;
 
 /// Returns SG(request_info). Ported from php_ffi.c.

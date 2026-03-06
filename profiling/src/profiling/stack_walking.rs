@@ -358,10 +358,7 @@ mod detail {
         execute_data: &zend_execute_data,
         string_set: &mut StringSet,
     ) -> Option<ZendFrame> {
-        #[cfg(not(feature = "stack_walking_tests"))]
         use crate::bindings::ddog_php_prof_function_run_time_cache;
-        #[cfg(feature = "stack_walking_tests")]
-        use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
 
         let func = execute_data.func.as_ref()?;
         let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {

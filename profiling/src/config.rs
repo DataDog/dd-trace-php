@@ -782,7 +782,7 @@ mod tests {
 
 #[no_mangle]
 pub extern "C" fn ddog_php_prof_config_get(config_id: u16) -> *const c_char {
-    if config_id >= ConfigId::GitRepositoryUrl as u16 + 1 {
+    if config_id > ConfigId::GitRepositoryUrl as u16 {
         return b"\0".as_ptr() as *const c_char;
     }
     b"\0".as_ptr() as *const c_char
