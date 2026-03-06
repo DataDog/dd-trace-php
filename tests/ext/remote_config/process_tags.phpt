@@ -60,4 +60,3 @@ entrypoint.name:process_tags
 entrypoint.type:script
 entrypoint.workdir:%s
 runtime.sapi:cli
-
