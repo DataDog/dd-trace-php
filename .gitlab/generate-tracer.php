@@ -122,27 +122,36 @@ stages:
     GIT_STRATEGY: none
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
-    # Agressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
+    # Reliable workspace cleanup using PowerShell native cmdlets.
+    # cmd.exe "for /d" loops skip entries during deletion (well-known Windows antipattern) — don't use them.
+    Write-Host "Performing workspace cleanup..."
+    Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
+    if ($remaining) { Write-Host "WARNING: could not remove: $($remaining.Name -join ', ')" }
     Write-Host "Cleanup complete."
 
-    # Make sure we actually fail if a command fails
+    # Fail fast on PowerShell cmdlet errors (works on PS 5.1+).
     $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
+    # Note: $PSNativeCommandUseErrorActionPreference requires PS 7.3+ and is silently ignored on PS 5.1
+    # (Windows Server 2019 default). Use explicit $LASTEXITCODE checks for native commands instead.
 
     # Manual git clone with proper config
     Write-Host "Cloning repository..."
     git config --global core.longpaths true
     git config --global core.symlinks true
     git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: git clone failed. Remaining workspace contents:"
+        Get-ChildItem -Force | Select-Object Name
+        exit $LASTEXITCODE
+    }
     git checkout $env:CI_COMMIT_SHA
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     # Initialize submodules
     Write-Host "Initializing submodules..."
     git submodule update --init --recursive
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Git setup complete."
 
     mkdir dumps
