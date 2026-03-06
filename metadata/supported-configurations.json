@@ -2249,6 +2249,33 @@
         "default": "true"
       }
     ],
+    "DD_TRACE_STRIPE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_STRIPE_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_STRIPE_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "B",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_STRIPE_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_STRIPE_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
     "DD_TRACE_SWOOLE_ANALYTICS_ENABLED": [
       {
         "implementation": "A",
