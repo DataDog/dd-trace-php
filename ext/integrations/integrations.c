@@ -450,8 +450,6 @@ void ddtrace_integrations_minit(void) {
                                          "DDTrace\\Integrations\\Stripe\\StripeIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Service\\PaymentIntentService", "create",
                                          "DDTrace\\Integrations\\Stripe\\StripeIntegration");
-    DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Webhook", "constructEvent",
-                                         "DDTrace\\Integrations\\Stripe\\StripeIntegration");
     DD_SET_UP_DEFERRED_LOADING_BY_METHOD(DDTRACE_INTEGRATION_STRIPE, "Stripe\\Event", "constructFrom",
                                          "DDTrace\\Integrations\\Stripe\\StripeIntegration");
 
