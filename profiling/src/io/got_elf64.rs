@@ -1,3 +1,4 @@
+use super::GotSymbolOverwrite;
 use crate::bindings::{
     Elf64_Dyn, Elf64_Rela, Elf64_Sym, Elf64_Xword, DT_JMPREL, DT_NULL, DT_PLTRELSZ, DT_STRTAB,
     DT_SYMTAB, PT_DYNAMIC, R_AARCH64_JUMP_SLOT, R_X86_64_JUMP_SLOT,
@@ -13,12 +14,6 @@ fn elf64_r_type(info: Elf64_Xword) -> u32 {
 
 fn elf64_r_sym(info: Elf64_Xword) -> u32 {
     (info >> 32) as u32
-}
-
-pub struct GotSymbolOverwrite {
-    pub symbol_name: &'static str,
-    pub new_func: *mut (),
-    pub orig_func: *mut *mut (),
 }
 
 /// Override the GOT entry for symbols specified in `overwrites`.
