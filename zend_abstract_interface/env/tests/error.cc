@@ -12,10 +12,11 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/error", "zero name len", {
     REQUIRE_UNSETENV("FOO");
 
     ZAI_ENV_BUFFER_INIT(buf, 64);
+    strcpy(buf.ptr, "foo");
     zai_env_result res = zai_getenv_literal("", buf);
 
     REQUIRE(res == ZAI_ENV_ERROR);
-    REQUIRE_BUF_EQ("", buf);
+    REQUIRE_BUF_EQ("foo", buf);
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/error", "NULL buffer", {

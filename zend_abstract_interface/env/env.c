@@ -11,14 +11,15 @@
 #define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
 #endif
 
-zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
-    if (!buf.ptr || !buf.len) return ZAI_ENV_ERROR;
+zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer *buf, bool pre_rinit, bool use_process_env) {
+    if (!buf || !buf->ptr || !buf->len) return ZAI_ENV_ERROR;
 
-    buf.ptr[0] = '\0';
+    char *scratch = buf->ptr;
+    size_t scratch_len = buf->len;
 
     if (zai_str_is_empty(name)) return ZAI_ENV_ERROR;
 
-    if (buf.len > ZAI_ENV_MAX_BUFSIZ) return ZAI_ENV_BUFFER_TOO_BIG;
+    if (scratch_len > ZAI_ENV_MAX_BUFSIZ) return ZAI_ENV_BUFFER_TOO_BIG;
 
     /* Some SAPIs do not initialize the SAPI-controlled environment variables
      * until SAPI RINIT. It is for this reason we cannot reliably access
@@ -28,28 +29,34 @@ zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
 
     /* sapi_getenv may or may not include process environment variables.
      * It will return NULL when it is not found in the possibly synthetic SAPI environment.
-     * Hence we need to do a getenv() in any case.
      */
-    bool use_sapi_env = false;
-    char *value = sapi_getenv_compat(name.ptr, name.len);
-    if (value) {
-        use_sapi_env = true;
-    } else {
-        value = getenv(name.ptr);
+    char *sapi_value = sapi_getenv_compat(name.ptr, name.len);
+    if (sapi_value) {
+        size_t sapi_value_len = strlen(sapi_value);
+        zai_env_result res;
+        if (sapi_value_len < scratch_len) {
+            memcpy(scratch, sapi_value, sapi_value_len + 1);
+            buf->ptr = scratch;
+            buf->len = sapi_value_len;
+            res = ZAI_ENV_SUCCESS;
+        } else {
+            res = ZAI_ENV_BUFFER_TOO_SMALL;
+        }
+        efree(sapi_value);
+        return res;
     }
 
-    if (!value) return ZAI_ENV_NOT_SET;
+    if (!use_process_env) return ZAI_ENV_NOT_SET;
 
-    zai_env_result res;
+    char *process_value = getenv(name.ptr);
+    if (!process_value) return ZAI_ENV_NOT_SET;
 
-    if (strlen(value) < buf.len) {
-        strcpy(buf.ptr, value);
-        res = ZAI_ENV_SUCCESS;
-    } else {
-        res = ZAI_ENV_BUFFER_TOO_SMALL;
+    size_t process_value_len = strlen(process_value);
+    if (process_value_len < scratch_len) {
+        memcpy(scratch, process_value, process_value_len + 1);
+        buf->ptr = scratch;
+        buf->len = process_value_len;
+        return ZAI_ENV_SUCCESS;
     }
-
-    if (use_sapi_env) efree(value);
-
-    return res;
+    return ZAI_ENV_BUFFER_TOO_SMALL;
 }
