@@ -54,8 +54,8 @@ class MockStripeServer implements Startable {
         def mode = ctx.formParam("mode")
         def clientRefId = ctx.formParam("client_reference_id")
 
-        def response = [
-            id: "cs_test_${System.currentTimeMillis()}",
+        ctx.status(200).json([
+            id: "cs_test_" + System.currentTimeMillis(),
             object: "checkout.session",
             mode: mode ?: "payment",
             amount_total: 1000,
@@ -75,30 +75,22 @@ class MockStripeServer implements Startable {
                 amount_shipping: 500,
                 amount_tax: 0
             ]
-        ]
-
-        ctx.status(200)
-        ctx.contentType("application/json")
-        ctx.result(JsonOutput.toJson(response))
+        ])
     }
 
     private void handlePaymentIntentCreate(Context ctx) {
         def amountStr = ctx.formParam("amount")
         def currency = ctx.formParam("currency")
 
-        def response = [
-            id: "pi_test_${System.currentTimeMillis()}",
+        ctx.status(200).json([
+            id: "pi_test_" + System.currentTimeMillis(),
             object: "payment_intent",
             amount: amountStr ? Integer.parseInt(amountStr) : 2000,
             currency: currency ?: "usd",
             livemode: false,
             payment_method: "pm_test_123",
             status: "requires_payment_method"
-        ]
-
-        ctx.status(200)
-        ctx.contentType("application/json")
-        ctx.result(JsonOutput.toJson(response))
+        ])
     }
 
     static Map<String, Object> createWebhookSuccessEvent() {
