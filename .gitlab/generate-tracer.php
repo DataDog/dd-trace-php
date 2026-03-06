@@ -122,10 +122,19 @@ stages:
     GIT_STRATEGY: none
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
-    # Reliable workspace cleanup using PowerShell native cmdlets.
-    # cmd.exe "for /d" loops skip entries during deletion (well-known Windows antipattern) — don't use them.
+    # Reliable workspace cleanup: navigate to parent and use cmd.exe "rd /s /q" on the whole
+    # workspace directory. cmd.exe rd correctly handles Windows junction points (removes the
+    # junction entry without following it into its target), unlike PowerShell's Remove-Item
+    # -Recurse which throws reparse point mismatch errors on PS 5.1 when the workspace
+    # contains junctions (e.g. created by switch-php) or NTFS symlinks (from core.symlinks clone).
     Write-Host "Performing workspace cleanup..."
-    Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+    $workspace = $PWD.Path
+    Push-Location ..
+    cmd /c "rd /s /q ""$workspace"""
+    if (-not (Test-Path $workspace)) {
+        New-Item -ItemType Directory -Path $workspace -Force | Out-Null
+    }
+    Pop-Location
     $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
     if ($remaining) { Write-Host "WARNING: could not remove: $($remaining.Name -join ', ')" }
     Write-Host "Cleanup complete."
