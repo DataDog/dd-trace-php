@@ -51,7 +51,7 @@ $rr->waitForRequest(function ($request) {
             if (!isset($payload["message"]["metadata"])) {
                 break;
             }
-            if (($payload["message"]["kind"] ?? "") == "Crash ping") {
+            if (!isset($payload["message"]["os_info"])) {
                 continue;
             }
 

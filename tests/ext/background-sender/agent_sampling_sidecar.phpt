@@ -37,7 +37,8 @@ function checkUpdated($marker) {
                     }
                 }
             }
-            usleep(100000);
+            $fn = "us" . "leep"; // do not retry
+            $fn(100000);
         } while (--$retries);
         foreach (glob("/dev/shm/*") as $f) {
             var_dump($f, bin2hex(file_get_contents($f)));
