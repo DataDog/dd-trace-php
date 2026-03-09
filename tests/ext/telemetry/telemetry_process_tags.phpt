@@ -43,7 +43,7 @@ for ($i = 0; $i < 300; ++$i) {
 ?>
 --EXPECTF--
 Included
-string(%d) "entrypoint.basedir:telemetry,entrypoint.name:process_tags,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli"
+string(%d) "entrypoint.basedir:telemetry,entrypoint.name:telemetry_process_tags,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli"
 --CLEAN--
 <?php
 
