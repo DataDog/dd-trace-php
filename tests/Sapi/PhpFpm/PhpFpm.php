@@ -96,17 +96,10 @@ final class PhpFpm implements Sapi
 
     public function start()
     {
-        $allowRoot = '';
-        // Check if running as root and add --allow-to-run-as-root flag
-        if (function_exists('posix_getuid') && posix_getuid() === 0) {
-            $allowRoot = ' --allow-to-run-as-root';
-        }
-
         $cmd = sprintf(
-            'php-fpm -p %s --fpm-config %s -F%s',
+            'php-fpm -p %s --fpm-config %s -F',
             __DIR__,
-            $this->configFile,
-            $allowRoot
+            $this->configFile
         );
         $processCmd = "exec $cmd";
 
