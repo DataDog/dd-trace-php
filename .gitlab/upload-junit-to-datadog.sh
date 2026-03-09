@@ -184,8 +184,8 @@ fi
 echo "Found JUnit files to upload:"
 echo "${junit_files}"
 
-echo "Add final_status proeprty"
-find . -name '*.xml' | while read -r xml_file; do
+echo "Add final_status property"
+for xml_file in "${files_array[@]}"; do
     echo "Fixing $xml_file"
     tmp_file="$(mktemp)"
     xsltproc --output "$tmp_file" ".gitlab/add_final_status.xsl" "$xml_file"
