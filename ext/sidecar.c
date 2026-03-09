@@ -266,9 +266,6 @@ static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
 
 static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appsec_config) {
 #ifndef _WIN32
-    if (geteuid() == 0) {
-        ddog_sidecar_set_shm_open_mode(0644);
-    }
     int32_t current_pid = (int32_t)getpid();
 #else
     int32_t current_pid = (int32_t)GetCurrentProcessId();
@@ -447,11 +444,6 @@ void ddtrace_sidecar_minit(void) {
     zend_long mode = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE();
 
     if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD) {
-#ifndef _WIN32
-        if (geteuid() == 0) {
-            ddog_sidecar_set_shm_open_mode(0644);
-        }
-#endif
         ddtrace_ffi_try("Starting sidecar master listener in MINIT",
                        ddog_sidecar_connect_master(ddtrace_sidecar_master_pid));
     }
