@@ -1,5 +1,6 @@
 #include "php.h"
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +9,7 @@
 #include "Zend/zend_smart_str.h"
 #include "components-rs/ddtrace.h"
 #include "SAPI.h"
+#include "fnv.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -32,9 +34,30 @@ typedef struct {
     size_t count;
     size_t capacity;
     zend_string *serialized;
+    zend_string *base_hash;
 } process_tags_t;
 
 static process_tags_t process_tags = {0};
+
+static void clear_process_tags(void) {
+    for (size_t i = 0; i < process_tags.count; i++) {
+        ddog_free_normalized_tag_value(process_tags.tag_list[i].value);
+    }
+
+    if (process_tags.tag_list) {
+        pefree(process_tags.tag_list, 1);
+    }
+
+    if (process_tags.serialized) {
+        zend_string_release(process_tags.serialized);
+    }
+
+    if (process_tags.base_hash) {
+        zend_string_release(process_tags.base_hash);
+    }
+
+    memset(&process_tags, 0, sizeof(process_tags));
+}
 
 static inline const char *get_basename(const char *path) {
     if (!path || !*path) return NULL;
@@ -196,16 +219,23 @@ zend_string *ddtrace_process_tags_get_serialized(void) {
     return (ddtrace_process_tags_enabled() && process_tags.serialized) ? process_tags.serialized : ZSTR_EMPTY_ALLOC();
 }
 
+zend_string *ddtrace_process_tags_get_base_hash(void) {
+    return (ddtrace_process_tags_enabled() && process_tags.base_hash) ? process_tags.base_hash : NULL;
+}
+
 bool ddtrace_process_tags_enabled(void){
-    return get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED();
+    return get_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED();
 }
 
 void ddtrace_process_tags_first_rinit(void) {
-    // process_tags struct initializations
-    process_tags.count = 0;
+    ddtrace_process_tags_reload();
+}
+
+void ddtrace_process_tags_reload(void) {
+    clear_process_tags();
+
     process_tags.capacity = 4;
     process_tags.tag_list = pemalloc(process_tags.capacity * sizeof(process_tag_entry_t), 1);
-
     if (!process_tags.tag_list) {
         process_tags.capacity = 0;
         return;
@@ -215,14 +245,32 @@ void ddtrace_process_tags_first_rinit(void) {
     serialize_process_tags();
 }
 
-void ddtrace_process_tags_mshutdown(void) {
-    for (size_t i = 0; i < process_tags.count; i++) {
-        ddog_free_normalized_tag_value(process_tags.tag_list[i].value);
+void ddtrace_process_tags_set_container_tags_hash(zend_string *container_tags_hash) {
+    if (!container_tags_hash || !ddtrace_process_tags_enabled() || !process_tags.serialized) {
+        return;
     }
-    pefree(process_tags.tag_list, 1);
 
-    if (process_tags.serialized) {
-        zend_string_release(process_tags.serialized);
+    size_t total_len = ZSTR_LEN(process_tags.serialized) + ZSTR_LEN(container_tags_hash);
+    unsigned char *combined = emalloc(total_len);
+
+    memcpy(combined, ZSTR_VAL(process_tags.serialized), ZSTR_LEN(process_tags.serialized));
+    memcpy(combined + ZSTR_LEN(process_tags.serialized), ZSTR_VAL(container_tags_hash), ZSTR_LEN(container_tags_hash));
+
+    uint64_t hash_value = dd_fnv1_64(combined, total_len);
+    efree(combined);
+
+    zend_string *hash_value_str = strpprintf(0, "%" PRIu64, hash_value);
+    if (!hash_value_str) {
+        return;
     }
-    memset(&process_tags, 0, sizeof(process_tags));
+
+    if (process_tags.base_hash) {
+        zend_string_release(process_tags.base_hash);
+    }
+    process_tags.base_hash = zend_string_init(ZSTR_VAL(hash_value_str), ZSTR_LEN(hash_value_str), 1);
+    zend_string_release(hash_value_str);
+}
+
+void ddtrace_process_tags_mshutdown(void) {
+    clear_process_tags();
 }
