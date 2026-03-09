@@ -62,7 +62,7 @@ reset_request_replayer();
 ?>
 --EXPECTF--
 entrypoint.basedir:remote_config
-entrypoint.name:process_tags
+entrypoint.name:rc_process_tags
 entrypoint.type:script
 entrypoint.workdir:%s
 runtime.sapi:cli
