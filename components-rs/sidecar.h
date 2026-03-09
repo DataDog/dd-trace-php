@@ -94,8 +94,6 @@ ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
 ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
 
-void ddog_sidecar_set_shm_open_mode(uint32_t mode);
-
 ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid, struct ddog_SidecarTransport **connection);
 
 ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
