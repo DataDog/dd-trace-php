@@ -290,10 +290,12 @@ static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appse
             return;
         }
 
-        // Fall back to starting a new master listener in this process.
-        LOG(INFO, "Parent's sidecar listener not available (child PID=%d, master=%d), starting new master",
+        // Worker processes must not start their own listener thread - the master listener
+        // must be started in MINIT (in the master process) so it survives forking.
+        // If we can't connect, run without the sidecar rather than starting a per-worker thread.
+        LOG(WARN, "Cannot connect to master sidecar listener from worker (child PID=%d, master PID=%d)",
             (int32_t)current_pid, ddtrace_sidecar_master_pid);
-        ddtrace_sidecar_master_pid = current_pid;
+        return;
     }
 
     if (!ddtrace_ffi_try("Failed starting sidecar master listener", ddog_sidecar_connect_master((int32_t)ddtrace_sidecar_master_pid))) {
