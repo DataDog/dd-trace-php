@@ -169,6 +169,28 @@ if(LIBXML2_WITH_TLS)
     endif()
 endif()
 
+# Headers which are private.
+set(
+    LIBXML2_PRIVATE_HDRS
+    include/private/buf.h
+    include/private/cata.h
+    include/private/dict.h
+    include/private/enc.h
+    include/private/entities.h
+    include/private/error.h
+    include/private/globals.h
+    include/private/html.h
+    include/private/io.h
+    include/private/memory.h
+    include/private/parser.h
+    include/private/regexp.h
+    include/private/save.h
+    include/private/string.h
+    include/private/threads.h
+    include/private/tree.h
+    include/private/xpath.h
+)
+
 set(
     LIBXML2_HDRS
     include/libxml/c14n.h
@@ -240,6 +262,7 @@ set(
     xmlmemory.c
     xmlstring.c
 )
+
 if(LIBXML2_WITH_C14N)
     list(APPEND LIBXML2_SRCS c14n.c)
 endif()
@@ -304,7 +327,7 @@ if(WIN32)
     )
 endif()
 
-add_library(LibXml2 ${LIBXML2_HDRS} ${LIBXML2_SRCS})
+add_library(LibXml2 ${LIBXML2_HDRS} ${LIBXML2_SRCS} ${LIBXML2_PRIVATE_HDRS})
 add_library(LibXml2::LibXml2 ALIAS LibXml2)
 
 target_include_directories(
@@ -455,6 +478,9 @@ if(LIBXML2_WITH_PROGRAMS)
         endif()
         install(TARGETS    ${PROGRAM} EXPORT LibXml2 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT programs)
     endforeach()
+    if(LIBXML2_WITH_ZLIB)
+        target_link_libraries(xmllint ZLIB::ZLIB)
+    endif()
 endif()
 
 if(LIBXML2_WITH_TESTS)
@@ -465,6 +491,7 @@ if(LIBXML2_WITH_TESTS)
         runxmlconf
         runsuite
         testapi
+        testcatalog
         testchar
         testdict
         testModule
@@ -487,10 +514,67 @@ if(LIBXML2_WITH_TESTS)
         add_test(NAME runxmlconf COMMAND runxmlconf WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     endif()
     add_test(NAME testapi COMMAND testapi)
+    add_test(NAME testcatalog COMMAND testcatalog)
     add_test(NAME testchar COMMAND testchar)
     add_test(NAME testdict COMMAND testdict)
     add_test(NAME testparser COMMAND testparser WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     add_test(NAME testrecurse COMMAND testrecurse WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+
+
+    function(ADD_SUITE test_dir program)
+        file(GLOB_RECURSE files_to_process CONFIGURE_DEPENDS "./test/${test_dir}/*.script")
+
+        foreach(file_path ${files_to_process})
+            file(RELATIVE_PATH file_relative "${CMAKE_CURRENT_SOURCE_DIR}" "${file_path}")
+            get_filename_component(dir_path ${file_relative} DIRECTORY)
+            get_filename_component(base_name ${file_relative} NAME_WE)
+            get_filename_component(extension ${file_relative} EXT)
+
+            set(actual_stdout   "${CMAKE_CURRENT_BINARY_DIR}/result/${test_dir}/${base_name}")
+            set(actual_stderr   "${CMAKE_CURRENT_BINARY_DIR}/result/${test_dir}/${base_name}.err")
+            set(expected_stdout "${CMAKE_CURRENT_SOURCE_DIR}/result/${test_dir}/${base_name}")
+            set(expected_stderr "${CMAKE_CURRENT_SOURCE_DIR}/result/${test_dir}/${base_name}.err")
+
+            set(xml_path  "${CMAKE_CURRENT_SOURCE_DIR}/${dir_path}/${base_name}.xml")
+            set(sgml_path "${CMAKE_CURRENT_SOURCE_DIR}/${dir_path}/${base_name}.sgml")
+
+            if(EXISTS "${xml_path}")
+                set(input_file "./${dir_path}/${base_name}.xml")
+            elseif(EXISTS "${sgml_path}")
+                set(input_file "./${dir_path}/${base_name}.sgml")
+            else()
+                message(FATAL_ERROR "Neither XML nor SGML exists for: ${dir_path}/${base_name}")
+            endif()
+
+            add_test(
+                NAME ${test_dir}_${base_name}
+                COMMAND ${CMAKE_COMMAND}
+                    -DPROG=$<TARGET_FILE:${program}>
+                    -DSTDIN=./${dir_path}/${base_name}.script
+                    -DXML=${input_file}
+                    -DSTDOUT=${actual_stdout}
+                    -DSTDERR=${actual_stderr}
+                    -DEXPECTED_STDOUT=${expected_stdout}
+                    -DEXPECTED_STDERR=${expected_stderr}
+                    -DWORKDIR=${CMAKE_CURRENT_SOURCE_DIR}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/run_and_diff.cmake
+            )
+
+        endforeach()
+    endfunction()
+
+    add_suite("scripts" xmllint)
+    add_suite("catalogs" xmlcatalog)
+
+    add_test(
+        NAME catalog_add_del
+        COMMAND ${CMAKE_COMMAND}
+                -DXMLCAT=$<TARGET_FILE:xmlcatalog>
+                -DEXPECTED_FULL=${CMAKE_CURRENT_SOURCE_DIR}/result/catalogs/mycatalog.full
+                -DEXPECTED_EMPTY=${CMAKE_CURRENT_SOURCE_DIR}/result/catalogs/mycatalog.empty
+                -P ${CMAKE_CURRENT_SOURCE_DIR}/test_xmlcatalog_add_del.cmake
+    )
+
 endif()
 
 if(LIBXML2_WITH_DOCS OR LIBXML2_WITH_PYTHON)
@@ -646,6 +730,9 @@ install(
 configure_file(config.h.cmake.in config.h)
 configure_file(include/libxml/xmlversion.h.in libxml/xmlversion.h)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/libxml/xmlversion.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/libxml2/libxml COMPONENT development)
+
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}
+                  FILES ${LIBXML2_SRCS} ${LIBXML2_HDRS} ${LIBXML2_PRIVATE_HDRS})
 
 if(LIBXML2_WITH_PYTHON)
     set(prefix "${CMAKE_INSTALL_PREFIX}")
