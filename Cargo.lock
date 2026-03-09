@@ -319,7 +319,7 @@ dependencies = [
  "addr2line",
  "cfg-if",
  "libc 0.2.177",
- "miniz_oxide",
+ "miniz_oxide 0.8.3",
  "object 0.36.7",
  "rustc-demangle",
  "windows-targets 0.52.6",
@@ -405,15 +405,15 @@ checksum = "a1d084b0137aaa901caf9f1e8b21daa6aa24d41cd806e111335541eff9683bd6"
 
 [[package]]
 name = "blazesym"
-version = "0.2.0-rc.5"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95824d1dd4f20b4a4dfa63b72954e81914a718357231468180b30314e85057fa"
+checksum = "48ceccc54b9c3e60e5f36b0498908c8c0f87387229cb0e0e5d65a074e00a8ba4"
 dependencies = [
- "cpp_demangle",
+ "cpp_demangle 0.5.1",
  "gimli 0.32.0",
  "libc 0.2.177",
  "memmap2",
- "miniz_oxide",
+ "miniz_oxide 0.9.0",
  "rustc-demangle",
 ]
 
@@ -562,9 +562,9 @@ checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
-version = "1.9.0"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "325918d6fe32f23b19878fe4b34794ae41fc19ddbe53b10571a4874d44ffd39b"
+checksum = "1e748733b7cbc798e1434b6ac524f0c1ff2ab456fe201501e6497c8417a4fc33"
 dependencies = [
  "serde",
 ]
@@ -952,6 +952,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cpp_demangle"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0667304c32ea56cb4cd6d2d7c0cfe9a2f8041229db8c033af7f8d69492429def"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "cpu-time"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1024,6 +1033,12 @@ dependencies = [
  "cast",
  "itertools 0.10.5",
 ]
+
+[[package]]
+name = "critical-section"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
 name = "crossbeam-channel"
@@ -1209,6 +1224,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "data-encoding"
+version = "2.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7a1e2f27636f116493b8b860f5546edb47c8d8f8ea73e1d2a20be88e28d1fea"
+
+[[package]]
 name = "datadog-ffe"
 version = "1.0.0"
 dependencies = [
@@ -1241,7 +1262,7 @@ dependencies = [
  "glibc_version",
  "io-lifetimes",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-tinybytes",
  "memfd",
  "nix 0.29.0",
@@ -1275,14 +1296,15 @@ name = "datadog-live-debugger"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "bytes",
  "constcat",
+ "http",
  "http-body-util",
- "hyper 1.6.0",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-data-pipeline",
  "percent-encoding 2.3.1",
  "regex",
- "regex-automata 0.4.9",
+ "regex-automata",
  "serde",
  "serde_json",
  "smallvec",
@@ -1297,7 +1319,7 @@ version = "0.0.1"
 dependencies = [
  "build_common",
  "datadog-live-debugger",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-common-ffi",
  "log 0.4.25",
  "percent-encoding 2.3.1",
@@ -1328,7 +1350,7 @@ dependencies = [
  "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
- "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?tag=v27.0.0)",
+ "libdd-common 1.1.0",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log 0.4.25",
@@ -1359,7 +1381,7 @@ dependencies = [
  "http-body-util",
  "hyper 1.6.0",
  "hyper-util",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-trace-protobuf",
  "manual_future",
  "regex",
@@ -1393,9 +1415,8 @@ dependencies = [
  "http",
  "http-body-util",
  "httpmock",
- "hyper 1.6.0",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker",
  "libdd-crashtracker-ffi",
@@ -1440,7 +1461,7 @@ dependencies = [
  "datadog-sidecar",
  "http",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-dogstatsd-client",
@@ -1483,7 +1504,7 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-library-config-ffi",
@@ -1494,7 +1515,7 @@ dependencies = [
  "log 0.4.25",
  "paste",
  "regex",
- "regex-automata 0.4.9",
+ "regex-automata",
  "serde",
  "serde_json",
  "serde_with",
@@ -1646,6 +1667,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "enum-as-inner"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1e6a265c649f3f5979b601d26f1d05ada116434c87741c9493cb56218f76cbc"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
+
+[[package]]
 name = "enum-ordinalize"
 version = "3.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1780,7 +1813,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c936bfdafb507ebbf50b8074c54fa31c5be9a1e7e5f467dd659697041407d07c"
 dependencies = [
  "crc32fast",
- "miniz_oxide",
+ "miniz_oxide 0.8.3",
 ]
 
 [[package]]
@@ -2181,6 +2214,52 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
+name = "hickory-proto"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8a6fe56c0038198998a6f217ca4e7ef3a5e51f46163bd6dd60b5c71ca6c6502"
+dependencies = [
+ "async-trait",
+ "cfg-if",
+ "data-encoding",
+ "enum-as-inner",
+ "futures-channel",
+ "futures-io",
+ "futures-util",
+ "idna 1.0.3",
+ "ipnet",
+ "once_cell",
+ "rand 0.9.0",
+ "ring",
+ "thiserror 2.0.12",
+ "tinyvec",
+ "tokio",
+ "tracing",
+ "url 2.5.4",
+]
+
+[[package]]
+name = "hickory-resolver"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc62a9a99b0bfb44d2ab95a7208ac952d31060efc16241c87eaf36406fecf87a"
+dependencies = [
+ "cfg-if",
+ "futures-util",
+ "hickory-proto",
+ "ipconfig",
+ "moka",
+ "once_cell",
+ "parking_lot",
+ "rand 0.9.0",
+ "resolv-conf",
+ "smallvec",
+ "thiserror 2.0.12",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "home"
@@ -2601,6 +2680,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ipconfig"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b58db92f96b720de98181bbbe63c831e87005ab460c1bf306eb2622b4707997f"
+dependencies = [
+ "socket2 0.5.10",
+ "widestring",
+ "windows-sys 0.48.0",
+ "winreg",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2776,6 +2867,44 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "1.1.0"
+source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
+dependencies = [
+ "anyhow",
+ "cc",
+ "const_format",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "hex",
+ "http",
+ "http-body",
+ "http-body-util",
+ "httparse",
+ "hyper 1.6.0",
+ "hyper-rustls",
+ "hyper-util",
+ "libc 0.2.177",
+ "mime 0.3.17",
+ "multipart",
+ "nix 0.29.0",
+ "pin-project",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "rustls",
+ "rustls-native-certs",
+ "serde",
+ "static_assertions",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-rustls",
+ "tower-service",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "libdd-common"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2815,44 +2944,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "libdd-common"
-version = "1.1.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v27.0.0#72e56a3dcf9189a92db1f177c4c9d844725079f7"
-dependencies = [
- "anyhow",
- "cc",
- "const_format",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "http",
- "http-body",
- "http-body-util",
- "httparse",
- "hyper 1.6.0",
- "hyper-rustls",
- "hyper-util",
- "libc 0.2.177",
- "mime 0.3.17",
- "multipart",
- "nix 0.29.0",
- "pin-project",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "rustls",
- "rustls-native-certs",
- "serde",
- "static_assertions",
- "thiserror 1.0.69",
- "tokio",
- "tokio-rustls",
- "tower-service",
- "windows-sys 0.52.0",
-]
-
-[[package]]
 name = "libdd-common-ffi"
 version = "0.0.1"
 dependencies = [
@@ -2864,7 +2955,7 @@ dependencies = [
  "crossbeam-queue",
  "function_name",
  "hyper 1.6.0",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "serde",
 ]
 
@@ -2883,7 +2974,7 @@ dependencies = [
  "goblin",
  "http",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-telemetry",
  "nix 0.29.0",
  "num-derive",
@@ -2912,7 +3003,7 @@ dependencies = [
  "build_common",
  "function_name",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker",
  "serde",
@@ -2925,7 +3016,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2936,9 +3027,7 @@ dependencies = [
  "http",
  "http-body-util",
  "httpmock",
- "hyper 1.6.0",
- "hyper-util",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-ddsketch",
  "libdd-dogstatsd-client",
  "libdd-log",
@@ -2962,7 +3051,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-ddsketch"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "prost",
  "prost-build",
@@ -2971,12 +3060,12 @@ dependencies = [
 
 [[package]]
 name = "libdd-dogstatsd-client"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "cadence",
  "http",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "serde",
  "tokio",
  "tracing",
@@ -2987,12 +3076,16 @@ name = "libdd-library-config"
 version = "1.0.0"
 dependencies = [
  "anyhow",
+ "libdd-trace-protobuf",
  "memfd",
+ "prost",
  "rand 0.8.5",
  "rmp",
  "rmp-serde",
+ "rustix 1.1.3",
  "serde",
  "serde_yaml",
+ "serial_test",
  "tempfile",
 ]
 
@@ -3003,7 +3096,7 @@ dependencies = [
  "anyhow",
  "build_common",
  "constcat",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-common-ffi",
  "libdd-library-config",
  "tempfile",
@@ -3040,7 +3133,7 @@ dependencies = [
  "httparse",
  "indexmap 2.12.1",
  "libdd-alloc",
- "libdd-common 1.1.0 (git+https://github.com/DataDog/libdatadog?tag=v27.0.0)",
+ "libdd-common 1.1.0",
  "libdd-profiling-protobuf",
  "mime 0.3.17",
  "parking_lot",
@@ -3067,7 +3160,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-telemetry"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3075,10 +3168,8 @@ dependencies = [
  "hashbrown 0.15.2",
  "http",
  "http-body-util",
- "hyper 1.6.0",
- "hyper-util",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-ddsketch",
  "serde",
  "serde_json",
@@ -3098,7 +3189,7 @@ dependencies = [
  "build_common",
  "function_name",
  "libc 0.2.177",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-common-ffi",
  "libdd-telemetry",
  "paste",
@@ -3121,7 +3212,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-normalization"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -3133,7 +3224,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-protobuf"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "prost",
  "prost-build",
@@ -3146,7 +3237,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "criterion",
  "hashbrown 0.15.2",
@@ -3158,7 +3249,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "bolero",
@@ -3169,11 +3260,12 @@ dependencies = [
  "flate2",
  "futures",
  "http",
+ "http-body",
  "http-body-util",
  "httpmock",
  "hyper 1.6.0",
  "indexmap 2.12.1",
- "libdd-common 1.1.0",
+ "libdd-common 2.0.0",
  "libdd-tinybytes",
  "libdd-trace-normalization",
  "libdd-trace-protobuf",
@@ -3287,11 +3379,11 @@ checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
 
 [[package]]
 name = "matchers"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558"
+checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
- "regex-automata 0.1.10",
+ "regex-automata",
 ]
 
 [[package]]
@@ -3416,6 +3508,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8402cab7aefae129c6977bb0ff1b8fd9a04eb5b51efc50a70bea51cda0c7924"
 dependencies = [
  "adler2",
+]
+
+[[package]]
+name = "miniz_oxide"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5faa9f23e86bd5768d76def086192ff5f869fb088da12a976ea21e9796b975f6"
+dependencies = [
+ "adler2",
  "simd-adler32",
 ]
 
@@ -3445,6 +3546,23 @@ name = "modifier"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "41f5c9112cb662acd3b204077e0de5bc66305fa8df65c8019d5adb10e9ab6e58"
+
+[[package]]
+name = "moka"
+version = "0.12.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85f8024e1c8e71c778968af91d43700ce1d11b219d127d79fb2934153b82b42b"
+dependencies = [
+ "crossbeam-channel",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "equivalent",
+ "parking_lot",
+ "portable-atomic",
+ "smallvec",
+ "tagptr",
+ "uuid",
+]
 
 [[package]]
 name = "msvc-demangler"
@@ -3578,12 +3696,11 @@ dependencies = [
 
 [[package]]
 name = "nu-ansi-term"
-version = "0.46.0"
+version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77a8165726e8236064dbb45459242600304b42a5ea24ee2948e18e023bf7ba84"
+checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "overload",
- "winapi 0.3.9",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -3826,6 +3943,10 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+dependencies = [
+ "critical-section",
+ "portable-atomic",
+]
 
 [[package]]
 name = "oorandom"
@@ -3908,12 +4029,6 @@ dependencies = [
  "serde",
  "windows-sys 0.61.2",
 ]
-
-[[package]]
-name = "overload"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "page_size"
@@ -4203,7 +4318,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "059a34f111a9dee2ce1ac2826a68b24601c4298cfeb1a587c3cb493d5ab46f52"
 dependencies = [
  "libc 0.2.177",
- "nix 0.29.0",
+ "nix 0.30.1",
 ]
 
 [[package]]
@@ -4297,7 +4412,7 @@ dependencies = [
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_xorshift 0.3.0",
- "regex-syntax 0.8.5",
+ "regex-syntax",
  "unarray",
 ]
 
@@ -4829,17 +4944,8 @@ checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.4.9",
- "regex-syntax 0.8.5",
-]
-
-[[package]]
-name = "regex-automata"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
-dependencies = [
- "regex-syntax 0.6.29",
+ "regex-automata",
+ "regex-syntax",
 ]
 
 [[package]]
@@ -4850,14 +4956,8 @@ checksum = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.8.5",
+ "regex-syntax",
 ]
-
-[[package]]
-name = "regex-syntax"
-version = "0.6.29"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
@@ -4884,6 +4984,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
+ "hickory-resolver",
  "http",
  "http-body",
  "http-body-util",
@@ -4893,6 +4994,7 @@ dependencies = [
  "js-sys",
  "log 0.4.25",
  "mime_guess 2.0.5",
+ "once_cell",
  "percent-encoding 2.3.1",
  "pin-project-lite",
  "quinn",
@@ -4910,6 +5012,12 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
 ]
+
+[[package]]
+name = "resolv-conf"
+version = "0.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e061d1b48cb8d38042de4ae0a7a6401009d6143dc80d2e2d6f31f0bdd6470c7"
 
 [[package]]
 name = "ring"
@@ -5134,6 +5242,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "scc"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46e6f046b7fef48e2660c57ed794263155d713de679057f2d0c169bfc6e756cc"
+dependencies = [
+ "sdd",
+]
+
+[[package]]
 name = "schannel"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5197,6 +5314,12 @@ dependencies = [
  "quote",
  "syn 2.0.96",
 ]
+
+[[package]]
+name = "sdd"
+version = "3.0.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
 
 [[package]]
 name = "security-framework"
@@ -5380,6 +5503,32 @@ dependencies = [
  "ryu",
  "serde",
  "unsafe-libyaml",
+]
+
+[[package]]
+name = "serial_test"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "911bd979bf1070a3f3aa7b691a3b3e9968f339ceeec89e08c280a8a22207a32f"
+dependencies = [
+ "futures-executor",
+ "futures-util",
+ "log 0.4.25",
+ "once_cell",
+ "parking_lot",
+ "scc",
+ "serial_test_derive",
+]
+
+[[package]]
+name = "serial_test_derive"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a7d91949b85b0d2fb687445e448b40d322b6b3e4af6b44a29b21d9a5f33e6d9"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -5665,7 +5814,7 @@ version = "12.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "98cf6a95abff97de4d7ff3473f33cacd38f1ddccad5c1feab435d6760300e3b6"
 dependencies = [
- "cpp_demangle",
+ "cpp_demangle 0.4.4",
  "msvc-demangler",
  "rustc-demangle",
  "symbolic-common",
@@ -5731,6 +5880,12 @@ checksum = "fce91f2f0ec87dff7e6bcbbeb267439aa1188703003c6055193c821487400432"
 dependencies = [
  "unicode-width",
 ]
+
+[[package]]
+name = "tagptr"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 
 [[package]]
 name = "target-lexicon"
@@ -6224,9 +6379,9 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 
 [[package]]
 name = "tracing"
-version = "0.1.41"
+version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "784e0ac535deb450455cbfa28a6f0df145ea1bb7ae51b821cf5e7927fdcfbdd0"
+checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
  "log 0.4.25",
  "pin-project-lite",
@@ -6248,9 +6403,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.28"
+version = "0.1.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "395ae124c09f9e6918a2310af6038fba074bcf474ac352496d5910dd59a2226d"
+checksum = "7490cfa5ec963746568740651ac6781f701c9c5ea257c58e057f3ba8cf69e8da"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6259,9 +6414,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.33"
+version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e672c95779cf947c5311f83787af4fa8fffd12fb27e4993211a84bdfd9610f9c"
+checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
  "valuable",
@@ -6303,14 +6458,14 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.19"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8189decb5ac0fa7bc8b96b7cb9b2701d60d48805aca84a238004d665fcc4008"
+checksum = "2f30143827ddab0d256fd843b7a66d164e9f271cfa0dde49142c5ca0ca291f1e"
 dependencies = [
  "matchers",
  "nu-ansi-term",
  "once_cell",
- "regex",
+ "regex-automata",
  "serde",
  "serde_json",
  "sharded-slab",
@@ -6758,6 +6913,12 @@ dependencies = [
  "once_cell",
  "rustix 0.38.43",
 ]
+
+[[package]]
+name = "widestring"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72069c3113ab32ab29e5584db3c6ec55d416895e60715417b5b883a357c3e471"
 
 [[package]]
 name = "winapi"
@@ -7242,6 +7403,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d71a593cc5c42ad7876e2c1fda56f314f3754c084128833e64f1345ff8a03a"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "winreg"
+version = "0.50.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
+dependencies = [
+ "cfg-if",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
