@@ -78,8 +78,10 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
             for ($i = 0; $i < 3; $i++) {
                 $this->call(GetSpec::create("Worker request $i", '/simple'));
             }
-        });
+        }, null, $this->untilNumberOfTraces(3));
 
+        // All 3 traces must arrive; the goal is verifying no crash/deadlock
+        // when multiple workers connect to the master listener thread.
         $this->assertGreaterThanOrEqual(3, \count($traces), 'Expected at least 3 traces from multiple worker requests');
         foreach ($traces as $trace) {
             $this->assertSame('web.request', $trace[0]['name']);
