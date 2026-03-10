@@ -245,13 +245,8 @@ TEST_INI("map INI: user value", {}, {
 
 TEST_INI("string INI: default value", {}, {
     REQUEST_BEGIN()
-
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "foo string"));
-
+    REQUIRE_ZVAL_STRING_EQ(value, "foo string");
     REQUEST_END()
 })
 
@@ -259,27 +254,16 @@ TEST_INI("string INI: system value", {
     REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "system string"));
 }, {
     REQUEST_BEGIN()
-
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "system string"));
-
+    REQUIRE_ZVAL_STRING_EQ(value, "system string");
     REQUEST_END()
 })
 
 TEST_INI("string INI: user value", {}, {
     REQUEST_BEGIN()
-
     REQUIRE_SET_INI("zai_config.INI_FOO_STRING", "user string");
-
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "user string"));
-
+    REQUIRE_ZVAL_STRING_EQ(value, "user string");
     REQUEST_END()
 })
 
@@ -534,9 +518,7 @@ TEST_INI("setting perdir INI setting for multiple ZAI config users", {
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "another"));
+    REQUIRE_ZVAL_STRING_EQ(value, "another");
 
     REQUEST_END();
 })
@@ -549,9 +531,7 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "value"));
+    REQUIRE_ZVAL_STRING_EQ(value, "value");
 
     REQUEST_END()
 
@@ -563,9 +543,7 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
     // "value" back, not "value2".
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "value"));
+    REQUIRE_ZVAL_STRING_EQ(value, "value");
 
     REQUEST_END()
 })
@@ -578,7 +556,7 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 
 static char sapi_getenv_test_buf[64];
 
-// Returns "from_sapi" only for INI_FOO_STRING; otherwise NULL (so config falls back to cache).
+// Returns "sapi env val" only for INI_FOO_STRING; otherwise NULL (so config falls back to cache).
 TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
     if (name_len == 15 && strncmp(name, "INI_FOO_STRING", 15) == 0) {
         strcpy(sapi_getenv_test_buf, "sapi env val");
@@ -594,9 +572,7 @@ TEST_INI("SAPI env takes priority over cache", {}, {
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "system env val"));
+    REQUIRE_ZVAL_STRING_EQ(value, "system env val");
 
     REQUEST_END()
 
@@ -606,9 +582,7 @@ TEST_INI("SAPI env takes priority over cache", {}, {
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "sapi env val"));
+    REQUIRE_ZVAL_STRING_EQ(value, "sapi env val");
 
     REQUEST_END()
 
