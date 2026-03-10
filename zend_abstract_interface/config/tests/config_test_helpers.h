@@ -7,18 +7,6 @@ static inline bool zval_string_equals(zval *value, const char *str) {
     return Z_STRLEN_P(value) == strlen(str) && !strcmp(Z_STRVAL_P(value), str);
 }
 
-#ifdef __cplusplus
-#include <string>
-
-/* Use Catch2's expression decomposition: REQUIRE(a == b) prints both values on failure (like assert_eq! in Rust). */
-#define REQUIRE_ZVAL_STRING_EQ(zv, expected)                                              \
-    do {                                                                                   \
-        REQUIRE(zv != NULL);                                                               \
-        REQUIRE(Z_TYPE_P(zv) == IS_STRING);                                                \
-        REQUIRE(std::string(Z_STRVAL_P(zv), Z_STRLEN_P(zv)) == std::string(expected));    \
-    } while (0)
-#endif
-
 #define REQUIRE_SETENV(key, val) REQUIRE(0 == setenv(key, val, /* overwrite */ 1))
 
 #define REQUEST_BEGIN()            \
