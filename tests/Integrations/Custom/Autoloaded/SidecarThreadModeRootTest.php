@@ -34,14 +34,14 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
             self::markTestSkipped('This test requires the test runner to execute as root');
         }
 
-        if (\getenv('DD_TRACE_TEST_SAPI') !== 'fpm-fcgi') {
-            self::markTestSkipped('This test requires DD_TRACE_TEST_SAPI=fpm-fcgi');
-        }
-
         self::$workerUser = self::findUnprivilegedUser();
         if (self::$workerUser === null) {
             self::markTestSkipped('No unprivileged user found on this system (tried www-data, daemon, nobody)');
         }
+
+        // Force FPM mode regardless of the CI job's DD_TRACE_TEST_SAPI so this
+        // test runs in every test_web_custom matrix entry, not just fpm-fcgi.
+        putenv('DD_TRACE_TEST_SAPI=fpm-fcgi');
 
         parent::ddSetUpBeforeClass();
     }
