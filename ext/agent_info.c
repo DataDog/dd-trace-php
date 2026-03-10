@@ -22,7 +22,7 @@ void ddtrace_agent_info_rinit() {
     }
 }
 
-zend_string *ddtrace_get_container_tags_hash(void) {
+void ddtrace_get_container_tags_hash(void) {
     if (DDTRACE_G(agent_info_reader)) {
         bool changed;
         ddog_CharSlice hash = ddog_get_agent_info_container_tags_hash(
@@ -30,10 +30,9 @@ zend_string *ddtrace_get_container_tags_hash(void) {
             &changed
         );
         if (hash.len > 0) {
-            zend_string *hash_str = zend_string_init(hash.ptr, hash.len, 1);
+            zend_string *hash_str = zend_string_init(hash.ptr, hash.len, 0);
             ddtrace_process_tags_set_container_tags_hash(hash_str);
-            return hash_str;
+            zend_string_release(hash_str);
         }
     }
-    return NULL;
 }
