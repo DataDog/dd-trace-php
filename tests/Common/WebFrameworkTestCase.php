@@ -180,8 +180,17 @@ abstract class WebFrameworkTestCase extends IntegrationTestCase
                 }
                 self::$appServer->setFrankenphp();
             }
+            static::configureWebServer(self::$appServer);
             self::$appServer->start();
         }
+    }
+
+    /**
+     * Hook called after the WebServer is configured but before it is started.
+     * Override in subclasses to apply additional configuration (e.g. FPM user).
+     */
+    protected static function configureWebServer(WebServer $server): void
+    {
     }
 
     /**
