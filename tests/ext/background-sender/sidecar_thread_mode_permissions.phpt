@@ -1,5 +1,5 @@
 --TEST--
-Thread mode sidecar: uses abstract Unix socket (no filesystem permissions needed)
+Thread mode sidecar uses abstract Unix socket
 --SKIPIF--
 <?php if (PHP_OS != "Linux") die('skip: Linux abstract socket test'); ?>
 <?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: thread mode not available on Windows'); ?>
@@ -17,7 +17,7 @@ DDTrace\close_span();
 $pid = getmypid();
 $pattern = sys_get_temp_dir() . "/libdatadog/libdd.*@{$pid}.sock";
 
-// Wait briefly then verify no filesystem socket was created (abstract socket is used instead)
+// Wait briefly then verify no filesystem socket was created
 usleep(200000); // 200ms
 
 $sockets = glob($pattern);

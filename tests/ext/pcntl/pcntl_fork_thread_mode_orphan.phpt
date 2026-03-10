@@ -27,7 +27,7 @@ if ($pid > 0) {
 
 usleep(500000); // 500ms
 
-// Creating and flushing a span triggers ddtrace_sidecar_ensure_active(), which
+// Creating and flushing a span triggers ddtrace_sidecar_ensure_active()
 $span = DDTrace\start_span();
 $span->name = 'orphaned-child-span';
 DDTrace\close_span();

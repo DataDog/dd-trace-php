@@ -84,6 +84,7 @@ final class WebServer
     private $phpFpmUser = null;
     private $phpFpmGroup = null;
     private $phpFpmSudo = false;
+    private $phpFpmMasterInis = [];
     private $forceSapi = null;
 
     private $defaultInis = [
@@ -151,6 +152,11 @@ final class WebServer
     public function setPhpFpmSudo($sudo = true)
     {
         $this->phpFpmSudo = $sudo;
+    }
+
+    public function setPhpFpmMasterIni(array $inis)
+    {
+        $this->phpFpmMasterInis = $inis;
     }
 
     public function setForceSapi($sapi)
@@ -222,7 +228,8 @@ final class WebServer
                         $this->phpFpmMaxChildren,
                         $this->phpFpmUser,
                         $this->phpFpmGroup,
-                        $this->phpFpmSudo
+                        $this->phpFpmSudo,
+                        $this->phpFpmMasterInis
                     );
                     break;
                 case 'apache2handler':

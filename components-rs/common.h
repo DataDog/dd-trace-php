@@ -1241,10 +1241,13 @@ typedef enum ddog_crasht_SignalNames {
 typedef enum ddog_crasht_StacktraceCollection {
 =======
 typedef enum ddog_crasht_StacktraceCollection {
+<<<<<<< HEAD
   /**
    * Stacktrace collection occurs in the
    */
 >>>>>>> 7e8055210 (chore: bump cbindgen)
+=======
+>>>>>>> 416482cc3 (test(sidecar): skip root FPM test under apache2handler SAPI)
   DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
   DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
   /**

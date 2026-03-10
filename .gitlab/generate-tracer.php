@@ -560,6 +560,9 @@ foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
+            if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
+                $sapis[] = "fpm-fcgi";
+            }
             foreach ($sapis as $sapi):
 ?>
 "<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":
