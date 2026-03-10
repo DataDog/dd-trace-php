@@ -7,6 +7,16 @@ extern "C" {
 
 #include "zai_tests_common.hpp"
 
+#include <string>
+
+/* Use Catch2's expression decomposition: REQUIRE(a == b) prints both values on failure (like assert_eq! in Rust). */
+#define REQUIRE_ZVAL_STRING_EQ(zv, expected)                                              \
+    do {                                                                                 \
+        REQUIRE(zv != NULL);                                                             \
+        REQUIRE(Z_TYPE_P(zv) == IS_STRING);                                              \
+        REQUIRE(std::string(Z_STRVAL_P(zv), Z_STRLEN_P(zv)) == std::string(expected));  \
+    } while (0)
+
 typedef enum {
     EXT_CFG_INI_FOO_BOOL,
     EXT_CFG_INI_FOO_DOUBLE,
