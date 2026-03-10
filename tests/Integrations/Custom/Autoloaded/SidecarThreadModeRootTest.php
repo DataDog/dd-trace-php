@@ -28,11 +28,19 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
         ]);
     }
 
+    /** @var bool */
+    private static $useSudo = false;
+
     public static function ddSetUpBeforeClass()
     {
-        if (!\function_exists('posix_geteuid') || \posix_geteuid() !== 0) {
-            self::markTestSkipped('This test requires the test runner to execute as root');
+        $isRoot = \function_exists('posix_geteuid') && \posix_geteuid() === 0;
+        $hasSudo = !$isRoot && \shell_exec('sudo -n true 2>/dev/null; echo $?') === "0\n";
+
+        if (!$isRoot && !$hasSudo) {
+            self::markTestSkipped('This test requires root or passwordless sudo to start php-fpm as root');
         }
+
+        self::$useSudo = !$isRoot;
 
         self::$workerUser = self::findUnprivilegedUser();
         if (self::$workerUser === null) {
@@ -50,6 +58,9 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
     {
         // Tell FPM to switch worker processes to the unprivileged user after forking.
         $server->setPhpFpmUser(self::$workerUser);
+        if (self::$useSudo) {
+            $server->setPhpFpmSudo(true);
+        }
     }
 
     /**
