@@ -83,6 +83,7 @@ final class WebServer
     private $phpFpmMaxChildren = 1;
     private $phpFpmUser = null;
     private $phpFpmGroup = null;
+    private $phpFpmSudo = false;
 
     private $defaultInis = [
         'log_errors' => 'on',
@@ -144,6 +145,11 @@ final class WebServer
     {
         $this->phpFpmUser = $user;
         $this->phpFpmGroup = $group;
+    }
+
+    public function setPhpFpmSudo($sudo = true)
+    {
+        $this->phpFpmSudo = $sudo;
     }
 
     public function start()
@@ -209,7 +215,8 @@ final class WebServer
                         $this->inis,
                         $this->phpFpmMaxChildren,
                         $this->phpFpmUser,
-                        $this->phpFpmGroup
+                        $this->phpFpmGroup,
+                        $this->phpFpmSudo
                     );
                     break;
                 case 'apache2handler':
