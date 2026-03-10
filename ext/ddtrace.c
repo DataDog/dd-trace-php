@@ -1615,7 +1615,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_sidecar_shutdown();
 
-    ddtrace_live_debugger_mshutdown();
     ddtrace_process_tags_mshutdown();
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
