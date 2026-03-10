@@ -193,14 +193,15 @@ TEA_TEST_CASE_BARE("config/env", "change after memoization", {
 
     REQUEST_BEGIN();
 
+    // Should be false still because it's cached on minit/first_rinit.
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
     REQUIRE(value != NULL);
 #if PHP_VERSION_ID > 70000
-    REQUIRE(Z_TYPE_P(value) == IS_TRUE);
+    REQUIRE(Z_TYPE_P(value) == IS_FALSE);
 #else
     REQUIRE(Z_TYPE_P(value) == IS_BOOL);
-    REQUIRE(Z_BVAL_P(value) == 1);
+    REQUIRE(Z_BVAL_P(value) == 0);
 #endif
 
     REQUEST_END();

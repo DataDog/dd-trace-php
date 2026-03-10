@@ -522,6 +522,7 @@ TEST_INI("change before request startup", {
 static ZEND_INI_MH(dummy) {
     return SUCCESS;
 }
+
 TEST_INI("setting perdir INI setting for multiple ZAI config users", {
     REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "another"));
 }, {
@@ -556,13 +557,38 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 
     REQUIRE_SETENV("INI_FOO_STRING", "value2");
 
-    // Something else inits zai config first
-    zai_config_rinit();
-    zai_config_rshutdown();
+    REQUEST_BEGIN()
 
-    // now we init it
-    zai_config_memoized_entry *entry = &zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING];
-    entry->original_on_modify = dummy;
+    // The value should be cached on minit/first_rinit, so we still get the
+    // "value" back, not "value2".
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "value"));
+
+    REQUEST_END()
+})
+
+#if PHP_VERSION_ID >= 80000
+#define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(const char *name, size_t name_len)
+#else
+#define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len)
+#endif
+
+static char sapi_getenv_test_buf[64];
+
+// Returns "from_sapi" only for INI_FOO_STRING; otherwise NULL (so config falls back to cache).
+TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
+    if (name_len == 15 && strncmp(name, "INI_FOO_STRING", 15) == 0) {
+        strcpy(sapi_getenv_test_buf, "sapi env val");
+        return sapi_getenv_test_buf;
+    }
+    return NULL;
+}
+
+TEST_INI("SAPI env takes priority over cache", {}, {
+    REQUIRE_SETENV("INI_FOO_STRING", "system env val");
 
     REQUEST_BEGIN()
 
@@ -570,7 +596,21 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 
     REQUIRE(value != NULL);
     REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "value2"));
+    REQUIRE(zval_string_equals(value, "system env val"));
 
     REQUEST_END()
+
+    tea_sapi_module.getenv = ini_sapi_getenv_from_sapi;
+
+    REQUEST_BEGIN()
+
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE(value != NULL);
+    REQUIRE(Z_TYPE_P(value) == IS_STRING);
+    REQUIRE(zval_string_equals(value, "sapi env val"));
+
+    REQUEST_END()
+
+    tea_sapi_module.getenv = NULL;
 })
