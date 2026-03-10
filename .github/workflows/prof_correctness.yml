@@ -47,13 +47,16 @@ jobs:
 
       - name: Build profiler
         run: |
-          echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main" | sudo tee -a /etc/apt/sources.list
-          echo "deb-src http://apt.llvm.org/jammy/ llvm-toolchain-jammy-17 main" | sudo tee -a /etc/apt/sources.list
-          curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-          curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-          sudo apt remove -y clang-*
+          codename="$(lsb_release -cs)"
+          curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-19 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-          sudo apt install -y clang-17
+          sudo apt-get install -y clang-19 lld-19
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-19 100
+          clang --version
+          ld.lld --version
           cd profiling
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
@@ -77,7 +80,7 @@ jobs:
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
-          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "allocation_time_combined"; do
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "allocation_time_combined"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension="${PWD}/target/profiler-release/libdatadog_php_profiling.so" "profiling/tests/correctness/${test_case}.php"
@@ -95,7 +98,7 @@ jobs:
           export DD_PROFILING_EXCEPTION_MESSAGE_ENABLED=1
           php -v
           php -d extension=target/profiler-release/libdatadog_php_profiling.so --ri datadog-profiling
-          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "allocation_time_combined"; do
+          for test_case in "allocations" "time" "strange_frames" "timeline" "exceptions" "io" "allocation_time_combined"; do
               mkdir -p profiling/tests/correctness/"$test_case"/
               export DD_PROFILING_OUTPUT_PPROF=$PWD/profiling/tests/correctness/"$test_case"/test.pprof
               php -d extension=$PWD/target/profiler-release/libdatadog_php_profiling.so profiling/tests/correctness/"$test_case".php
@@ -166,6 +169,12 @@ jobs:
         with:
           expected_json: profiling/tests/correctness/allocation_time_combined.json
           pprof_path: profiling/tests/correctness/allocation_time_combined/
+
+      - name: Check profiler correctness for IO
+        uses: Datadog/prof-correctness/analyze@main
+        with:
+          expected_json: profiling/tests/correctness/io.json
+          pprof_path: profiling/tests/correctness/io/
 
       - name: Check profiler correctness for exceptions ZTS
         if: matrix.phpts == 'zts'
