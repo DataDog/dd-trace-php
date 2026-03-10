@@ -46,7 +46,7 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
         parent::ddSetUpBeforeClass();
     }
 
-    protected static function configureWebServer(WebServer $server): void
+    protected static function configureWebServer(WebServer $server)
     {
         // Tell FPM to switch worker processes to the unprivileged user after forking.
         $server->setPhpFpmUser(self::$workerUser);
