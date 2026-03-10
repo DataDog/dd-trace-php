@@ -84,6 +84,7 @@ final class WebServer
     private $phpFpmUser = null;
     private $phpFpmGroup = null;
     private $phpFpmSudo = false;
+    private $forceSapi = null;
 
     private $defaultInis = [
         'log_errors' => 'on',
@@ -152,6 +153,11 @@ final class WebServer
         $this->phpFpmSudo = $sudo;
     }
 
+    public function setForceSapi($sapi)
+    {
+        $this->forceSapi = $sapi;
+    }
+
     public function start()
     {
         if (!isset($this->envs['DD_TRACE_DEBUG'])) {
@@ -196,7 +202,7 @@ final class WebServer
                 $this->inis
             );
         } else {
-            switch (\getenv('DD_TRACE_TEST_SAPI')) {
+            switch ($this->forceSapi ?? \getenv('DD_TRACE_TEST_SAPI')) {
                 case 'cgi-fcgi':
                     $this->sapi = new PhpCgi(
                         self::FCGI_HOST,
