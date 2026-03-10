@@ -47,15 +47,14 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
             self::markTestSkipped('No unprivileged user found on this system (tried www-data, daemon, nobody)');
         }
 
-        // Force FPM mode regardless of the CI job's DD_TRACE_TEST_SAPI so this
-        // test runs in every test_web_custom matrix entry, not just fpm-fcgi.
-        putenv('DD_TRACE_TEST_SAPI=fpm-fcgi');
-
         parent::ddSetUpBeforeClass();
     }
 
     protected static function configureWebServer(WebServer $server)
     {
+        // Force FPM mode for this test regardless of the CI job's DD_TRACE_TEST_SAPI,
+        // without polluting the global env for other test classes.
+        $server->setForceSapi('fpm-fcgi');
         // Tell FPM to switch worker processes to the unprivileged user after forking.
         $server->setPhpFpmUser(self::$workerUser);
         if (self::$useSudo) {
