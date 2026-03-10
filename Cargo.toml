@@ -5,8 +5,9 @@ resolver = "2"
 [workspace.package]
 rust-version = "1.84.1"
 edition = "2021"
-# Irrelevant version and license. These do NOT apply here, they just are here to make cargo build pass.
-version = "0.0.1"
+# Version must match libdatadog submodule version so that `version.workspace = true` crates
+# resolve to a version compatible with their dependents' requirements.
+version = "28.0.3"
 license = "Apache-2.0"
 
 [profile.dev]

@@ -1231,9 +1231,6 @@ typedef enum ddog_crasht_SignalNames {
  * variable to allow downgrading the collector.
  */
 typedef enum ddog_crasht_StacktraceCollection {
-  /**
-   * Stacktrace collection occurs in the
-   */
   DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
   DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
   /**

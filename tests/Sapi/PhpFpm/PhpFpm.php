@@ -55,17 +55,23 @@ final class PhpFpm implements Sapi
     private $runAsSudo;
 
     /**
+     * @var array
+     */
+    private $masterInis;
+
+    /**
      * @param string $rootPath
      * @param string $host
      * @param int $port
      * @param array $envs
      * @param array $inis
      * @param int $maxChildren
-     * @param string|null $fpmUser  Pool user for worker processes (requires master to run as root)
-     * @param string|null $fpmGroup Pool group (defaults to $fpmUser if omitted)
-     * @param bool $runAsSudo       Prepend sudo to the php-fpm command (for non-root test runners)
+     * @param string|null $fpmUser
+     * @param string|null $fpmGroup
+     * @param bool $runAsSudo
+     * @param array $masterInis
      */
-    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [], $maxChildren = 1, $fpmUser = null, $fpmGroup = null, $runAsSudo = false)
+    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [], $maxChildren = 1, $fpmUser = null, $fpmGroup = null, $runAsSudo = false, array $masterInis = [])
     {
         $this->envs = $envs;
         $this->inis = $inis;
@@ -73,6 +79,7 @@ final class PhpFpm implements Sapi
         $this->port = $port;
         $this->maxChildren = $maxChildren;
         $this->runAsSudo = $runAsSudo;
+        $this->masterInis = $masterInis;
 
         $logPath = $rootPath . '/' . self::ERROR_LOG;
 
@@ -111,9 +118,15 @@ final class PhpFpm implements Sapi
 
     public function start()
     {
+        $iniFlags = '';
+        foreach ($this->masterInis as $name => $value) {
+            $iniFlags .= sprintf(' -d %s=%s', $name, escapeshellarg((string)$value));
+        }
+
         $cmd = sprintf(
-            '%sphp-fpm -p %s --fpm-config %s -F',
+            '%sphp-fpm%s -p %s --fpm-config %s -F',
             $this->runAsSudo ? 'sudo ' : '',
+            $iniFlags,
             __DIR__,
             $this->configFile
         );

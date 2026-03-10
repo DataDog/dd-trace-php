@@ -33,6 +33,10 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
 
     public static function ddSetUpBeforeClass()
     {
+        if (\getenv('DD_TRACE_TEST_SAPI') !== 'fpm-fcgi') {
+            self::markTestSkipped('This test only runs under fpm-fcgi SAPI');
+        }
+
         $isRoot = \function_exists('posix_geteuid') && \posix_geteuid() === 0;
         $hasSudo = !$isRoot && \shell_exec('sudo -n true 2>/dev/null; echo $?') === "0\n";
 
@@ -52,14 +56,14 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
 
     protected static function configureWebServer(WebServer $server)
     {
-        // Force FPM mode for this test regardless of the CI job's DD_TRACE_TEST_SAPI,
-        // without polluting the global env for other test classes.
-        $server->setForceSapi('fpm-fcgi');
         // Tell FPM to switch worker processes to the unprivileged user after forking.
         $server->setPhpFpmUser(self::$workerUser);
+        $server->setPhpFpmMaxChildren(3);
         if (self::$useSudo) {
             $server->setPhpFpmSudo(true);
         }
+        // Pass connection mode as a command-line INI flag to the FPM master process
+        $server->setPhpFpmMasterIni(['datadog.trace.sidecar_connection_mode' => 'thread']);
     }
 
     /**
@@ -78,24 +82,71 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
     }
 
     /**
-     * Verifies that multiple concurrent workers all connect to the single
-     * master listener thread instead of each starting their own.
+     * Verifies that in thread mode, only the FPM master owns the sidecar listener
+     * thread — workers connect to it rather than each spawning their own thread.
+     *
+     * After all workers have served a
+     * request the master process must have > 1 thread (main + sidecar listener) while
+     * every worker must have exactly 1 thread.
      */
     public function testMultipleWorkersShareSingleMasterListenerThread()
     {
         $traces = $this->tracesFromWebRequest(function () {
-            // Send several requests to exercise multiple worker processes
             for ($i = 0; $i < 3; $i++) {
                 $this->call(GetSpec::create("Worker request $i", '/simple'));
             }
         }, null, $this->untilNumberOfTraces(3));
 
-        // All 3 traces must arrive; the goal is verifying no crash/deadlock
-        // when multiple workers connect to the master listener thread.
         $this->assertGreaterThanOrEqual(3, \count($traces), 'Expected at least 3 traces from multiple worker requests');
-        foreach ($traces as $trace) {
-            $this->assertSame('web.request', $trace[0]['name']);
+
+        // Identify master vs worker processes.
+        $allPids = array_values(array_filter(array_map('intval', explode("\n", trim(\shell_exec('pgrep php-fpm') ?: '')))));
+        $this->assertNotEmpty($allPids, 'No php-fpm processes found');
+
+        $masterPid = null;
+        $workerPids = [];
+        foreach ($allPids as $pid) {
+            $ppid = (int) trim(\shell_exec("ps -o ppid= -p $pid 2>/dev/null") ?: '0');
+            if (\in_array($ppid, $allPids, true)) {
+                $workerPids[] = $pid;
+            } else {
+                $masterPid = $pid;
+            }
         }
+
+        $this->assertNotNull($masterPid, 'Could not identify php-fpm master process');
+        $this->assertCount(3, $workerPids, 'Expected exactly 3 worker processes (pm=static, max_children=3)');
+
+        // Master must have >1 thread: its main thread + the sidecar listener thread.
+        $masterThreads = $this->readProcThreadCount($masterPid);
+        $this->assertGreaterThan(
+            1,
+            $masterThreads,
+            "Master (PID $masterPid) should have >1 thread (main + sidecar listener)"
+        );
+
+        // Workers may have a Rust async-I/O thread for the client connection, but they
+        // must NOT have the sidecar listener thread — that lives only in the master.
+        // Therefore master must have strictly more threads than every worker.
+        foreach ($workerPids as $workerPid) {
+            $workerThreads = $this->readProcThreadCount($workerPid);
+            $this->assertGreaterThan(
+                $workerThreads,
+                $masterThreads,
+                "Master (PID $masterPid, threads=$masterThreads) should have more threads than " .
+                "worker (PID $workerPid, threads=$workerThreads) — master owns the sidecar listener thread"
+            );
+        }
+    }
+
+    private function readProcThreadCount($pid)
+    {
+        $status = @\file_get_contents("/proc/$pid/status");
+        if ($status === false) {
+            return 0;
+        }
+        \preg_match('/^Threads:\s+(\d+)/m', $status, $m);
+        return isset($m[1]) ? (int) $m[1] : 0;
     }
 
     /**

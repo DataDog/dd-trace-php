@@ -8,15 +8,9 @@ use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
 /**
  * Integration test for thread-based sidecar connection with PHP-FPM
  *
- * This test explicitly forces thread mode (DD_TRACE_SIDECAR_CONNECTION_MODE=thread)
- * to validate that the thread-based sidecar implementation works correctly with
- * PHP-FPM's master/worker process architecture.
- *
- * Note: Default behavior (auto mode) tries subprocess first, which typically succeeds
- * in PHP-FPM environments. This test forces thread mode to specifically validate the
- * thread implementation works as a fallback option.
- *
- * This test requires DD_TRACE_TEST_SAPI=fpm-fcgi
+ * This test explicitly forces thread mode to validate that the thread-based
+ * sidecar implementation works correctly with PHP-FPM's master/worker process
+ * architecture.
  */
 final class SidecarThreadModeTest extends WebFrameworkTestCase
 {
@@ -29,7 +23,6 @@ final class SidecarThreadModeTest extends WebFrameworkTestCase
     {
         return array_merge(parent::getEnvs(), [
             'DD_SERVICE' => 'sidecar-thread-mode-test',
-            // Explicitly force thread mode to test the thread implementation
             'DD_TRACE_SIDECAR_CONNECTION_MODE' => 'thread',
             'DD_TRACE_DEBUG' => '0',
         ]);
@@ -70,7 +63,7 @@ final class SidecarThreadModeTest extends WebFrameworkTestCase
                 $spec = GetSpec::create("Request $i", "/simple?request=$i");
                 $this->call($spec);
             }
-        });
+        }, null, $this->untilNumberOfTraces(3));
 
         // Verify all traces were submitted
         $this->assertGreaterThanOrEqual(3, count($traces), 'Expected at least 3 traces from multiple requests');
