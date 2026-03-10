@@ -568,7 +568,9 @@ static char sapi_getenv_test_buf[64];
 
 // Returns "sapi env val" only for INI_FOO_STRING; otherwise NULL (so config falls back to cache).
 TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
-    if (name_len == 15 && strncmp(name, "INI_FOO_STRING", 15) == 0) {
+    zai_str key = ZAI_STR_NEW(name, name_len);
+    if (zai_str_eq(key, ZAI_STRL("INI_FOO_STRING"))) {
+        memset(sapi_getenv_test_buf, 0, sizeof(sapi_getenv_test_buf));
         strcpy(sapi_getenv_test_buf, "sapi env val");
         return sapi_getenv_test_buf;
     }
