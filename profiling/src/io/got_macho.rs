@@ -49,10 +49,6 @@
 // - Apple dyld source: https://opensource.apple.com/source/dyld/
 // - Mach-O headers: <mach-o/loader.h>, <mach-o/nlist.h>
 
-// The libc crate deprecates Mach-O types in favor of the mach2 crate, but we only use a few
-// types and don't want to add a dependency just for that.
-// #![allow(deprecated)]
-
 use super::GotSymbolOverwrite;
 use libc::{c_char, c_void};
 use log::{error, trace};
