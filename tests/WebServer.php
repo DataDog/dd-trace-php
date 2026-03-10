@@ -81,6 +81,8 @@ final class WebServer
     private $isFrankenphp = false;
     private $isSwoole = false;
     private $phpFpmMaxChildren = 1;
+    private $phpFpmUser = null;
+    private $phpFpmGroup = null;
 
     private $defaultInis = [
         'log_errors' => 'on',
@@ -136,6 +138,12 @@ final class WebServer
     public function setPhpFpmMaxChildren($maxChildren)
     {
         $this->phpFpmMaxChildren = $maxChildren;
+    }
+
+    public function setPhpFpmUser($user, $group = null)
+    {
+        $this->phpFpmUser = $user;
+        $this->phpFpmGroup = $group;
     }
 
     public function start()
@@ -199,7 +207,9 @@ final class WebServer
                         self::FCGI_PORT,
                         $this->envs,
                         $this->inis,
-                        $this->phpFpmMaxChildren
+                        $this->phpFpmMaxChildren,
+                        $this->phpFpmUser,
+                        $this->phpFpmGroup
                     );
                     break;
                 case 'apache2handler':

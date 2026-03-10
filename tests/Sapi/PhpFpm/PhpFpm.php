@@ -56,8 +56,10 @@ final class PhpFpm implements Sapi
      * @param array $envs
      * @param array $inis
      * @param int $maxChildren
+     * @param string|null $fpmUser  Pool user for worker processes (requires master to run as root)
+     * @param string|null $fpmGroup Pool group (defaults to $fpmUser if omitted)
      */
-    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [], $maxChildren = 1)
+    public function __construct($rootPath, $host, $port, array $envs = [], array $inis = [], $maxChildren = 1, $fpmUser = null, $fpmGroup = null)
     {
         $this->envs = $envs;
         $this->inis = $inis;
@@ -67,6 +69,11 @@ final class PhpFpm implements Sapi
 
         $logPath = $rootPath . '/' . self::ERROR_LOG;
 
+        $userGroup = '';
+        if ($fpmUser !== null) {
+            $userGroup = "user = $fpmUser\ngroup = " . ($fpmGroup !== null ? $fpmGroup : $fpmUser);
+        }
+
         $replacements = [
             '{{fcgi_host}}' => $host,
             '{{fcgi_port}}' => $port,
@@ -74,6 +81,7 @@ final class PhpFpm implements Sapi
             '{{envs}}' => $this->envsForConfFile(),
             '{{inis}}' => $this->inisForConfFile(),
             '{{error_log}}' => $logPath,
+            '{{user_group}}' => $userGroup,
         ];
         $configContent = str_replace(
             array_keys($replacements),
