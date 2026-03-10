@@ -1354,6 +1354,7 @@ dependencies = [
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log 0.4.25",
+ "mach2",
  "perfcnt",
  "rand 0.8.5",
  "rand_distr",
@@ -3361,6 +3362,15 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
+
+[[package]]
+name = "mach2"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a1b95cd5421ec55b445b5ae102f5ea0e768de1f82bd3001e11f426c269c3aea"
+dependencies = [
+ "libc 0.2.177",
+]
 
 [[package]]
 name = "manual_future"

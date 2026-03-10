@@ -46,7 +46,7 @@ use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-#[cfg(all(target_os = "linux", feature = "io_profiling"))]
+#[cfg(all(any(target_os = "linux", target_os = "macos"), feature = "io_profiling"))]
 use crate::io::{
     FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
     FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
@@ -332,7 +332,7 @@ impl TimeCollector {
             (get_offset("alloc-samples"), get_offset("alloc-size"));
 
         // check if we have the IO sample types
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        #[cfg(all(any(target_os = "linux", target_os = "macos"), feature = "io_profiling"))]
         let (
             socket_read_time_offset,
             socket_read_time_samples_offset,
@@ -400,7 +400,7 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        #[cfg(all(any(target_os = "linux", target_os = "macos"), feature = "io_profiling"))]
         {
             let add_io_upscaling_rule =
                 |profile: &mut InternalProfile,
@@ -1404,7 +1404,7 @@ impl Profiler {
         }
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_time = socket_io_read_time;
@@ -1412,7 +1412,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_time = socket_io_write_time;
@@ -1420,7 +1420,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_time = file_io_read_time;
@@ -1428,7 +1428,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_time = file_io_write_time;
@@ -1436,7 +1436,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_size = socket_io_read_size;
@@ -1444,7 +1444,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_size = socket_io_write_size;
@@ -1452,7 +1452,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_size = file_io_read_size;
@@ -1460,7 +1460,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_size = file_io_write_size;
@@ -1468,7 +1468,7 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
     pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
     where
         F: FnOnce(&mut SampleValues),
