@@ -1,5 +1,6 @@
 #include "./config.h"
 
+#include <SAPI.h>
 #include <assert.h>
 #include <json/json.h>
 #include <main/php.h>
@@ -301,9 +302,10 @@ void zai_config_first_time_rinit(bool in_request) {
     (void)in_request;
 #endif
 
-    if (in_request) {
-        // Refresh process env snapshot for SAPIs like FPM that materialize
-        // pool env values just before the first request.
+    // Refresh process env snapshot for SAPIs like FPM that materialize pool
+    // env values just before the first request. Skip on CLI since we know it
+    // doesn't need it and we can avoid the extra work.
+    if (in_request && strcmp(sapi_module.name, "cli") != 0) {
         zai_config_clear_cached_env_values();
         zai_config_cache_env_values();
     }
