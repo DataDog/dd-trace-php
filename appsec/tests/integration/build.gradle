@@ -377,12 +377,11 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
             ],
             outputs: [
                     volume: 'php-appsec',
-                    files: ['ddappsec.so', 'libddappsec-helper.so'],
+                    files: ['ddappsec.so'],
             ],
             command: [
                     '-e', '-c',
                     """
-                    git config --global --add safe.directory '*'
                     cd /appsec
                     test -f CMakeCache.txt || \\
                         cmake -DCMAKE_BUILD_TYPE=$buildType \\
@@ -391,8 +390,8 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
                               -DGIT_COMMIT=${libddwafCommit()} \\
                               -DDD_APPSEC_TESTING=ON \\
                               -DBOOST_CACHE_PREFIX=/var/boost-cache /project/appsec
-                    make -j extension ddappsec-helper && \\
-                        touch ddappsec.so libddappsec-helper.so
+                    make -j extension && \\
+                        touch ddappsec.so
                 """
             ]
     )
@@ -436,11 +435,10 @@ def runMainTask = { String phpVersion, String variant ->
         systemProperty 'PHP_VERSION', phpVersion
         systemProperty 'VARIANT', variant
 
+        systemProperty 'USE_HELPER_RUST', '1'
+
         if (project.hasProperty('helperBinary')) {
-            systemProperty 'USE_HELPER_RUST', '1'
             systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
-        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
-            systemProperty 'USE_HELPER_RUST', '1'
         }
         if (project.hasProperty('useHelperRustCoverage')) {
             systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
@@ -452,7 +450,7 @@ def runMainTask = { String phpVersion, String variant ->
             // Skip building helper-rust when explicit binary path is provided
         } else if (project.hasProperty('useHelperRustCoverage')) {
             dependsOn 'buildHelperRustWithCoverage'
-        } else if (project.hasProperty('useHelperRust')) {
+        } else {
             dependsOn 'buildHelperRust'
         }
     }
@@ -493,14 +491,12 @@ def runMainTask = { String phpVersion, String variant ->
 
         it.systemProperty 'PHP_VERSION', phpVersion
         it.systemProperty 'VARIANT', variant
+        it.systemProperty 'USE_HELPER_RUST', '1'
         if (project.hasProperty('XDEBUG')) {
             it.systemProperty 'XDEBUG', '1'
         }
         if (project.hasProperty('helperBinary')) {
-            it.systemProperty 'USE_HELPER_RUST', '1'
             it.systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
-        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
-            it.systemProperty 'USE_HELPER_RUST', '1'
         }
         if (project.hasProperty('useHelperRustCoverage')) {
             it.systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
@@ -517,7 +513,7 @@ def runMainTask = { String phpVersion, String variant ->
             // Skip building helper-rust when explicit binary path is provided
         } else if (project.hasProperty('useHelperRustCoverage')) {
             dependsOn 'buildHelperRustWithCoverage'
-        } else if (project.hasProperty('useHelperRust')) {
+        } else {
             dependsOn 'buildHelperRust'
         }
 
@@ -586,8 +582,6 @@ buildRunInDockerTask(
         command: [
                 '-e', '-c',
                 """
-                git config --global --add safe.directory '*'
-
                 mkdir -p /tmp/libddwaf-build
                 cd /tmp/libddwaf-build
                 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
@@ -617,7 +611,6 @@ def helperRustInputs = [
 ]
 
 def helperRustEnvSetup = '''
-git config --global --add safe.directory '*'
 export PATH="/root/.cargo/bin:$PATH"
 export RUSTUP_HOME=/root/.rustup
 export CARGO_HOME=/root/.cargo
@@ -648,8 +641,6 @@ buildRunInDockerTask(
                 export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
                 RUST_TARGET=$(uname -m)-unknown-linux-musl
 
-                git config --global --add safe.directory '*'
-
                 cd /project/appsec/helper-rust
 
                 # Build using nightly toolchain with unstable features
@@ -661,7 +652,7 @@ buildRunInDockerTask(
                     --target "$RUST_TARGET"
 
                 # Remove musl libc dependency using patchelf (makes binary work on both musl and glibc)
-                BINARY_PATH="/helper-rust-build/cargo-target/$RUST_TARGET/debug/libddappsec_helper_rust.so"
+                BINARY_PATH="/helper-rust-build/cargo-target/$RUST_TARGET/debug/libddappsec_helper.so"
                 ARCH=$(uname -m)
                 if [ "$ARCH" = "x86_64" ]; then
                     patchelf --remove-needed libc.musl-x86_64.so.1 "$BINARY_PATH" 2>/dev/null || true
@@ -773,7 +764,7 @@ buildRunInDockerTask(
                 chmod 777 /helper-rust-build/coverage
 
                 cargo build --release --target \$RUST_TARGET --features coverage
-                cp /helper-rust-build/cargo-target/\$RUST_TARGET/release/libddappsec_helper_rust.so /helper-rust-build/libddappsec-helper.so
+                cp /helper-rust-build/cargo-target/\$RUST_TARGET/release/libddappsec_helper.so /helper-rust-build/libddappsec-helper.so
                 """
         ]
 )

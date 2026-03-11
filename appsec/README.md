@@ -74,15 +74,11 @@ cd build
 cmake ..
 make -j
 ```
-This will produce the extension, `ddappsec.so` and the helper library `libddappsec-helper.so`.
+This will produce the extension, `ddappsec.so`.
 
-Alternatively, to build the extension but not the helper, you can disable the helper build on the cmake step:
+To skip building the extension (e.g. to only run linting), you can disable it on the cmake step:
 ```
-cmake .. -DDD_APPSEC_BUILD_HELPER=OFF
-```
-Similarly, to build the helper but not the extension:
-```
-cmake .. DDD_APPSEC_BUILD_EXTENSION=OFF
+cmake .. -DDD_APPSEC_BUILD_EXTENSION=OFF
 ```
 
 #### Testing the extension
@@ -101,27 +97,11 @@ make xtest TESTS="--show-diff --show-mem -m"
 ```
 #### Testing the helper
 
-Helper tests can be located in the `dd-appsec-php/tests/helper` directory, these consist of a set of C++ unit tests written using Google Test and Mock. To build the helper tests, run the following command in the build directory:
-```
-make ddappsec_helper_test
-```
-And run the tests by executing the following command, again from the build directory:
-```
-./tests/helper/ddappsec_helper_test
-```
-To test the helper with the address and leak sanitizer, you will need to execute the cmake step with a few other options as shown below (note that it's not strictly necessary to disable the extension):
-```
-cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
-         -DCMAKE_CXX_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
-         -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak -DASAN_BUILD" \
-         -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-         -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak"
-```
-After this step has concluded, build and run the helper test as before, if the sanitisers detect anything of relevance, extra output will be produced.
+The helper is implemented in Rust and lives in the `helper-rust/` directory. See `helper-rust/CLAUDE.md` for build and test instructions.
 
 ### Linting
 
-As part of our workflow, we use `clang-tidy` to lint both the extension and helper, in order to enable it add `-DDD_APPSEC_ENABLE_CLANG_TIDY=ON` to the cmake step and after building you should be able to lint by running `make tidy`.
+As part of our workflow, we use `clang-tidy` to lint the extension. To enable it, add `-DDD_APPSEC_ENABLE_CLANG_TIDY=ON` to the cmake step and after building you should be able to lint by running `make tidy`.
 
 ## Contributing
 

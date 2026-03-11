@@ -452,28 +452,24 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
         addVolumeMount("php-tracer-$phpVersion-$phpVariant", '/project/tmp')
-        if (System.getProperty('USE_HELPER_RUST')) {
-            String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
-            if (helperBinaryPath) {
-                // Bind-mount explicit helper binary directly to the expected path
-                File helperFile = new File(helperBinaryPath)
-                if (!helperFile.isAbsolute()) {
-                    helperFile = new File(System.getProperty('user.dir'), helperBinaryPath)
-                }
-                withFileSystemBind(helperFile.absolutePath,
-                        '/helper-rust/libddappsec-helper.so', BindMode.READ_ONLY)
-            } else {
-                // libddwaf is statically linked into the helper-rust binary
-                String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
-                    'php-helper-rust-coverage' : 'php-helper-rust'
-                addVolumeMount(helperVolume, '/helper-rust')
-                if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
-                    // Enable LLVM coverage profiling for the helper binary
-                    withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
-                }
+        String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
+        if (helperBinaryPath) {
+            File helperFile = new File(helperBinaryPath)
+            if (!helperFile.isAbsolute()) {
+                helperFile = new File(System.getProperty('user.dir'), helperBinaryPath)
             }
-            withEnv 'USE_HELPER_RUST', '1'
+            withFileSystemBind(helperFile.absolutePath,
+                    '/helper-rust/libddappsec-helper.so', BindMode.READ_ONLY)
+        } else {
+            String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
+                'php-helper-rust-coverage' : 'php-helper-rust'
+            addVolumeMount(helperVolume, '/helper-rust')
+            if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
+                withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
+            }
         }
+        withEnv 'USE_HELPER_RUST', '1'
+        withEnv 'RUST_BACKTRACE', '1'
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"
 

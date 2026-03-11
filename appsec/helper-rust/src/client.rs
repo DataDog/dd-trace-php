@@ -1,9 +1,8 @@
 use std::{
     cell::Cell,
     collections::{hash_map::Entry, HashMap},
-    io,
-    mem::MaybeUninit,
-    os::fd::{AsFd, AsRawFd},
+    fmt, io,
+    pin::Pin,
     sync::{
         atomic::{self, AtomicU64},
         Arc,
@@ -12,33 +11,58 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use futures::{future::Shared, SinkExt};
+use futures::stream::Stream;
 use libddwaf::{object::WafObjectType, RunnableContext};
 use log::{debug, error, info, warning as warn};
 use protocol::{ClientInitResp, CommandResponse, ConfigFeaturesResp};
 use thiserror::Error;
-use tokio::net::UnixStream;
-use tokio_stream::StreamExt;
-use tokio_util::sync::CancellationToken;
+use tokio::sync::{mpsc, oneshot};
+use tokio_stream::{wrappers::ReceiverStream, StreamExt};
+use tokio_util::{
+    bytes::BytesMut,
+    codec::{Decoder, Encoder},
+    sync::CancellationToken,
+};
 
 use crate::{
-    client::protocol::{RequestExecOptions, WafRunType},
+    client::{
+        protocol::{RequestExecOptions, WafRunType},
+        sidecar_msg::HelperRequest,
+    },
     service::{Service, ServiceFixedConfig, ServiceManager},
     telemetry::{
         error_tel_ctx::{
             clear_error_telemetry_context, update_error_telemetry_context,
             with_error_telemetry_handle,
         },
-        SidecarReadyFuture, SidecarStatus, SpanMetaGenerator, SpanMetaName, SpanMetricName,
-        SpanMetricsGenerator, SpanMetricsSubmitter, TelemetryLogsGenerator,
-        TelemetryMetricsGenerator, TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter,
+        SpanMetaGenerator, SpanMetaName, SpanMetricName, SpanMetricsGenerator,
+        SpanMetricsSubmitter, TelemetryLogsGenerator, TelemetryMetricsGenerator,
+        TelemetrySidecarLogSubmitter, TelemetrySidecarMetricSubmitter,
     },
 };
+
+pub use sidecar_msg::{register_appsec_message_handlers, unregister_appsec_message_handlers};
+pub(crate) use sidecar_msg::{remove_client_bookkeeping, ClientKey};
 
 mod attributes;
 pub mod log;
 mod metrics;
 pub mod protocol;
+mod sidecar_msg;
+
+type CommandStream = Pin<
+    Box<
+        dyn Stream<
+                Item = std::result::Result<
+                    (
+                        protocol::Command,
+                        oneshot::Sender<sidecar_msg::HelperResponse>,
+                    ),
+                    FatalRequestError,
+                >,
+            > + Send,
+    >,
+>;
 
 /// Smart pointer that tracks worker count for a service.
 /// Increments on creation/clone, decrements on drop.
@@ -69,52 +93,44 @@ impl std::ops::Deref for TrackedService {
 
 pub struct Client {
     pub id: u64,
+    pub php_pid: Option<u32>,
     service_manager: &'static ServiceManager,
     service: Option<TrackedService>,
     sidecar_settings: Option<protocol::SidecarSettings>,
     metrics_last_registered: Cell<Option<Instant>>,
+    req_receiver: Option<mpsc::Receiver<HelperRequest>>,
+    req_sender: mpsc::Sender<HelperRequest>,
 }
 
-static CLIENT_SERIAL: AtomicU64 = AtomicU64::new(0);
+static CLIENT_SERIAL: AtomicU64 = AtomicU64::new(1);
 impl Client {
     pub fn new(service_manager: &'static ServiceManager) -> Self {
+        let (tx, rx) = mpsc::channel(5);
         Self {
             id: CLIENT_SERIAL.fetch_add(1, atomic::Ordering::Relaxed),
+            php_pid: None,
             service_manager,
             service: None,
             sidecar_settings: None,
             metrics_last_registered: Default::default(),
+            req_receiver: Some(rx),
+            req_sender: tx,
         }
     }
 
-    pub async fn entrypoint(
-        self,
-        stream: UnixStream,
-        sidecar_ready: Shared<SidecarReadyFuture>,
-        cancel_token: CancellationToken,
-    ) {
-        log::with_scoped_client_id(
-            self.id,
-            self.do_entrypoint(stream, sidecar_ready, cancel_token),
-        )
-        .await;
+    pub async fn entrypoint(self, cancel_token: CancellationToken) {
+        // wrap entrypoint with the task locals that allow:
+        // - client id in the logs
+        // - submission of errors to telemetry (if they happen after client_init)
+        let client_id = self.id;
+        let entrypoint_fut = self.do_entrypoint(cancel_token);
+        log::with_scoped_client_id(client_id, with_error_telemetry_handle(entrypoint_fut)).await;
     }
 
-    async fn do_entrypoint(
-        mut self,
-        stream: UnixStream,
-        sidecar_ready: Shared<SidecarReadyFuture>,
-        cancel_token: CancellationToken,
-    ) {
+    async fn do_entrypoint(mut self, cancel_token: CancellationToken) {
         info!("starting");
 
-        let sidecar_ready = sidecar_ready.await;
-        if sidecar_ready != SidecarStatus::Ready {
-            info!("Sidecar is not ready, no telemetry will be submitted");
-            return;
-        }
-
-        let res = do_client_entrypoint(&mut self, stream, cancel_token).await;
+        let res = do_client_entrypoint(&mut self, cancel_token).await;
         match res {
             Ok(_) => {
                 info!("ended normally");
@@ -123,7 +139,7 @@ impl Client {
                 warn!("ended due to client connectivity issue: {}", err);
             }
             Err(err) => {
-                error!("ended with failure: {}", err);
+                error!("ended with failure: {:#}", err);
             }
         }
     }
@@ -132,7 +148,42 @@ impl Client {
     pub fn get_service(&self) -> &Service {
         self.service.as_ref().expect("service not initialized")
     }
+
+    pub fn get_req_sender(&self) -> mpsc::Sender<HelperRequest> {
+        self.req_sender.clone()
+    }
+
+    fn req_stream(&mut self) -> CommandStream {
+        let receiver = std::mem::take(&mut self.req_receiver).unwrap();
+        let cmd_stream = ReceiverStream::new(receiver);
+        let cmd_stream = StreamExt::map(cmd_stream, |msg| {
+            let mut codec = protocol::CommandCodec;
+            (
+                codec.decode_eof(&mut BytesMut::from(msg.command)),
+                msg.response_tx,
+            )
+        });
+        let cmd_stream = cmd_stream
+            .take_while(|r| matches!(r, (Ok(Some(_)), _) | (Err(_), _)))
+            .map(|r| match r {
+                (Ok(Some(cmd)), response_tx) => Ok((cmd, response_tx)),
+                (Err(e), response_tx) => {
+                    let fatal_error = FatalRequestError(
+                        anyhow::Error::new(e).context("Error decoding command"),
+                        response_tx,
+                    );
+                    Err(fatal_error)
+                }
+                (Ok(None), _) => unreachable!(),
+            });
+        Box::pin(cmd_stream)
+    }
 }
+
+/// How long we may sit idle before probing whether the PHP process is still alive.
+const IDLE_PID_CHECK_INTERVAL: Duration = Duration::from_secs(5 * 60);
+/// Hard cap on idle time; the client session is closed even if the PHP PID still exists.
+const IDLE_FORCE_CLOSE: Duration = Duration::from_secs(30 * 60);
 
 /// Indicates a clean client shutdown - the client properly closed its connection
 /// after completing all pending writes. This is NOT an error condition.
@@ -149,57 +200,57 @@ struct ForcefulDisconnect(io::Error);
 
 /// A fatal error occurred while processing a request.  The client will be sent
 /// a FatalError response and the connection will be closed.
-#[derive(Debug, Error)]
+#[derive(Error)]
 #[error("{0}")]
-struct FatalRequestError(anyhow::Error);
+struct FatalRequestError(anyhow::Error, oneshot::Sender<sidecar_msg::HelperResponse>);
+
+impl fmt::Debug for FatalRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
 
 async fn do_client_entrypoint(
     client: &mut Client,
-    stream: UnixStream,
     cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
-    with_error_telemetry_handle(do_client_entrypoint_inner(client, stream, cancel_token)).await
-}
-
-async fn do_client_entrypoint_inner(
-    client: &mut Client,
-    stream: UnixStream,
-    cancel_token: CancellationToken,
-) -> anyhow::Result<()> {
-    check_peer_uid_unix(&stream).await?;
-
-    let mut framed = tokio_util::codec::Framed::new(stream, protocol::CommandCodec);
+    let mut cmd_stream = client.req_stream();
 
     // first, client_init
-    match recv_command(&mut framed, &cancel_token).await {
-        Ok(protocol::Command::ClientInit(args)) => {
+    match recv_command(&mut cmd_stream, &cancel_token, client.php_pid).await {
+        Ok((protocol::Command::ClientInit(args), response_tx)) => {
             let resp = handle_client_init(client, *args);
             match resp {
                 Ok(resp) => {
-                    send_command_resp(&mut framed, resp).await?;
+                    send_command_resp(response_tx, resp)?;
                 }
                 Err(err) => {
                     let cir = ClientInitResp {
                         version: protocol::VERSION_FOR_PROTO,
                         status: "fail".to_string(),
+                        client_id: client.id,
                         errors: vec![err.to_string()],
                         ..Default::default()
                     };
-                    send_command_resp(&mut framed, CommandResponse::ClientInit(cir)).await?;
+                    send_command_resp(response_tx, CommandResponse::ClientInit(cir))?;
                     return Err(err);
                 }
             }
         }
-        Ok(cmd) => {
-            return Err(anyhow!("expected client_init, got {:?}", cmd));
+        Ok((cmd, response_tx)) => {
+            send_command_resp(response_tx, CommandResponse::FatalError)?;
+            anyhow::bail!("expected client_init, got {:?}", cmd);
         }
         Err(e) if e.is::<CleanShutdown>() => {
-            info!("client closed connection before sending first message");
+            info!("client session was dropped");
             return Ok(());
         }
-        Err(e) if e.is::<ForcefulDisconnect>() => {
-            warn!("client forcefully disconnected before sending first message");
-            return Err(e);
+        Err(e) if e.is::<FatalRequestError>() => {
+            let FatalRequestError(inner_err, response_tx) = e
+                .downcast::<FatalRequestError>()
+                .expect("is fatal request error");
+            send_fatal_reinitialize(response_tx)?;
+            return Err(inner_err.context("failed while receiving initial command"));
         }
         Err(e) => {
             return Err(e);
@@ -208,30 +259,26 @@ async fn do_client_entrypoint_inner(
 
     // then the request loop
     loop {
-        match do_request_loop_iter(client, &mut framed, &cancel_token).await {
+        match do_request_loop_iter(client, &mut cmd_stream, &cancel_token).await {
             Ok(_) => {
                 debug!("request done; waiting for new one");
             }
             Err(err) if err.is::<CleanShutdown>() => {
                 return Ok(());
             }
-            Err(err) if err.is::<ForcefulDisconnect>() => {
-                info!("client disconnected unexpectedly");
-                return Err(err);
-            }
             Err(err) if err.is::<FatalRequestError>() => {
-                info!(
-                    "fatal error, closing connection after signalling error to client: {}",
-                    err
-                );
-                if let Err(e) = send_command_resp(&mut framed, CommandResponse::FatalError).await {
-                    info!("error sending fatal error response: {}", e);
-                }
-                return Err(err);
+                let fatal_error = err
+                    .downcast::<FatalRequestError>()
+                    .expect("is fatal request error"); // until if let can be used instead of if err.is
+                let inner_error = fatal_error
+                    .0
+                    .context("fatal error while processing request");
+                send_fatal_reinitialize(fatal_error.1)
+                    .context("failed to send fatal reinitialize response to client")?;
+                return Err(inner_error);
             }
             Err(err) => {
-                error!("error in request loop: {}", err);
-                return Err(err);
+                return Err(err.context("request loop failed"));
             }
         }
     }
@@ -249,6 +296,7 @@ fn handle_client_init(
         args.telemetry_settings,
     );
 
+    client.php_pid = Some(args.pid);
     client.sidecar_settings = Some(args.sidecar_settings.clone());
 
     update_error_telemetry_context(args.sidecar_settings.clone(), telemetry_settings.clone());
@@ -266,6 +314,7 @@ fn handle_client_init(
 
     let mut cir = ClientInitResp {
         version: protocol::VERSION_FOR_PROTO,
+        client_id: client.id,
         ..Default::default()
     };
 
@@ -320,12 +369,23 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
         }
     };
 
+    // We are swapping service
+
+    // the old service may go away at the end, so submit its telemetry now
+    if let Some(ref service) = client.service {
+        submit_service_telemetry(client, service);
+    }
+
+    // potentially we have new telemetry settings, update the error telemetry context
     if let Some(ref sidecar_settings) = client.sidecar_settings {
         update_error_telemetry_context(sidecar_settings.clone(), telemetry_settings.clone());
     } else {
         clear_error_telemetry_context();
     }
 
+    // ... and create a new telemetry metrics submitter because creating a new
+    // service generates telemetry (more likely we're not creating a new
+    // service though, we're just fetching the existing one)
     let mut tel_metric_submitter = match client.sidecar_settings {
         Some(ref sidecar_settings) => TelemetrySidecarMetricSubmitter::create(
             sidecar_settings,
@@ -354,12 +414,12 @@ fn handle_config_sync(client: &mut Client, args: protocol::ConfigSyncArgs) {
 
 async fn do_request_loop_iter(
     client: &mut Client,
-    framed: &mut tokio_util::codec::Framed<UnixStream, protocol::CommandCodec>,
+    cmd_stream: &mut CommandStream,
     cancel_token: &CancellationToken,
 ) -> anyhow::Result<()> {
     // wait for any number of config_syncs, followed by request_init
-    let mut req_ctx = match recv_command(framed, cancel_token).await? {
-        protocol::Command::RequestInit(req) => {
+    let mut req_ctx = match recv_command(cmd_stream, cancel_token, client.php_pid).await? {
+        (protocol::Command::RequestInit(req), response_tx) => {
             let service = client.get_service();
             let config_snapshot = service.config_snapshot();
 
@@ -369,14 +429,15 @@ async fn do_request_loop_iter(
                 let resp = protocol::CommandResponse::ConfigFeatures(ConfigFeaturesResp {
                     enabled: false,
                 });
-                send_command_resp(framed, resp).await?;
+                send_command_resp(response_tx, resp)?;
                 return Ok(());
             }
 
             let mut req_ctx = ReqContext::new(service, config_snapshot.clone());
-            let result = req_ctx
-                .run_waf(req.data, &protocol::RequestExecOptions::regular())
-                .map_err(FatalRequestError)?;
+            let result = match req_ctx.run_waf(req.data, &protocol::RequestExecOptions::regular()) {
+                Ok(r) => r,
+                Err(e) => return Err(FatalRequestError(e, response_tx).into()),
+            };
 
             let resp = protocol::CommandResponse::RequestInit(protocol::RequestInitResp {
                 triggers: &result.triggers,
@@ -384,11 +445,11 @@ async fn do_request_loop_iter(
                 force_keep: req_ctx.should_force_keep(service, result.waf_keep),
                 settings: req_ctx.settings(),
             });
-            send_command_resp(framed, resp).await?;
+            send_command_resp(response_tx, resp)?;
             req_ctx
         }
 
-        protocol::Command::ConfigSync(args) => {
+        (protocol::Command::ConfigSync(args), response_tx) => {
             handle_config_sync(client, *args);
 
             let service = client.get_service();
@@ -398,21 +459,24 @@ async fn do_request_loop_iter(
             } else {
                 protocol::CommandResponse::ConfigSync
             };
-            send_command_resp(framed, resp).await?;
+            send_command_resp(response_tx, resp)?;
 
             submit_service_telemetry(client, service);
 
             return Ok(());
         }
 
-        command => {
-            anyhow::bail!("unexpected command {:?}", command);
+        (command, response_tx) => {
+            anyhow::bail!(FatalRequestError(
+                anyhow::anyhow!("unexpected command {:?}", command),
+                response_tx
+            ));
         }
     };
 
     loop {
-        match recv_command(framed, cancel_token).await? {
-            protocol::Command::RequestExec(req) => {
+        match recv_command(cmd_stream, cancel_token, client.php_pid).await? {
+            (protocol::Command::RequestExec(req), response_tx) => {
                 let req_options = if req.options.subctx_id.is_some() {
                     &req.options
                 } else if has_server_request_address(&req.data) {
@@ -432,9 +496,10 @@ async fn do_request_loop_iter(
                     }
                 };
 
-                let result = req_ctx
-                    .run_waf(req.data, req_options)
-                    .map_err(FatalRequestError)?;
+                let result = match req_ctx.run_waf(req.data, req_options) {
+                    Ok(r) => r,
+                    Err(e) => return Err(FatalRequestError(e, response_tx).into()),
+                };
 
                 let resp = protocol::CommandResponse::RequestExec(protocol::RequestExecResp {
                     triggers: result.triggers,
@@ -442,10 +507,10 @@ async fn do_request_loop_iter(
                     force_keep: req_ctx.should_force_keep(client.get_service(), result.waf_keep),
                     settings: HashMap::default(),
                 });
-                send_command_resp(framed, resp).await?;
+                send_command_resp(response_tx, resp)?;
                 continue;
             }
-            protocol::Command::RequestShutdown(req) => {
+            (protocol::Command::RequestShutdown(req), response_tx) => {
                 let data = if client
                     .get_service()
                     .should_extract_schema(req.api_sec_samp_key)
@@ -464,9 +529,10 @@ async fn do_request_loop_iter(
                     req.data
                 };
 
-                let result = req_ctx
-                    .run_waf(data, &protocol::RequestExecOptions::regular())
-                    .map_err(FatalRequestError)?;
+                let result = match req_ctx.run_waf(data, &protocol::RequestExecOptions::regular()) {
+                    Ok(r) => r,
+                    Err(e) => return Err(FatalRequestError(e, response_tx).into()),
+                };
 
                 // span metrics / meta
                 let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
@@ -485,15 +551,18 @@ async fn do_request_loop_iter(
                         meta: span_submitter.take_meta(),
                         metrics: span_submitter.take_metrics(),
                     });
-                send_command_resp(framed, resp).await?;
+                send_command_resp(response_tx, resp)?;
 
                 submit_context_telemetry_metrics(client, &mut req_ctx, req.input_truncated);
                 submit_service_telemetry(client, service);
 
                 break;
             }
-            command => {
-                anyhow::bail!("unexpected command {:?}", command);
+            (command, response_tx) => {
+                anyhow::bail!(FatalRequestError(
+                    anyhow::anyhow!("unexpected command {:?}", command),
+                    response_tx
+                ));
             }
         }
     }
@@ -862,144 +931,135 @@ fn has_server_request_address(data: &libddwaf::object::WafMap) -> bool {
     })
 }
 
+/// Types of errors:
+/// - CleanShutdown: the stream returned None; the sender was dropped; idle limits; cancel
+/// - FatalRequestError: error decoding the command
 async fn recv_command(
-    framed: &mut tokio_util::codec::Framed<UnixStream, protocol::CommandCodec>,
+    stream: &mut CommandStream,
     cancel_token: &CancellationToken,
-) -> anyhow::Result<protocol::Command> {
+    php_pid: Option<u32>,
+) -> anyhow::Result<(
+    protocol::Command,
+    oneshot::Sender<sidecar_msg::HelperResponse>,
+)> {
     debug!("Waiting for command");
 
-    tokio::select! {
-        maybe_msg = framed.next() => {
-            match maybe_msg {
-                Some(Ok(msg)) => {
-                    debug!("Received command: {:?}", msg);
-                    Ok(msg)
-                }
-                Some(Err(err)) => {
-                    if is_incomplete_stream_error(&err) {
-                        Err(ForcefulDisconnect(err).into())
-                    } else {
-                        // Protocol error: invalid header marker, bad msgpack, unknown command
-                        error!("Protocol error receiving command: {}", err);
-                        // convert std error to anyhow error,
-                        // wrap in FatalRequestError and convert again to anyhow error...
-                        let new_err = anyhow::Error::new(err).context("Protocol error receiving command");
-                        Err(FatalRequestError(new_err).into())
+    let listening_since = Instant::now();
+    let force_at = listening_since + IDLE_FORCE_CLOSE;
+    let mut next_pid_check = listening_since + IDLE_PID_CHECK_INTERVAL;
+
+    loop {
+        let sleep_deadline = std::cmp::min(next_pid_check, force_at);
+        let mut sleep = Box::pin(tokio::time::sleep_until(tokio::time::Instant::from_std(
+            sleep_deadline,
+        )));
+
+        tokio::select! {
+            maybe_msg = stream.next() => {
+                match maybe_msg {
+                    Some(Ok((msg, response_tx))) => {
+                        debug!("Received command: {:?}", msg);
+                        return Ok((msg, response_tx));
+                    }
+                    Some(Err(fatal_error)) => {
+                        let anyhow_error: anyhow::Error = fatal_error.into();
+                        return Err(anyhow_error.context("Error receiving command"));
+                    }
+                    None => {
+                        return Err(CleanShutdown.into());
                     }
                 }
-                None => {
-                    // Stream ended cleanly - client closed connection properly
-                    Err(CleanShutdown.into())
-                }
             }
-        }
 
-        _ = cancel_token.cancelled() => {
-            info!("Cancellation during client recv");
-            Err(CleanShutdown.into())
+            _ = cancel_token.cancelled() => {
+                info!("Cancellation during client recv");
+                return Err(CleanShutdown.into());
+            }
+
+            _ = sleep.as_mut() => {
+                let now = Instant::now();
+                let idle = now.saturating_duration_since(listening_since);
+                if now >= force_at {
+                    info!(
+                        "closing client after {:?} waiting for a message (idle limit)",
+                        idle
+                    );
+                    return Err(CleanShutdown.into());
+                }
+                match php_pid {
+                    Some(pid) => {
+                        if !php_process_alive(pid) {
+                            info!(
+                                "closing client after {:?} waiting for a message: PHP process not alive (pid={:?})",
+                                idle,
+                                php_pid
+                            );
+                            return Err(CleanShutdown.into());
+                        }
+                    }
+                    None => {
+                        info!(
+                            "closing client after {:?} no client pid available (no client_init received)",
+                            idle,
+                        );
+                        return Err(CleanShutdown.into());
+                    }
+                }
+                next_pid_check += IDLE_PID_CHECK_INTERVAL;
+            }
         }
     }
 }
 
-fn is_incomplete_stream_error(err: &io::Error) -> bool {
-    // tokio_util's FramedRead returns this specific error when EOF is reached
-    // with bytes still in the decode buffer
-    err.kind() == io::ErrorKind::Other && err.to_string().contains("bytes remaining on stream")
-}
-
-async fn send_command_resp(
-    framed: &mut tokio_util::codec::Framed<UnixStream, protocol::CommandCodec>,
+fn send_command_resp(
+    response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
     cmd: protocol::CommandResponse<'_>,
 ) -> anyhow::Result<()> {
     debug!("Sending command: {:?}", cmd);
-    match framed.send(cmd).await {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("Error sending command: {}", err);
-            Err(err)?
+
+    let is_fatal_error = matches!(cmd, CommandResponse::FatalError);
+
+    let mut buf = BytesMut::new();
+    if let Err(e) = protocol::CommandCodec.encode(cmd, &mut buf) {
+        if !is_fatal_error {
+            let mut err_buf = BytesMut::new();
+            if let Err(e2) =
+                protocol::CommandCodec.encode(CommandResponse::FatalError, &mut err_buf)
+            {
+                return Err(e2).with_context(|| {
+                    format!(
+                        "Error encoding fatal error after failing to encoding another command: {e}"
+                    )
+                });
+            }
+            let resp = sidecar_msg::HelperResponse::Reinitialize(err_buf.to_vec());
+            response_tx.send(resp).map_err(|_| {
+                anyhow::anyhow!(
+                    "Error sending fatal error after failing to encode response command"
+                )
+            })?;
+            return Err(e).context("Error encoding response command; sent fatal error instead");
+        } else {
+            return Err(e).context("Error encoding fatal error response command");
         }
     }
+
+    let resp = sidecar_msg::HelperResponse::Data(buf.to_vec());
+    response_tx
+        .send(resp)
+        .map_err(|_| anyhow::anyhow!("Error sending response command"))
 }
 
-async fn check_peer_uid_unix(stream: &UnixStream) -> anyhow::Result<()> {
-    let our_euid = unsafe { libc::geteuid() };
-    let peer_uid = get_peer_uid_unix(stream).await?;
-    if peer_uid == our_euid || peer_uid == 0 {
-        debug!(
-            "Peer uid check passed: peer_uid={}, our_euid={}",
-            peer_uid, our_euid
-        );
-        Ok(())
-    } else {
-        Err(anyhow!(
-            "Expect peer uid {} (or root), got {}",
-            our_euid,
-            peer_uid
-        ))
-    }
-}
-
-#[repr(C)]
-struct Ucred {
-    #[cfg(target_os = "macos")]
-    ucred: libc::xucred,
-
-    #[cfg(not(target_os = "macos"))]
-    ucred: libc::ucred,
-}
-impl Ucred {
-    #[cfg(target_os = "macos")]
-    const LEVEL: libc::c_int = libc::SOL_LOCAL;
-    #[cfg(target_os = "macos")]
-    const PEERCRED: libc::c_int = libc::LOCAL_PEERCRED;
-
-    #[cfg(not(target_os = "macos"))]
-    const LEVEL: libc::c_int = libc::SOL_SOCKET; // protocol independent
-    #[cfg(not(target_os = "macos"))]
-    const PEERCRED: libc::c_int = libc::SO_PEERCRED;
-
-    fn uid(&self) -> u32 {
-        #[cfg(target_os = "macos")]
-        return self.ucred.cr_uid;
-
-        #[cfg(not(target_os = "macos"))]
-        return self.ucred.uid;
-    }
-}
-
-async fn get_peer_uid_unix(stream: &UnixStream) -> anyhow::Result<u32> {
-    let fd = stream.as_fd();
-
-    let mut cred: MaybeUninit<Ucred> = MaybeUninit::uninit();
-
-    let mut cred_len = std::mem::size_of_val(&cred) as u32;
-
-    let res = unsafe {
-        libc::getsockopt(
-            fd.as_raw_fd(),
-            Ucred::LEVEL,
-            Ucred::PEERCRED, // SO_PEERCRED
-            &mut cred as *mut _ as *mut libc::c_void,
-            &mut cred_len,
-        )
-    };
-
-    if res == -1 {
-        return Err(io::Error::last_os_error())
-            .with_context(|| "Call to getsockopt for PEERCRED failed");
-    }
-
-    let cred = unsafe { cred.assume_init() };
-    let required_len = std::mem::size_of_val(&cred);
-    if (cred_len as usize) < required_len {
-        anyhow::bail!(
-            "Result of getsockopt/PEERCRED: output too small ({} < {})",
-            cred_len,
-            required_len
-        );
-    }
-
-    Ok(cred.uid())
+fn send_fatal_reinitialize(
+    response_tx: oneshot::Sender<sidecar_msg::HelperResponse>,
+) -> anyhow::Result<()> {
+    let mut buf = BytesMut::new();
+    protocol::CommandCodec
+        .encode(CommandResponse::FatalError, &mut buf)
+        .context("Error encoding fatal error response command")?;
+    response_tx
+        .send(sidecar_msg::HelperResponse::Reinitialize(buf.to_vec()))
+        .map_err(|_| anyhow::anyhow!("Error sending fatal reinitialize response"))
 }
 
 impl SpanMetricsSubmitter for ClientInitResp {
@@ -1015,6 +1075,14 @@ impl SpanMetricsSubmitter for ClientInitResp {
     fn submit_metric_dyn_key(&mut self, key: String, value: f64) {
         self.metrics.insert(key, value);
     }
+}
+
+fn php_process_alive(pid: u32) -> bool {
+    let r = unsafe { libc::kill(pid as i32, 0) };
+    if r == 0 {
+        return true;
+    }
+    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
 }
 
 #[cfg(test)]
@@ -1268,18 +1336,46 @@ mod tests {
     mod recv_command_errors {
         use super::*;
 
+        fn leak_message(bytes: Vec<u8>) -> &'static [u8] {
+            Box::leak(bytes.into_boxed_slice())
+        }
+
+        fn make_test_client() -> (Client, mpsc::Sender<HelperRequest>) {
+            let service_manager: &'static ServiceManager =
+                Box::leak(Box::new(ServiceManager::new()));
+            let client = Client::new(service_manager);
+            let sender = client.get_req_sender();
+            (client, sender)
+        }
+
+        fn enqueue_messages(tx: &mpsc::Sender<HelperRequest>, messages: Vec<Vec<u8>>) {
+            for command in messages {
+                let (response_tx, _response_rx) = oneshot::channel();
+                tx.try_send(HelperRequest {
+                    command: leak_message(command),
+                    response_tx,
+                })
+                .expect("test setup should enqueue message");
+            }
+        }
+
+        fn close_request_channel(client: &mut Client, tx: mpsc::Sender<HelperRequest>) {
+            let (dummy_tx, _dummy_rx) = mpsc::channel(1);
+            client.req_sender = dummy_tx;
+            drop(tx);
+        }
+
         /// Clean shutdown should return CleanShutdown error
         #[tokio::test]
         async fn test_clean_shutdown_returns_clean_shutdown_error() {
-            let (server, mut client) = UnixStream::pair().unwrap();
-            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+            let (mut client, tx) = make_test_client();
+            close_request_channel(&mut client, tx);
+            let mut stream = client.req_stream();
             let cancel_token = CancellationToken::new();
-
-            client.shutdown().await.unwrap();
-
-            let result = recv_command(&mut framed, &cancel_token).await;
-            assert!(result.is_err());
-            let err = result.unwrap_err();
+            let err = match recv_command(&mut stream, &cancel_token, client.php_pid).await {
+                Ok(_) => panic!("expected clean shutdown error"),
+                Err(err) => err,
+            };
             assert!(
                 err.is::<CleanShutdown>(),
                 "Clean shutdown should return CleanShutdown, got: {:?}",
@@ -1287,43 +1383,42 @@ mod tests {
             );
         }
 
-        /// Incomplete data should return ForcefulDisconnect error
+        /// Incomplete data should return a fatal request decode error
         #[tokio::test]
-        async fn test_incomplete_data_returns_forceful_disconnect() {
-            let (server, mut client) = UnixStream::pair().unwrap();
-            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+        async fn test_incomplete_data_returns_fatal_request_error() {
+            let (mut client, tx) = make_test_client();
+            enqueue_messages(&tx, vec![b"dds".to_vec()]);
+            close_request_channel(&mut client, tx);
+            let mut stream = client.req_stream();
             let cancel_token = CancellationToken::new();
-
-            client.write_all(b"dds").await.unwrap();
-            drop(client);
-
-            let result = recv_command(&mut framed, &cancel_token).await;
-            assert!(result.is_err());
-            let err = result.unwrap_err();
+            let err = match recv_command(&mut stream, &cancel_token, client.php_pid).await {
+                Ok(_) => panic!("expected decode failure"),
+                Err(err) => err,
+            };
             assert!(
-                err.is::<ForcefulDisconnect>(),
-                "Incomplete data should return ForcefulDisconnect, got: {:?}",
-                err
+                err.downcast_ref::<FatalRequestError>().is_some(),
+                "Incomplete data should return FatalRequestError in chain, got: {:?}",
+                err,
             );
         }
 
-        /// Invalid protocol (bad header) should NOT return ForcefulDisconnect
+        /// Invalid protocol (bad header) should return a fatal request decode error
         #[tokio::test]
         async fn test_invalid_header_returns_io_error() {
-            let (server, mut client) = UnixStream::pair().unwrap();
-            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
-            let cancel_token = CancellationToken::new();
-
             let mut invalid = Vec::new();
             invalid.extend_from_slice(b"bad\0");
             invalid.extend_from_slice(&10u32.to_le_bytes());
             invalid.extend_from_slice(b"0123456789");
-            client.write_all(&invalid).await.unwrap();
-            client.shutdown().await.unwrap();
 
-            let result = recv_command(&mut framed, &cancel_token).await;
-            assert!(result.is_err());
-            let err = result.unwrap_err();
+            let (mut client, tx) = make_test_client();
+            enqueue_messages(&tx, vec![invalid]);
+            close_request_channel(&mut client, tx);
+            let mut stream = client.req_stream();
+            let cancel_token = CancellationToken::new();
+            let err = match recv_command(&mut stream, &cancel_token, client.php_pid).await {
+                Ok(_) => panic!("expected invalid header error"),
+                Err(err) => err,
+            };
             assert!(
                 err.is::<FatalRequestError>(),
                 "Should be a FatalRequestError, got: {:?}",
@@ -1334,15 +1429,18 @@ mod tests {
         /// Cancellation should return CleanShutdown (treated same as clean close)
         #[tokio::test]
         async fn test_cancellation_returns_clean_shutdown() {
-            let (server, _client) = UnixStream::pair().unwrap();
-            let mut framed = tokio_util::codec::Framed::new(server, protocol::CommandCodec);
+            let (mut client, tx) = make_test_client();
+            let mut stream = client.req_stream();
             let cancel_token = CancellationToken::new();
 
             cancel_token.cancel();
 
-            let result = recv_command(&mut framed, &cancel_token).await;
-            assert!(result.is_err());
-            let err = result.unwrap_err();
+            drop(tx);
+
+            let err = match recv_command(&mut stream, &cancel_token, client.php_pid).await {
+                Ok(_) => panic!("expected cancellation as clean shutdown"),
+                Err(err) => err,
+            };
             assert!(
                 err.is::<CleanShutdown>(),
                 "Cancellation should return CleanShutdown, got: {:?}",

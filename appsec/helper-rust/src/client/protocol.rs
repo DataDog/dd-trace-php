@@ -126,6 +126,7 @@ impl RemoteConfigSettings {
 pub struct ClientInitResp {
     pub status: String,
     pub version: &'static str,
+    pub client_id: u64,
     pub errors: Vec<String>,
     pub meta: HashMap<String, String>,
     pub metrics: HashMap<String, f64>,
@@ -532,6 +533,7 @@ mod tests {
         let resp = CommandResponse::ClientInit(ClientInitResp {
             status: "ok".to_string(),
             version: "1.0.0",
+            client_id: 12345,
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),

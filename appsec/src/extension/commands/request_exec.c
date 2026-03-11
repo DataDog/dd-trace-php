@@ -58,7 +58,7 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     dd_mpack_write_array_lim(w, ctx->data, &limits);
 
     size_t num_map_elems =
-        (ctx->rasp_rule != NULL) + (ctx->subctx_id != NULL) * 2;
+        (ctx->rasp_rule != NULL) + ((ctx->subctx_id != NULL) * 2);
     mpack_start_map(w, num_map_elems);
 
     if (dd_mpack_limits_reached(&limits)) {

@@ -17,11 +17,7 @@ if [[ -f /project/tmp/build_extension/modules/ddtrace.so ]]; then
   } >> /etc/php/php.ini
 fi
 
-HELPER_PATH=/appsec/libddappsec-helper.so
-if [[ -n $USE_HELPER_RUST ]]; then
-  echo "Using Rust helper" >&2
-  HELPER_PATH=/helper-rust/libddappsec-helper.so
-fi
+HELPER_PATH=/helper-rust/libddappsec-helper.so
 
 if [[ -f /appsec/ddappsec.so && -d /project ]]; then
   echo "Enabling ddappsec" >&2

@@ -37,6 +37,8 @@ using SizeType = std::uint32_t;
 #include <stdexcept>
 #include <string>
 #include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <vector>
 
@@ -462,113 +464,6 @@ private:
     decltype(responses_.begin()) next_response_;
 };
 
-class Dispatcher {
-public:
-    Dispatcher(EchoPipe &echo_pipe, std::vector<rapidjson::Document> responses)
-        : acceptor_{try_fds()}, echo_pipe_{echo_pipe}, responses_{
-                                                           std::move(responses)}
-    {
-        if (!acceptor_.is_open()) {
-            throw std::runtime_error{"UNIX socket is not open"};
-        }
-    }
-    Dispatcher(Dispatcher &&) = delete;
-    Dispatcher &operator=(Dispatcher &&) = delete;
-    Dispatcher(const Dispatcher &) = delete;
-    const Dispatcher &operator=(const Dispatcher &) = delete;
-
-    ~Dispatcher()
-    {
-        if (!iocontext.stopped()) {
-            SPDLOG_INFO("Closing listening UNIX socket (dispatcher finished)");
-        }
-        error_code ec;
-        acceptor_.close(ec);
-    }
-
-    void accept_one(asio::yield_context yield)
-    {
-        local::stream_protocol::socket client_socket{iocontext};
-        acceptor_.async_accept(client_socket, yield);
-        SPDLOG_INFO("Accepted a connection on UNIX socket");
-        auto client = std::make_unique<Client>(
-            std::move(client_socket), echo_pipe_, std::move(responses_));
-        spawn(
-            iocontext,
-            [client = std::move(client)](auto yield) {
-                client->run_loop(yield);
-                post(iocontext, [] { iocontext.stop(); });
-            },
-            [](const std::exception_ptr &e) {
-                if (e) {
-                    std::rethrow_exception(e);
-                }
-            });
-    }
-
-private:
-    static local::stream_protocol::acceptor try_fds()
-    {
-        auto maybe_sock = try_single_fd(4);
-        if (!maybe_sock) {
-            maybe_sock = try_single_fd(3);
-        }
-        if (!maybe_sock) {
-            throw std::runtime_error{"No UNIX socket provided"};
-        }
-        return std::move(*maybe_sock);
-    }
-
-    static std::optional<local::stream_protocol::acceptor> try_single_fd(int fd)
-    {
-        struct ::stat statbuf = {0};
-        if (fstat(fd, &statbuf) == -1) {
-            error_code const ec = {errno, boost::system::system_category()};
-            SPDLOG_INFO("fstat() failed for fd {}: {}", fd, ec.message());
-            return std::nullopt;
-        }
-        if ((statbuf.st_mode & S_IFSOCK) == 0) {
-            SPDLOG_INFO("File descriptor {0} is not a socket: {1:o}", fd,
-                statbuf.st_mode & S_IFMT);
-            return std::nullopt;
-        }
-
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
-        sockaddr_un addr;
-        socklen_t len = sizeof(addr);
-        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-        if (::getsockname(fd, reinterpret_cast<sockaddr *>(&addr), &len) ==
-            -1) {
-            error_code const ec = {errno, boost::system::system_category()};
-            SPDLOG_INFO("Call to getsockname failed on socket {}: {}", fd,
-                ec.message());
-            return std::nullopt;
-        }
-        if (addr.sun_family != AF_UNIX) {
-            SPDLOG_INFO("Socket {} is not a unix socket", fd);
-            return std::nullopt;
-        }
-
-        int const new_fd = ::dup(fd); // NOLINT
-        if (new_fd == -1) {
-            error_code const ec = {errno, boost::system::system_category()};
-            SPDLOG_INFO("Call to dup of fd {} failed: {}", fd, ec.message());
-            return std::nullopt;
-        }
-
-        SPDLOG_INFO(
-            "Using dup of file descriptor {} as unix listening socket", fd);
-
-        local::stream_protocol::acceptor sock{iocontext};
-        sock.assign(local::stream_protocol(), new_fd);
-        return std::move(sock);
-    }
-
-    local::stream_protocol::acceptor acceptor_;
-    EchoPipe &echo_pipe_; // NOLINT
-    std::vector<rapidjson::Document> responses_;
-};
-
 auto parse_responses(const std::vector<std::string> &responses_str)
 {
     std::vector<rapidjson::Document> responses{responses_str.size()};
@@ -710,8 +605,40 @@ int main(int argc, char *argv[])
     spawn(
         iocontext,
         [&](auto yield) {
-            Dispatcher dispatcher{echo_pipe, std::move(responses)};
-            dispatcher.accept_one(yield);
+            // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers)
+            for (int fd : {3, 4}) {
+                struct ::stat statbuf = {};
+                if (fstat(fd, &statbuf) == -1) { continue; }
+                if ((statbuf.st_mode & S_IFSOCK) == 0) { continue; }
+                // A connected socketpair endpoint has a peer; a listening
+                // socket does not.
+                sockaddr_un peer{};
+                socklen_t plen = sizeof(peer);
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+                if (::getpeername(fd, reinterpret_cast<sockaddr *>(&peer),
+                        &plen) == -1) {
+                    continue;
+                }
+                const int new_fd = ::dup(fd); // NOLINT(android-cloexec-dup)
+                if (new_fd == -1) { continue; }
+                SPDLOG_INFO("Using dup of fd {} as communication socket", fd);
+                local::stream_protocol::socket client_socket{iocontext};
+                client_socket.assign(local::stream_protocol(), new_fd);
+                auto client = std::make_unique<Client>(std::move(client_socket),
+                    echo_pipe, std::move(responses));
+                spawn(
+                    iocontext,
+                    [client = std::move(client)](auto yield) {
+                        client->run_loop(yield);
+                        post(iocontext, [] { iocontext.stop(); });
+                    },
+                    [](const std::exception_ptr &e) {
+                        if (e) { std::rethrow_exception(e); }
+                    });
+                return;
+            }
+            throw std::runtime_error{
+                "No connected socket found on fd 3 or 4"};
         },
         [](const std::exception_ptr &e) {
             if (e) {

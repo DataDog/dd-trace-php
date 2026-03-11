@@ -28,9 +28,6 @@ dd_result ATTR_WARN_UNUSED dd_command_exec(dd_conn *nonnull conn,
 dd_result ATTR_WARN_UNUSED dd_command_exec_req_info(dd_conn *nonnull conn,
     const dd_command_spec *nonnull spec, struct req_info *nonnull ctx);
 
-dd_result ATTR_WARN_UNUSED dd_command_exec_cred(dd_conn *nonnull conn,
-    const dd_command_spec *nonnull spec, void *unspecnull ctx);
-
 /* Baked response */
 dd_result dd_command_proc_resp_verd_span_data(mpack_node_t root,
     void *unspecnull ctx /* actually struct req_info* nonnull */);

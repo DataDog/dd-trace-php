@@ -100,8 +100,6 @@ fn get_default_rules_file() -> anyhow::Result<PathBuf> {
 }
 
 fn get_helper_path() -> anyhow::Result<PathBuf> {
-    // Match both libddappsec-helper.so (C++ helper) and
-    // libddappsec-helper-rust.so (Rust helper)
     const LIBNAME_PREFIX: &str = "/libddappsec-helper";
     const MAPS_PATH: &str = "/proc/self/maps";
 

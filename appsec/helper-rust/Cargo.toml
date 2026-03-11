@@ -6,7 +6,7 @@ edition = "2021"
 [workspace]
 
 [lib]
-name = "ddappsec_helper_rust"
+name = "ddappsec_helper"
 path = "src/lib.rs"
 crate-type = ["cdylib"]
 

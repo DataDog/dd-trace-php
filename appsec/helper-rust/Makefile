@@ -18,7 +18,7 @@ bcross_linux_amd64: target/libunwind-x86_64/libunwind.a target/libunwind-x86_64/
 	CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS='-C linker=/opt/homebrew/bin/x86_64-linux-musl-gcc -C target-feature=-crt-static -L $(MUSL_GCC_SYSROOT_AMD64)/lib -L target/libunwind-x86_64' \
 	cargo +nightly build \
 		--target x86_64-unknown-linux-musl
-	/opt/homebrew/bin/patchelf --remove-needed libc.so target/x86_64-unknown-linux-musl/debug/libddappsec_helper_rust.so
+	/opt/homebrew/bin/patchelf --remove-needed libc.so target/x86_64-unknown-linux-musl/debug/libddappsec_helper.so
 .PHONY: bcross_linux_amd64
 
 MUSL_GCC_SYSROOT := $(realpath $(shell /opt/homebrew/bin/aarch64-linux-musl-gcc -v -E - < /dev/null 2>&1 | grep -o -- '-isysroot [^ ]*'| awk '{print $$2}'))
@@ -40,6 +40,6 @@ bcross_linux_aarch64: target/libunwind-aarch64/libunwind.a target/libunwind-aarc
 	AR=/opt/homebrew/opt/binutils/bin/ar \
 	CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS='-C linker=/opt/homebrew/bin/aarch64-linux-musl-gcc -L $(MUSL_GCC_SYSROOT)/lib -L target/libunwind-aarch64' \
         cargo +nightly build --target aarch64-unknown-linux-musl
-	/opt/homebrew/bin/patchelf --remove-needed libc.so target/aarch64-unknown-linux-musl/debug/libddappsec_helper_rust.so
+	/opt/homebrew/bin/patchelf --remove-needed libc.so target/aarch64-unknown-linux-musl/debug/libddappsec_helper.so
 .PHONY: bcross_linux_aarch64
 

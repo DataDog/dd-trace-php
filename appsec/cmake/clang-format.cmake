@@ -31,13 +31,8 @@ endif()
 
 set(FILE_LIST "")
 
-if(DD_APPSEC_BUILD_HELPER)
-    file(GLOB_RECURSE HELPER_FILES ${HELPER_SOURCE_DIR}/*.*pp tests/helper/**.cpp tests/helper/**.hpp)
-    list(APPEND FILE_LIST ${HELPER_FILES})
-endif()
-
 if(DD_APPSEC_BUILD_EXTENSION)
-    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp tests/helper/*.h tests/bench_helper/*.cc)
+    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
     list(APPEND FILE_LIST ${EXTENSION_FILES})
 endif()
 

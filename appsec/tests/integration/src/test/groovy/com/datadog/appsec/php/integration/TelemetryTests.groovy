@@ -121,10 +121,8 @@ class TelemetryTests {
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
-            // Rust helper has +1 tag (helper_runtime), C++ doesn't
-            def useRust = System.getProperty('USE_HELPER_RUST') != null
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
-            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 4 : 3) }
+            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
+            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 4 }
             connSuccess = allSeries.find { it.name == 'helper.connection_success' }
             workerCount = allSeries.find { it.name == 'helper.service_worker_count' }
 
@@ -152,27 +150,17 @@ class TelemetryTests {
         assert connSuccess != null
         assert connSuccess.namespace == 'appsec'
         assert connSuccess.points[0][1] >= 1.0
-        assert connSuccess.tags.find { it.startsWith('runtime_path:') } != null
+        assert connSuccess.tags.find { it.startsWith('helper_runtime:') } != null
         assert connSuccess.type == 'count'
 
         assert workerCount != null
         assert workerCount.namespace == 'appsec'
         assert workerCount.points[0][1] >= 1.0
 
-        // Check helper_runtime tag: only Rust helper should have it
-        if (System.getProperty('USE_HELPER_RUST') != null) {
-            assert 'helper_runtime:rust' in wafInit.tags
-            assert 'helper_runtime:rust' in wafReq1.tags
-            assert 'helper_runtime:rust' in wafReq2.tags
-            assert 'helper_runtime:rust' in workerCount.tags
-            // connSuccess is from extension, not helper, so it doesn't have helper_runtime tag
-        } else {
-            // C++ helper should NOT have the helper_runtime tag in telemetry
-            assert !wafInit.tags.any { it.startsWith('helper_runtime:') }
-            assert !wafReq1.tags.any { it.startsWith('helper_runtime:') }
-            assert !wafReq2.tags.any { it.startsWith('helper_runtime:') }
-            assert !workerCount.tags.any { it.startsWith('helper_runtime:') }
-        }
+        assert 'helper_runtime:rust' in wafInit.tags
+        assert 'helper_runtime:rust' in wafReq1.tags
+        assert 'helper_runtime:rust' in wafReq2.tags
+        assert 'helper_runtime:rust' in workerCount.tags
     }
 
     @Test
@@ -304,15 +292,8 @@ class TelemetryTests {
         assert wafUpdates.tags.find { it.startsWith('waf_version:') } != null
         assert wafUpdates.type == 'count'
 
-        // Check helper_runtime tag: only Rust helper should have it
-        if (System.getProperty('USE_HELPER_RUST') != null) {
-            assert 'helper_runtime:rust' in wafUpdates.tags
-            series.each { assert 'helper_runtime:rust' in it.tags }
-        } else {
-            // C++ helper should NOT have the helper_runtime tag in telemetry
-            assert !wafUpdates.tags.any { it.startsWith('helper_runtime:') }
-            series.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }
-        }
+        assert 'helper_runtime:rust' in wafUpdates.tags
+        series.each { assert 'helper_runtime:rust' in it.tags }
     }
 
     @Test
@@ -456,10 +437,9 @@ class TelemetryTests {
         TelemetryHelpers.Metric lfiTimeout
         TelemetryHelpers.Metric ssrfTimeout
 
-        def useRust = System.getProperty('USE_HELPER_RUST') != null
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
+            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
             lfiEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:lfi' in it.tags}
             lfiMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:lfi' in it.tags}
             lfiTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
@@ -513,14 +493,8 @@ class TelemetryTests {
         assert ssrfTimeout.type == 'count'
         assert ssrfTimeout.tags.find { it.startsWith('waf_version:') } != null
 
-        // Check helper_runtime tag: only Rust helper should have it
         def raspMetrics = [wafReq1, lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
-        if (System.getProperty('USE_HELPER_RUST') != null) {
-            raspMetrics.each { assert 'helper_runtime:rust' in it.tags }
-        } else {
-            // C++ helper should NOT have the helper_runtime tag in telemetry
-            raspMetrics.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }
-        }
+        raspMetrics.each { assert 'helper_runtime:rust' in it.tags }
     }
 
     /**
@@ -629,13 +603,7 @@ class TelemetryTests {
         assert wafReqTruncated.tags.find { it.startsWith('waf_version:') } != null
         assert wafReqTruncated.type == 'count'
 
-        // Check helper_runtime tag: only Rust helper should have it
-        if (System.getProperty('USE_HELPER_RUST') != null) {
-            assert 'helper_runtime:rust' in wafReqTruncated.tags
-        } else {
-            // C++ helper should NOT have the helper_runtime tag in telemetry
-            assert !wafReqTruncated.tags.any { it.startsWith('helper_runtime:') }
-        }
+        assert 'helper_runtime:rust' in wafReqTruncated.tags
     }
 
     /**
@@ -643,13 +611,10 @@ class TelemetryTests {
      * with backtraces. It sends an invalid message to the helper which triggers
      * an error with backtrace.
      *
-     * This test only runs when USE_HELPER_RUST is set (Rust helper implementation).
      */
     @Test
     @Order(7)
     void 'helper error telemetry includes backtrace'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
-
         Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
                         asm: [enabled: true]
@@ -696,6 +661,11 @@ class TelemetryTests {
         // require symbolized Rust frames, not only raw/unknown frame placeholders
         assert errorLog.stack_trace.contains('.rs:') :
                 "Expected stack_trace with Rust source references (.rs:line), got: ${errorLog.stack_trace}"
+
+        def unknownFrames = (errorLog.stack_trace =~ /<unknown>/).count
+        def totalFrames = (errorLog.stack_trace =~ /\n\s*\d+: /).count
+        assert totalFrames == 0 || unknownFrames < totalFrames :
+                "Expected at least one non-unknown frame, got ${unknownFrames}/${totalFrames} unknown frames in stack_trace: ${errorLog.stack_trace}"
 
         // This test only runs for Rust helper, so verify helper_runtime:rust tag is present in logs
         assert errorLog.tags?.contains('helper_runtime:rust') :

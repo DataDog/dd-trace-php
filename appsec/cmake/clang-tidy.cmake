@@ -52,10 +52,6 @@ macro(append_target_sources target)
     endforeach()
 endmacro()
 
-if(DD_APPSEC_BUILD_HELPER)
-    file(GLOB_RECURSE FILE_LIST ${HELPER_SOURCE_DIR}/*.*pp)
-endif()
-
 if(DD_APPSEC_BUILD_EXTENSION)
     append_target_sources(extension)
 endif()
