@@ -565,7 +565,7 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
             ],
             outputs: [
                     volume: 'php-appsec',
-                    files: ['ddappsec.so', 'libddappsec-helper.so'],
+                    files: ['ddappsec.so'],
             ],
             command: [
                     '-e', '-c',
@@ -577,9 +577,10 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
                               -DGIT_COMMIT=${libddwafCommit()} \\
                               -DDD_APPSEC_TESTING=ON \\
+                              -DDD_APPSEC_BUILD_HELPER=OFF \\
                               -DBOOST_CACHE_PREFIX=/var/boost-cache /project/appsec
-                    make -j extension ddappsec-helper && \\
-                        touch ddappsec.so libddappsec-helper.so
+                    make -j extension && \\
+                        touch ddappsec.so
                 """
             ]
     )
@@ -627,10 +628,7 @@ def runMainTask = { String phpVersion, String variant ->
         systemProperty 'VARIANT', variant
 
         if (project.hasProperty('helperBinary')) {
-            systemProperty 'USE_HELPER_RUST', '1'
             systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
-        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
-            systemProperty 'USE_HELPER_RUST', '1'
         }
         if (project.hasProperty('useHelperRustCoverage')) {
             systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
@@ -642,10 +640,7 @@ def runMainTask = { String phpVersion, String variant ->
             // Skip building helper-rust when explicit binary path is provided
         } else if (project.hasProperty('useHelperRustCoverage')) {
             dependsOn 'buildHelperRustWithCoverage'
-        } else if (project.hasProperty('useHelperRust')) {
-            dependsOn 'buildHelperRust'
-        } else if (phpVersion in ['8.4', '8.5']) {
-            // PHP 8.4+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
+        } else {
             dependsOn 'buildHelperRust'
         }
     }
@@ -700,10 +695,7 @@ def runMainTask = { String phpVersion, String variant ->
             it.systemProperty 'checkCoreDumps', '1'
         }
         if (project.hasProperty('helperBinary')) {
-            it.systemProperty 'USE_HELPER_RUST', '1'
             it.systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
-        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
-            it.systemProperty 'USE_HELPER_RUST', '1'
         }
         if (project.hasProperty('useHelperRustCoverage')) {
             it.systemProperty 'USE_HELPER_RUST_COVERAGE', '1'
@@ -720,20 +712,12 @@ def runMainTask = { String phpVersion, String variant ->
         dependsOn project.hasProperty('useCmake') ? "buildTracerCmake-${phpVersion}-${variant}" : "buildTracer-${phpVersion}-${variant}"
         dependsOn "buildAppsec-${phpVersion}-${variant}"
         if (project.hasProperty('helperBinary')) {
-            // Skip building helper-rust when explicit binary path is provided
+            // explicit binary path provided; pre-create the volume for the mount point
             dependsOn createVolumeTask('php-helper-rust')
         } else if (project.hasProperty('useHelperRustCoverage')) {
             dependsOn 'buildHelperRustWithCoverage'
-        } else if (project.hasProperty('useHelperRust')) {
-            dependsOn 'buildHelperRust'
-        } else if (phpVersion in ['8.4', '8.5']) {
-            // PHP 8.4+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
-            dependsOn 'buildHelperRust'
         } else {
-            // C++ helper path: test containers still mount php-helper-rust (for
-            // the rust-redirection mechanism). Pre-create and chown the volume
-            // here so Docker doesn't auto-create it as root-owned.
-            dependsOn createVolumeTask('php-helper-rust')
+            dependsOn 'buildHelperRust'
         }
 
         if (phpVersion in ['7.0', '7.1']) {
@@ -764,10 +748,7 @@ if (project.hasProperty('testClass')) {
                 systemProperty 'USE_CMAKE', 'true'
             }
             if (project.hasProperty('helperBinary')) {
-                systemProperty 'USE_HELPER_RUST', '1'
                 systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
-            } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
-                systemProperty 'USE_HELPER_RUST', '1'
             }
             dependsOn project.hasProperty('useCmake') ? "buildTracerSsiCmake-8.3-${variant}" : "buildTracerSsi-8.3-${variant}"
             dependsOn "buildLoader-8.3-${variant}"
@@ -811,10 +792,7 @@ if (project.hasProperty('testClass')) {
             it.systemProperty 'checkCoreDumps', '1'
         }
         if (project.hasProperty('helperBinary')) {
-            it.systemProperty 'USE_HELPER_RUST', '1'
             it.systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
-        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
-            it.systemProperty 'USE_HELPER_RUST', '1'
         }
 
         it.systemProperty 'DOCKER_MIRROR', dockerMirror
@@ -957,7 +935,7 @@ buildRunInDockerTask(
                     --target "$RUST_TARGET"
 
                 # Remove musl libc dependency using patchelf (makes binary work on both musl and glibc)
-                BINARY_PATH="/helper-rust-build/cargo-target/$RUST_TARGET/debug/libddappsec_helper_rust.so"
+                BINARY_PATH="/helper-rust-build/cargo-target/$RUST_TARGET/debug/libddappsec_helper.so"
                 ARCH=$(uname -m)
                 if [ "$ARCH" = "x86_64" ]; then
                     patchelf --remove-needed libc.musl-x86_64.so.1 "$BINARY_PATH" 2>/dev/null || true
@@ -1069,7 +1047,7 @@ buildRunInDockerTask(
                 chmod 777 /helper-rust-build/coverage
 
                 cargo build --release --target \$RUST_TARGET --features coverage
-                cp /helper-rust-build/cargo-target/\$RUST_TARGET/release/libddappsec_helper_rust.so /helper-rust-build/libddappsec-helper.so
+                cp /helper-rust-build/cargo-target/\$RUST_TARGET/release/libddappsec_helper.so /helper-rust-build/libddappsec-helper.so
                 """
         ]
 )

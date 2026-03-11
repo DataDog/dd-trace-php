@@ -15,13 +15,11 @@
 
 typedef enum _helper_runtime {
     HELPER_RUNTIME_UNKNOWN = 0,
-    HELPER_RUNTIME_CPP = 1,
     HELPER_RUNTIME_RUST = 2,
 } helper_runtime;
 
 helper_runtime dd_helper_get_runtime(void);
 void dd_helper_set_runtime(helper_runtime rt);
-bool dd_helper_is_rust(void);
 
 typedef typeof(&ddog_sidecar_enable_appsec) sidecar_enable_appsec_t;
 
@@ -39,8 +37,5 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
     client_init_func nonnull, void *unspecnull ctx);
 dd_conn *nullable dd_helper_mgr_cur_conn(void);
 void dd_helper_close_conn(void);
-
-bool dd_on_runtime_path_update(zval *nullable old_value,
-    zval *nonnull new_value, zend_string *nullable new_str);
 
 #endif // DD_HELPER_MGR_H

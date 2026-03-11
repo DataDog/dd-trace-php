@@ -53,37 +53,27 @@ lazy_static! {
 #[no_mangle]
 pub extern "C" fn ddog_sidecar_enable_appsec(
     shared_lib_path: CharSlice,
-    socket_file_path: CharSlice,
-    lock_file_path: CharSlice,
     log_file_path: CharSlice,
     log_level: CharSlice,
 ) -> () {
     let mut appsec_config_guard = APPSEC_CONFIG.lock().unwrap();
     let shared_lib_path_os: std::ffi::OsString;
-    let socket_file_path_os: std::ffi::OsString;
-    let lock_file_path_os: std::ffi::OsString;
     let log_file_path_os: std::ffi::OsString;
 
     #[cfg(unix)]
     {
         shared_lib_path_os = OsStr::from_bytes(shared_lib_path.as_bytes()).to_owned();
-        socket_file_path_os = OsStr::from_bytes(socket_file_path.as_bytes()).to_owned();
-        lock_file_path_os = OsStr::from_bytes(lock_file_path.as_bytes()).to_owned();
         log_file_path_os = OsStr::from_bytes(log_file_path.as_bytes()).to_owned();
     }
 
     #[cfg(windows)]
     {
         shared_lib_path_os = OsStr::new(&*shared_lib_path.to_utf8_lossy()).to_owned();
-        socket_file_path_os = OsStr::new(&*socket_file_path.to_utf8_lossy()).to_owned();
-        lock_file_path_os = OsStr::new(&*lock_file_path.to_utf8_lossy()).to_owned();
         log_file_path_os = OsStr::new(&*log_file_path.to_utf8_lossy()).to_owned();
     }
 
     appsec_config_guard.deref_mut().replace(AppSecConfig {
         shared_lib_path: shared_lib_path_os,
-        socket_file_path: socket_file_path_os,
-        lock_file_path: lock_file_path_os,
         log_file_path: log_file_path_os,
         log_level: log_level.to_utf8_lossy().to_string(),
     });

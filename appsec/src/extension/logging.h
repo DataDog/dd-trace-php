@@ -7,6 +7,9 @@
 
 #include "configuration.h"
 #include "php_helpers.h"
+#ifndef __cplusplus
+#include <stdatomic.h>
+#endif
 #include <stdbool.h>
 #include "attributes.h"
 
@@ -63,6 +66,20 @@ void _mlog_relay(dd_log_level_t level, const char *nonnull format,
             (const char *)__FILE__ + _dd_size_source_prefix, __func__,         \
             __LINE__, ##__VA_ARGS__, _err_str);                                \
         errno = _orig_errno;                                                   \
+    } while (0)
+
+#define mlog_once(level, format, ...)                                          \
+    do {                                                                       \
+        static _Atomic(bool) _emitted;                                         \
+        if (atomic_compare_exchange_strong(&_emitted, &(bool){false}, true)) {          \
+            _mlog_relay((level), (format),                                     \
+                (const char *)__FILE__ + _dd_size_source_prefix, __func__,     \
+                __LINE__, ##__VA_ARGS__);                                      \
+        } else {                                                               \
+            _mlog_relay(dd_log_debug, (format),                                \
+                (const char *)__FILE__ + _dd_size_source_prefix, __func__,     \
+                __LINE__, ##__VA_ARGS__);                                      \
+        }                                                                      \
     } while (0)
 
 // guarded version, for performance

@@ -7,44 +7,40 @@
 #define DD_NETWORK_H
 
 #include <stdbool.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/un.h>
 #include <unistd.h>
 #include <zend.h>
+
+#include <components-rs/common.h>
 
 #include "attributes.h"
 #include "dddefs.h"
 
 struct _dd_conn {
-    struct sockaddr_un addr;
-    int socket;
+    bool connected;
+    uint64_t client_id;
 };
-enum comm_type {
-    comm_type_recv,
-    comm_type_send,
-};
-
 typedef struct _dd_conn dd_conn;
 
-dd_result dd_conn_check_credentials(dd_conn *nonnull conn);
-dd_result dd_conn_sendv(dd_conn *nonnull conn, zend_llist *nonnull iovecs);
-dd_result dd_conn_recv(dd_conn *nonnull conn, char *nullable *nonnull data,
-    size_t *nonnull data_len);
+typedef struct _dd_helper_response {
+    char *unspecnull data;
+    size_t data_len;
+    size_t _capacity; // private
+} dd_helper_response;
+
+dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
+    dd_helper_response *nonnull response_out);
+void dd_helper_response_destroy(dd_helper_response *nonnull response);
 
 // for helper_process
 #ifdef HELPER_PROCESS_C_INCLUDES
 ATTR_ALWAYS_INLINE bool dd_conn_connected(dd_conn *nonnull conn)
 {
-    return conn->socket > 0;
+    return conn->connected;
 }
 
-int dd_conn_init(
-    dd_conn *nonnull conn, const char *nonnull path, size_t path_len);
+void dd_conn_init(dd_conn *nonnull conn);
 
-int dd_conn_destroy(dd_conn *nonnull conn);
-dd_result dd_conn_set_timeout(
-    dd_conn *nonnull conn, enum comm_type comm_type, int milliseconds);
+void dd_conn_destroy(dd_conn *nonnull conn);
 
 #endif
 

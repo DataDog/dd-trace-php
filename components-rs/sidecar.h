@@ -421,6 +421,43 @@ void ddog_drop_agent_info_reader(struct ddog_AgentInfoReader*);
 
 void ddog_sidecar_send_garbage(struct ddog_SidecarTransport **transport);
 
+/**
+ * Sends an AppSec message from the PHP extension through the sidecar to the registered helper.
+ *
+ * The response is allocated by the sidecar and must be freed with
+ * `ddog_sidecar_appsec_response_drop` when the caller is done with it.
+ *
+ * Returns a zeroed `ddog_AppsecCResponse` (null ptr) on transport errors.
+ */
+struct ddog_AppsecCResponse ddog_sidecar_send_appsec_message(struct ddog_SidecarTransport **transport,
+                                                             ddog_CharSlice session_id,
+                                                             uint64_t client_id,
+                                                             ddog_CharSlice data);
+
+/**
+ * Frees an `AppsecCResponse` that was returned by `ddog_sidecar_send_appsec_message`.
+ */
+void ddog_sidecar_appsec_response_drop(struct ddog_AppsecCResponse response);
+
+/**
+ * Re-export the registration function so that it appears in the generated C header.
+ *
+ * Called by any shared library loaded into the sidecar process (e.g. the AppSec
+ * helper) to register callbacks for AppSec message handling:
+ *
+ * - `on_message` – invoked for each message from a PHP extension session; the
+ *   returned `AppsecCResponse` is forwarded back to the extension.
+ * - `on_disconnect` – invoked when a PHP extension session closes.
+ * - `free_response` – invoked by the sidecar to free a non-null buffer returned
+ *   by `on_message`; must use the same allocator that allocated the buffer.
+ *
+ * # Safety
+ * All function pointers must remain valid for the lifetime of the process.
+ */
+void ddog_sidecar_appsec_register_message_handler(ddog_OnMessageFn on_message,
+                                                  ddog_OnDisconnectFn on_disconnect,
+                                                  ddog_FreeResponseFn free_response);
+
 ddog_TracesBytes *ddog_get_traces(void);
 
 void ddog_free_traces(ddog_TracesBytes *_traces);
