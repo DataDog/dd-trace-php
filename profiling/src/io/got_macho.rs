@@ -290,7 +290,10 @@ unsafe fn rebind_symbols_for_image(
     overwrites: &mut Vec<GotSymbolOverwrite>,
 ) -> bool {
     if (*header).magic != libc::MH_MAGIC_64 {
-        trace!("Skipping image: not a 64-bit Mach-O (magic: {:#x})", (*header).magic);
+        trace!(
+            "Skipping image: not a 64-bit Mach-O (magic: {:#x})",
+            (*header).magic
+        );
         return false;
     }
 
@@ -349,8 +352,7 @@ unsafe fn rebind_symbols_for_image(
     // linkedit_base (see diagram in the module-level documentation).
     let symtab = (linkedit_base + (*symtab_cmd).symoff as usize) as *const Nlist64;
     let strtab = (linkedit_base + (*symtab_cmd).stroff as usize) as *const c_char;
-    let indirect_symtab =
-        (linkedit_base + (*dysymtab_cmd).indirectsymoff as usize) as *const u32;
+    let indirect_symtab = (linkedit_base + (*dysymtab_cmd).indirectsymoff as usize) as *const u32;
 
     // ---- Pass 2: Find symbol pointer sections in __DATA / __DATA_CONST and patch them ----
     cmd_ptr = (header as *const u8).add(std::mem::size_of::<MachHeader64>());
@@ -433,8 +435,7 @@ unsafe fn rebind_symbols_in_section(
     let indirect_sym_indices = indirect_symtab.add(section.reserved1 as usize);
 
     // The actual pointer slots in memory (adjusted by ASLR slide).
-    let symbol_ptrs =
-        ((slide as usize).wrapping_add(section.addr as usize)) as *mut *mut c_void;
+    let symbol_ptrs = ((slide as usize).wrapping_add(section.addr as usize)) as *mut *mut c_void;
 
     let page_size = libc::sysconf(libc::_SC_PAGESIZE) as usize;
     let mut hooked = false;
@@ -535,7 +536,6 @@ fn seg_name(seg: &libc::segment_command_64) -> &str {
     let len = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
     // SAFETY: segment names are always ASCII; cast from &[i8] to &[u8] is safe
     // because i8 and u8 have the same size and alignment.
-    let bytes: &[u8] =
-        unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const u8, len) };
+    let bytes: &[u8] = unsafe { std::slice::from_raw_parts(bytes.as_ptr() as *const u8, len) };
     std::str::from_utf8(bytes).unwrap_or("")
 }
