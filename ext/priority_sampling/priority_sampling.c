@@ -343,7 +343,9 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
         priority = sampling && !limited ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
 
         zend_hash_str_update(metrics, ZEND_STRL("_dd.agent_psr"), &sample_rate_zv);
-        dd_update_knuth_sampling_rate_tag(span, sample_rate);
+        if (mechanism == DD_MECHANISM_AGENT_RATE) {
+            dd_update_knuth_sampling_rate_tag(span, sample_rate);
+        }
     }
 
     if (limited) {
