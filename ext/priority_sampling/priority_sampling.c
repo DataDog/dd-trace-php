@@ -7,6 +7,7 @@
 #include <json/json.h>
 
 #include "../configuration.h"
+#include "../tracer_tag_propagation/tracer_tag_propagation.h"
 
 #include "../limiter/limiter.h"
 #include "ddshared.h"
@@ -60,6 +61,18 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
     } else {
         zend_hash_str_del(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1);
     }
+}
+
+static void dd_update_knuth_sampling_rate_tag(ddtrace_root_span_data *root_span, double sample_rate) {
+    zend_array *meta = ddtrace_property_array(&root_span->property_meta);
+
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%.6g", sample_rate);
+
+    zval ksr;
+    ZVAL_STRING(&ksr, buf);
+    zend_hash_str_update(meta, ZEND_STRL("_dd.p.ksr"), &ksr);
+    zend_hash_str_add_empty_element(ddtrace_property_array(&root_span->property_propagated_tags), ZEND_STRL("_dd.p.ksr"));
 }
 
 static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
@@ -320,6 +333,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
             zend_hash_str_del(metrics, ZEND_STRL("_dd.rule_psr"));
         } else {
             zend_hash_str_update(metrics, ZEND_STRL("_dd.rule_psr"), &sample_rate_zv);
+            dd_update_knuth_sampling_rate_tag(span, sample_rate);
         }
 
         zend_hash_str_del(metrics, ZEND_STRL("_dd.agent_psr"));
@@ -329,6 +343,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
         priority = sampling && !limited ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
 
         zend_hash_str_update(metrics, ZEND_STRL("_dd.agent_psr"), &sample_rate_zv);
+        dd_update_knuth_sampling_rate_tag(span, sample_rate);
     }
 
     if (limited) {
