@@ -20,10 +20,10 @@ use Throwable;
  */
 class FlagEvalMetrics
 {
-    private const METER_NAME = 'datadog/ffe';
-    private const METRIC_NAME = 'feature_flag.evaluations';
-    private const METRIC_UNIT = '{evaluation}';
-    private const METRIC_DESC = 'Number of feature flag evaluations';
+    const METER_NAME = 'datadog/ffe';
+    const METRIC_NAME = 'feature_flag.evaluations';
+    const METRIC_UNIT = '{evaluation}';
+    const METRIC_DESC = 'Number of feature flag evaluations';
 
     /** @var object|null \OpenTelemetry\API\Metrics\CounterInterface */
     private static $counter = null;
