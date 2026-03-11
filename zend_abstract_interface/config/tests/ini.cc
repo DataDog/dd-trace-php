@@ -7,6 +7,7 @@ extern "C" {
 
 #include "zai_tests_common.hpp"
 
+#include <atomic>
 #include <string>
 
 /* Use Catch2's expression decomposition: REQUIRE(a == b) prints both values on failure (like assert_eq! in Rust). */
@@ -565,11 +566,16 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 #endif
 
 static char sapi_getenv_test_buf[64];
+static std::atomic<int> sapi_getenv_request_count{0};
 
-// Returns "sapi env val" only for INI_FOO_STRING; otherwise NULL (so config falls back to cache).
+// For INI_FOO_STRING: first request (call) returns NULL (fall back to cache), second returns "sapi env val".
 TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
     zai_str key = ZAI_STR_NEW(name, name_len);
     if (zai_str_eq(key, ZAI_STRL("INI_FOO_STRING"))) {
+        int call = sapi_getenv_request_count.fetch_add(1);
+        if (call == 0) {
+            return NULL;
+        }
         memset(sapi_getenv_test_buf, 0, sizeof(sapi_getenv_test_buf));
         strcpy(sapi_getenv_test_buf, "sapi env val");
         return sapi_getenv_test_buf;
@@ -577,9 +583,11 @@ TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
     return NULL;
 }
 
-TEST_INI("SAPI env takes priority over cache", {}, {
+TEST_INI("SAPI env takes priority over cache", {
+    sapi_getenv_request_count.store(0);
     REQUIRE_SETENV("INI_FOO_STRING", "system env val");
-
+    tea_sapi_module.getenv = ini_sapi_getenv_from_sapi;
+}, {
     REQUEST_BEGIN()
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
@@ -587,8 +595,6 @@ TEST_INI("SAPI env takes priority over cache", {}, {
     REQUIRE_ZVAL_STRING_EQ(value, "system env val");
 
     REQUEST_END()
-
-    tea_sapi_module.getenv = ini_sapi_getenv_from_sapi;
 
     REQUEST_BEGIN()
 
