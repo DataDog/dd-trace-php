@@ -89,8 +89,15 @@ class ExposureWriter
         ]);
 
         $response = curl_exec($ch);
-        if ($response === false && function_exists('dd_trace_env_config') && \dd_trace_env_config('DD_TRACE_DEBUG')) {
-            error_log('ddtrace/ffe: failed to send exposures: ' . curl_error($ch));
+        if (function_exists('dd_trace_env_config') && \dd_trace_env_config('DD_TRACE_DEBUG')) {
+            if ($response === false) {
+                error_log('ddtrace/ffe: failed to send exposures: ' . curl_error($ch));
+            } else {
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                if ($httpCode < 200 || $httpCode >= 300) {
+                    error_log('ddtrace/ffe: unexpected HTTP ' . $httpCode . ' sending exposures');
+                }
+            }
         }
         curl_close($ch);
     }

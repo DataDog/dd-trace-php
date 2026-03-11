@@ -10,6 +10,7 @@ use Throwable;
  * Emits counter: feature_flag.evaluations
  * Dimensions:
  *   - feature_flag.key
+ *   - feature_flag.provider.name       (always "datadog")
  *   - feature_flag.result.variant
  *   - feature_flag.result.reason       (lowercase)
  *   - feature_flag.result.allocation_key (if present)
@@ -47,6 +48,7 @@ class FlagEvalMetrics
 
         $attributes = [
             'feature_flag.key'            => $flagKey,
+            'feature_flag.provider.name'  => 'datadog',
             'feature_flag.result.variant' => (string)($result['variant'] ?? ''),
             'feature_flag.result.reason'  => strtolower((string)($result['reason'] ?? 'default')),
         ];

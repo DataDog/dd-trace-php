@@ -3068,7 +3068,11 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                                     c_attrs[idx].bool_value = false;
                                     break;
                                 default:
-                                    continue; /* skip unsupported types; targets ZEND_HASH_FOREACH loop */
+                                    /* In C, `continue` inside a switch inside a loop targets the loop,
+                                       not the switch. This skips idx++ so this slot is overwritten next
+                                       iteration. The partially-written key ptr is harmless since idx
+                                       stays pointing at this slot. */
+                                    continue;
                             }
                             idx++;
                         } ZEND_HASH_FOREACH_END();

@@ -5,7 +5,9 @@ namespace DDTrace\OpenFeature;
 use DDTrace\FeatureFlags\Provider;
 use OpenFeature\implementation\provider\AbstractProvider;
 use OpenFeature\implementation\provider\ResolutionDetailsBuilder;
+use OpenFeature\implementation\provider\ResolutionError;
 use OpenFeature\interfaces\flags\EvaluationContext;
+use OpenFeature\interfaces\provider\ErrorCode;
 use OpenFeature\interfaces\provider\Metadata;
 use OpenFeature\interfaces\provider\ResolutionDetails as ResolutionDetailsInterface;
 
@@ -125,6 +127,25 @@ class DataDogProvider extends AbstractProvider
             $builder->withVariant($result['variant']);
         }
 
+        $errorCode = isset($result['error_code']) ? (int)$result['error_code'] : 0;
+        if ($errorCode !== 0) {
+            $builder->withError(new ResolutionError(self::mapErrorCode($errorCode)));
+        }
+
         return $builder->build();
+    }
+
+    private static function mapErrorCode(int $errorCode): ErrorCode
+    {
+        switch ($errorCode) {
+            case 1:
+                return ErrorCode::TYPE_MISMATCH();
+            case 2:
+                return ErrorCode::PARSE_ERROR();
+            case 3:
+                return ErrorCode::FLAG_NOT_FOUND();
+            default:
+                return ErrorCode::GENERAL();
+        }
     }
 }
