@@ -103,11 +103,11 @@ class FlagEvalMetrics
     {
         switch ((int)$code) {
             case 1:
-                return 'flag_not_found';
+                return 'type_mismatch';    // ERROR_TYPE_MISMATCH
             case 2:
-                return 'type_mismatch';
+                return 'parse_error';      // ERROR_CONFIG_PARSE
             case 3:
-                return 'parse_error';
+                return 'flag_not_found';   // ERROR_FLAG_UNRECOGNIZED
             default:
                 return 'general';
         }

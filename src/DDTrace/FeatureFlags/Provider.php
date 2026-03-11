@@ -166,7 +166,9 @@ class Provider
 
         // Error or no variant → return default
         if ($errorCode !== 0 || $result['variant'] === null) {
-            $evalResult = ['value' => $defaultValue, 'reason' => $reasonStr, 'variant' => null, 'allocation_key' => null,
+            // Per OpenFeature spec, any non-zero error code must use reason=ERROR
+            $reportReason = ($errorCode !== 0) ? 'ERROR' : $reasonStr;
+            $evalResult = ['value' => $defaultValue, 'reason' => $reportReason, 'variant' => null, 'allocation_key' => null,
                 'error_code' => $errorCode];
             FlagEvalMetrics::record($flagKey, $evalResult);
             return $evalResult;
