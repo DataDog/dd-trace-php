@@ -478,6 +478,10 @@ final class SpanChecker
             if (!isset($expectedTags['_dd.p.dm'])) {
                 unset($filtered['_dd.p.dm']);
             }
+            // Ignore _dd.p.ksr unless explicitly tested
+            if (!isset($expectedTags['_dd.p.ksr'])) {
+                unset($filtered['_dd.p.ksr']);
+            }
             // Ignore _dd.p.tid unless explicitly tested
             if (!isset($expectedTags['_dd.p.tid'])) {
                 unset($filtered['_dd.p.tid']);
