@@ -4,7 +4,11 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #include "ddtrace.h"
+#include <Zend/zend_extensions.h>
+#include <components-rs/common.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 #include "compatibility.h"
@@ -15,7 +19,9 @@
 #include "php_helpers.h"
 #include "php_objects.h"
 #include "string_helpers.h"
-#include <Zend/zend_extensions.h>
+#ifdef TESTING
+#    include "test_mock_transport.h"
+#endif
 
 void (*nullable ddtrace_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
@@ -42,6 +48,8 @@ static void _register_testing_objects(void);
 
 static const uint8_t *(*nullable _ddtrace_get_formatted_session_id)(void);
 static uint64_t (*nullable _ddtrace_get_sidecar_queue_id)(void);
+static ddog_SidecarTransport *nullable *nonnull (
+    *nullable _ddtrace_get_sidecar_transport)(void);
 static zend_object *(*nullable _ddtrace_get_root_span)(void);
 static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
 static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
@@ -61,6 +69,11 @@ static struct telemetry_rc_info (*_ddtrace_get_telemetry_rc_info)(void);
 static void *(*nullable _ddtrace_emit_asm_event)(void);
 static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
+static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
+    ddog_SidecarTransport *nonnull *nonnull transport,
+    ddog_CharSlice session_id, uint64_t client_id, ddog_CharSlice data);
+static void (*nullable _ddog_sidecar_appsec_response_drop)(
+    ddog_AppsecCResponse response);
 
 static void _test_ddtrace_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
@@ -93,6 +106,8 @@ static void dd_trace_load_symbols(zend_module_entry *module)
     ASSIGN_DLSYM(
         _ddtrace_get_formatted_session_id, "ddtrace_get_formatted_session_id");
     ASSIGN_DLSYM(_ddtrace_get_sidecar_queue_id, "ddtrace_get_sidecar_queue_id");
+    ASSIGN_DLSYM(
+        _ddtrace_get_sidecar_transport, "ddtrace_get_sidecar_transport");
     ASSIGN_DLSYM(_ddtrace_set_priority_sampling_on_span_zobj,
         "ddtrace_set_priority_sampling_on_span_zobj");
     ASSIGN_DLSYM(_ddtrace_get_priority_sampling_on_span_zobj,
@@ -110,6 +125,10 @@ static void dd_trace_load_symbols(zend_module_entry *module)
     ASSIGN_DLSYM(_ddtrace_emit_asm_event, "ddtrace_emit_asm_event");
     ASSIGN_DLSYM(
         _ddtrace_guess_endpoint_from_url, "ddtrace_guess_endpoint_from_url");
+    ASSIGN_DLSYM(
+        _ddog_sidecar_send_appsec_message, "ddog_sidecar_send_appsec_message");
+    ASSIGN_DLSYM(_ddog_sidecar_appsec_response_drop,
+        "ddog_sidecar_appsec_response_drop");
 }
 
 void dd_trace_startup(void)
@@ -130,20 +149,25 @@ void dd_trace_startup(void)
     if (mod == NULL) {
         mlog(dd_log_debug, "Cannot find ddtrace extension");
         _ddtrace_loaded = false;
-        return;
+    } else {
+        _ddtrace_loaded = true;
+        _mod_type = mod->type;
+        _mod_number = mod->module_number;
+        _mod_version = mod->version;
+
+        dd_trace_load_symbols(mod);
+
+        if (get_global_DD_APPSEC_TESTING()) {
+            _orig_ddtrace_shutdown = mod->request_shutdown_func;
+            mod->request_shutdown_func = _ddtrace_rshutdown_testing;
+        }
     }
 
-    _ddtrace_loaded = true;
-    _mod_type = mod->type;
-    _mod_number = mod->module_number;
-    _mod_version = mod->version;
-
-    dd_trace_load_symbols(mod);
-
+#ifdef TESTING
     if (get_global_DD_APPSEC_TESTING()) {
-        _orig_ddtrace_shutdown = mod->request_shutdown_func;
-        mod->request_shutdown_func = _ddtrace_rshutdown_testing;
+        dd_testing_setup_mock_transport();
     }
+#endif
 }
 
 void dd_trace_rinit(void) { _asm_event_emitted = false; }
@@ -362,6 +386,64 @@ uint64_t dd_trace_get_sidecar_queue_id(void)
         return 0;
     }
     return _ddtrace_get_sidecar_queue_id();
+}
+
+ddog_AppsecCResponse dd_trace_send_appsec_message(
+    uint64_t client_id, const uint8_t *nonnull request, size_t request_len)
+{
+#ifdef TESTING
+    if (dd_testing_send_active) {
+        ddog_CharSlice data = {
+            .ptr = (const char *)request,
+            .len = request_len,
+        };
+        return dd_testing_mock_send_appsec_message(
+            (ddog_CharSlice){0}, client_id, data);
+    }
+#endif
+
+    if (!_ddtrace_get_sidecar_transport || !_ddog_sidecar_send_appsec_message ||
+        !_ddog_sidecar_appsec_response_drop) {
+        mlog_once(dd_log_error,
+            "Could not communicate with the helper. Some symbols are missing");
+        return (ddog_AppsecCResponse){0};
+    }
+
+    ddog_SidecarTransport *nullable sidecar = *_ddtrace_get_sidecar_transport();
+
+    if (sidecar == NULL) {
+        mlog_once(dd_log_warning,
+            "Could not communicate with the helper. Sidecar is not connected");
+        return (ddog_AppsecCResponse){0};
+    }
+
+    const uint8_t *session_id = dd_trace_get_formatted_session_id();
+    enum { SESSION_ID_LENGTH = 36 };
+    ddog_CharSlice session_id_slice = {
+        .ptr = session_id ? (const char *)session_id : "",
+        .len = session_id ? SESSION_ID_LENGTH : 0,
+    };
+    ddog_CharSlice request_slice = {
+        .ptr = (const char *)request,
+        .len = request_len,
+    };
+
+    return _ddog_sidecar_send_appsec_message(
+        &sidecar, session_id_slice, client_id, request_slice);
+}
+
+void dd_trace_free_appsec_message_response(ddog_AppsecCResponse response)
+{
+    if (response.ptr == NULL) {
+        return;
+    }
+#ifdef TESTING
+    if (dd_testing_send_active) {
+        free(response.ptr);
+        return;
+    }
+#endif
+    _ddog_sidecar_appsec_response_drop(response);
 }
 
 void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,

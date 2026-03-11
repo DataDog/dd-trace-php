@@ -13,13 +13,6 @@ This project is a Rust rewrite of the Datadog AppSec helper for PHP, which provi
 
 ## Related Code
 
-- **C++ helper (original)**: `../src/helper/`
-  - Reference implementation for all features
-  - Telemetry definitions: `../src/helper/telemetry.hpp`, `tags.hpp`, `metrics.hpp`
-  - Remote config: `../src/helper/remote_config/`
-  - WAF integration: `../src/helper/subscriber/waf.cpp`
-  - Protocol: `../src/helper/network/proto.hpp`
-
 - **PHP extension**: `../src/extension` (integration point)
 
 - **libddwaf Rust bindings**: `../third_party/libddwaf-rust/` (path dependency)
@@ -108,11 +101,9 @@ The helper-rust is built via Gradle for integration testing. From `tests/integra
 Integration tests run via Gradle from `tests/integration/`:
 
 ```bash
-./gradlew :test8.3-debug -PuseHelperRust --info \
+./gradlew :test8.3-debug --info \
     --tests "com.datadog.appsec.php.integration.Apache2FpmTests.test sampling priority"
 ```
-
-(if omitting -PuseHelperRust, the C++ helper implementation will be used)
 
 Logs for the helper are available at `tests/integration/build/test-logs/{helper,appsec}.log`
 
@@ -123,10 +114,10 @@ Logs for the helper are available at `tests/integration/build/test-logs/{helper,
 The helper-rust binary is built to work universally on both platforms. Example:
 ```bash
 # Test on glibc
-./gradlew test8.3-debug --tests "*NginxFpmTests*" -PuseHelperRust
+./gradlew test8.3-debug --tests "*NginxFpmTests*"
 
 # Test on musl
-./gradlew test8.5-release-musl --tests "*NginxFpmTests*" -PuseHelperRust
+./gradlew test8.5-release-musl --tests "*NginxFpmTests*"
 ```
 
 ### Test Targets by PHP Version/Variant
@@ -253,20 +244,10 @@ Scenario groups (run all scenarios in a group):
 - `REMOTE_CONFIG_SCENARIOS` - Remote configuration tests
 - `ESSENTIALS_SCENARIOS` - Essential/core tests
 
-### Verifying Which Helper is Running
+### Verifying Helper is Running
 
-After running a test, check `logs_<scenario>/docker/weblog/logs/helper.log` to determine which helper was used:
+After running a test, check `logs_<scenario>/docker/weblog/logs/helper.log` for helper log messages:
 
-**C++ helper** log messages:
-```
-[timestamp][info][pid] Sending log messages to binding, min level info
-[timestamp][info][pid] Started listening on abstract socket: @/ddappsec/...
-[timestamp][info][pid] starting runner on new thread
-[timestamp][info][pid] Runner running
-[timestamp][info][pid] DDAS-0014-00: AppSec has started
-```
-
-**Rust helper** log messages:
 ```
 2026-01-15T19:41:20.269325053Z [INFO] AppSec helper starting
 2026-01-15T19:41:20.269907428Z [INFO] Configuration: Config { socket_path: ...
@@ -274,10 +255,6 @@ After running a test, check `logs_<scenario>/docker/weblog/logs/helper.log` to d
 2026-01-15T19:41:20.277760178Z [INFO] Starting server on socket: ...
 2026-01-15T19:41:20.277871261Z [INFO] Listening for connections
 ```
-
-Key differences:
-- C++ uses `[timestamp][level][pid]` format and messages like "Runner running", "starting runner on new thread"
-- Rust uses `ISO8601_TIMESTAMP [LEVEL]` format and messages like "AppSec helper starting", "Listening for connections"
 
 ## GitLab CI
 
@@ -305,13 +282,13 @@ The appsec child pipeline (generated from `generate-appsec.php`) includes these 
 | `helper-rust build and test` | Builds helper-rust and runs `cargo test` + format check |
 | `helper-rust code coverage` | Runs unit tests with coverage, uploads to codecov |
 | `helper-rust integration coverage` | Runs integration tests with coverage-instrumented binary |
-| `appsec integration tests (helper-rust)` | Integration tests using the Rust helper (PHP 7.4, 8.1, 8.3, 8.4-zts) |
+| `appsec integration tests` | Integration tests across all PHP versions |
 
 ### Checking Pipeline Status
 
 The appsec child pipeline IID can be found in the parent pipeline's downstream pipelines. Key jobs to monitor:
 - Jobs with `helper-rust` in the name for Rust-specific CI
-- Jobs with `(helper-rust)` suffix run integration tests with the Rust implementation
+- `appsec integration tests` for integration tests across all PHP versions
 
 ### Reading Job Logs
 

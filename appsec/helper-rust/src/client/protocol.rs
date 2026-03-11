@@ -22,6 +22,7 @@ pub enum Command {
     RequestInit(Box<RequestInitArgs>),
     RequestExec(Box<RequestExecArgs>),
     RequestShutdown(Box<RequestShutdownArgs>),
+    ClientShutdown(Box<ClientShutdownArgs>),
 }
 
 #[derive(Debug)]
@@ -33,6 +34,20 @@ pub enum CommandResponse<'a> {
     RequestInit(RequestInitResp<'a>),
     RequestExec(RequestExecResp),
     RequestShutdown(RequestShutdownResp),
+    ClientShutdown,
+}
+
+/// Outer tuple matches the `num_args = 1` array wrapper from commands_helpers.c.
+#[derive(Debug, Deserialize_tuple)]
+pub struct ClientShutdownArgs {
+    pub inner: ClientShutdownArgsInner,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ClientShutdownArgsInner {
+    pub clean: bool,
+    #[serde(default)]
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Deserialize_tuple)]
@@ -127,6 +142,7 @@ impl RemoteConfigSettings {
 pub struct ClientInitResp {
     pub status: String,
     pub version: &'static str,
+    pub client_id: u64,
     pub errors: Vec<String>,
     pub meta: HashMap<String, String>,
     pub metrics: HashMap<String, f64>,
@@ -299,6 +315,12 @@ impl<'de> Deserialize<'de> for Command {
                         })?;
                         Ok(Command::RequestShutdown(Box::new(args)))
                     }
+                    "client_shutdown" => {
+                        let args: ClientShutdownArgs = seq.next_element()?.ok_or_else(|| {
+                            serde::de::Error::custom("Missing arguments for ClientShutdown")
+                        })?;
+                        Ok(Command::ClientShutdown(Box::new(args)))
+                    }
                     v => Err(serde::de::Error::custom(format!(
                         "Got unknown command name {}",
                         v
@@ -446,6 +468,11 @@ impl Serialize for CommandResponse<'_> {
                 state.serialize_element(resp)?;
                 state.end()
             }
+            CommandResponse::ClientShutdown => {
+                state.serialize_element("client_shutdown")?;
+                state.serialize_element(&())?;
+                state.end()
+            }
         }
     }
 }
@@ -550,6 +577,7 @@ mod tests {
         let resp = CommandResponse::ClientInit(ClientInitResp {
             status: "ok".to_string(),
             version: "1.0.0",
+            client_id: 12345,
             errors: vec![],
             meta: HashMap::new(),
             metrics: HashMap::new(),

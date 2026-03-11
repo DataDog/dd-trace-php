@@ -1,9 +1,9 @@
-set(_LLVM19_FORMAT /opt/homebrew/opt/llvm@19/bin/clang-format)
-if(EXISTS ${_LLVM19_FORMAT})
-    set(CLANG_FORMAT ${_LLVM19_FORMAT})
-    message(STATUS "Using Homebrew LLVM 19 clang-format: ${CLANG_FORMAT}")
+set(_LLVM17_FORMAT /opt/homebrew/opt/llvm@17/bin/clang-format)
+if(EXISTS ${_LLVM17_FORMAT})
+    set(CLANG_FORMAT ${_LLVM17_FORMAT})
+    message(STATUS "Using Homebrew LLVM 17 clang-format: ${CLANG_FORMAT}")
 else()
-    find_program(_CF_VERSIONED clang-format-19)
+    find_program(_CF_VERSIONED clang-format-17)
     if(NOT _CF_VERSIONED STREQUAL _CF_VERSIONED-NOTFOUND)
         set(CLANG_FORMAT ${_CF_VERSIONED})
     else()
@@ -14,7 +14,7 @@ else()
                 OUTPUT_VARIABLE _CF_VERSION
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 ERROR_QUIET)
-            if(_CF_VERSION MATCHES " 19\\.")
+            if(_CF_VERSION MATCHES " 17\\.")
                 set(CLANG_FORMAT ${_CF_UNVERSIONED})
             endif()
         endif()
@@ -22,7 +22,7 @@ else()
     if(NOT CLANG_FORMAT)
         set(CLANG_FORMAT ${CMAKE_CURRENT_LIST_DIR}/clang-tools/clang-format)
         if(NOT EXISTS ${CLANG_FORMAT})
-            message(STATUS "Cannot find clang-format version 19, either set CLANG_FORMAT or make it discoverable")
+            message(STATUS "Cannot find clang-format version 17, either set CLANG_FORMAT or make it discoverable")
             return()
         endif()
         message(STATUS "Using Docker-based clang-format wrapper: ${CLANG_FORMAT}")
@@ -31,13 +31,8 @@ endif()
 
 set(FILE_LIST "")
 
-if(DD_APPSEC_BUILD_HELPER)
-    file(GLOB_RECURSE HELPER_FILES ${HELPER_SOURCE_DIR}/*.*pp tests/helper/**.cpp tests/helper/**.hpp)
-    list(APPEND FILE_LIST ${HELPER_FILES})
-endif()
-
 if(DD_APPSEC_BUILD_EXTENSION)
-    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp tests/helper/*.h tests/bench_helper/*.cc)
+    file(GLOB_RECURSE EXTENSION_FILES ${EXT_SOURCE_DIR}/*.c ${EXT_SOURCE_DIR}/*.cpp)
     list(APPEND FILE_LIST ${EXTENSION_FILES})
 endif()
 
@@ -64,9 +59,9 @@ add_custom_target(format_fix_chg
 
 if(DD_APPSEC_BUILD_HELPER)
     add_custom_command(TARGET format POST_BUILD
-        COMMAND cargo fmt --check
+        COMMAND ${CARGO_EXECUTABLE} fmt --check
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
     add_custom_command(TARGET format_fix POST_BUILD
-        COMMAND cargo fmt
+        COMMAND ${CARGO_EXECUTABLE} fmt
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
 endif()

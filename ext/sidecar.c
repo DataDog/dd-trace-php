@@ -100,6 +100,10 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
     return DDTRACE_G(sidecar_queue_id);
 }
 
+DDTRACE_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
+    return &DDTRACE_G(sidecar);
+}
+
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};
     ddog_CharSlice root_session_id = ddtrace_is_empty_session_id(ddtrace_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_root_session_id, .len = sizeof(ddtrace_formatted_root_session_id)};

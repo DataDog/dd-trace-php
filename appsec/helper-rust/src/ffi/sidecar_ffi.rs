@@ -71,6 +71,27 @@ pub const ddog_LogLevel_DDOG_LOG_LEVEL_ERROR: ddog_LogLevel = 0;
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_WARN: ddog_LogLevel = 1;
 pub const ddog_LogLevel_DDOG_LOG_LEVEL_DEBUG: ddog_LogLevel = 2;
 pub type ddog_LogLevel = ::core::ffi::c_uint;
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct ddog_AppsecCResponse {
+    pub ptr: *mut u8,
+    pub len: usize,
+    pub capacity: usize,
+    pub disconnect: bool,
+}
+pub type ddog_OnMessageFn = ::core::option::Option<
+    unsafe extern "C" fn(
+        arg1: *const ::core::ffi::c_char,
+        arg2: usize,
+        arg3: u64,
+        arg4: *const u8,
+        arg5: usize,
+    ) -> ddog_AppsecCResponse,
+>;
+pub type ddog_OnDisconnectFn =
+    ::core::option::Option<unsafe extern "C" fn(arg1: *const ::core::ffi::c_char, arg2: usize)>;
+pub type ddog_FreeResponseFn =
+    ::core::option::Option<unsafe extern "C" fn(arg1: *mut u8, arg2: usize, arg3: usize)>;
 unsafe extern "C" {
     pub fn ddog_Error_drop(error: *mut ddog_Error);
 }
@@ -124,4 +145,22 @@ unsafe extern "C" {
         metric_type: ddog_MetricType,
         metric_namespace: ddog_MetricNamespace,
     ) -> ddog_MaybeError;
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_send_appsec_message(
+        transport: *mut *mut ddog_SidecarTransport,
+        session_id: ddog_CharSlice,
+        thread_id: u64,
+        data: ddog_CharSlice,
+    ) -> ddog_AppsecCResponse;
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_appsec_response_drop(response: ddog_AppsecCResponse);
+}
+unsafe extern "C" {
+    pub fn ddog_sidecar_appsec_register_message_handler(
+        on_message: ddog_OnMessageFn,
+        on_disconnect: ddog_OnDisconnectFn,
+        free_response: ddog_FreeResponseFn,
+    );
 }

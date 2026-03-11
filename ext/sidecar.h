@@ -29,6 +29,7 @@ extern dd_sidecar_active_mode_t ddtrace_sidecar_active_mode;
 extern int32_t ddtrace_sidecar_master_pid;
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
+DDTRACE_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void);
 struct telemetry_rc_info {
     const char *rc_path;
     zend_string *service_name;

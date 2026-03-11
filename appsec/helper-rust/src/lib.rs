@@ -6,13 +6,11 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::time::{Duration, Instant};
 use tokio::runtime::Runtime;
-use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
 mod client;
 pub mod config;
 mod ffi;
-mod lock;
 mod rc;
 mod rc_notify;
 pub mod server;
@@ -20,13 +18,10 @@ mod service;
 mod telemetry;
 
 use config::Config;
-#[cfg(target_os = "linux")]
-use lock::ensure_abstract_socket_unique;
-use lock::LockFile;
 
 static RUNTIME: AtomicPtr<Runtime> = const { AtomicPtr::new(std::ptr::null_mut()) };
 static CANCEL_TOKEN: AtomicPtr<CancellationToken> = const { AtomicPtr::new(std::ptr::null_mut()) };
-static SERVER_HANDLE: AtomicPtr<JoinHandle<anyhow::Result<()>>> =
+static CLIENT_TASK_SET: AtomicPtr<server::ClientTaskSet> =
     const { AtomicPtr::new(std::ptr::null_mut()) };
 
 /// C API entry point: Initialize and start the AppSec helper
@@ -59,13 +54,6 @@ pub extern "C" fn appsec_helper_main() -> i32 {
 
     log::info!("Configuration: {:?}", config);
 
-    let lock = ensure_uniqueness(&config);
-    if let Err(e) = lock {
-        log::error!("Failed to ensure uniqueness: {}", e);
-        return 1;
-    }
-    let lock = lock.unwrap();
-
     init_waf_logging(&config);
 
     if let Err(e) = rc_notify::resolve_symbols() {
@@ -92,8 +80,12 @@ pub extern "C" fn appsec_helper_main() -> i32 {
 
     let cancel_token = CancellationToken::new();
 
-    // Spawn the server task and store its handle
-    let server_handle = runtime.spawn(server::run_server(config, cancel_token.clone()));
+    let maybe_client_task_set =
+        server::accept_appsec_messages(runtime.handle().clone(), cancel_token.clone());
+    if let Err(e) = maybe_client_task_set {
+        log::error!("Failed to register appsec message handlers: {}", e);
+        return 1;
+    }
 
     // This should never fail, because this method is supposed to be called only once
     // So the value of the atomic pointer is supposed to be null.
@@ -113,17 +105,14 @@ pub extern "C" fn appsec_helper_main() -> i32 {
             Ordering::Relaxed,
         )
         .unwrap();
-    SERVER_HANDLE
+    CLIENT_TASK_SET
         .compare_exchange(
             std::ptr::null_mut(),
-            Box::into_raw(Box::new(server_handle)),
+            Box::into_raw(Box::new(maybe_client_task_set.unwrap())),
             Ordering::Release,
             Ordering::Relaxed,
         )
         .unwrap();
-    if let Some(lock) = lock {
-        std::mem::forget(lock); // don't run the Drop impl
-    }
 
     log::info!("AppSec helper started successfully");
     0 // return immediately - runtime keeps running in background
@@ -155,27 +144,34 @@ pub extern "C" fn appsec_helper_shutdown() -> i32 {
         }
     }
 
+    if let Err(e) = server::stop_accepting_appsec_messages() {
+        log::error!("Failed to stop accepting appsec messages: {}", e);
+        return 1;
+    }
+
     // Wait for server task to complete (with timeout)
     // Poll the server handle to see if it's finished, up to 1 second
-    let server_handle_ptr = SERVER_HANDLE.load(Ordering::Acquire);
-    if server_handle_ptr.is_null() {
-        log::warn!("No server handle in shutdown; initialization failed?");
-        return 0;
-    }
-    let server_handle = unsafe { &*server_handle_ptr };
-    let start = Instant::now();
-    let grace_timeout = Duration::from_millis(1000);
+    let maybe_client_task_set = consume_atomic_ptr(&CLIENT_TASK_SET);
+    match maybe_client_task_set {
+        Some(mut client_task_set) => {
+            let start = Instant::now();
+            let grace_timeout = Duration::from_millis(1000);
 
-    while start.elapsed() < grace_timeout {
-        if server_handle.is_finished() {
-            log::info!("Server task completed gracefully in {:?}", start.elapsed());
-            break;
+            if !client_task_set.wait_empty(grace_timeout) {
+                log::warn!(
+                    "Could not determine that all tasks completed within grace period of {:?}",
+                    grace_timeout
+                );
+            } else {
+                log::info!(
+                    "All client tasks completed gracefully in {:?}",
+                    start.elapsed()
+                );
+            }
         }
-        std::thread::sleep(Duration::from_millis(10));
-    }
-
-    if !server_handle.is_finished() {
-        log::warn!("Server task did not complete within grace period");
+        None => {
+            log::warn!("No client task set in shutdown; initialization failed?");
+        }
     }
 
     let runtime = consume_atomic_ptr(&RUNTIME).expect("Runtime should be present");
@@ -184,28 +180,6 @@ pub extern "C" fn appsec_helper_shutdown() -> i32 {
 
     log::info!("AppSec helper shutdown complete");
     0
-}
-
-fn ensure_uniqueness(config: &Config) -> anyhow::Result<Option<LockFile>> {
-    if config.is_abstract_socket() {
-        #[cfg(target_os = "linux")]
-        if let Err(e) = ensure_abstract_socket_unique(&config.socket_path) {
-            anyhow::bail!("Failed to ensure uniqueness: {}", e);
-        } else {
-            Ok(None)
-        }
-        #[cfg(not(target_os = "linux"))]
-        {
-            anyhow::bail!("Abstract namespace sockets are only supported on Linux");
-        }
-    } else {
-        match LockFile::acquire(config.lock_path.clone()) {
-            Ok(lock) => Ok(Some(lock)),
-            Err(e) => {
-                anyhow::bail!("Failed to acquire lock: {}", e);
-            }
-        }
-    }
 }
 
 fn init_logging(log_level: &log::Level, log_file_path: &Option<PathBuf>) -> anyhow::Result<()> {

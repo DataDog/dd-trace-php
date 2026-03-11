@@ -22,7 +22,7 @@ cargo +nightly-"$RUST_TARGET" build \
     --target "$RUST_TARGET"
 
 # Remove musl libc dependency using patchelf (makes binary work on both musl and glibc)
-BINARY_PATH="/tmp/cargo-target/$RUST_TARGET/release/libddappsec_helper_rust.so"
+BINARY_PATH="/tmp/cargo-target/$RUST_TARGET/release/libddappsec_helper.so"
 ARCH=$(uname -m)
 if [ "$ARCH" = "x86_64" ]; then
     patchelf --remove-needed libc.musl-x86_64.so.1 "$BINARY_PATH" 2>/dev/null || true
@@ -31,7 +31,8 @@ elif [ "$ARCH" = "aarch64" ]; then
 fi
 
 # Copy to output
-cp -v "$BINARY_PATH" "../../appsec_$(uname -m)/libddappsec-helper-rust.so"
+cp -v "$BINARY_PATH" "../../appsec_$(uname -m)/libddappsec-helper.so"
+cp -v ../recommended.json "../../appsec_$(uname -m)/"
 
 # Run tests
 cargo +nightly-"$RUST_TARGET" test \

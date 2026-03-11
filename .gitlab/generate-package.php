@@ -283,24 +283,6 @@ if ($suffix == "-alpine") {
 }
 ?>
 
-"compile appsec helper":
-  stage: appsec
-  image: "registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain"
-  tags: [ "arch:$ARCH" ]
-  needs: [ "prepare code" ]
-  parallel:
-    matrix:
-      - ARCH: ["amd64", "arm64" ]
-  variables:
-    MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
-  script: .gitlab/build-appsec-helper.sh
-  artifacts:
-    paths:
-      - "appsec_*"
-
 "compile appsec helper rust":
   stage: appsec
   image: "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
@@ -631,13 +613,6 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-    # Compile appsec helper (C++)
-    - job: "compile appsec helper"
-      parallel:
-        matrix:
-          - ARCH: "<?= $platform['arch'] ?>"
-      artifacts: true
-
     # Compile appsec helper (Rust)
     - job: "compile appsec helper rust"
       parallel:
@@ -709,11 +684,6 @@ foreach ($asan_build_platforms as $platform) {
     - mv build/packages/ packages/
   needs:
     - job: "prepare code"
-      artifacts: true
-    - job: "compile appsec helper"
-      parallel:
-        matrix:
-          - ARCH: "<?= $arch ?>"
       artifacts: true
     - job: "compile appsec helper rust"
       parallel:

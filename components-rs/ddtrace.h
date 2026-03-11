@@ -185,8 +185,6 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                uint64_t timestamp);
 
 void ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
-                                ddog_CharSlice socket_file_path,
-                                ddog_CharSlice lock_file_path,
                                 ddog_CharSlice log_file_path,
                                 ddog_CharSlice log_level);
 
