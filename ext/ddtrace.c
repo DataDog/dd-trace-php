@@ -3025,21 +3025,24 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             zval *targeting_key_zv = ZVAL_VARARG_PARAM(params, 2);
             zval *attrs_zv = ZVAL_VARARG_PARAM(params, 3);
             if (Z_TYPE_P(flag_key_zv) == IS_STRING) {
-                int32_t type_id = (int32_t)zval_get_long(type_zv);
+                /* Declare all variables at top of block for C89/MSVC compatibility */
+                int32_t type_id;
                 const char *targeting_key = NULL;
+                struct FfeAttribute *c_attrs = NULL;
+                size_t attrs_count = 0;
+                struct FfeResult *result;
+                type_id = (int32_t)zval_get_long(type_zv);
                 if (Z_TYPE_P(targeting_key_zv) == IS_STRING && Z_STRLEN_P(targeting_key_zv) > 0) {
                     targeting_key = Z_STRVAL_P(targeting_key_zv);
                 }
-                struct FfeAttribute *c_attrs = NULL;
-                size_t attrs_count = 0;
                 if (Z_TYPE_P(attrs_zv) == IS_ARRAY) {
                     HashTable *ht = Z_ARRVAL_P(attrs_zv);
                     attrs_count = zend_hash_num_elements(ht);
                     if (attrs_count > 0) {
-                        c_attrs = ecalloc(attrs_count, sizeof(struct FfeAttribute));
                         size_t idx = 0;
                         zend_string *key;
                         zval *val;
+                        c_attrs = ecalloc(attrs_count, sizeof(struct FfeAttribute));
                         ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, val) {
                             if (!key || idx >= attrs_count) { continue; }
                             c_attrs[idx].key = ZSTR_VAL(key);
@@ -3072,16 +3075,19 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                         attrs_count = idx;
                     }
                 }
-                struct FfeResult *result = ddog_ffe_evaluate(
+                result = ddog_ffe_evaluate(
                     Z_STRVAL_P(flag_key_zv), type_id, targeting_key, c_attrs, attrs_count);
                 if (c_attrs) {
                     efree(c_attrs);
                 }
                 if (result) {
+                    const char *val;
+                    const char *var;
+                    const char *ak;
                     array_init(return_value);
-                    const char *val = ddog_ffe_result_value(result);
-                    const char *var = ddog_ffe_result_variant(result);
-                    const char *ak = ddog_ffe_result_allocation_key(result);
+                    val = ddog_ffe_result_value(result);
+                    var = ddog_ffe_result_variant(result);
+                    ak = ddog_ffe_result_allocation_key(result);
                     if (val) { add_assoc_string(return_value, "value_json", (char *)val); }
                     else { add_assoc_null(return_value, "value_json"); }
                     if (var) { add_assoc_string(return_value, "variant", (char *)var); }
