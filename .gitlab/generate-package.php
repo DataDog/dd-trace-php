@@ -506,6 +506,12 @@ foreach ($windows_build_platforms as $platform) {
     GIT_STRATEGY: none
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
+    # Force-remove all running Docker containers before touching the workspace.
+    # A container from a previous job run may still be alive with the workspace volume mounted,
+    # holding an open handle on php_ddtrace.dll — which makes rd /s /q fail with "Access is denied".
+    $containers = docker ps -aq 2>$null
+    if ($containers) { docker rm -f $containers 2>$null }
+
     # Reliable workspace cleanup: navigate to parent and use cmd.exe "rd /s /q" on the whole
     # workspace directory. cmd.exe rd correctly handles Windows junction points (removes the
     # junction entry without following it into its target), unlike PowerShell's Remove-Item
