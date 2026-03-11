@@ -44,4 +44,5 @@ return [
     __DIR__ . '/../DDTrace/FeatureFlags/ExposureCache.php',
     __DIR__ . '/../DDTrace/FeatureFlags/ExposureWriter.php',
     __DIR__ . '/../DDTrace/FeatureFlags/Provider.php',
+    __DIR__ . '/../DDTrace/FeatureFlags/FlagEvalMetrics.php',
 ];

@@ -134,14 +134,18 @@ class Provider
     public function evaluate($flagKey, $variationType, $defaultValue, $targetingKey, $attributes = [])
     {
         if (!$this->enabled) {
-            return ['value' => $defaultValue, 'reason' => 'DISABLED', 'variant' => null, 'allocation_key' => null];
+            $result = ['value' => $defaultValue, 'reason' => 'DISABLED', 'variant' => null, 'allocation_key' => null];
+            FlagEvalMetrics::record($flagKey, $result);
+            return $result;
         }
 
         // Ensure native config is loaded
         $this->checkNativeConfig();
 
         if (!$this->configLoaded) {
-            return ['value' => $defaultValue, 'reason' => 'DEFAULT', 'variant' => null, 'allocation_key' => null];
+            $result = ['value' => $defaultValue, 'reason' => 'DEFAULT', 'variant' => null, 'allocation_key' => null];
+            FlagEvalMetrics::record($flagKey, $result);
+            return $result;
         }
 
         $typeId = isset(self::$TYPE_MAP[$variationType]) ? self::$TYPE_MAP[$variationType] : 0;
@@ -151,7 +155,9 @@ class Provider
             $targetingKey, is_array($attributes) ? $attributes : []);
 
         if ($result === null) {
-            return ['value' => $defaultValue, 'reason' => 'DEFAULT', 'variant' => null, 'allocation_key' => null];
+            $evalResult = ['value' => $defaultValue, 'reason' => 'DEFAULT', 'variant' => null, 'allocation_key' => null];
+            FlagEvalMetrics::record($flagKey, $evalResult);
+            return $evalResult;
         }
 
         $errorCode = isset($result['error_code']) ? (int)$result['error_code'] : 0;
@@ -160,7 +166,10 @@ class Provider
 
         // Error or no variant → return default
         if ($errorCode !== 0 || $result['variant'] === null) {
-            return ['value' => $defaultValue, 'reason' => $reasonStr, 'variant' => null, 'allocation_key' => null];
+            $evalResult = ['value' => $defaultValue, 'reason' => $reasonStr, 'variant' => null, 'allocation_key' => null,
+                'error_code' => $errorCode];
+            FlagEvalMetrics::record($flagKey, $evalResult);
+            return $evalResult;
         }
 
         // Parse the value from JSON
@@ -178,12 +187,17 @@ class Provider
             );
         }
 
-        return [
+        $evalResult = [
             'value' => $value,
             'reason' => $reasonStr,
             'variant' => $result['variant'],
             'allocation_key' => $result['allocation_key'],
         ];
+
+        // Record OTel evaluation metric (noop if DD_METRICS_OTEL_ENABLED is not set)
+        FlagEvalMetrics::record($flagKey, $evalResult);
+
+        return $evalResult;
     }
 
     /**
