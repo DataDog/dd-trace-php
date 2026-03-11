@@ -15,7 +15,10 @@ mod string_set;
 #[macro_use]
 mod allocation;
 
-#[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
+#[cfg(all(
+    feature = "io_profiling",
+    any(target_os = "linux", target_os = "macos")
+))]
 mod io;
 
 mod exception;
@@ -673,7 +676,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
         exception::exception_profiling_first_rinit();
 
-        #[cfg(all(feature = "io_profiling", any(target_os = "linux", target_os = "macos")))]
+        #[cfg(all(
+            feature = "io_profiling",
+            any(target_os = "linux", target_os = "macos")
+        ))]
         io::io_prof_first_rinit();
 
         allocation::first_rinit(system_settings);

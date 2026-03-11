@@ -70,7 +70,11 @@ static mut ORIG_POLL: unsafe extern "C" fn(*mut libc::pollfd, libc::nfds_t, c_in
 /// The `nfds` argument is usually 1, in case of a `curl_multi_exec()` call it is >= 1 and exactly
 /// the number of concurrent requests. In rare cases the `nfds` argument is 0 and fds a
 /// NULL-pointer. This is basically and "old trick" to ms precision sleep() and currently ignored.
-unsafe extern "C" fn observed_poll(fds: *mut libc::pollfd, nfds: libc::nfds_t, timeout: c_int) -> i32 {
+unsafe extern "C" fn observed_poll(
+    fds: *mut libc::pollfd,
+    nfds: libc::nfds_t,
+    timeout: c_int,
+) -> i32 {
     let start = Instant::now();
     let ret = ORIG_POLL(fds, nfds, timeout);
     let _errno_backup = ErrnoBackup::new();
