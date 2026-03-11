@@ -69,6 +69,12 @@ static void dd_update_knuth_sampling_rate_tag(ddtrace_root_span_data *root_span,
     char buf[32];
     snprintf(buf, sizeof(buf), "%.6g", sample_rate);
 
+    // Skip update if already set to the same value
+    zval *existing = zend_hash_str_find(meta, ZEND_STRL("_dd.p.ksr"));
+    if (existing && Z_TYPE_P(existing) == IS_STRING && strcmp(Z_STRVAL_P(existing), buf) == 0) {
+        return;
+    }
+
     zval ksr;
     ZVAL_STRING(&ksr, buf);
     zend_hash_str_update(meta, ZEND_STRL("_dd.p.ksr"), &ksr);
