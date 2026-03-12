@@ -230,6 +230,24 @@ stages:
       echo "Uploading helper coverage to codecov"
       cd "$CI_PROJECT_DIR"
       codecov -t "$CODECOV_TOKEN" -n appsec-helper -v -f appsec/build/coverage-helper.lcov
+    - |
+      echo "Uploading coverage to Datadog"
+      cd "$CI_PROJECT_DIR"
+
+      DATADOG_API_KEY=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key | jq -r .data.data.key)
+      export DATADOG_API_KEY
+      export DD_SITE="datadoghq.com"
+
+      # Install datadog-ci
+      DATADOG_CI_VERSION="v2.48.0"
+      curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/${DATADOG_CI_VERSION}/datadog-ci_linux-x64" --output "/usr/local/bin/datadog-ci"
+      chmod +x /usr/local/bin/datadog-ci
+
+      echo "Uploading extension coverage to Datadog"
+      datadog-ci coverage upload --format=lcov appsec/build/coverage-ext.lcov || true
+
+      echo "Uploading helper coverage to Datadog"
+      datadog-ci coverage upload --format=lcov appsec/build/coverage-helper.lcov || true
 
 
 "push appsec images":
