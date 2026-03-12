@@ -6,7 +6,7 @@ on:
       - main
   workflow_dispatch: {}
   schedule:
-    - cron:  '00 03 * * 1-5'
+    - cron:  '00 03 * * *'
   pull_request:
 
 jobs:
