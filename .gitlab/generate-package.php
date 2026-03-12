@@ -1086,19 +1086,16 @@ endforeach;
   stage: verify
   tags: [ "windows-v2:2019"]
   variables:
-    GIT_CONFIG_COUNT: 2
-    GIT_CONFIG_KEY_0: core.longpaths
-    GIT_CONFIG_VALUE_0: true
-    GIT_CONFIG_KEY_1: core.symlinks
-    GIT_CONFIG_VALUE_1: true
+    GIT_STRATEGY: none
   needs:
     - job: "package extension windows"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  before_script:
-    - mkdir build
-    - move packages build
+  before_script: |
+<?php windows_git_setup_with_packages() ?>
+    mkdir build
+    move packages build
   script:
     - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
     - .\dockerfiles\verify_packages\verify_windows.ps1

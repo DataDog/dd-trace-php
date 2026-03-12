@@ -88,6 +88,17 @@ function windows_git_setup() {
 <?php
 }
 
+function windows_git_setup_with_packages() {
+?>
+    # Preserve artifact packages before workspace cleanup, then restore after clone.
+    Move-Item packages $env:TEMP\dd-artifacts-packages -Force -ErrorAction SilentlyContinue
+<?php windows_git_setup() ?>
+    if (Test-Path "$env:TEMP\dd-artifacts-packages") {
+        Move-Item $env:TEMP\dd-artifacts-packages packages -Force
+    }
+<?php
+}
+
 ?>
 default:
   retry:
