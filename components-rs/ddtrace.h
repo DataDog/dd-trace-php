@@ -115,7 +115,9 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          ddog_CharSlice log_level,
                                          bool enable_telemetry,
                                          void (*on_reconnect)(struct ddog_SidecarTransport*),
-                                         const struct ddog_Endpoint *crashtracker_endpoint);
+                                         const struct ddog_Endpoint *crashtracker_endpoint,
+                                         uint64_t backpressure_bytes,
+                                         uint64_t backpressure_queue);
 
 void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));

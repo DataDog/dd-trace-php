@@ -208,7 +208,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     }
 
     ddog_SidecarTransport *sidecar_transport;
-    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect, ddtrace_endpoint))) {
+    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect, ddtrace_endpoint, (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_BYTES(), (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE()))) {
         dd_free_endpoints();
         return NULL;
     }
