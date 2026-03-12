@@ -184,6 +184,8 @@ fi
 echo "Found JUnit files to upload:"
 echo "${junit_files}"
 
+mapfile -t files_array <<< "${junit_files}"
+
 echo "Add final_status property"
 for xml_file in "${files_array[@]}"; do
     echo "Fixing $xml_file"
@@ -191,8 +193,6 @@ for xml_file in "${files_array[@]}"; do
     xsltproc --output "$tmp_file" ".gitlab/add_final_status.xsl" "$xml_file"
     mv "$tmp_file" "$xml_file"
 done
-
-mapfile -t files_array <<< "${junit_files}"
 
 # Normalize absolute paths to relative paths in JUnit XML files
 echo "Normalizing file paths in JUnit XML files..."
