@@ -8,8 +8,10 @@
       "number": 1
     },
     "result": {
-      "value": 1
-    }
+      "value": 1,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "number=1 (int). Engine coerces to string '1' for ONE_OF. '1' ONE_OF ['1'] → matches. Variation 1 returned."
   },
   {
     "flag": "numeric-one-of",
@@ -20,8 +22,10 @@
       "number": 2
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "number=2. '2' is not in '1-for-1' list, not in '123456789' list, and satisfies NOT_ONE_OF ['2']? Actually result=0 implies no allocation fires. NOT_ONE_OF ['2'] for '2' is not satisfied → falls through → default 0."
   },
   {
     "flag": "numeric-one-of",
@@ -32,8 +36,10 @@
       "number": 3
     },
     "result": {
-      "value": 3
-    }
+      "value": 3,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "number=3. '3' not in ['1'] or ['123456789']. NOT_ONE_OF ['2']: '3' not in ['2'] → satisfied → variation 3."
   },
   {
     "flag": "numeric-one-of",
@@ -44,8 +50,10 @@
       "number": 4
     },
     "result": {
-      "value": 3
-    }
+      "value": 3,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "number=4. Same as 3 — NOT_ONE_OF ['2']: '4' not in ['2'] → satisfied → variation 3."
   },
   {
     "flag": "numeric-one-of",
@@ -56,8 +64,10 @@
       "number": "1"
     },
     "result": {
-      "value": 1
-    }
+      "value": 1,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "number='1' (string). Engine converts to string for ONE_OF comparison; '1' ONE_OF ['1'] → matches → variation 1. Verifies string attribute value matches numeric ONE_OF list."
   },
   {
     "flag": "numeric-one-of",
@@ -68,8 +78,10 @@
       "number": 1
     },
     "result": {
-      "value": 1
-    }
+      "value": 1,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "number=1 (int, same as alice). Same result: variation 1. Confirms consistent hashing is not involved — purely rule-based."
   },
   {
     "flag": "numeric-one-of",
@@ -80,7 +92,9 @@
       "number": 123456789
     },
     "result": {
-      "value": 2
-    }
+      "value": 2,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "number=123456789. '123456789' ONE_OF ['123456789'] → matches. Variation 2 returned."
   }
 ]

@@ -8,8 +8,10 @@
       "plan_tier": "free"
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "plan_tier=free matches the 'free-tier-limit' allocation rule. The assigned variation value is 0 (integer). This verifies that a falsy value (0) is correctly returned rather than being confused with a missing allocation."
   },
   {
     "flag": "falsy-value-assignments",
@@ -20,8 +22,10 @@
       "plan_tier": "premium"
     },
     "result": {
-      "value": 100
-    }
+      "value": 100,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "plan_tier=premium matches the 'premium-tier-limit' allocation rule. Assigned value is 100."
   },
   {
     "flag": "falsy-value-assignments",
@@ -32,7 +36,9 @@
       "plan_tier": "trial"
     },
     "result": {
-      "value": 999
-    }
+      "value": 999,
+      "reason": "DEFAULT"
+    },
+    "rationale": "plan_tier=trial matches no allocation. Engine returns DefaultAllocationNull; Provider returns the caller's defaultValue (999)."
   }
 ]

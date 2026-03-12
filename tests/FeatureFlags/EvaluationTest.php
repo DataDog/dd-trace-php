@@ -123,6 +123,7 @@ final class EvaluationTest extends BaseTestCase
         $attributes = isset($case['attributes']) ? self::buildAttributes($case['attributes']) : [];
         $defaultValue = isset($case['defaultValue']) ? $case['defaultValue'] : null;
         $expectedValue = $case['result']['value'];
+        $expectedReason = isset($case['result']['reason']) ? $case['result']['reason'] : null;
 
         // Skip test cases that reference flags not present in the UFC config
         // AND expect a non-default result (these require a different config).
@@ -142,22 +143,58 @@ final class EvaluationTest extends BaseTestCase
         $this->assertArrayHasKey('value_json', $result);
 
         $errorCode = isset($result['error_code']) ? (int) $result['error_code'] : 0;
+        $reason = isset($result['reason']) ? (int) $result['reason'] : -1;
+
+        // Reason codes returned by the Rust engine (must match ffe.rs constants):
+        //   0=STATIC, 1=DEFAULT, 2=TARGETING_MATCH, 3=SPLIT, 4=DISABLED, 5=ERROR
+        static $REASON_MAP = [
+            0 => 'STATIC',
+            1 => 'DEFAULT',
+            2 => 'TARGETING_MATCH',
+            3 => 'SPLIT',
+            4 => 'DISABLED',
+            5 => 'ERROR',
+        ];
+        $reasonStr = isset($REASON_MAP[$reason]) ? $REASON_MAP[$reason] : 'UNKNOWN';
 
         // When the evaluator returns an error, the Provider layer would return
         // the defaultValue. If the expected result equals the defaultValue,
         // verify the evaluator correctly returned an error (no match).
         if ($errorCode !== 0 && $expectedValue === $defaultValue) {
             // Evaluator correctly could not resolve — Provider returns default.
+            if ($expectedReason !== null) {
+                $this->assertSame(
+                    $expectedReason,
+                    'ERROR',
+                    sprintf('Reason mismatch for %s#%d (flag=%s)', $fileName, $caseIndex, $flagKey)
+                );
+            }
             $this->assertTrue(true);
             return;
         }
 
-        // error_code=0 with reason=1 means DefaultAllocationNull (no matching
-        // allocation). Same Provider-level default behavior applies.
-        $reason = isset($result['reason']) ? (int) $result['reason'] : -1;
+        // error_code=0 with reason=1 (DEFAULT) means DefaultAllocationNull —
+        // no matching allocation. Provider returns the caller's default value.
         if ($errorCode === 0 && $reason === 1 && $expectedValue === $defaultValue) {
+            if ($expectedReason !== null) {
+                $this->assertSame(
+                    $expectedReason,
+                    'DEFAULT',
+                    sprintf('Reason mismatch for %s#%d (flag=%s)', $fileName, $caseIndex, $flagKey)
+                );
+            }
             $this->assertTrue(true);
             return;
+        }
+
+        // Assert reason when the fixture specifies one.
+        if ($expectedReason !== null) {
+            $this->assertSame(
+                $expectedReason,
+                $reasonStr,
+                sprintf('Reason mismatch for %s#%d (flag=%s): expected %s, got %s',
+                    $fileName, $caseIndex, $flagKey, $expectedReason, $reasonStr)
+            );
         }
 
         $actualValue = self::parseValueJson($result['value_json'], $variationType);

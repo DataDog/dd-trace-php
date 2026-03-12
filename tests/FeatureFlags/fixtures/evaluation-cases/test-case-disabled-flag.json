@@ -9,8 +9,10 @@
       "country": "US"
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DISABLED"
+    },
+    "rationale": "Flag has enabled=false in the UFC config. The engine returns DISABLED regardless of subject or attributes."
   },
   {
     "flag": "disabled_flag",
@@ -22,8 +24,10 @@
       "country": "Canada"
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DISABLED"
+    },
+    "rationale": "Different subject and country — both are irrelevant because the flag is globally disabled."
   },
   {
     "flag": "disabled_flag",
@@ -34,7 +38,9 @@
       "age": 50
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DISABLED"
+    },
+    "rationale": "No country attribute — still irrelevant. A disabled flag always yields the caller's default value."
   }
 ]

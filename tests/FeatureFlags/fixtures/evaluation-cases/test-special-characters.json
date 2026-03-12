@@ -1,54 +1,62 @@
 [
-  {
-    "flag": "special-characters",
-    "variationType": "JSON",
-    "defaultValue": {},
-    "targetingKey": "ash",
-    "attributes": {},
-    "result": {
-      "value": {
-        "a": "kümmert",
-        "b": "schön"
-      }
+    {
+        "flag": "special-characters",
+        "variationType": "JSON",
+        "defaultValue": [],
+        "targetingKey": "ash",
+        "attributes": [],
+        "result": {
+            "value": {
+                "a": "kümmert",
+                "b": "schön"
+            },
+            "reason": "SPLIT"
+        },
+        "rationale": "Shard allocation assigns 'ash' to a variation whose JSON value contains German umlauts (ü, ö). Verifies UTF-8 multibyte characters survive the Rust CString → PHP string pipeline without corruption."
+    },
+    {
+        "flag": "special-characters",
+        "variationType": "JSON",
+        "defaultValue": [],
+        "targetingKey": "ben",
+        "attributes": [],
+        "result": {
+            "value": {
+                "a": "піклуватися",
+                "b": "любов"
+            },
+            "reason": "SPLIT"
+        },
+        "rationale": "'ben' shard yields Cyrillic Unicode characters. Verifies non-Latin scripts round-trip through JSON serialization."
+    },
+    {
+        "flag": "special-characters",
+        "variationType": "JSON",
+        "defaultValue": [],
+        "targetingKey": "cameron",
+        "attributes": [],
+        "result": {
+            "value": {
+                "a": "照顾",
+                "b": "漂亮"
+            },
+            "reason": "SPLIT"
+        },
+        "rationale": "'cameron' shard yields CJK (Chinese) characters. Verifies multi-byte UTF-8 sequences are preserved."
+    },
+    {
+        "flag": "special-characters",
+        "variationType": "JSON",
+        "defaultValue": [],
+        "targetingKey": "darryl",
+        "attributes": [],
+        "result": {
+            "value": {
+                "a": "🤗",
+                "b": "🌸"
+            },
+            "reason": "SPLIT"
+        },
+        "rationale": "'darryl' shard yields emoji (4-byte UTF-8 code points). Verifies surrogate-pair-free emoji are handled correctly."
     }
-  },
-  {
-    "flag": "special-characters",
-    "variationType": "JSON",
-    "defaultValue": {},
-    "targetingKey": "ben",
-    "attributes": {},
-    "result": {
-      "value": {
-        "a": "піклуватися",
-        "b": "любов"
-      }
-    }
-  },
-  {
-    "flag": "special-characters",
-    "variationType": "JSON",
-    "defaultValue": {},
-    "targetingKey": "cameron",
-    "attributes": {},
-    "result": {
-      "value": {
-        "a": "照顾",
-        "b": "漂亮"
-      }
-    }
-  },
-  {
-    "flag": "special-characters",
-    "variationType": "JSON",
-    "defaultValue": {},
-    "targetingKey": "darryl",
-    "attributes": {},
-    "result": {
-      "value": {
-        "a": "🤗",
-        "b": "🌸"
-      }
-    }
-  }
 ]

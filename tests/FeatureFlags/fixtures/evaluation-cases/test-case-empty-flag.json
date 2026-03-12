@@ -9,8 +9,10 @@
       "country": "US"
     },
     "result": {
-      "value": "default_value"
-    }
+      "value": "default_value",
+      "reason": "DEFAULT"
+    },
+    "rationale": "Flag exists but has no variations and no allocations. Engine returns DefaultAllocationNull (reason=DEFAULT). Provider falls back to the caller's default."
   },
   {
     "flag": "empty_flag",
@@ -22,8 +24,10 @@
       "country": "Canada"
     },
     "result": {
-      "value": "default_value"
-    }
+      "value": "default_value",
+      "reason": "DEFAULT"
+    },
+    "rationale": "Different country — same outcome because the flag has no allocations to match."
   },
   {
     "flag": "empty_flag",
@@ -34,7 +38,9 @@
       "age": 50
     },
     "result": {
-      "value": "default_value"
-    }
+      "value": "default_value",
+      "reason": "DEFAULT"
+    },
+    "rationale": "Age attribute instead of country — still no allocations, so default."
   }
 ]

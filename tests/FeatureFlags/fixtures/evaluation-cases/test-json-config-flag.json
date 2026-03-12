@@ -15,8 +15,10 @@
         "integer": 1,
         "string": "one",
         "float": 1.0
-      }
-    }
+      },
+      "reason": "SPLIT"
+    },
+    "rationale": "Shard allocation assigns alice (country=US) to variation with integer=1, string='one', float=1.0. Verifies JSON object variations are parsed correctly including nested numeric types. The UFC config stores float values as JSON numbers with decimal (1.0), the FFE library returns the raw JSON string preserving the decimal, so PHP json_decode returns float 1.0."
   },
   {
     "flag": "json-config-flag",
@@ -34,8 +36,10 @@
         "integer": 2,
         "string": "two",
         "float": 2.0
-      }
-    }
+      },
+      "reason": "SPLIT"
+    },
+    "rationale": "Different shard bucket for bob (country=Canada) → variation with integer=2, string='two', float=2.0. The UFC config stores float values as JSON numbers with decimal (2.0), the FFE library returns the raw JSON string preserving the decimal, so PHP json_decode returns float 2.0."
   },
   {
     "flag": "json-config-flag",
@@ -52,8 +56,10 @@
         "integer": 2,
         "string": "two",
         "float": 2.0
-      }
-    }
+      },
+      "reason": "SPLIT"
+    },
+    "rationale": "charlie (age=50) lands in the same shard bucket as bob → variation integer=2, float=2.0. The UFC config stores float values as JSON numbers with decimal (2.0), the FFE library returns the raw JSON string preserving the decimal, so PHP json_decode returns float 2.0."
   },
   {
     "flag": "json-config-flag",
@@ -66,7 +72,9 @@
       "Force Empty": true
     },
     "result": {
-      "value": {}
-    }
+      "value": [],
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "Force Empty attribute triggers a variation with value={} (empty object). Verifies empty JSON objects are returned correctly rather than falling back to defaultValue."
   }
 ]

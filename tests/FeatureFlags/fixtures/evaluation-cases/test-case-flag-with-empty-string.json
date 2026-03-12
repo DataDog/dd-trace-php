@@ -1,24 +1,28 @@
 [
-  {
-    "flag": "empty_string_flag",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "alice",
-    "attributes": {
-      "country": "US"
+    {
+        "flag": "empty_string_flag",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "alice",
+        "attributes": {
+            "country": "US"
+        },
+        "result": {
+            "value": "",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=US matches the MATCHES 'US' condition on 'allocation-empty'. The variation value is '' (empty string). Verifies the PHP JSON decode path handles an empty string variation correctly (\"\" decodes to '')."
     },
-    "result": {
-      "value": ""
+    {
+        "flag": "empty_string_flag",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "bob",
+        "attributes": [],
+        "result": {
+            "value": "non_empty",
+            "reason": "STATIC"
+        },
+        "rationale": "No country attribute; falls through to the catch-all allocation which assigns variation 'non_empty'. Confirms that a non-empty fallback still works when the targeted rule doesn't match."
     }
-  },
-  {
-    "flag": "empty_string_flag",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "bob",
-    "attributes": {},
-    "result": {
-      "value": "non_empty"
-    }
-  }
 ]

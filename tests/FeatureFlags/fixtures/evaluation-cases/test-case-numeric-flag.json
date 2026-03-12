@@ -1,40 +1,46 @@
 [
-  {
-    "flag": "numeric_flag",
-    "variationType": "NUMERIC",
-    "defaultValue": 0.0,
-    "targetingKey": "alice",
-    "attributes": {
-      "email": "alice@mycompany.com",
-      "country": "US"
+    {
+        "flag": "numeric_flag",
+        "variationType": "NUMERIC",
+        "defaultValue": 0,
+        "targetingKey": "alice",
+        "attributes": {
+            "email": "alice@mycompany.com",
+            "country": "US"
+        },
+        "result": {
+            "value": 3.1415926,
+            "reason": "STATIC"
+        },
+        "rationale": "numeric_flag has a single no-rule allocation with variation value 3.1415926 (float). All subjects get the same value. Verifies float serialization (serde_json) and PHP's (float) cast correctly round-trip the value within 1e-10 tolerance."
     },
-    "result": {
-      "value": 3.1415926
-    }
-  },
-  {
-    "flag": "numeric_flag",
-    "variationType": "NUMERIC",
-    "defaultValue": 0.0,
-    "targetingKey": "bob",
-    "attributes": {
-      "email": "bob@example.com",
-      "country": "Canada"
+    {
+        "flag": "numeric_flag",
+        "variationType": "NUMERIC",
+        "defaultValue": 0,
+        "targetingKey": "bob",
+        "attributes": {
+            "email": "bob@example.com",
+            "country": "Canada"
+        },
+        "result": {
+            "value": 3.1415926,
+            "reason": "STATIC"
+        },
+        "rationale": "Different email\/country — same no-rule allocation fires, same float value returned."
     },
-    "result": {
-      "value": 3.1415926
+    {
+        "flag": "numeric_flag",
+        "variationType": "NUMERIC",
+        "defaultValue": 0,
+        "targetingKey": "charlie",
+        "attributes": {
+            "age": 50
+        },
+        "result": {
+            "value": 3.1415926,
+            "reason": "STATIC"
+        },
+        "rationale": "Age attribute instead of email\/country — same no-rule allocation fires."
     }
-  },
-  {
-    "flag": "numeric_flag",
-    "variationType": "NUMERIC",
-    "defaultValue": 0.0,
-    "targetingKey": "charlie",
-    "attributes": {
-      "age": 50
-    },
-    "result": {
-      "value": 3.1415926
-    }
-  }
 ]

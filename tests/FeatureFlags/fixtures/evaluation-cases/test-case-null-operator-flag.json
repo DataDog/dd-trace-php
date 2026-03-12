@@ -9,8 +9,10 @@
       "country": "US"
     },
     "result": {
-      "value": "old"
-    }
+      "value": "old",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=5 satisfies LT 10 in the second rule of 'null-operator' allocation (rules are OR-joined). Variation 'old'."
   },
   {
     "flag": "null-operator-test",
@@ -22,8 +24,10 @@
       "country": "Canada"
     },
     "result": {
-      "value": "new"
-    }
+      "value": "new",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=10 is NOT NULL (IS_NULL false satisfies 'not-null-operator') → variation 'new'. Note: IS_NULL check fires before LT 10 would fail."
   },
   {
     "flag": "null-operator-test",
@@ -34,8 +38,10 @@
       "size": null
     },
     "result": {
-      "value": "old"
-    }
+      "value": "old",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=null in PHP → the C bridge drops the attribute (null is not scalar). Engine sees no 'size' attr. IS_NULL true condition fires → 'null-operator' allocation → 'old'. Verifies missing/null attributes satisfy IS_NULL."
   },
   {
     "flag": "null-operator-test",
@@ -46,8 +52,10 @@
       "size": 26
     },
     "result": {
-      "value": "new"
-    }
+      "value": "new",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=26 (NOT NULL, not LT 10). IS_NULL false condition in 'not-null-operator' is satisfied → 'new'."
   },
   {
     "flag": "null-operator-test",
@@ -58,7 +66,9 @@
       "country": "UK"
     },
     "result": {
-      "value": "old"
-    }
+      "value": "old",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "No 'size' attribute (only country). Missing attribute behaves as null for IS_NULL operator → IS_NULL true fires → 'null-operator' → 'old'."
   }
 ]

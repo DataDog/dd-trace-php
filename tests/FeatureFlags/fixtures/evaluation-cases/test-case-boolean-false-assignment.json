@@ -1,38 +1,44 @@
 [
-  {
-    "flag": "boolean-false-assignment",
-    "variationType": "BOOLEAN",
-    "defaultValue": true,
-    "targetingKey": "alice",
-    "attributes": {
-      "should_disable_feature": true
+    {
+        "flag": "boolean-false-assignment",
+        "variationType": "BOOLEAN",
+        "defaultValue": true,
+        "targetingKey": "alice",
+        "attributes": {
+            "should_disable_feature": true
+        },
+        "result": {
+            "value": false,
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "should_disable_feature=true (bool) matches the ONE_OF ['true'] condition (engine coerces bool true to string 'true'). Assigned variation 'false-variation' (value=false). Verifies a falsy boolean variation is correctly returned even when defaultValue=true."
     },
-    "result": {
-      "value": false
-    }
-  },
-  {
-    "flag": "boolean-false-assignment",
-    "variationType": "BOOLEAN",
-    "defaultValue": true,
-    "targetingKey": "bob",
-    "attributes": {
-      "should_disable_feature": false
+    {
+        "flag": "boolean-false-assignment",
+        "variationType": "BOOLEAN",
+        "defaultValue": true,
+        "targetingKey": "bob",
+        "attributes": {
+            "should_disable_feature": false
+        },
+        "result": {
+            "value": true,
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "should_disable_feature=false does not satisfy ONE_OF ['true']. Engine returns DefaultAllocationNull; Provider returns defaultValue=true."
     },
-    "result": {
-      "value": true
+    {
+        "flag": "boolean-false-assignment",
+        "variationType": "BOOLEAN",
+        "defaultValue": true,
+        "targetingKey": "charlie",
+        "attributes": {
+            "unknown_attribute": "value"
+        },
+        "result": {
+            "value": true,
+            "reason": "DEFAULT"
+        },
+        "rationale": "unknown_attribute is not in the flag conditions. No allocation fires; Provider returns defaultValue=true."
     }
-  },
-  {
-    "flag": "boolean-false-assignment",
-    "variationType": "BOOLEAN",
-    "defaultValue": true,
-    "targetingKey": "charlie",
-    "attributes": {
-      "unknown_attribute": "value"
-    },
-    "result": {
-      "value": true
-    }
-  }
 ]

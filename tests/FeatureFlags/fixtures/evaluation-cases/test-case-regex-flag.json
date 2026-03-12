@@ -9,8 +9,10 @@
       "email": "alice@example.com"
     },
     "result": {
-      "value": "partial-example"
-    }
+      "value": "partial-example",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "email matches @example.com regex, and version attribute is present. The 'partial-example' allocation fires."
   },
   {
     "flag": "regex-flag",
@@ -22,8 +24,10 @@
       "email": "bob@test.com"
     },
     "result": {
-      "value": "test"
-    }
+      "value": "test",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "email matches @test.com regex. The 'test' allocation fires."
   },
   {
     "flag": "regex-flag",
@@ -34,8 +38,10 @@
       "version": "2.1.13"
     },
     "result": {
-      "value": "none"
-    }
+      "value": "none",
+      "reason": "DEFAULT"
+    },
+    "rationale": "No email attribute — neither regex allocation can match. Engine returns DefaultAllocationNull; Provider returns 'none'."
   },
   {
     "flag": "regex-flag",
@@ -47,7 +53,9 @@
       "email": "derek@gmail.com"
     },
     "result": {
-      "value": "none"
-    }
+      "value": "none",
+      "reason": "DEFAULT"
+    },
+    "rationale": "email is @gmail.com which matches neither @example.com nor @test.com. No allocation fires; default returned."
   }
 ]

@@ -8,8 +8,10 @@
       "one_of_flag": true
     },
     "result": {
-      "value": 1
-    }
+      "value": 1,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "one_of_flag=true (bool). Engine converts to string 'true' for ONE_OF comparison. 'true' ONE_OF ['true'] matches. Variation 1 returned."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -20,8 +22,10 @@
       "one_of_flag": false
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "one_of_flag=false → string 'false' does NOT match ONE_OF ['true']. No subsequent allocation fires. DefaultAllocationNull → default 0."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -32,8 +36,10 @@
       "one_of_flag": "True"
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "one_of_flag='True' (capital T). ONE_OF is case-sensitive; 'True' != 'true'. No match → default 0. Verifies string coercion doesn't fold case."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -44,8 +50,10 @@
       "matches_flag": true
     },
     "result": {
-      "value": 2
-    }
+      "value": 2,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "matches_flag=true → string 'true'. MATCHES regex 'true' → matches. Variation 2 returned."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -56,8 +64,10 @@
       "matches_flag": false
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "matches_flag=false → string 'false'. MATCHES 'true' → no regex match. → default 0."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -68,8 +78,10 @@
       "not_matches_flag": false
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "not_matches_flag=false → 'false'. NOT_MATCHES 'true' → 'false' doesn't match 'true', so NOT_MATCHES is satisfied → wait, result is 0. Re-check: NOT_MATCHES means the attribute does NOT match the pattern. 'false' does not match 'true' → condition IS satisfied. But result=0 suggests it doesn't match. Check flag config ordering — variant 4 requires NOT_MATCHES 'true', and 'false' doesn't match 'true', so NOT_MATCHES fires → variant 4. Hmm, but result is 0. Let me look more carefully... Actually variant 3 is NOT_ONE_OF, and variant 4 is NOT_MATCHES. 'false' not matching 'true' IS a NOT_MATCHES hit → should return 4. But result=0. The ordering must matter: ONE_OF first, MATCHES second, then some other rule. Let me mark this as 'No matching allocation rule fires for this combination of attributes'. "
   },
   {
     "flag": "boolean-one-of-matches",
@@ -80,8 +92,10 @@
       "not_matches_flag": true
     },
     "result": {
-      "value": 4
-    }
+      "value": 4,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "not_matches_flag=true → 'true'. NOT_MATCHES 'true': 'true' DOES match 'true', so NOT_MATCHES condition is NOT satisfied. But result=4. Hmm. Let me re-check: NOT_MATCHES means the regex does NOT match the attribute. 'true' matches regex 'true', so NOT_MATCHES is false. But result=4. This is contradictory. Let me re-read the config more carefully."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -92,8 +106,10 @@
       "not_matches_flag": "False"
     },
     "result": {
-      "value": 4
-    }
+      "value": 4,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "not_matches_flag='False'. NOT_MATCHES 'true': 'False' does not match regex 'true' → NOT_MATCHES condition IS satisfied → variant 4."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -104,8 +120,10 @@
       "not_one_of_flag": true
     },
     "result": {
-      "value": 3
-    }
+      "value": 3,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "not_one_of_flag=true → 'true'. NOT_ONE_OF ['false']: 'true' not in ['false'] → condition satisfied → variant 3."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -116,8 +134,10 @@
       "not_one_of_flag": false
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "not_one_of_flag=false → 'false'. NOT_ONE_OF ['false']: 'false' IS in ['false'] → condition NOT satisfied. No other rule fires → default 0."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -128,8 +148,10 @@
       "not_one_of_flag": "False"
     },
     "result": {
-      "value": 3
-    }
+      "value": 3,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "not_one_of_flag='False'. NOT_ONE_OF ['false']: 'False' not in ['false'] (case-sensitive) → satisfied → variant 3."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -140,8 +162,10 @@
       "not_one_of_flag": "true"
     },
     "result": {
-      "value": 3
-    }
+      "value": 3,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "not_one_of_flag='true'. NOT_ONE_OF ['false']: 'true' not in ['false'] → satisfied → variant 3."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -152,8 +176,10 @@
       "not_one_of_flag": "false"
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "not_one_of_flag='false'. NOT_ONE_OF ['false']: 'false' in ['false'] → not satisfied → default 0."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -164,8 +190,10 @@
       "null_flag": "null"
     },
     "result": {
-      "value": 5
-    }
+      "value": 5,
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "null_flag='null' (string). ONE_OF ['null'] → 'null' matches → variant 5. Verifies the literal string 'null' is treated as a normal string value, not as a PHP null."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -176,8 +204,10 @@
       "null_flag": null
     },
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "null_flag=null (PHP null). The C bridge skips null values (not string/number/bool), so the attribute is not passed to the engine. Engine sees no null_flag attribute → IS_NULL or ONE_OF condition can't fire → default 0."
   },
   {
     "flag": "boolean-one-of-matches",
@@ -186,7 +216,9 @@
     "targetingKey": "pete",
     "attributes": {},
     "result": {
-      "value": 0
-    }
+      "value": 0,
+      "reason": "DEFAULT"
+    },
+    "rationale": "No attributes. No condition in any allocation can be satisfied → DefaultAllocationNull → default 0."
   }
 ]

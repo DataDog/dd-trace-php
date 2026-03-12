@@ -13,8 +13,10 @@
     "result": {
       "value": {
         "hello": "world"
-      }
-    }
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Flag is enabled but has an empty allocations list. Engine returns DefaultAllocationNull. Provider returns the caller's default regardless of attributes."
   },
   {
     "flag": "no_allocations_flag",
@@ -30,8 +32,10 @@
     "result": {
       "value": {
         "hello": "world"
-      }
-    }
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Different caller default; still no allocations, so that new default is returned."
   },
   {
     "flag": "no_allocations_flag",
@@ -46,7 +50,9 @@
     "result": {
       "value": {
         "hello": "world"
-      }
-    }
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Age-only subject; same result — empty allocations means no subject can ever be assigned."
   }
 ]

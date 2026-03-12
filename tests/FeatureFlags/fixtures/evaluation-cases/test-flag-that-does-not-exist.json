@@ -9,8 +9,10 @@
       "country": "US"
     },
     "result": {
-      "value": 0.0
-    }
+      "value": 0.0,
+      "reason": "ERROR"
+    },
+    "rationale": "Flag key is not present in the UFC config at all, so the engine returns FlagUnrecognizedOrDisabled (error_code=3). Provider returns the default."
   },
   {
     "flag": "flag-that-does-not-exist",
@@ -22,8 +24,10 @@
       "country": "Canada"
     },
     "result": {
-      "value": 0.0
-    }
+      "value": 0.0,
+      "reason": "ERROR"
+    },
+    "rationale": "Same non-existent flag, different subject. Engine returns error regardless of attributes."
   },
   {
     "flag": "flag-that-does-not-exist",
@@ -34,7 +38,9 @@
       "age": 50
     },
     "result": {
-      "value": 0.0
-    }
+      "value": 0.0,
+      "reason": "ERROR"
+    },
+    "rationale": "Numeric attribute only — does not change the outcome; flag still doesn't exist."
   }
 ]

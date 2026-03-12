@@ -59,19 +59,7 @@ class LRUCache
      */
     public function set($key, $value)
     {
-        // If key already exists, remove it first so it moves to the end
-        if (array_key_exists($key, $this->cache)) {
-            unset($this->cache[$key]);
-        }
-
-        $this->cache[$key] = $value;
-
-        // Evict least recently used entry if over capacity
-        if (count($this->cache) > $this->maxSize) {
-            reset($this->cache);
-            $evictKey = key($this->cache);
-            unset($this->cache[$evictKey]);
-        }
+        $this->put($key, $value);
     }
 
     /**

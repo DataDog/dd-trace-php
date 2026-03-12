@@ -8,8 +8,10 @@
       "content_type": "minimal"
     },
     "result": {
-      "value": ""
-    }
+      "value": "",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "content_type=minimal matches the 'minimal-content' allocation rule. The assigned variation value is '' (empty string). Verifies that an empty string variation is returned rather than being mistaken for a null/default."
   },
   {
     "flag": "empty-string-variation",
@@ -20,8 +22,10 @@
       "content_type": "full"
     },
     "result": {
-      "value": "detailed_content"
-    }
+      "value": "detailed_content",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "content_type=full matches the 'detailed-content' allocation rule. Variation value is 'detailed_content'."
   },
   {
     "flag": "empty-string-variation",
@@ -32,7 +36,9 @@
       "content_type": "unknown"
     },
     "result": {
-      "value": "default_value"
-    }
+      "value": "default_value",
+      "reason": "DEFAULT"
+    },
+    "rationale": "content_type=unknown matches no allocation. Engine returns DefaultAllocationNull; Provider returns 'default_value'."
   }
 ]

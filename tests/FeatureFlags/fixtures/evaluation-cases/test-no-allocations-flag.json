@@ -13,8 +13,10 @@
     "result": {
       "value": {
         "message": "Hello, world!"
-      }
-    }
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Same flag (no_allocations_flag), different caller default {'message': 'Hello, world!'}. Engine returns DefaultAllocationNull; Provider returns caller default."
   },
   {
     "flag": "no_allocations_flag",
@@ -30,8 +32,10 @@
     "result": {
       "value": {
         "message": "Hello, world!"
-      }
-    }
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Different subject; engine still sees no allocations and returns DEFAULT."
   },
   {
     "flag": "no_allocations_flag",
@@ -46,7 +50,9 @@
     "result": {
       "value": {
         "message": "Hello, world!"
-      }
-    }
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Age attribute; no allocation is defined so every subject gets the caller's default."
   }
 ]

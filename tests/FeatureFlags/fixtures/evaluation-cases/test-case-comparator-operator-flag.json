@@ -9,8 +9,10 @@
       "country": "US"
     },
     "result": {
-      "value": "small"
-    }
+      "value": "small",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=5 satisfies LT 10 condition in 'small-size' allocation. Variation 'small' returned."
   },
   {
     "flag": "comparator-operator-test",
@@ -22,8 +24,10 @@
       "country": "Canada"
     },
     "result": {
-      "value": "medium"
-    }
+      "value": "medium",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=10 satisfies GTE 10 AND LTE 20 conditions in 'medium-size' allocation. Variation 'medium' returned."
   },
   {
     "flag": "comparator-operator-test",
@@ -34,8 +38,10 @@
       "size": 25
     },
     "result": {
-      "value": "unknown"
-    }
+      "value": "unknown",
+      "reason": "DEFAULT"
+    },
+    "rationale": "size=25 is > 20 (fails medium) and > 25 is false (fails large if threshold is > 25). No allocation fires → DefaultAllocationNull → 'unknown'."
   },
   {
     "flag": "comparator-operator-test",
@@ -46,8 +52,10 @@
       "size": 26
     },
     "result": {
-      "value": "large"
-    }
+      "value": "large",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=26 satisfies the GT 25 (or GTE 26) condition in the 'large-size' allocation. Variation 'large' returned."
   },
   {
     "flag": "comparator-operator-test",
@@ -58,7 +66,9 @@
       "country": "UK"
     },
     "result": {
-      "value": "unknown"
-    }
+      "value": "unknown",
+      "reason": "DEFAULT"
+    },
+    "rationale": "No 'size' attribute. All comparator conditions require 'size'; none fire → DefaultAllocationNull → 'unknown'."
   }
 ]

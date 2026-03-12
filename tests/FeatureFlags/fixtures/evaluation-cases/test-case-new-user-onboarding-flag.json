@@ -1,318 +1,370 @@
 [
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "alice",
-    "attributes": {
-      "email": "alice@mycompany.com",
-      "country": "US"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "alice",
+        "attributes": {
+            "email": "alice@mycompany.com",
+            "country": "US"
+        },
+        "result": {
+            "value": "green",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=US matches the NA targeting rule. Variation 'green' assigned (first NA bucket)."
     },
-    "result": {
-      "value": "green"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "bob",
-    "attributes": {
-      "email": "bob@example.com",
-      "country": "Canada"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "bob",
+        "attributes": {
+            "email": "bob@example.com",
+            "country": "Canada"
+        },
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "country=Canada — wait, result=default. So NA rule doesn't assign all NA users the same variation; it's sharded. bob lands in no-allocation bucket. Verifies shard boundary where a subject falls outside the 100% window."
     },
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "charlie",
-    "attributes": {
-      "age": 50
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "charlie",
+        "attributes": {
+            "age": 50
+        },
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "No country attribute (age only). No targeting rule matches. Falls through to sharded catch-all. charlie's shard hash places them outside any allocated range → DefaultAllocationNull."
     },
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "debra",
-    "attributes": {
-      "email": "test@test.com",
-      "country": "Mexico",
-      "age": 25
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "debra",
+        "attributes": {
+            "email": "test@test.com",
+            "country": "Mexico",
+            "age": 25
+        },
+        "result": {
+            "value": "blue",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Mexico + age=25. NA rule fires for Mexico (ONE_OF [US,Canada,Mexico]). Variation 'blue' from this shard bucket."
     },
-    "result": {
-      "value": "blue"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "zach",
-    "attributes": {
-      "email": "test@test.com",
-      "country": "Mexico",
-      "age": 25
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "zach",
+        "attributes": {
+            "email": "test@test.com",
+            "country": "Mexico",
+            "age": 25
+        },
+        "result": {
+            "value": "purple",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "Same attributes as debra but targeting key 'zach'. NA rule for Mexico fires; different shard hash → 'purple' bucket."
     },
-    "result": {
-      "value": "purple"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "zach",
-    "attributes": {
-      "id": "override-id",
-      "email": "test@test.com",
-      "country": "Mexico",
-      "age": 25
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "zach",
+        "attributes": {
+            "id": "override-id",
+            "email": "test@test.com",
+            "country": "Mexico",
+            "age": 25
+        },
+        "result": {
+            "value": "blue",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "Same as zach but with id='override-id'. The 'id' attribute overrides the hash subject for the allocation, placing zach in the 'blue' bucket."
     },
-    "result": {
-      "value": "blue"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "Zach",
-    "attributes": {
-      "email": "test@test.com",
-      "country": "Mexico",
-      "age": 25
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "Zach",
+        "attributes": {
+            "email": "test@test.com",
+            "country": "Mexico",
+            "age": 25
+        },
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "Targeting key 'Zach' (capital Z). Hash is case-sensitive; different hash from 'zach'. Falls in an unallocated shard range → DefaultAllocationNull → 'default'."
     },
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "1",
-    "attributes": {},
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "2",
-    "attributes": {
-      "country": "Mexico"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "1",
+        "attributes": [],
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "No attributes. No targeting rule matches. Shard hash of '1' falls outside allocated ranges → default."
     },
-    "result": {
-      "value": "blue"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "3",
-    "attributes": {
-      "country": "UK",
-      "age": 33
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "2",
+        "attributes": {
+            "country": "Mexico"
+        },
+        "result": {
+            "value": "blue",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Mexico satisfies NA rule. Targeting key '2' shard hash → 'blue' bucket."
     },
-    "result": {
-      "value": "control"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "4",
-    "attributes": {
-      "country": "Germany"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "3",
+        "attributes": {
+            "country": "UK",
+            "age": 33
+        },
+        "result": {
+            "value": "control",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=UK (not NA), age=33. Falls to RoW sharded allocation. Shard hash of '3' → 'control'."
     },
-    "result": {
-      "value": "red"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "5",
-    "attributes": {
-      "country": "Germany"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "4",
+        "attributes": {
+            "country": "Germany"
+        },
+        "result": {
+            "value": "red",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Germany. RoW sharded allocation. Key '4' → 'red'."
     },
-    "result": {
-      "value": "yellow"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "6",
-    "attributes": {
-      "country": "Germany"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "5",
+        "attributes": {
+            "country": "Germany"
+        },
+        "result": {
+            "value": "yellow",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Germany. Key '5' → 'yellow'."
     },
-    "result": {
-      "value": "yellow"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "7",
-    "attributes": {
-      "country": "US"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "6",
+        "attributes": {
+            "country": "Germany"
+        },
+        "result": {
+            "value": "yellow",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Germany. Key '6' → 'yellow'."
     },
-    "result": {
-      "value": "blue"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "8",
-    "attributes": {
-      "country": "Italy"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "7",
+        "attributes": {
+            "country": "US"
+        },
+        "result": {
+            "value": "blue",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=US matches NA rule. Key '7' → 'blue'."
     },
-    "result": {
-      "value": "red"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "9",
-    "attributes": {
-      "email": "email@email.com"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "8",
+        "attributes": {
+            "country": "Italy"
+        },
+        "result": {
+            "value": "red",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Italy. RoW sharded allocation. Key '8' → 'red'."
     },
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "10",
-    "attributes": {},
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "11",
-    "attributes": {},
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "12",
-    "attributes": {
-      "country": "US"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "9",
+        "attributes": {
+            "email": "email@email.com"
+        },
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "email-only attribute. No country, so no targeting rule matches. Shard hash of '9' falls outside all allocated ranges → default."
     },
-    "result": {
-      "value": "blue"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "13",
-    "attributes": {
-      "country": "Canada"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "10",
+        "attributes": [],
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "No attributes. Shard hash of '10' outside allocated ranges → default."
     },
-    "result": {
-      "value": "blue"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "14",
-    "attributes": {},
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "15",
-    "attributes": {
-      "country": "Denmark"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "11",
+        "attributes": [],
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "No attributes. Key '11' → default."
     },
-    "result": {
-      "value": "yellow"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "16",
-    "attributes": {
-      "country": "Norway"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "12",
+        "attributes": {
+            "country": "US"
+        },
+        "result": {
+            "value": "blue",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=US. NA rule fires. Key '12' → 'blue'."
     },
-    "result": {
-      "value": "control"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "17",
-    "attributes": {
-      "country": "UK"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "13",
+        "attributes": {
+            "country": "Canada"
+        },
+        "result": {
+            "value": "blue",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Canada. NA rule fires. Key '13' → 'blue'."
     },
-    "result": {
-      "value": "control"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "18",
-    "attributes": {
-      "country": "UK"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "14",
+        "attributes": [],
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "No attributes. Key '14' outside allocated shard ranges → default."
     },
-    "result": {
-      "value": "default"
-    }
-  },
-  {
-    "flag": "new-user-onboarding",
-    "variationType": "STRING",
-    "defaultValue": "default",
-    "targetingKey": "19",
-    "attributes": {
-      "country": "UK"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "15",
+        "attributes": {
+            "country": "Denmark"
+        },
+        "result": {
+            "value": "yellow",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Denmark. RoW sharded allocation. Key '15' → 'yellow'."
     },
-    "result": {
-      "value": "red"
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "16",
+        "attributes": {
+            "country": "Norway"
+        },
+        "result": {
+            "value": "control",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=Norway. RoW sharded allocation. Key '16' → 'control'."
+    },
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "17",
+        "attributes": {
+            "country": "UK"
+        },
+        "result": {
+            "value": "control",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=UK. RoW sharded allocation. Key '17' → 'control'."
+    },
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "18",
+        "attributes": {
+            "country": "UK"
+        },
+        "result": {
+            "value": "default",
+            "reason": "DEFAULT"
+        },
+        "rationale": "country=UK. Key '18' shard hash falls in an unallocated gap in the RoW split → default."
+    },
+    {
+        "flag": "new-user-onboarding",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "19",
+        "attributes": {
+            "country": "UK"
+        },
+        "result": {
+            "value": "red",
+            "reason": "TARGETING_MATCH"
+        },
+        "rationale": "country=UK. Key '19' → 'red' bucket."
     }
-  }
 ]
