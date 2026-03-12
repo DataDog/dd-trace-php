@@ -79,11 +79,14 @@ class StripeIntegration extends Integration
         $discounts = self::getNestedValue($session, 'discounts');
         if (is_array($discounts) && count($discounts) > 0) {
             $discount = $discounts[0];
-            $payload['discounts.coupon'] = self::getNestedValue($discount, 'coupon');
-            $payload['discounts.promotion_code'] = self::getNestedValue($discount, 'promotion_code');
-        } else {
-            $payload['discounts.coupon'] = null;
-            $payload['discounts.promotion_code'] = null;
+            $coupon = self::getNestedValue($discount, 'coupon');
+            $promotionCode = self::getNestedValue($discount, 'promotion_code');
+            if ($coupon !== null) {
+                $payload['discounts.coupon'] = $coupon;
+            }
+            if ($promotionCode !== null) {
+                $payload['discounts.promotion_code'] = $promotionCode;
+            }
         }
 
         return $payload;
@@ -140,7 +143,7 @@ class StripeIntegration extends Integration
     {
         self::hookCheckoutSessionCreate();
         self::hookPaymentIntentCreate();
-        self::hookEventConstructFrom();
+        self::hookWebhookConstructEvent();
 
         return Integration::LOADED;
     }
@@ -171,11 +174,11 @@ class StripeIntegration extends Integration
         \DDTrace\hook_method('Stripe\PaymentIntent', 'create', null, $onCreate);
     }
 
-    private static function hookEventConstructFrom()
+    private static function hookWebhookConstructEvent()
     {
         \DDTrace\hook_method(
-            'Stripe\Event',
-            'constructFrom',
+            'Stripe\Webhook',
+            'constructEvent',
             null,
             static function ($This, $scope, $args, $retval, $exception) {
                 if ($exception === null && $retval !== null) {
