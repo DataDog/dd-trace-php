@@ -1224,44 +1224,8 @@ endforeach;
       paths:
         - .cache/
   after_script:
-    - |
-      set +e
-      echo "=== Uploading system-tests JUnit results to Test Optimization ==="
-
-      # Check that there are JUnit files to upload
-      ls system-tests/logs*/reportJunit.xml >/dev/null 2>&1
-      if [ $? -ne 0 ]; then echo "No JUnit XML files found, skipping upload"; exit 0; fi
-
-      # Download datadog-ci standalone binary
-      echo "Downloading datadog-ci..."
-      curl -L --fail "https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64" -o /tmp/datadog-ci
-      if [ $? -ne 0 ]; then echo "Failed to download datadog-ci"; exit 0; fi
-      chmod +x /tmp/datadog-ci
-
-      # Download and extract Vault CLI
-      echo "Downloading Vault..."
-      VAULT_VERSION="1.20.0"
-      curl -L --fail "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip" -o /tmp/vault.zip
-      if [ $? -ne 0 ]; then echo "Failed to download Vault"; exit 0; fi
-      python3 -c "import zipfile; zipfile.ZipFile('/tmp/vault.zip').extractall('/tmp/')"
-      chmod +x /tmp/vault
-
-      # Fetch API key from Vault
-      echo "Fetching API key from Vault..."
-      VAULT_JSON=$(/tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>&1)
-      if [ $? -ne 0 ]; then echo "Failed to fetch API key from Vault: $VAULT_JSON"; exit 0; fi
-      export DATADOG_API_KEY=$(echo "$VAULT_JSON" | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['data']['data']['key'])")
-      export DATADOG_SITE="datadoghq.com"
-
-      # Upload JUnit results
-      echo "Uploading JUnit results..."
-      /tmp/datadog-ci junit upload \
-        system-tests/logs*/reportJunit.xml \
-        --service system-tests \
-        --env ci \
-        --verbose \
-        --xpath-tag "test.codeowners=/testcase/properties/property[@name='test.codeowners']"
-      echo "=== Upload complete ==="
+    - mkdir -p artifacts && cp system-tests/logs*/reportJunit.xml artifacts/ 2>/dev/null || true
+    - DD_SERVICE=system-tests DD_JUNIT_XPATH_TAGS="test.codeowners=/testcase/properties/property[@name='test.codeowners']" .gitlab/silent-upload-junit-to-datadog.sh
   artifacts:
     paths:
       - "system-tests/logs_parametric/"
