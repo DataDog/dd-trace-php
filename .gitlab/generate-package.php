@@ -1250,6 +1250,18 @@ endforeach;
   script:
     - ./run.sh $TESTSUITE
 
+"System Tests: [tracer-release]":
+  extends: .system_tests
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - when: manual
+      allow_failure: true
+  script:
+    - ./run.sh TRACER_RELEASE_SCENARIOS
+
 "System Tests: [parametric]":
   extends: .system_tests
   variables:
