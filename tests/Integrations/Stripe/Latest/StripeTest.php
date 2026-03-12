@@ -73,6 +73,16 @@ class StripeTest extends IntegrationTestCase
         return false;
     }
 
+    private function constructWebhookEvent(array $payload, string $secret = 'whsec_test_secret'): \Stripe\Event
+    {
+        $payloadJson = json_encode($payload);
+        $timestamp = time();
+        $signedPayload = $timestamp . '.' . $payloadJson;
+        $signature = hash_hmac('sha256', $signedPayload, $secret);
+        $sigHeader = "t={$timestamp},v1={$signature}";
+        return \Stripe\Webhook::constructEvent($payloadJson, $sigHeader, $secret);
+    }
+
     protected function ddTearDown()
     {
         parent::ddTearDown();
@@ -97,7 +107,7 @@ class StripeTest extends IntegrationTestCase
                 ]
             ];
 
-            \Stripe\Event::constructFrom($payload);
+            $this->constructWebhookEvent($payload);
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
@@ -143,7 +153,7 @@ class StripeTest extends IntegrationTestCase
                 ]
             ];
 
-            \Stripe\Event::constructFrom($payload);
+            $this->constructWebhookEvent($payload);
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
@@ -186,7 +196,7 @@ class StripeTest extends IntegrationTestCase
                 ]
             ];
 
-            \Stripe\Event::constructFrom($payload);
+            $this->constructWebhookEvent($payload);
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
@@ -222,7 +232,7 @@ class StripeTest extends IntegrationTestCase
                 ]
             ];
 
-            \Stripe\Event::constructFrom($payload);
+            $this->constructWebhookEvent($payload);
 
             $allEvents = AppsecStatus::getInstance()->getEvents(['push_addresses'], []);
 
@@ -257,14 +267,7 @@ class StripeTest extends IntegrationTestCase
                     ]
                 ]
             ];
-            $payloadJson = json_encode($payload);
-            $secret = 'whsec_test_secret';
-            $timestamp = time();
-            $signedPayload = $timestamp . '.' . $payloadJson;
-            $signature = hash_hmac('sha256', $signedPayload, $secret);
-            $sigHeader = "t={$timestamp},v1={$signature}";
-
-            $event = \Stripe\Webhook::constructEvent($payloadJson, $sigHeader, $secret);
+            $event = $this->constructWebhookEvent($payload);
 
             $this->assertSame('payment_intent.succeeded', $event->type);
 
@@ -583,7 +586,7 @@ class MockStripeHttpClient implements \Stripe\HttpClient\ClientInterface
         $this->responseCode = $responseCode;
     }
 
-    public function request($method, $absUrl, $headers, $params, $hasFile)
+    public function request($method, $absUrl, $headers, $params, $hasFile, $apiMode = null, $maxNetworkRetries = null)
     {
         return [$this->responseBody, $this->responseCode, []];
     }
