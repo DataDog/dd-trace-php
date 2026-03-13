@@ -429,7 +429,7 @@ typedef struct ddog_RemoteConfigState ddog_RemoteConfigState;
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
 /**
- * `SidecarTransport` wraps a [`SidecarInterfaceChannel`] with transparent reconnection support.
+ * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
  * It is a blocking transport (all operations block the current thread).
