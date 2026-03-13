@@ -122,28 +122,7 @@ stages:
     GIT_STRATEGY: none
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
-    # Agressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
-    Write-Host "Cleanup complete."
-
-    # Make sure we actually fail if a command fails
-    $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
-
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
-    git config --global core.longpaths true
-    git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
-    git checkout $env:CI_COMMIT_SHA
-
-    # Initialize submodules
-    Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
-    Write-Host "Git setup complete."
+<?php windows_git_setup() ?>
 
     mkdir dumps
 

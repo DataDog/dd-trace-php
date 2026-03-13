@@ -506,28 +506,7 @@ foreach ($windows_build_platforms as $platform) {
     GIT_STRATEGY: none
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
-    # Aggressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
-    Write-Host "Cleanup complete."
-
-    # Make sure we actually fail if a command fails
-    $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
-
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
-    git config --global core.longpaths true
-    git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
-    git checkout $env:CI_COMMIT_SHA
-
-    # Initialize submodules
-    Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
-    Write-Host "Git setup complete."
+<?php windows_git_setup() ?>
 
     mkdir extensions_x86_64
     mkdir extensions_x86_64_debugsymbols
@@ -1107,19 +1086,16 @@ endforeach;
   stage: verify
   tags: [ "windows-v2:2019"]
   variables:
-    GIT_CONFIG_COUNT: 2
-    GIT_CONFIG_KEY_0: core.longpaths
-    GIT_CONFIG_VALUE_0: true
-    GIT_CONFIG_KEY_1: core.symlinks
-    GIT_CONFIG_VALUE_1: true
+    GIT_STRATEGY: none
   needs:
     - job: "package extension windows"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  before_script:
-    - mkdir build
-    - move packages build
+  before_script: |
+<?php windows_git_setup_with_packages() ?>
+    mkdir build
+    move packages build
   script:
     - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
     - .\dockerfiles\verify_packages\verify_windows.ps1
