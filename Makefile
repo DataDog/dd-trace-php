@@ -113,7 +113,14 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 
-$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
+# ensure list of rust files is up to date
+$(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
+	$(Q) printf '%s\n' $(RUST_FILES) | sort > $(BUILD_DIR)/.rust_files_list.tmp
+	$(Q) cmp -s $(BUILD_DIR)/.rust_files_list $(BUILD_DIR)/.rust_files_list.tmp 2>/dev/null \
+		&& rm -f $(BUILD_DIR)/.rust_files_list.tmp \
+		|| mv $(BUILD_DIR)/.rust_files_list.tmp $(BUILD_DIR)/.rust_files_list
+
+$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure $(BUILD_DIR)/.rust_files_list
 	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)

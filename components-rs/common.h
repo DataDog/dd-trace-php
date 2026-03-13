@@ -429,13 +429,10 @@ typedef struct ddog_RemoteConfigState ddog_RemoteConfigState;
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
 /**
- * `SidecarTransport` is a wrapper around a BlockingTransport struct from the `datadog_ipc` crate
- * that handles transparent reconnection.
- * It is used for sending `SidecarInterfaceRequest` and receiving `SidecarInterfaceResponse`.
+ * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
- * It is a blocking transport, meaning that it will block the current thread until the operation is
- * complete.
+ * It is a blocking transport (all operations block the current thread).
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
@@ -1389,6 +1386,14 @@ typedef struct ddog_crasht_Slice_CInt {
 } ddog_crasht_Slice_CInt;
 
 /**
+ * Represents an object that should only be referred to by its handle.
+ * Do not access its member for any reason, only use the C API functions on this struct.
+ */
+typedef struct ddog_crasht_Handle_StackTrace {
+  struct ddog_crasht_StackTrace *inner;
+} ddog_crasht_Handle_StackTrace;
+
+/**
  * A generic result type for when an operation may fail,
  * or may return <T> in case of success.
  */
@@ -1492,14 +1497,6 @@ typedef struct ddog_crasht_Span {
   ddog_CharSlice id;
   ddog_CharSlice thread_name;
 } ddog_crasht_Span;
-
-/**
- * Represents an object that should only be referred to by its handle.
- * Do not access its member for any reason, only use the C API functions on this struct.
- */
-typedef struct ddog_crasht_Handle_StackTrace {
-  struct ddog_crasht_StackTrace *inner;
-} ddog_crasht_Handle_StackTrace;
 
 typedef struct ddog_crasht_ThreadData {
   bool crashed;
@@ -1874,6 +1871,13 @@ struct ddog_Error *ddog_endpoint_from_api_key_and_site(ddog_CharSlice api_key,
 void ddog_endpoint_set_timeout(struct ddog_Endpoint *endpoint, uint64_t millis);
 
 void ddog_endpoint_set_test_token(struct ddog_Endpoint *endpoint, ddog_CharSlice token);
+
+/**
+ * Set whether to use the system DNS resolver when building the reqwest client.
+ * If false, the default in-process resolver is used.
+ */
+void ddog_endpoint_set_use_system_resolver(struct ddog_Endpoint *endpoint,
+                                           bool use_system_resolver);
 
 void ddog_endpoint_drop(struct ddog_Endpoint*);
 

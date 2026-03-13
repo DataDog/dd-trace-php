@@ -5,7 +5,7 @@ use hashbrown::{Equivalent, HashMap};
 use std::collections::HashSet;
 use std::ffi::CString;
 use std::path::PathBuf;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
@@ -168,21 +168,23 @@ pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
-    buffer: &mut SidecarActionsBuffer,
+pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric(
+    transport: &mut Box<SidecarTransport>,
     metric_name: CharSlice,
     metric_type: MetricType,
     namespace: MetricNamespace,
-) {
-    buffer
-        .buffer
-        .push(SidecarAction::RegisterTelemetryMetric(MetricContext {
+) -> MaybeError {
+    try_c!(blocking::register_telemetry_metric(
+        transport,
+        MetricContext {
             name: metric_name.to_utf8_lossy().into_owned(),
             namespace,
             metric_type,
             tags: Vec::default(),
             common: true,
-        }));
+        },
+    ));
+    MaybeError::None
 }
 
 #[no_mangle]

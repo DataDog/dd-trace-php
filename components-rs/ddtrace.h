@@ -115,7 +115,9 @@ ddog_MaybeError ddog_sidecar_connect_php(struct ddog_SidecarTransport **connecti
                                          ddog_CharSlice log_level,
                                          bool enable_telemetry,
                                          void (*on_reconnect)(struct ddog_SidecarTransport*),
-                                         const struct ddog_Endpoint *crashtracker_endpoint);
+                                         const struct ddog_Endpoint *crashtracker_endpoint,
+                                         uint64_t backpressure_bytes,
+                                         uint64_t backpressure_queue);
 
 void ddtrace_sidecar_reconnect(struct ddog_SidecarTransport **transport,
                                struct ddog_SidecarTransport *(*factory)(void));
@@ -155,10 +157,10 @@ ddog_MaybeError ddog_sidecar_telemetry_buffer_flush(struct ddog_SidecarTransport
                                                     const ddog_QueueId *queue_id,
                                                     struct ddog_SidecarActionsBuffer *buffer);
 
-void ddog_sidecar_telemetry_register_metric_buffer(struct ddog_SidecarActionsBuffer *buffer,
-                                                   ddog_CharSlice metric_name,
-                                                   enum ddog_MetricType metric_type,
-                                                   enum ddog_MetricNamespace namespace_);
+ddog_MaybeError ddog_sidecar_telemetry_register_metric(struct ddog_SidecarTransport **transport,
+                                                       ddog_CharSlice metric_name,
+                                                       enum ddog_MetricType metric_type,
+                                                       enum ddog_MetricNamespace namespace_);
 
 void ddog_sidecar_telemetry_add_span_metric_point_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                          ddog_CharSlice metric_name,

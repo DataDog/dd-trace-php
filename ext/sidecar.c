@@ -129,8 +129,7 @@ void ddtrace_sidecar_update_process_tags(void) {
         return;
     }
 
-    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
-    ddog_sidecar_session_set_process_tags(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(process_tags));
+    ddog_sidecar_session_set_process_tags(&ddtrace_sidecar, dd_zend_string_to_CharSlice(process_tags));
 }
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
@@ -208,7 +207,7 @@ static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork) {
     }
 
     ddog_SidecarTransport *sidecar_transport;
-    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect, ddtrace_endpoint))) {
+    if (!ddtrace_ffi_try("Failed connecting to the sidecar", ddog_sidecar_connect_php(&sidecar_transport, logpath, dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), dd_sidecar_on_reconnect, ddtrace_endpoint, (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_BYTES(), (uint64_t)get_global_DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE()))) {
         dd_free_endpoints();
         return NULL;
     }
@@ -632,9 +631,8 @@ bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_str
     UNUSED(old_value, new_str);
     if (ddtrace_sidecar) {
         ddog_endpoint_set_test_token(ddtrace_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
-        ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
         ddtrace_ffi_try("Failed updating test session token",
-                        ddog_sidecar_set_test_session_token(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
+                        ddog_sidecar_set_test_session_token(&ddtrace_sidecar, dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
     }
 #ifndef _WIN32
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
