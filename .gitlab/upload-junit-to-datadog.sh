@@ -4,7 +4,7 @@ set -eo pipefail
 
 export DATADOG_SITE="datadoghq.com"
 export DD_ENV="ci"
-export DD_SERVICE="dd-trace-php-tests"
+export DD_SERVICE="${DD_SERVICE:-dd-trace-php-tests}"
 export VAULT_SECRET_PATH="kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key"
 export VAULT_VERSION="1.20.0"
 
@@ -212,10 +212,16 @@ if [[ -n "${TAGS}" ]]; then
   tags_args="--tags ${TAGS}"
 fi
 
-echo "Current directory: $(pwd)"
-echo "Running command: ${datadog_ci_cmd} junit upload --service \"${DD_SERVICE}\" --max-concurrency 20 --verbose --tags git.repository_url:https://github.com/DataDog/dd-trace-php ${tags_args} ${files_array[*]}"
+# Build xpath-tag arguments if DD_JUNIT_XPATH_TAGS is set
+xpath_tags_args=""
+if [[ -n "${DD_JUNIT_XPATH_TAGS:-}" ]]; then
+  xpath_tags_args="--xpath-tag ${DD_JUNIT_XPATH_TAGS}"
+fi
 
-if ! ${datadog_ci_cmd} junit upload --service "${DD_SERVICE}" --max-concurrency 20 --verbose --tags "git.repository_url:https://github.com/DataDog/dd-trace-php" ${tags_args} "${files_array[@]}"; then
+echo "Current directory: $(pwd)"
+echo "Running command: ${datadog_ci_cmd} junit upload --service \"${DD_SERVICE}\" --max-concurrency 20 --verbose --tags git.repository_url:https://github.com/DataDog/dd-trace-php ${tags_args} ${xpath_tags_args} ${files_array[*]}"
+
+if ! ${datadog_ci_cmd} junit upload --service "${DD_SERVICE}" --max-concurrency 20 --verbose --tags "git.repository_url:https://github.com/DataDog/dd-trace-php" ${tags_args} ${xpath_tags_args} "${files_array[@]}"; then
   echo "Warning: Failed to upload JUnit files" >&2
   exit 0
 fi

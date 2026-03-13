@@ -1238,6 +1238,9 @@ endforeach;
       when: always
       paths:
         - .cache/
+  after_script:
+    - mkdir -p artifacts && cp system-tests/logs*/reportJunit.xml artifacts/ 2>/dev/null || true
+    - DD_SERVICE=system-tests DD_JUNIT_XPATH_TAGS="test.codeowners=/testcase/properties/property[@name='test.codeowners']" .gitlab/silent-upload-junit-to-datadog.sh
   artifacts:
     paths:
       - "system-tests/logs_parametric/"
@@ -1261,6 +1264,19 @@ endforeach;
         - CROSSED_TRACING_LIBRARIES
   script:
     - ./run.sh $TESTSUITE
+
+"System Tests: [tracer-release]":
+  extends: .system_tests
+  # rules:
+  #   - if: $CI_COMMIT_REF_NAME == "master"
+  #     when: on_success
+  #   - if: $CI_PIPELINE_SOURCE == "schedule"
+  #     when: on_success
+  #   - when: manual
+  #     allow_failure: true
+  script:
+    - export DD_API_KEY=$(curl -s -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_ADDR/v1/kv/data/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])")
+    - ./run.sh TRACER_RELEASE_SCENARIOS
 
 "System Tests: [parametric]":
   extends: .system_tests
