@@ -3,8 +3,8 @@
 
 #include <zai_string/string.h>
 
-#include <stdbool.h>
-#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* The upper-bounds limit on the buffer size to hold the value of an arbitrary
  * environment variable.
@@ -45,27 +45,27 @@ typedef struct zai_env_buffer_s {
 } zai_env_buffer;
 
 #define ZAI_ENV_BUFFER_INIT(name, size) \
-    char name##_storage[size];          \
+    char name##_storage[size] = {0};    \
     zai_env_buffer name = {size, name##_storage}
 
-/* Fills 'buf.ptr' with the value of a target environment variable identified by
- * 'name'. Must be called after the SAPI envrionment variables are available
- * which is as early as module RINIT. If the active SAPI has a custom
- * environment variable handler, the SAPI handler is used to access the
- * environment variable. If there is no custom handler, the environment variable
- * is accessed from the host using getenv().
+/**
+ * Borrows the environment variable from the SAPI--it will not check the
+ * system environment variables.
  *
- * For error conditions, a return value other than ZAI_ENV_SUCCESS is returned
- * and 'buf.ptr' is made an empty string. If the buffer size 'buf.len' is not
- * big enough to contain the value, ZAI_ENV_BUFFER_TOO_SMALL will be returned
- * and 'buf.ptr' will be an empty string; e.g. this API does not attempt to
- * truncate the value to accommodate the buffer size.
+ * This mostly only makes sense to use during a request.
  */
-zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit);
-static inline zai_env_result zai_getenv(zai_str name, zai_env_buffer buf) {
-    return zai_getenv_ex(name, buf, false);
-}
+zai_option_str zai_sapi_getenv(zai_str name);
 
-#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL(name), buf)
+/**
+ * Borrows the environment variable from the system--it will not check the
+ * SAPI environment variables.
+ */
+static inline zai_option_str zai_sys_getenv(zai_str name) {
+    char *value = getenv(name.ptr);
+    if (value) {
+        return zai_option_str_from_raw_parts(value, strlen(value));
+    }
+    return ZAI_OPTION_STR_NONE;
+}
 
 #endif  // ZAI_ENV_H

@@ -1,7 +1,4 @@
-#include "../tsrmls_cache.h"
 #include <main/SAPI.h>
-#include <main/php.h>
-#include <stdlib.h>
 
 #include "env.h"
 
@@ -11,45 +8,10 @@
 #define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
 #endif
 
-zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit) {
-    if (!buf.ptr || !buf.len) return ZAI_ENV_ERROR;
-
-    buf.ptr[0] = '\0';
-
-    if (zai_str_is_empty(name)) return ZAI_ENV_ERROR;
-
-    if (buf.len > ZAI_ENV_MAX_BUFSIZ) return ZAI_ENV_BUFFER_TOO_BIG;
-
-    /* Some SAPIs do not initialize the SAPI-controlled environment variables
-     * until SAPI RINIT. It is for this reason we cannot reliably access
-     * environment variables until module RINIT.
-     */
-    if (!pre_rinit && !PG(modules_activated) && !PG(during_request_startup)) return ZAI_ENV_NOT_READY;
-
-    /* sapi_getenv may or may not include process environment variables.
-     * It will return NULL when it is not found in the possibly synthetic SAPI environment.
-     * Hence we need to do a getenv() in any case.
-     */
-    bool use_sapi_env = false;
+zai_option_str zai_sapi_getenv(zai_str name) {
     char *value = sapi_getenv_compat(name.ptr, name.len);
     if (value) {
-        use_sapi_env = true;
-    } else {
-        value = getenv(name.ptr);
+        return zai_option_str_from_raw_parts(value, strlen(value));
     }
-
-    if (!value) return ZAI_ENV_NOT_SET;
-
-    zai_env_result res;
-
-    if (strlen(value) < buf.len) {
-        strcpy(buf.ptr, value);
-        res = ZAI_ENV_SUCCESS;
-    } else {
-        res = ZAI_ENV_BUFFER_TOO_SMALL;
-    }
-
-    if (use_sapi_env) efree(value);
-
-    return res;
+    return ZAI_OPTION_STR_NONE;
 }

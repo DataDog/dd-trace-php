@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "../env/env.h"
 #include "../zai_string/string.h"
 #include "config_decode.h"
 
@@ -114,5 +115,6 @@ bool zai_config_get_id_by_name(zai_str name, zai_config_id *id);
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
 
 bool zai_config_is_initialized(void);
+zai_option_str zai_config_sys_getenv_cached(zai_config_id id, uint8_t name_index);
 
 #endif  // ZAI_CONFIG_H

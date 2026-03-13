@@ -7,6 +7,17 @@ extern "C" {
 
 #include "zai_tests_common.hpp"
 
+#include <atomic>
+#include <string>
+
+/* Use Catch2's expression decomposition: REQUIRE(a == b) prints both values on failure (like assert_eq! in Rust). */
+#define REQUIRE_ZVAL_STRING_EQ(zv, expected)                                              \
+    do {                                                                                 \
+        REQUIRE(zv != NULL);                                                             \
+        REQUIRE(Z_TYPE_P(zv) == IS_STRING);                                              \
+        REQUIRE(std::string(Z_STRVAL_P(zv), Z_STRLEN_P(zv)) == std::string(expected));  \
+    } while (0)
+
 typedef enum {
     EXT_CFG_INI_FOO_BOOL,
     EXT_CFG_INI_FOO_DOUBLE,
@@ -245,13 +256,8 @@ TEST_INI("map INI: user value", {}, {
 
 TEST_INI("string INI: default value", {}, {
     REQUEST_BEGIN()
-
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "foo string"));
-
+    REQUIRE_ZVAL_STRING_EQ(value, "foo string");
     REQUEST_END()
 })
 
@@ -259,27 +265,16 @@ TEST_INI("string INI: system value", {
     REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "system string"));
 }, {
     REQUEST_BEGIN()
-
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "system string"));
-
+    REQUIRE_ZVAL_STRING_EQ(value, "system string");
     REQUEST_END()
 })
 
 TEST_INI("string INI: user value", {}, {
     REQUEST_BEGIN()
-
     REQUIRE_SET_INI("zai_config.INI_FOO_STRING", "user string");
-
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
-
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "user string"));
-
+    REQUIRE_ZVAL_STRING_EQ(value, "user string");
     REQUEST_END()
 })
 
@@ -522,6 +517,7 @@ TEST_INI("change before request startup", {
 static ZEND_INI_MH(dummy) {
     return SUCCESS;
 }
+
 TEST_INI("setting perdir INI setting for multiple ZAI config users", {
     REQUIRE(tea_sapi_append_system_ini_entry("zai_config.INI_FOO_STRING", "another"));
 }, {
@@ -533,9 +529,7 @@ TEST_INI("setting perdir INI setting for multiple ZAI config users", {
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "another"));
+    REQUIRE_ZVAL_STRING_EQ(value, "another");
 
     REQUEST_END();
 })
@@ -548,29 +542,78 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "value"));
+    REQUIRE_ZVAL_STRING_EQ(value, "value");
 
     REQUEST_END()
 
     REQUIRE_SETENV("INI_FOO_STRING", "value2");
 
-    // Something else inits zai config first
-    zai_config_rinit();
-    zai_config_rshutdown();
+    REQUEST_BEGIN()
 
-    // now we init it
-    zai_config_memoized_entry *entry = &zai_config_memoized_entries[EXT_CFG_INI_FOO_STRING];
-    entry->original_on_modify = dummy;
+    // The value should be cached on minit/first_rinit, so we still get the
+    // "value" back, not "value2".
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE_ZVAL_STRING_EQ(value, "value");
+
+    REQUEST_END()
+})
+
+#if PHP_VERSION_ID >= 80000
+#define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(const char *name, size_t name_len)
+#else
+#define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len)
+#endif
+
+static char sapi_getenv_test_buf[64];
+// Tracks which request number we are in (incremented once per RINIT via pre_rinit callback).
+// Both zai_config_first_time_rinit and zai_config_ini_rinit call zai_sapi_getenv within the
+// same RINIT, so we use a per-request counter (not a per-call counter) so all calls within
+// a single request see the same SAPI answer.
+static std::atomic<int> sapi_getenv_request_num{0};
+
+static void sapi_getenv_advance_request() {
+    sapi_getenv_request_num.fetch_add(1);
+}
+
+// For INI_FOO_STRING: request 1 returns NULL (fall back to sys env cache), request 2+ returns "sapi env val".
+TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
+    zai_str key = ZAI_STR_NEW(name, name_len);
+    if (zai_str_eq(key, ZAI_STRL("INI_FOO_STRING"))) {
+        if (sapi_getenv_request_num.load() < 2) {
+            return NULL;
+        }
+        memset(sapi_getenv_test_buf, 0, sizeof(sapi_getenv_test_buf));
+        strcpy(sapi_getenv_test_buf, "sapi env val");
+        return sapi_getenv_test_buf;
+    }
+    return NULL;
+}
+
+TEST_INI("SAPI env takes priority over cache", {
+    sapi_getenv_request_num.store(0);
+    ext_zai_config_pre_rinit = sapi_getenv_advance_request;
+    REQUIRE_SETENV("INI_FOO_STRING", "system env val");
+    tea_sapi_module.getenv = ini_sapi_getenv_from_sapi;
+}, {
+    REQUEST_BEGIN()
+
+    // Request 1: pre_rinit bumped request_num to 1; SAPI returns NULL → falls back to cached sys env.
+    zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
+
+    REQUIRE_ZVAL_STRING_EQ(value, "system env val");
+
+    REQUEST_END()
 
     REQUEST_BEGIN()
 
+    // Request 2: pre_rinit bumped request_num to 2; SAPI returns "sapi env val" → overrides cache.
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
-    REQUIRE(value != NULL);
-    REQUIRE(Z_TYPE_P(value) == IS_STRING);
-    REQUIRE(zval_string_equals(value, "value2"));
+    REQUIRE_ZVAL_STRING_EQ(value, "sapi env val");
 
     REQUEST_END()
+
+    tea_sapi_module.getenv = NULL;
+    ext_zai_config_pre_rinit = NULL;
 })
