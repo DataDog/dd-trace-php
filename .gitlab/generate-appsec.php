@@ -71,7 +71,7 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
+    KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 4Gi
   parallel:
     matrix:
@@ -87,10 +87,12 @@ stages:
   script:
     - switch-php $SWITCH_PHP_VERSION
     - cd appsec/build
+    - if [[ "$SWITCH_PHP_VERSION" == *"asan"* ]]; then ASAN_FLAG=ON; else ASAN_FLAG=OFF; fi
     - "cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF
       -DCMAKE_CXX_FLAGS='-stdlib=libc++' -DCMAKE_CXX_LINK_FLAGS='-stdlib=libc++'
-      -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache"
-    - make -j 4 xtest
+	  -DDD_APPSEC_TESTING=ON -DBOOST_CACHE_PREFIX=$CI_PROJECT_DIR/boost-cache
+      -DENABLE_ASAN=$ASAN_FLAG"
+    - ASAN_OPTIONS=malloc_context_size=0 make -j 4 xtest
 
 "appsec integration tests":
   stage: test
@@ -101,6 +103,7 @@ stages:
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
     ARCH: amd64
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
   parallel:
     matrix:
       - targets:
@@ -157,6 +160,7 @@ stages:
     - key: "appsec int test cache"
       paths:
         - appsec/tests/integration/build/*.tar.gz
+        - .gradle-home/wrapper/dists/
 
 "appsec code coverage":
   stage: test

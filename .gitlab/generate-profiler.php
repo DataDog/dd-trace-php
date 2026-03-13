@@ -17,10 +17,18 @@ foreach ($profiler_minor_major_targets as $version) {
   stage: test
   tags: [ "arch:${ARCH}" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:${IMAGE_PREFIX}${PHP_MAJOR_MINOR}${IMAGE_SUFFIX}
+  # Setting the *_REQUEST and *_LIMIT variables to be the same, and setting
+  # them for both the build and helper allows using Guaranteed QoS instead of
+  # Burstable. This means nproc and similar tools will work as expected.
   variables:
-    KUBERNETES_CPU_REQUEST: 5
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_CPU_REQUEST: 3
+    KUBERNETES_CPU_LIMIT: 3
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
@@ -38,6 +46,8 @@ foreach ($profiler_minor_major_targets as $version) {
     - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
 
     - cd profiling
+    - 'echo "nproc: $(nproc)"'
+    - 'echo "KUBERNETES_CPU_REQUEST: ${KUBERNETES_CPU_REQUEST:-<unset>}"'
     - export TEST_PHP_EXECUTABLE=$(which php)
     - run_tests_php=$(find $(php-config --prefix) -name run-tests.php) # don't anticipate there being more than one
     - cp -v "${run_tests_php}" tests

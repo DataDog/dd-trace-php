@@ -74,6 +74,7 @@ typedef struct {
 
 typedef struct {
     dd_hook_data *hook_data;
+    zend_class_entry *called_scope;
 } dd_uhook_dynamic;
 
 #if PHP_VERSION_ID < 70400
@@ -234,14 +235,14 @@ void dd_uhook_report_sandbox_error(zend_execute_data *execute_data, zend_object 
     })
 }
 
-static bool dd_uhook_call_hook(zend_execute_data *execute_data, dd_uhook_callback *callback, dd_hook_data *hook_data) {
+static bool dd_uhook_call_hook(zend_execute_data *execute_data, dd_uhook_callback *callback, dd_hook_data *hook_data, zend_class_entry *scope) {
     zval hook_data_zv;
     ZVAL_OBJ(&hook_data_zv, &hook_data->std);
 
     zval rv;
     zai_sandbox sandbox;
     zai_sandbox_open(&sandbox);
-    dd_uhook_callback_ensure_scope(callback, execute_data);
+    dd_uhook_callback_ensure_scope(callback, execute_data, scope);
     zend_fcall_info fci = dd_fcall_info(1, &hook_data_zv, &rv);
     bool success = zai_sandbox_call(&sandbox, &fci, &callback->fcc);
     if (!success || PG(last_error_message)) {
@@ -321,6 +322,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         return true;
     }
 
+    dyn->called_scope = zend_get_called_scope(execute_data);
     dyn->hook_data = (dd_hook_data *)dd_hook_data_create(ddtrace_hook_data_ce);
     dyn->hook_data->returns_reference = execute_data->func->common.fn_flags & ZEND_ACC_RETURN_REFERENCE;
     dyn->hook_data->vm_stack_top = EG(vm_stack_top);
@@ -356,7 +358,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
         LOGEV(HOOK_TRACE, dd_uhook_log_invocation(log, execute_data, "begin", def->begin.closure););
 
         def->running = true;
-        dd_uhook_call_hook(execute_data, &def->begin, dyn->hook_data);
+        dd_uhook_call_hook(execute_data, &def->begin, dyn->hook_data, dyn->called_scope);
         def->running = false;
         dyn->hook_data->retval_ptr = NULL;
     }
@@ -480,7 +482,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
         def->running = true;
         dyn->hook_data->retval_ptr = retval;
         dyn->hook_data->execute_data = execute_data;
-        keep_span = dd_uhook_call_hook(execute_data, &def->end, dyn->hook_data);
+        keep_span = dd_uhook_call_hook(execute_data, &def->end, dyn->hook_data, dyn->called_scope);
         dyn->hook_data->execute_data = NULL;
         dyn->hook_data->retval_ptr = NULL;
         def->running = false;
