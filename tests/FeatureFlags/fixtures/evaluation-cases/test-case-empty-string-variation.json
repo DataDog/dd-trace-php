@@ -1,0 +1,44 @@
+[
+  {
+    "flag": "empty-string-variation",
+    "variationType": "STRING",
+    "defaultValue": "default_value",
+    "targetingKey": "empty_user",
+    "attributes": {
+      "content_type": "minimal"
+    },
+    "result": {
+      "value": "",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "content_type=minimal matches the 'minimal-content' allocation rule. The assigned variation value is '' (empty string). Verifies that an empty string variation is returned rather than being mistaken for a null/default."
+  },
+  {
+    "flag": "empty-string-variation",
+    "variationType": "STRING",
+    "defaultValue": "default_value",
+    "targetingKey": "full_user",
+    "attributes": {
+      "content_type": "full"
+    },
+    "result": {
+      "value": "detailed_content",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "content_type=full matches the 'detailed-content' allocation rule. Variation value is 'detailed_content'."
+  },
+  {
+    "flag": "empty-string-variation",
+    "variationType": "STRING",
+    "defaultValue": "default_value",
+    "targetingKey": "default_user",
+    "attributes": {
+      "content_type": "unknown"
+    },
+    "result": {
+      "value": "default_value",
+      "reason": "DEFAULT"
+    },
+    "rationale": "content_type=unknown matches no allocation. Engine returns DefaultAllocationNull; Provider returns 'default_value'."
+  }
+]

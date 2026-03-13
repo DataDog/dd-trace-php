@@ -1,0 +1,42 @@
+[
+  {
+    "flag": "microsecond-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "alice",
+    "attributes": {},
+    "result": {
+      "value": "active",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "The 'expired' allocation has endAt=2002-10-31 (in the past) and is skipped. The 'future' allocation has startAt far in the future and is also skipped. The 'active' allocation covers the current time window and fires. Verifies microsecond-precision ISO-8601 timestamps parse correctly."
+  },
+  {
+    "flag": "microsecond-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "bob",
+    "attributes": {
+      "country": "US"
+    },
+    "result": {
+      "value": "active",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "Additional country attribute does not affect time-based allocation logic. The 'active' allocation still fires."
+  },
+  {
+    "flag": "microsecond-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "charlie",
+    "attributes": {
+      "version": "1.0.0"
+    },
+    "result": {
+      "value": "active",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "version attribute present; allocations are time-gated only and do not inspect version. 'active' still fires."
+  }
+]

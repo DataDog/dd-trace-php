@@ -61,13 +61,45 @@ uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
 void ddog_init_remote_config(bool live_debugging_enabled,
                              bool appsec_activation,
-                             bool appsec_config);
+                             bool appsec_config,
+                             bool ffe_enabled);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
 bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+
+bool ddog_ffe_load_config(const char *json);
+
+bool ddog_ffe_has_config(void);
+
+bool ddog_ffe_config_changed(void);
+
+struct FfeResult;
+
+struct FfeAttribute {
+    const char *key;
+    int32_t value_type;       /* 0=string, 1=number, 2=bool */
+    const char *string_value;
+    double number_value;
+    bool bool_value;
+};
+
+struct FfeResult *ddog_ffe_evaluate(
+    const char *flag_key,
+    int32_t expected_type,
+    const char *targeting_key,
+    const struct FfeAttribute *attributes,
+    size_t attributes_count);
+
+const char *ddog_ffe_result_value(const struct FfeResult *r);
+const char *ddog_ffe_result_variant(const struct FfeResult *r);
+const char *ddog_ffe_result_allocation_key(const struct FfeResult *r);
+int32_t ddog_ffe_result_reason(const struct FfeResult *r);
+int32_t ddog_ffe_result_error_code(const struct FfeResult *r);
+bool ddog_ffe_result_do_log(const struct FfeResult *r);
+void ddog_ffe_free_result(struct FfeResult *r);
 
 bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
                                    ddog_CharSlice typename_);

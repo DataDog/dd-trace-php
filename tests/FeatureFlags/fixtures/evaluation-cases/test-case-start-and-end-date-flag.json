@@ -1,0 +1,46 @@
+[
+  {
+    "flag": "start-and-end-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "alice",
+    "attributes": {
+      "version": "1.15.0",
+      "country": "US"
+    },
+    "result": {
+      "value": "current",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "The 'current' allocation has startAt in the past and endAt in the future, so it is active now. All subjects without a matching 'old' or 'new' allocation fall into 'current'."
+  },
+  {
+    "flag": "start-and-end-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "bob",
+    "attributes": {
+      "version": "0.20.1",
+      "country": "Canada"
+    },
+    "result": {
+      "value": "current",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "Different version/country; same result — no 'old' or 'new' rule matches these attrs, so 'current' fires."
+  },
+  {
+    "flag": "start-and-end-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "charlie",
+    "attributes": {
+      "version": "2.1.13"
+    },
+    "result": {
+      "value": "current",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "version 2.1.13 with no country. 'current' allocation still covers the present time window."
+  }
+]

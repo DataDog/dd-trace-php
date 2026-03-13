@@ -14,6 +14,11 @@ compile_rust.sh @Datadog/libdatadog-apm
 # APM IDM Team
 /src/ @DataDog/apm-idm-php
 
+# FFE (Feature Flagging & Experimentation) SDK Team
+/src/DDTrace/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
+/src/DDTrace/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk
+/tests/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
+
 # Release files
 Cargo.lock @DataDog/apm-php @DataDog/profiling-php @Datadog/libdatadog-apm
 package.xml @DataDog/apm-php @DataDog/profiling-php @Datadog/asm-php

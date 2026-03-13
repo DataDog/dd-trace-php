@@ -1,0 +1,14 @@
+[
+    {
+        "flag": "empty-targeting-key-flag",
+        "variationType": "STRING",
+        "defaultValue": "default",
+        "targetingKey": "",
+        "attributes": [],
+        "result": {
+            "value": "on-value",
+            "reason": "STATIC"
+        },
+        "rationale": "Targeting key is '' (empty string). The flag has a single no-rule allocation with no shards (100% coverage). PHP passes the empty string to the Rust engine as None (the FFI bridge skips empty strings). Flag is evaluated without a targeting key and the no-rule allocation fires, yielding 'on-value'."
+    }
+]

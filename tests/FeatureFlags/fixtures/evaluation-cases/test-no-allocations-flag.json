@@ -1,0 +1,58 @@
+[
+  {
+    "flag": "no_allocations_flag",
+    "variationType": "JSON",
+    "defaultValue": {
+      "message": "Hello, world!"
+    },
+    "targetingKey": "alice",
+    "attributes": {
+      "email": "alice@mycompany.com",
+      "country": "US"
+    },
+    "result": {
+      "value": {
+        "message": "Hello, world!"
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Same flag (no_allocations_flag), different caller default {'message': 'Hello, world!'}. Engine returns DefaultAllocationNull; Provider returns caller default."
+  },
+  {
+    "flag": "no_allocations_flag",
+    "variationType": "JSON",
+    "defaultValue": {
+      "message": "Hello, world!"
+    },
+    "targetingKey": "bob",
+    "attributes": {
+      "email": "bob@example.com",
+      "country": "Canada"
+    },
+    "result": {
+      "value": {
+        "message": "Hello, world!"
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Different subject; engine still sees no allocations and returns DEFAULT."
+  },
+  {
+    "flag": "no_allocations_flag",
+    "variationType": "JSON",
+    "defaultValue": {
+      "message": "Hello, world!"
+    },
+    "targetingKey": "charlie",
+    "attributes": {
+      "age": 50
+    },
+    "result": {
+      "value": {
+        "message": "Hello, world!"
+      },
+      "reason": "DEFAULT"
+    },
+    "rationale": "Age attribute; no allocation is defined so every subject gets the caller's default."
+  }
+]

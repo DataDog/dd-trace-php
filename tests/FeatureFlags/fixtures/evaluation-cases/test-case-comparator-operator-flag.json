@@ -1,0 +1,74 @@
+[
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "alice",
+    "attributes": {
+      "size": 5,
+      "country": "US"
+    },
+    "result": {
+      "value": "small",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=5 satisfies LT 10 condition in 'small-size' allocation. Variation 'small' returned."
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "bob",
+    "attributes": {
+      "size": 10,
+      "country": "Canada"
+    },
+    "result": {
+      "value": "medium",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=10 satisfies GTE 10 AND LTE 20 conditions in 'medium-size' allocation. Variation 'medium' returned."
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "charlie",
+    "attributes": {
+      "size": 25
+    },
+    "result": {
+      "value": "unknown",
+      "reason": "DEFAULT"
+    },
+    "rationale": "size=25 is > 20 (fails medium) and > 25 is false (fails large if threshold is > 25). No allocation fires → DefaultAllocationNull → 'unknown'."
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "david",
+    "attributes": {
+      "size": 26
+    },
+    "result": {
+      "value": "large",
+      "reason": "TARGETING_MATCH"
+    },
+    "rationale": "size=26 satisfies the GT 25 (or GTE 26) condition in the 'large-size' allocation. Variation 'large' returned."
+  },
+  {
+    "flag": "comparator-operator-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "elize",
+    "attributes": {
+      "country": "UK"
+    },
+    "result": {
+      "value": "unknown",
+      "reason": "DEFAULT"
+    },
+    "rationale": "No 'size' attribute. All comparator conditions require 'size'; none fire → DefaultAllocationNull → 'unknown'."
+  }
+]
