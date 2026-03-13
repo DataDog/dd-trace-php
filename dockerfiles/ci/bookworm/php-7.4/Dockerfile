@@ -69,6 +69,8 @@ COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR/nts $PHP_INSTALL_DIR/nts
 COPY --chown=circleci:circleci --from=php-zts $PHP_INSTALL_DIR/zts $PHP_INSTALL_DIR/zts
+COPY --chown=circleci:circleci --from=php-release-nts $PHP_INSTALL_DIR/release-nts $PHP_INSTALL_DIR/release-nts
+COPY --chown=circleci:circleci --from=php-release-zts $PHP_INSTALL_DIR/release-zts $PHP_INSTALL_DIR/release-zts
 
 USER root
 

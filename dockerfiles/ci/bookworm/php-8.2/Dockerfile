@@ -68,12 +68,27 @@ COPY build-extensions.sh /home/circleci
 RUN /home/circleci/build-extensions.sh
 RUN cp /tmp/build-php/sapi/cli/php-asan $PHP_INSTALL_DIR/debug-zts-asan/bin/php
 
+FROM build AS php-release-nts
+ARG TARGETPLATFORM
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR release-nts $PHP_VERSION
+COPY build-extensions.sh /home/circleci
+RUN /home/circleci/build-extensions.sh
+
+
+FROM build AS php-release-zts
+ARG TARGETPLATFORM
+RUN /home/circleci/build-php.sh $TARGETPLATFORM $PHP_INSTALL_DIR release-zts $PHP_VERSION
+COPY build-extensions.sh /home/circleci
+RUN /home/circleci/build-extensions.sh
+
 FROM base AS final
 COPY --chown=circleci:circleci --from=src $PHP_SRC_DIR $PHP_SRC_DIR
 COPY --chown=circleci:circleci --from=php-debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan $PHP_INSTALL_DIR/debug-zts-asan
 COPY --chown=circleci:circleci --from=php-debug $PHP_INSTALL_DIR/debug $PHP_INSTALL_DIR/debug
 COPY --chown=circleci:circleci --from=php-nts $PHP_INSTALL_DIR/nts $PHP_INSTALL_DIR/nts
 COPY --chown=circleci:circleci --from=php-zts $PHP_INSTALL_DIR/zts $PHP_INSTALL_DIR/zts
+COPY --chown=circleci:circleci --from=php-release-nts $PHP_INSTALL_DIR/release-nts $PHP_INSTALL_DIR/release-nts
+COPY --chown=circleci:circleci --from=php-release-zts $PHP_INSTALL_DIR/release-zts $PHP_INSTALL_DIR/release-zts
 
 USER root
 
