@@ -13,6 +13,6 @@ echo "_dd.p.ksr = ", isset($root->meta["_dd.p.ksr"]) ? $root->meta["_dd.p.ksr"] 
 // Verify it's a string in meta, not metrics
 echo "is_string = ", is_string($root->meta["_dd.p.ksr"] ?? null) ? "true" : "false", "\n";
 ?>
---EXPECTREGEX--
+--EXPECT--
 _dd.p.ksr = 0.765432
 is_string = true

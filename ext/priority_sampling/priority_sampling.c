@@ -7,7 +7,6 @@
 #include <json/json.h>
 
 #include "../configuration.h"
-#include "../tracer_tag_propagation/tracer_tag_propagation.h"
 
 #include "../limiter/limiter.h"
 #include "ddshared.h"
@@ -17,8 +16,8 @@
 #include "agent_info.h"
 
 /* Sampling constants */
-const uint64_t KNUTH_FACTOR = 1111111111111111111ULL;
-const uint64_t MAX_TRACE_ID = ~0ULL;  // 2^64-1 - This represents the maximum value of a Trace ID
+static const uint64_t KNUTH_FACTOR = 1111111111111111111ULL;
+static const uint64_t MAX_TRACE_ID = ~0ULL;  // 2^64-1 - This represents the maximum value of a Trace ID
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -337,6 +336,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
         if (mechanism == DD_MECHANISM_MANUAL) {
             zend_hash_str_del(metrics, ZEND_STRL("_dd.rule_psr"));
+            zend_hash_str_del(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.p.ksr"));
         } else {
             zend_hash_str_update(metrics, ZEND_STRL("_dd.rule_psr"), &sample_rate_zv);
             dd_update_knuth_sampling_rate_tag(span, sample_rate);
