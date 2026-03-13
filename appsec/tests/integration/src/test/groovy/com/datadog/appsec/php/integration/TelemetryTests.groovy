@@ -7,6 +7,7 @@ import com.datadog.appsec.php.mock_agent.rem_cfg.RemoteConfigRequest
 import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -18,6 +19,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.nio.charset.StandardCharsets
 import java.util.function.Supplier
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
@@ -42,10 +44,17 @@ class TelemetryTests {
                     phpVersion: phpVersion,
                     phpVariant: variant,
                     www: 'base',
-            )
+            ) {
+                @Override
+                void configure() {
+                    super.configure()
+                    withEnv('RUST_LIB_BACKTRACE', '1')
+                }
+            }
 
     @BeforeAll
     static void beforeAll() {
+        CONTAINER.flushProfilingData()
         org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
                 'bash', '-c',
                 '''sed -e '/appsec.enabled/d' -e '/appsec.rules=/d' /etc/php/php.ini > /etc/php/php-rc.ini;
@@ -68,13 +77,19 @@ class TelemetryTests {
                 ]
         ])
 
-        // first request to start helper
+        // first request to start helper - triggers WAF init with legacy span metrics
         // Generally won't be covered by appsec because it doesn't receive RC data in time
         // for the response to config_sync
         Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
         assert trace.traceId != null
+
+        // Check legacy span metrics from WAF init are present
+        def initSpan = trace[0]
+        assert initSpan.metrics.'_dd.appsec.event_rules.loaded' > 0
+        assert initSpan.metrics.'_dd.appsec.event_rules.error_count' == 0.0d
+        assert initSpan.meta.'_dd.appsec.event_rules.errors' == '{}'
 
         RemoteConfigRequest rcReq = requestSup.get()
         assert rcReq != null, 'No RC request received'
@@ -83,6 +98,10 @@ class TelemetryTests {
         trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
         }
+
+        // Check legacy span meta is present (metrics only on init)
+        def span = trace[0]
+        assert span.meta.'_dd.appsec.event_rules.version' =~ /\d+\.\d+\.\d+/
 
         // now do an attack
         HttpRequest req = CONTAINER.buildReq('/hello.php')
@@ -102,8 +121,10 @@ class TelemetryTests {
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
-            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
+            // Rust helper has +1 tag (helper_runtime), C++ doesn't
+            def useRust = System.getProperty('USE_HELPER_RUST') != null
+            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
+            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 4 : 3) }
             connSuccess = allSeries.find { it.name == 'helper.connection_success' }
             workerCount = allSeries.find { it.name == 'helper.service_worker_count' }
 
@@ -114,7 +135,6 @@ class TelemetryTests {
         assert wafInit.namespace == 'appsec'
         assert wafInit.points[0][1] == 1.0
         assert 'success:true' in wafInit.tags
-        assert wafInit.tags.size() == 3
         assert wafInit.type == 'count'
         assert wafInit.interval == 10
 
@@ -138,6 +158,21 @@ class TelemetryTests {
         assert workerCount != null
         assert workerCount.namespace == 'appsec'
         assert workerCount.points[0][1] >= 1.0
+
+        // Check helper_runtime tag: only Rust helper should have it
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'helper_runtime:rust' in wafInit.tags
+            assert 'helper_runtime:rust' in wafReq1.tags
+            assert 'helper_runtime:rust' in wafReq2.tags
+            assert 'helper_runtime:rust' in workerCount.tags
+            // connSuccess is from extension, not helper, so it doesn't have helper_runtime tag
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            assert !wafInit.tags.any { it.startsWith('helper_runtime:') }
+            assert !wafReq1.tags.any { it.startsWith('helper_runtime:') }
+            assert !wafReq2.tags.any { it.startsWith('helper_runtime:') }
+            assert !workerCount.tags.any { it.startsWith('helper_runtime:') }
+        }
     }
 
     @Test
@@ -210,17 +245,23 @@ class TelemetryTests {
                         ]
         ])
 
+        TelemetryHelpers.Metric wafUpdates
         def messages = TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
-            def allSeries = messages
-                    .collectMany { it.series }
-                    .findAll {
-                        it.name == 'waf.config_errors'
-                    }
+            def allSeries = messages.collectMany { it.series }
+            def configErrors = allSeries.findAll { it.name == 'waf.config_errors' }
+            wafUpdates = allSeries.find { it.name == 'waf.updates' }
 
-            allSeries.size() >= 4
+            configErrors.size() >= 4 && wafUpdates
         }
 
        assert requestSup.get() != null
+
+       // Make a request after RC is confirmed applied, check span has new version
+       def trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+           assert resp.statusCode() == 200
+       }
+       def span = trace[0]
+       assert span.meta.'_dd.appsec.event_rules.version' == '1.1.1'
 
        def series = messages
                 .collectMany { it.series }
@@ -254,6 +295,24 @@ class TelemetryTests {
         assert customRules.points[0][1] == 1.0d
         assert rules.points[0][1] == 1.0d
         assert data.points[0][1] == 1.0d
+
+        assert wafUpdates != null
+        assert wafUpdates.namespace == 'appsec'
+        assert wafUpdates.points[0][1] >= 1.0d
+        assert 'success:true' in wafUpdates.tags
+        assert 'event_rules_version:1.1.1' in wafUpdates.tags
+        assert wafUpdates.tags.find { it.startsWith('waf_version:') } != null
+        assert wafUpdates.type == 'count'
+
+        // Check helper_runtime tag: only Rust helper should have it
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'helper_runtime:rust' in wafUpdates.tags
+            series.each { assert 'helper_runtime:rust' in it.tags }
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            assert !wafUpdates.tags.any { it.startsWith('helper_runtime:') }
+            series.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }
+        }
     }
 
     @Test
@@ -307,29 +366,23 @@ class TelemetryTests {
         assert messages.any {
             it.level == 'ERROR' &&
                     it.message == "bad cast, expected 'array', obtained 'string'" &&
-                    it.parsedTags == [
-                    log_type: 'rc::asm_data::diagnostic',
-                    appsec_config_key: 'rules_data',
-                    rc_config_id: 'bad_config',
-            ]
+                    it.parsedTags.log_type == 'rc::asm_data::diagnostic' &&
+                    it.parsedTags.appsec_config_key == 'rules_data' &&
+                    it.parsedTags.rc_config_id == 'bad_config'
         }
         assert messages.any {
             it.level == 'ERROR' &&
                     it.message == "{\"missing key 'conditions'\":[\"bad_rule\"]}" &&
-                    it.parsedTags == [
-                    log_type: 'rc::asm_dd::diagnostic',
-                    appsec_config_key: 'rules',
-                    rc_config_id: 'bad_rule',
-            ]
+                    it.parsedTags.log_type == 'rc::asm_dd::diagnostic' &&
+                    it.parsedTags.appsec_config_key == 'rules' &&
+                    it.parsedTags.rc_config_id == 'bad_rule'
         }
         assert messages.any {
             it.level == 'WARN' &&
                     it.message == "{\"unknown operator: 'unknown_operator'\":[\"bad_condition_rule\"]}" &&
-                    it.parsedTags == [
-                    log_type: 'rc::asm_dd::diagnostic',
-                    appsec_config_key: 'rules',
-                    rc_config_id: 'warning_rule',
-            ]
+                    it.parsedTags.log_type == 'rc::asm_dd::diagnostic' &&
+                    it.parsedTags.appsec_config_key == 'rules' &&
+                    it.parsedTags.rc_config_id == 'warning_rule'
         }
     }
 
@@ -403,9 +456,10 @@ class TelemetryTests {
         TelemetryHelpers.Metric lfiTimeout
         TelemetryHelpers.Metric ssrfTimeout
 
+        def useRust = System.getProperty('USE_HELPER_RUST') != null
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
+            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
             lfiEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:lfi' in it.tags}
             lfiMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:lfi' in it.tags}
             lfiTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
@@ -458,6 +512,15 @@ class TelemetryTests {
         assert ssrfTimeout.points[0][1] == 0.0
         assert ssrfTimeout.type == 'count'
         assert ssrfTimeout.tags.find { it.startsWith('waf_version:') } != null
+
+        // Check helper_runtime tag: only Rust helper should have it
+        def raspMetrics = [wafReq1, lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            raspMetrics.each { assert 'helper_runtime:rust' in it.tags }
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            raspMetrics.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }
+        }
     }
 
     /**
@@ -565,5 +628,125 @@ class TelemetryTests {
         assert wafReqTruncated.tags.find { it.startsWith('event_rules_version:') } != null
         assert wafReqTruncated.tags.find { it.startsWith('waf_version:') } != null
         assert wafReqTruncated.type == 'count'
+
+        // Check helper_runtime tag: only Rust helper should have it
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'helper_runtime:rust' in wafReqTruncated.tags
+        } else {
+            // C++ helper should NOT have the helper_runtime tag in telemetry
+            assert !wafReqTruncated.tags.any { it.startsWith('helper_runtime:') }
+        }
+    }
+
+    /**
+     * This test verifies that helper-rust errors are properly sent to telemetry
+     * with backtraces. It sends an invalid message to the helper which triggers
+     * an error with backtrace.
+     *
+     * This test only runs when USE_HELPER_RUST is set (Rust helper implementation).
+     */
+    @Test
+    @Order(7)
+    void 'helper error telemetry includes backtrace'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // first request to start helper and establish connection
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        RemoteConfigRequest rcReq = requestSup.get()
+        assert rcReq != null, 'No RC request received'
+
+        // request covered by Appsec to ensure we have an active connection
+        trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        // send invalid message to trigger error with backtrace
+        CONTAINER.traceFromRequest('/send_invalid_msg.php') {
+            HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
+        }
+
+        def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
+            def relevantLogs = logs.collectMany { it.logs.findAll { it.tags.contains('log_type:helper::logged_error') } }
+            !relevantLogs.empty
+        }.collectMany { it.logs }
+
+        def errorLog = messages.find { it.tags?.contains('log_type:helper::logged_error') }
+
+        assert errorLog != null : "Expected to find a log with log_type:helper::client_error. " +
+                "All logs: ${messages}"
+        assert errorLog.level == 'ERROR' : "Expected ERROR level, got ${errorLog.level}"
+        assert errorLog.message?.contains('unknown command') || errorLog.message?.contains('invalid_command') :
+                "Expected error message about unknown/invalid command, got: ${errorLog.message}"
+
+        // back trace
+        assert errorLog.stack_trace != null : "Expected stack_trace to be present"
+        assert errorLog.stack_trace.length() > 0 : "Expected stack_trace to be non-empty"
+
+        // require symbolized Rust frames, not only raw/unknown frame placeholders
+        assert errorLog.stack_trace.contains('.rs:') :
+                "Expected stack_trace with Rust source references (.rs:line), got: ${errorLog.stack_trace}"
+
+        // This test only runs for Rust helper, so verify helper_runtime:rust tag is present in logs
+        assert errorLog.tags?.contains('helper_runtime:rust') :
+                "Expected helper_runtime:rust tag in log tags, got: ${errorLog.tags}"
+
+        CONTAINER.clearTraces()
+    }
+
+    @Test
+    @Order(8)
+    void 'telemetry log for malformed RC config JSON'() {
+        def enableSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        def trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+        assert enableSup.get() != null
+
+        def malformedJson = 'this is not valid JSON {][ at all'.getBytes(StandardCharsets.UTF_8)
+
+        def requestSup = CONTAINER.applyRemoteConfigRaw(RC_TARGET, [
+                'datadog/2/ASM_DD/malformed_config/config': malformedJson
+        ])
+
+        // Wait for telemetry logs with rc::asm_dd::exception
+        def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
+            def relevantLogs = logs.collectMany {
+                it.logs.findAll { it.tags?.contains('log_type:rc::asm_dd::exception') }
+            }
+            !relevantLogs.empty
+        }.collectMany { it.logs }
+
+        assert requestSup.get() != null
+
+        def exceptionLog = messages.find {
+            it.tags?.contains('log_type:rc::asm_dd::exception') &&
+            it.tags?.contains('rc_config_id:malformed_config')
+        }
+
+        assert exceptionLog != null : "Expected to find rc::asm_dd::exception log. " +
+                "All logs: ${messages.collect { [identifier: it.identifier, tags: it.tags, message: it.message] }}"
+        assert exceptionLog.level == 'ERROR' : "Expected ERROR level, got ${exceptionLog.level}"
+        assert exceptionLog.message?.contains('malformed') ||
+               exceptionLog.message?.contains('parse') ||
+               exceptionLog.message?.contains('JSON') ||
+               exceptionLog.message?.contains('Failed to apply config') :
+                "Expected error message about parse/JSON failure, got: ${exceptionLog.message}"
     }
 }

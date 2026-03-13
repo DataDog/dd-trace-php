@@ -82,7 +82,7 @@ void engine::update(const rapidjson::Document &doc,
 }
 
 std::optional<engine::result> engine::context::publish(
-    parameter &&param, const std::string &rasp_rule)
+    parameter &&param, const network::request_exec_options &options)
 {
     // Once the parameter reaches this function, it is guaranteed to be
     // owned by the engine.
@@ -113,7 +113,7 @@ std::optional<engine::result> engine::context::publish(
         }
         try {
             const auto &listener = it->second;
-            listener->call(data, event, rasp_rule);
+            listener->call(data, event, options);
         } catch (std::exception &e) {
             SPDLOG_ERROR("subscriber failed: {}", e.what());
         }

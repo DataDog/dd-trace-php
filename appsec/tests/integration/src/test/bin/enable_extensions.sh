@@ -17,18 +17,25 @@ if [[ -f /project/tmp/build_extension/modules/ddtrace.so ]]; then
   } >> /etc/php/php.ini
 fi
 
+HELPER_PATH=/appsec/libddappsec-helper.so
+if [[ -n $USE_HELPER_RUST ]]; then
+  echo "Using Rust helper" >&2
+  HELPER_PATH=/helper-rust/libddappsec-helper.so
+fi
+
 if [[ -f /appsec/ddappsec.so && -d /project ]]; then
   echo "Enabling ddappsec" >&2
   {
     echo extension=/appsec/ddappsec.so
     echo datadog.appsec.enabled=true
-    echo datadog.appsec.helper_path=/appsec/libddappsec-helper.so
+    echo datadog.appsec.helper_path=$HELPER_PATH
     echo datadog.appsec.helper_log_file=/tmp/logs/helper.log
     echo datadog.appsec.helper_log_level=debug
     echo datadog.appsec.rules=/etc/recommended.json
     echo datadog.appsec.log_file=/tmp/logs/appsec.log
     echo datadog.appsec.log_level=debug
     echo datadog.appsec.rasp_enabled=1
+    echo datadog.appsec.testing_invalid_command=1
   } >> /etc/php/php.ini
 fi
 

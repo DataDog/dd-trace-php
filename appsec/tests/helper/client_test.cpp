@@ -190,6 +190,8 @@ TEST(ClientTest, ClientInit)
         ddwaf_get_version());
     EXPECT_STREQ(
         msg_res->meta[std::string(metrics::event_rules_errors)].c_str(), "{}");
+    EXPECT_TRUE(msg_res->helper_runtime.has_value());
+    EXPECT_STREQ(msg_res->helper_runtime->c_str(), "cpp");
 
     EXPECT_EQ(msg_res->metrics.size(), 2);
     EXPECT_EQ(msg_res->metrics[metrics::event_rules_loaded], 5.0);
@@ -297,6 +299,8 @@ TEST(ClientTest, ClientInitInvalidRules)
     EXPECT_EQ(msg_res->meta.size(), 2);
     EXPECT_STREQ(msg_res->meta[std::string(metrics::waf_version)].c_str(),
         ddwaf_get_version());
+    EXPECT_TRUE(msg_res->helper_runtime.has_value());
+    EXPECT_STREQ(msg_res->helper_runtime->c_str(), "cpp");
 
     rapidjson::Document doc;
     doc.Parse(msg_res->meta[std::string(metrics::event_rules_errors)]);
@@ -2957,7 +2961,7 @@ TEST(ClientTest, RaspCalls)
         {
             network::request_exec::request msg;
 
-            msg.rasp_rule = "lfi";
+            msg.options.rasp_rule = "lfi";
             msg.data = parameter::map();
 
             network::request req(std::move(msg));

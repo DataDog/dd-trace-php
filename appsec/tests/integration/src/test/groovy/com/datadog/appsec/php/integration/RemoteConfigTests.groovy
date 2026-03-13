@@ -42,6 +42,7 @@ class RemoteConfigTests {
 
     @BeforeAll
     static void beforeAll() {
+        CONTAINER.flushProfilingData()
         ExecResult res = CONTAINER.execInContainer(
                 'bash', '-c',
                 '''sed -e '/appsec.enabled/d' -e '/appsec.rules=/d' /etc/php/php.ini > /etc/php/php-rc.ini;
@@ -49,6 +50,10 @@ class RemoteConfigTests {
                    export  DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1 DD_ENV=;
                    php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
         assert res.exitCode == 0
+        // On CI, slow starts have been observed where the 5s timeout of the
+        // initial applyRemote is exceeded. Wait a bit for the first RC req
+        CONTAINER.traceFromRequest('/hello.php') {}
+        CONTAINER.waitForRCVersion(INITIAL_TARGET, 0, 12_000)
     }
 
     @Test
