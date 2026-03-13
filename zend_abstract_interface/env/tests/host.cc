@@ -5,17 +5,35 @@ extern "C" {
 }
 
 #include "zai_tests_common.hpp"
+#include <string>
+
+static std::string zai_option_str_format(zai_option_str opt) {
+    zai_str view;
+    if (zai_option_str_get(opt, &view)) {
+        return std::string("Some(\"") + std::string(view.ptr, view.len) + "\")";
+    } else {
+        return "None";
+    }
+}
+
+#define REQUIRE_OPTION_STR_EQ(actual, expected)                                            \
+    do {                                                                                  \
+        zai_option_str _req_opt_actual = (actual);                                         \
+        zai_option_str _req_opt_expected = (expected);                                     \
+        INFO("comparing " << zai_option_str_format(_req_opt_expected) << " and " << zai_option_str_format(_req_opt_actual)); \
+        REQUIRE(zai_option_str_eq(_req_opt_actual, _req_opt_expected));                    \
+    } while (0)
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/host", "non-empty string", {
     REQUIRE(tea_sapi_module.getenv == NULL);
 },{
     REQUIRE_SETENV("FOO", "bar");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_option_str opt = zai_sys_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STRL("bar"));
 
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
+    opt = zai_sapi_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STR_NONE);
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
@@ -23,11 +41,11 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
 },{
     REQUIRE_SETENV("FOO", "");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_option_str opt = zai_sys_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STRL(""));
 
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("", buf);
+    opt = zai_sapi_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STR_NONE);
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/host", "not set", {
@@ -35,47 +53,11 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "not set", {
 },{
     REQUIRE_UNSETENV("FOO");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_option_str opt = zai_sys_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STR_NONE);
 
-    REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE_BUF_EQ("", buf);
-})
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/host", "max buffer size", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_SETENV("FOO", "bar");
-
-    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
-})
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too small", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_SETENV("FOO", "bar");
-
-    ZAI_ENV_BUFFER_INIT(buf, 3);  // No room for null terminator
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_BUFFER_TOO_SMALL);
-    REQUIRE_BUF_EQ("", buf);
-})
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too big", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_SETENV("FOO", "bar");
-
-    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ + 1);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_BUFFER_TOO_BIG);
-    REQUIRE_BUF_EQ("", buf);
+    opt = zai_sapi_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STR_NONE);
 })
 
 TEA_TEST_CASE_BARE("env/host", "outside request context", {
@@ -85,11 +67,11 @@ TEA_TEST_CASE_BARE("env/host", "outside request context", {
 
     REQUIRE_SETENV("FOO", "bar");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_option_str opt = zai_sys_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STRL("bar"));
 
-    REQUIRE(res == ZAI_ENV_NOT_READY);
-    REQUIRE_BUF_EQ("", buf);
+    opt = zai_sapi_getenv(ZAI_STRL("FOO"));
+    REQUIRE_OPTION_STR_EQ(opt, ZAI_OPTION_STR_NONE);
 
     TEA_TEST_CASE_WITHOUT_BAILOUT_END()
     tea_sapi_mshutdown();

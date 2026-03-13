@@ -129,6 +129,8 @@ typedef struct zai_option_str_s {
 #define ZAI_OPTION_STR_NONE \
     (zai_option_str) {.ptr = NULL, .len = 0}
 
+#define ZAI_OPTION_STRL(literal) \
+    zai_option_str_from_raw_parts("" literal, sizeof(literal) - 1)
 /**
  * Creates a zai_option_str from the given `ptr` and `len`. If `ptr` is null,
  * then it will be a None.
@@ -179,6 +181,13 @@ bool zai_option_str_get(zai_option_str self, zai_str *view) {
     *view = zai_option_str_is_some(self) ? value : (zai_str)ZAI_STR_EMPTY;
     ZEND_ASSERT(view->ptr != NULL);
     return self.ptr;
+}
+
+static inline bool zai_option_str_eq(zai_option_str a, zai_option_str b) {
+    zai_str x, y;
+    bool ba = zai_option_str_get(a, &x);
+    bool bb = zai_option_str_get(b, &y);
+    return ba == bb && (ba ? zai_str_eq(x, y) : true);
 }
 
 /**
