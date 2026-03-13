@@ -115,6 +115,6 @@ bool zai_config_get_id_by_name(zai_str name, zai_config_id *id);
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
 
 bool zai_config_is_initialized(void);
-bool zai_config_get_cached_env_value(zai_config_id id, uint8_t name_index, zai_env_buffer *buf);
+zai_option_str zai_config_sys_getenv_cached(zai_config_id id, uint8_t name_index);
 
 #endif  // ZAI_CONFIG_H

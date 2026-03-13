@@ -1,5 +1,6 @@
 #include "otel_config.h"
 #include <env/env.h>
+#include <zai_string/string.h>
 #include "ddtrace.h"
 #include <components/log/log.h>
 #include "sidecar.h"
@@ -20,8 +21,19 @@ static void report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *
     }
 }
 
+/**
+ * Borrows the value from the SAPI or the system env vars, or falls back on the
+ * INI entry, which copies the value into the buffer.
+ */
 static bool get_otel_value(zai_str str, zai_env_buffer *buf, bool pre_rinit) {
-    if (zai_getenv_ex(str, buf, pre_rinit, true) == ZAI_ENV_SUCCESS) {
+    zai_option_str opt = zai_sapi_getenv(str);
+    if (zai_option_str_is_none(opt)) {
+        opt = zai_sys_getenv(str);
+    }
+    zai_str val;
+    if (zai_option_str_get(opt, &val)) {
+        buf->ptr = val.ptr;
+        buf->len = val.len;
         return true;
     }
 

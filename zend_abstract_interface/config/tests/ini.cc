@@ -566,14 +566,21 @@ TEST_INI("setting an env value after memoization for multiple ZAI config users",
 #endif
 
 static char sapi_getenv_test_buf[64];
-static std::atomic<int> sapi_getenv_request_count{0};
+// Tracks which request number we are in (incremented once per RINIT via pre_rinit callback).
+// Both zai_config_first_time_rinit and zai_config_ini_rinit call zai_sapi_getenv within the
+// same RINIT, so we use a per-request counter (not a per-call counter) so all calls within
+// a single request see the same SAPI answer.
+static std::atomic<int> sapi_getenv_request_num{0};
 
-// For INI_FOO_STRING: first request (call) returns NULL (fall back to cache), second returns "sapi env val".
+static void sapi_getenv_advance_request() {
+    sapi_getenv_request_num.fetch_add(1);
+}
+
+// For INI_FOO_STRING: request 1 returns NULL (fall back to sys env cache), request 2+ returns "sapi env val".
 TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
     zai_str key = ZAI_STR_NEW(name, name_len);
     if (zai_str_eq(key, ZAI_STRL("INI_FOO_STRING"))) {
-        int call = sapi_getenv_request_count.fetch_add(1);
-        if (call == 0) {
+        if (sapi_getenv_request_num.load() < 2) {
             return NULL;
         }
         memset(sapi_getenv_test_buf, 0, sizeof(sapi_getenv_test_buf));
@@ -584,12 +591,14 @@ TEA_SAPI_GETENV_FUNCTION(ini_sapi_getenv_from_sapi) {
 }
 
 TEST_INI("SAPI env takes priority over cache", {
-    sapi_getenv_request_count.store(0);
+    sapi_getenv_request_num.store(0);
+    ext_zai_config_pre_rinit = sapi_getenv_advance_request;
     REQUIRE_SETENV("INI_FOO_STRING", "system env val");
     tea_sapi_module.getenv = ini_sapi_getenv_from_sapi;
 }, {
     REQUEST_BEGIN()
 
+    // Request 1: pre_rinit bumped request_num to 1; SAPI returns NULL → falls back to cached sys env.
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
     REQUIRE_ZVAL_STRING_EQ(value, "system env val");
@@ -598,6 +607,7 @@ TEST_INI("SAPI env takes priority over cache", {
 
     REQUEST_BEGIN()
 
+    // Request 2: pre_rinit bumped request_num to 2; SAPI returns "sapi env val" → overrides cache.
     zval *value = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
 
     REQUIRE_ZVAL_STRING_EQ(value, "sapi env val");
@@ -605,4 +615,5 @@ TEST_INI("SAPI env takes priority over cache", {
     REQUEST_END()
 
     tea_sapi_module.getenv = NULL;
+    ext_zai_config_pre_rinit = NULL;
 })
