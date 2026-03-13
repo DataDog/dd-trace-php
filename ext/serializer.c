@@ -1906,6 +1906,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         transfer_meta_data(rust_span, serialized_inferred_span, "error.stack", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "track_error", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.dm", true);
+        transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.ksr", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.tid", true);
 
         ddog_set_span_error(serialized_inferred_span, ddog_get_span_error(rust_span));
