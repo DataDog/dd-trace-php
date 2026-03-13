@@ -264,14 +264,15 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
     }
 
     struct block_params block_params = {0};
-    dd_result res = dd_request_exec(conn, &data_zv, false, &block_params);
+    dd_result res = dd_request_exec(
+        conn, Z_ARRVAL(data_zv), &(struct req_exec_opts){0}, &block_params);
     if (res == dd_network) {
         mlog_g(dd_log_info, "request_exec failed with dd_network; closing "
                             "connection to helper");
         dd_helper_close_conn();
     }
 
-    zval_ptr_dtor(&data_zv);
+    zend_array_destroy(Z_ARRVAL(data_zv));
 
     if (user_id != NULL && ZSTR_LEN(user_id) > 0) {
         dd_tags_set_event_user_id(user_id);

@@ -233,7 +233,85 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
     }
 
+    /**
+     * Apply remote config with raw byte content instead of JSON-encoded maps.
+     * This allows testing with malformed/corrupted config data.
+     *
+     * @param target The RC target
+     * @param files Map of config paths to raw byte arrays
+     * @return Supplier that waits for RC request confirmation
+     */
+    Supplier<RemoteConfigRequest> applyRemoteConfigRaw(Target target, Map<String, byte[]> files) {
+        Map<String, byte[]> encodedFiles = files.findAll { it.value != null }
+        long newVersion = Instant.now().epochSecond
+        def rcr = new RemoteConfigResponse()
+        rcr.clientConfigs = files.keySet() as List
+        rcr.targetFiles = encodedFiles.collect {
+            new RemoteConfigResponse.TargetFile(
+                    path: it.key,
+                    raw: new String(
+                            Base64.encoder.encode(it.value),
+                            StandardCharsets.ISO_8859_1)
+            )
+        }
+        rcr.targets = new RemoteConfigResponse.Targets(
+                signatures: [],
+                targetsSigned: new RemoteConfigResponse.Targets.TargetsSigned(
+                        type: 'root',
+                        custom: new RemoteConfigResponse.Targets.TargetsSigned.TargetsCustom(
+                                opaqueBackendState: 'ABCDEF'
+                        ),
+                        specVersion: '1.0.0',
+                        expires: Instant.parse('2030-01-01T00:00:00Z'),
+                        version: newVersion,
+                        targets: encodedFiles.collectEntries {
+                            [
+                                    it.key,
+                                    new RemoteConfigResponse.Targets.ConfigTarget(
+                                            hashes: [sha256: RemoteConfigResponse.sha256(it.value).toString(16).padLeft(64, '0')],
+                                            length: it.value.size(),
+                                            custom: new RemoteConfigResponse.Targets.ConfigTarget.ConfigTargetCustom(
+                                                    version: newVersion
+                                            )
+                                    )
+                            ]
+                        }
+                ),
+        )
+
+        setNextRCResponse(target, rcr)
+
+        long start = System.currentTimeMillis()
+        return { -> waitForRCVersion(target, newVersion,
+                5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
+    }
+
+    void flushProfilingData() {
+        if (!System.getProperty('USE_HELPER_RUST_COVERAGE')) {
+            return
+        }
+
+        try {
+            ExecResult res = execInContainer('/bin/bash', '-c',
+                    '''
+                    pid=$(pgrep -f '[d]atadog-ipc-helper' || true)
+                    if [ -n "$pid" ]; then
+                        echo "Sending SIGUSR1 to helper/sidecar process to flush coverage: $pid" >&2
+                        kill -USR1 $pid
+                        # Give it a moment to flush coverage
+                        sleep 0.5
+                    fi
+                    ''')
+            if (res.exitCode != 0) {
+                log.warn("Failed to cleanup helper: ${res.stderr}")
+            }
+        } catch (Exception e) {
+            log.warn("Exception during helper cleanup: ${e.message}")
+        }
+    }
+
     void close() {
+        flushProfilingData()
         copyLogs()
         super.close()
     }
@@ -373,6 +451,28 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
         addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
         addVolumeMount("php-tracer-$phpVersion-$phpVariant", '/project/tmp')
+        if (System.getProperty('USE_HELPER_RUST')) {
+            String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
+            if (helperBinaryPath) {
+                // Bind-mount explicit helper binary directly to the expected path
+                File helperFile = new File(helperBinaryPath)
+                if (!helperFile.isAbsolute()) {
+                    helperFile = new File(System.getProperty('user.dir'), helperBinaryPath)
+                }
+                withFileSystemBind(helperFile.absolutePath,
+                        '/helper-rust/libddappsec-helper.so', BindMode.READ_ONLY)
+            } else {
+                // libddwaf is statically linked into the helper-rust binary
+                String helperVolume = System.getProperty('USE_HELPER_RUST_COVERAGE') ?
+                    'php-helper-rust-coverage' : 'php-helper-rust'
+                addVolumeMount(helperVolume, '/helper-rust')
+                if (System.getProperty('USE_HELPER_RUST_COVERAGE')) {
+                    // Enable LLVM coverage profiling for the helper binary
+                    withEnv 'LLVM_PROFILE_FILE', '/helper-rust/coverage/default-%m-%p.profraw'
+                }
+            }
+            withEnv 'USE_HELPER_RUST', '1'
+        }
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"
 

@@ -4,6 +4,7 @@ import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIf
 import org.testcontainers.junit.jupiter.Container
@@ -17,6 +18,7 @@ import static com.datadog.appsec.php.integration.TestParams.getVariant
 @Testcontainers
 @Slf4j
 @DisabledIf('isZts')
+@Tag("musl")
 class NginxFpmTests implements CommonTests {
     static boolean zts = variant.contains('zts')
 
