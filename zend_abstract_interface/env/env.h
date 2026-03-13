@@ -3,7 +3,6 @@
 
 #include <zai_string/string.h>
 
-#include <stdbool.h>
 #include <stddef.h>
 
 /* The upper-bounds limit on the buffer size to hold the value of an arbitrary
@@ -48,24 +47,18 @@ typedef struct zai_env_buffer_s {
     char name##_storage[size];          \
     zai_env_buffer name = {size, name##_storage}
 
-/* Fills 'buf.ptr' with the value of a target environment variable identified by
- * 'name'. Must be called after the SAPI envrionment variables are available
- * which is as early as module RINIT. If the active SAPI has a custom
- * environment variable handler, the SAPI handler is used to access the
- * environment variable. If there is no custom handler, the environment variable
- * is accessed from the host using getenv().
- *
- * For error conditions, a return value other than ZAI_ENV_SUCCESS is returned
- * and 'buf.ptr' is made an empty string. If the buffer size 'buf.len' is not
- * big enough to contain the value, ZAI_ENV_BUFFER_TOO_SMALL will be returned
- * and 'buf.ptr' will be an empty string; e.g. this API does not attempt to
- * truncate the value to accommodate the buffer size.
+/* SAPI-only. Copies sapi_module.getenv() result into buf->ptr (stack storage).
+ * Handles the efree of the emalloc'd SAPI result internally — caller never frees.
+ * buf must be non-NULL. buf->ptr must point to caller-owned writable storage of buf->len bytes.
+ * Returns ZAI_ENV_SUCCESS, ZAI_ENV_NOT_SET, ZAI_ENV_NOT_READY, etc.
+ * Requires RINIT context (modules must be activated or request startup must be in progress).
  */
-zai_env_result zai_getenv_ex(zai_str name, zai_env_buffer buf, bool pre_rinit);
-static inline zai_env_result zai_getenv(zai_str name, zai_env_buffer buf) {
-    return zai_getenv_ex(name, buf, false);
-}
+zai_env_result zai_sapi_getenv(zai_str name, zai_env_buffer *buf);
 
-#define zai_getenv_literal(name, buf) zai_getenv(ZAI_STRL(name), buf)
+/* System-only. Copies getenv() result into buf->ptr (stack storage).
+ * buf must be non-NULL. buf->ptr must point to caller-owned writable storage of buf->len bytes.
+ * May be called pre-RINIT (process env is always available).
+ */
+zai_env_result zai_sys_getenv(zai_str name, zai_env_buffer *buf);
 
 #endif  // ZAI_ENV_H

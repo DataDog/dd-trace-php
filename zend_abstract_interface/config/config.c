@@ -12,11 +12,16 @@ HashTable zai_config_name_map = {0};
 uint16_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
-static bool zai_config_get_env_value(zai_str name, zai_env_buffer buf) {
+/**
+ * Gets the value of an environment variable and stores it in the buffer. It
+ * checks the SAPI first, then the system.
+ *
+ * In general this only makes sense to call after the first rinit hook has
+ * completed. Before a request, just call zai_sys_getenv().
+ */
+static bool zai_config_get_env_value(zai_str name, zai_env_buffer *buf) {
     // TODO Handle other return codes
-    // We want to explicitly allow pre-RINIT access to env vars here. So that callers can have an early view at config.
-    // But in general allmost all configurations shall only be accessed after first RINIT. (the trivial getter will
-    return zai_getenv_ex(name, buf, true) == ZAI_ENV_SUCCESS;
+    return zai_sapi_getenv(name, buf) == ZAI_ENV_SUCCESS || zai_sys_getenv(name, buf) == ZAI_ENV_SUCCESS;
 }
 
 static inline void zai_config_process_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, zai_option_str *value) {
@@ -48,7 +53,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
             memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
-        } else if (zai_config_get_env_value(name, buf)) {
+        } else if (zai_config_get_env_value(name, &buf)) {
             zai_config_process_env(memoized, buf, &value);
             break;
         } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG) {
@@ -59,7 +64,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             break;
         }
     }
-    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(buf, true)) {
+    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(&buf, true)) {
         zai_config_process_env(memoized, buf, &value);
         name_index = ZAI_CONFIG_ORIGIN_MODIFIED;
     }
