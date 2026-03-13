@@ -80,6 +80,12 @@ final class WebServer
     private $isOctane = false;
     private $isFrankenphp = false;
     private $isSwoole = false;
+    private $phpFpmMaxChildren = 1;
+    private $phpFpmUser = null;
+    private $phpFpmGroup = null;
+    private $phpFpmSudo = false;
+    private $phpFpmMasterInis = [];
+    private $forceSapi = null;
 
     private $defaultInis = [
         'log_errors' => 'on',
@@ -132,6 +138,32 @@ final class WebServer
         $this->isFrankenphp = true;
     }
 
+    public function setPhpFpmMaxChildren($maxChildren)
+    {
+        $this->phpFpmMaxChildren = $maxChildren;
+    }
+
+    public function setPhpFpmUser($user, $group = null)
+    {
+        $this->phpFpmUser = $user;
+        $this->phpFpmGroup = $group;
+    }
+
+    public function setPhpFpmSudo($sudo = true)
+    {
+        $this->phpFpmSudo = $sudo;
+    }
+
+    public function setPhpFpmMasterIni(array $inis)
+    {
+        $this->phpFpmMasterInis = $inis;
+    }
+
+    public function setForceSapi($sapi)
+    {
+        $this->forceSapi = $sapi;
+    }
+
     public function start()
     {
         if (!isset($this->envs['DD_TRACE_DEBUG'])) {
@@ -176,7 +208,7 @@ final class WebServer
                 $this->inis
             );
         } else {
-            switch (\getenv('DD_TRACE_TEST_SAPI')) {
+            switch ($this->forceSapi ?? \getenv('DD_TRACE_TEST_SAPI')) {
                 case 'cgi-fcgi':
                     $this->sapi = new PhpCgi(
                         self::FCGI_HOST,
@@ -192,7 +224,12 @@ final class WebServer
                         self::FCGI_HOST,
                         self::FCGI_PORT,
                         $this->envs,
-                        $this->inis
+                        $this->inis,
+                        $this->phpFpmMaxChildren,
+                        $this->phpFpmUser,
+                        $this->phpFpmGroup,
+                        $this->phpFpmSudo,
+                        $this->phpFpmMasterInis
                     );
                     break;
                 case 'apache2handler':

@@ -91,6 +91,8 @@ void ddog_tracer_metadata_set(struct ddog_TracerMetadata *ptr,
 
 /**
  * Serializes the `TracerMetadata` into a platform-specific memory handle (e.g., memfd on Linux).
+ * This function also attempts to publish the tracer metadata as an OTel process context
+ * separately, but will ignore resulting errors.
  *
  * # Safety
  * - `ptr` must be a valid, non-null pointer to a `TracerMetadata`.

@@ -2167,6 +2167,13 @@
         "default": "5000"
       }
     ],
+    "DD_TRACE_SIDECAR_CONNECTION_MODE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "auto"
+      }
+    ],
     "DD_TRACE_SIDECAR_TRACE_SENDER": [
       {
         "implementation": "A",

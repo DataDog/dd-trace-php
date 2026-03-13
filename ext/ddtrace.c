@@ -454,10 +454,7 @@ static void dd_activate_once(void) {
         }
 
         // if we're to enable appsec, we need to enable sidecar
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
-        if (!enable_sidecar) {
-            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
-        }
+        bool enable_sidecar = ddtrace_sidecar_should_enable(&appsec_activation, &appsec_config);
 
         if (enable_sidecar)
 #endif
@@ -1530,6 +1527,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 #endif
     ddshared_minit();
     ddtrace_autoload_minit();
+    ddtrace_sidecar_minit();
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
@@ -2661,6 +2659,8 @@ void dd_internal_handle_fork(void) {
         ddtrace_coms_clean_background_sender_after_fork();
     }
 #endif
+
+    ddtrace_sidecar_handle_fork();
     if (DDTRACE_G(agent_config_reader)) {
         ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
         DDTRACE_G(agent_config_reader) = NULL;
@@ -2675,7 +2675,6 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar();
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
