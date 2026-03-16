@@ -1200,7 +1200,7 @@ dependencies = [
  "glibc_version",
  "io-lifetimes",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-tinybytes",
  "memfd",
  "nix 0.29.0",
@@ -1236,7 +1236,7 @@ dependencies = [
  "constcat",
  "http",
  "http-body-util",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-data-pipeline",
  "percent-encoding",
  "regex",
@@ -1255,7 +1255,7 @@ version = "0.0.1"
 dependencies = [
  "build_common",
  "datadog-live-debugger",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-common-ffi",
  "log",
  "percent-encoding",
@@ -1286,7 +1286,7 @@ dependencies = [
  "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
- "libdd-common 2.0.0 (git+https://github.com/DataDog/libdatadog?tag=v29.0.0)",
+ "libdd-common 2.0.0",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
@@ -1318,7 +1318,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-trace-protobuf",
  "manual_future",
  "regex",
@@ -1353,7 +1353,7 @@ dependencies = [
  "http-body-util",
  "httpmock",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-common-ffi",
  "libdd-crashtracker",
  "libdd-crashtracker-ffi",
@@ -1398,7 +1398,7 @@ dependencies = [
  "datadog-sidecar",
  "http",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-dogstatsd-client",
@@ -1441,7 +1441,7 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-library-config-ffi",
@@ -2699,47 +2699,6 @@ dependencies = [
 [[package]]
 name = "libdd-common"
 version = "2.0.0"
-dependencies = [
- "anyhow",
- "bytes",
- "cc",
- "const_format",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "http",
- "http-body",
- "http-body-util",
- "httparse",
- "hyper",
- "hyper-rustls",
- "hyper-util",
- "indexmap 2.12.1",
- "libc 0.2.177",
- "maplit",
- "mime",
- "multer",
- "nix 0.29.0",
- "pin-project",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "rustls",
- "rustls-native-certs",
- "serde",
- "static_assertions",
- "tempfile",
- "thiserror 1.0.69",
- "tokio",
- "tokio-rustls",
- "tower-service",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "libdd-common"
-version = "2.0.0"
 source = "git+https://github.com/DataDog/libdatadog?tag=v29.0.0#001bd56fcbba34fa4ec3f9798a6c4fbcddeffa40"
 dependencies = [
  "anyhow",
@@ -2777,6 +2736,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "libdd-common"
+version = "2.0.1"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "cc",
+ "const_format",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "hex",
+ "http",
+ "http-body",
+ "http-body-util",
+ "httparse",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "indexmap 2.12.1",
+ "libc 0.2.177",
+ "maplit",
+ "mime",
+ "multer",
+ "nix 0.29.0",
+ "pin-project",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "rustls",
+ "rustls-native-certs",
+ "rusty-fork",
+ "serde",
+ "static_assertions",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-rustls",
+ "tower-service",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "libdd-common-ffi"
 version = "0.0.1"
 dependencies = [
@@ -2788,7 +2789,7 @@ dependencies = [
  "crossbeam-queue",
  "function_name",
  "hyper",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "serde",
 ]
 
@@ -2797,7 +2798,6 @@ name = "libdd-crashtracker"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "backtrace",
  "blazesym",
  "cc",
  "chrono",
@@ -2807,7 +2807,8 @@ dependencies = [
  "goblin",
  "http",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
+ "libdd-libunwind-sys",
  "libdd-telemetry",
  "nix 0.29.0",
  "num-derive",
@@ -2836,7 +2837,7 @@ dependencies = [
  "build_common",
  "function_name",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-common-ffi",
  "libdd-crashtracker",
  "serde",
@@ -2849,7 +2850,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2860,7 +2861,7 @@ dependencies = [
  "http",
  "http-body-util",
  "httpmock",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-ddsketch",
  "libdd-dogstatsd-client",
  "libdd-log",
@@ -2898,7 +2899,7 @@ dependencies = [
  "anyhow",
  "cadence",
  "http",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "serde",
  "tokio",
  "tracing",
@@ -2906,7 +2907,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-library-config"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "libdd-trace-protobuf",
@@ -2929,10 +2930,19 @@ dependencies = [
  "anyhow",
  "build_common",
  "constcat",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-common-ffi",
  "libdd-library-config",
  "tempfile",
+]
+
+[[package]]
+name = "libdd-libunwind-sys"
+version = "0.0.1"
+dependencies = [
+ "cc",
+ "libc 0.2.177",
+ "paste",
 ]
 
 [[package]]
@@ -2966,7 +2976,7 @@ dependencies = [
  "httparse",
  "indexmap 2.12.1",
  "libdd-alloc",
- "libdd-common 2.0.0 (git+https://github.com/DataDog/libdatadog?tag=v29.0.0)",
+ "libdd-common 2.0.0",
  "libdd-profiling-protobuf",
  "mime",
  "parking_lot",
@@ -3004,7 +3014,7 @@ dependencies = [
  "http",
  "http-body-util",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-ddsketch",
  "serde",
  "serde_json",
@@ -3024,7 +3034,7 @@ dependencies = [
  "build_common",
  "function_name",
  "libc 0.2.177",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-common-ffi",
  "libdd-telemetry",
  "paste",
@@ -3047,7 +3057,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-normalization"
-version = "1.0.1"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -3059,7 +3069,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-protobuf"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "prost",
  "prost-build",
@@ -3072,7 +3082,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "1.0.1"
+version = "1.0.3"
 dependencies = [
  "criterion",
  "hashbrown 0.15.2",
@@ -3084,7 +3094,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "2.0.0"
+version = "2.0.2"
 dependencies = [
  "anyhow",
  "bolero",
@@ -3100,7 +3110,7 @@ dependencies = [
  "httpmock",
  "hyper",
  "indexmap 2.12.1",
- "libdd-common 2.0.0",
+ "libdd-common 2.0.1",
  "libdd-tinybytes",
  "libdd-trace-normalization",
  "libdd-trace-protobuf",
@@ -4198,6 +4208,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick-error"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
+
+[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4723,6 +4739,18 @@ name = "rustversion"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
+
+[[package]]
+name = "rusty-fork"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cc6bf79ff24e648f6da1f8d1f011e9cac26491b619e6b9280f2b47f1774e6ee2"
+dependencies = [
+ "fnv",
+ "quick-error",
+ "tempfile",
+ "wait-timeout",
+]
 
 [[package]]
 name = "ruzstd"
@@ -6045,6 +6073,15 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "wait-timeout"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09ac3b126d3914f9849036f826e054cbabdc8519970b8998ddaf3b5bd3c65f11"
+dependencies = [
+ "libc 0.2.177",
+]
 
 [[package]]
 name = "walkdir"
