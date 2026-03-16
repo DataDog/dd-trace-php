@@ -29,6 +29,7 @@ dd_trace_serialize_closed_spans();
 
 // force a reconnect, it needs to resubmit telemetry info
 dd_trace_internal_fn("break_sidecar_connection");
+dd_trace_internal_fn("synchronous_flush", 5000); // await connection breaking
 
 dd_trace_internal_fn("finalize_telemetry");
 
