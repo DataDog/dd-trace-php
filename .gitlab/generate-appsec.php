@@ -240,14 +240,14 @@ stages:
 
       # Install datadog-ci
       DATADOG_CI_VERSION="v2.48.0"
-      curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/${DATADOG_CI_VERSION}/datadog-ci_linux-x64" --output "/usr/local/bin/datadog-ci"
-      chmod +x /usr/local/bin/datadog-ci
+      curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/${DATADOG_CI_VERSION}/datadog-ci_linux-x64" --output "/tmp/datadog-ci"
+      chmod +x /tmp/datadog-ci
 
       echo "Uploading extension coverage to Datadog"
-      datadog-ci coverage upload --format=lcov appsec/build/coverage-ext.lcov || true
+      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-ext.lcov || true
 
       echo "Uploading helper coverage to Datadog"
-      datadog-ci coverage upload --format=lcov appsec/build/coverage-helper.lcov || true
+      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-helper.lcov || true
 
 
 "push appsec images":
