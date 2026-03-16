@@ -1,0 +1,393 @@
+#!/usr/bin/env bash
+# Build a debug ddtrace artifact for a specific target, for use with:
+#   php datadog-setup.php --file <artifact.tar.gz>
+#
+# Usage: build-debug-artifact <target> [output-dir] [--profiler] [--appsec]
+#
+# Target format: {libc}-{arch}-{php_version}-{thread_safety}
+#   libc:          musl | gnu/glibc
+#   arch:          arm | arm64 | aarch | aarch64 | x86 | x64 | x86_64
+#   php_version:   7.0 through 8.5
+#   thread_safety: nts | zts
+#
+# Examples:
+#   build-debug-artifact musl-arm-7.3-nts
+#   build-debug-artifact gnu-x86_64-8.3-nts /tmp/artifacts
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+CALLING_DIR="${PWD}"
+
+# ─── Defaults ────────────────────────────────────────────────────────────────
+BUILD_PROFILER=0
+BUILD_APPSEC=0
+OUTPUT_DIR="${CALLING_DIR}"
+TARGET=""
+
+# ─── Usage ───────────────────────────────────────────────────────────────────
+usage() {
+    cat >&2 <<'EOF'
+Usage: build-debug-artifact <target> [output-dir] [--profiler] [--appsec]
+
+Target format: {libc}-{arch}-{php_version}-{thread_safety}
+  libc:          musl (alpine) | gnu or glibc (bookworm)
+  arch:          arm | arm64 | aarch | aarch64 | x86 | x64 | x86_64
+  php_version:   7.0 | 7.1 | 7.2 | 7.3 | 7.4 | 8.0 | 8.1 | 8.2 | 8.3 | 8.4 | 8.5
+  thread_safety: nts | zts
+
+Options:
+  --profiler    Also build the profiling extension
+  --appsec      Also build the AppSec extension
+
+If the current directory contains a Dockerfile, it will be patched to COPY the
+artifact and add --file to any datadog-setup.php invocations.
+
+Examples:
+  build-debug-artifact musl-arm-7.3-nts
+  build-debug-artifact gnu-x86_64-8.3-nts /tmp/out --profiler
+EOF
+    exit 1
+}
+
+# ─── Parse args ──────────────────────────────────────────────────────────────
+for arg in "$@"; do
+    case "$arg" in
+        --profiler) BUILD_PROFILER=1 ;;
+        --appsec)   BUILD_APPSEC=1 ;;
+        --help|-h)  usage ;;
+        -*)         echo "Error: unknown option '$arg'" >&2; usage ;;
+        *)
+            if [[ -z "$TARGET" ]]; then
+                TARGET="$arg"
+            elif [[ "$OUTPUT_DIR" == "$CALLING_DIR" ]]; then
+                OUTPUT_DIR="$(cd "$arg" 2>/dev/null && pwd)" \
+                    || { echo "Error: output directory '$arg' does not exist" >&2; exit 1; }
+            else
+                echo "Error: unexpected argument '$arg'" >&2; usage
+            fi
+            ;;
+    esac
+done
+
+[[ -z "$TARGET" ]] && { echo "Error: target is required" >&2; usage; }
+
+# ─── Parse target ────────────────────────────────────────────────────────────
+# Format: {libc}-{arch}-{php_major.minor}-{nts|zts}
+if ! [[ "$TARGET" =~ ^([^-]+)-([^-]+)-([0-9]+\.[0-9]+)-(nts|zts)$ ]]; then
+    echo "Error: invalid target format '$TARGET'" >&2
+    echo "       Expected: {libc}-{arch}-{php_version}-{nts|zts}" >&2
+    exit 1
+fi
+
+libc="${BASH_REMATCH[1]}"
+arch="${BASH_REMATCH[2]}"
+php_version="${BASH_REMATCH[3]}"
+thread_safety="${BASH_REMATCH[4]}"
+
+case "${libc,,}" in
+    musl|alpine)  libc="musl" ;;
+    gnu|glibc)    libc="gnu" ;;
+    *)            echo "Error: unknown libc '$libc'. Use musl or gnu/glibc." >&2; exit 1 ;;
+esac
+
+case "${arch,,}" in
+    arm|arm64|aarch|aarch64) arch="aarch64" ;;
+    x86|x64|x86_64|amd64)   arch="x86_64" ;;
+    *)                        echo "Error: unknown arch '$arch'. Use arm64/aarch64 or x86_64." >&2; exit 1 ;;
+esac
+
+# ─── PHP API mapping ─────────────────────────────────────────────────────────
+case "$php_version" in
+    7.0) php_api="20151012" ;;
+    7.1) php_api="20160303" ;;
+    7.2) php_api="20170718" ;;
+    7.3) php_api="20180731" ;;
+    7.4) php_api="20190902" ;;
+    8.0) php_api="20200930" ;;
+    8.1) php_api="20210902" ;;
+    8.2) php_api="20220829" ;;
+    8.3) php_api="20230831" ;;
+    8.4) php_api="20240924" ;;
+    8.5) php_api="20250925" ;;
+    *)   echo "Error: unknown PHP version '$php_version'. Supported: 7.0–8.5." >&2; exit 1 ;;
+esac
+
+# ─── Docker image selection ───────────────────────────────────────────────────
+BOOKWORM_VERSION=6
+if [[ "$libc" == "musl" ]]; then
+    DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
+else
+    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_bookworm-${BOOKWORM_VERSION}"
+fi
+
+if [[ "$arch" == "aarch64" ]]; then
+    DOCKER_PLATFORM="linux/arm64"
+else
+    DOCKER_PLATFORM="linux/amd64"
+fi
+
+# ─── Build cache management ───────────────────────────────────────────────────
+CACHE_VOLUME="ddtrace-build-cache"
+CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}"
+CACHE_TAG_LABEL="ddtrace.build.target"
+
+if docker volume inspect "$CACHE_VOLUME" &>/dev/null; then
+    existing=$(docker volume inspect "$CACHE_VOLUME" \
+        --format "{{ index .Labels \"${CACHE_TAG_LABEL}\" }}" 2>/dev/null || true)
+    if [[ "$existing" != "$CACHE_TAG" ]]; then
+        echo "Build target changed ($existing → $CACHE_TAG): clearing build cache..."
+        docker volume rm "$CACHE_VOLUME" >/dev/null
+    fi
+fi
+
+if ! docker volume inspect "$CACHE_VOLUME" &>/dev/null; then
+    docker volume create --label "${CACHE_TAG_LABEL}=${CACHE_TAG}" "$CACHE_VOLUME" >/dev/null
+fi
+
+# ─── Run build inside Docker ──────────────────────────────────────────────────
+EXT_SUFFIX=$([[ "$thread_safety" == "zts" ]] && echo "-zts" || echo "")
+
+# Build commands differ slightly between musl and gnu:
+#   - Alpine images: user=root, shell=sh, switch_php defined in /root/.bashrc
+#   - Bookworm images: user=circleci (WORKDIR=/home/circleci/app), shell=bash, switch-php in PATH
+#
+# DD_TRACE_DOCKER_DEBUG=1 → CFLAGS=-O0 -g (debug-friendly)
+# The volume at HOME_DIR/tmp persists build artifacts (C objects, Rust target/) across runs.
+
+if [[ "$libc" == "musl" ]]; then
+    DOCKER_SHELL="sh"
+    HOME_DIR="/app"
+else
+    DOCKER_SHELL="bash"
+    HOME_DIR="/home/circleci/app"
+fi
+
+# ─── Generate PHP bridge files ───────────────────────────────────────────────
+# src/bridge/_generated*.php are not committed; generated from _files_*.php via
+# `make generate` (composer). Skip if all generated files exist and are newer
+# than all source inputs.
+_should_generate=1
+if ls "${REPO_ROOT}"/src/bridge/_generated*.php >/dev/null 2>&1; then
+    _should_generate=0
+    for _src in "${REPO_ROOT}"/src/bridge/_files_*.php \
+                "${REPO_ROOT}/tooling/generation/composer.json" \
+                "${REPO_ROOT}/tooling/generation/composer.lock"; do
+        [[ -f "$_src" ]] || continue
+        for _gen in "${REPO_ROOT}"/src/bridge/_generated*.php; do
+            if [[ "$_src" -nt "$_gen" ]]; then
+                _should_generate=1
+                break 2
+            fi
+        done
+    done
+fi
+if [[ "$_should_generate" == "1" ]]; then
+    echo "Generating src/bridge/_generated*.php..."
+    docker run --rm \
+        -v "${REPO_ROOT}:/home/circleci/app" \
+        -w "/home/circleci/app" \
+        "datadog/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \
+        bash -c "make generate"
+else
+    echo "src/bridge/_generated*.php is up to date, skipping generation."
+fi
+
+echo "Building ddtrace ${php_version} ${thread_safety} [${libc}/${arch}]..."
+echo "Image: ${DOCKER_IMAGE}"
+
+TMP_OUT=$(mktemp -d)
+TMP_PKG=$(mktemp -d)
+trap 'rm -rf "$TMP_OUT" "$TMP_PKG"' EXIT
+
+# ─── Build script construction ────────────────────────────────────────────────
+# Each product gets its own script; all run in separate containers in parallel.
+# The preamble (set -e, bashrc source, switch_php) is duplicated per product.
+
+_preamble() {  # $1 = shell commands before product-specific steps
+    if [[ "$libc" == "musl" ]]; then
+        printf 'set -e\n. /root/.bashrc\nswitch_php %s\n%s' "${thread_safety}" "$1"
+    else
+        printf 'set -e\nswitch-php %s\n%s' "${thread_safety}" "$1"
+    fi
+}
+
+TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 make
+cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
+
+if [[ "$BUILD_PROFILER" == "1" ]]; then
+    PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
+    ln -sf ../lib/llvm17/bin/clang /usr/bin/clang
+fi
+(cd profiling && CARGO_TARGET_DIR=${HOME_DIR}/tmp/build_profiler cargo build --profile profiler-release)
+cp ${HOME_DIR}/tmp/build_profiler/profiler-release/libdatadog_php_profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"
+fi
+
+if [[ "$BUILD_APPSEC" == "1" ]]; then
+    # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
+    APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
+mkdir -p tmp/build_appsec${EXT_SUFFIX}
+(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
+
+    # The helper is a musl-statically-linked binary that works on both gnu and musl systems.
+    HELPER_IMAGE="registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain"
+    HELPER_SCRIPT="set -e
+git config --global --add safe.directory '*' 2>/dev/null || true
+mkdir -p appsec/build_helper
+cd appsec/build_helper
+cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON -DCMAKE_TOOLCHAIN_FILE=/sysroot/\$(uname -m)-none-linux-musl/Toolchain.cmake
+make -j \$(nproc)
+cp libddappsec-helper.so /output/libddappsec-helper.so"
+fi
+
+# ─── Launch all builds in parallel ────────────────────────────────────────────
+_PIDS=()
+_NAMES=()
+
+_launch() {
+    local _name="$1"; shift
+    _NAMES+=("$_name")
+    { "$@" 2>&1 | sed -u "s/^/[${_name}] /"; } &
+    _PIDS+=($!)
+}
+
+_common_volumes=(
+    --platform "$DOCKER_PLATFORM"
+    -v "${REPO_ROOT}:${HOME_DIR}"
+    -v "${CACHE_VOLUME}:${HOME_DIR}/tmp"
+    -v "ddtrace-cargo-registry:/rust/cargo/registry"
+    -v "${TMP_OUT}:/output"
+)
+
+# make generate: runs alongside the other builds (generated files are only needed
+# for packaging, not for C/Rust/cmake compilation inside the containers).
+if [[ "$_should_generate" == "1" ]]; then
+    _launch "generate" docker run --rm \
+        -v "${REPO_ROOT}:/home/circleci/app" \
+        -w "/home/circleci/app" \
+        "datadog/dd-trace-ci:php-8.3_bookworm-${BOOKWORM_VERSION}" \
+        bash -c "make generate"
+fi
+
+_launch "trace"   docker run --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
+
+[[ "$BUILD_PROFILER" == "1" ]] && \
+    _launch "profiler" docker run --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$PROFILER_SCRIPT"
+
+if [[ "$BUILD_APPSEC" == "1" ]]; then
+    _launch "appsec" docker run --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
+
+    # TODO rust helper soon
+    _launch "helper" docker run --rm \
+        --platform "$DOCKER_PLATFORM" \
+        -v "${REPO_ROOT}:/repo" \
+        -w "/repo" \
+        -v "${TMP_OUT}:/output" \
+        "$HELPER_IMAGE" \
+        sh -c "$HELPER_SCRIPT"
+fi
+
+# ─── Wait for all builds ──────────────────────────────────────────────────────
+_FAILED=0
+for _i in "${!_PIDS[@]}"; do
+    wait "${_PIDS[$_i]}" || { echo "=== ${_NAMES[$_i]} build FAILED ===" >&2; _FAILED=1; }
+done
+[[ "$_FAILED" == "0" ]] || exit 1
+
+# ─── Package artifact ─────────────────────────────────────────────────────────
+echo "Packaging artifact..."
+
+VERSION=$(cat "${REPO_ROOT}/VERSION")
+LINUX_TARGET=$([[ "$libc" == "musl" ]] && echo "linux-musl" || echo "linux-gnu")
+ARTIFACT_NAME="dd-library-php-${VERSION}-${arch}-${LINUX_TARGET}.tar.gz"
+
+TRACE_BASE="${TMP_PKG}/dd-library-php/trace"
+mkdir -p "${TRACE_BASE}/ext/${php_api}"
+
+cp "${TMP_OUT}/ddtrace.so" "${TRACE_BASE}/ext/${php_api}/ddtrace${EXT_SUFFIX}.so"
+cp -r "${REPO_ROOT}/src" "${TRACE_BASE}/src"
+
+echo "$VERSION" > "${TMP_PKG}/dd-library-php/VERSION"
+
+if [[ "$BUILD_PROFILER" == "1" ]]; then
+    PROFILING_BASE="${TMP_PKG}/dd-library-php/profiling"
+    mkdir -p "${PROFILING_BASE}/ext/${php_api}"
+    cp "${TMP_OUT}/datadog-profiling${EXT_SUFFIX}.so" "${PROFILING_BASE}/ext/${php_api}/datadog-profiling${EXT_SUFFIX}.so"
+    cp "${REPO_ROOT}/profiling/LICENSE"* "${PROFILING_BASE}/" 2>/dev/null || true
+    cp "${REPO_ROOT}/profiling/NOTICE" "${PROFILING_BASE}/" 2>/dev/null || true
+fi
+
+if [[ "$BUILD_APPSEC" == "1" ]]; then
+    APPSEC_BASE="${TMP_PKG}/dd-library-php/appsec"
+    mkdir -p "${APPSEC_BASE}/ext/${php_api}" "${APPSEC_BASE}/lib" "${APPSEC_BASE}/etc"
+    cp "${TMP_OUT}/ddappsec${EXT_SUFFIX}.so" "${APPSEC_BASE}/ext/${php_api}/ddappsec${EXT_SUFFIX}.so"
+    if [[ -f "${TMP_OUT}/libddappsec-helper.so" ]]; then
+        cp "${TMP_OUT}/libddappsec-helper.so" "${APPSEC_BASE}/lib/libddappsec-helper.so"
+    fi
+    if [[ -f "${REPO_ROOT}/appsec/recommended.json" ]]; then
+        cp "${REPO_ROOT}/appsec/recommended.json" "${APPSEC_BASE}/etc/recommended.json"
+    fi
+fi
+
+mkdir -p "$OUTPUT_DIR"
+ARTIFACT_PATH="${OUTPUT_DIR}/${ARTIFACT_NAME}"
+tar -czf "$ARTIFACT_PATH" -C "$TMP_PKG" .
+
+echo "Artifact: ${ARTIFACT_PATH}"
+
+if [[ "$(basename "$OUTPUT_DIR")" == "binaries" && "$(basename "$(dirname "$OUTPUT_DIR")")" == "system-tests" ]]; then
+    cp "${REPO_ROOT}/datadog-setup.php" "${OUTPUT_DIR}/datadog-setup.php"
+    echo "Copied datadog-setup.php to ${OUTPUT_DIR}"
+fi
+
+# ─── Dockerfile patching ──────────────────────────────────────────────────────
+DOCKERFILE="${CALLING_DIR}/Dockerfile"
+
+if [[ -f "$DOCKERFILE" ]]; then
+    ARTIFACT_CONTAINER_PATH="/dd-library-debug.tar.gz"
+
+    # Portable sed -i: BSD (macOS) needs 'sed -i ""', GNU accepts 'sed -i'
+    if sed --version 2>/dev/null | grep -q GNU; then
+        sedi() { sed -i "$@"; }
+    else
+        sedi() { sed -i '' "$@"; }
+    fi
+
+    if [[ "$OUTPUT_DIR" != "$CALLING_DIR" ]]; then
+        echo "Warning: Dockerfile found in current directory but artifact was written" >&2
+        echo "         to a different directory. Copy '${ARTIFACT_NAME}' into the" >&2
+        echo "         Dockerfile's build context before building the image." >&2
+    fi
+
+    # Add COPY instruction before the first RUN/CMD/ENTRYPOINT line that invokes
+    # datadog-setup.php. Skips COPY lines so we don't insert before COPY datadog-setup.php.
+    if ! grep -qF "${ARTIFACT_CONTAINER_PATH}" "$DOCKERFILE"; then
+        if grep -qE "^(RUN|CMD|ENTRYPOINT).*datadog-setup\.php" "$DOCKERFILE"; then
+            awk -v copy="COPY ${ARTIFACT_NAME} ${ARTIFACT_CONTAINER_PATH}" \
+                '!inserted && /^(RUN|CMD|ENTRYPOINT)/ && /datadog-setup\.php/ \
+                 { print copy; inserted=1 } \
+                 { print }' \
+                "$DOCKERFILE" > "${DOCKERFILE}.tmp"
+            mv "${DOCKERFILE}.tmp" "$DOCKERFILE"
+            echo "Patched Dockerfile: added COPY ${ARTIFACT_NAME} ${ARTIFACT_CONTAINER_PATH}"
+        else
+            echo "Warning: Dockerfile found but no datadog-setup.php invocation detected." >&2
+            echo "         Add manually: COPY ${ARTIFACT_NAME} ${ARTIFACT_CONTAINER_PATH}" >&2
+        fi
+    else
+        # Container path already present — update the source filename in case version changed.
+        sedi "s|^COPY .* ${ARTIFACT_CONTAINER_PATH}$|COPY ${ARTIFACT_NAME} ${ARTIFACT_CONTAINER_PATH}|" \
+            "$DOCKERFILE"
+        echo "Patched Dockerfile: updated COPY source to ${ARTIFACT_NAME}"
+    fi
+
+    # Add --file to `php datadog-setup.php` invocations that don't already have it.
+    # Matches only `php [path/]datadog-setup.php` — not curl URLs or COPY filenames.
+    if grep -qE "php +[^ ]*datadog-setup\.php" "$DOCKERFILE" \
+            && ! grep -qE "php +[^ ]*datadog-setup\.php.*--file" "$DOCKERFILE"; then
+        sedi -E "s|(php +[^ ]*datadog-setup\.php)|\1 --file ${ARTIFACT_CONTAINER_PATH}|g" \
+            "$DOCKERFILE"
+        echo "Patched Dockerfile: added --file ${ARTIFACT_CONTAINER_PATH} to datadog-setup.php calls"
+    fi
+fi
