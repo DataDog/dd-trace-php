@@ -50,9 +50,10 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "fallback to host env when sapi not set"
     zai_env_result res = zai_sapi_getenv(ZAI_STRL("FOO"), &buf);
     REQUIRE(res == ZAI_ENV_NOT_SET);
 
-    res = zai_sys_getenv(ZAI_STRL("FOO"), &buf);
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
+    zai_option_str sys = zai_sys_getenv(ZAI_STRL("FOO"));
+    REQUIRE(zai_option_str_is_some(sys));
+    REQUIRE(sys.len == strlen("bar"));
+    REQUIRE(0 == memcmp(sys.ptr, "bar", sys.len));
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set", {
@@ -63,7 +64,6 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set", {
     zai_env_result res = zai_sapi_getenv(ZAI_STRL("FOO"), &buf);
 
     REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE_BUF_EQ("", buf);
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set (sapi returns null regardless of host env)", {
@@ -76,7 +76,6 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set (sapi returns null regardless o
 
     // zai_sapi_getenv only consults SAPI, not host env
     REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE_BUF_EQ("", buf);
 })
 
 /****************************** Access from RINIT *****************************/

@@ -1,6 +1,7 @@
 #include "../tsrmls_cache.h"
 #include <main/SAPI.h>
 #include <main/php.h>
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -12,53 +13,29 @@
 #define sapi_getenv_compat(name, name_len) sapi_getenv((char *)name, name_len)
 #endif
 
-static zai_env_result zai_env_validate_buf(zai_env_buffer *buf) {
-    if (UNEXPECTED(!buf || !buf->ptr || !buf->len)) return ZAI_ENV_ERROR;
-    buf->ptr[0] = '\0';
-    return (buf->len <= ZAI_ENV_MAX_BUFSIZ)
-        ? ZAI_ENV_SUCCESS
-        : ZAI_ENV_BUFFER_TOO_BIG;
-}
-
 zai_env_result zai_sapi_getenv(zai_str name, zai_env_buffer *buf) {
-    zai_env_result res = zai_env_validate_buf(buf);
-    if (UNEXPECTED(res != ZAI_ENV_SUCCESS)) return res;
+    ZAI_ASSERT(buf && "zai_sapi_getenv: buf must be non-NULL");
+    ZAI_ASSERT((PG(modules_activated) | PG(during_request_startup)) && "zai_sapi_getenv: must be called during or after RINIT");
 
-    if (UNEXPECTED(zai_str_is_empty(name))) return ZAI_ENV_ERROR;
+    // Optimize for the happy-path where the caller has valid inputs. On every
+    // request, every config is likely to check for a sapi-provided env var,
+    // so this is reasonably hot.
+    // Use bitwise-or and bitwise-and as appropriate to avoid excess branches
+    // that aren't going to happen in production.
 
-    /* Some SAPIs do not initialize the SAPI-controlled environment variables
-     * until SAPI RINIT. It is for this reason we cannot reliably access
-     * SAPI environment variables until module RINIT.
-     */
-    if (!PG(modules_activated) && !PG(during_request_startup)) return ZAI_ENV_NOT_READY;
+    if (UNEXPECTED(zai_str_is_empty(name) | !buf->ptr | !buf->len)) return ZAI_ENV_ERROR;
+    if (UNEXPECTED(buf->len > ZAI_ENV_MAX_BUFSIZ)) return ZAI_ENV_BUFFER_TOO_BIG;
 
     char *value = sapi_getenv_compat(name.ptr, name.len);
     if (!value) return ZAI_ENV_NOT_SET;
 
-    if (strlen(value) < buf->len) {
+    zai_env_result res = ZAI_ENV_SUCCESS;
+    if (EXPECTED(strlen(value) < buf->len)) {
         strcpy(buf->ptr, value);
-        res = ZAI_ENV_SUCCESS;
     } else {
         res = ZAI_ENV_BUFFER_TOO_SMALL;
     }
 
     efree(value);
     return res;
-}
-
-zai_env_result zai_sys_getenv(zai_str name, zai_env_buffer *buf) {
-    zai_env_result res = zai_env_validate_buf(buf);
-    if (UNEXPECTED(res != ZAI_ENV_SUCCESS)) return res;
-
-    if (UNEXPECTED(zai_str_is_empty(name))) return ZAI_ENV_ERROR;
-
-    char *value = getenv(name.ptr);
-    if (!value) return ZAI_ENV_NOT_SET;
-
-    if (strlen(value) < buf->len) {
-        strcpy(buf->ptr, value);
-        return ZAI_ENV_SUCCESS;
-    } else {
-        return ZAI_ENV_BUFFER_TOO_SMALL;
-    }
 }

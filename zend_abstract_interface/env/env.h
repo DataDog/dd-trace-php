@@ -4,6 +4,8 @@
 #include <zai_string/string.h>
 
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* The upper-bounds limit on the buffer size to hold the value of an arbitrary
  * environment variable.
@@ -22,10 +24,6 @@ typedef enum {
      * environment variable 'name'.
      */
     ZAI_ENV_SUCCESS,
-    /* The function is being called before the SAPI environment variables are
-     * available.
-     */
-    ZAI_ENV_NOT_READY,
     /* The environment variable is not set. */
     ZAI_ENV_NOT_SET,
     /* The buffer is not large enough to accommodate the length of the value. */
@@ -47,18 +45,30 @@ typedef struct zai_env_buffer_s {
     char name##_storage[size];          \
     zai_env_buffer name = {size, name##_storage}
 
-/* SAPI-only. Copies sapi_module.getenv() result into buf->ptr (stack storage).
- * Handles the efree of the emalloc'd SAPI result internally — caller never frees.
- * buf must be non-NULL. buf->ptr must point to caller-owned writable storage of buf->len bytes.
- * Returns ZAI_ENV_SUCCESS, ZAI_ENV_NOT_SET, ZAI_ENV_NOT_READY, etc.
- * Requires RINIT context (modules must be activated or request startup must be in progress).
+/**
+ * SAPI-only. Copies sapi_module.getenv() result into buf->ptr. Handles the
+ * efree of the emalloc'd SAPI result internally — caller never frees.
+ * buf must be non-NULL. buf->ptr must point to caller-owned writable storage
+ * of buf->len bytes.
+ * Returns ZAI_ENV_SUCCESS, ZAI_ENV_NOT_SET, etc.
+ * Precondition: must be called during or after RINIT — either
+ * PG(modules_activated) or PG(during_request_startup) must be non-zero.
+ * Violating this (calling before any request has started) is a programming
+ * error and will trigger ZAI_ASSERT.
+ * On failure, there's no guarantee about the contents of buf->ptr.
  */
 zai_env_result zai_sapi_getenv(zai_str name, zai_env_buffer *buf);
 
-/* System-only. Copies getenv() result into buf->ptr (stack storage).
- * buf must be non-NULL. buf->ptr must point to caller-owned writable storage of buf->len bytes.
- * May be called pre-RINIT (process env is always available).
+/**
+ * System-only. Returns a zai_option_str pointing directly into process memory.
+ * The pointer must not be freed or written to, and should be copied if held.
+ * Should be called pre-RINIT, but it can also be called at request time if the
+ * cache needs to be bypassed e.g. for OTEL env vars.
  */
-zai_env_result zai_sys_getenv(zai_str name, zai_env_buffer *buf);
+static inline zai_option_str zai_sys_getenv(zai_str name) {
+    ZAI_ASSERT(name.ptr && "zai_sys_getenv: detected null zai_str.ptr");
+    char *value = getenv(name.ptr);
+    return value ? zai_option_str_from_raw_parts(value, strlen(value)) : ZAI_OPTION_STR_NONE;
+}
 
 #endif  // ZAI_ENV_H

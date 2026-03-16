@@ -427,16 +427,14 @@ void zai_config_ini_rinit(void) {
     }
 #endif
 
-    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
-
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
+        ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         if (memoized->ini_change == zai_config_system_ini_change) {
             continue;
         }
 
-        // makes only sense to update INIs once, avoid rereading env unnecessarily
-        if (!env_to_ini_name || !memoized->original_on_modify) {
+        if (!env_to_ini_name) {
             for (uint8_t name_index = 0; name_index < memoized->names_count; name_index++) {
                 zai_str name = ZAI_STR_NEW(memoized->names[name_index].ptr, memoized->names[name_index].len);
                 zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
@@ -446,10 +444,19 @@ void zai_config_ini_rinit(void) {
                     memoized->name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
                     memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
                     goto next_entry;
-                } else if ((zai_sapi_getenv(name, &buf) == ZAI_ENV_SUCCESS || zai_sys_getenv(name, &buf) == ZAI_ENV_SUCCESS)
+                } else if (zai_sapi_getenv(name, &buf) == ZAI_ENV_SUCCESS
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     goto next_entry;
-                } else if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG
+                } else {
+                    const char *cached = zai_config_sys_env_cached(i, name_index);
+                    if (cached) {
+                        zai_env_buffer cached_buf = {strlen(cached), (char *)cached};
+                        if (zai_config_process_runtime_env(memoized, cached_buf, in_startup, i, name_index)) {
+                            goto next_entry;
+                        }
+                    }
+                }
+                if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG
                     && strcpy(buf.ptr, ZSTR_VAL(entry->value))
                     && zai_config_process_runtime_env(memoized, buf, in_startup, i, name_index)) {
                     memoized->name_index = ZAI_CONFIG_ORIGIN_LOCAL_STABLE;
