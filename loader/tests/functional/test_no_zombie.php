@@ -10,7 +10,7 @@ $cmd = sprintf(
     'FAKE_FORWARDER_LOG_PATH=%s DD_TELEMETRY_FORWARDER_PATH=%s php -n -dzend_extension=%s -r "sleep(1);"',
     escapeshellarg($telemetryLogPath),
     escapeshellarg(__DIR__.'/../../bin/fake_forwarder.sh'),
-    escapeshellarg(getLoaderAbsolutePath()),
+    escapeshellarg(getLoaderAbsolutePath())
 );
 
 try {
