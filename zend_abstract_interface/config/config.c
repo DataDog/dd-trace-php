@@ -55,7 +55,7 @@ static inline void zai_config_process_env(zai_config_memoized_entry *memoized, z
     }
 }
 
-static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id) {
+static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id, bool in_request) {
     // TODO Use less buffer space
     // TODO Make a more generic zai_string_buffer
     ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
@@ -73,6 +73,16 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         } else {
+            // SAPI env (e.g. Apache SetEnv) takes priority over the sys env
+            // cache and must be checked here at first RINIT, not only in
+            // zai_config_ini_rinit. Code that runs between first_time_rinit
+            // and zai_config_ini_rinit--such as the signal handler setup that
+            // reads DD_TRACE_HEALTH_METRICS_ENABLED--relies on SAPI-provided
+            // values being present in the decoded config.
+            if (in_request && zai_sapi_getenv(name, &buf) == ZAI_ENV_SUCCESS) {
+                zai_config_process_env(memoized, buf, &value);
+                break;
+            }
             const char *cached = zai_config_sys_env_cached(id, name_index);
             if (cached) {
                 buf.ptr = (char *)cached;
@@ -278,7 +288,7 @@ void zai_config_first_time_rinit(bool in_request) {
 
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
         zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        zai_config_find_and_set_value(memoized, i);
+        zai_config_find_and_set_value(memoized, i, in_request);
 #if PHP_VERSION_ID >= 70300
         zai_config_intern_zval(&memoized->decoded_value);
 #else
