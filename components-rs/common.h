@@ -1236,18 +1236,7 @@ typedef enum ddog_crasht_SignalNames {
  * We recommend fully enabling stacktrace collection, but having an environment
  * variable to allow downgrading the collector.
  */
-<<<<<<< HEAD
-<<<<<<< HEAD
 typedef enum ddog_crasht_StacktraceCollection {
-=======
-typedef enum ddog_crasht_StacktraceCollection {
-<<<<<<< HEAD
-  /**
-   * Stacktrace collection occurs in the
-   */
->>>>>>> 7e8055210 (chore: bump cbindgen)
-=======
->>>>>>> 416482cc3 (test(sidecar): skip root FPM test under apache2handler SAPI)
   DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
   DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
   /**
@@ -1259,15 +1248,6 @@ typedef enum ddog_crasht_StacktraceCollection {
   DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
   DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
 } ddog_crasht_StacktraceCollection;
-<<<<<<< HEAD
-=======
-typedef enum ddog_crasht_CallbackResult {
-  DDOG_CRASHT_CALLBACK_RESULT_OK,
-  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
-} ddog_crasht_CallbackResult;
->>>>>>> a87da16b8 (fix(tracer): remove debug logs)
-=======
->>>>>>> 7e8055210 (chore: bump cbindgen)
 
 typedef struct ddog_crasht_CrashInfo ddog_crasht_CrashInfo;
 
