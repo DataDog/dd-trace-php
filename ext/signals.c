@@ -256,13 +256,13 @@ static void dd_init_crashtracker() {
     free((void *) socket_path.ptr);
     socket_path.ptr = crashtracker_socket_path;
 
-    ddog_Endpoint *agent_endpoint = ddtrace_sidecar_agent_endpoint();
-    if (!agent_endpoint) {
+    char *agent_url = ddtrace_agent_url();
+    if (!agent_url) {
         return;
     }
 
     ddog_crasht_Config config = {
-        .endpoint = agent_endpoint,
+        .endpoint = {.ptr = agent_url, .len = strlen(agent_url)},
         .timeout_ms = 5000,
         .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
         .optional_unix_socket_filename = socket_path,
@@ -281,10 +281,10 @@ static void dd_init_crashtracker() {
             ),
             "Cannot initialize CrashTracker"
     );
+    free(agent_url);
 
     ddtrace_register_crashtracking_frames_collection();
 
-    ddog_endpoint_drop(agent_endpoint);
     ddog_Vec_Tag_drop(tags);
 }
 
