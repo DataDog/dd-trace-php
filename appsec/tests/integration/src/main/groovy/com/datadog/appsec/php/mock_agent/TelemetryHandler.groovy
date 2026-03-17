@@ -55,7 +55,9 @@ class TelemetryHandler implements Handler {
     List<Object> drain(long timeoutInMs) {
         synchronized (capturedTelemetryMessages) {
             if (!savedError && capturedTelemetryMessages.isEmpty()) {
-                capturedTelemetryMessages.wait(timeoutInMs)
+                if (timeoutInMs != 0) {
+                    capturedTelemetryMessages.wait(timeoutInMs)
+                }
             }
             if (savedError) {
                 def e = savedError

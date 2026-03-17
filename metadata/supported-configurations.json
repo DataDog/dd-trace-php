@@ -102,6 +102,13 @@
         "default": "/tmp"
       }
     ],
+    "DD_APPSEC_HELPER_RUST_REDIRECTION": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
       {
         "implementation": "C",
@@ -208,6 +215,13 @@
       }
     ],
     "DD_APPSEC_TESTING_HELPER_METRICS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_INVALID_COMMAND": [
       {
         "implementation": "A",
         "type": "boolean",

@@ -29,7 +29,7 @@ target_compile_options(helper_objects PRIVATE -ftls-model=global-dynamic)
 target_link_libraries(helper_objects PUBLIC libddwaf_objects pthread spdlog
     cpp-base64 msgpack_c rapidjson_appsec boost_system zlibstatic)
 
-target_compile_options(helper_objects PRIVATE -Wno-gnu-anonymous-struct -Wno-nested-anon-types)
+target_compile_options(helper_objects PRIVATE -Wno-gnu-anonymous-struct -Wno-nested-anon-types -Wno-error=pedantic -Wno-error=deprecated-declarations)
 
 add_library(ddappsec-helper SHARED
     src/helper/main.cpp

@@ -97,10 +97,18 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
 
     buffer.extend_from_slice(method_name);
 
-    // When replacing the string to make it valid utf-8, it may get a bit
-    // longer, but this usually doesn't happen. This limit is a soft-limit
-    // at the moment anyway, so this is okay.
-    let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
+    // All or nearly all functions should be valid UTF8, so we're going to
+    // pessimize the error case to avoid having to make copies on the happy
+    // case.
+    let string = if core::str::from_utf8(&buffer).is_ok() {
+        // SAFETY: we just validate it's valid UTF-8.
+        unsafe { String::from_utf8_unchecked(buffer) }
+    } else {
+        // When replacing the string to make it valid utf-8, it may get a bit
+        // longer, but this usually doesn't happen. This limit is a soft-limit
+        // at the moment anyway, so this is okay.
+        String::from_utf8_lossy(&buffer).into_owned()
+    };
     Some(Cow::Owned(string))
 }
 
