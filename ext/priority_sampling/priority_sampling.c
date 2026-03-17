@@ -311,6 +311,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
             ZVAL_LONG(&priority_zv, PRIORITY_SAMPLING_AUTO_REJECT);
             ddtrace_assign_variable(&span->property_sampling_priority, &priority_zv);
         }
+        zend_hash_str_del(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.p.ksr"));
         return;
     } else {
         sample_rate = result.sampling_rate;
@@ -351,6 +352,8 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
         zend_hash_str_update(metrics, ZEND_STRL("_dd.agent_psr"), &sample_rate_zv);
         if (mechanism == DD_MECHANISM_AGENT_RATE) {
             dd_update_knuth_sampling_rate_tag(span, sample_rate);
+        } else {
+            zend_hash_str_del(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.p.ksr"));
         }
     }
 
