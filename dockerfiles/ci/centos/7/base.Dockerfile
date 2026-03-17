@@ -64,6 +64,14 @@ RUN set -eux; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
+# Libtool required
+RUN set -eux; \
+    /root/download-src.sh libtool https://mirrors.kernel.org/gnu/libtool/libtool-2.5.4.tar.gz; \
+    cd "${SRC_DIR}/libtool"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure && make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
 # Required: libxml >= 2.9.0 (default version is 2.7.6)
 RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh libxml2 http://xmlsoft.org/sources/libxml2-2.9.10.tar.gz; \

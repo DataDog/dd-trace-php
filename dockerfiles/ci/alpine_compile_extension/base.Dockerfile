@@ -14,6 +14,7 @@ RUN set -eux; \
         coreutils \
         g++ \
         gcc \
+        libtool \
         make \
         cmake \
         build-base \
