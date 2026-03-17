@@ -68,14 +68,14 @@ for ($i = 0; $i < 300; ++$i) {
 
 ?>
 --EXPECTF--
-[ddtrace] [info] Flushing trace of size 1 to send-queue for %sbroken_pipe-telemetry.out
-[ddtrace] [datadog_sidecar::service::blocking] The sidecar transport is closed. Reconnecting... This generally indicates a problem with the sidecar, most likely a crash. Check the logs / core dump locations and possibly report a bug.
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %sbroken_pipe-telemetry.out
+[ddtrace] [datadog_sidecar::service::blocking] [%d] The sidecar transport is closed. Reconnecting... This generally indicates a problem with the sidecar, most likely a crash. Check the logs / core dump locations and possibly report a bug.
 string(11) "app-started"
 string(25) "broken_pipe-telemetry-app"
 string(8) "test-env"
 string(31) "app-client-configuration-change"
 string(11) "app-closing"
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent
 --CLEAN--
 <?php
 

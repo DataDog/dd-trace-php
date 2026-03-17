@@ -69,5 +69,5 @@ array_sum
 array_sum
 array_sum
 array_sum
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %s:%d for flushTracer(): Allowed memory size of 2097152 bytes exhausted %s in %s on line %d
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %s:%d for flushTracer(): Allowed memory size of 2097152 bytes exhausted %s in %s on line %d
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

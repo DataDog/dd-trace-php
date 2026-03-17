@@ -15,9 +15,9 @@ var_dump(dd_trace_serialize_closed_spans());
 
 echo 'Done.' . PHP_EOL;
 ?>
---EXPECT--
-[ddtrace] [error] Cannot run tracing closure for dd_trace_serialize_closed_spans(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
+--EXPECTF--
+[ddtrace] [error] [%d] Cannot run tracing closure for dd_trace_serialize_closed_spans(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 array(0) {
 }
 Done.
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

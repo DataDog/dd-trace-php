@@ -53,9 +53,9 @@ for ($i = 0; $i < 300; ++$i) {
 
 ?>
 --EXPECTF--
-[ddtrace] [warning] foo
-[ddtrace] [warning] bar
-[ddtrace] [error] Boum
+[ddtrace] [warning] [%d] foo
+[ddtrace] [warning] [%d] bar
+[ddtrace] [error] [%d] Boum
 array(2) {
   [0]=>
   array(7) {

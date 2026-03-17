@@ -59,11 +59,11 @@ for ($i = 0; $i < 300; ++$i) {
 ?>
 --EXPECTF--
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
+[ddtrace] [warning] [%d] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
+[ddtrace] [warning] [%d] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
 array(2) {
   [0]=>
   array(7) {
