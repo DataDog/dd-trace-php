@@ -1427,7 +1427,7 @@ foreach ($arch_targets as $arch) {
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
   tags: [ "runner:main", "size:large" ]
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY_BUILD
       when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: on_success
