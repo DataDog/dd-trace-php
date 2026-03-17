@@ -226,7 +226,7 @@ array(6) {
           ["fileName"]=>
           string(%d) "%sdebugger_log_probe.php"
           ["function"]=>
-          string(8) "foo::Bar"
+          string(8) "Bar::foo"
           ["lineNumber"]=>
           int(11)
         }
