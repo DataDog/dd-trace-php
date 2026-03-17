@@ -286,7 +286,7 @@ RUN set -eux; \
     zlib-devel; \
     yum clean all;
 
-RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
+RUN printf "source scl_source enable devtoolset-7\n" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
 ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
 
 ENV PATH="/rust/cargo/bin:${PATH}"
