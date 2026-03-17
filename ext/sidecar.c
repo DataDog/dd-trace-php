@@ -126,6 +126,9 @@ void ddtrace_sidecar_update_process_tags(void) {
     }
 
     const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
+    if (!process_tags || process_tags->len == 0) {
+        return;
+    }
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
     ddog_sidecar_session_set_process_tags(&ddtrace_sidecar, session_id, process_tags);
 }

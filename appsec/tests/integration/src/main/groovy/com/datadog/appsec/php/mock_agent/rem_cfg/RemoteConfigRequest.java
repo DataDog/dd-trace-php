@@ -222,7 +222,7 @@ public class RemoteConfigRequest {
             public List<String> processTags;
 
             @JsonProperty("container_tags")
-            public String containerTags;
+            public List<String> containerTags;
 
             @Override
             public String toString() {
