@@ -92,6 +92,7 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
+    const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
     ddog_sidecar_session_set_config(transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
                                     php_version_rt,
@@ -111,7 +112,7 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.len,
                                     get_global_DD_REMOTE_CONFIG_ENABLED(),
                                     is_fork,
-                                    dd_zend_string_to_CharSlice(ddtrace_process_tags_get_serialized())
+                                    process_tags
                                 );
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -124,13 +125,9 @@ void ddtrace_sidecar_update_process_tags(void) {
         return;
     }
 
-    zend_string *process_tags = ddtrace_process_tags_get_serialized();
-    if (!process_tags || ZSTR_LEN(process_tags) == 0) {
-        return;
-    }
-
+    const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
-    ddog_sidecar_session_set_process_tags(&ddtrace_sidecar, session_id, dd_zend_string_to_CharSlice(process_tags));
+    ddog_sidecar_session_set_process_tags(&ddtrace_sidecar, session_id, process_tags);
 }
 
 static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {

@@ -201,14 +201,14 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uintptr_t remote_config_capabilities_count,
                                                 bool remote_config_enabled,
                                                 bool is_fork,
-                                                ddog_CharSlice process_tags);
+                                                const struct ddog_Vec_Tag *process_tags);
 
 /**
  * Updates the process_tags for an existing session.
  */
 ddog_MaybeError ddog_sidecar_session_set_process_tags(struct ddog_SidecarTransport **transport,
                                                       ddog_CharSlice session_id,
-                                                      ddog_CharSlice process_tags);
+                                                      const struct ddog_Vec_Tag *process_tags);
 
 /**
  * Enqueues a telemetry log action to be processed internally.
