@@ -239,7 +239,7 @@ stages:
       export DD_SITE="datadoghq.com"
 
       # Install datadog-ci
-      DATADOG_CI_VERSION="v2.48.0"
+      DATADOG_CI_VERSION="v5.9.1"
       curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/${DATADOG_CI_VERSION}/datadog-ci_linux-x64" --output "/tmp/datadog-ci"
       chmod +x /tmp/datadog-ci
 
