@@ -1,6 +1,5 @@
 #include "otel_config.h"
 #include <env/env.h>
-#include <zai_string/string.h>
 #include "ddtrace.h"
 #include <components/log/log.h>
 #include "sidecar.h"
@@ -21,21 +20,10 @@ static void report_otel_cfg_telemetry_invalid(const char *otel_cfg, const char *
     }
 }
 
-/**
- * Borrows the value from the SAPI or the system env vars, or falls back on the
- * INI entry, which copies the value into the buffer.
- */
 static bool get_otel_value(zai_str str, zai_env_buffer *buf, bool pre_rinit) {
-    zai_option_str opt = zai_sapi_getenv(str);
-    if (zai_option_str_is_none(opt)) {
-        opt = zai_sys_getenv(str);
-    }
-    zai_str val;
-    if (zai_option_str_get(opt, &val)) {
-        buf->ptr = val.ptr;
-        buf->len = val.len;
-        return true;
-    }
+    if (!pre_rinit && zai_sapi_getenv(str, buf) == ZAI_ENV_SUCCESS) return true;
+    zai_option_str sys = zai_sys_getenv(str);
+    if (zai_option_str_is_some(sys)) { buf->ptr = sys.ptr; buf->len = sys.len; return true; }
 
     zval *cfg = cfg_get_entry(str.ptr, str.len);
     if (cfg) {
@@ -67,11 +55,12 @@ static bool get_otel_value(zai_str str, zai_env_buffer *buf, bool pre_rinit) {
 }
 
 static bool ddtrace_conf_otel_resource_attributes_special(const char *tag, int len, zai_env_buffer *buf, bool pre_rinit) {
-    if (!get_otel_value((zai_str)ZAI_STRL("OTEL_RESOURCE_ATTRIBUTES"), buf, pre_rinit)) {
+    ZAI_ENV_BUFFER_INIT(local, ZAI_ENV_MAX_BUFSIZ);
+    if (!get_otel_value((zai_str)ZAI_STRL("OTEL_RESOURCE_ATTRIBUTES"), &local, pre_rinit)) {
         return false;
     }
 
-    for (char *cur = buf->ptr, *key_start = cur; *cur; ++cur) {
+    for (char *cur = local.ptr, *key_start = cur; *cur; ++cur) {
         if (*cur == '=') {
             char *key_end = cur++;
             while (*cur && *cur != ',') {
@@ -108,9 +97,11 @@ bool ddtrace_conf_otel_log_level(zai_env_buffer *buf, bool pre_rinit) {
 }
 
 bool ddtrace_conf_otel_propagators(zai_env_buffer *buf, bool pre_rinit) {
-    if (!get_otel_value((zai_str)ZAI_STRL("OTEL_PROPAGATORS"), buf, pre_rinit)) {
+    ZAI_ENV_BUFFER_INIT(local, ZAI_ENV_MAX_BUFSIZ);
+    if (!get_otel_value((zai_str)ZAI_STRL("OTEL_PROPAGATORS"), &local, pre_rinit)) {
         return false;
     }
+    memcpy(buf->ptr, local.ptr, strlen(local.ptr) + 1);
     char *off = (char *)zend_memnstr(buf->ptr, ZEND_STRL("b3"), buf->ptr + strlen(buf->ptr));
     if (off && (!off[strlen("b3")] || off[strlen("b3")] == ',') && strlen(buf->ptr) < buf->len - 100) {
         memmove(off + strlen("b3 single header"), off + strlen("b3"), buf->ptr + strlen(buf->ptr) - (off + strlen("b3")) + 1);
@@ -125,11 +116,11 @@ bool ddtrace_conf_otel_sample_rate(zai_env_buffer *buf, bool pre_rinit) {
     }
 
     if (strcmp(buf->ptr, "always_on") == 0 || strcmp(buf->ptr, "parentbased_always_on") == 0) {
-        memcpy(buf->ptr, ZEND_STRS("1"));
+        buf->ptr = "1"; buf->len = 1;
         return true;
     }
     if (strcmp(buf->ptr, "always_off") == 0 || strcmp(buf->ptr, "parentbased_always_off") == 0) {
-        memcpy(buf->ptr, ZEND_STRS("0"));
+        buf->ptr = "0"; buf->len = 1;
         return true;
     }
     if (strcmp(buf->ptr, "traceidratio") == 0 || strcmp(buf->ptr, "parentbased_traceidratio") == 0) {
@@ -147,7 +138,7 @@ bool ddtrace_conf_otel_sample_rate(zai_env_buffer *buf, bool pre_rinit) {
 bool ddtrace_conf_otel_traces_exporter(zai_env_buffer *buf, bool pre_rinit) {
     if (get_otel_value((zai_str)ZAI_STRL("OTEL_TRACES_EXPORTER"), buf, pre_rinit)) {
         if (strcmp(buf->ptr, "none") == 0) {
-            memcpy(buf->ptr, ZEND_STRS("0"));
+            buf->ptr = "0"; buf->len = 1;
             return true;
         }
         LOG_ONCE(WARN, "OTEL_TRACES_EXPORTER has invalid value: %s", buf->ptr);
@@ -159,7 +150,7 @@ bool ddtrace_conf_otel_traces_exporter(zai_env_buffer *buf, bool pre_rinit) {
 bool ddtrace_conf_otel_metrics_exporter(zai_env_buffer *buf, bool pre_rinit) {
     if (get_otel_value((zai_str)ZAI_STRL("OTEL_METRICS_EXPORTER"), buf, pre_rinit)) {
         if (strcmp(buf->ptr, "none") == 0) {
-            memcpy(buf->ptr, ZEND_STRS("0"));
+            buf->ptr = "0"; buf->len = 1;
             return true;
         }
         LOG_ONCE(WARN, "OTEL_METRICS_EXPORTER has invalid value: %s", buf->ptr);
@@ -169,13 +160,14 @@ bool ddtrace_conf_otel_metrics_exporter(zai_env_buffer *buf, bool pre_rinit) {
 }
 
 bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_rinit) {
-    if (!get_otel_value((zai_str)ZAI_STRL("OTEL_RESOURCE_ATTRIBUTES"), buf, pre_rinit)) {
+    ZAI_ENV_BUFFER_INIT(local, ZAI_ENV_MAX_BUFSIZ);
+    if (!get_otel_value((zai_str)ZAI_STRL("OTEL_RESOURCE_ATTRIBUTES"), &local, pre_rinit)) {
         return false;
     }
 
     char *out = buf->ptr;
     int tags = 0;
-    for (char *cur = buf->ptr, *key_start = cur; *cur; ++cur) {
+    for (char *cur = local.ptr, *key_start = cur; *cur; ++cur) {
         if (*cur == '=') {
             char *key = key_start, *key_end = cur++;
             while (*cur && *cur != ',') {

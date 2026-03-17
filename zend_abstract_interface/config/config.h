@@ -6,7 +6,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../env/env.h"
 #include "../zai_string/string.h"
 #include "config_decode.h"
 
@@ -111,10 +110,12 @@ zval *zai_config_get_value(zai_config_id id);
 
 bool zai_config_get_id_by_name(zai_str name, zai_config_id *id);
 
+// Returns NULL if not set; persistent allocation, must not be freed.
+const char *zai_config_sys_env_cached(zai_config_id id, uint8_t name_index);
+
 // Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);
 
 bool zai_config_is_initialized(void);
-zai_option_str zai_config_sys_getenv_cached(zai_config_id id, uint8_t name_index);
 
 #endif  // ZAI_CONFIG_H

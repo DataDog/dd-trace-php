@@ -169,7 +169,7 @@ TEST_ENV("alias", {
     REQUEST_END()
 })
 
-TEA_TEST_CASE_BARE("config/env", "change after memoization", {
+TEA_TEST_CASE_BARE("config/env", "sys env change after memoization is not reflected", {
     REQUIRE(tea_sapi_sinit());
     ext_zai_config_ctor(PHP_MINIT(zai_config_env));
     REQUIRE_SETENV("FOO_BOOL", "false");
@@ -193,9 +193,9 @@ TEA_TEST_CASE_BARE("config/env", "change after memoization", {
 
     REQUEST_BEGIN();
 
-    // Should be false still because it's cached on minit/first_rinit.
     zval *value = zai_config_get_value(EXT_CFG_FOO_BOOL);
 
+    // Sys env is cached at MINIT; changes between requests are not picked up.
     REQUIRE(value != NULL);
 #if PHP_VERSION_ID > 70000
     REQUIRE(Z_TYPE_P(value) == IS_FALSE);

@@ -1,9 +1,9 @@
 #include "./config.h"
 
-#include <SAPI.h>
 #include <assert.h>
 #include <json/json.h>
 #include <main/php.h>
+#include <main/SAPI.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,87 +13,53 @@ HashTable zai_config_name_map = {0};
 uint16_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
 
-/*
- * File-local owning zai_option_str cache:
- *   - None (ptr == NULL): env var was unset.
- *   - Some with len == 0: env var was explicitly set to empty.
- *   - Some with len > 0: env var has a non-empty value.
- *
- * Each Some entry owns pemalloc(..., 1) memory and is freed in
- * zai_config_clear_cached_env_values().
- */
-static zai_option_str zai_config_cached_env_values[ZAI_CONFIG_ENTRIES_COUNT_MAX][ZAI_CONFIG_NAMES_COUNT_MAX];
+// Indexed [config_id][name_index]; NULL means not set.
+static char *zai_config_cached_sys_env[ZAI_CONFIG_ENTRIES_COUNT_MAX][ZAI_CONFIG_NAMES_COUNT_MAX];
 
-zai_option_str zai_config_sys_getenv_cached(zai_config_id id, uint8_t name_index) {
-    ZEND_ASSERT(id < zai_config_memoized_entries_count);
-    ZEND_ASSERT(name_index < zai_config_memoized_entries[id].names_count);
-    return zai_config_cached_env_values[id][name_index];
+const char *zai_config_sys_env_cached(zai_config_id id, uint8_t name_index) {
+    return zai_config_cached_sys_env[id][name_index];
 }
 
-static void zai_config_cache_env_values(void) {
+static void zai_config_cache_sys_env(void) {
     for (zai_config_id i = 0; i < zai_config_memoized_entries_count; i++) {
-        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        for (uint8_t n = 0; n < memoized->names_count; n++) {
-            zai_str name = {.len = memoized->names[n].len, .ptr = memoized->names[n].ptr};
-
+        zai_config_memoized_entry *m = &zai_config_memoized_entries[i];
+        for (uint8_t n = 0; n < m->names_count; n++) {
+            zai_str name = ZAI_STR_NEW(m->names[n].ptr, m->names[n].len);
             zai_option_str val = zai_sys_getenv(name);
-            if (zai_option_str_is_none(val)) {
-                continue;
-            }
-
-            size_t len = val.len;
-            // +1 to hold the null terminator.
-            char *dst = pemalloc(len + 1, 1);
-            // +1 to include the null terminator in the copy.
-            memcpy(dst, val.ptr, len + 1);
-            zai_config_cached_env_values[i][n] = zai_option_str_from_raw_parts(dst, len);
+            zai_config_cached_sys_env[i][n] = zai_option_str_is_some(val)
+                ? pestrdup(val.ptr, 1) : NULL;
         }
     }
 }
 
-static void zai_config_clear_cached_env_values(void) {
+static void zai_config_clear_sys_env_cache(void) {
     for (zai_config_id i = 0; i < zai_config_memoized_entries_count; i++) {
-        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
-        for (uint8_t n = 0; n < memoized->names_count; n++) {
-            zai_option_str *cached = &zai_config_cached_env_values[i][n];
-            if (zai_option_str_is_some(*cached)) {
-                pefree((char *)cached->ptr, 1);
+        for (uint8_t n = 0; n < zai_config_memoized_entries[i].names_count; n++) {
+            if (zai_config_cached_sys_env[i][n]) {
+                pefree(zai_config_cached_sys_env[i][n], 1);
+                zai_config_cached_sys_env[i][n] = NULL;
             }
-            *cached = ZAI_OPTION_STR_NONE;
         }
     }
 }
 
-static zai_option_str zai_config_getenv(zai_str name, zai_config_id id, uint8_t name_index, bool in_request) {
-    zai_option_str val = ZAI_OPTION_STR_NONE;
-    if (in_request) {
-        val = zai_sapi_getenv(name);
-        if (zai_option_str_is_some(val)) {
-            return val;
-        }
-    }
-
-    return zai_config_sys_getenv_cached(id, name_index);
-}
-
-/**
- * Decodes the environment variable value and returns the decoded value, or
- * None if the decoding fails.
- */
-static inline zai_option_str zai_config_process_env(zai_config_memoized_entry *memoized, zai_str val) {
+static inline void zai_config_process_env(zai_config_memoized_entry *memoized, zai_env_buffer buf, zai_option_str *value) {
     zval tmp;
     ZVAL_UNDEF(&tmp);
-    zai_option_str value = ZAI_OPTION_STR_NONE;
-    if (!zai_config_decode_value(val, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
+    zai_str env_value = ZAI_STR_FROM_CSTR(buf.ptr);
+    if (!zai_config_decode_value(env_value, memoized->type, memoized->parser, &tmp, /* persistent */ true)) {
         // TODO Log decoding error
     } else {
         zai_json_dtor_pzval(&tmp);
-        value = zai_option_str_from_str(val);
+        *value = zai_option_str_from_str(env_value);
     }
-    return value;
 }
 
 static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, zai_config_id id, bool in_request) {
+    // TODO Use less buffer space
+    // TODO Make a more generic zai_string_buffer
+    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
+
     zai_option_str value = ZAI_OPTION_STR_NONE;
 
     int16_t name_index = 0;
@@ -101,32 +67,40 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
         zai_str name = {.len = memoized->names[name_index].len, .ptr = memoized->names[name_index].ptr};
         zai_config_stable_file_entry *entry = zai_config_stable_file_get_value(name);
         if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_FLEET_STABLE_CONFIG) {
-            zai_str val = zai_str_from_zstr(entry->value);
-            value = zai_config_process_env(memoized, val);
+            strcpy(buf.ptr, ZSTR_VAL(entry->value));
+            zai_config_process_env(memoized, buf, &value);
             name_index = ZAI_CONFIG_ORIGIN_FLEET_STABLE;
             memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
-        };
-        {
-            zai_str val;
-            zai_option_str maybe_val = zai_config_getenv(name, id, (uint8_t)name_index, in_request);
-            if (zai_option_str_get(maybe_val, &val)) {
-                value = zai_config_process_env(memoized, val);
+        } else {
+            // SAPI env (e.g. Apache SetEnv) takes priority over the sys env
+            // cache and must be checked here at first RINIT, not only in
+            // zai_config_ini_rinit. Code that runs between first_time_rinit
+            // and zai_config_ini_rinit--such as the signal handler setup that
+            // reads DD_TRACE_HEALTH_METRICS_ENABLED--relies on SAPI-provided
+            // values being present in the decoded config.
+            if (in_request && zai_sapi_getenv(name, &buf) == ZAI_ENV_SUCCESS) {
+                zai_config_process_env(memoized, buf, &value);
+                break;
+            }
+            const char *cached = zai_config_sys_env_cached(id, name_index);
+            if (cached) {
+                buf.ptr = (char *)cached;
+                buf.len = strlen(cached);
+                zai_config_process_env(memoized, buf, &value);
                 break;
             }
         }
         if (entry && entry->source == DDOG_LIBRARY_CONFIG_SOURCE_LOCAL_STABLE_CONFIG) {
-            zai_str val = zai_str_from_zstr(entry->value);
-            value = zai_config_process_env(memoized, val);
+            strcpy(buf.ptr, ZSTR_VAL(entry->value));
+            zai_config_process_env(memoized, buf, &value);
             name_index = ZAI_CONFIG_ORIGIN_LOCAL_STABLE;
             memoized->config_id = (zai_str) ZAI_STR_FROM_ZSTR(entry->config_id);
             break;
         }
     }
-
-    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
-    if (zai_option_str_is_none(value) && memoized->env_config_fallback && memoized->env_config_fallback(&buf, true)) {
-        value = zai_config_process_env(memoized, (zai_str){buf.ptr, buf.len});
+    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(&buf, true)) {
+        zai_config_process_env(memoized, buf, &value);
         name_index = ZAI_CONFIG_ORIGIN_MODIFIED;
     }
 
@@ -135,7 +109,7 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
 
     zai_str value_view;
     if (zai_option_str_get(value, &value_view)) {
-        if (ini_name_index >= 0) {
+        if (value_view.ptr != buf.ptr && ini_name_index >= 0) {
             name_index = ini_name_index;
         }
         // TODO If name_index > 0, log deprecation notice
@@ -214,12 +188,12 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
     if (!entries || !entries_count) return false;
     if (!zai_json_setup_bindings()) return false;
     zai_config_entries_init(entries, entries_count);
-    zai_config_cache_env_values();
     zai_config_ini_minit(env_to_ini, module_number);
     zai_config_stable_file_minit();
 #if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
     zai_persistent_new_interned_string = zend_new_interned_string;
 #endif
+    zai_config_cache_sys_env();
     return true;
 }
 
@@ -231,12 +205,12 @@ static void zai_config_dtor_memoized_zvals(void) {
 
 void zai_config_mshutdown(void) {
     zai_config_dtor_memoized_zvals();
-    zai_config_clear_cached_env_values();
     if (zai_config_name_map.nTableSize) {
         zend_hash_destroy(&zai_config_name_map);
     }
     zai_config_ini_mshutdown();
     zai_config_stable_file_mshutdown();
+    zai_config_clear_sys_env_cache();
 }
 
 void zai_config_runtime_config_ctor(void);
@@ -305,12 +279,11 @@ void zai_config_first_time_rinit(bool in_request) {
     (void)in_request;
 #endif
 
-    // Refresh process env snapshot for SAPIs like FPM that materialize pool
-    // env values just before the first request. Skip on CLI since we know it
-    // doesn't need it and we can avoid the extra work.
+    // Non-CLI SAPIs (CGI/FPM/mod_php) may inject env vars before the first
+    // request, so refresh the cache to pick them up.
     if (in_request && strcmp(sapi_module.name, "cli") != 0) {
-        zai_config_clear_cached_env_values();
-        zai_config_cache_env_values();
+        zai_config_clear_sys_env_cache();
+        zai_config_cache_sys_env();
     }
 
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
