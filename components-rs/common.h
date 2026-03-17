@@ -1231,9 +1231,6 @@ typedef enum ddog_crasht_SignalNames {
  * variable to allow downgrading the collector.
  */
 typedef enum ddog_crasht_StacktraceCollection {
-  /**
-   * Stacktrace collection occurs in the
-   */
   DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
   DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
   /**
@@ -1308,7 +1305,7 @@ typedef struct ddog_crasht_Config {
    * The endpoint to send the crash report to (can be a file://).
    * If None, the crashtracker will infer the agent host from env variables.
    */
-  const struct ddog_Endpoint *endpoint;
+  ddog_CharSlice endpoint;
   /**
    * Optional filename for a unix domain socket if the receiver is used asynchonously
    */
