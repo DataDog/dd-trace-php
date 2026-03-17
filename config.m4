@@ -64,6 +64,13 @@ if test "$PHP_DDTRACE" != "no"; then
     PHP_SUBST(DDTRACE_CARGO)
   fi
 
+  dnl As required by libdd-libunwind-sys
+  if test "$PHP_DDTRACE_RUST_LIBRARY" = "-"; then
+    AC_CHECK_TOOL(DDTRACE_AUTOMAKE, automake, [:])
+    AS_IF([test "$DDTRACE_AUTOMAKE" = ":"], [AC_MSG_ERROR([Please install automake before configuring])])
+    PHP_SUBST(DDTRACE_AUTOMAKE)
+  fi
+
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
     dnl gcc needs -lasan, clang needs -shared-libsan
     ac_cflags=$LDFLAGS
