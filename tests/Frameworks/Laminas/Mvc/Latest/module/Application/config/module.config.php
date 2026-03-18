@@ -93,6 +93,20 @@ return [
                         'action' => 'behindAuth',
                     ],
                 ]
+            ],
+            'dynamic_route' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/dynamic_route[/:param01[/static[/:param02]]]',
+                    'constraints' => [
+                        'param01' => '[a-zA-Z0-9_-]+',
+                        'param02' => '[a-zA-Z0-9_-]+',
+                    ],
+                    'defaults' => [
+                        'controller' => Controller\CommonSpecsController::class,
+                        'action' => 'dynamicRoute',
+                    ],
+                ]
             ]
         ],
     ],

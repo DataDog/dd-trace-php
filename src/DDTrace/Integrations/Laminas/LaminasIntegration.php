@@ -274,6 +274,16 @@ class LaminasIntegration extends Integration
                 }
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+
+                // Push path params to appsec
+                if (function_exists('\datadog\appsec\push_addresses')) {
+                    $params = $routeMatch->getParams();
+                    // Filter out the framework-specific params (controller, action)
+                    $pathParams = array_diff_key($params, array_flip(['controller', 'action']));
+                    if (count($pathParams) > 0) {
+                        \datadog\appsec\push_addresses(["server.request.path_params" => $pathParams]);
+                    }
+                }
             }
         );
 
