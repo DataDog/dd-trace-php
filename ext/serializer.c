@@ -1614,7 +1614,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     if (is_first_span) {
         zend_string *process_tags = ddtrace_process_tags_get_serialized();
         if (ZSTR_LEN(process_tags)) {
-            ddog_add_str_span_meta_zstr(rust_span, "_dd.process_tags", process_tags);
+            ddog_add_str_span_meta_zstr(rust_span, "_dd.tags.process", process_tags);
         }
     }
 
