@@ -540,9 +540,6 @@ TEST_INI("setting perdir INI setting for multiple ZAI config users", {
 })
 
 
-// Forward declaration for the second consumer extension defined in ext_second_consumer.cc
-void ext_second_consumer_load(void);
-
 static int second_consumer_sapi_phase;
 
 #if PHP_VERSION_ID >= 80000
@@ -569,10 +566,11 @@ static char *second_consumer_sapi_getenv(char *name, size_t name_len) {
 TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_modify to be set", {
     REQUIRE(tea_sapi_sinit());
     tea_sapi_module.getenv = second_consumer_sapi_getenv;
-    // second consumer must be loaded first so its MINIT runs before zai_config's MINIT;
-    // zai_config_add_ini_entry will then find the pre-existing INI_FOO_STRING entry and
-    // naturally set original_on_modify = second_consumer_on_modify.
-    ext_second_consumer_load();
+    // second consumer must be loaded first so its zai_config_minit registers INI entries
+    // before the first consumer's zai_config_minit runs; zai_config_add_ini_entry will
+    // then find the pre-existing entries and set original_on_modify.
+    // PHP loads the .so via extension= INI during php_module_startup and calls MINIT automatically.
+    REQUIRE(tea_sapi_append_system_ini_entry("extension", SECOND_CONSUMER_SO_PATH));
     ext_zai_config_ctor(PHP_MINIT(zai_config_ini));
     REQUIRE_SETENV("INI_FOO_STRING", "sys_val");
     REQUIRE_SETENV("INI_FOO_INT", "1");
@@ -585,6 +583,7 @@ TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_m
     zval *str_val = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
     REQUIRE(str_val != NULL);
     REQUIRE(Z_TYPE_P(str_val) == IS_STRING);
+    INFO("str_val = " << Z_STRVAL_P(str_val));
     REQUIRE(zval_string_equals(str_val, "sapi_val"));  // SAPI "sapi_val" overrides sys cache "sys_val"
 
     zval *int_val = zai_config_get_value(EXT_CFG_INI_FOO_INT);
@@ -605,6 +604,7 @@ TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_m
     zval *str_val = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
     REQUIRE(str_val != NULL);
     REQUIRE(Z_TYPE_P(str_val) == IS_STRING);
+    INFO("str_val = " << Z_STRVAL_P(str_val));
     REQUIRE(zval_string_equals(str_val, "sys_val"));  // SAPI returned NULL; sys cache "sys_val" used
 
     zval *int_val = zai_config_get_value(EXT_CFG_INI_FOO_INT);
