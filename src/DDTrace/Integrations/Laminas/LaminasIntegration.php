@@ -582,8 +582,286 @@ class LaminasIntegration extends Integration
             }
         );
 
+        // Track login by hooking the storage write operation
+        // This captures the full user object after it's stored
+        hook_method(
+            'Laminas\Authentication\Storage\Session',
+            'write',
+            null,
+            static function ($This, $scope, $args, $returnValue) {
+                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                    return;
+                }
+
+                // The first argument to write() is the identity
+                $identity = isset($args[0]) ? $args[0] : null;
+                if (!$identity) {
+                    return;
+                }
+
+                // Skip if identity is just a string (initial write from authenticate())
+                // We only want to track when the full user object is written by the controller
+                if (is_string($identity)) {
+                    return;
+                }
+
+                // Only track if this looks like a user object (has id property)
+                $userId = self::getUserId($identity);
+                if (!$userId) {
+                    return;
+                }
+
+                $userLogin = self::getUserLogin($identity);
+                $metadata = self::getUserMetadata($identity);
+
+                \datadog\appsec\track_user_login_success_event_automated(
+                    $userLogin,
+                    $userId,
+                    $metadata
+                );
+            }
+        );
+
+        // Authentication tracking - Login failure
+        install_hook(
+            'Laminas\Authentication\AuthenticationService::authenticate',
+            null,
+            static function (HookData $hook) {
+                $result = $hook->returned;
+
+                if (!$result instanceof \Laminas\Authentication\Result) {
+                    return;
+                }
+
+                $code = $result->getCode();
+
+                // Only track failures
+                if ($code === \Laminas\Authentication\Result::SUCCESS) {
+                    return;
+                }
+
+                // Login failure
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                    return;
+                }
+
+                // Get the adapter from the hook arguments
+                $adapter = isset($hook->args[0]) ? $hook->args[0] : null;
+                $userLogin = null;
+
+                // Try to get the login from the adapter if it has a getIdentity method
+                if ($adapter && method_exists($adapter, 'getIdentity')) {
+                    $userLogin = $adapter->getIdentity();
+                }
+
+                $userExists = ($code === \Laminas\Authentication\Result::FAILURE_CREDENTIAL_INVALID);
+
+                \datadog\appsec\track_user_login_failure_event_automated(
+                    $userLogin,
+                    $userLogin,
+                    $userExists,
+                    []
+                );
+            }
+        );
+
+        // Track authenticated user on each request
+        hook_method(
+            'Laminas\Authentication\AuthenticationService',
+            'hasIdentity',
+            null,
+            static function ($This, $scope, $args, $hasIdentity) {
+                if (!$hasIdentity || !function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                $identity = $This->getIdentity();
+                if (!$identity) {
+                    return;
+                }
+
+                $userId = self::getUserId($identity);
+                \datadog\appsec\track_authenticated_user_event_automated($userId);
+            }
+        );
 
         return Integration::LOADED;
+    }
+
+    /**
+     * Extract user ID from identity object
+     *
+     * @param mixed $identity
+     * @return string
+     */
+    private static function getUserId($identity)
+    {
+        if (is_string($identity) || is_int($identity)) {
+            return (string)$identity;
+        }
+
+        if (is_array($identity)) {
+            if (isset($identity['id'])) {
+                return (string)$identity['id'];
+            }
+            if (isset($identity['user_id'])) {
+                return (string)$identity['user_id'];
+            }
+            if (isset($identity['username'])) {
+                return $identity['username'];
+            }
+            if (isset($identity['email'])) {
+                return $identity['email'];
+            }
+        }
+
+        if (is_object($identity)) {
+            // Try common property names
+            if (isset($identity->id)) {
+                return (string)$identity->id;
+            }
+            if (isset($identity->user_id)) {
+                return (string)$identity->user_id;
+            }
+            if (isset($identity->userId)) {
+                return (string)$identity->userId;
+            }
+
+            // Try common getter methods
+            if (method_exists($identity, 'getId')) {
+                return (string)$identity->getId();
+            }
+            if (method_exists($identity, 'getUserId')) {
+                return (string)$identity->getUserId();
+            }
+            if (method_exists($identity, 'getUsername')) {
+                return $identity->getUsername();
+            }
+            if (method_exists($identity, 'getEmail')) {
+                return $identity->getEmail();
+            }
+
+            // ArrayAccess support
+            if ($identity instanceof \ArrayAccess) {
+                if (isset($identity['id'])) {
+                    return (string)$identity['id'];
+                }
+                if (isset($identity['user_id'])) {
+                    return (string)$identity['user_id'];
+                }
+                if (isset($identity['username'])) {
+                    return $identity['username'];
+                }
+                if (isset($identity['email'])) {
+                    return $identity['email'];
+                }
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Extract user login (username/email) from identity object
+     *
+     * @param mixed $identity
+     * @return string|null
+     */
+    private static function getUserLogin($identity)
+    {
+        if (is_string($identity)) {
+            return $identity;
+        }
+
+        if (is_array($identity)) {
+            if (isset($identity['email'])) {
+                return $identity['email'];
+            }
+            if (isset($identity['username'])) {
+                return $identity['username'];
+            }
+        }
+
+        if (is_object($identity)) {
+            // Try properties
+            if (isset($identity->email)) {
+                return $identity->email;
+            }
+            if (isset($identity->username)) {
+                return $identity->username;
+            }
+
+            // Try getters
+            if (method_exists($identity, 'getEmail')) {
+                return $identity->getEmail();
+            }
+            if (method_exists($identity, 'getUsername')) {
+                return $identity->getUsername();
+            }
+
+            // ArrayAccess support
+            if ($identity instanceof \ArrayAccess) {
+                if (isset($identity['email'])) {
+                    return $identity['email'];
+                }
+                if (isset($identity['username'])) {
+                    return $identity['username'];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract user metadata from identity object
+     *
+     * @param mixed $identity
+     * @return array
+     */
+    private static function getUserMetadata($identity)
+    {
+        $metadata = [];
+
+        if (is_array($identity)) {
+            if (isset($identity['name'])) {
+                $metadata['name'] = $identity['name'];
+            }
+            if (isset($identity['email'])) {
+                $metadata['email'] = $identity['email'];
+            }
+            return $metadata;
+        }
+
+        if (is_object($identity)) {
+            // Try properties
+            if (isset($identity->name)) {
+                $metadata['name'] = $identity->name;
+            }
+            if (isset($identity->email)) {
+                $metadata['email'] = $identity->email;
+            }
+
+            // Try getters
+            if (method_exists($identity, 'getName')) {
+                $metadata['name'] = $identity->getName();
+            }
+            if (method_exists($identity, 'getEmail') && !isset($metadata['email'])) {
+                $metadata['email'] = $identity->getEmail();
+            }
+
+            // ArrayAccess support
+            if ($identity instanceof \ArrayAccess) {
+                if (isset($identity['name']) && !isset($metadata['name'])) {
+                    $metadata['name'] = $identity['name'];
+                }
+                if (isset($identity['email']) && !isset($metadata['email'])) {
+                    $metadata['email'] = $identity['email'];
+                }
+            }
+        }
+
+        return $metadata;
     }
 
     public static function debugBacktraceToString(array $backtrace)
