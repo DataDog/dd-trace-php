@@ -430,7 +430,6 @@ bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
 
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
-    ddtrace_generate_runtime_id();
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
@@ -1440,6 +1439,11 @@ static PHP_MINIT_FUNCTION(ddtrace) {
 
     // Reset on every minit for `apachectl graceful`.
     dd_activate_once_control = (pthread_once_t)PTHREAD_ONCE_INIT;
+
+    // Generate runtime_id in MINIT so FPM workers inherit a stable ID from
+    // the master via fork, rather than each generating their own in RINIT.
+    // pcntl_fork() still regenerates via dd_internal_handle_fork().
+    ddtrace_generate_runtime_id();
 
 #if PHP_VERSION_ID < 80500
     ddtrace_init_known_strings();
