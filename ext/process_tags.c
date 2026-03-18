@@ -317,7 +317,7 @@ zend_string *ddtrace_process_tags_get_base_hash(void) {
 }
 
 bool ddtrace_process_tags_enabled(void){
-    return get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED();
+    return get_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED();
 }
 
 void ddtrace_process_tags_first_rinit(void) {

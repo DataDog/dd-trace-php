@@ -284,6 +284,13 @@
         "default": "true"
       }
     ],
+    "DD_DBM_INJECT_SQL_BASEHASH": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_DBM_PROPAGATION_MODE": [
       {
         "implementation": "A",
