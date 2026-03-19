@@ -86,12 +86,6 @@ void ddog_remote_config_reader_drop(struct ddog_RemoteConfigReader*);
 
 void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
 
-/**
- * # Safety
- * Caller must ensure the process is safe to fork, at the time when this method is called
- */
-ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
-
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);

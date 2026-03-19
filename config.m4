@@ -7,8 +7,6 @@ PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
 PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
   [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
 
-PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to generate mock_php.c,
-  [  --with-ddtrace-sidecar-library Location to cargo binary produced by components-rs/php_sidecar_mockgen], -, will be compiled)
 
 PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
   [  --with-ddtrace-cargo Location to cargo binary for rust compilation], cargo, not found)
@@ -351,7 +349,7 @@ EOT
     pushdef([PHP_GEN_GLOBAL_MAKEFILE], [
       popdef([PHP_GEN_GLOBAL_MAKEFILE])
       PHP_GEN_GLOBAL_MAKEFILE
-      [sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/.*\.[ao] /{s/| xargs rm -f/! -path ".\/target*\/*" | xargs rm -f/'$'\n}' -e '/^distclean:/a\'$'\n\t''rm -rf target/ target_mockgen/' Makefile]
+      [sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e '/.*\.[ao] /{s/| xargs rm -f/! -path ".\/target*\/*" | xargs rm -f/'$'\n}' -e '/^distclean:/a\'$'\n\t''rm -rf target/' Makefile]
       DDTRACE_GEN_GLOBAL_MAKEFILE_WRAP
     ])
   ])
@@ -377,26 +375,6 @@ $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "C
 EOT
   fi
 
-  if test "$ext_shared" = "yes"; then
-    all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
-    all_object_files_absolute=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' $(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
-    php_binary=$("$PHP_CONFIG" --php-binary)
-    if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
-      ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
-    else
-      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run"
-    fi
-    cat <<EOT >> Makefile.fragments
-
-/\$(builddir)/components-rs/mock_php.c: $all_object_files
-	($ddtrace_mockgen_invocation \$(builddir)/components-rs/mock_php.c $php_binary $all_object_files_absolute)
-
-# avoid cargo running simultaneously for libddtrace_php and php_sidecar_mockgen
-/\$(builddir)/components-rs/mock_php.c: | \$(filter-out \$(builddir)/components-rs/mock_php.lo,\$(shared_objects_ddtrace))
-EOT
-
-    PHP_ADD_SOURCES_X("/$ext_dir", "\$(builddir)/components-rs/mock_php.c", $ac_extra, shared_objects_ddtrace, yes)
-  fi
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
     shared_objects_ddtrace="$ddtrace_rust_lib $shared_objects_ddtrace"

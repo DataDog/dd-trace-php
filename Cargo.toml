@@ -1,5 +1,6 @@
 [workspace]
-members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling"]
+members = ["components-rs", "components-rs/sidecar-bin", "profiling"]
+exclude = ["tmp"]
 resolver = "2"
 
 [workspace.package]
@@ -24,6 +25,7 @@ lto = true
 codegen-units = 1
 panic = "abort"
 inherits = "release"
+
 
 [profile.profiler-release]
 panic = "abort"

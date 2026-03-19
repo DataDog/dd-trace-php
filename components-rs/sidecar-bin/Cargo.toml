@@ -1,0 +1,21 @@
+[package]
+name = "datadog-ipc-helper"
+version = "0.0.1"
+edition = "2021"
+
+[[bin]]
+name = "datadog-ipc-helper"
+path = "src/main.rs"
+
+[dependencies]
+datadog-sidecar = { path = "../../libdatadog/datadog-sidecar" }
+datadog-sidecar-appsec-ffi = { path = "../../libdatadog/datadog-sidecar-appsec-ffi" }
+libdd-common-ffi = { path = "../../libdatadog/libdd-common-ffi", default-features = false }
+libdd-crashtracker = { path = "../../libdatadog/libdd-crashtracker" }
+libc = "0.2"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+
+
+[target.'cfg(target_os = "linux")'.dependencies]
+prctl = "1.0"

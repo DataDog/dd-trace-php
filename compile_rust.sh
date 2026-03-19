@@ -3,17 +3,13 @@ cd components-rs
 
 RUSTFLAGS="${RUSTFLAGS:-} --cfg tokio_unstable"
 
-if test -n "$SHARED"; then
-  RUSTFLAGS="$RUSTFLAGS --cfg php_shared_build"
-fi
-
 case "${host_os}" in
   darwin*)
     RUSTFLAGS="$RUSTFLAGS -Clink-arg=-undefined -Clink-arg=dynamic_lookup";
     ;;
 esac
 
-set -x
+set -ex
 
 if test -n "$COMPILE_ASAN"; then
   # We need -lresolv due to https://github.com/llvm/llvm-project/issues/59007
@@ -21,4 +17,33 @@ if test -n "$COMPILE_ASAN"; then
   export CFLAGS="$LDFLAGS -fno-omit-frame-pointer" # the cc buildtools will only pick up CFLAGS it seems
 fi
 
-SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 "${DDTRACE_CARGO:-cargo}" build $(test "${PROFILE:-debug}" = "debug" || echo --profile "$PROFILE") "$@"
+# Choose the cargo profile.
+if test "${PROFILE:-debug}" = "debug"; then
+  CARGO_PROFILE_ARG=""
+else
+  CARGO_PROFILE_ARG="--profile $PROFILE"
+fi
+
+CARGO_TARGET_DIR="${CARGO_TARGET_DIR:?CARGO_TARGET_DIR must be set}"
+
+# Sidecar-specific RUSTFLAGS.
+# - musl: disable static CRT so dlopen works for loading the AppSec helper.
+# - macOS: override fat LTO (from tracer-release) to thin LTO, because the
+#   Xcode system linker ships an older LLVM that cannot parse the bitcode
+#   produced by the Rust toolchain's fat-LTO mode.
+SIDECAR_RUSTFLAGS="$RUSTFLAGS"
+case "${host_os}" in
+  *musl*)
+    SIDECAR_RUSTFLAGS="$SIDECAR_RUSTFLAGS -C target-feature=-crt-static"
+    ;;
+  darwin*)
+    SIDECAR_RUSTFLAGS="$SIDECAR_RUSTFLAGS -C lto=thin"
+    ;;
+esac
+
+SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 \
+  "${DDTRACE_CARGO:-cargo}" build -p ddtrace-php $CARGO_PROFILE_ARG "$@"
+
+SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$SIDECAR_RUSTFLAGS" RUSTC_BOOTSTRAP=1 \
+  "${DDTRACE_CARGO:-cargo}" build -p datadog-ipc-helper $CARGO_PROFILE_ARG "$@"
+

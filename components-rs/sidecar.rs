@@ -18,45 +18,33 @@ use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{CharSlice, self as ffi, MaybeError};
 use libdd_telemetry_ffi::try_c;
-#[cfg(any(windows, php_shared_build))]
-use spawn_worker::LibDependency;
-#[cfg(windows)]
-use spawn_worker::get_trampoline_target_data;
 
-
-#[cfg(php_shared_build)]
-extern "C" {
-    #[linkage="extern_weak"]
-    static DDTRACE_MOCK_PHP: *mut u8;
-    #[linkage="extern_weak"]
-    static DDTRACE_MOCK_PHP_SIZE: *mut usize;
+/// Locate the `datadog-ipc-helper` binary in the same directory as `ddtrace.so`.
+#[cfg(unix)]
+fn find_sidecar_binary() -> anyhow::Result<std::path::PathBuf> {
+    let (ddtrace_path, _) = unsafe {
+        spawn_worker::get_dl_path_raw(ddog_sidecar_connect_php as *const libc::c_void)
+    };
+    let ddtrace_path = ddtrace_path.ok_or_else(|| {
+        anyhow::format_err!("could not resolve ddtrace.so path via dladdr")
+    })?;
+    let dir = std::path::PathBuf::from(
+        ddtrace_path
+            .to_str()
+            .map_err(|_| anyhow::format_err!("ddtrace.so path is not valid UTF-8"))?,
+    );
+    let dir = dir
+        .parent()
+        .ok_or_else(|| anyhow::format_err!("ddtrace.so has no parent directory"))?;
+    Ok(dir.join("datadog-ipc-helper"))
 }
 
-#[cfg(php_shared_build)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    if !unsafe { DDTRACE_MOCK_PHP_SIZE }.is_null() {
-        let mock = unsafe { std::slice::from_raw_parts(DDTRACE_MOCK_PHP, *DDTRACE_MOCK_PHP_SIZE) };
-        cfg.library_dependencies
-            .push(LibDependency::Binary(mock));
-    }
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
-}
-
-#[cfg(not(any(windows, php_shared_build)))]
+#[cfg(unix)]
 fn run_sidecar(cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
+    let binary_path = find_sidecar_binary()?;
+    datadog_sidecar::start_or_connect_with_exec_binary(binary_path, cfg)
 }
 
-#[no_mangle]
-#[cfg(windows)]
-pub static mut DDOG_PHP_FUNCTION: *const u8 = std::ptr::null();
-
-#[cfg(windows)]
-fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    let php_dll = get_trampoline_target_data(unsafe { DDOG_PHP_FUNCTION })?;
-    cfg.library_dependencies.push(LibDependency::Path(php_dll.into()));
-    datadog_sidecar::start_or_connect_to_sidecar(cfg)
-}
 
 lazy_static! {
     static ref APPSEC_CONFIG: Mutex<Option<AppSecConfig>> = Mutex::new(None);

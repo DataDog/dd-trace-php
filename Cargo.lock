@@ -320,7 +320,7 @@ dependencies = [
  "cfg-if",
  "libc 0.2.177",
  "miniz_oxide",
- "object 0.36.7",
+ "object",
  "rustc-demangle",
  "windows-targets 0.52.6",
 ]
@@ -664,14 +664,6 @@ dependencies = [
  "jobserver",
  "libc 0.2.177",
  "shlex",
-]
-
-[[package]]
-name = "cc_utils"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cc",
 ]
 
 [[package]]
@@ -1106,12 +1098,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "current_platform"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a74858bcfe44b22016cb49337d7b6f04618c58e5dbfdef61b06b8c434324a0bc"
-
-[[package]]
 name = "cxx"
 version = "1.0.194"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1260,6 +1246,19 @@ dependencies = [
  "tracing-subscriber",
  "winapi 0.3.9",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "datadog-ipc-helper"
+version = "0.0.1"
+dependencies = [
+ "datadog-sidecar",
+ "datadog-sidecar-appsec-ffi",
+ "libc 0.2.177",
+ "libdd-common-ffi",
+ "libdd-crashtracker",
+ "prctl",
+ "tracing",
 ]
 
 [[package]]
@@ -1429,6 +1428,19 @@ dependencies = [
  "windows 0.51.1",
  "windows-sys 0.52.0",
  "zwohash",
+]
+
+[[package]]
+name = "datadog-sidecar-appsec-ffi"
+version = "0.0.1"
+dependencies = [
+ "datadog-remote-config",
+ "datadog-sidecar",
+ "libc 0.2.177",
+ "libdd-common 1.1.0",
+ "libdd-common-ffi",
+ "libdd-telemetry",
+ "libdd-telemetry-ffi",
 ]
 
 [[package]]
@@ -3813,17 +3825,6 @@ dependencies = [
 
 [[package]]
 name = "object"
-version = "0.31.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bda667d9f2b5051b8833f59f3bf748b28ef54f850f4fcb389a252aa383866d1"
-dependencies = [
- "flate2",
- "memchr",
- "ruzstd",
-]
-
-[[package]]
-name = "object"
 version = "0.36.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62948e14d923ea95ea2c7c86c71013138b66525b86bdc08d2dcc262bdb497b87"
@@ -4090,15 +4091,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a68318426de33640f02be62b4ae8eb1261be2efbc337b60c54d845bf4484e0d9"
 dependencies = [
  "siphasher 0.3.11",
-]
-
-[[package]]
-name = "php_sidecar_mockgen"
-version = "0.1.0"
-dependencies = [
- "cc_utils",
- "current_platform",
- "sidecar_mockgen",
 ]
 
 [[package]]
@@ -5112,17 +5104,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
 
 [[package]]
-name = "ruzstd"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a15e661f0f9dac21f3494fe5d23a6338c0ac116a2d22c2b63010acd89467ffe"
-dependencies = [
- "byteorder",
- "thiserror 1.0.69",
- "twox-hash",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5430,13 +5411,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
-name = "sidecar_mockgen"
-version = "0.1.0"
-dependencies = [
- "object 0.31.1",
-]
-
-[[package]]
 name = "signal-hook-registry"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5530,15 +5504,12 @@ name = "spawn_worker"
 version = "0.0.1"
 dependencies = [
  "anyhow",
- "cc_utils",
  "fastrand",
  "io-lifetimes",
  "kernel32-sys",
  "libc 0.2.177",
- "memfd",
  "nix 0.29.0",
  "rlimit",
- "tempfile",
  "winapi 0.2.8",
  "windows 0.51.1",
 ]
@@ -6366,16 +6337,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59b11b2b5241ba34be09c3cc85a36e56e48f9888862e19cedf23336d35316ed1"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "twox-hash"
-version = "1.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
-dependencies = [
- "cfg-if",
- "static_assertions",
 ]
 
 [[package]]

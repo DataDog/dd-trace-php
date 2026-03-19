@@ -345,13 +345,14 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
             ],
             outputs: [
                     volume: 'php-tracer',
-                    files: ['build_extension/modules/ddtrace.so'],
+                    files: ['build_extension/modules/ddtrace.so',
+                            'build_extension/modules/datadog-ipc-helper'],
             ],
             command: [
                     '-e', '-c',
                     '''
                     cd /project
-                    PHPRC= RUST_DEBUG_BUILD=1 make /project/tmp/build_extension/modules/ddtrace.so
+                    PHPRC= RUST_DEBUG_BUILD=1 make
                     '''
             ]
     )

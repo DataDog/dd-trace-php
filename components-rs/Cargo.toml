@@ -55,4 +55,4 @@ hashbrown = "0.15"
 cbindgen = "0.27"
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)'] }
+unexpected_cfgs = { level = "warn", check-cfg = [] }
