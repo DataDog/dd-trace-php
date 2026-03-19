@@ -2263,6 +2263,13 @@
         "default": "true"
       }
     ],
+    "DD_TRACE_STATS_COMPUTATION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_TRACE_SWOOLE_ANALYTICS_ENABLED": [
       {
         "implementation": "A",
