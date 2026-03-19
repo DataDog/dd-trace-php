@@ -35,6 +35,8 @@ include = [
     "libdd-telemetry",
     "libdd-telemetry-ffi",
     "libdd-common-ffi",
+    "libdd-data-pipeline",
+    "libdd-data-pipeline-ffi",
     "datadog-crashtracker-ffi",
     "datadog-sidecar",
     "datadog-ipc",

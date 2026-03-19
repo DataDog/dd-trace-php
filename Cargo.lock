@@ -1487,6 +1487,8 @@ dependencies = [
  "libdd-common 1.1.0",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
+ "libdd-data-pipeline",
+ "libdd-data-pipeline-ffi",
  "libdd-library-config-ffi",
  "libdd-telemetry",
  "libdd-telemetry-ffi",
@@ -2959,6 +2961,20 @@ dependencies = [
  "tokio-util",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "libdd-data-pipeline-ffi"
+version = "0.0.1"
+dependencies = [
+ "build_common",
+ "httpmock",
+ "libdd-common-ffi",
+ "libdd-data-pipeline",
+ "libdd-tinybytes",
+ "libdd-trace-utils",
+ "rmp-serde",
+ "tracing",
 ]
 
 [[package]]

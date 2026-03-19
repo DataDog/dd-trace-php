@@ -46,7 +46,44 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     size_t limit = get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE();
     char *url = ddtrace_agent_url();
 
-    if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+    // When stats computation is enabled and the trace exporter is available,
+    // send traces through the data pipeline's TraceExporter which runs a
+    // SpanConcentrator to compute and send client-side stats.
+    if (ddtrace_trace_exporter && get_global_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+        size_t length = ddog_get_traces_size(traces);
+        for (size_t i = 0; i < length; i++) {
+            ddog_TraceBytes *trace = ddog_get_trace(traces, i);
+            ddog_CharSlice serialized_trace = ddog_serialize_trace_into_charslice(trace);
+
+            if (serialized_trace.len > 0) {
+                if (serialized_trace.len > limit) {
+                    LOG(ERROR, "Agent request payload of %zu bytes exceeds configured %zu byte limit; dropping request",
+                        serialized_trace.len, limit);
+                    success = false;
+                } else {
+                    ddog_ByteSlice trace_data = {
+                        .ptr = (const uint8_t *)serialized_trace.ptr,
+                        .len = serialized_trace.len,
+                    };
+                    ddog_ExporterError *err = ddog_trace_exporter_send(
+                        ddtrace_trace_exporter, trace_data, 1, NULL);
+                    if (err) {
+                        LOG(ERROR, "Failed sending trace via data pipeline: %s", err->msg);
+                        ddog_trace_exporter_error_free(err);
+                        success = false;
+                    } else {
+                        LOGEV(INFO, {
+                            log("Flushed trace of size %d via data pipeline (stats computation) to %s",
+                                ddog_get_trace_size(trace), url);
+                        });
+                    }
+                }
+                ddog_free_charslice(serialized_trace);
+            } else {
+                success = false;
+            }
+        }
+    } else if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
         if (ddtrace_sidecar) {
             ddog_SenderParameters parameters = {
                 .tracer_headers_tags = {

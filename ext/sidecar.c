@@ -25,6 +25,7 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 ddog_Endpoint *ddtrace_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+ddog_TraceExporter *ddtrace_trace_exporter;
 static uint8_t dd_sidecar_formatted_session_id[36];
 
 static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
@@ -246,6 +247,80 @@ bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_c
 #endif
 }
 
+static void ddtrace_trace_exporter_init(void) {
+    if (!get_global_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+        return;
+    }
+
+    char *url = ddtrace_agent_url();
+    ddog_TraceExporterConfig *config = NULL;
+    ddog_trace_exporter_config_new(&config);
+    if (!config) {
+        LOG(ERROR, "Failed to create trace exporter config for stats computation");
+        free(url);
+        return;
+    }
+
+    ddog_ExporterError *err;
+
+    err = ddog_trace_exporter_config_set_url(config, (ddog_CharSlice){.ptr = url, .len = strlen(url)});
+    if (err) {
+        LOG(ERROR, "Failed to set trace exporter URL: %s", err->msg);
+        ddog_trace_exporter_error_free(err);
+        ddog_trace_exporter_config_free(config);
+        free(url);
+        return;
+    }
+    free(url);
+
+    ddog_trace_exporter_config_set_language(config, DDOG_CHARSLICE_C("php"));
+    ddog_trace_exporter_config_set_lang_version(config, php_version_rt);
+    ddog_trace_exporter_config_set_lang_interpreter(config,
+        (ddog_CharSlice){.ptr = sapi_module.name, .len = strlen(sapi_module.name)});
+    ddog_trace_exporter_config_set_tracer_version(config, DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
+
+    zend_string *service = get_global_DD_SERVICE();
+    if (ZSTR_LEN(service)) {
+        ddog_trace_exporter_config_set_service(config, dd_zend_string_to_CharSlice(service));
+    }
+    zend_string *env = get_global_DD_ENV();
+    if (ZSTR_LEN(env)) {
+        ddog_trace_exporter_config_set_env(config, dd_zend_string_to_CharSlice(env));
+    }
+    zend_string *version = get_global_DD_VERSION();
+    if (ZSTR_LEN(version)) {
+        ddog_trace_exporter_config_set_version(config, dd_zend_string_to_CharSlice(version));
+    }
+
+    // Enable stats computation - this activates the SpanConcentrator with a
+    // 10-second bucket size, matching the behavior of other Datadog tracers.
+    err = ddog_trace_exporter_config_set_compute_stats(config, true);
+    if (err) {
+        LOG(ERROR, "Failed to enable stats computation on trace exporter: %s", err->msg);
+        ddog_trace_exporter_error_free(err);
+        ddog_trace_exporter_config_free(config);
+        return;
+    }
+
+    err = ddog_trace_exporter_new(&ddtrace_trace_exporter, config);
+    ddog_trace_exporter_config_free(config);
+    if (err) {
+        LOG(ERROR, "Failed to create trace exporter for stats computation: %s", err->msg);
+        ddog_trace_exporter_error_free(err);
+        ddtrace_trace_exporter = NULL;
+        return;
+    }
+
+    LOG(INFO, "Trace exporter initialized with client-side stats computation enabled");
+}
+
+static void ddtrace_trace_exporter_shutdown(void) {
+    if (ddtrace_trace_exporter) {
+        ddog_trace_exporter_free(ddtrace_trace_exporter);
+        ddtrace_trace_exporter = NULL;
+    }
+}
+
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
@@ -262,6 +337,8 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         ddtrace_telemetry_first_init();
     }
+
+    ddtrace_trace_exporter_init();
 }
 
 void ddtrace_sidecar_ensure_active(void) {
@@ -291,6 +368,8 @@ void ddtrace_sidecar_finalize(bool clear_id) {
 }
 
 void ddtrace_sidecar_shutdown(void) {
+    ddtrace_trace_exporter_shutdown();
+
     if (ddtrace_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
     }
