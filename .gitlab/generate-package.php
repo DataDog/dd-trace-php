@@ -1275,7 +1275,8 @@ endforeach;
   #   - when: manual
   #     allow_failure: true
   script:
-    - DD_API_KEY=$(curl -sf -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_ADDR/v1/kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['key'])") || { echo "Failed to fetch DD_API_KEY from Vault"; exit 1; }
+    - curl -sfL "https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip" -o /tmp/vault.zip && unzip -q /tmp/vault.zip -d /tmp && chmod +x /tmp/vault && rm -f /tmp/vault.zip
+    - DD_API_KEY=$(/tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])") || { echo "Failed to fetch DD_API_KEY from Vault"; exit 1; }
     - export DD_API_KEY
     - ./run.sh TRACER_RELEASE_SCENARIOS
 
