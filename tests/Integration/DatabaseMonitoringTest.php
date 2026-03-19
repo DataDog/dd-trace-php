@@ -388,8 +388,14 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             \DDTrace\remove_hook($hook);
         }
 
-        // The query should NOT contain the base hash
-        $this->assertDoesNotMatchRegularExpression('/ddsh=/', $commentedQuery);
+
+        // Compatibility with older PHP Version
+        if (method_exists($this, 'assertDoesNotMatchRegularExpression')) {
+            // The query should NOT contain the base hash
+            $this->assertDoesNotMatchRegularExpression('/ddsh=/', $commentedQuery);
+        } else {
+            $this->assertNotRegExp('/ddsh=/', $commentedQuery);
+        }
 
         // The span should NOT have the _dd.propagated_hash tag
         $this->assertFlameGraph($traces, [

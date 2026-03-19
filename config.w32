@@ -34,7 +34,6 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " engine_hooks.c";
 	DDTRACE_EXT_SOURCES += " exception_serialize.c";
 	DDTRACE_EXT_SOURCES += " excluded_modules.c";
-	DDTRACE_EXT_SOURCES += " fnv.c";
 	DDTRACE_EXT_SOURCES += " git.c";
 	DDTRACE_EXT_SOURCES += " handlers_api.c";
 	DDTRACE_EXT_SOURCES += " handlers_curl" + (version < 800 ? "_php7" : "") + ".c";

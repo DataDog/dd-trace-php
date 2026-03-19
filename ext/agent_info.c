@@ -30,7 +30,7 @@ void ddtrace_get_container_tags_hash(void) {
             &changed
         );
         if (hash.len > 0) {
-            zend_string *hash_str = zend_string_init(hash.ptr, hash.len, 0);
+            zend_string *hash_str = zend_string_init(hash.ptr, hash.len, 1);
             ddtrace_process_tags_set_container_tags_hash(hash_str);
             zend_string_release(hash_str);
         }

@@ -9,7 +9,6 @@
 #include "Zend/zend_smart_str.h"
 #include "components-rs/ddtrace.h"
 #include "SAPI.h"
-#include "fnv.h"
 
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -218,19 +217,17 @@ static void recompute_base_hash(void) {
         memcpy(combined, ZSTR_VAL(process_tags.serialized), ZSTR_LEN(process_tags.serialized));
         memcpy(combined + ZSTR_LEN(process_tags.serialized), ZSTR_VAL(process_tags.container_tags_hash), ZSTR_LEN(process_tags.container_tags_hash));
 
-        hash_value = dd_fnv1_64(combined, total_len);
+        hash_value = dd_fnv1a_64(combined, total_len);
         efree(combined);
     } else {
-        hash_value = dd_fnv1_64((unsigned char *)ZSTR_VAL(process_tags.serialized), ZSTR_LEN(process_tags.serialized));
+        hash_value = dd_fnv1a_64((const uint8_t *)ZSTR_VAL(process_tags.serialized), ZSTR_LEN(process_tags.serialized));
     }
 
-    zend_string *hash_value_str = strpprintf(0, "%" PRIu64, hash_value);
-    if (!hash_value_str) {
-        return;
-    }
-
-    process_tags.base_hash = zend_string_init(ZSTR_VAL(hash_value_str), ZSTR_LEN(hash_value_str), 1);
-    zend_string_release(hash_value_str);
+    smart_str hash_buf = {0};
+    smart_str_alloc(&hash_buf, 21, 1);
+    smart_str_append_printf(&hash_buf, "%" PRIu64, hash_value);
+    smart_str_0(&hash_buf);
+    process_tags.base_hash = hash_buf.s;
 }
 
 static void serialize_process_tags(void) {
@@ -291,7 +288,7 @@ void ddtrace_process_tags_set_container_tags_hash(zend_string *container_tags_ha
     if (process_tags.container_tags_hash) {
         zend_string_release(process_tags.container_tags_hash);
     }
-    process_tags.container_tags_hash = zend_string_init(ZSTR_VAL(container_tags_hash), ZSTR_LEN(container_tags_hash), 1);
+    process_tags.container_tags_hash = zend_string_copy(container_tags_hash);
 
     recompute_base_hash();
 }
