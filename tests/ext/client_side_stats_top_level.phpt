@@ -39,7 +39,7 @@ foreach ($spans as $span) {
 
 ?>
 --EXPECT--
-child_diff_service: _dd.top_level=1
-grandchild_diff_service: _dd.top_level=1
-child_same_service: _dd.top_level=not set
 root: _dd.top_level=1
+child_diff_service: _dd.top_level=1
+child_same_service: _dd.top_level=not set
+grandchild_diff_service: _dd.top_level=1
