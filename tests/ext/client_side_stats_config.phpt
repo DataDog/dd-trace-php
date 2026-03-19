@@ -12,5 +12,5 @@ echo dd_trace_env_config("DD_TRACE_STATS_COMPUTATION_ENABLED") ? "true" : "false
 echo "\n";
 
 ?>
---EXPECTF--
-DD_TRACE_STATS_COMPUTATION_ENABLED=true%A
+--EXPECT--
+DD_TRACE_STATS_COMPUTATION_ENABLED=true
