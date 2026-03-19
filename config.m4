@@ -228,6 +228,14 @@ if test "$PHP_DDTRACE" != "no"; then
   DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
     ext/compat_getrandom.c"
 
+  dnl On Linux, add the solib bootstrap (makes ddtrace.so directly executable)
+  case $host_os in
+    linux*)
+      DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
+        ext/solib_bootstrap.c"
+      ;;
+  esac
+
   ZAI_SOURCES="$EXTRA_ZAI_SOURCES \
     zend_abstract_interface/config/config.c \
     zend_abstract_interface/config/config_decode.c \
@@ -277,6 +285,13 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl DDTRACE_PUBLIC in their source files as well.
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym -flto -fuse-linker-plugin"
+
+    dnl On Linux, set the ELF entry point so ddtrace.so can be executed directly
+    case $host_os in
+      linux*)
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,_dd_solib_start"
+        ;;
+    esac
 
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)

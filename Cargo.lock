@@ -5719,6 +5719,7 @@ dependencies = [
  "nix 0.29.0",
  "rlimit",
  "tempfile",
+ "tracing",
  "winapi 0.2.8",
  "windows 0.51.1",
 ]

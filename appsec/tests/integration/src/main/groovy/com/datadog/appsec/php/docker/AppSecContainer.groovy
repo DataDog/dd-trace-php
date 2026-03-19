@@ -93,7 +93,9 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_INSTRUMENTATION_TELEMETRY_ENABLED', '1'
         // very verbose:
         withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
-        withEnv 'DD_SPAWN_WORKER_USE_EXEC', '1' // gdb fails following child with fdexec
+        // DD_SPAWN_WORKER_USE_EXEC was previously set here to work around gdb not
+        // being able to follow children with FdExec.  ExecSolib (the new default) uses
+        // a direct execve like Exec does, so the workaround is no longer needed.
         withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
         withEnv 'DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL', '10'
         // withEnv '_DD_SHARED_LIB_DEBUG', '1'
