@@ -8,6 +8,7 @@
 #include <components-rs/common.h>
 #include <components-rs/ddtrace.h>
 #include <components-rs/sidecar.h>
+#include <main/SAPI.h>
 #include <zend_string.h>
 #include "sidecar.h"
 #include "live_debugger.h"
