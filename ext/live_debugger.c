@@ -366,7 +366,7 @@ typedef struct {
     bool rejected;
     ddog_DebuggerPayload *payload;
     zend_string *service;
-    zend_arena *capture_arena;
+    dd_capture_arena capture_arena;
 } dd_log_probe_dyn;
 
 static bool dd_log_probe_eval_condition(dd_log_probe_def *def, zend_execute_data *execute_data, zval *retval) {
@@ -554,8 +554,9 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         if (dyn->payload) {
             ddog_drop_debugger_payload(dyn->payload);
             zend_string_release(dyn->service);
-            if (dyn->capture_arena) {
-                zend_arena_destroy(dyn->capture_arena);
+            if (dyn->capture_arena.arena) {
+                dd_free_capture_ephemerals(dyn->capture_arena.ephemerals);
+                zend_arena_destroy(dyn->capture_arena.arena);
             }
         }
         return;
@@ -574,8 +575,8 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
     dd_log_probe_ensure_payload(dyn, def, &result_msg);
 
     if (def->parent.probe.probe.log.capture_snapshot) {
-        bool already_snapshotted = dyn->capture_arena;
-        DDTRACE_G(debugger_capture_arena) = dyn->capture_arena ? dyn->capture_arena : zend_arena_create(65536);
+        bool already_snapshotted = dyn->capture_arena.arena;
+        DDTRACE_G(debugger_capture_arena) = already_snapshotted ? dyn->capture_arena : (dd_capture_arena){.arena = zend_arena_create(65536), .ephemerals = NULL};
         ddog_DebuggerCapture *capture = ddog_snapshot_exit(dyn->payload);
         if (!already_snapshotted) {
             dd_probe_capture_stack(dyn->payload, execute_data);
@@ -587,9 +588,10 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
         ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("@return"), capture_value);
     }
     ddtrace_sidecar_send_debugger_datum(dyn->payload);
-    if (DDTRACE_G(debugger_capture_arena)) {
-        zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
-        DDTRACE_G(debugger_capture_arena) = NULL;
+    if (DDTRACE_G(debugger_capture_arena).arena) {
+        dd_free_capture_ephemerals(DDTRACE_G(debugger_capture_arena).ephemerals);
+        zend_arena_destroy(DDTRACE_G(debugger_capture_arena).arena);
+        DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){0};
     }
     zend_string_release(result);
     zend_string_release(dyn->service);
@@ -607,17 +609,17 @@ static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute
 
     dyn->payload = NULL;
     dyn->rejected = def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_ENTRY && !dd_log_probe_eval_condition(def, execute_data, &retval);
-    dyn->capture_arena = NULL;
+    dyn->capture_arena = (dd_capture_arena){0};
 
     if (!dyn->rejected && def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_ENTRY) {
         dd_log_probe_ensure_payload(dyn, def, NULL);
         if (def->parent.probe.probe.log.capture_snapshot) {
             ddog_DebuggerCapture *capture = ddog_snapshot_entry(dyn->payload);
-            DDTRACE_G(debugger_capture_arena) = zend_arena_create(65536);
+            DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){.arena = zend_arena_create(65536), .ephemerals = NULL};
             dd_probe_capture_stack(dyn->payload, execute_data);
             dd_log_probe_capture_snapshot(capture, def, execute_data);
             dyn->capture_arena = DDTRACE_G(debugger_capture_arena);
-            DDTRACE_G(debugger_capture_arena) = NULL;
+            DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){0};
         }
     }
 
@@ -1438,19 +1440,19 @@ ddog_LiveDebuggerSetup ddtrace_live_debugger_setup = {
     .evaluator = &dd_evaluator,
 };
 
-static void dd_ht_ephemerals_dtor(void *pData) {
-    HashTable *ht = *((HashTable **)pData);
-
+void dd_free_capture_ephemerals(dd_refcounted_linked *ephemerals) {
+    while (ephemerals) {
+        HashTable *ht = (HashTable *)ephemerals->value;
 #if PHP_VERSION_ID < 70400
-    zend_array_release(ht);
+        zend_array_release(ht);
 #else
-    zend_release_properties(ht);
+        zend_release_properties(ht);
 #endif
+        ephemerals = ephemerals->next;
+    }
 }
 
 void ddtrace_live_debugger_minit(void) {
-    zend_hash_init(&DDTRACE_G(debugger_capture_ephemerals), 8, NULL, (dtor_func_t)dd_ht_ephemerals_dtor, 1);
-
     zend_string *value;
     ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS(), value) {
         ddog_snapshot_add_redacted_name(dd_zend_string_to_CharSlice(value));
@@ -1458,10 +1460,6 @@ void ddtrace_live_debugger_minit(void) {
     ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES(), value) {
         ddog_snapshot_add_redacted_type(dd_zend_string_to_CharSlice(value));
     } ZEND_HASH_FOREACH_END();
-}
-
-void ddtrace_live_debugger_mshutdown(void) {
-    zend_hash_destroy(&DDTRACE_G(debugger_capture_ephemerals));
 }
 
 bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_value, zend_string *new_str) {
