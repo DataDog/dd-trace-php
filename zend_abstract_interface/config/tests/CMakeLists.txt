@@ -26,7 +26,7 @@ target_include_directories(second_consumer_ext PRIVATE
     $<TARGET_PROPERTY:Zai::String,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
-target_compile_features(second_consumer_ext PRIVATE c_std_11 cxx_std_11)
+target_compile_features(second_consumer_ext PRIVATE c_std_11)
 
 # Compile definitions from Tea::Php (e.g. ZEND_DEBUG, ZTS) must match the main binary's build.
 target_compile_definitions(second_consumer_ext PRIVATE
