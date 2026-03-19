@@ -26,6 +26,12 @@ target_include_directories(second_consumer_ext PRIVATE
     $<TARGET_PROPERTY:Zai::String,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
+# PHP 7.0 headers (e.g. zend_string.h) use the `register` storage class specifier,
+# which was removed in C++17. Cap at C++14 where it is only deprecated, not an error.
+set_target_properties(second_consumer_ext PROPERTIES
+    CXX_STANDARD 14
+    CXX_STANDARD_REQUIRED YES
+)
 target_compile_features(second_consumer_ext PRIVATE c_std_11)
 
 # Compile definitions from Tea::Php (e.g. ZEND_DEBUG, ZTS) must match the main binary's build.
