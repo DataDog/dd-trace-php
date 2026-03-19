@@ -559,9 +559,11 @@ static char *second_consumer_sapi_getenv(char *name, size_t name_len) {
 
 // Verify three properties when a second extension has registered the same INI name (causing
 // original_on_modify to be set on INI_FOO_STRING):
-//   1. First-time rinit does not consult SAPI; sys env cache (set at minit) is used for all entries
-//   2. In regular requests, SAPI env takes priority over sys env for ALL entries, including those
-//      with original_on_modify — the presence of a second consumer does not affect SAPI precedence
+//   1. SAPI is consulted on every rinit, including the first; sys env cache (set at minit) is the
+//      fallback when SAPI returns NULL — consulting SAPI on first rinit is required for backwards
+//      compatibility with health metrics
+//   2. SAPI env takes priority over sys env for ALL entries, including those with original_on_modify —
+//      the presence of a second consumer does not affect SAPI precedence
 //   3. Sys env changes between requests are NOT reflected — the cache is immutable after minit (request 3)
 TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_modify to be set", {
     REQUIRE(tea_sapi_sinit());
@@ -577,7 +579,7 @@ TEA_TEST_CASE_BARE("config/ini", "second consumer extension causes original_on_m
     second_consumer_sapi_phase = 0;
     REQUIRE(tea_sapi_minit());
 
-    // --- Request 1: first_time_rinit uses sys cache, then ini_rinit applies SAPI over it ---
+    // --- Request 1: SAPI consulted on first rinit; "sapi_val"/"2" win over sys cache "sys_val"/"1" ---
     REQUEST_BEGIN()
 
     zval *str_val = zai_config_get_value(EXT_CFG_INI_FOO_STRING);
