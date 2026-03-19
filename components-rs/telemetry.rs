@@ -245,7 +245,7 @@ pub struct ShmCache {
 }
 
 #[derive(Hash, Eq, PartialEq)]
-struct ShmCacheKey(String, String);
+pub struct ShmCacheKey(String, String);
 
 impl Equivalent<ShmCacheKey> for (&str, &str) {
     fn equivalent(&self, key: &ShmCacheKey) -> bool {
