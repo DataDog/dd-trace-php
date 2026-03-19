@@ -1278,7 +1278,8 @@ endforeach;
     - curl -sfL "https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip" -o /tmp/vault.zip && unzip -q /tmp/vault.zip -d /tmp && chmod +x /tmp/vault && rm -f /tmp/vault.zip
     - DD_API_KEY=$(/tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])") || { echo "Failed to fetch DD_API_KEY from Vault"; exit 1; }
     - export DD_API_KEY
-    - ./run.sh TRACER_RELEASE_SCENARIOS
+    - SCENARIOS=$(python utils/scripts/compute-workflow-parameters.py php -g tracer_release | sed -n 's/^endtoend_scenarios=//p' | tr -d '[]"' | tr ',' ' ')
+    - ./run.sh $SCENARIOS
 
 "System Tests: [parametric]":
   extends: .system_tests
