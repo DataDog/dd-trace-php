@@ -1884,6 +1884,26 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         }
     }
 
+    if (get_global_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span) {
+        bool is_top_level_span = false;
+        if (!span->parent) {
+            is_top_level_span = true;
+        } else {
+            zval *parent_service = &SPANDATA(span->parent)->property_service;
+            zval *span_service = &span->property_service;
+            ZVAL_DEREF(parent_service);
+            ZVAL_DEREF(span_service);
+            if (Z_TYPE_P(span_service) == IS_STRING && Z_TYPE_P(parent_service) == IS_STRING) {
+                is_top_level_span = !zend_string_equals(Z_STR_P(span_service), Z_STR_P(parent_service));
+            } else if (Z_TYPE_P(span_service) != Z_TYPE_P(parent_service)) {
+                is_top_level_span = true;
+            }
+        }
+        if (is_top_level_span) {
+            ddog_add_span_metrics_str(rust_span, "_dd.top_level", 1);
+        }
+    }
+
     if (ddtrace_span_is_entrypoint_root(span)) {
         if (get_DD_TRACE_MEASURE_COMPILE_TIME()) {
             ddog_add_span_metrics_str(rust_span, "php.compilation.total_time_ms", ddtrace_compile_time_get() / 1000.);
