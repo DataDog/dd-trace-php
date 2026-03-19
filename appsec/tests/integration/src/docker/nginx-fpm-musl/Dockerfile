@@ -3,9 +3,9 @@ FROM php:8.5-fpm-alpine
 # doubles as php/toolchain image for musl
 
 RUN apk add --no-cache \
-    autoconf bash bison clang clang-dev cmake curl curl-dev \
+    autoconf automake bash bison clang clang-dev cmake curl curl-dev \
     g++ gcc gdb git libc-dev linux-headers llvm-libunwind-static make \
-    musl-dev nginx oniguruma-dev openssl-dev patchelf pkgconf re2c \
+    musl-dev nginx oniguruma-dev openssl-dev patchelf pkgconf re2c libtool \
     libxml2-dev libzip-dev xz-static zlib-dev \
     vim
 

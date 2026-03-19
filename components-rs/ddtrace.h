@@ -39,6 +39,10 @@ void ddtrace_drop_rust_string(char *input, uintptr_t len);
 
 struct ddog_Endpoint *ddtrace_parse_agent_url(ddog_CharSlice url);
 
+void ddtrace_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
+                                             void (*callback)(ddog_crasht_EndpointConfig, void*),
+                                             void *userdata);
+
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
 int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);

@@ -5,7 +5,7 @@ use hashbrown::{Equivalent, HashMap};
 use std::collections::HashSet;
 use std::ffi::CString;
 use std::path::PathBuf;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 
 use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};

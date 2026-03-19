@@ -242,6 +242,20 @@ opcache_disabled:
 #endif
 }
 
+typedef struct {
+    ddog_crasht_Config config;
+    ddog_crasht_Metadata metadata;
+} dd_crasht_init_args;
+
+static void dd_crasht_do_init(ddog_crasht_EndpointConfig endpoint_config, void *userdata) {
+    dd_crasht_init_args *args = (dd_crasht_init_args *)userdata;
+    args->config.endpoint = endpoint_config;
+    dd_crashtracker_check_result(
+            ddog_crasht_init_without_receiver(args->config, args->metadata),
+            "Cannot initialize CrashTracker"
+    );
+}
+
 static void dd_init_crashtracker() {
     ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
     if (socket_path.len > sizeof(crashtracker_socket_path) - 1) {
@@ -256,32 +270,24 @@ static void dd_init_crashtracker() {
     free((void *) socket_path.ptr);
     socket_path.ptr = crashtracker_socket_path;
 
-    char *agent_url = ddtrace_agent_url();
-    if (!agent_url) {
+    if (!ddtrace_endpoint) {
         return;
     }
-
-    ddog_crasht_Config config = {
-        .endpoint = {.ptr = agent_url, .len = strlen(agent_url)},
-        .timeout_ms = 5000,
-        .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-        .optional_unix_socket_filename = socket_path,
-        .additional_files = {0},
-    };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
     dd_crasht_add_opcache_inis(&tags);
 
-    const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
+    dd_crasht_init_args args = {
+        .config = {
+            .timeout_ms = 5000,
+            .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+            .optional_unix_socket_filename = socket_path,
+            .additional_files = {0},
+        },
+        .metadata = ddtrace_setup_crashtracking_metadata(&tags),
+    };
 
-    dd_crashtracker_check_result(
-            ddog_crasht_init_without_receiver(
-                    config,
-                    metadata
-            ),
-            "Cannot initialize CrashTracker"
-    );
-    free(agent_url);
+    ddtrace_endpoint_as_crashtracker_config(ddtrace_endpoint, dd_crasht_do_init, &args);
 
     ddtrace_register_crashtracking_frames_collection();
 
