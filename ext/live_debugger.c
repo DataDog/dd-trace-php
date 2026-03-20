@@ -80,7 +80,7 @@ static zend_string *dd_eval_string(const ddog_DslString *string, const ddog_Capt
     };
     ddog_VoidCollection bytes = ddog_evaluate_unmanaged_string(string, &ctx, error);
     zend_string *str = zend_string_init(bytes.elements, bytes.count, 0);
-    bytes.free(bytes);
+    (bytes.free)(bytes); // parens for windows to be happy in debug mode
     clean_ctx(&ctx);
     return str;
 }
