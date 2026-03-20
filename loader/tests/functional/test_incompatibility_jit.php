@@ -120,10 +120,8 @@ jit.on: YES
 jit.buffer_size: 33554416
 EOT
 ,
-            <<<EOT
-[ddtrace] [debug] Notifying profiler of finished local root span.
-[ddtrace] [span] Encoding span
-EOT
+            "Notifying profiler of finished local root span.",
+            "Encoding span",
         ],
         "must_match" => [<<<EOT
 %A
@@ -159,10 +157,8 @@ jit.on: YES
 jit.buffer_size: 33554416
 EOT
 ,
-            <<<EOT
-[ddtrace] [debug] Notifying profiler of finished local root span.
-[ddtrace] [span] Encoding span
-EOT
+            "Notifying profiler of finished local root span.",
+            "Encoding span",
         ],
         "must_match" => [<<<EOT
 %A
