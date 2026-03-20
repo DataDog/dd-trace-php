@@ -375,6 +375,7 @@ ext/standard/tests/general_functions/bug35229.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/get_included_files.phpt
 ext/standard/tests/general_functions/gettype_settype_basic.phpt
+ext/standard/tests/general_functions/phpinfo.phpt
 ext/standard/tests/general_functions/print_r_64bit.phpt
 ext/standard/tests/general_functions/strval.phpt
 ext/standard/tests/general_functions/type.phpt

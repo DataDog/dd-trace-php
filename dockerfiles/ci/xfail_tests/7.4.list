@@ -406,6 +406,7 @@ ext/standard/tests/file/lstat_stat_variation15.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/get_included_files.phpt
 ext/standard/tests/general_functions/gettype_settype_basic.phpt
+ext/standard/tests/general_functions/phpinfo.phpt
 ext/standard/tests/general_functions/print_r_64bit.phpt
 ext/standard/tests/general_functions/proc_open_null.phpt
 ext/standard/tests/general_functions/proc_open_redirect.phpt

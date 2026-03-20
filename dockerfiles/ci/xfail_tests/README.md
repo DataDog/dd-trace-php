@@ -150,6 +150,13 @@ Such tests were skipped before and are incredibly unstable on 5. It might be a C
 
 This test was flaky until it was [fixed in PHP 7.2](https://github.com/php/php-src/commit/f4474e5).
 
+## `ext/standard/tests/general_functions/phpinfo.phpt`
+
+* Disabled on versions: `7.0 --> 8.1`.
+* Upstream fix: [Reduce regex backtracking in phpinfo.phpt](https://github.com/php/php-src/commit/c4c45da4b96889348d86828c26225d113af14d21), which is present in PHP 8.2+.
+
+This test compares very large `phpinfo()` output. With tracer-specific modules and CI environment variables enabled, the output grows and older `%A`/`%a` patterns in this test can hit pathological backtracking and fail nondeterministically.
+
 ## `ext/standard/tests/streams/proc_open_bug69900.phpt`
 
 * Disabled on versions: `7.0+`.

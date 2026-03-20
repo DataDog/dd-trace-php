@@ -1615,7 +1615,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_sidecar_shutdown();
 
-    ddtrace_live_debugger_mshutdown();
     ddtrace_process_tags_mshutdown();
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
@@ -1642,6 +1641,7 @@ static void dd_rinit_once(void) {
     // Collect process tags now that script path is available
     if (get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED()) {
         ddtrace_process_tags_first_rinit();
+        ddtrace_sidecar_update_process_tags();
     }
 
     // Uses config, cannot run earlier

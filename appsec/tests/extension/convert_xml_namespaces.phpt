@@ -11,7 +11,7 @@ XML;
 
 $content_type = "application/xml";
 
-$result = datadog\appsec\testing\convert_xml($entity, $content_type);
+$result = datadog\appsec\convert_xml($entity, $content_type);
 echo(json_encode($result, JSON_PRETTY_PRINT));
 --EXPECTF--
 {

@@ -31,8 +31,8 @@ extern __thread char _dd_strerror_buf[STRERROR_R_BUF_SIZE];
 
 static inline dd_log_level_t dd_log_level(void)
 {
-    return runtime_config_first_init ? get_DD_APPSEC_LOG_LEVEL()
-                                     : get_global_DD_APPSEC_LOG_LEVEL();
+    return (dd_log_level_t)(runtime_config_first_init ? get_DD_APPSEC_LOG_LEVEL()
+                                                      : get_global_DD_APPSEC_LOG_LEVEL());
 }
 
 void dd_log_startup(void);

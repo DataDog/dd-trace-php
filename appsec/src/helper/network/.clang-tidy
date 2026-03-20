@@ -1,0 +1,2 @@
+Checks: '-clang-analyzer-cplusplus.NewDelete,-clang-analyzer-unix.Malloc'
+InheritParentConfig: true

@@ -1,6 +1,7 @@
 package com.datadog.appsec.php
 
 import groovy.transform.Canonical
+import groovy.transform.ToString
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import com.datadog.appsec.php.docker.AppSecContainer
@@ -26,6 +27,7 @@ class TelemetryHelpers {
         }
     }
 
+    @ToString
     static class AppEndpoints {
         static names = ['app-endpoints']
         List<Endpoint> endpoints
@@ -59,6 +61,7 @@ class TelemetryHelpers {
         }
     }
 
+    @ToString
     static class Metric {
         String namespace
         String name
@@ -93,6 +96,7 @@ class TelemetryHelpers {
     }
 
     @Canonical
+    @ToString
     static class Log {
         String level
         String message

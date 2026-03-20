@@ -104,6 +104,15 @@ class RequestReplayer
         ])), true);
     }
 
+    public function clearDumpedData()
+    {
+        file_get_contents($this->endpoint . '/clear-dumped-data', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ]));
+    }
+
     public function replayHeaders($showOnly = [])
     {
         $request = $this->waitForDataAndReplay();

@@ -24,6 +24,7 @@ typedef struct {
 typedef struct {
     zend_array *args;
     ddtrace_span_data *span;
+    zend_class_entry *called_scope;
     bool skipped;
     bool dropped_span;
     bool was_primed;
@@ -35,7 +36,7 @@ static bool dd_uhook_call(dd_uhook_callback *callback, bool tracing, dd_uhook_dy
 
 #define ZVAL_EXCEPTION(zv) do { if (EG(exception)) ZVAL_OBJ(zv, EG(exception)); else ZVAL_NULL(zv); } while (0)
     if (tracing) {
-        dd_uhook_callback_ensure_scope(callback, execute_data);
+        dd_uhook_callback_ensure_scope(callback, execute_data, dyn->called_scope);
 
         ZVAL_OBJ(&params[0], &dyn->span->std);
         ZVAL_ARR(&params[1], dyn->args);
@@ -62,9 +63,8 @@ static bool dd_uhook_call(dd_uhook_callback *callback, bool tracing, dd_uhook_dy
                 ZVAL_COPY_VALUE(&params[0], This);
                 callback->fcc.object = Z_OBJ_P(This);
             }
-            zend_class_entry *scope_ce = zend_get_called_scope(execute_data);
-            if (scope_ce) {
-                ZVAL_STR(&params[1], scope_ce->name);
+            if (dyn->called_scope) {
+                ZVAL_STR(&params[1], dyn->called_scope->name);
             } else {
                 ZVAL_NULL(&params[1]);
             }
@@ -108,6 +108,7 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
     dyn->skipped = false;
     dyn->was_primed = false;
     dyn->dropped_span = false;
+    dyn->called_scope = zend_get_called_scope(execute_data);
     dyn->args = dd_uhook_collect_args(execute_data);
 
     if (def->tracing) {

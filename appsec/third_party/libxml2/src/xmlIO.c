@@ -265,7 +265,7 @@ xmlEscapeText(const xmlChar *string, int flags) {
 
         if (totalSize > size - used) {
             xmlChar *tmp;
-            int newSize;
+            size_t newSize;
 
             if ((size > (SIZE_MAX - 1) / 2) ||
                 (totalSize > (SIZE_MAX - 1) / 2 - size)) {
@@ -1824,8 +1824,11 @@ xmlOutputBufferCreateBuffer(xmlBuffer *buffer,
  */
 const xmlChar *
 xmlOutputBufferGetContent(xmlOutputBuffer *out) {
-    if ((out == NULL) || (out->buffer == NULL) || (out->error != 0))
+    if ((out == NULL) || (out->buffer == NULL) || ((out->encoder != NULL) && (out->conv == NULL)) || (out->error != 0))
         return(NULL);
+
+    if (out->encoder != NULL)
+        return(xmlBufContent(out->conv));
 
     return(xmlBufContent(out->buffer));
 }
@@ -1838,8 +1841,11 @@ xmlOutputBufferGetContent(xmlOutputBuffer *out) {
  */
 size_t
 xmlOutputBufferGetSize(xmlOutputBuffer *out) {
-    if ((out == NULL) || (out->buffer == NULL) || (out->error != 0))
+    if ((out == NULL) || (out->buffer == NULL) || ((out->encoder != NULL) && (out->conv == NULL)) || (out->error != 0))
         return(0);
+
+    if (out->encoder != NULL)
+        return(xmlBufUse(out->conv));
 
     return(xmlBufUse(out->buffer));
 }

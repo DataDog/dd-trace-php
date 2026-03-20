@@ -91,48 +91,6 @@ static bool _parse_uint64(
     return _parse_uint(value, decoded_value, LONG_MAX);
 }
 
-static bool _parse_list(
-    zai_str value, zval *nonnull decoded_value, bool persistent)
-{
-    zval tmp;
-    ZVAL_ARR(&tmp, pemalloc(sizeof(HashTable), persistent)); // NOLINT
-    zend_hash_init(Z_ARRVAL(tmp), 8, NULL,
-        persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);
-
-    char *data = (char *)value.ptr;
-    if (data && *data) { // non-empty
-        const char *val_start;
-        const char *val_end;
-        do {
-            if (*data != ',' && *data != ' ' && *data != '\t' &&
-                *data != '\n') {
-                val_start = val_end = data;
-                while (*++data && *data != ',') {
-                    if (*data != ' ' && *data != '\t' && *data != '\n') {
-                        val_end = data;
-                    }
-                }
-                size_t val_len = val_end - val_start + 1;
-                zval val;
-                ZVAL_NEW_STR(
-                    &val, zend_string_init(val_start, val_len, persistent));
-                zend_hash_next_index_insert_new(Z_ARRVAL(tmp), &val);
-            } else {
-                ++data;
-            }
-        } while (*data);
-
-        if (zend_hash_num_elements(Z_ARRVAL(tmp)) == 0) {
-            zend_hash_destroy(Z_ARRVAL(tmp));
-            pefree(Z_ARRVAL(tmp), persistent);
-            return false;
-        }
-    }
-
-    ZVAL_COPY_VALUE(decoded_value, &tmp);
-    return true;
-}
-
 #define CUSTOM(...) CUSTOM
 // NOLINTNEXTLINE(bugprone-macro-parentheses)
 #define CALIAS_EXPAND(name) {.ptr = name, .len = sizeof(name) - 1},

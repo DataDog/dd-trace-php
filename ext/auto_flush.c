@@ -141,7 +141,7 @@ char *ddtrace_agent_url(void) {
         return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
     }
 
-    if (ZSTR_LEN(hostname) > 0) {
+    if (ZSTR_LEN(hostname) > 0 && zai_config_memoized_entries[DDTRACE_CONFIG_DD_AGENT_HOST].name_index != ZAI_CONFIG_ORIGIN_DEFAULT) {
         bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
 
         int64_t port = get_global_DD_TRACE_AGENT_PORT();

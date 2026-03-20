@@ -96,6 +96,21 @@ include:
   - local: .gitlab/benchmarks.yml
 
 # One pipeline job overrides
+validate_supported_configurations_v2_local_file:
+  needs: []
+  extends: .validate_supported_configurations_v2_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    BACKFILLED: "true"
+
+update_central_configurations_version_range_v2:
+  extends: .update_central_configurations_version_range_v2
+  variables:
+    LOCAL_REPO_NAME: "dd-trace-php"
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    LANGUAGE_NAME: "php"
+    MULTIPLE_RELEASE_LINES: "false"
+
 configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
@@ -276,6 +291,24 @@ if ($suffix == "-alpine") {
     KUBERNETES_MEMORY_REQUEST: 4Gi
     KUBERNETES_MEMORY_LIMIT: 8Gi
   script: .gitlab/build-appsec-helper.sh
+  artifacts:
+    paths:
+      - "appsec_*"
+
+"compile appsec helper rust":
+  stage: appsec
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
+  tags: [ "arch:$ARCH" ]
+  needs: [ "prepare code" ]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64" ]
+  variables:
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+  script: .gitlab/build-appsec-helper-rust.sh
   artifacts:
     paths:
       - "appsec_*"
@@ -491,28 +524,7 @@ foreach ($windows_build_platforms as $platform) {
     GIT_STRATEGY: none
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
-    # Aggressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
-    Write-Host "Cleanup complete."
-
-    # Make sure we actually fail if a command fails
-    $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
-
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
-    git config --global core.longpaths true
-    git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
-    git checkout $env:CI_COMMIT_SHA
-
-    # Initialize submodules
-    Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
-    Write-Host "Git setup complete."
+<?php windows_git_setup() ?>
 
     mkdir extensions_x86_64
     mkdir extensions_x86_64_debugsymbols
@@ -613,8 +625,15 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-    # Compile appsec helper
+    # Compile appsec helper (C++)
     - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $platform['arch'] ?>"
+      artifacts: true
+
+    # Compile appsec helper (Rust)
+    - job: "compile appsec helper rust"
       parallel:
         matrix:
           - ARCH: "<?= $platform['arch'] ?>"
@@ -686,6 +705,11 @@ foreach ($asan_build_platforms as $platform) {
     - job: "prepare code"
       artifacts: true
     - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $arch ?>"
+      artifacts: true
+    - job: "compile appsec helper rust"
       parallel:
         matrix:
           - ARCH: "<?= $arch ?>"
@@ -1092,19 +1116,16 @@ endforeach;
   stage: verify
   tags: [ "windows-v2:2019"]
   variables:
-    GIT_CONFIG_COUNT: 2
-    GIT_CONFIG_KEY_0: core.longpaths
-    GIT_CONFIG_VALUE_0: true
-    GIT_CONFIG_KEY_1: core.symlinks
-    GIT_CONFIG_VALUE_1: true
+    GIT_STRATEGY: none
   needs:
     - job: "package extension windows"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  before_script:
-    - mkdir build
-    - move packages build
+  before_script: |
+<?php windows_git_setup_with_packages() ?>
+    mkdir build
+    move packages build
   script:
     - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
     - .\dockerfiles\verify_packages\verify_windows.ps1
@@ -1397,7 +1418,11 @@ foreach ($arch_targets as $arch) {
     VERSION="$(<VERSION)"
     [[ -z "${VERSION}" ]] && echo "VERSION file is empty or not present" && exit 1
     cd packages/ && aws s3 cp --recursive . "s3://dd-trace-php-builds/${VERSION}/"
-    aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
+    if [ "${CI_COMMIT_REF_NAME}" = "${CI_DEFAULT_BRANCH}" ]; then
+      aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
+    else
+      echo "Skipping latest upload for non-default branch: ${CI_COMMIT_REF_NAME} (default: ${CI_DEFAULT_BRANCH})"
+    fi
     echo "https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/$(echo $VERSION | sed 's/+/%2B/')/datadog-setup.php"
   artifacts:
     paths:

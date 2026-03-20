@@ -1,0 +1,20 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
+if [ -t 0 ]; then
+    docker run --rm \
+        -v "$GIT_ROOT:/workspace" \
+        -w "/workspace/$REL_WORK_DIR" \
+        -u "$(id -u):$(id -g)" \
+        "$DOCKER_IMAGE" \
+        clang-tidy ${ARGS[@]+"${ARGS[@]}"}
+else
+    docker run --rm -i \
+        -v "$GIT_ROOT:/workspace" \
+        -w "/workspace/$REL_WORK_DIR" \
+        -u "$(id -u):$(id -g)" \
+        "$DOCKER_IMAGE" \
+        clang-tidy ${ARGS[@]+"${ARGS[@]}"}
+fi

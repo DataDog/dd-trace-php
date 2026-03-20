@@ -14,7 +14,7 @@ $content_type = "application/xml";
 
 // External DTD is blocked for security. The &test; entity which would be
 // defined in that DTD cannot be resolved, so it appears literally.
-$result = datadog\appsec\testing\convert_xml($entity, $content_type);
+$result = datadog\appsec\convert_xml($entity, $content_type);
 
 echo(json_encode($result, JSON_PRETTY_PRINT));
 --EXPECT--
