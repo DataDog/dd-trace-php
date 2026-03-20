@@ -19,14 +19,7 @@ extern "C" {
 #include <dlfcn.h>
 }
 
-using in_proc_notify_fn = void (*)(
-    const ddog_ConfigInvariants *invariants, const ddog_Arc_Target *target);
-
-extern "C" void ddog_set_rc_notify_fn(in_proc_notify_fn notify_fn);
-
-SIDECAR_FFI_SYMBOL(ddog_set_rc_notify_fn);
-SIDECAR_FFI_SYMBOL(ddog_remote_config_path);
-SIDECAR_FFI_SYMBOL(ddog_remote_config_path_free);
+using in_proc_notify_fn = ddog_InProcNotifyFn;
 
 namespace dds {
 
@@ -109,16 +102,16 @@ void runner::register_for_rc_notifications()
     SPDLOG_INFO("Register RC update callback");
     std::atomic_store(&runner::RUNNER_FOR_NOTIFICATIONS, shared_from_this());
 
-    ffi::ddog_set_rc_notify_fn([](const ddog_ConfigInvariants *invariants,
-                                   const ddog_Arc_Target *target) {
-        char *path = ffi::ddog_remote_config_path(invariants, target);
+    ddog_set_rc_notify_fn([](const ddog_ConfigInvariants *invariants,
+                              const ddog_Arc_Target *target) {
+        char *path = ddog_remote_config_path(invariants, target);
 
         const std::shared_ptr<runner> runner =
             std::atomic_load(&RUNNER_FOR_NOTIFICATIONS);
         if (!runner) {
             // NOLINTNEXTLINE(bugprone-lambda-function-name)
             SPDLOG_WARN("No runner to notify of remote config updates");
-            ffi::ddog_remote_config_path_free(path);
+            ddog_remote_config_path_free(path);
             return;
         }
 
@@ -126,7 +119,7 @@ void runner::register_for_rc_notifications()
         SPDLOG_INFO("Remote config updated notification for {}", path);
         // TODO: move the updates to a separate thread
         runner->service_manager_->notify_of_rc_updates(path);
-        ffi::ddog_remote_config_path_free(path);
+        ddog_remote_config_path_free(path);
     });
 }
 

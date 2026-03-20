@@ -100,4 +100,22 @@ __attribute__((visibility("default"))) void ddog_sidecar_transport_drop(
 {
     // do nothing
 }
+
+using in_proc_notify_fn = void (*)(
+    const ddog_ConfigInvariants *invariants, const ddog_Arc_Target *target);
+__attribute__((visibility("default"))) void ddog_set_rc_notify_fn(
+    in_proc_notify_fn /*notify_fn*/)
+{
+    // do nothing
+}
+__attribute__((visibility("default"))) char *ddog_remote_config_path(
+    const ddog_ConfigInvariants * /*id*/, const ddog_Arc_Target * /*target*/)
+{
+    return nullptr;
+}
+__attribute__((visibility("default"))) void ddog_remote_config_path_free(
+    char * /*path*/)
+{
+    // do nothing
+}
 }

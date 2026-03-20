@@ -1,198 +1,83 @@
-use std::{
-    cell::UnsafeCell,
-    ffi::CStr,
-    marker::PhantomData,
-    ops::Deref,
-    sync::atomic::{AtomicBool, Ordering},
-};
-
-use crate::client::log::error;
-
 pub mod sidecar_ffi;
 
-#[macro_export]
-macro_rules! sidecar_symbol {
-    // form 1: inline function signature
-    (
-        static $static:ident =
-        fn($($arg:ty),* $(, ...)? $(,)?) $(-> $ret:ty)? :
-        $name:ident
-    ) => {
-        type $name = unsafe extern "C" fn(
-            $($arg),*
-            $(, ...)?
-        ) $(-> $ret)?;
-
-        static $static: SidecarSymbol<$name> =
-            SidecarSymbol::new(::std::concat!(::std::stringify!($name), "\0"));
-
-        const _: () = {
-            let _: $name = $name;
-        };
-    };
-
-    // form 2: type alias
-    (
-        static $static:ident =
-        $ty:ty :
-        $name:ident
-    ) => {
-        static $static: SidecarSymbol<$ty> =
-            SidecarSymbol::new(unsafe {::std::ffi::CStr::from_bytes_with_nul_unchecked(::std::concat!(::std::stringify!($name), "\0").as_bytes())});
-
-        const _: () = {
-            let _: $ty = $name;
-        };
-    };
-}
-
-pub struct SidecarSymbol<Func> {
-    // In order to implement Deref, we need to have a sort of rvalue for the function
-    // So do not use an AtomicPtr that we check for null to determine if we're initialized
-    func_ptr: UnsafeCell<*mut libc::c_void>,
-    initialized: AtomicBool,
-    name: &'static CStr,
-    _phantom: PhantomData<Func>,
-}
-impl<Func> SidecarSymbol<Func> {
-    pub const fn new(name: &'static CStr) -> Self {
-        assert!(
-            std::mem::size_of::<Func>() == std::mem::size_of::<*mut libc::c_void>(),
-            "Func must be pointer-sized"
-        );
-        Self {
-            func_ptr: UnsafeCell::new(std::ptr::null_mut()),
-            initialized: AtomicBool::new(false),
-            name,
-            _phantom: PhantomData,
-        }
-    }
-
-    pub fn resolve(&self) -> anyhow::Result<()> {
-        if self.initialized.load(Ordering::Acquire) {
-            return Ok(());
-        }
-
-        let func_ptr = unsafe { libc::dlsym(libc::RTLD_DEFAULT, self.name.as_ptr()) };
-        if func_ptr.is_null() {
-            return Err(anyhow::anyhow!("Failed to resolve symbol: {:?}", self.name));
-        }
-        unsafe { std::ptr::write(self.func_ptr.get(), func_ptr) };
-        self.initialized.store(true, Ordering::Release);
-        Ok(())
-    }
-
-    fn get(&self) -> Option<&Func> {
-        if !self.initialized.load(Ordering::Acquire) {
-            None
-        } else {
-            Some(unsafe { &*self.func_ptr.get().cast() })
-        }
-    }
-}
-unsafe impl<Func> Sync for SidecarSymbol<Func> {}
-impl<Func> Deref for SidecarSymbol<Func> {
-    type Target = Func;
-
-    fn deref(&self) -> &Self::Target {
-        match self.get() {
-            Some(func) => func,
-            None => {
-                error!("Symbol is not resolved, will panic: {:?}", self);
-                panic!("Symbol is not resolved: {:?}", self.name);
-            }
-        }
-    }
-}
-impl<Func> std::fmt::Debug for SidecarSymbol<Func> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let initialized = self.initialized.load(Ordering::Acquire);
-        let mut ds = f.debug_struct("SidecarSymbol");
-        ds.field("name", &self.name)
-            .field("name", &self.name)
-            .field("initialized", &initialized);
-        if initialized {
-            ds.field("func_ptr", &self.func_ptr.get());
-        }
-        ds.finish()
-    }
-}
-
+// Stub implementations of the sidecar symbols for `cargo test`.
+// In production the real symbols are provided by datadog-ipc-helper at
+// dlopen time.  The cdylib has no stubs (--allow-shlib-undefined covers it);
+// the test executable needs concrete definitions at link time because lld on
+// musl does not allow undefined symbols in executables.
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::ffi::CStr;
-    use std::path::PathBuf;
+mod test_stubs {
+    use super::sidecar_ffi::*;
 
-    fn load_library(path: &std::path::Path) -> *mut libc::c_void {
-        let path_cstr = std::ffi::CString::new(path.to_str().unwrap()).expect("Invalid path");
-
-        let handle =
-            unsafe { libc::dlopen(path_cstr.as_ptr(), libc::RTLD_NOW | libc::RTLD_GLOBAL) };
-
-        if handle.is_null() {
-            let error = unsafe { libc::dlerror() };
-            if !error.is_null() {
-                let error_str = unsafe { CStr::from_ptr(error) };
-                panic!("dlopen failed: {:?}", error_str);
-            }
-            panic!("dlopen failed with unknown error");
+    #[no_mangle]
+    extern "C" fn ddog_Error_drop(_: *mut ddog_Error) {}
+    #[no_mangle]
+    extern "C" fn ddog_Error_message(_: *const ddog_Error) -> ddog_CharSlice {
+        ddog_CharSlice { ptr: std::ptr::null(), len: 0 }
+    }
+    #[no_mangle]
+    extern "C" fn ddog_MaybeError_drop(_: ddog_MaybeError) {}
+    #[no_mangle]
+    extern "C" fn ddog_set_rc_notify_fn(_: ddog_InProcNotifyFn) {}
+    #[no_mangle]
+    unsafe extern "C" fn ddog_remote_config_path(
+        _: *const ddog_ConfigInvariants,
+        _: *const ddog_Arc_Target,
+    ) -> *mut std::ffi::c_char {
+        std::ptr::null_mut()
+    }
+    #[no_mangle]
+    extern "C" fn ddog_remote_config_path_free(_: *mut std::ffi::c_char) {}
+    #[no_mangle]
+    unsafe extern "C" fn ddog_sidecar_connect(
+        _: *mut *mut ddog_SidecarTransport,
+    ) -> ddog_MaybeError {
+        ddog_MaybeError {
+            tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
+            __bindgen_anon_1: unsafe { std::mem::zeroed() },
         }
-
-        handle
     }
-
-    fn unload_library(handle: *mut libc::c_void) {
-        if !handle.is_null() {
-            unsafe {
-                libc::dlclose(handle);
-            }
+    #[no_mangle]
+    extern "C" fn ddog_sidecar_transport_drop(_: *mut ddog_SidecarTransport) {}
+    #[no_mangle]
+    unsafe extern "C" fn ddog_sidecar_ping(
+        _: *mut *mut ddog_SidecarTransport,
+    ) -> ddog_MaybeError {
+        ddog_MaybeError {
+            tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
+            __bindgen_anon_1: unsafe { std::mem::zeroed() },
         }
     }
-
-    type TestAddFn = unsafe extern "C" fn(i32, i32) -> i32;
-
-    #[test]
-    fn test_sidecar_symbol_resolve_and_call() {
-        #[cfg(target_os = "macos")]
-        let lib_name = "libtest_sidecar.dylib";
-        #[cfg(target_os = "linux")]
-        let lib_name = "libtest_sidecar.so";
-        let lib_path = PathBuf::from(env!("OUT_DIR")).join(lib_name);
-        let handle = load_library(&lib_path);
-
-        static TEST_ADD_SYMBOL: SidecarSymbol<TestAddFn> = SidecarSymbol::new(c"test_add");
-        TEST_ADD_SYMBOL
-            .resolve()
-            .expect("Failed to resolve test_add symbol");
-
-        let result = unsafe { TEST_ADD_SYMBOL(3, 4) };
-        assert_eq!(result, 7, "test_add(3, 4) should return 7");
-
-        unload_library(handle);
+    #[no_mangle]
+    unsafe extern "C" fn ddog_sidecar_enqueue_telemetry_log(
+        _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice,
+        _: ddog_CharSlice, _: ddog_LogLevel, _: ddog_CharSlice,
+        _: *mut ddog_CharSlice, _: *mut ddog_CharSlice, _: bool,
+    ) -> ddog_MaybeError {
+        ddog_MaybeError {
+            tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
+            __bindgen_anon_1: unsafe { std::mem::zeroed() },
+        }
     }
-
-    #[test]
-    fn test_sidecar_symbol_unresolved_symbol_fails() {
-        static NONEXISTENT_SYMBOL: SidecarSymbol<TestAddFn> =
-            SidecarSymbol::new(c"nonexistent_function_12345");
-
-        let result = NONEXISTENT_SYMBOL.resolve();
-        assert!(result.is_err(), "Resolving nonexistent symbol should fail");
+    #[no_mangle]
+    unsafe extern "C" fn ddog_sidecar_enqueue_telemetry_point(
+        _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice,
+        _: ddog_CharSlice, _: f64, _: *mut ddog_CharSlice,
+    ) -> ddog_MaybeError {
+        ddog_MaybeError {
+            tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
+            __bindgen_anon_1: unsafe { std::mem::zeroed() },
+        }
     }
-
-    #[test]
-    fn test_sidecar_symbol_debug_format() {
-        static DEBUG_TEST_SYMBOL: SidecarSymbol<TestAddFn> = SidecarSymbol::new(c"debug_test_func");
-
-        let debug_str = format!("{:?}", DEBUG_TEST_SYMBOL);
-        assert!(
-            debug_str.contains("initialized: false"),
-            "Unresolved symbol should show initialized: false"
-        );
-        assert!(
-            debug_str.contains("debug_test_func"),
-            "Debug output should contain the symbol name"
-        );
+    #[no_mangle]
+    unsafe extern "C" fn ddog_sidecar_enqueue_telemetry_metric(
+        _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice,
+        _: ddog_CharSlice, _: ddog_MetricType, _: ddog_MetricNamespace,
+    ) -> ddog_MaybeError {
+        ddog_MaybeError {
+            tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
+            __bindgen_anon_1: unsafe { std::mem::zeroed() },
+        }
     }
 }
+

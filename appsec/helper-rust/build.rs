@@ -52,8 +52,13 @@ fn main() {
     // in the same directory as the binary/library
     if target.contains("linux") {
         println!("cargo::rustc-link-arg=-Wl,-rpath,$ORIGIN");
+        // Allow symbols to be resolved from the parent process at dlopen time.
+        println!("cargo::rustc-link-arg=-Wl,--allow-shlib-undefined");
     } else if target.contains("darwin") || target.contains("apple") {
         println!("cargo::rustc-link-arg=-Wl,-rpath,@loader_path");
+        // Allow undefined symbols to be resolved at dlopen time from the parent process.
+        println!("cargo::rustc-link-arg=-undefined");
+        println!("cargo::rustc-link-arg=dynamic_lookup");
     }
 
     // If LIBDDWAF_PREFIX is set, add that library path to rpath as well
@@ -66,7 +71,6 @@ fn main() {
     println!("cargo::rerun-if-env-changed=LIBDDWAF_PREFIX");
 
     set_ddappsec_version();
-    build_test_sidecar_lib();
 }
 
 fn set_ddappsec_version() {
@@ -80,33 +84,4 @@ fn set_ddappsec_version() {
     let version = version.trim().to_string();
     println!("cargo::rustc-env=DDAPPSEC_VERSION={}", version);
     println!("cargo::rerun-if-changed={}", version_path.display());
-}
-
-fn build_test_sidecar_lib() {
-    let out_dir = env::var("OUT_DIR").expect("OUT_DIR not set");
-    let target = env::var("TARGET").expect("TARGET not set");
-    let host = env::var("HOST").expect("HOST not set");
-
-    let (lib_name, shared_flag) = if target.contains("darwin") || target.contains("apple") {
-        ("libtest_sidecar.dylib", "-dynamiclib")
-    } else {
-        ("libtest_sidecar.so", "-shared")
-    };
-
-    let src = "test_sidecar_lib.c";
-    let out = PathBuf::from(&out_dir).join(lib_name);
-
-    let status = cc::Build::new()
-        .target(&target)
-        .host(&host)
-        .get_compiler()
-        .to_command()
-        .args([shared_flag, "-fPIC", "-o"])
-        .arg(&out)
-        .arg(src)
-        .status()
-        .expect("Failed to run C compiler for test fixture");
-
-    assert!(status.success(), "Failed to compile test sidecar library");
-    println!("cargo::rerun-if-changed={}", src);
 }

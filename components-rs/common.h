@@ -1765,6 +1765,7 @@ typedef struct ddog_Result_TracerMemfdHandle {
   };
 } ddog_Result_TracerMemfdHandle;
 
+typedef void (*ddog_InProcNotifyFn)(const struct ddog_ConfigInvariants*, const struct ddog_Arc_Target*);
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus

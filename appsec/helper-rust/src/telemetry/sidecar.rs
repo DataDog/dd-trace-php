@@ -12,59 +12,20 @@ use futures::task::Context;
 use crate::client::log::{debug, info, warning};
 use crate::client::protocol::{SidecarSettings, TelemetrySettings};
 use crate::ffi::sidecar_ffi::{
-    ddog_CharSlice, ddog_Error, ddog_Error_drop, ddog_Error_message, ddog_LogLevel,
+    ddog_CharSlice, ddog_Error_drop, ddog_Error_message, ddog_LogLevel,
     ddog_LogLevel_DDOG_LOG_LEVEL_DEBUG, ddog_LogLevel_DDOG_LOG_LEVEL_ERROR,
-    ddog_LogLevel_DDOG_LOG_LEVEL_WARN, ddog_MaybeError, ddog_MetricNamespace,
-    ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_APPSEC, ddog_MetricType,
+    ddog_LogLevel_DDOG_LOG_LEVEL_WARN, ddog_MaybeError,
+    ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_APPSEC,
     ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR, ddog_SidecarTransport,
     ddog_sidecar_connect, ddog_sidecar_enqueue_telemetry_log,
     ddog_sidecar_enqueue_telemetry_metric, ddog_sidecar_enqueue_telemetry_point, ddog_sidecar_ping,
     ddog_sidecar_transport_drop,
 };
-use crate::ffi::SidecarSymbol;
-use crate::sidecar_symbol;
 use crate::telemetry::{
     KnownMetric, TelemetryLogSubmitter, TelemetryMetricSubmitter, TelemetryTags,
 };
 
 use super::{LogLevel, MetricName, TelemetryLog};
-
-type DdogSidecarEnqueueTelemetryLogFn = unsafe extern "C" fn(
-    session_id_ffi: ddog_CharSlice,
-    runtime_id_ffi: ddog_CharSlice,
-    service_name_ffi: ddog_CharSlice,
-    env_name_ffi: ddog_CharSlice,
-    identifier_ffi: ddog_CharSlice,
-    level: ddog_LogLevel,
-    message_ffi: ddog_CharSlice,
-    stack_trace_ffi: *mut ddog_CharSlice,
-    tags_ffi: *mut ddog_CharSlice,
-    is_sensitive: bool,
-) -> ddog_MaybeError;
-type DdogSidecarEnqueueTelemetryPointFn = unsafe extern "C" fn(
-    session_id_ffi: ddog_CharSlice,
-    runtime_id_ffi: ddog_CharSlice,
-    service_name_ffi: ddog_CharSlice,
-    env_name_ffi: ddog_CharSlice,
-    metric_name_ffi: ddog_CharSlice,
-    value: f64,
-    tags_ffi: *mut ddog_CharSlice,
-) -> ddog_MaybeError;
-type DdogSidecarEnqueueTelemetryMetricFn = unsafe extern "C" fn(
-    session_id_ffi: ddog_CharSlice,
-    runtime_id_ffi: ddog_CharSlice,
-    service_name_ffi: ddog_CharSlice,
-    env_name_ffi: ddog_CharSlice,
-    metric_name_ffi: ddog_CharSlice,
-    metric_type: ddog_MetricType,
-    metric_namespace: ddog_MetricNamespace,
-) -> ddog_MaybeError;
-type DdogErrorDropFn = unsafe extern "C" fn(*mut ddog_Error);
-type DdogErrorMessageFn = unsafe extern "C" fn(*const ddog_Error) -> ddog_CharSlice;
-type DdogSidecarConnectFn =
-    unsafe extern "C" fn(*mut *mut ddog_SidecarTransport) -> ddog_MaybeError;
-type DdogSidecarPingFn = unsafe extern "C" fn(*mut *mut ddog_SidecarTransport) -> ddog_MaybeError;
-type DdogSidecarTransportDropFn = unsafe extern "C" fn(*mut ddog_SidecarTransport);
 
 static RESOLUTION_STATUS: AtomicBool = AtomicBool::new(false);
 
@@ -77,31 +38,6 @@ pub enum SidecarStatus {
 }
 
 static SIDECAR_STATUS: AtomicU8 = AtomicU8::new(SidecarStatus::Unknown as u8);
-
-sidecar_symbol!(
-    static ENQUEUE_TELEMETRY_LOG = DdogSidecarEnqueueTelemetryLogFn : ddog_sidecar_enqueue_telemetry_log
-);
-sidecar_symbol!(
-    static ENQUEUE_TELEMETRY_POINT = DdogSidecarEnqueueTelemetryPointFn : ddog_sidecar_enqueue_telemetry_point
-);
-sidecar_symbol!(
-    static ENQUEUE_TELEMETRY_METRIC = DdogSidecarEnqueueTelemetryMetricFn : ddog_sidecar_enqueue_telemetry_metric
-);
-sidecar_symbol!(
-    static ERROR_DROP = DdogErrorDropFn : ddog_Error_drop
-);
-sidecar_symbol!(
-    static ERROR_MESSAGE = DdogErrorMessageFn : ddog_Error_message
-);
-sidecar_symbol!(
-    static SIDECAR_CONNECT = DdogSidecarConnectFn : ddog_sidecar_connect
-);
-sidecar_symbol!(
-    static SIDECAR_PING = DdogSidecarPingFn : ddog_sidecar_ping
-);
-sidecar_symbol!(
-    static SIDECAR_TRANSPORT_DROP = DdogSidecarTransportDropFn : ddog_sidecar_transport_drop
-);
 
 pub struct TelemetrySidecarLogSubmitter<'a> {
     session_id: &'a str,
@@ -165,7 +101,7 @@ impl Drop for MaybeErrorRAII {
     fn drop(&mut self) {
         unsafe {
             if self.maybe_error.tag == ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR {
-                ERROR_DROP(&mut self.maybe_error.__bindgen_anon_1.__bindgen_anon_1.some);
+                ddog_Error_drop(&mut self.maybe_error.__bindgen_anon_1.__bindgen_anon_1.some);
             }
         }
     }
@@ -174,7 +110,7 @@ impl From<MaybeErrorRAII> for Option<String> {
     fn from(value: MaybeErrorRAII) -> Self {
         if value.maybe_error.tag == ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR {
             let msg =
-                unsafe { ERROR_MESSAGE(&value.maybe_error.__bindgen_anon_1.__bindgen_anon_1.some) };
+                unsafe { ddog_Error_message(&value.maybe_error.__bindgen_anon_1.__bindgen_anon_1.some) };
             if msg.ptr.is_null() || msg.len == 0 {
                 return Some(String::new());
             }
@@ -216,7 +152,7 @@ impl TelemetryLogSubmitter for TelemetrySidecarLogSubmitter<'_> {
         let stack_trace_slice = log.stack_trace.as_ref().map(|st| char_slice_from_str(st));
 
         let result: ddog_MaybeError = unsafe {
-            ENQUEUE_TELEMETRY_LOG(
+            ddog_sidecar_enqueue_telemetry_log(
                 session_id,
                 runtime_id,
                 service_name,
@@ -242,14 +178,6 @@ impl TelemetryLogSubmitter for TelemetrySidecarLogSubmitter<'_> {
 }
 
 pub fn resolve_symbols() -> anyhow::Result<()> {
-    ENQUEUE_TELEMETRY_LOG.resolve()?;
-    ENQUEUE_TELEMETRY_POINT.resolve()?;
-    ENQUEUE_TELEMETRY_METRIC.resolve()?;
-    ERROR_DROP.resolve()?;
-    ERROR_MESSAGE.resolve()?;
-    SIDECAR_CONNECT.resolve()?;
-    SIDECAR_PING.resolve()?;
-    SIDECAR_TRANSPORT_DROP.resolve()?;
     RESOLUTION_STATUS.store(true, Ordering::Release);
     Ok(())
 }
@@ -274,15 +202,15 @@ impl SidecarReadyFuture {
     fn try_connect_and_ping(&self) -> bool {
         let mut transport: *mut ddog_SidecarTransport = std::ptr::null_mut();
 
-        let mut connect_result = unsafe { SIDECAR_CONNECT(&mut transport as *mut _) };
+        let mut connect_result = unsafe { ddog_sidecar_connect(&mut transport as *mut _) };
 
         if connect_result.tag == ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR {
-            unsafe { ERROR_DROP(&mut connect_result.__bindgen_anon_1.__bindgen_anon_1.some) };
+            unsafe { ddog_Error_drop(&mut connect_result.__bindgen_anon_1.__bindgen_anon_1.some) };
             return false;
         }
 
-        let ping_result = unsafe { SIDECAR_PING(&mut transport as *mut _) };
-        unsafe { SIDECAR_TRANSPORT_DROP(transport) };
+        let ping_result = unsafe { ddog_sidecar_ping(&mut transport as *mut _) };
+        unsafe { ddog_sidecar_transport_drop(transport) };
 
         ping_result.tag != ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR
     }
@@ -348,7 +276,7 @@ pub(super) fn register_metric_ffi(
     let metric_name_slice = char_slice_from_str(metric.name.0);
 
     let result: ddog_MaybeError = unsafe {
-        ENQUEUE_TELEMETRY_METRIC(
+        ddog_sidecar_enqueue_telemetry_metric(
             session_id,
             runtime_id,
             service_name,
@@ -447,7 +375,7 @@ impl TelemetryMetricSubmitter for TelemetrySidecarMetricSubmitter<'_> {
         let tags_slice = char_slice_from_str(&tags_string);
 
         let result: ddog_MaybeError = unsafe {
-            ENQUEUE_TELEMETRY_POINT(
+            ddog_sidecar_enqueue_telemetry_point(
                 session_id,
                 runtime_id,
                 service_name,

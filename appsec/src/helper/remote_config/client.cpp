@@ -12,14 +12,6 @@
 #include <stdexcept>
 #include <string_view>
 
-extern "C" {
-#include <dlfcn.h>
-}
-
-SIDECAR_FFI_SYMBOL(ddog_remote_config_reader_for_path);
-SIDECAR_FFI_SYMBOL(ddog_remote_config_read);
-SIDECAR_FFI_SYMBOL(ddog_remote_config_reader_drop);
-
 namespace {
 
 bool sets_are_indentical_for_subbed_products(
@@ -48,9 +40,8 @@ namespace dds::remote_config {
 client::client(remote_config::settings settings,
     std::vector<std::shared_ptr<listener_base>> listeners,
     std::shared_ptr<telemetry::telemetry_submitter> msubmitter)
-    : reader_{ffi::ddog_remote_config_reader_for_path(
-                  settings.shmem_path.c_str()),
-          ffi::ddog_remote_config_reader_drop.get_fn()},
+    : reader_{ddog_remote_config_reader_for_path(settings.shmem_path.c_str()),
+          ddog_remote_config_reader_drop},
       settings_{std::move(settings)}, listeners_{std::move(listeners)},
       msubmitter_{std::move(msubmitter)}
 {
@@ -82,7 +73,7 @@ bool client::poll()
     SPDLOG_DEBUG("Polling remote config");
 
     ddog_CharSlice slice{};
-    const bool has_update = ffi::ddog_remote_config_read(reader_.get(), &slice);
+    const bool has_update = ddog_remote_config_read(reader_.get(), &slice);
     if (!has_update) {
         SPDLOG_DEBUG("No update available for {}", settings_.shmem_path);
         return false;

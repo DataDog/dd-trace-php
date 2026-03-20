@@ -12,22 +12,7 @@
 
 #include <utility>
 
-extern "C" {
-#include <dlfcn.h>
-}
-
 using CharSlice = ddog_Slice_CChar;
-
-SIDECAR_FFI_SYMBOL(ddog_sidecar_connect);
-SIDECAR_FFI_SYMBOL(ddog_sidecar_ping);
-SIDECAR_FFI_SYMBOL(ddog_sidecar_transport_drop);
-
-SIDECAR_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_log);
-SIDECAR_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_point);
-SIDECAR_FFI_SYMBOL(ddog_sidecar_enqueue_telemetry_metric);
-
-SIDECAR_FFI_SYMBOL(ddog_Error_message);
-SIDECAR_FFI_SYMBOL(ddog_Error_drop);
 
 namespace {
 inline CharSlice to_ffi_string(std::string_view sv)
@@ -138,16 +123,15 @@ void service::metrics_impl::submit_log(const sidecar_settings &sc_settings,
         tags_ffi_ptr = &tags_ffi_struct;
     }
 
-    ddog_MaybeError result =
-        ffi::ddog_sidecar_enqueue_telemetry_log(session_id_ffi, runtime_id_ffi,
-            service_name_ffi, env_name_ffi, identifier_ffi, c_level,
-            message_ffi, stack_trace_ffi_ptr, tags_ffi_ptr, log.is_sensitive);
+    ddog_MaybeError result = ddog_sidecar_enqueue_telemetry_log(session_id_ffi,
+        runtime_id_ffi, service_name_ffi, env_name_ffi, identifier_ffi, c_level,
+        message_ffi, stack_trace_ffi_ptr, tags_ffi_ptr, log.is_sensitive);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice const error_msg = ffi::ddog_Error_message(&result.some);
+        ddog_CharSlice const error_msg = ddog_Error_message(&result.some);
         SPDLOG_INFO("Failed to enqueue telemetry log, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
-        ffi::ddog_Error_drop(&result.some);
+        ddog_Error_drop(&result.some);
     } else {
         SPDLOG_DEBUG("Sent telemetry log via sidecar-ffi: {}: {}",
             log.identifier, log.message);
@@ -166,7 +150,7 @@ void service::metrics_impl::register_metric_ffi(
         return;
     }
 
-    ddog_MaybeError result = ffi::ddog_sidecar_enqueue_telemetry_metric(
+    ddog_MaybeError result = ddog_sidecar_enqueue_telemetry_metric(
         to_ffi_string(sc_settings.session_id),
         to_ffi_string(sc_settings.runtime_id),
         to_ffi_string(telemetry_settings.service_name),
@@ -174,10 +158,10 @@ void service::metrics_impl::register_metric_ffi(
         DDOG_METRIC_NAMESPACE_APPSEC);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice const error_msg = ffi::ddog_Error_message(&result.some);
+        ddog_CharSlice const error_msg = ddog_Error_message(&result.some);
         SPDLOG_INFO("Failed to register telemetry metric, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
-        ffi::ddog_Error_drop(&result.some);
+        ddog_Error_drop(&result.some);
     } else {
         SPDLOG_DEBUG(
             "Registered telemetry metric via sidecar-ffi: {} of type {}", name,
@@ -204,7 +188,7 @@ void service::metrics_impl::submit_metric_ffi(
         tags_ffi = to_ffi_string(*tags);
         tags_ffi_ptr = &tags_ffi;
     }
-    ddog_MaybeError result = ffi::ddog_sidecar_enqueue_telemetry_point(
+    ddog_MaybeError result = ddog_sidecar_enqueue_telemetry_point(
         to_ffi_string(sc_settings.session_id),
         to_ffi_string(sc_settings.runtime_id),
         to_ffi_string(telemetry_settings.service_name),
@@ -212,10 +196,10 @@ void service::metrics_impl::submit_metric_ffi(
         tags_ffi_ptr);
 
     if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice const error_msg = ffi::ddog_Error_message(&result.some);
+        ddog_CharSlice const error_msg = ddog_Error_message(&result.some);
         SPDLOG_INFO("Failed to enqueue telemetry point, error: {}",
             std::string_view{error_msg.ptr, error_msg.len});
-        ffi::ddog_Error_drop(&result.some);
+        ddog_Error_drop(&result.some);
     } else {
         SPDLOG_DEBUG("Sent telemetry point via sidecar-ffi: {} of value {}",
             name, value);
@@ -302,8 +286,7 @@ bool wait_for_sidecar_ready()
 
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         ddog_SidecarTransport *transport = nullptr;
-        ddog_MaybeError const connect_result =
-            dds::ffi::ddog_sidecar_connect(&transport);
+        ddog_MaybeError const connect_result = ddog_sidecar_connect(&transport);
 
         if (connect_result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
             SPDLOG_DEBUG(
@@ -312,17 +295,16 @@ bool wait_for_sidecar_ready()
             continue;
         }
 
-        ddog_MaybeError ping_result = dds::ffi::ddog_sidecar_ping(&transport);
-        dds::ffi::ddog_sidecar_transport_drop(transport);
+        ddog_MaybeError ping_result = ddog_sidecar_ping(&transport);
+        ddog_sidecar_transport_drop(transport);
 
         if (ping_result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-            auto error_message =
-                dds::ffi::ddog_Error_message(&ping_result.some);
+            auto error_message = ddog_Error_message(&ping_result.some);
             SPDLOG_DEBUG(
                 "Sidecar ping failed with error {} (attempt {}), waiting...",
                 dds::to_sv(error_message), attempt + 1);
             std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
-            dds::ffi::ddog_Error_drop(&ping_result.some);
+            ddog_Error_drop(&ping_result.some);
             continue;
         }
 

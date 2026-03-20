@@ -189,10 +189,10 @@ def buildRunInDockerTask = { Map options ->
     }
     if (options.get('needsBoostCache', true)) {
         if (project.hasProperty('localBoostCache')) {
-            binds[project.getProperty('localBoostCache')] = '/root/.boost'
+            binds[project.getProperty('localBoostCache')] = '/var/boost-cache'
         } else {
             volumes['php-appsec-boost-cache'] = [
-                    mountPoint: '/root/.boost',
+                    mountPoint: '/var/boost-cache',
                     task: createVolumeTask('php-appsec-boost-cache'),
             ]
         }
@@ -340,6 +340,7 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
                             '../../../ext',
                             '../../../zend_abstract_interface',
                             '../../../libdatadog',
+                            '../../../components-rs',
                             '../../../ddtrace.sym',
                     ],
             ],
@@ -383,7 +384,6 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
             command: [
                     '-e', '-c',
                     """
-                    git config --global --add safe.directory '*'
                     cd /appsec
                     test -f CMakeCache.txt || \\
                         cmake -DCMAKE_BUILD_TYPE=$buildType \\
@@ -391,7 +391,7 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
                               -DGIT_COMMIT=${libddwafCommit()} \\
                               -DDD_APPSEC_TESTING=ON \\
-                              -DBOOST_CACHE_PREFIX=/root/.boost /project/appsec
+                              -DBOOST_CACHE_PREFIX=/var/boost-cache /project/appsec
                     make -j extension ddappsec-helper && \\
                         touch ddappsec.so libddappsec-helper.so
                 """
@@ -567,42 +567,6 @@ task saveCaches(type: Exec) {
               chown \$UUID /build/php-appsec-volume-caches-${arch}.tar.gz"""
 }
 
-// libddwaf shared library build (for helper-rust)
-buildRunInDockerTask(
-        baseName: 'buildLibddwaf',
-        imageTag: 'php-deps',
-        description: 'Build libddwaf shared library',
-        needsBoostCache: false,
-        needsCargoCache: false,
-        inputs: [
-                dirs: ['../../third_party/libddwaf'],
-        ],
-        outputs: [
-                volume: 'php-libddwaf',
-                files: ['lib/libddwaf.so', 'include/ddwaf.h'],
-        ],
-        volumes: [
-                'php-libddwaf': [mountPoint: '/libddwaf-prefix'],
-        ],
-        command: [
-                '-e', '-c',
-                """
-                git config --global --add safe.directory '*'
-
-                mkdir -p /tmp/libddwaf-build
-                cd /tmp/libddwaf-build
-                cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
-                      -DCMAKE_INSTALL_PREFIX=/libddwaf-prefix \\
-                      -DLIBDDWAF_BUILD_SHARED=ON \\
-                      -DLIBDDWAF_BUILD_STATIC=OFF \\
-                      -DLIBDDWAF_TESTING=OFF \\
-                      /project/appsec/third_party/libddwaf
-                make -j install
-                touch /libddwaf-prefix/lib/libddwaf.so /libddwaf-prefix/include/ddwaf.h
-                """
-        ]
-)
-
 // Shared configuration for helper-rust tasks
 def helperRustInputs = [
         dirs: ['../../helper-rust/src', '../../third_party/libddwaf-rust'],
@@ -618,7 +582,6 @@ def helperRustInputs = [
 ]
 
 def helperRustEnvSetup = '''
-git config --global --add safe.directory '*'
 export PATH="/root/.cargo/bin:$PATH"
 export RUSTUP_HOME=/root/.rustup
 export CARGO_HOME=/root/.cargo
@@ -648,8 +611,6 @@ buildRunInDockerTask(
                 '''
                 export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
                 RUST_TARGET=$(uname -m)-unknown-linux-musl
-
-                git config --global --add safe.directory '*'
 
                 cd /project/appsec/helper-rust
 
