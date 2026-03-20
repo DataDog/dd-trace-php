@@ -15,3 +15,7 @@ done
 for pid in "${pids[@]}"; do
   wait $pid
 done
+
+# Place datadog-ipc-helper in the extensions directory so it travels with ddtrace.so
+# through the artifact pipeline and gets installed alongside it.
+cp "datadog-ipc-helper$(uname -m)${suffix}" "extensions_$(uname -m)/datadog-ipc-helper"

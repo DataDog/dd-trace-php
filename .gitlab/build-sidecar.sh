@@ -22,3 +22,4 @@ fi
 SHARED=1 PROFILE=tracer-release host_os="${HOST_OS}" ./compile_rust.sh
 cp -v "${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.a" "libddtrace_php_$(uname -m)${suffix}.a"
 objcopy --compress-debug-sections "${CARGO_TARGET_DIR:-target}/tracer-release/libddtrace_php.so" "libddtrace_php_$(uname -m)${suffix}.so"
+cp -v "${CARGO_TARGET_DIR:-target}/tracer-release/datadog-ipc-helper" "datadog-ipc-helper$(uname -m)${suffix}"

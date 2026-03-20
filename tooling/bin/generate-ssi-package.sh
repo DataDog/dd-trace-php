@@ -57,6 +57,9 @@ for architecture in "${architectures[@]}"; do
 
     stripto libddtrace_php_${architecture}.so ${gnu}/loader/libddtrace_php.so
     stripto libddtrace_php_${architecture}-alpine.so ${musl}/loader/libddtrace_php.so
+    # Place datadog-ipc-helper next to libddtrace_php.so so find_sidecar_binary() can locate it.
+    cp datadog-ipc-helper${architecture} ${gnu}/loader/datadog-ipc-helper
+    cp datadog-ipc-helper${architecture}-alpine ${musl}/loader/datadog-ipc-helper
 
     stripto dd_library_loader-${architecture}-linux-gnu.so ${gnu}/loader/dd_library_loader.so
     stripto dd_library_loader-${architecture}-linux-musl.so ${musl}/loader/dd_library_loader.so

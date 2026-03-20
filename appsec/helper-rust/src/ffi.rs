@@ -13,7 +13,10 @@ mod test_stubs {
     extern "C" fn ddog_Error_drop(_: *mut ddog_Error) {}
     #[no_mangle]
     extern "C" fn ddog_Error_message(_: *const ddog_Error) -> ddog_CharSlice {
-        ddog_CharSlice { ptr: std::ptr::null(), len: 0 }
+        ddog_CharSlice {
+            ptr: std::ptr::null(),
+            len: 0,
+        }
     }
     #[no_mangle]
     extern "C" fn ddog_MaybeError_drop(_: ddog_MaybeError) {}
@@ -40,9 +43,7 @@ mod test_stubs {
     #[no_mangle]
     extern "C" fn ddog_sidecar_transport_drop(_: *mut ddog_SidecarTransport) {}
     #[no_mangle]
-    unsafe extern "C" fn ddog_sidecar_ping(
-        _: *mut *mut ddog_SidecarTransport,
-    ) -> ddog_MaybeError {
+    unsafe extern "C" fn ddog_sidecar_ping(_: *mut *mut ddog_SidecarTransport) -> ddog_MaybeError {
         ddog_MaybeError {
             tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
             __bindgen_anon_1: unsafe { std::mem::zeroed() },
@@ -50,9 +51,16 @@ mod test_stubs {
     }
     #[no_mangle]
     unsafe extern "C" fn ddog_sidecar_enqueue_telemetry_log(
-        _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice,
-        _: ddog_CharSlice, _: ddog_LogLevel, _: ddog_CharSlice,
-        _: *mut ddog_CharSlice, _: *mut ddog_CharSlice, _: bool,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_LogLevel,
+        _: ddog_CharSlice,
+        _: *mut ddog_CharSlice,
+        _: *mut ddog_CharSlice,
+        _: bool,
     ) -> ddog_MaybeError {
         ddog_MaybeError {
             tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
@@ -61,8 +69,13 @@ mod test_stubs {
     }
     #[no_mangle]
     unsafe extern "C" fn ddog_sidecar_enqueue_telemetry_point(
-        _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice,
-        _: ddog_CharSlice, _: f64, _: *mut ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: f64,
+        _: *mut ddog_CharSlice,
     ) -> ddog_MaybeError {
         ddog_MaybeError {
             tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
@@ -71,8 +84,13 @@ mod test_stubs {
     }
     #[no_mangle]
     unsafe extern "C" fn ddog_sidecar_enqueue_telemetry_metric(
-        _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice, _: ddog_CharSlice,
-        _: ddog_CharSlice, _: ddog_MetricType, _: ddog_MetricNamespace,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_CharSlice,
+        _: ddog_MetricType,
+        _: ddog_MetricNamespace,
     ) -> ddog_MaybeError {
         ddog_MaybeError {
             tag: ddog_Option_Error_Tag_DDOG_OPTION_ERROR_NONE_ERROR,
@@ -80,4 +98,3 @@ mod test_stubs {
         }
     }
 }
-

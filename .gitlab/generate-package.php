@@ -429,6 +429,7 @@ foreach ($build_platforms as $platform) {
   artifacts:
     paths:
       - "libddtrace_php_*.*"
+      - "datadog-ipc-helper*"
 <?php
 }
 ?>
