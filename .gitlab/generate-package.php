@@ -1268,13 +1268,13 @@ endforeach;
 "System Tests: [tracer-release]":
   extends: .system_tests
   timeout: 4h
-  # rules:
-  #   - if: $CI_COMMIT_REF_NAME == "master"
-  #     when: on_success
-  #   - if: $CI_PIPELINE_SOURCE == "schedule"
-  #     when: on_success
-  #   - when: manual
-  #     allow_failure: true
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - when: manual
+      allow_failure: true
   script:
     - curl -sfL "https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip" -o /tmp/vault.zip && unzip -q /tmp/vault.zip -d /tmp && chmod +x /tmp/vault && rm -f /tmp/vault.zip
     - DD_API_KEY=$(/tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])") || { echo "Failed to fetch DD_API_KEY from Vault"; exit 1; }
