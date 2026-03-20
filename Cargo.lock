@@ -1280,9 +1280,9 @@ dependencies = [
  "build_common 28.0.3",
  "datadog-live-debugger",
  "libdd-common 3.0.0",
- "libdd-common-ffi",
- "log 0.4.25",
- "percent-encoding 2.3.1",
+ "libdd-common-ffi 28.0.3",
+ "log",
+ "percent-encoding",
  "serde_json",
  "tokio",
  "tokio-util",
@@ -1343,7 +1343,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "libdd-common 3.0.0",
- "libdd-trace-protobuf",
+ "libdd-trace-protobuf 2.0.0",
  "manual_future",
  "regex",
  "serde",
@@ -1378,7 +1378,7 @@ dependencies = [
  "httpmock",
  "libc 0.2.177",
  "libdd-common 3.0.0",
- "libdd-common-ffi",
+ "libdd-common-ffi 28.0.3",
  "libdd-crashtracker",
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
@@ -1423,7 +1423,7 @@ dependencies = [
  "http",
  "libc 0.2.177",
  "libdd-common 3.0.0",
- "libdd-common-ffi",
+ "libdd-common-ffi 28.0.3",
  "libdd-crashtracker-ffi",
  "libdd-dogstatsd-client",
  "libdd-telemetry",
@@ -1466,7 +1466,7 @@ dependencies = [
  "lazy_static",
  "libc 0.2.177",
  "libdd-common 3.0.0",
- "libdd-common-ffi",
+ "libdd-common-ffi 28.0.3",
  "libdd-crashtracker-ffi",
  "libdd-library-config-ffi 0.0.2",
  "libdd-telemetry",
@@ -2859,8 +2859,22 @@ dependencies = [
  "chrono",
  "crossbeam-queue",
  "function_name",
- "hyper 1.6.0",
+ "hyper",
  "libdd-common 3.0.0",
+ "serde",
+]
+
+[[package]]
+name = "libdd-common-ffi"
+version = "28.0.3"
+source = "git+https://github.com/DataDog/libdatadog?tag=v28.0.3#29b010af2f7556b6beb29d1b89ed54ce6ff86e1f"
+dependencies = [
+ "anyhow",
+ "build_common 28.0.3 (git+https://github.com/DataDog/libdatadog?tag=v28.0.3)",
+ "chrono",
+ "crossbeam-queue",
+ "hyper",
+ "libdd-common 2.0.0",
  "serde",
 ]
 
@@ -2909,7 +2923,7 @@ dependencies = [
  "function_name",
  "libc 0.2.177",
  "libdd-common 3.0.0",
- "libdd-common-ffi",
+ "libdd-common-ffi 28.0.3",
  "libdd-crashtracker",
  "serde",
  "serde_json",
@@ -3019,8 +3033,8 @@ dependencies = [
  "build_common 28.0.3",
  "constcat",
  "libdd-common 3.0.0",
- "libdd-common-ffi",
- "libdd-library-config",
+ "libdd-common-ffi 28.0.3",
+ "libdd-library-config 1.1.0",
  "tempfile",
 ]
 
@@ -3136,7 +3150,7 @@ dependencies = [
  "function_name",
  "libc 0.2.177",
  "libdd-common 3.0.0",
- "libdd-common-ffi",
+ "libdd-common-ffi 28.0.3",
  "libdd-telemetry",
  "paste",
  "tempfile",
