@@ -36,6 +36,14 @@
 #ifdef __linux__
 
 #pragma GCC optimize("no-stack-protector")
+// This file runs before ld.so and before any runtime library (libc, ASAN,
+// etc.) is initialized. Any instrumentation that inserts calls to runtime
+// functions (ASAN __asan_load*, stack protector __stack_chk_fail, UBSan
+// __ubsan_handle_*) will produce unresolved PLT entries that crash before the
+// bootstrap completes.
+#ifdef __clang__
+#  pragma clang attribute push(__attribute__((no_sanitize("address","undefined","thread","memory"))), apply_to = function)
+#endif
 
 #include <elf.h>
 #include <stddef.h>
@@ -1113,6 +1121,10 @@ static long sys_pwrite(int fd, const void *buf, long count, long offset) {
 }
 
 // }}}
+
+#ifdef __clang__
+#  pragma clang attribute pop
+#endif
 #endif // __linux__
 
 // vim: foldmethod=marker
