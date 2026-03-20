@@ -1239,12 +1239,11 @@ endforeach;
       paths:
         - .cache/
   after_script:
-    - mkdir -p artifacts && cp system-tests/logs*/reportJunit.xml artifacts/ 2>/dev/null || true
+    - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
     - DD_SERVICE=system-tests DD_JUNIT_XPATH_TAGS="test.codeowners=/testcase/properties/property[@name='test.codeowners']" .gitlab/silent-upload-junit-to-datadog.sh
   artifacts:
     paths:
-      - "system-tests/logs_parametric/"
-      - "system-tests/logs/"
+      - "system-tests/logs*/"
     when: "always"
 
 "System Tests: [default]":
