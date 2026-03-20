@@ -59,6 +59,16 @@ struct dd_slice { const unsigned char *ptr; uintptr_t len; };
 // don't handle during our self-relocation.
 extern const struct dd_slice DD_TRAMPOLINE_BIN __attribute__((visibility("hidden")));
 
+// Actually, the "split" build configuration requires that, when building
+// ddtrace.la (yes, .la is apparently stil a thing), we provide a definition for
+// the symbol, otherwise we get a linker error: "undefined reference to
+// `DD_TRAMPOLINE_BIN'" / "relocation R_X86_64_PC32 against undefined hidden
+// symbol `DD_TRAMPOLINE_BIN' can not be used when making a shared object". So
+// provide here a weak hidden definition in the hopes that the final linking
+// step will ignore it in favor of the non-weak version in the rust library
+// libddtrace_php.a.
+const struct dd_slice DD_TRAMPOLINE_BIN __attribute__((visibility("hidden"), weak)) = {0};
+
 // ---- Structs {{{
 
 struct loaded_lib {
