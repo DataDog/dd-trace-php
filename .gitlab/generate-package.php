@@ -1431,7 +1431,7 @@ foreach ($arch_targets as $arch) {
 "bundle for reliability env":
   stage: shared-pipeline
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
-  tags: [ "runner:main", "size:large" ]
+  tags: [ "arch:amd64", "size:large" ]
   rules:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
       when: on_success
