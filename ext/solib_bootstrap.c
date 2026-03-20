@@ -336,24 +336,21 @@ noreturn void _dd_solib_bootstrap(void *stack_top) {
     // Restore sp to the original kernel stack and jump to ld.so entry. The
     // function is noreturn - we transfer control via inline asm.
 
-#ifdef __x86_64__
-    // Restore the original kernel stack and jump to ld.so's entry point.
-    // rdx must be 0 at ld.so startup (x86-64 ABI: rdx = rtld finalizer, 0 = none).
-    // The "a" constraint pins ldso_entry to rax, guaranteeing it is never in rdx
-    // (which the xor would clobber).  Using a clobber on "rdx" alone is not
-    // sufficient: GCC is permitted to allocate inputs into clobbered registers
-    // because inputs are consumed before the asm fires.  A specific constraint
-    // ("a" = rax) is the correct solution and is safe at any optimisation level.
     uintptr_t ldso_entry = bs_ldso.entry;
+
+    // Restore the original kernel stack and jump to ld.so's entry point.
+#ifdef __x86_64__
+    // On x86, the kernel could pass the rtld_fini function in edx.
+    // This is not the case for amd64
     __asm__ volatile(
         "mov %[sp], %%rsp\n"
-        "xor %%edx, %%edx\n"
-        "jmpq *%[entry]\n"
-        :: [sp] "r"(stack_top), [entry] "a"(ldso_entry)
-        : "rdx", "memory"
+        "jmp *%[entry]\n"
+        :
+        : [sp] "r"(stack_top),
+        [entry] "r"(ldso_entry)
+        : "memory"
     );
 #elif defined(__aarch64__)
-    uintptr_t ldso_entry = bs_ldso.entry;
     __asm__ volatile(
         "mov sp, %0\n"
         "br %1\n"
