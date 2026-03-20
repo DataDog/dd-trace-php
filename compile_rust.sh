@@ -53,9 +53,16 @@ SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$SIDECAR_RUSTFLAGS" RUSTC_BOOTSTRAP
 
 # Place datadog-ipc-helper next to where ddtrace.so will be installed so that
 # find_sidecar_binary() can locate it via dladdr at runtime.
-_ipc_profile="${PROFILE:-debug}"
-_ipc_src="${CARGO_TARGET_DIR}/${_ipc_profile}/datadog-ipc-helper"
-_ipc_dst="$(dirname "${CARGO_TARGET_DIR%/}")/modules/datadog-ipc-helper"
-mkdir -p "$(dirname "$_ipc_dst")"
-cp "$_ipc_src" "$_ipc_dst"
+# Only do this when CARGO_TARGET_DIR is an absolute path (test/cmake builds).
+# Distribution builds (build-sidecar.sh) use a relative target dir and don't
+# need the binary placed in modules/.
+case "$CARGO_TARGET_DIR" in
+  /*)
+    _ipc_profile="${PROFILE:-debug}"
+    _ipc_src="${CARGO_TARGET_DIR}/${_ipc_profile}/datadog-ipc-helper"
+    _ipc_dst="$(dirname "${CARGO_TARGET_DIR%/}")/modules/datadog-ipc-helper"
+    mkdir -p "$(dirname "$_ipc_dst")"
+    cp "$_ipc_src" "$_ipc_dst"
+    ;;
+esac
 
