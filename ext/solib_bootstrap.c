@@ -53,7 +53,11 @@
 // DD_TRAMPOLINE_BIN is defined in spawn_worker (Rust) as a &[u8] fat pointer,
 // i.e. { const u8 *ptr, usize len }.
 struct dd_slice { const unsigned char *ptr; uintptr_t len; };
-extern const struct dd_slice DD_TRAMPOLINE_BIN;
+// Mark the symbol as hidden. This file is actually linked as part of a shared
+// library and we don't want to linker to think the symbol could be preempted,
+// especially because this could result in GLOB_DAT relocs that we currently
+// don't handle during our self-relocation.
+extern const struct dd_slice DD_TRAMPOLINE_BIN __attribute__((visibility("hidden")));
 
 // ---- Structs {{{
 
