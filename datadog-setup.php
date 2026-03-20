@@ -650,6 +650,13 @@ function install($options)
         $extensionDestination = $extDir . '/' . EXTENSION_PREFIX . 'ddtrace.' . EXTENSION_SUFFIX;
         safe_copy_extension($extensionRealPath, $extensionDestination);
 
+        // Sidecar helper: must live next to ddtrace.so so find_sidecar_binary() can locate it.
+        $ipcHelperRealPath = "$tmpArchiveTraceRoot/ext/$extensionVersion/datadog-ipc-helper";
+        if (file_exists($ipcHelperRealPath)) {
+            $ipcHelperDestination = $extDir . '/datadog-ipc-helper';
+            safe_copy_extension($ipcHelperRealPath, $ipcHelperDestination);
+        }
+
         // Profiling
         $profilingExtensionRealPath = "$tmpArchiveProfilingRoot/ext/$extensionVersion/"
             . EXTENSION_PREFIX . "datadog-profiling$extensionSuffix." . EXTENSION_SUFFIX;

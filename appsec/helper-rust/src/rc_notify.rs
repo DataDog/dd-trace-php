@@ -4,8 +4,8 @@ use std::path::Path;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use crate::ffi::sidecar_ffi::{
-    ddog_Arc_Target, ddog_ConfigInvariants, ddog_remote_config_path,
-    ddog_remote_config_path_free, ddog_set_rc_notify_fn,
+    ddog_Arc_Target, ddog_ConfigInvariants, ddog_remote_config_path, ddog_remote_config_path_free,
+    ddog_set_rc_notify_fn,
 };
 use crate::service::ServiceManager;
 
@@ -63,7 +63,10 @@ struct RemoteConfigPath {
     buf: *mut std::ffi::c_char,
 }
 impl RemoteConfigPath {
-    fn new(invariants: *const ddog_ConfigInvariants, target: *const ddog_Arc_Target) -> anyhow::Result<Self> {
+    fn new(
+        invariants: *const ddog_ConfigInvariants,
+        target: *const ddog_Arc_Target,
+    ) -> anyhow::Result<Self> {
         let buf = unsafe { ddog_remote_config_path(invariants, target) };
         if buf.is_null() {
             return Err(anyhow::anyhow!("ddog_remote_config_path returned null"));
