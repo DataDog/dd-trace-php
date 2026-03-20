@@ -4,8 +4,6 @@ use std::ops::DerefMut;
 use std::os::unix::ffi::OsStrExt;
 use lazy_static::{lazy_static, LazyStatic};
 use tracing::warn;
-#[cfg(windows)]
-use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
 use std::time::Duration;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};

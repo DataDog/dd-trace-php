@@ -139,7 +139,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
         auto p = parameter::map();
         p.add("server.request.query", parameter::string("/anotherUrl"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -161,7 +161,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdate)
         auto p = parameter::map();
         p.add("server.request.query", parameter::string("/anotherUrl"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->triggers.size(), 1);
@@ -198,7 +198,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
         auto p = parameter::map();
         p.add("server.request.query", parameter::string("/a/url"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->triggers.size(), 1);
@@ -216,7 +216,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
         auto p = parameter::map();
         p.add("server.request.query", parameter::string("/a/url"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -226,7 +226,7 @@ TEST(RemoteConfigEngineListener, EngineRuleUpdateFallback)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 }
@@ -248,7 +248,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -262,7 +262,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -273,7 +273,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideUpdateDisableRule)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 }
@@ -296,7 +296,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -311,7 +311,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -323,7 +323,7 @@ TEST(RemoteConfigEngineListener, RuleOverrideUpdateSetOnMatch)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
     }
@@ -347,7 +347,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -364,7 +364,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -376,7 +376,7 @@ TEST(RemoteConfigEngineListener, EngineRuleOverrideAndActionsUpdate)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
     }
@@ -400,7 +400,7 @@ TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -414,7 +414,7 @@ TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -425,7 +425,7 @@ TEST(RemoteConfigEngineListener, EngineExclusionsUpdatePasslistRule)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 }
@@ -448,7 +448,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -458,7 +458,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg3", parameter::string("custom rule"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -476,7 +476,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -486,7 +486,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg3", parameter::string("custom rule"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -497,7 +497,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -507,7 +507,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg3", parameter::string("custom rule"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -522,7 +522,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg1", parameter::string("value"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -532,7 +532,7 @@ TEST(RemoteConfigEngineListener, EngineCustomRulesUpdate)
         auto p = parameter::map();
         p.add("arg3", parameter::string("custom rule"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 }
@@ -559,7 +559,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("1.2.3.4"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -572,7 +572,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("1.2.3.4"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -583,7 +583,7 @@ TEST(RemoteConfigEngineListener, EngineRuleDataUpdate)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("1.2.3.4"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->triggers.size(), 1);

@@ -3,6 +3,10 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.model.Mapper
 import com.datadog.appsec.php.model.Span
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.ArrayNode
+import com.fasterxml.jackson.databind.node.ObjectNode
 import org.junit.jupiter.api.Test
 
 import java.net.http.HttpRequest
@@ -14,12 +18,48 @@ import static org.hamcrest.MatcherAssert.assertThat
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 trait WorkerStrategyTests {
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper()
+
     AppSecContainer getContainer() {
         getClass().CONTAINER
     }
 
     abstract boolean getCanBlockOnResponse()
     abstract CharSequence getComponent()
+
+    /**
+     * Normalizes key_path arrays in the actual JSON to use integers for array indices.
+     * libddwaf v1.x returned strings like "3", v2.x returns integers like 3.
+     * This normalizes to the v2.x format (integers) for consistent comparison.
+     */
+    private static String normalizeKeyPathInJson(String json) {
+        JsonNode node = JSON_MAPPER.readTree(json)
+        normalizeKeyPathNode(node)
+        JSON_MAPPER.writeValueAsString(node)
+    }
+
+    private static void normalizeKeyPathNode(JsonNode node) {
+        if (node.isObject()) {
+            ObjectNode objNode = (ObjectNode) node
+            node.fields().each { entry ->
+                if (entry.key == 'key_path' && entry.value.isArray()) {
+                    ArrayNode normalizedArray = JSON_MAPPER.createArrayNode()
+                    entry.value.each { element ->
+                        if (element.isTextual() && element.asText().matches(/\d+/)) {
+                            normalizedArray.add(element.asText().toInteger())
+                        } else {
+                            normalizedArray.add(element)
+                        }
+                    }
+                    objNode.set('key_path', normalizedArray)
+                } else {
+                    normalizeKeyPathNode(entry.value)
+                }
+            }
+        } else if (node.isArray()) {
+            node.each { element -> normalizeKeyPathNode(element) }
+        }
+    }
 
     @Test
     void 'produces two traces for two requests'() {
@@ -132,7 +172,7 @@ trait WorkerStrategyTests {
 
         Span span = trace.first()
 
-        def appsecJson = span.meta."_dd.appsec.json"
+        def appsecJson = normalizeKeyPathInJson(span.meta."_dd.appsec.json")
         def expJson = '''{
            "triggers" : [
               {
@@ -156,7 +196,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "message",
-                                "3"
+                                3
                              ],
                              "value" : "poison"
                           }
@@ -180,7 +220,7 @@ trait WorkerStrategyTests {
 
         Span span = trace.first()
 
-        def appsecJson = span.meta."_dd.appsec.json"
+        def appsecJson = normalizeKeyPathInJson(span.meta."_dd.appsec.json")
         def expJson = '''{
            "triggers" : [
               {
@@ -207,7 +247,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "message",
-                                "3"
+                                3
                              ],
                              "value" : "block_this"
                           }
@@ -229,7 +269,7 @@ trait WorkerStrategyTests {
 
         Span span = trace.first()
 
-        def appsecJson = span.meta."_dd.appsec.json"
+        def appsecJson = normalizeKeyPathInJson(span.meta."_dd.appsec.json")
         def expJson = '''{
            "triggers" : [
               {
@@ -253,7 +293,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "note",
-                                "2"
+                                2
                              ],
                              "value" : "\\n  poison\\n"
                           }
@@ -281,7 +321,7 @@ trait WorkerStrategyTests {
         assert span.meta['http.request.headers.content-type'] == 'application/json'
         assert span.meta['http.request.headers.content-length'] == '45'
 
-        def appsecJson = span.meta."_dd.appsec.json"
+        def appsecJson = normalizeKeyPathInJson(span.meta."_dd.appsec.json")
         def expJson = '''{
            "triggers" : [
               {
@@ -305,7 +345,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "message",
-                                "3"
+                                3
                              ],
                              "value" : "poison"
                           }
@@ -332,7 +372,7 @@ trait WorkerStrategyTests {
 
         Span span = trace.first()
 
-        def appsecJson = span.meta."_dd.appsec.json"
+        def appsecJson = normalizeKeyPathInJson(span.meta."_dd.appsec.json")
         def expJson = '''{
            "triggers" : [
               {
@@ -356,7 +396,7 @@ trait WorkerStrategyTests {
                              ],
                              "key_path" : [
                                 "note",
-                                "2"
+                                2
                              ],
                              "value" : "poison"
                           }

@@ -39,6 +39,12 @@
 #  define DDOG_CHECK_RETURN
 #endif
 
+#ifdef _WIN32
+#define LIBDD_DLLIMPORT __declspec(dllimport)
+#else
+#define LIBDD_DLLIMPORT
+#endif
+
 /**
  * Default value for the timeout field in milliseconds.
  */
@@ -1280,6 +1286,14 @@ typedef struct ddog_crasht_Slice_CharSlice {
   uintptr_t len;
 } ddog_crasht_Slice_CharSlice;
 
+typedef struct ddog_crasht_EndpointConfig {
+  ddog_CharSlice url;
+  ddog_CharSlice api_key;
+  ddog_CharSlice test_token;
+  uint64_t timeout;
+  bool use_system_resolver;
+} ddog_crasht_EndpointConfig;
+
 typedef struct ddog_crasht_Slice_I32 {
   /**
    * Should be non-null and suitably aligned for the underlying type. It is
@@ -1302,7 +1316,7 @@ typedef struct ddog_crasht_Config {
    * The endpoint to send the crash report to (can be a file://).
    * If None, the crashtracker will infer the agent host from env variables.
    */
-  ddog_CharSlice endpoint;
+  struct ddog_crasht_EndpointConfig endpoint;
   /**
    * Optional filename for a unix domain socket if the receiver is used asynchonously
    */

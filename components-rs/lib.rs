@@ -101,6 +101,28 @@ pub unsafe extern "C" fn ddtrace_parse_agent_url(
         })
 }
 
+#[no_mangle]
+#[cfg(unix)]
+pub unsafe extern "C" fn ddtrace_endpoint_as_crashtracker_config(
+    endpoint: &Endpoint,
+    callback: unsafe extern "C" fn(EndpointConfig<'_>, *mut std::ffi::c_void),
+    userdata: *mut std::ffi::c_void,
+) {
+    let url_str = endpoint.url.to_string();
+    unsafe {
+        callback(
+            EndpointConfig {
+                url: CharSlice::from(url_str.as_str()),
+                api_key: CharSlice::from(endpoint.api_key.as_deref().unwrap_or("")),
+                test_token: CharSlice::from(endpoint.test_token.as_deref().unwrap_or("")),
+                timeout: endpoint.timeout_ms,
+                use_system_resolver: endpoint.use_system_resolver,
+            },
+            userdata,
+        );
+    }
+}
+
 // Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
 // It works well without in the "normal" build
 #[no_mangle]

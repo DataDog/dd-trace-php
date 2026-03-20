@@ -102,6 +102,13 @@
         "default": "/tmp"
       }
     ],
+    "DD_APPSEC_HELPER_RUST_REDIRECTION": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
       {
         "implementation": "C",
@@ -208,6 +215,13 @@
       }
     ],
     "DD_APPSEC_TESTING_HELPER_METRICS": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_APPSEC_TESTING_INVALID_COMMAND": [
       {
         "implementation": "A",
         "type": "boolean",
@@ -2165,6 +2179,13 @@
         "implementation": "A",
         "type": "int",
         "default": "5000"
+      }
+    ],
+    "DD_TRACE_SIDECAR_CONNECTION_MODE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "auto"
       }
     ],
     "DD_TRACE_SIDECAR_TRACE_SENDER": [

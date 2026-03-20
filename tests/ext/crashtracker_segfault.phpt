@@ -51,7 +51,7 @@ $rr->waitForRequest(function ($request) {
             if (!isset($payload["message"]["metadata"])) {
                 break;
             }
-            if (!isset($payload["message"]["os_info"])) {
+            if (($payload["is_crash"] ?? false) !== true) {
                 continue;
             }
 

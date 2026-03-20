@@ -39,6 +39,10 @@ void ddtrace_drop_rust_string(char *input, uintptr_t len);
 
 struct ddog_Endpoint *ddtrace_parse_agent_url(ddog_CharSlice url);
 
+void ddtrace_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
+                                             void (*callback)(ddog_crasht_EndpointConfig, void*),
+                                             void *userdata);
+
 ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_CharSlice language);
 
 int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
@@ -80,7 +84,8 @@ bool ddog_remote_configs_service_env_change(struct ddog_RemoteConfigState *remot
                                             ddog_CharSlice service,
                                             ddog_CharSlice env,
                                             ddog_CharSlice version,
-                                            const struct ddog_Vec_Tag *tags);
+                                            const struct ddog_Vec_Tag *tags,
+                                            const struct ddog_Vec_Tag *process_tags);
 
 bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remote_config,
                                              ddog_CharSlice config,

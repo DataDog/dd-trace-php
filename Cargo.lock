@@ -494,7 +494,7 @@ dependencies = [
 
 [[package]]
 name = "build_common"
-version = "0.0.1"
+version = "28.0.3"
 dependencies = [
  "cbindgen 0.29.0",
  "serde",
@@ -1200,7 +1200,7 @@ dependencies = [
  "glibc_version",
  "io-lifetimes",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-tinybytes",
  "memfd",
  "nix 0.29.0",
@@ -1236,7 +1236,7 @@ dependencies = [
  "constcat",
  "http",
  "http-body-util",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-data-pipeline",
  "percent-encoding",
  "regex",
@@ -1255,7 +1255,7 @@ version = "0.0.1"
 dependencies = [
  "build_common",
  "datadog-live-debugger",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-common-ffi",
  "log",
  "percent-encoding",
@@ -1318,7 +1318,7 @@ dependencies = [
  "http-body-util",
  "hyper",
  "hyper-util",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-trace-protobuf",
  "manual_future",
  "regex",
@@ -1353,7 +1353,7 @@ dependencies = [
  "http-body-util",
  "httpmock",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker",
  "libdd-crashtracker-ffi",
@@ -1398,7 +1398,7 @@ dependencies = [
  "datadog-sidecar",
  "http",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-dogstatsd-client",
@@ -1441,7 +1441,7 @@ dependencies = [
  "itertools 0.11.0",
  "lazy_static",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-library-config-ffi",
@@ -2737,7 +2737,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "2.0.1"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2779,7 +2779,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common-ffi"
-version = "0.0.1"
+version = "28.0.3"
 dependencies = [
  "anyhow",
  "assert_no_alloc",
@@ -2789,7 +2789,7 @@ dependencies = [
  "crossbeam-queue",
  "function_name",
  "hyper",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "serde",
 ]
 
@@ -2807,7 +2807,7 @@ dependencies = [
  "goblin",
  "http",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-libunwind-sys",
  "libdd-telemetry",
  "nix 0.29.0",
@@ -2831,13 +2831,13 @@ dependencies = [
 
 [[package]]
 name = "libdd-crashtracker-ffi"
-version = "0.0.1"
+version = "28.0.3"
 dependencies = [
  "anyhow",
  "build_common",
  "function_name",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-common-ffi",
  "libdd-crashtracker",
  "serde",
@@ -2861,7 +2861,7 @@ dependencies = [
  "http",
  "http-body-util",
  "httpmock",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-ddsketch",
  "libdd-dogstatsd-client",
  "libdd-log",
@@ -2899,7 +2899,7 @@ dependencies = [
  "anyhow",
  "cadence",
  "http",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "serde",
  "tokio",
  "tracing",
@@ -2930,7 +2930,7 @@ dependencies = [
  "anyhow",
  "build_common",
  "constcat",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-common-ffi",
  "libdd-library-config",
  "tempfile",
@@ -3014,7 +3014,7 @@ dependencies = [
  "http",
  "http-body-util",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-ddsketch",
  "serde",
  "serde_json",
@@ -3029,12 +3029,12 @@ dependencies = [
 
 [[package]]
 name = "libdd-telemetry-ffi"
-version = "0.0.1"
+version = "28.0.3"
 dependencies = [
  "build_common",
  "function_name",
  "libc 0.2.177",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-common-ffi",
  "libdd-telemetry",
  "paste",
@@ -3110,7 +3110,7 @@ dependencies = [
  "httpmock",
  "hyper",
  "indexmap 2.12.1",
- "libdd-common 2.0.1",
+ "libdd-common 3.0.0",
  "libdd-tinybytes",
  "libdd-trace-normalization",
  "libdd-trace-protobuf",

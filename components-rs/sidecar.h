@@ -92,6 +92,16 @@ void ddog_sidecar_transport_drop(struct ddog_SidecarTransport*);
  */
 ddog_MaybeError ddog_sidecar_connect(struct ddog_SidecarTransport **connection);
 
+ddog_MaybeError ddog_sidecar_connect_master(int32_t pid);
+
+ddog_MaybeError ddog_sidecar_connect_worker(int32_t pid, struct ddog_SidecarTransport **connection);
+
+ddog_MaybeError ddog_sidecar_shutdown_master_listener(void);
+
+bool ddog_sidecar_is_master_listener_active(int32_t pid);
+
+ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
+
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
 ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);
@@ -201,13 +211,13 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uintptr_t remote_config_capabilities_count,
                                                 bool remote_config_enabled,
                                                 bool is_fork,
-                                                ddog_CharSlice process_tags);
+                                                const struct ddog_Vec_Tag *process_tags);
 
 /**
  * Updates the process_tags for an existing session.
  */
 ddog_MaybeError ddog_sidecar_session_set_process_tags(struct ddog_SidecarTransport **transport,
-                                                      ddog_CharSlice process_tags);
+                                                      const struct ddog_Vec_Tag *process_tags);
 
 /**
  * Enqueues a telemetry log action to be processed internally.
