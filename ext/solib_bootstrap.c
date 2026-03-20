@@ -93,8 +93,10 @@ static void parse_stack(void *stack_top, struct boot_args *args);
 static const char *find_env(char **envp, const char *name);
 static Elf64_auxv_t *find_auxv_entry(Elf64_auxv_t *auxv, unsigned long type);
 static unsigned long get_auxv(Elf64_auxv_t *auxv, unsigned long type);
-static int elf_load_from_memory(const void *src, size_t src_len,
-                                struct trampoline_map *out, long page_size);
+static int elf_map_segments(int fd, long file_bias, const Elf64_Phdr *phdrs,
+                            int phnum, uintptr_t base, long page_size);
+static int elf_load_trampoline(const void *src, size_t src_len,
+                               struct trampoline_map *out, long page_size);
 static int elf_load(const char *path, struct loaded_lib *lib, long page_size);
 static int create_patched_memfd(void);
 static int uint_to_dec(unsigned int v, char *buf);
@@ -117,6 +119,7 @@ static long sys_write(int fd, const void *buf, long count);
 static int sys_close(int fd);
 static void *sys_mmap(void *addr, long length, int prot, int flags, int fd, long offset);
 static int sys_munmap(void *addr, long length);
+
 static noreturn void sys_exit_group(int status);
 static int sys_memfd_create(const char *name, unsigned int flags);
 static long sys_sendfile(int out_fd, int in_fd, long count);
@@ -243,7 +246,7 @@ noreturn void _dd_solib_bootstrap(void *stack_top) {
         bs_fatal("TRAMPOLINE_BIN not available", 120);
 
     struct trampoline_map tmap;
-    if (elf_load_from_memory(trampoline_bytes, trampoline_len, &tmap, page_size) < 0)
+    if (elf_load_trampoline(trampoline_bytes, trampoline_len, &tmap, page_size) < 0)
         bs_fatal("failed to map trampoline", 121);
 
     // Step 2: Redirect auxv to the trampoline
@@ -609,61 +612,112 @@ static int elf_reserve(const Elf64_Phdr *phdrs, int phnum, long page_size,
 }
 
 // }}}
-// ---- Load ELF from memory (for trampoline embedded in ddtrace.so) {{{
+// ---- Common PT_LOAD segment mapper {{{
 //
-// Like elf_load() but reads from an in-memory byte array instead of a file.
-// Maps each PT_LOAD segment into anonymous memory and copies bytes from src.
+// Maps all PT_LOAD segments from an open fd into a pre-reserved address space.
+// `file_bias` is added to each segment's page-aligned file offset:
+// * pass 0 for a standalone file (e.g. ld.so loaded from its own path)
+// * pass (DD_TRAMPOLINE_BIN.ptr - &__ehdr_start) for the trampoline embedded
+//   in /proc/self/exe
+//
+// Does NOT close fd on failure; caller is responsible.
+//
 
-static int elf_load_from_memory(const void *src, size_t src_len,
-                                 struct trampoline_map *out, long page_size) {
+static int elf_map_segments(int fd, long file_bias, const Elf64_Phdr *phdrs,
+                             int phnum, uintptr_t base, long page_size) {
+    if (file_bias != BS_PAGE_DOWN(file_bias, page_size)) {
+        bs_fatal("file_bias not page-aligned", 123);
+        __builtin_unreachable();
+    }
+
+    for (int i = 0; i < phnum; i++) {
+        if (phdrs[i].p_type != PT_LOAD) continue;
+
+        uintptr_t seg_start     = BS_PAGE_DOWN(phdrs[i].p_vaddr, page_size);
+        uintptr_t seg_file_end  = phdrs[i].p_vaddr + phdrs[i].p_filesz;
+        uintptr_t seg_mem_end   = phdrs[i].p_vaddr + phdrs[i].p_memsz;
+        uintptr_t file_page_end = BS_PAGE_UP(seg_file_end, page_size);
+        uintptr_t mem_page_end  = BS_PAGE_UP(seg_mem_end, page_size);
+        int prot                = elf_pf_to_prot(phdrs[i].p_flags);
+
+        if (phdrs[i].p_filesz > 0) {
+            // ELF spec (gABI): p_vaddr ≡ p_offset (mod p_align), so
+            // PAGE_DOWN(p_offset) places p_vaddr at the correct address.
+            long file_offset  = file_bias + (long)BS_PAGE_DOWN(phdrs[i].p_offset, page_size);
+            long file_map_len = (long)(file_page_end - seg_start);
+            void *seg = sys_mmap((void *)(base + seg_start), file_map_len,
+                                  prot, BS_MAP_PRIVATE | BS_MAP_FIXED, fd, file_offset);
+            if (seg == BS_MAP_FAILED) return -1;
+
+            // Zero tail within the last file-backed page (writable only).
+            // Both glibc and musl do this dlopen. One can't trus the linkers to
+            // have the zeros in the file.
+            if (seg_mem_end > seg_file_end && (phdrs[i].p_flags & PF_W))
+                bs_memset((void *)(base + seg_file_end), 0,
+                          (long)(file_page_end - seg_file_end));
+        }
+
+        // Anonymous pages for BSS.  For pure-BSS segments (p_filesz==0) start
+        // at seg_start; for mixed segments start after the last file-backed page.
+        uintptr_t anon_start = (phdrs[i].p_filesz > 0) ? file_page_end : seg_start;
+        if (mem_page_end > anon_start) {
+            void *bss = sys_mmap((void *)(base + anon_start),
+                                  (long)(mem_page_end - anon_start),
+                                  prot,
+                                  BS_MAP_PRIVATE | BS_MAP_FIXED | BS_MAP_ANONYMOUS,
+                                  -1, 0);
+            if (bss == BS_MAP_FAILED) return -1;
+        }
+    }
+    return 0;
+}
+
+// }}}
+// ---- Load trampoline ELF from /proc/self/exe {{{
+//
+// The trampoline binary is embedded in ddtrace.so at DD_TRAMPOLINE_BIN.ptr.
+// Since ddtrace.so is /proc/self/exe when executed directly, we open that file
+// and mmap each PT_LOAD segment directly from it with the correct permissions.
+
+static int elf_load_trampoline(const void *src, size_t src_len,
+                                struct trampoline_map *out, long page_size) {
     bs_memset(out, 0, sizeof(*out));
 
     if (src_len < sizeof(Elf64_Ehdr)) return -1;
     const Elf64_Ehdr *ehdr = (const Elf64_Ehdr *)src;
 
     if (elf_check_header(ehdr, 1u << ET_DYN, 32) < 0) return -1;
-    // Bounds-check the phdr table within the source buffer
     if (ehdr->e_phoff + (uint64_t)ehdr->e_phnum * sizeof(Elf64_Phdr) > src_len) return -1;
 
     const Elf64_Phdr *phdrs = (const Elf64_Phdr *)((const char *)src + ehdr->e_phoff);
 
+    // Compute the file offset of the trampoline ELF within /proc/self/exe.
+    // __ehdr_start is the runtime load address of ddtrace.so's own ELF header.
+    uintptr_t tramp_file_bias = (uintptr_t)src - (uintptr_t)&__ehdr_start;
+    if (tramp_file_bias & ((uintptr_t)page_size - 1))
+        return -1; // DD_TRAMPOLINE_BIN not page-aligned within ddtrace.so
+
+    int fd = sys_open_rdonly("/proc/self/exe");
+    if (fd < 0) return -1;
+
     uintptr_t base; long total;
-    if (elf_reserve(phdrs, ehdr->e_phnum, page_size, &base, &total) < 0) return -1;
-
-    // Map each PT_LOAD segment into anonymous memory and copy bytes from src.
-    // ET_EXEC binaries would fail here since we mmap'd at an arbitrary address.
-    // Segments are left writable; ld.so will re-map from file with correct
-    // perms.
-    for (int i = 0; i < ehdr->e_phnum; i++) {
-        if (phdrs[i].p_type != PT_LOAD) continue;
-
-        uintptr_t seg_vaddr = phdrs[i].p_vaddr;
-        uintptr_t seg_start = BS_PAGE_DOWN(seg_vaddr, page_size);
-        uintptr_t seg_mem_end = seg_vaddr + phdrs[i].p_memsz;
-        long map_len = (long)(BS_PAGE_UP(seg_mem_end, page_size) - seg_start);
-        void *seg = sys_mmap((void *)(base + seg_start), map_len,
-                              elf_pf_to_prot(phdrs[i].p_flags) | BS_PROT_WRITE,
-                              BS_MAP_PRIVATE | BS_MAP_FIXED | BS_MAP_ANONYMOUS, -1, 0);
-        if (seg == BS_MAP_FAILED) return -1;
-
-        long file_bytes = (long)phdrs[i].p_filesz;
-        if ((long)(phdrs[i].p_offset + phdrs[i].p_filesz) > (long)src_len)
-            file_bytes = (long)src_len - (long)phdrs[i].p_offset;
-        if (file_bytes > 0)
-            bs_memcpy((void *)(base + seg_vaddr),
-                      (const char *)src + phdrs[i].p_offset, file_bytes);
-        // BSS (memsz > filesz) is already zero (MAP_ANONYMOUS)
+    if (elf_reserve(phdrs, ehdr->e_phnum, page_size, &base, &total) < 0) {
+        sys_close(fd); return -1;
     }
+    if (elf_map_segments(fd, (long)tramp_file_bias, phdrs, ehdr->e_phnum,
+                         base, page_size) < 0) {
+        sys_close(fd); return -1;
+    }
+    sys_close(fd);
 
     out->base      = base;
     out->entry     = base + ehdr->e_entry;
     out->phnum     = ehdr->e_phnum;
     out->total_map = total;
-    // Use PT_PHDR.p_vaddr for the phdr runtime address when PT_PHDR is present
-    // e_phoff is a file offset, not a vaddr, and adding it to `base` only
-    // works when p_vaddr of the first PT_LOAD is 0 (true for all standard PIE
-    // output, but PT_PHDR.p_vaddr is the correct portable source).
-    out->phdr = base + ehdr->e_phoff; // fallback: works when first PT_LOAD p_vaddr==0
+    // Use PT_PHDR.p_vaddr for the phdr runtime address when present;
+    // e_phoff is a file offset and works as a vaddr only when the first
+    // PT_LOAD has p_vaddr==0 (true for standard PIE, but PT_PHDR is portable).
+    out->phdr = base + ehdr->e_phoff;
     const Elf64_Phdr *pt_phdr = find_phdr(phdrs, ehdr->e_phnum, PT_PHDR);
     if (pt_phdr) out->phdr = base + pt_phdr->p_vaddr;
     return 0;
@@ -708,47 +762,8 @@ static int elf_load(const char *path, struct loaded_lib *lib, long page_size) {
     lib->base  = base;
     lib->entry = base + ehdr.e_entry;
 
-    for (int i = 0; i < ehdr.e_phnum; i++) {
-        if (phdrs[i].p_type != PT_LOAD) continue;
-
-        uintptr_t seg_start   = BS_PAGE_DOWN(phdrs[i].p_vaddr, page_size);
-        uintptr_t seg_file_end = phdrs[i].p_vaddr + phdrs[i].p_filesz;
-        uintptr_t seg_mem_end  = phdrs[i].p_vaddr + phdrs[i].p_memsz;
-        // ELF spec (gABI): p_vaddr ≡ p_offset (mod p_align). For mmap to place
-        // file bytes at the right vaddr, the page-aligned offset must equal the
-        // page-rounded-down vaddr offset; this holds when p_align >= page_size.
-        // A 4K-aligned ELF on a 64K-page kernel would violate this; ld.so and
-        // ddtrace.so are built for the same page size so this never occurs here.
-        long file_offset = (long)BS_PAGE_DOWN(phdrs[i].p_offset, page_size);
-
-        long map_len = (long)BS_PAGE_UP(seg_file_end, page_size) - (long)seg_start;
-        if (map_len > 0) {
-            void *seg = sys_mmap((void *)(base + seg_start), map_len,
-                                  elf_pf_to_prot(phdrs[i].p_flags),
-                                  BS_MAP_PRIVATE | BS_MAP_FIXED, fd, file_offset);
-            if (seg == BS_MAP_FAILED) { sys_close(fd); return -1; }
-        }
-
-        uintptr_t file_page_end = BS_PAGE_UP(seg_file_end, page_size);
-        uintptr_t mem_page_end  = BS_PAGE_UP(seg_mem_end, page_size);
-        if (mem_page_end > file_page_end) {
-            void *bss = sys_mmap((void *)(base + file_page_end),
-                                  (long)(mem_page_end - file_page_end),
-                                  elf_pf_to_prot(phdrs[i].p_flags),
-                                  BS_MAP_PRIVATE | BS_MAP_FIXED | BS_MAP_ANONYMOUS, -1, 0);
-            if (bss == BS_MAP_FAILED) { sys_close(fd); return -1; }
-        }
-
-        // Zero the region from seg_file_end to mem_page_end.
-        // This covers two cases:
-        //   1) [seg_file_end, seg_mem_end): actual BSS within file mapped page
-        //   2) [seg_mem_end, mem_page_end): beyond memsz but within the page rounded
-        //      file mapping; may contain non-zero file content (eg ELF section
-        //      headers, debug links) that must be hidden from the process image.
-        if (seg_file_end < mem_page_end && (phdrs[i].p_flags & PF_W)) {
-            long zlen = (long)(mem_page_end - seg_file_end);
-            if (zlen > 0) bs_memset((void *)(base + seg_file_end), 0, zlen);
-        }
+    if (elf_map_segments(fd, 0, phdrs, ehdr.e_phnum, base, page_size) < 0) {
+        sys_close(fd); return -1;
     }
     sys_close(fd);
 
