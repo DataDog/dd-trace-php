@@ -106,6 +106,7 @@ stages:
     ARCH: amd64
     HELPER_RUST_FLAG: ""
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
+    DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -295,6 +296,7 @@ stages:
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
     ARCH: amd64
+    DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
