@@ -51,3 +51,11 @@ fi
 SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$SIDECAR_RUSTFLAGS" RUSTC_BOOTSTRAP=1 \
   "${DDTRACE_CARGO:-cargo}" build -p datadog-ipc-helper $CARGO_PROFILE_ARG "$@"
 
+# Place datadog-ipc-helper next to where ddtrace.so will be installed so that
+# find_sidecar_binary() can locate it via dladdr at runtime.
+_ipc_profile="${PROFILE:-debug}"
+_ipc_src="${CARGO_TARGET_DIR}/${_ipc_profile}/datadog-ipc-helper"
+_ipc_dst="$(dirname "${CARGO_TARGET_DIR%/}")/modules/datadog-ipc-helper"
+mkdir -p "$(dirname "$_ipc_dst")"
+cp "$_ipc_src" "$_ipc_dst"
+
