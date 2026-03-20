@@ -28,15 +28,30 @@ fn find_sidecar_binary() -> anyhow::Result<std::path::PathBuf> {
     let ddtrace_path = ddtrace_path.ok_or_else(|| {
         anyhow::format_err!("could not resolve ddtrace.so path via dladdr")
     })?;
-    let dir = std::path::PathBuf::from(
-        ddtrace_path
-            .to_str()
-            .map_err(|_| anyhow::format_err!("ddtrace.so path is not valid UTF-8"))?,
-    );
-    let dir = dir
-        .parent()
-        .ok_or_else(|| anyhow::format_err!("ddtrace.so has no parent directory"))?;
-    Ok(dir.join("datadog-ipc-helper"))
+    let ddtrace_str = ddtrace_path
+        .to_str()
+        .map_err(|_| anyhow::format_err!("ddtrace.so path is not valid UTF-8"))?;
+    let ddtrace_full = std::path::PathBuf::from(ddtrace_str);
+    // Search in both the directory dladdr returned and, if it differs after
+    // symlink resolution, the directory of the real file.
+    let ddtrace_real = std::fs::canonicalize(&ddtrace_full).unwrap_or_else(|_| ddtrace_full.clone());
+    for candidate_dir in [ddtrace_real.parent(), ddtrace_full.parent()]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .into_iter()
+        .collect::<std::collections::HashSet<_>>()
+    {
+        let candidate = candidate_dir.join("datadog-ipc-helper");
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+    }
+    Err(anyhow::format_err!(
+        "datadog-ipc-helper not found next to ddtrace.so (tried {:?} and {:?})",
+        ddtrace_real.parent(),
+        ddtrace_full.parent(),
+    ))
 }
 
 #[cfg(unix)]
