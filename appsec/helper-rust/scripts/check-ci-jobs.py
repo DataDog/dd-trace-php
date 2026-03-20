@@ -303,15 +303,19 @@ def _monitor_loop(jobs_getter, label: str, timeout_sec: float) -> None:
             f"passed={len(passed)}  failed={len(failed)}"
         )
 
-        if failed:
-            print("\nFailed jobs:")
-            for j in failed:
-                print(f"  [{j['id']}] {j['name']}")
-            sys.exit(1)
-
         if not running:
+            if failed:
+                print("\nFailed jobs:")
+                for j in failed:
+                    print(f"  [{j['id']}] {j['name']}")
+                sys.exit(1)
             print(f"\nAll {len(passed)} jobs passed.")
             sys.exit(0)
+
+        if failed:
+            print("\nFailed jobs so far (pipeline still running):")
+            for j in failed:
+                print(f"  [{j['id']}] {j['name']}")
 
         remaining = deadline - time.monotonic()
         if remaining <= 0:

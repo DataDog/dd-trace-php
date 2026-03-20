@@ -351,6 +351,11 @@ pipeline by walking parent pipelines and their child bridges to find one contain
 that match the filter. It polls every 30 seconds with a default 60-minute timeout.
 Exit codes: 0 = all passed, 1 = failures, 2 = timed out.
 
+**IMPORTANT**: The script waits for ALL matched jobs to finish before reporting the final
+result. Failed jobs are printed as they appear, but exit(1) is only issued once
+`running == 0`. Never conclude that CI passed or failed from an intermediate snapshot
+while jobs are still running — always wait for `running=0` before drawing conclusions.
+
 To monitor a pipeline and get a spoken notification when done, spawn a background agent
 (model: Haiku) with this prompt:
 
@@ -365,6 +370,11 @@ Once it exits, use the speak_when_done MCP tool to say:
 - Exit 1: "Some appsec jobs failed"
 - Exit 2: "Pipeline monitoring timed out"
 ```
+
+**Note on the Haiku agent**: Give it a Bash timeout of at least 600000 ms (10 min) when
+pipelines are large. The default 2-minute tool timeout causes it to exit before all jobs
+complete, producing a misleadingly optimistic "1 failure" when hundreds more are still
+running. Use `--timeout 90` for large pipelines.
 
 ## Misc Notes
 
