@@ -24,7 +24,7 @@ else
   CARGO_PROFILE_ARG="--profile $PROFILE"
 fi
 
-CARGO_TARGET_DIR="${CARGO_TARGET_DIR:?CARGO_TARGET_DIR must be set}"
+CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-target}"
 
 # Sidecar-specific RUSTFLAGS.
 # - musl: disable static CRT so dlopen works for loading the AppSec helper.
@@ -43,6 +43,10 @@ esac
 
 SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$RUSTFLAGS" RUSTC_BOOTSTRAP=1 \
   "${DDTRACE_CARGO:-cargo}" build -p ddtrace-php $CARGO_PROFILE_ARG "$@"
+
+if test -n "$COMPILE_ASAN"; then
+  SIDECAR_RUSTFLAGS="$SIDECAR_RUSTFLAGS -Clink-arg=-fsanitize=address"
+fi
 
 SIDECAR_VERSION=$(cat ../VERSION) RUSTFLAGS="$SIDECAR_RUSTFLAGS" RUSTC_BOOTSTRAP=1 \
   "${DDTRACE_CARGO:-cargo}" build -p datadog-ipc-helper $CARGO_PROFILE_ARG "$@"
