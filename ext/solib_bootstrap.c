@@ -43,14 +43,8 @@
 #include <stdnoreturn.h>
 
 // DD_TRAMPOLINE_BIN is defined in spawn_worker (Rust) as a &[u8] fat pointer,
-// i.e. { const u8 *ptr, usize len }. Both this C object and the Rust object
-// are linked into the same ddtrace.so, so the linker resolves the reference
-// internally. The hidden visibility attribute on the C declaration tells the
-// compiler/linker to emit a RELATIVE reloc (not GLOB_DAT) for this reference,
-// making it accessible before ld.so runs: the visibility does not affect how
-// Rust exports the symbol, only how this C translation unit references it.
+// i.e. { const u8 *ptr, usize len }.
 struct dd_slice { const unsigned char *ptr; uintptr_t len; };
-__attribute__((visibility("hidden")))
 extern const struct dd_slice DD_TRAMPOLINE_BIN;
 
 // ---- Structs {{{

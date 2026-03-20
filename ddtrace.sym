@@ -44,4 +44,3 @@ ddog_sidecar_connect
 ddog_sidecar_ping
 ddog_sidecar_transport_drop
 _dd_solib_start
-DD_TRAMPOLINE_BIN
