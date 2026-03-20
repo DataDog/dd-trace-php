@@ -109,8 +109,9 @@ impl Drop for MaybeErrorRAII {
 impl From<MaybeErrorRAII> for Option<String> {
     fn from(value: MaybeErrorRAII) -> Self {
         if value.maybe_error.tag == ddog_Option_Error_Tag_DDOG_OPTION_ERROR_SOME_ERROR {
-            let msg =
-                unsafe { ddog_Error_message(&value.maybe_error.__bindgen_anon_1.__bindgen_anon_1.some) };
+            let msg = unsafe {
+                ddog_Error_message(&value.maybe_error.__bindgen_anon_1.__bindgen_anon_1.some)
+            };
             if msg.ptr.is_null() || msg.len == 0 {
                 return Some(String::new());
             }
