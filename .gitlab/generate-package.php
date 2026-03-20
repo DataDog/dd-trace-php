@@ -1267,6 +1267,7 @@ endforeach;
 
 "System Tests: [tracer-release]":
   extends: .system_tests
+  timeout: 4h
   # rules:
   #   - if: $CI_COMMIT_REF_NAME == "master"
   #     when: on_success
