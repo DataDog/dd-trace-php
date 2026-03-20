@@ -136,7 +136,8 @@ $(PHP_EXTENSION_DIR)/datadog-ipc-helper: $(SIDECAR_BIN)
 	$(Q) $(SUDO) cp $(SIDECAR_BIN) $(PHP_EXTENSION_DIR)/datadog-ipc-helper
 
 install: $(PHP_EXTENSION_DIR)/ddtrace.so
-	$(if $(wildcard $(SIDECAR_BIN)),$(Q) $(SUDO) cp $(SIDECAR_BIN) $(PHP_EXTENSION_DIR)/datadog-ipc-helper)
+	$(if $(wildcard $(SIDECAR_BIN_IN_MODULES)),$(Q) $(SUDO) cp $(SIDECAR_BIN_IN_MODULES) $(PHP_EXTENSION_DIR)/datadog-ipc-helper,\
+	$(if $(wildcard $(SIDECAR_BIN)),$(Q) $(SUDO) cp $(SIDECAR_BIN) $(PHP_EXTENSION_DIR)/datadog-ipc-helper))
 
 set_static_option:
 	$(eval EXTRA_CONFIGURE_OPTIONS := --enable-ddtrace-rust-library-split)

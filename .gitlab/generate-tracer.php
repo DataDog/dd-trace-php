@@ -44,6 +44,7 @@ function before_script_steps($with_docker_auth = false) {
     - git config --global --add safe.directory "${CI_PROJECT_DIR}/*"
     - mkdir -p tmp/build_extension/modules artifacts
     - mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/ddtrace.so" "tmp/build_extension/modules/"
+    - '[ -f "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/datadog-ipc-helper" ] && mv "modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/datadog-ipc-helper" "tmp/build_extension/modules/" || true'
 <?php
 }
 ?>
@@ -86,6 +87,7 @@ stages:
     export out_dir="modules/${PHP_MAJOR_MINOR}-${SWITCH_PHP_VERSION}-${host_os}-${ARCH}/"
     mkdir -p "${out_dir}"
     mv "tmp/build_extension/modules/ddtrace.so" "${out_dir}"
+    [ -f "tmp/build_extension/modules/datadog-ipc-helper" ] && mv "tmp/build_extension/modules/datadog-ipc-helper" "${out_dir}" || true
   cache:
     - key:
         prefix: $CI_JOB_NAME
