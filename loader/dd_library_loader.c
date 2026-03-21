@@ -330,21 +330,17 @@ typedef struct {
 // requires a single CK_IntegralToPointer cast, while GCC -Wint-to-pointer-cast
 // requires the (intptr_t) intermediate; using __has_attribute lets us pick the
 // right form for each compiler.
-// musttail requires the callee return type to match the enclosing function.
-// Cast the function pointer so the call expression itself yields void*; int
-// and void* share the same return register on every supported ABI, so the
-// cast is safe in practice (the dlclose return value is discarded anyway).
-// Without musttail, use (void*)(intptr_t) to avoid -Wint-to-pointer-cast and
-// -Wincompatible-function-pointer-types, and rely on O2 sibling-call opt.
+// Redeclare dlclose under a private name with void* return type so the tail
+// call is type-correct without any cast.  int and void* share the same return
+// register on all supported ABIs; the return value is discarded anyway.
+extern void *ddloader_dlclose(void *) __asm__("dlclose");
+
 #if defined(__has_attribute) && __has_attribute(musttail)
 # define DDLOADER_MUSTTAIL __attribute__((musttail))
-# define DDLOADER_DLCLOSE(h) ((void *(*)(void *))(dlclose))(h)
 #elif defined(__clang__) && __clang_major__ >= 13
 # define DDLOADER_MUSTTAIL [[clang::musttail]]
-# define DDLOADER_DLCLOSE(h) ((void *(*)(void *))(dlclose))(h)
 #else
 # define DDLOADER_MUSTTAIL
-# define DDLOADER_DLCLOSE(h) (void *)(intptr_t)dlclose(h)
 __attribute__((optimize("O2")))
 #endif
 static void *ddloader_reap_child(void *arg_) {
@@ -353,7 +349,7 @@ static void *ddloader_reap_child(void *arg_) {
     void *handle = arg->self_handle;
     free(arg);
     waitpid(pid, NULL, 0);
-    DDLOADER_MUSTTAIL return DDLOADER_DLCLOSE(handle);
+    DDLOADER_MUSTTAIL return ddloader_dlclose(handle);
 }
 
 /**
