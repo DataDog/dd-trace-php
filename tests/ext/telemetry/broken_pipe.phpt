@@ -34,7 +34,7 @@ dd_trace_internal_fn("synchronous_flush", 5000); // await connection breaking
 dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 300; ++$i) {
-    usleep(100000);
+    ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/broken_pipe-telemetry.out')) {
         $batches = [];
         foreach (file(__DIR__ . '/broken_pipe-telemetry.out') as $l) {
