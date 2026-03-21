@@ -29,7 +29,7 @@ dd_trace_serialize_closed_spans();
 
 // force a reconnect, it needs to resubmit telemetry info
 dd_trace_internal_fn("break_sidecar_connection");
-dd_trace_internal_fn("synchronous_flush", 5000); // await connection breaking
+dd_trace_internal_fn("stats_sidecar"); // await connection breaking
 
 dd_trace_internal_fn("finalize_telemetry");
 
@@ -71,7 +71,7 @@ if ($i == 300) {
 
 ?>
 --EXPECTF--
-[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %sbroken_pipe-telemetry.out
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %sbroken_pipe-telemetry.out%A
 [ddtrace] [datadog_sidecar::service::blocking] [%d] The sidecar transport is closed. Reconnecting... This generally indicates a problem with the sidecar, most likely a crash. Check the logs / core dump locations and possibly report a bug.
 string(11) "app-started"
 string(25) "broken_pipe-telemetry-app"
