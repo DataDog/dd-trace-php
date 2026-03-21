@@ -290,6 +290,11 @@ if test "$PHP_DDTRACE" != "no"; then
     case $host_os in
       linux*)
         EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,_dd_solib_start"
+        dnl ExecSolib requires execute permission; PHP's make install defaults to
+        dnl INSTALL_DATA = install -m 644. Override to 0755 so execve() works.
+        cat <<'EOT' >> Makefile.fragments
+INSTALL_DATA = $(INSTALL) -m 0755
+EOT
         ;;
     esac
 

@@ -31,6 +31,7 @@ fi
 switch-php "${PHP_VERSION}"
 make clean && make -j "${MAKE_JOBS}" static
 objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}.so"
+chmod +x "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}.so"
 cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}.a"
 if [ "${PHP_VERSION}" = "7.0" ]; then
   cp -v tmp/build_extension/ddtrace.ldflags "ddtrace_$(uname -m)${suffix}.ldflags"
@@ -41,6 +42,7 @@ if [ "${suffix}" != "-alpine" ]; then
   switch-php "${PHP_VERSION}-debug"
   make clean && make -j "${MAKE_JOBS}" static
   objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-debug.so"
+  chmod +x "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-debug.so"
   cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}-debug.a"
 fi
 
@@ -49,4 +51,5 @@ switch-php "${PHP_VERSION}-zts"
 rm -r tmp/build_extension
 make clean && make -j "${MAKE_JOBS}" static
 objcopy --compress-debug-sections tmp/build_extension/modules/ddtrace.so "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-zts.so"
+chmod +x "standalone_$(uname -m)/ddtrace-${PHP_API}${suffix}-zts.so"
 cp -v tmp/build_extension/modules/ddtrace.a "extensions_$(uname -m)/ddtrace-${PHP_API}${suffix}-zts.a"

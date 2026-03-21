@@ -956,9 +956,9 @@ function safe_copy_extension($source, $destination)
 
     $tmpName = $destination . '.tmp';
     copy($source, $tmpName);
-    // Preserve execute permission from source: required for ExecSolib (the kernel
-    // execve's ddtrace.so directly to spawn the sidecar).
-    if (!IS_WINDOWS && is_executable($source)) {
+    // Add execute permission: required for ExecSolib (the kernel execve's ddtrace.so
+    // directly to spawn the sidecar). Safe to apply unconditionally to .so files.
+    if (!IS_WINDOWS) {
         chmod($tmpName, fileperms($tmpName) | 0111);
     }
     rename($tmpName, $destination);
