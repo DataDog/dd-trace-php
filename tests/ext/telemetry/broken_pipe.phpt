@@ -65,6 +65,9 @@ for ($i = 0; $i < 300; ++$i) {
         }
     }
 }
+if ($i == 300) {
+    var_dump(file(__DIR__ . '/broken_pipe-telemetry.out'));
+}
 
 ?>
 --EXPECTF--

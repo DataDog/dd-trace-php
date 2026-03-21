@@ -59,6 +59,7 @@ class Tag
     const DB_ROW_COUNT = 'db.row_count';
     const DB_STMT = 'sql.query';
     const DB_USER = 'db.user';
+    const PROPAGATED_HASH = '_dd.propagated_hash';
 
     // Kafka
     const KAFKA_CLIENT_ID = 'messaging.kafka.client_id';

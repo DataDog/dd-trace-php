@@ -1,5 +1,6 @@
 #include "php.h"
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,10 +33,40 @@ typedef struct {
     size_t count;
     size_t capacity;
     zend_string *serialized;
+    zend_string *base_hash;
+    zend_string *container_tags_hash;
     ddog_Vec_Tag vec;
 } process_tags_t;
 
 static process_tags_t process_tags = {0};
+
+static void clear_process_tags(void) {
+    for (size_t i = 0; i < process_tags.count; i++) {
+        ddog_free_normalized_tag_value(process_tags.tag_list[i].value);
+    }
+
+    if (process_tags.tag_list) {
+        pefree(process_tags.tag_list, 1);
+    }
+
+    if (process_tags.serialized) {
+        zend_string_release(process_tags.serialized);
+    }
+
+    if (process_tags.vec.ptr) {
+        ddog_Vec_Tag_drop(process_tags.vec);
+    }
+
+    if (process_tags.base_hash) {
+        zend_string_release(process_tags.base_hash);
+    }
+
+    if (process_tags.container_tags_hash) {
+        zend_string_release(process_tags.container_tags_hash);
+    }
+
+    memset(&process_tags, 0, sizeof(process_tags));
+}
 
 static inline const char *get_basename(const char *path) {
     if (!path || !*path) return NULL;
@@ -168,6 +199,37 @@ static int cmp_process_tag_by_key(const void *tag1, const void* tag2) {
     return strcmp(tag_entry_1->key, tag_entry_2->key);
 }
 
+static void recompute_base_hash(void) {
+    if (!ddtrace_process_tags_enabled() || !process_tags.serialized) {
+        return;
+    }
+
+    if (process_tags.base_hash) {
+        zend_string_release(process_tags.base_hash);
+        process_tags.base_hash = NULL;
+    }
+
+    uint64_t hash_value;
+    if (process_tags.container_tags_hash) {
+        size_t total_len = ZSTR_LEN(process_tags.serialized) + ZSTR_LEN(process_tags.container_tags_hash);
+        unsigned char *combined = emalloc(total_len);
+
+        memcpy(combined, ZSTR_VAL(process_tags.serialized), ZSTR_LEN(process_tags.serialized));
+        memcpy(combined + ZSTR_LEN(process_tags.serialized), ZSTR_VAL(process_tags.container_tags_hash), ZSTR_LEN(process_tags.container_tags_hash));
+
+        hash_value = dd_fnv1a_64(combined, total_len);
+        efree(combined);
+    } else {
+        hash_value = dd_fnv1a_64((const uint8_t *)ZSTR_VAL(process_tags.serialized), ZSTR_LEN(process_tags.serialized));
+    }
+
+    smart_str hash_buf = {0};
+    smart_str_alloc(&hash_buf, 21, 1);
+    smart_str_append_printf(&hash_buf, "%" PRIu64, hash_value);
+    smart_str_0(&hash_buf);
+    process_tags.base_hash = hash_buf.s;
+}
+
 static void serialize_process_tags(void) {
     if (!ddtrace_process_tags_enabled() || !process_tags.count) {
         return;
@@ -202,6 +264,33 @@ static void serialize_process_tags(void) {
             (ddog_CharSlice) {.ptr = value, .len = strlen(value)}
         ));
     }
+
+    recompute_base_hash();
+}
+
+static void init_process_tags(void) {
+    process_tags.capacity = 4;
+    process_tags.tag_list = pemalloc(process_tags.capacity * sizeof(process_tag_entry_t), 1);
+    if (!process_tags.tag_list) {
+        process_tags.capacity = 0;
+        return;
+    }
+
+    collect_process_tags();
+    serialize_process_tags();
+}
+
+void ddtrace_process_tags_set_container_tags_hash(zend_string *container_tags_hash) {
+    if (!container_tags_hash || !ddtrace_process_tags_enabled()) {
+        return;
+    }
+
+    if (process_tags.container_tags_hash) {
+        zend_string_release(process_tags.container_tags_hash);
+    }
+    process_tags.container_tags_hash = zend_string_copy(container_tags_hash);
+
+    recompute_base_hash();
 }
 
 zend_string *ddtrace_process_tags_get_serialized(void) {
@@ -220,38 +309,22 @@ const ddog_Vec_Tag *ddtrace_process_tags_get_vec(void) {
     return &empty_vec;
 }
 
+zend_string *ddtrace_process_tags_get_base_hash(void) {
+    return (ddtrace_process_tags_enabled() && process_tags.base_hash) ? process_tags.base_hash : NULL;
+}
+
 bool ddtrace_process_tags_enabled(void){
-    return get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED();
+    return get_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED();
 }
 
 void ddtrace_process_tags_first_rinit(void) {
-    // process_tags struct initializations
-    process_tags.count = 0;
-    process_tags.capacity = 4;
-    process_tags.tag_list = pemalloc(process_tags.capacity * sizeof(process_tag_entry_t), 1);
-
-    if (!process_tags.tag_list) {
-        process_tags.capacity = 0;
-        return;
-    }
-
-    collect_process_tags();
-    serialize_process_tags();
+    init_process_tags();
 }
 
+void ddtrace_process_tags_reload(void) {
+    clear_process_tags();
+    init_process_tags();
+}
 void ddtrace_process_tags_mshutdown(void) {
-    for (size_t i = 0; i < process_tags.count; i++) {
-        ddog_free_normalized_tag_value(process_tags.tag_list[i].value);
-    }
-    pefree(process_tags.tag_list, 1);
-
-    if (process_tags.serialized) {
-        zend_string_release(process_tags.serialized);
-    }
-
-    if (process_tags.vec.ptr) {
-        ddog_Vec_Tag_drop(process_tags.vec);
-    }
-
-    memset(&process_tags, 0, sizeof(process_tags));
+    clear_process_tags();
 }

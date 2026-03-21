@@ -1720,6 +1720,8 @@ static void dd_initialize_request(void) {
 
     ddtrace_agent_info_rinit();
 
+    ddtrace_get_container_tags_hash();
+
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
 
@@ -2583,6 +2585,17 @@ PHP_FUNCTION(DDTrace_System_container_id) {
     }
 }
 
+PHP_FUNCTION(DDTrace_System_process_tags_base_hash) {
+    UNUSED(execute_data);
+
+    zend_string *base_hash = ddtrace_process_tags_get_base_hash();
+    if (base_hash) {
+        RETVAL_STRINGL(ZSTR_VAL(base_hash), ZSTR_LEN(base_hash));
+    } else {
+        RETURN_NULL();
+    }
+}
+
 PHP_FUNCTION(DDTrace_Testing_trigger_error) {
     ddtrace_string message;
     ddtrace_zpplong_t error_type;
@@ -3028,6 +3041,20 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddtrace_generate_runtime_id();
             ddtrace_force_new_instance_id();
             RETURN_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("reload_process_tags")) {
+            if (ddtrace_process_tags_enabled()) {
+                ddtrace_process_tags_reload();
+                ddtrace_sidecar_update_process_tags();
+            }
+            RETVAL_TRUE;
+        } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {
+            zval *container_tags_hash = ZVAL_VARARG_PARAM(params, 0);
+            if (Z_TYPE_P(container_tags_hash) == IS_STRING) {
+                ddtrace_process_tags_set_container_tags_hash(Z_STR_P(container_tags_hash));
+                RETVAL_TRUE;
+            } else {
+                RETVAL_FALSE;
+            }
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 100;
             if (params_count == 1) {

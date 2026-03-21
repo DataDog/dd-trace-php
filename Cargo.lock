@@ -494,7 +494,7 @@ dependencies = [
 
 [[package]]
 name = "build_common"
-version = "28.0.3"
+version = "0.0.1"
 dependencies = [
  "cbindgen 0.29.0",
  "serde",
@@ -2778,7 +2778,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common-ffi"
-version = "28.0.3"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "assert_no_alloc",
@@ -2831,7 +2831,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-crashtracker-ffi"
-version = "28.0.3"
+version = "0.0.1"
 dependencies = [
  "anyhow",
  "build_common",
@@ -3029,7 +3029,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-telemetry-ffi"
-version = "28.0.3"
+version = "0.0.1"
 dependencies = [
  "build_common",
  "function_name",

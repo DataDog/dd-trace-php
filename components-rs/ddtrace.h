@@ -47,6 +47,8 @@ ddog_Configurator *ddog_library_configurator_new_dummy(bool debug_logs, ddog_Cha
 
 int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
 
+uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
+
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 
 void ddog_free_normalized_tag_value(const char *ptr);
