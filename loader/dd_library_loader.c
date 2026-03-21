@@ -313,10 +313,47 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
     va_end(va);
 }
 
-static void *ddloader_reap_child(void *arg) {
-    pid_t pid = (pid_t)(intptr_t)arg;
+typedef struct {
+    pid_t pid;
+    void *self_handle; // dlopen handle for this .so, closed by the thread
+} ddloader_reaper_arg;
+
+// Reaps the telemetry child process, then tail-calls dlclose() to release the
+// extra reference on this .so that was acquired before thread creation.
+// The tail call ensures dlclose() returns directly to libpthread's start_thread
+// without ever returning into this .so's code, which may be unmapped when
+// dlclose() releases the last reference and runs munmap.
+//
+// [[clang::musttail]] guarantees the tail call at the source level (compile
+// error if not possible). __attribute__((optimize("O2"))) is the GCC fallback
+// to enable sibling-call optimisation.  Both are needed because musttail
+// requires a single CK_IntegralToPointer cast, while GCC -Wint-to-pointer-cast
+// requires the (intptr_t) intermediate; using __has_attribute lets us pick the
+// right form for each compiler.
+// musttail requires the callee return type to match the enclosing function.
+// Cast the function pointer so the call expression itself yields void*; int
+// and void* share the same return register on every supported ABI, so the
+// cast is safe in practice (the dlclose return value is discarded anyway).
+// Without musttail, use (void*)(intptr_t) to avoid -Wint-to-pointer-cast and
+// -Wincompatible-function-pointer-types, and rely on O2 sibling-call opt.
+#if defined(__has_attribute) && __has_attribute(musttail)
+# define DDLOADER_MUSTTAIL __attribute__((musttail))
+# define DDLOADER_DLCLOSE(h) ((void *(*)(void *))(dlclose))(h)
+#elif defined(__clang__) && __clang_major__ >= 13
+# define DDLOADER_MUSTTAIL [[clang::musttail]]
+# define DDLOADER_DLCLOSE(h) ((void *(*)(void *))(dlclose))(h)
+#else
+# define DDLOADER_MUSTTAIL
+# define DDLOADER_DLCLOSE(h) (void *)(intptr_t)dlclose(h)
+__attribute__((optimize("O2")))
+#endif
+static void *ddloader_reap_child(void *arg_) {
+    ddloader_reaper_arg *arg = (ddloader_reaper_arg *)arg_;
+    pid_t pid = arg->pid;
+    void *handle = arg->self_handle;
+    free(arg);
     waitpid(pid, NULL, 0);
-    return NULL;
+    DDLOADER_MUSTTAIL return DDLOADER_DLCLOSE(handle);
 }
 
 /**
@@ -414,11 +451,20 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     }
     if (pid > 0) {
         // reap the child in a background thread to avoid leaking it
+        ddloader_reaper_arg *reaper_arg = malloc(sizeof(*reaper_arg));
+        reaper_arg->pid = pid;
+        // Bump our own refcount so this .so stays mapped while the reaper
+        // thread is running. The thread will tail-call dlclose() to release it.
+        Dl_info info;
+        reaper_arg->self_handle =
+            (dladdr((void *)ddloader_telemetryf, &info) && info.dli_fname)
+            ? dlopen(info.dli_fname, RTLD_LAZY)
+            : NULL;
         pthread_t reaper;
         pthread_attr_t attr;
         pthread_attr_init(&attr);
         pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        pthread_create(&reaper, &attr, ddloader_reap_child, (void *)(intptr_t)pid);
+        pthread_create(&reaper, &attr, ddloader_reap_child, reaper_arg);
         pthread_attr_destroy(&attr);
         return;  // parent
     }
