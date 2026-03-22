@@ -480,6 +480,7 @@ static long _syscall6(long n, long a1, long a2, long a3, long a4, long a5, long 
 #define SYS_WRITE       1
 #define SYS_OPEN        2
 #define SYS_CLOSE       3
+#define SYS_LSEEK       8
 #define SYS_MMAP        9
 #define SYS_MPROTECT    10
 #define SYS_MUNMAP      11
@@ -536,6 +537,7 @@ static long _syscall6(long n, long a1, long a2, long a3, long a4, long a5, long 
 #define SYS_READ        63
 #define SYS_OPENAT      56
 #define SYS_CLOSE       57
+#define SYS_LSEEK       62
 #define SYS_WRITE       64
 #define SYS_SENDFILE    71
 #define SYS_READLINKAT  78
@@ -842,12 +844,20 @@ static int create_patched_memfd(void) {
     if (src < 0) return -1;
 
     int mfd = sys_memfd_create("ddtrace_patched", 0);
-    if (mfd < 0) { sys_close(src); return -1; }
+    if (mfd < 0) {
+        bs_fatal("Failed to create memfd", 123);
+        __builtin_unreachable();
+    }
 
     // Copy entire file into the memfd via sendfile (in-kernel, no userspace buf)
     for (;;) {
         long n = sys_sendfile(mfd, src, 0x10000000 /*256 MB chunk*/);
-        if (n <= 0) break;
+        if (n == 0) break;       /* EOF – copy complete */
+        if (n == -4) continue;   /* EINTR – retry the interrupted syscall */
+        if (n < 0) {
+            bs_fatal("Failed to copy ddtrace.so to memfd", 122);
+            __builtin_unreachable();
+        }
     }
     sys_close(src);
 
@@ -873,7 +883,13 @@ static int create_patched_memfd(void) {
     const Elf64_Dyn *dyn = (const Elf64_Dyn *)(base + dyn_vaddr);
 
     uintptr_t dynsym_vaddr = 0;
+    uintptr_t strtab_vaddr = 0;
     const uint32_t *hash = NULL, *gnu_hash = NULL;
+
+    // Pre-pass: find DT_STRTAB (needed to look up DT_NEEDED library names)
+    for (long i = 0; dyn[i].d_tag != DT_NULL; i++) {
+        if (dyn[i].d_tag == DT_STRTAB) { strtab_vaddr = dyn[i].d_un.d_ptr; break; }
+    }
 
     // Pass 1: patch dynamic section tags; collect symtab/hash pointers
     for (long i = 0; dyn[i].d_tag != DT_NULL; i++) {
@@ -887,10 +903,22 @@ static int create_patched_memfd(void) {
         // pointer, corrupting dso->ghashtab and crashing in gnu_lookup_filtered.
 #define DT_TOMBSTONE 0x6ffffef4
         switch (dyn[i].d_tag) {
-        // Neutralize: deps, init/fini, version info, and binding flags
-        // To do so, we're gonna replace it with DT_TOMBSTONE (a value that
-        // shouldn't be recognized by the dynamic linker)
+        // Neutralize: deps (with exceptions), init/fini, version info, binding flags.
         case DT_NEEDED:
+            // Keep libgcc_s and libunwind: they provide _Unwind_RaiseException,
+            // which Rust needs for panic handling. Without these, any Rust panic
+            // (common in debug builds) causes SIGSEGV. All other DT_NEEDED
+            // entries are tombstoned to prevent ld.so from loading PHP-specific
+            // or problematic deps (e.g. ld-linux-x86-64.so.2, libcurl).
+            if (strtab_vaddr) {
+                const char *libname = (const char *)(base + strtab_vaddr) + dyn[i].d_un.d_val;
+                if (bs_strncmp(libname, "libgcc_s", 8) == 0 ||
+                    bs_strncmp(libname, "libunwind", 9) == 0) {
+                    break; /* keep this DT_NEEDED */
+                }
+            }
+            new_tag = DT_TOMBSTONE;
+            break;
         case DT_BIND_NOW:
         case DT_INIT:
         case DT_INIT_ARRAY:  case DT_INIT_ARRAYSZ:
@@ -912,8 +940,9 @@ static int create_patched_memfd(void) {
             new_val = dyn[i].d_un.d_val & ~1ULL;
             patch_val = 1;
             break;
-        // Track symtab and hash tables for dynsym patching
+        // Track symtab, strtab, and hash tables for dynsym patching
         case DT_SYMTAB:    dynsym_vaddr = dyn[i].d_un.d_ptr; break;
+        case DT_STRTAB:    strtab_vaddr = dyn[i].d_un.d_ptr; break;
         case DT_HASH:      hash     = (const uint32_t *)(base + dyn[i].d_un.d_ptr); break;
         case DT_GNU_HASH:  gnu_hash = (const uint32_t *)(base + dyn[i].d_un.d_ptr); break;
         default: break;
