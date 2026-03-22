@@ -16,10 +16,13 @@ use crate::bindings::{
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 
-/// The profiler is not meant to handle such large strings--if a file or
-/// function name exceeds this size, it will fail in some manner, or be
-/// replaced by a shorter string, etc.
-const STR_LEN_LIMIT: usize = u16::MAX as usize;
+/// The profiler is not meant to handle such large strings. If a file or
+/// function name exceeds this size, it will be represented by a short string,
+/// see [`COW_LARGE_STRING`].
+///
+/// This max is calculated such that when varint encoded for protobuf that it
+/// fits into 1 or 2 bytes, never 3 or more.
+const MAX_STR_LEN: usize = 0b00111111_11111111; // (1 << 14) - 1, or 16,383
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
 #[derive(Default, Debug)]
@@ -78,7 +81,7 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     let len = module_len + class_name_len + method_name.len();
 
     // Rather than fail, we use a short string to represent a long string.
-    if len >= STR_LEN_LIMIT {
+    if len > MAX_STR_LEN {
         return Some(COW_LARGE_STRING);
     }
 
@@ -151,7 +154,7 @@ unsafe fn extract_file_and_line(
         Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
             let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
-            let file = if bytes.len() < STR_LEN_LIMIT {
+            let file = if bytes.len() <= MAX_STR_LEN {
                 Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
             } else {
                 COW_LARGE_STRING
@@ -589,27 +592,14 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_function_name_at_limit_minus_one() {
+    fn test_extract_function_name_at_limit() {
         unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT - 1);
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(MAX_STR_LEN);
             assert!(!func.is_null());
 
             let name = extract_function_name(&*func).expect("should extract name");
-            assert_eq!(name.len(), STR_LEN_LIMIT - 1);
+            assert_eq!(name.len(), MAX_STR_LEN);
             assert_ne!(name, COW_LARGE_STRING);
-
-            ddog_php_test_free_fake_zend_function(func);
-        }
-    }
-
-    #[test]
-    fn test_extract_function_name_at_limit() {
-        unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT);
-            assert!(!func.is_null());
-
-            let name = extract_function_name(&*func).expect("should return large string marker");
-            assert_eq!(name, COW_LARGE_STRING);
 
             ddog_php_test_free_fake_zend_function(func);
         }
@@ -618,7 +608,7 @@ mod tests {
     #[test]
     fn test_extract_function_name_over_limit() {
         unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT + 1000);
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(MAX_STR_LEN + 1);
             assert!(!func.is_null());
 
             let name = extract_function_name(&*func).expect("should return large string marker");
