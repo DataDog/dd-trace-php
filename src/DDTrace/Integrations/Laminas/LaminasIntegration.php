@@ -275,6 +275,14 @@ class LaminasIntegration extends Integration
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
 
+                // http.route: developer-defined template (e.g. /dynamic_route[/:param01[/static[/:param02]]])
+                // Use LaminasIntegration:: not self:: — non-static hook closure is bound to the route object;
+                // ddtrace resolves self to the instrumented class (e.g. TreeRouteStack).
+                $routeTemplate = LaminasIntegration::httpRouteTemplateFromMatchedRoute($this, $routeMatch);
+                if ($routeTemplate !== null) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $routeTemplate;
+                }
+
                 // Push path params to appsec
                 if (function_exists('\datadog\appsec\push_addresses')) {
                     $params = $routeMatch->getParams();
@@ -872,6 +880,140 @@ class LaminasIntegration extends Integration
         }
 
         return $metadata;
+    }
+
+    /**
+     * Developer-defined route path for {@see Tag::HTTP_ROUTE}. Laminas requests do not carry this;
+     * MVC resolves on {@see \Laminas\Router\Http\TreeRouteStack} so {@code $this} is often the stack,
+     * not {@see \Laminas\Router\Http\Segment}.
+     *
+     * Must be public (not private): the {@code match()} hook closure runs with ddtrace caller scope
+     * {@see \Laminas\Router\Http\TreeRouteStack}, so private methods are not callable from there.
+     *
+     * @internal
+     * @param object          $matchedRoute $this from {@see \Laminas\Router\RouteInterface::match()}
+     * @param RouteMatch|null $routeMatch   return value of {@code match()} (needed for the route stack)
+     * @return string|null
+     */
+    public static function httpRouteTemplateFromMatchedRoute($matchedRoute, $routeMatch = null)
+    {
+        if ($matchedRoute instanceof \Laminas\Router\Http\Literal) {
+            $rp = new \ReflectionProperty($matchedRoute, 'route');
+            $rp->setAccessible(true);
+
+            return (string) $rp->getValue($matchedRoute);
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Segment) {
+            $rp = new \ReflectionProperty($matchedRoute, 'parts');
+            $rp->setAccessible(true);
+            $parts = $rp->getValue($matchedRoute);
+
+            return \is_array($parts) ? self::laminasSegmentPartsToRouteTemplate($parts) : null;
+        }
+
+        if (
+            $matchedRoute instanceof \Laminas\Router\Http\TreeRouteStack
+            && $routeMatch instanceof RouteMatch
+        ) {
+            $matchedName = $routeMatch->getMatchedRouteName();
+            if ($matchedName === null || $matchedName === '') {
+                return null;
+            }
+
+            return self::httpRouteTemplateFromNamedRouteStack($matchedRoute, (string) $matchedName);
+        }
+
+        return null;
+    }
+
+    /**
+     * @internal
+     * @param \Laminas\Router\Http\TreeRouteStack $stack
+     */
+    public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
+    {
+        $segments = \explode('/', $matchedName, 2);
+        $route = $stack->getRoute($segments[0]);
+        if ($route === null) {
+            return null;
+        }
+
+        $hasChild = isset($segments[1]);
+
+        if ($route instanceof \Laminas\Router\Http\Part) {
+            $base = self::partRouteBaseTemplate($route);
+            $base = $base ?? '';
+            if (!$hasChild) {
+                return $base !== '' ? $base : null;
+            }
+            $child = self::httpRouteTemplateFromNamedRouteStack($route, $segments[1]);
+            if ($child === null) {
+                return $base !== '' ? $base : null;
+            }
+
+            return $base . $child;
+        }
+
+        if ($route instanceof \Laminas\Router\Http\TreeRouteStack && $hasChild) {
+            return self::httpRouteTemplateFromNamedRouteStack($route, $segments[1]);
+        }
+
+        if ($hasChild) {
+            return self::httpRouteTemplateFromMatchedRoute($route, null);
+        }
+
+        return self::httpRouteTemplateFromMatchedRoute($route, null);
+    }
+
+    /**
+     * Path template for the non-child segment of a {@see \Laminas\Router\Http\Part} route.
+     *
+     * @internal
+     */
+    public static function partRouteBaseTemplate(\Laminas\Router\Http\Part $part): ?string
+    {
+        $rp = new \ReflectionProperty($part, 'route');
+        $rp->setAccessible(true);
+        $baseRoute = $rp->getValue($part);
+
+        return self::httpRouteTemplateFromMatchedRoute($baseRoute, null);
+    }
+
+    /**
+     * Rebuilds the route string from {@see \Laminas\Router\Http\Segment} parsed parts (inverse of parseRouteDefinition).
+     *
+     * @internal
+     * @param array<int, array> $parts
+     */
+    public static function laminasSegmentPartsToRouteTemplate(array $parts): string
+    {
+        $buf = '';
+        foreach ($parts as $part) {
+            if (!\is_array($part) || !isset($part[0])) {
+                continue;
+            }
+            switch ($part[0]) {
+                case 'literal':
+                    $buf .= $part[1] ?? '';
+                    break;
+                case 'parameter':
+                    $buf .= ':';
+                    $buf .= $part[1] ?? '';
+                    if (isset($part[2]) && $part[2] !== null && $part[2] !== '') {
+                        $buf .= '{' . $part[2] . '}';
+                    }
+                    break;
+                case 'optional':
+                    $buf .= '[' . self::laminasSegmentPartsToRouteTemplate($part[1] ?? []) . ']';
+                    break;
+                case 'translated-literal':
+                    $buf .= '{' . ($part[1] ?? '') . '}';
+                    break;
+            }
+        }
+
+        return $buf;
     }
 
     public static function debugBacktraceToString(array $backtrace)
