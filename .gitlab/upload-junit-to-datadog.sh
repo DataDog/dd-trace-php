@@ -103,7 +103,7 @@ if ! command -v vault &> /dev/null; then
   fi
 
   echo "Extracting Vault..."
-  if ! unzip -q "${vault_zip}" -d /tmp; then
+  if ! unzip -o -q "${vault_zip}" -d /tmp; then
     echo "Warning: Failed to extract Vault. Skipping JUnit upload." >&2
     exit 0
   fi
@@ -142,9 +142,10 @@ export DATADOG_API_KEY
 # Determine which datadog-ci method to use
 datadog_ci_cmd=""
 
-# Prefer npm/npx if available
-if command -v npx &> /dev/null || command -v npm &> /dev/null; then
-  echo "Using npx to run datadog-ci"
+# Prefer npm/npx if available and node version is recent enough (>=16)
+node_version="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
+if [ -n "$node_version" ] && [ "$node_version" -ge 16 ] 2>/dev/null && { command -v npx &> /dev/null || command -v npm &> /dev/null; }; then
+  echo "Using npx to run datadog-ci (node v${node_version})"
   datadog_ci_cmd="npx --yes @datadog/datadog-ci"
 else
   # Fall back to standalone binary if npm/npx not available
@@ -222,8 +223,8 @@ echo "Current directory: $(pwd)"
 echo "Running command: ${datadog_ci_cmd} junit upload --service \"${DD_SERVICE}\" --max-concurrency 20 --verbose --tags git.repository_url:https://github.com/DataDog/dd-trace-php ${tags_args} ${xpath_tags_args} ${files_array[*]}"
 
 if ! ${datadog_ci_cmd} junit upload --service "${DD_SERVICE}" --max-concurrency 20 --verbose --tags "git.repository_url:https://github.com/DataDog/dd-trace-php" ${tags_args} ${xpath_tags_args} "${files_array[@]}"; then
-  echo "Warning: Failed to upload JUnit files" >&2
-  exit 0
+  echo "Error: Failed to upload JUnit files" >&2
+  exit 1
 fi
 
 echo "=== JUnit upload completed ==="
