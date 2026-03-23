@@ -1,5 +1,5 @@
 {
     "require": {
-        "monolog/monolog": "3.9.0"
+        "monolog/monolog": "3.10.0"
     }
 }
