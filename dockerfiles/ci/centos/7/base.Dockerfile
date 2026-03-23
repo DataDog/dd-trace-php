@@ -15,6 +15,7 @@ RUN set -eux; \
         gcc \
         gcc-c++ \
         git \
+        help2man \
         libcurl-devel \
         libedit-devel \
         make \
@@ -51,6 +52,22 @@ RUN source scl_source enable devtoolset-7; set -eux; \
 RUN set -eux; \
     /root/download-src.sh autoconf https://mirrors.kernel.org/gnu/autoconf/autoconf-2.69.tar.gz; \
     cd "${SRC_DIR}/autoconf"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure && make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+# Automake required
+RUN set -eux; \
+    /root/download-src.sh automake https://mirrors.kernel.org/gnu/automake/automake-1.13.4.tar.gz; \
+    cd "${SRC_DIR}/automake"; \
+    mkdir -v 'build' && cd 'build'; \
+    ../configure && make -j $(nproc) && make install; \
+    cd - && rm -fr build
+
+# Libtool required
+RUN set -eux; \
+    /root/download-src.sh libtool https://mirrors.kernel.org/gnu/libtool/libtool-2.5.4.tar.gz; \
+    cd "${SRC_DIR}/libtool"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
     cd - && rm -fr build
@@ -277,7 +294,7 @@ RUN set -eux; \
     zlib-devel; \
     yum clean all;
 
-RUN printf "source scl_source enable devtoolset-7" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
+RUN printf "source scl_source enable devtoolset-7\n" | tee -a /etc/profile.d/zzz-ddtrace.sh /etc/bashrc
 ENV BASH_ENV="/etc/profile.d/zzz-ddtrace.sh"
 
 ENV PATH="/rust/cargo/bin:${PATH}"

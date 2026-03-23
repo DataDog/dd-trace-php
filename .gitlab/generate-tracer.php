@@ -23,7 +23,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
-    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src/"
 <?php
 }
 
@@ -122,28 +122,7 @@ stages:
     GIT_STRATEGY: none
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
-    # Agressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
-    Write-Host "Cleanup complete."
-
-    # Make sure we actually fail if a command fails
-    $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
-
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
-    git config --global core.longpaths true
-    git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
-    git checkout $env:CI_COMMIT_SHA
-
-    # Initialize submodules
-    Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
-    Write-Host "Git setup complete."
+<?php windows_git_setup() ?>
 
     mkdir dumps
 
@@ -161,17 +140,17 @@ stages:
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
-    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED 0"
 
     # Run extension tests
     docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
-
-    # Try to stop the container, don't care if we fail
-    try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
         exit 0
+    - |
+        # Try to stop the container, don't care if we fail
+        try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
     - 'powershell -NoProfile -Command "try { docker logs request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker logs httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker stop -t 15 request-replayer } catch {}"'
@@ -581,6 +560,9 @@ foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
+            if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
+                $sapis[] = "fpm-fcgi";
+            }
             foreach ($sapis as $sapi):
 ?>
 "<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":

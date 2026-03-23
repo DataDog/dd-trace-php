@@ -65,4 +65,4 @@ x-mas: tree
 x-my-custom-header: foo
 
 Done.
-[ddtrace] [info] Flushing trace of size 3 to send-queue for %s
+[ddtrace] [info] [%d] Flushing trace of size 3 to send-queue for %s

@@ -51,4 +51,6 @@ report_hostname_on_root_span: false
 traced_internal_functions: null
 enabled_from_env: true
 opcache.file_cache: null
+dynamic_instrumentation_enabled: false
+exception_replay_enabled: false
 loaded_by_ssi: false

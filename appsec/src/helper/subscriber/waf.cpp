@@ -541,9 +541,10 @@ instance::listener::~listener()
     }
 }
 
-void instance::listener::call(
-    dds::parameter_view &data, event &event, const std::string &rasp_rule)
+void instance::listener::call(dds::parameter_view &data, event &event,
+    const network::request_exec_options &options)
 {
+    const auto &rasp_rule = options.rasp_rule.value_or("");
     ddwaf_object res;
     DDWAF_RET_CODE code;
     unsigned duration = 0;

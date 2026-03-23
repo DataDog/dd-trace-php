@@ -13,6 +13,6 @@ if (!extension_loaded('Xdebug') || version_compare(phpversion('Xdebug'), '2.9.5'
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-[ddtrace] [warning] Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater
-[ddtrace] [warning] Found incompatible extension(s); ignoring since 'datadog.inject_force' is enabled
+[ddtrace] [warning] [%d] Found incompatible Xdebug version %s; ddtrace requires Xdebug 2.9.5 or greater
+[ddtrace] [warning] [%d] Found incompatible extension(s); ignoring since 'datadog.inject_force' is enabled
 Done.

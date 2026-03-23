@@ -18,6 +18,7 @@ class FailOnUnmatchedTracesExtension implements AfterEachCallback {
                    throw new RuntimeException(
                            '@FailOnUnmatchedTraces can only be applied to AppSecContainer fields')
                }
+
                if (context.executionException.present) {
                    container.clearTraces()
                } else {

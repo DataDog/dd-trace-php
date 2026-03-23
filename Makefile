@@ -33,7 +33,7 @@ RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
-ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000
+ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
 
 VERSION := $(shell cat VERSION)
 
@@ -48,7 +48,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJ
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ffe,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ffe,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-libunwind-sys,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*/libunwind*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -113,7 +113,14 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 
-$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
+# ensure list of rust files is up to date
+$(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
+	$(Q) printf '%s\n' $(RUST_FILES) | sort > $(BUILD_DIR)/.rust_files_list.tmp
+	$(Q) cmp -s $(BUILD_DIR)/.rust_files_list $(BUILD_DIR)/.rust_files_list.tmp 2>/dev/null \
+		&& rm -f $(BUILD_DIR)/.rust_files_list.tmp \
+		|| mv $(BUILD_DIR)/.rust_files_list.tmp $(BUILD_DIR)/.rust_files_list
+
+$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure $(BUILD_DIR)/.rust_files_list
 	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
@@ -500,7 +507,9 @@ $(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
 		$(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
-	echo $(subst $(BUILD_DIR)/,,$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock) | tooling/bin/pecl-build
+	$(file >.pecl-files,$(subst $(BUILD_DIR)/,,$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock))
+	tooling/bin/pecl-build < .pecl-files
+	@rm -f .pecl-files
 
 dbgsym.tar.gz: $(PACKAGES_BUILD_DIR)
 	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_x86_64_debugsymbols --owner=0 --group=0)

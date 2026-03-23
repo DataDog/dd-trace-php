@@ -9,10 +9,12 @@ RUN set -eux; \
     apk add --no-cache \
         bash \
         autoconf \
+        automake \
         catch2 \
         coreutils \
         g++ \
         gcc \
+        libtool \
         make \
         cmake \
         build-base \

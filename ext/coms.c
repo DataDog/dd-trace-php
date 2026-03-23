@@ -1500,6 +1500,11 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
 
 bool ddtrace_coms_synchronous_flush(uint32_t timeout) {
     struct _writer_loop_data_t *writer = _dd_get_writer();
+
+    if (!writer->thread) {
+        return false;
+    }
+
     uint32_t previous_writer_cycle = atomic_load(&writer->writer_cycle);
     uint32_t previous_processed_stacks_total = atomic_load(&writer->flush_processed_stacks_total);
     int64_t old_flush_interval = atomic_load(&writer->flush_interval);
