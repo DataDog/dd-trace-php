@@ -46,6 +46,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
+  AC_CHECK_HEADERS([valgrind/valgrind.h])
 
   dnl
   m4_ifndef([_LT_CHECK_OBJDIR], AC_LIBTOOL_OBJDIR, _LT_CHECK_OBJDIR)
