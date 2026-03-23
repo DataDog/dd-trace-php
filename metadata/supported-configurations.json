@@ -2188,6 +2188,20 @@
         "default": "5000"
       }
     ],
+    "DD_TRACE_SIDECAR_BACKPRESSURE_BYTES": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "4194304"
+      }
+    ],
+    "DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
     "DD_TRACE_SIDECAR_CONNECTION_MODE": [
       {
         "implementation": "A",

@@ -34,5 +34,5 @@ try {
 ?>
 --EXPECTF--
 Caught exception: Oops!
-[ddtrace] [info] Flushing trace of size 2 to send-queue for %s
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

@@ -18,9 +18,9 @@ shutdown_and_flush();
 
 echo 'Done.' . PHP_EOL;
 ?>
---EXPECT--
+--EXPECTF--
 array(0) {
 }
-[ddtrace] [error] Cannot run tracing closure for shutdown_and_flush(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
+[ddtrace] [error] [%d] Cannot run tracing closure for shutdown_and_flush(); spans out of sync; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 Done.
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

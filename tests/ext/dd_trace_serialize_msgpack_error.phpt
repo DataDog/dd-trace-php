@@ -14,7 +14,7 @@ array_map(function ($data) {
 ]);
 ?>
 --EXPECTF--
-[ddtrace] [warning] Serialize values must be of type array, string, int, float, bool or null
+[ddtrace] [warning] [%d] Serialize values must be of type array, string, int, float, bool or null
 array(1) {
   [0]=>
   object(stdClass)#%d (0) {
@@ -22,7 +22,7 @@ array(1) {
 }
 bool(false)
 
-[ddtrace] [warning] Serialize values must be of type array, string, int, float, bool or null
+[ddtrace] [warning] [%d] Serialize values must be of type array, string, int, float, bool or null
 array(2) {
   [0]=>
   string(3) "bar"
@@ -31,4 +31,4 @@ array(2) {
 }
 bool(false)
 
-[ddtrace] [info] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s

@@ -17,6 +17,6 @@ shutdown_and_flush();
 
 echo 'Done.' . PHP_EOL;
 ?>
---EXPECT--
+--EXPECTF--
 Done.
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent
