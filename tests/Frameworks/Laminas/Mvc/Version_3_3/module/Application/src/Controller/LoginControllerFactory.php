@@ -6,8 +6,8 @@ namespace Application\Controller;
 
 use Laminas\Authentication\AuthenticationService;
 use Laminas\Db\Adapter\Adapter;
+use Interop\Container\ContainerInterface;
 use Laminas\ServiceManager\Factory\FactoryInterface;
-use Psr\Container\ContainerInterface;
 
 class LoginControllerFactory implements FactoryInterface
 {
