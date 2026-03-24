@@ -1,6 +1,7 @@
 #include "../compat_string.h"
 #include "priority_sampling.h"
 
+#include <math.h>
 #include <vendor/mt19937/mt19937-64.h>
 
 #include <uri_normalization/uri_normalization.h>
@@ -65,8 +66,20 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
 static void dd_update_knuth_sampling_rate_tag(ddtrace_root_span_data *root_span, double sample_rate) {
     zend_array *meta = ddtrace_property_array(&root_span->property_meta);
 
+    // Round to 6 decimal places at integer level to avoid IEEE 754 precision issues,
+    // then format with fixed-point notation (never scientific notation).
+    double rounded = floor(sample_rate * 1e6 + 0.5) / 1e6;
     char buf[32];
-    snprintf(buf, sizeof(buf), "%.6g", sample_rate);
+    snprintf(buf, sizeof(buf), "%.6f", rounded);
+
+    // Strip trailing zeros and optional decimal point
+    size_t len = strlen(buf);
+    while (len > 1 && buf[len - 1] == '0') {
+        buf[--len] = '\0';
+    }
+    if (len > 1 && buf[len - 1] == '.') {
+        buf[--len] = '\0';
+    }
 
     // Skip update if already set to the same value
     zval *existing = zend_hash_str_find(meta, ZEND_STRL("_dd.p.ksr"));

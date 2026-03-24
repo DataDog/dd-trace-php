@@ -1,5 +1,5 @@
 --TEST--
-_dd.p.ksr propagated tag formats rate with up to 6 significant digits and no trailing zeros
+_dd.p.ksr propagated tag formats rate with up to 6 decimal digits and no trailing zeros
 --ENV--
 DD_TRACE_SAMPLING_RULES=[{"sample_rate": 0.7654321}]
 DD_TRACE_GENERATE_ROOT_SPAN=1
