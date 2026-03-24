@@ -4,14 +4,14 @@ extern "C" {
 #include "tea/extension.h"
 }
 
-#include <atomic>
+#include <mutex>
 
-std::atomic<int> ext_first_rinit;
+static std::once_flag ext_first_rinit_once;
 static ext_zai_config_minit_fn ext_orig_minit;
 void (*ext_zai_config_pre_rinit)();
 
 static PHP_MINIT_FUNCTION(zai_config) {
-    atomic_init(&ext_first_rinit, 1);
+    new (&ext_first_rinit_once) std::once_flag{};
     return ext_orig_minit(INIT_FUNC_ARGS_PASSTHRU);
 }
 
@@ -44,10 +44,7 @@ static PHP_RINIT_FUNCTION(zai_config) {
             ext_zai_config_pre_rinit();
         }
 
-        int expected_first_rinit = 1;
-        if (atomic_compare_exchange_strong(&ext_first_rinit, &expected_first_rinit, 0)) {
-            zai_config_first_time_rinit(true);
-        }
+        std::call_once(ext_first_rinit_once, zai_config_first_time_rinit, true);
 
         zai_config_rinit();
     } zend_catch {

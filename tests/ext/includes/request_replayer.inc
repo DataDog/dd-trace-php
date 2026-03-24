@@ -72,6 +72,26 @@ class RequestReplayer
         } while (true);
     }
 
+    public function waitForRcRequest($matcher)
+    {
+        $i = 0;
+        do {
+            if ($i++ == $this->maxIteration) {
+                throw new Exception("wait for replay timeout");
+            }
+            usleep($this->flushInterval);
+
+            $requests = $this->replayAllRcRequests();
+            if (is_array($requests)) {
+                foreach ($requests as $request) {
+                    if ($matcher($request)) {
+                        return $request;
+                    }
+                }
+            }
+        } while (true);
+    }
+
     public function waitForDataAndReplay($ignoreTelemetry = true)
     {
         $i = 0;
@@ -98,6 +118,15 @@ class RequestReplayer
     public function replayAllRequests()
     {
         return json_decode(file_get_contents($this->endpoint . '/replay', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ])), true);
+    }
+
+    public function replayAllRcRequests()
+    {
+        return json_decode(file_get_contents($this->endpoint . '/replay-rc-requests', false, stream_context_create([
             "http" => [
                 "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
             ],

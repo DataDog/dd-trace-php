@@ -71,7 +71,7 @@ foreach ($responses as $key => $response) {
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-[ddtrace] [warning] Error loading deferred integration DDTrace\Integrations\Filesystem\FilesystemIntegration: Class not loaded and not autoloadable
+[ddtrace] [warning] [%d] Error loading deferred integration DDTrace\Integrations\Filesystem\FilesystemIntegration: Class not loaded and not autoloadable
 Response #0
 traceparent: %s
 tracestate: %s
@@ -93,4 +93,4 @@ x-datadog-trace-id: %d
 x-foo: two
 
 Done.
-[ddtrace] [info] Flushing trace of size 5 to send-queue for %s
+[ddtrace] [info] [%d] Flushing trace of size 5 to send-queue for %s

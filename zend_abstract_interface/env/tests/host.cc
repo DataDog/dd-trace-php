@@ -11,11 +11,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "non-empty string", {
 },{
     REQUIRE_SETENV("FOO", "bar");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
+    REQUIRE(zai_option_str_is_some(zai_sys_getenv(ZAI_STRL("FOO"))));
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
@@ -23,11 +19,9 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "empty string", {
 },{
     REQUIRE_SETENV("FOO", "");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("", buf);
+    zai_option_str result = zai_sys_getenv(ZAI_STRL("FOO"));
+    REQUIRE(zai_option_str_is_some(result));
+    REQUIRE(result.len == 0);
 })
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/host", "not set", {
@@ -35,47 +29,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/host", "not set", {
 },{
     REQUIRE_UNSETENV("FOO");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE_BUF_EQ("", buf);
-})
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/host", "max buffer size", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_SETENV("FOO", "bar");
-
-    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
-})
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too small", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_SETENV("FOO", "bar");
-
-    ZAI_ENV_BUFFER_INIT(buf, 3);  // No room for null terminator
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_BUFFER_TOO_SMALL);
-    REQUIRE_BUF_EQ("", buf);
-})
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/host", "buffer too big", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_SETENV("FOO", "bar");
-
-    ZAI_ENV_BUFFER_INIT(buf, ZAI_ENV_MAX_BUFSIZ + 1);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_BUFFER_TOO_BIG);
-    REQUIRE_BUF_EQ("", buf);
+    REQUIRE(zai_option_str_is_none(zai_sys_getenv(ZAI_STRL("FOO"))));
 })
 
 TEA_TEST_CASE_BARE("env/host", "outside request context", {
@@ -85,11 +39,8 @@ TEA_TEST_CASE_BARE("env/host", "outside request context", {
 
     REQUIRE_SETENV("FOO", "bar");
 
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_NOT_READY);
-    REQUIRE_BUF_EQ("", buf);
+    // zai_sys_getenv works outside request context (no readiness check)
+    REQUIRE(zai_option_str_is_some(zai_sys_getenv(ZAI_STRL("FOO"))));
 
     TEA_TEST_CASE_WITHOUT_BAILOUT_END()
     tea_sapi_mshutdown();

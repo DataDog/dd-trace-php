@@ -14,8 +14,8 @@ class_exists('DDTrace\OpenBaseDir');
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-[ddtrace] [warning] Error raised in autoloaded file %s_files_api.php: %s(): Failed opening '%s_files_api.php' for inclusion %s on line %d
-[ddtrace] [warning] Error raised in autoloaded file %s_files_tracer.php: %s(): Failed opening '%s_files_tracer.php' for inclusion %s on line %d
-[ddtrace] [warning] Error raised in autoloaded file %sDDTrace/OpenBaseDir.php: %s(): Failed opening '%sDDTrace/OpenBaseDir.php' for inclusion %s on line %d
+[ddtrace] [warning] [%d] Error raised in autoloaded file %s_files_api.php: %s(): Failed opening '%s_files_api.php' for inclusion %s on line %d
+[ddtrace] [warning] [%d] Error raised in autoloaded file %s_files_tracer.php: %s(): Failed opening '%s_files_tracer.php' for inclusion %s on line %d
+[ddtrace] [warning] [%d] Error raised in autoloaded file %sDDTrace/OpenBaseDir.php: %s(): Failed opening '%sDDTrace/OpenBaseDir.php' for inclusion %s on line %d
 Done.
-[ddtrace] [info] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s

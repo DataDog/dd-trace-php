@@ -12,19 +12,16 @@ extern "C" {
 #define TEA_SAPI_GETENV_FUNCTION(fn) static char *fn(char *name, size_t name_len)
 #endif
 
-static char zai_str_buf[64];
-
-// Returns the name of the env var as the value
+// Returns the name of the env var as the value (emalloc'd so efree inside zai_sapi_getenv works)
 TEA_SAPI_GETENV_FUNCTION(tea_sapi_getenv_non_empty) {
-    strcpy(zai_str_buf, name);
-    return zai_str_buf;
+    return estrdup(name);
 }
 
 TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "non-empty string", {
     tea_sapi_module.getenv = tea_sapi_getenv_non_empty;
 },{
     ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_env_result res = zai_sapi_getenv(ZAI_STRL("FOO"), &buf);
 
     REQUIRE(res == ZAI_ENV_SUCCESS);
     REQUIRE_BUF_EQ("FOO", buf);
@@ -36,7 +33,7 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "non-empty string (no host env fallback)
     REQUIRE_SETENV("FOO", "bar");
 
     ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_env_result res = zai_sapi_getenv(ZAI_STRL("FOO"), &buf);
 
     REQUIRE(res == ZAI_ENV_SUCCESS);
     REQUIRE_BUF_EQ("FOO", buf);
@@ -44,27 +41,41 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "non-empty string (no host env fallback)
 
 TEA_SAPI_GETENV_FUNCTION(tea_sapi_getenv_null) { return NULL; }
 
+TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "fallback to host env when sapi not set", {
+    tea_sapi_module.getenv = tea_sapi_getenv_null;
+    REQUIRE_SETENV("FOO", "bar");
+},{
+    ZAI_ENV_BUFFER_INIT(buf, 64);
+
+    zai_env_result res = zai_sapi_getenv(ZAI_STRL("FOO"), &buf);
+    REQUIRE(res == ZAI_ENV_NOT_SET);
+
+    zai_option_str sys = zai_sys_getenv(ZAI_STRL("FOO"));
+    REQUIRE(zai_option_str_is_some(sys));
+    REQUIRE(sys.len == strlen("bar"));
+    REQUIRE(0 == memcmp(sys.ptr, "bar", sys.len));
+})
+
 TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set", {
     tea_sapi_module.getenv = tea_sapi_getenv_null;
 },{
     REQUIRE_UNSETENV("FOO");
     ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_env_result res = zai_sapi_getenv(ZAI_STRL("FOO"), &buf);
 
     REQUIRE(res == ZAI_ENV_NOT_SET);
-    REQUIRE_BUF_EQ("", buf);
 })
 
-TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set (with host env fallback)", {
+TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "not set (sapi returns null regardless of host env)", {
     tea_sapi_module.getenv = tea_sapi_getenv_null;
 },{
     REQUIRE_SETENV("FOO", "bar");
 
     ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("FOO", buf);
+    zai_env_result res = zai_sapi_getenv(ZAI_STRL("FOO"), &buf);
 
-    REQUIRE(res == ZAI_ENV_SUCCESS);
-    REQUIRE_BUF_EQ("bar", buf);
+    // zai_sapi_getenv only consults SAPI, not host env
+    REQUIRE(res == ZAI_ENV_NOT_SET);
 })
 
 /****************************** Access from RINIT *****************************/
@@ -81,7 +92,7 @@ static PHP_RINIT_FUNCTION(zai_env) {
 
     zend_try {
         zai_env_buffer buf = {sizeof zai_rinit_str_buf, zai_rinit_str_buf};
-        zai_rinit_last_res = zai_getenv_literal("FROM_RINIT", buf);
+        zai_rinit_last_res = zai_sapi_getenv(ZAI_STRL("FROM_RINIT"), &buf);
     } zend_catch {
         result = FAILURE;
     } zend_end_try();
@@ -98,17 +109,4 @@ TEA_TEST_CASE_WITH_PROLOGUE("env/sapi", "rinit non-empty string", {
 },{
     REQUIRE(zai_rinit_last_res == ZAI_ENV_SUCCESS);
     REQUIRE(0 == strcmp("FROM_RINIT", zai_rinit_str_buf));
-})
-
-TEA_TEST_CASE_WITH_TAGS_WITH_PROLOGUE("env/host", "rinit non-empty string", "[adopted][env/sapi]", {
-    tea_sapi_module.getenv = NULL;
-
-    zai_rinit_last_res = ZAI_ENV_ERROR;
-    zai_rinit_str_buf[0] = '\0';
-    tea_extension_rinit(PHP_RINIT(zai_env));
-
-    REQUIRE_SETENV("FROM_RINIT", "bar");
-},{
-    REQUIRE(zai_rinit_last_res == ZAI_ENV_SUCCESS);
-    REQUIRE(0 == strcmp("bar", zai_rinit_str_buf));
 })

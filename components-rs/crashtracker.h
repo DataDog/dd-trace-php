@@ -132,6 +132,45 @@ struct ddog_VoidResult ddog_crasht_init_without_receiver(struct ddog_crasht_Conf
 struct ddog_crasht_Slice_CInt ddog_crasht_default_signals(void);
 
 /**
+ * Report an unhandled exception as a crash event.
+ *
+ * This function sends a crash report for an unhandled exception detected
+ * by the runtime. It is intended to be called when the process is in a
+ * terminal state due to an unhandled exception.
+ *
+ * # Parameters
+ * - `error_type`: Optional type/class of the exception (e.g. "NullPointerException"). Pass empty
+ *   CharSlice for unknown.
+ * - `error_message`: Optional error message. Pass empty CharSlice for no message.
+ * - `runtime_stack`: Stack trace from the runtime. Consumed by this call.
+ *
+ * If the crash-tracker has not been initialized, this function is a no-op.
+ *
+ * # Side effects
+ *   This function disables the signal-based crash handler before performing
+ *   any work. This means that if the process receives a fatal signal (SIGSEGV)
+ *   during or after this call, the crashtracker will not produce a
+ *   second crash report. The previous signal handler (if any) will still be
+ *   chained.
+ *
+ * # Failure mode
+ *   If a fatal signal occurs while this function is in progress, the calling
+ *   process is in an unrecoverable state; the crashtracker cannot report the
+ *   secondary fault and the caller's own signal handler (if any) will execute
+ *   in a potentially corrupted context. Callers should treat this function as a
+ *   terminal operation and exit shortly after it returns.
+ *
+ * # Safety
+ *   Crash-tracking functions are not reentrant.
+ *   No other crash-handler functions should be called concurrently.
+ *   The `runtime_stack` handle must be valid and will be consumed.
+ */
+DDOG_CHECK_RETURN
+struct ddog_VoidResult ddog_crasht_report_unhandled_exception(ddog_CharSlice error_type,
+                                                              ddog_CharSlice error_message,
+                                                              struct ddog_crasht_Handle_StackTrace *runtime_stack);
+
+/**
  * Removes all existing additional tags
  * Expected to be used after a fork, to reset the additional tags on the child
  * ATOMICITY:
@@ -661,7 +700,12 @@ struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_with_thread_name(struct ddog
  * The `builder` can be null, but if non-null it must point to a Builder made by this module,
  * which has not previously been dropped.
  * All arguments must be valid.
- * This method requires that the builder has a UUID and metadata set
+ * This method requires that the builder has `metadata` and `kind` set
+ * Applications can add `message` or `sig_info` to the builder to provide additional context.
+ * If set, the data will be used to derive the crash ping message in the order of
+ * - an explicit message set with `with_message`
+ * - sig_info set with `with_sig_info`
+ * - kind set with `with_kind`
  */
 DDOG_CHECK_RETURN
 struct ddog_VoidResult ddog_crasht_CrashInfoBuilder_upload_ping_to_endpoint(struct ddog_crasht_Handle_CrashInfoBuilder *builder,

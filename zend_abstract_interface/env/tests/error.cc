@@ -6,39 +6,6 @@ extern "C" {
 
 #include "zai_tests_common.hpp"
 
-TEA_TEST_CASE_WITH_PROLOGUE("env/error", "zero name len", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_UNSETENV("FOO");
-
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    zai_env_result res = zai_getenv_literal("", buf);
-
-    REQUIRE(res == ZAI_ENV_ERROR);
-    REQUIRE_BUF_EQ("", buf);
+TEA_TEST_CASE_WITH_PROLOGUE("env/error", "zero name len (sys)", {}, {
+    REQUIRE(zai_option_str_is_none(zai_sys_getenv(ZAI_STRL(""))));
 })
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/error", "NULL buffer", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_UNSETENV("FOO");
-
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    buf.ptr = NULL;
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_ERROR);
-})
-
-TEA_TEST_CASE_WITH_PROLOGUE("env/error", "zero buffer size", {
-    REQUIRE(tea_sapi_module.getenv == NULL);
-},{
-    REQUIRE_UNSETENV("FOO");
-
-    ZAI_ENV_BUFFER_INIT(buf, 64);
-    buf.len = 0;
-    zai_env_result res = zai_getenv_literal("FOO", buf);
-
-    REQUIRE(res == ZAI_ENV_ERROR);
-})
-

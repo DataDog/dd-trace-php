@@ -25,34 +25,34 @@ var_dump(DDTrace\close_spans_until(null));
 var_dump(DDTrace\close_spans_until(null));
 ?>
 --EXPECTF--
-[ddtrace] [span] Creating new root SpanStack: %d, parent_stack: 0
-[ddtrace] [span] Creating new root SpanStack: %d, parent_stack: %d
-[ddtrace] [span] Switching to different SpanStack: %d
-[ddtrace] [span] Starting new root span: trace_id=%s, span_id=%d, parent_id=0, SpanStack=%d, parent_SpanStack=%d
-[ddtrace] [span] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
-[ddtrace] [span] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
-[ddtrace] [span] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Creating new root SpanStack: %d, parent_stack: 0
+[ddtrace] [span] [%d] Creating new root SpanStack: %d, parent_stack: %d
+[ddtrace] [span] [%d] Switching to different SpanStack: %d
+[ddtrace] [span] [%d] Starting new root span: trace_id=%s, span_id=%d, parent_id=0, SpanStack=%d, parent_SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
 bool(false)
-[ddtrace] [span] Closing span: trace_id=%s, span_id=%d
-[ddtrace] [span] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
 int(2)
-[ddtrace] [span] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
-[ddtrace] [span] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
-[ddtrace] [span] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
-[ddtrace] [span] Closing span: trace_id=%s, span_id=%d
-[ddtrace] [span] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Starting new span: trace_id=%s, span_id=%d, parent_id=%d, SpanStack=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
 int(2)
-[ddtrace] [span] Closing span: trace_id=%s, span_id=%d
-[ddtrace] [span] Closing span: trace_id=%s, span_id=%d
-[ddtrace] [span] Closing root span: trace_id=%s, span_id=%d
-[ddtrace] [span] Switching to different SpanStack: %d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Closing root span: trace_id=%s, span_id=%d
+[ddtrace] [span] [%d] Switching to different SpanStack: %d
 int(1)
 int(0)
-[ddtrace] [span] Encoding span: Span { service: close_spans_until.php, name: close_spans_until.php, resource: close_spans_until.php, type: cli, trace_id: %d, span_id: %d, parent_id: 0, start: %d, duration: %d, error: 0, meta: %s, metrics: %s, meta_struct: {}, span_links: [], span_events: [] }
-[ddtrace] [span] Encoding span: Span { service: close_spans_until.php, name: traced, resource: traced, type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
-[ddtrace] [span] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
-[ddtrace] [span] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
-[ddtrace] [span] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
-[ddtrace] [span] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
-[ddtrace] [span] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
-[ddtrace] [info] Flushing trace of size 7 to send-queue for %s
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: close_spans_until.php, resource: close_spans_until.php, type: cli, trace_id: %d, span_id: %d, parent_id: 0, start: %d, duration: %d, error: 0, meta: %s, metrics: %s, meta_struct: {}, span_links: [], span_events: [] }
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: traced, resource: traced, type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
+[ddtrace] [span] [%d] Encoding span: Span { service: close_spans_until.php, name: , resource: , type: cli, trace_id: %d, span_id: %d, parent_id: %d, start: %d, duration: %d, error: %d, meta: %s, metrics: %s, meta_struct: %s, span_links: %s, span_events: %s }
+[ddtrace] [info] [%d] Flushing trace of size 7 to send-queue for %s

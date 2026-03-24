@@ -4,13 +4,13 @@ require_once __DIR__.'/assert.php';
 
 set_exception_handler(function ($ex) {
     $trace = $ex->getTrace();
-    $file = $trace[0]['file'] ?: '';
-    $line = $trace[0]['line'] ?: '';
+    $file = isset($trace[0]['file']) ? $trace[0]['file'] : '';
+    $line = isset($trace[0]['line']) ? $trace[0]['line'] : '';
     $stackTrace = basename($file).':'.$line;
 
     if (basename($file) === 'assert.php') {
-        $file2 = $trace[1]['file'] ?: '';
-        $line2 = $trace[1]['line'] ?: '';
+        $file2 = isset($trace[1]['file']) ? $trace[1]['file'] : '';
+        $line2 = isset($trace[1]['line']) ? $trace[1]['line'] : '';
         $stackTrace = basename($file2).':'.$line2.' > '.$stackTrace;
     }
 
