@@ -98,6 +98,7 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     x(sleep) \
     x(usleep) \
     x(time_nanosleep) \
+    x(stream_select) \
 
 #define BLOCKMETH(x) \
     x(PDO, connect) \
