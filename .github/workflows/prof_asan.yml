@@ -5,10 +5,11 @@ on:
 
 jobs:
   prof-asan:
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
         php-version: [8.3, 8.4, 8.5]
+        runner: [arm-8core-linux, ubuntu-8-core-latest]
     env:
       CARGO_HOME: /rust/cargo
       RUSTUP_HOME: /rust/rustup
@@ -35,13 +36,13 @@ jobs:
             /rust/cargo/registry/src/
             /rust/cargo/git/db/
             /rust/cargo/git/checkouts/
-          key: ${{ runner.os }}-cargo-deps-asan-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-deps-asan-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache Cargo target
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: /tmp/build-cargo/
-          key: ${{ runner.os }}-cargo-target-asan-${{ matrix.php-version }}-${{ env.RUST_TOOLCHAIN }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-target-asan-${{ matrix.php-version }}-${{ env.RUST_TOOLCHAIN }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
 
       - name: Build and install profiler
         run: |
