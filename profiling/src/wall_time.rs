@@ -199,6 +199,7 @@ mod frameless {
                         ; ldp x29, x30, [sp], 16 // restore link register and x29
                         ; ldr x16, >interrupt_label
                         ; br x16  // tail call
+                        ; .align 8
                         ; orig_label: ; .qword *orig as i64
                     );
                 }
@@ -214,6 +215,7 @@ mod frameless {
             }
             #[cfg(target_arch = "aarch64")]
             dynasm!(assembler
+                ; .align 8
                 ; interrupt_label: ; .qword interrupt_addr as i64 );
 
             // Allocate enough space for all frameless_function_infos including trailing NULLs
