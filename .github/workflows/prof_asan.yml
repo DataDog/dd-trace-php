@@ -14,7 +14,7 @@ jobs:
       CARGO_HOME: /rust/cargo
       RUSTUP_HOME: /rust/rustup
       CARGO_TARGET_DIR: /tmp/build-cargo
-      RUST_TOOLCHAIN: nightly-2025-01-03
+      RUST_TOOLCHAIN: nightly-2025-06-13
     container:
       image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-6
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
@@ -54,7 +54,6 @@ jobs:
           export LDFLAGS='-fsanitize=address -shared-libasan'
           export RUSTC_LINKER=lld-17
           triplet=$(uname -m)-unknown-linux-gnu
-          rustup component add rust-src --toolchain ${RUST_TOOLCHAIN}
           RUSTFLAGS='-Zsanitizer=address' cargo +${RUST_TOOLCHAIN} build -Zbuild-std=std,panic_abort --target $triplet --profile profiler-release
           cp -v "$CARGO_TARGET_DIR/$triplet/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
