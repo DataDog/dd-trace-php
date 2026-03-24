@@ -7,9 +7,18 @@
 #include "ddtrace.h"
 #include "zend_string.h"
 
+// Connection mode tracking
+typedef enum {
+    DD_SIDECAR_CONNECTION_NONE = 0,
+    DD_SIDECAR_CONNECTION_SUBPROCESS = 1,
+    DD_SIDECAR_CONNECTION_THREAD = 2
+} dd_sidecar_active_mode_t;
+
 extern ddog_SidecarTransport *ddtrace_sidecar;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+extern dd_sidecar_active_mode_t ddtrace_sidecar_active_mode;
+extern int32_t ddtrace_sidecar_master_pid;
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void);
 struct telemetry_rc_info {
@@ -20,13 +29,19 @@ struct telemetry_rc_info {
 };
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void);
 
+// Connection functions
+ddog_SidecarTransport *ddtrace_sidecar_connect(bool is_fork);
+
+// Lifecycle functions
+void ddtrace_sidecar_minit(void);
 void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config);
+void ddtrace_sidecar_handle_fork(void);
 bool ddtrace_sidecar_maybe_enable_appsec(bool *appsec_activation, bool *appsec_config);
+bool ddtrace_sidecar_should_enable(bool *appsec_activation, bool *appsec_config);
 void ddtrace_sidecar_ensure_active(void);
 void ddtrace_sidecar_update_process_tags(void);
 void ddtrace_sidecar_finalize(bool clear_id);
 void ddtrace_sidecar_shutdown(void);
-void ddtrace_reset_sidecar(void);
 void ddtrace_force_new_instance_id(void);
 void ddtrace_sidecar_submit_root_span_data(void);
 void ddtrace_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);

@@ -15,10 +15,15 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         parent::ddTearDown();
         self::putenv('DD_TRACE_DEBUG_PRNG_SEED');
         self::putenv('DD_DBM_PROPAGATION_MODE');
+        self::putenv('DD_DBM_INJECT_SQL_BASEHASH');
+        self::putenv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED');
         self::putEnv("DD_ENV");
         self::putEnv("DD_SERVICE");
         self::putEnv("DD_SERVICE_MAPPING");
         self::putEnv("DD_VERSION");
+
+        // Reload config to reset process tags
+        \dd_trace_internal_fn('reload_process_tags');
     }
 
     public function instrumented($arg, $optionalArg = null)
@@ -283,5 +288,123 @@ class DatabaseMonitoringTest extends IntegrationTestCase
         } finally {
             \DDTrace\remove_hook($hook);
         }
+    }
+
+    public function testBaseHashInjection()
+    {
+        self::putEnv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true');
+        self::putEnv('DD_DBM_INJECT_SQL_BASEHASH=true');
+        self::putEnv('DD_DBM_PROPAGATION_MODE=full');
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        \dd_trace_internal_fn('reload_process_tags');
+
+        // we don't have access to the agent info endpoint in this test so we have to mock the container tags hash
+        \dd_trace_internal_fn('set_container_tags_hash', 'abc123');
+
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+
+            $this->assertNotNull(\DDTrace\System\process_tags_base_hash(), 'process_tags_base_hash() is null');
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        // SQL Comment should have ddsh tag
+        preg_match('/ddsh=\'([^\']+)\'/', $commentedQuery, $matches);
+        $this->assertNotEmpty($matches, 'ddsh not found in SQL comment');
+        $ddshValue = $matches[1];
+
+        $propagatedHash = $traces[0][1]['meta']['_dd.propagated_hash'] ?? null;
+        $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
+        $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
+    }
+
+    public function testBaseHashInjectionWithoutContainerTagsHash()
+    {
+        self::putEnv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true');
+        self::putEnv('DD_DBM_INJECT_SQL_BASEHASH=true');
+        self::putEnv('DD_DBM_PROPAGATION_MODE=full');
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        \dd_trace_internal_fn('reload_process_tags');
+
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+
+            $this->assertNotNull(\DDTrace\System\process_tags_base_hash(), 'process_tags_base_hash() is null without container tags hash');
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        preg_match('/ddsh=\'([^\']+)\'/', $commentedQuery, $matches);
+        $this->assertNotEmpty($matches, 'ddsh not found in SQL comment');
+        $ddshValue = $matches[1];
+
+        $propagatedHash = $traces[0][1]['meta']['_dd.propagated_hash'] ?? null;
+        $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
+        $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
+    }
+
+    public function testBaseHashNotInjectedWhenDisabled()
+    {
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+            self::putEnv("DD_TRACE_DEBUG_PRNG_SEED=42");
+            self::putEnv("DD_DBM_PROPAGATION_MODE=full");
+            // DD_DBM_INJECT_SQL_BASEHASH is not set (defaults to false)
+            self::putEnv("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true");
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+
+        // Compatibility with older PHP Version
+        if (method_exists($this, 'assertDoesNotMatchRegularExpression')) {
+            // The query should NOT contain the base hash
+            $this->assertDoesNotMatchRegularExpression('/ddsh=/', $commentedQuery);
+        } else {
+            $this->assertNotRegExp('/ddsh=/', $commentedQuery);
+        }
+
+        // The span should NOT have the _dd.propagated_hash tag
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::exists("phpunit")->withChildren([
+                SpanAssertion::exists('instrumented')->withExactTags([
+                    "_dd.dbm_trace_injected" => "true",
+                    "_dd.base_service" => "phpunit",
+                ])
+            ])
+        ]);
     }
 }

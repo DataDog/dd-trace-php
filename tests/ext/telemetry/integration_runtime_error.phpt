@@ -36,7 +36,7 @@ foo();
 dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 300; ++$i) {
-    usleep(100000);
+    ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/integration-runtime-error-telemetry.out')) {
         foreach (file(__DIR__ . '/integration-runtime-error-telemetry.out') as $l) {
             if ($l) {
@@ -54,16 +54,19 @@ for ($i = 0; $i < 300; ++$i) {
             }
         }
     }
+    if ($i == 300) {
+        var_dump(file(__DIR__ . '/integration-runtime-error-telemetry.out'));
+    }
 }
 
 ?>
 --EXPECTF--
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
+[ddtrace] [warning] [%d] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
-[ddtrace] [warning] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %sintegration_runtime_error.php:12 for foo(): Testnotice in %sintegration_runtime_error.php on line 13
+[ddtrace] [warning] [%d] Exception thrown in ddtrace's closure defined at %sintegration_runtime_error.php:7 for foo(): test in %sintegration_runtime_error.php on line 9
 array(2) {
   [0]=>
   array(7) {

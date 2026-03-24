@@ -139,6 +139,7 @@ class UserAvailableConstantsTest extends BaseTestCase
             [Tag::DB_ROW_COUNT, 'db.row_count'],
             [Tag::DB_STMT, 'sql.query'],
             [Tag::DB_USER, 'db.user'],
+            [Tag::PROPAGATED_HASH, '_dd.propagated_hash'],
             [Tag::KAFKA_CLIENT_ID, 'messaging.kafka.client_id'],
             [Tag::KAFKA_GROUP_ID, 'messaging.kafka.group_id'],
             [Tag::KAFKA_HOST_LIST, 'messaging.kafka.bootstrap.servers'],

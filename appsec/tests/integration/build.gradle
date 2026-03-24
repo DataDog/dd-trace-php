@@ -189,10 +189,10 @@ def buildRunInDockerTask = { Map options ->
     }
     if (options.get('needsBoostCache', true)) {
         if (project.hasProperty('localBoostCache')) {
-            binds[project.getProperty('localBoostCache')] = '/root/.boost'
+            binds[project.getProperty('localBoostCache')] = '/var/boost-cache'
         } else {
             volumes['php-appsec-boost-cache'] = [
-                    mountPoint: '/root/.boost',
+                    mountPoint: '/var/boost-cache',
                     task: createVolumeTask('php-appsec-boost-cache'),
             ]
         }
@@ -390,7 +390,7 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
                               -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON \\
                               -DGIT_COMMIT=${libddwafCommit()} \\
                               -DDD_APPSEC_TESTING=ON \\
-                              -DBOOST_CACHE_PREFIX=/root/.boost /project/appsec
+                              -DBOOST_CACHE_PREFIX=/var/boost-cache /project/appsec
                     make -j extension ddappsec-helper && \\
                         touch ddappsec.so libddappsec-helper.so
                 """

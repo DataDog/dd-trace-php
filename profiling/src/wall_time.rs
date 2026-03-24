@@ -141,18 +141,22 @@ pub extern "C" fn ddog_php_prof_interrupt_function(execute_data: *mut zend_execu
 mod frameless {
     #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     mod trampoline {
-        #[cfg(target_arch = "aarch64")]
-        use dynasmrt::aarch64::Assembler;
-        #[cfg(target_arch = "aarch64")]
-        use dynasmrt::DynasmLabelApi;
-        #[cfg(target_arch = "x86_64")]
-        use dynasmrt::x64::Assembler;
+        use crate::bindings::{
+            zend_flf_functions, zend_flf_handlers, zend_frameless_function_info,
+        };
+        use crate::{profiling::Profiler, zend, RefCellExt, REQUEST_LOCALS};
         use dynasmrt::{dynasm, DynasmApi, ExecutableBuffer};
+        use log::error;
         use std::ffi::c_void;
         use std::sync::atomic::Ordering;
-        use log::error;
-        use crate::bindings::{zend_flf_functions, zend_flf_handlers, zend_frameless_function_info};
-        use crate::{profiling::Profiler, RefCellExt, REQUEST_LOCALS, zend};
+
+        #[cfg(target_arch = "aarch64")]
+        use dynasmrt::aarch64::Assembler;
+        #[cfg(target_arch = "x86_64")]
+        use dynasmrt::x64::Assembler;
+
+        #[cfg(target_arch = "aarch64")]
+        use dynasmrt::DynasmLabelApi;
 
         // This ensures that the memory stays reachable and is replaced on apache reload for example
         static mut INFOS: Vec<zend_frameless_function_info> = Vec::new();
@@ -180,7 +184,7 @@ mod frameless {
                 }
             };
             let interrupt_addr = ddog_php_prof_icall_trampoline_target as *const ();
-            let mut offsets = Vec::new();  // keep function offsets
+            let mut offsets = Vec::new(); // keep function offsets
             for orig in originals.iter() {
                 offsets.push(assembler.offset());
                 // Calls original function, then calls interrupt function.

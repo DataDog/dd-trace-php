@@ -18,5 +18,5 @@ print_r(1);
 
 ?>
 --EXPECTF--
-[ddtrace] [warning] Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.
+[ddtrace] [warning] [%d] Settings 'datadog.log_backtrace' and 'datadog.crashtracking_enabled' are mutually exclusive. Cannot enable the backtrace.
 1
