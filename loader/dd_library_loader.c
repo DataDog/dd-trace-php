@@ -35,6 +35,7 @@ static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
 static char *package_path = NULL;
+static void *libddtrace_php_handle = NULL;
 
 static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
@@ -73,6 +74,23 @@ PHP_INI_END()
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...);
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
+    // Load libddtrace_php.so, on which ddtrace.so implicitly depends. Implicit
+    // because there's no DT_NEEDED(libddtrace_php.so) entry in ddtrace.so.
+    // This has unfortunate side effects. Resolution of libddtrace_php.so
+    // symbols against the handle of ddtrace.so (usually stored in
+    // module_ext->handle) will fail. Some code e.g. in zai or the profiler
+    // tries to resolve libddtrace_php.so symbols using module_ext->handle
+    // (these symbols are in ddtrace.so in the monolithic build). As a
+    // consequence, this can only work if actually module_ext->handle is NULL (=
+    // RTLD_DEFAULT) and the global namespace is searched. And, because of this,
+    // ddloader_load_extension() can't set module_entry->handle, which prevents
+    // PHP from calling dlclose() on module shutdown, which we have to work
+    // around in ddloader_zend_extension_shutdown().
+    //
+    // Adding DT_NEEDED(libddtrace_php.so) would be possible on glibc because it
+    // checks already loaded libraries first (with even a fallback to DT_SONAME
+    // as key). Musl only checks already loaded libraries if these were loaded
+    // without a path (only that sets dso->shortname).
     char *libddtrace_php;
     int res = asprintf(&libddtrace_php, "%s/%sloader/libddtrace_php.so", package_path, OS_PATH);
     if (res == -1) {
@@ -101,6 +119,7 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
         return dlerror();
     }
 
+    libddtrace_php_handle = handle;
     return NULL;
 }
 
@@ -801,6 +820,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
 
     config->module_number = module_entry->module_number;
     config->version = (char *)module_entry->version;
+    config->so_handle = handle;
 
     LOG(config, INFO, "Extension '%s' loaded", config->ext_name);
     goto ok;
@@ -974,6 +994,22 @@ static int ddloader_zend_extension_startup(zend_extension *ext) {
     return SUCCESS;
 }
 
+static void ddloader_zend_extension_shutdown(zend_extension *ext) {
+    UNUSED(ext);
+    /* Close injected extension handles first (ddtrace.so, ddappsec.so, etc.),
+     * then libddtrace_php.so which they may depend on. */
+    for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
+        if (ddloader_injected_ext_config[i].so_handle) {
+            DL_UNLOAD(ddloader_injected_ext_config[i].so_handle);
+            ddloader_injected_ext_config[i].so_handle = NULL;
+        }
+    }
+    if (libddtrace_php_handle) {
+        DL_UNLOAD(libddtrace_php_handle);
+        libddtrace_php_handle = NULL;
+    }
+}
+
 // Define fake version information to force the engine to always call ddloader_api_no_check / ddloader_build_id_check
 ZEND_DLEXPORT zend_extension_version_info extension_version_info = {
     0,
@@ -987,7 +1023,7 @@ ZEND_DLEXPORT zend_extension zend_extension_entry = {
     "https://github.com/DataDog/dd-trace-php",
     "Copyright Datadog",
     ddloader_zend_extension_startup, /* startup() : module startup */
-    NULL,                            /* shutdown() : module shutdown */
+    ddloader_zend_extension_shutdown,/* shutdown() : module shutdown */
     NULL,                            /* activate() : request startup */
     NULL,                            /* deactivate() : request shutdown */
     NULL,                            /* message_handler() */

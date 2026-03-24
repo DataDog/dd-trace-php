@@ -168,6 +168,13 @@ stages:
           - test8.5-release-zts
           - test8.5-release-musl
 
+"appsec integration tests (ssi)":
+  extends: .appsec_integration_tests
+  parallel:
+    matrix:
+      - targets:
+          - test8.3-release-ssi
+
 "appsec integration tests (helper-rust)":
   extends: .appsec_integration_tests
   variables:
