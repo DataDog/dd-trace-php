@@ -26,7 +26,7 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Cache Rust dependencies
+      - name: Cache Cargo dependencies
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: |
@@ -35,9 +35,7 @@ jobs:
             /rust/cargo/registry/src/
             /rust/cargo/git/db/
             /rust/cargo/git/checkouts/
-            /rust/rustup/downloads/
-            /rust/rustup/update-hashes/
-          key: ${{ runner.os }}-rust-deps-asan-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-deps-asan-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache Cargo target
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
