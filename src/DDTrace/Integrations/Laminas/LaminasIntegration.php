@@ -295,6 +295,32 @@ class LaminasIntegration extends Integration
             }
         );
 
+        if (\class_exists('Laminas\\Mvc\\RouteListener')) {
+            hook_method(
+                'Laminas\Mvc\RouteListener',
+                'onRoute',
+                null,
+                static function ($This, $scope, $args) {
+                    if (!isset($args[0]) || !($args[0] instanceof MvcEvent)) {
+                        return;
+                    }
+                    /** @var MvcEvent $event */
+                    $event = $args[0];
+                    if ($event->getRouteMatch() === null) {
+                        return;
+                    }
+                    if (\DDTrace\are_endpoints_collected()) {
+                        return;
+                    }
+                    $router = $event->getRouter();
+                    if ($router === null || !($router instanceof \Laminas\Router\RouteStackInterface)) {
+                        return;
+                    }
+                    LaminasIntegration::registerLaminasRouteEndpoints($router);
+                }
+            );
+        }
+
         hook_method(
             'Laminas\Http\Response',
             'setStatusCode',
@@ -925,6 +951,88 @@ class LaminasIntegration extends Integration
         }
 
         return null;
+    }
+
+    /**
+     * Registers every route from the application router for endpoint telemetry in one shot (same idea as Laravel:
+     * {@code getRoutes()} then a single loop of {@see \DDTrace\add_endpoint()}). Laminas nests routes in
+     * {@see \Laminas\Router\Http\Part} trees, so we first flatten to a list, then submit—still one hook invocation,
+     * still synchronous, before {@see \DDTrace\are_endpoints_collected()} flips for the service/env.
+     *
+     * @param \Laminas\Router\RouteStackInterface $rootRouter From {@see MvcEvent::getRouter()}
+     */
+    public static function registerLaminasRouteEndpoints($rootRouter): void
+    {
+        if (\DDTrace\are_endpoints_collected()) {
+            return;
+        }
+        if (!($rootRouter instanceof \Laminas\Router\RouteStackInterface)) {
+            return;
+        }
+        $endpoints = self::collectLaminasRouteEndpointRows($rootRouter, $rootRouter, '');
+        foreach ($endpoints as $row) {
+            \DDTrace\add_endpoint($row['path'], 'http.request', $row['resourceName'], $row['method']);
+        }
+    }
+
+    /**
+     * Builds the full endpoint list (path template + method) from the route stack tree—no telemetry I/O yet.
+     *
+     * @return list<array{path: string, method: string, resourceName: string}>
+     */
+    private static function collectLaminasRouteEndpointRows($rootRouter, $currentStack, string $namePrefix): array
+    {
+        $rows = [];
+        self::walkRouteStackCollectEndpointRows($rootRouter, $currentStack, $namePrefix, $rows);
+
+        return self::dedupeLaminasEndpointRows($rows);
+    }
+
+    /**
+     * @param list<array{path: string, method: string, resourceName: string}> $rows
+     *
+     * @return list<array{path: string, method: string, resourceName: string}>
+     */
+    private static function dedupeLaminasEndpointRows(array $rows): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($rows as $row) {
+            $key = $row['method'] . "\0" . $row['path'];
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param list<array{path: string, method: string, resourceName: string}> $rows
+     */
+    private static function walkRouteStackCollectEndpointRows(
+        $rootRouter,
+        $currentStack,
+        string $namePrefix,
+        array &$rows
+    ): void {
+        foreach ($currentStack->getRoutes() as $name => $route) {
+            $qualifiedName = $namePrefix === '' ? (string) $name : $namePrefix . '/' . $name;
+            $path = self::httpRouteTemplateFromNamedRouteStack($rootRouter, $qualifiedName);
+            if ($path !== null && $path !== '') {
+                $method = 'GET';
+                $rows[] = [
+                    'path' => $path,
+                    'method' => $method,
+                    'resourceName' => $method . ' ' . $path,
+                ];
+            }
+            if ($route instanceof \Laminas\Router\Http\Part) {
+                self::walkRouteStackCollectEndpointRows($rootRouter, $route, $qualifiedName, $rows);
+            }
+        }
     }
 
     /**

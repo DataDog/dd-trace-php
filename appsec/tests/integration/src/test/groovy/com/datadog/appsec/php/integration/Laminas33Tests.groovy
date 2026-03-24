@@ -3,6 +3,7 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.TelemetryHelpers
 import com.datadog.appsec.php.model.Span
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.MethodOrderer
@@ -53,6 +54,51 @@ class Laminas33Tests {
 
     @Test
     @Order(1)
+    void 'Endpoints are not collected before the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: false')
+        }
+    }
+
+    @Test
+    @Order(2)
+    void 'Endpoints are sent'() {
+        Trace trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        assert trace.traceId != null
+
+        List<TelemetryHelpers.Endpoint> endpoints
+
+        TelemetryHelpers.waitForAppEndpoints(container, 30, { List<TelemetryHelpers.Endpoint> messages ->
+            endpoints = messages.collectMany { it.endpoints }
+            endpoints.size() > 0
+        })
+
+        assert endpoints.size() == 4
+        assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
+        assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
+        assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
+        assert endpoints.find {
+            it.path == '/dynamic-path[/:param01]' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path[/:param01]'
+        } != null
+    }
+
+    @Test
+    @Order(3)
+    void 'Endpoints are collected after the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: true')
+        }
+    }
+
+    @Test
+    @Order(4)
     void 'home request sets http route to literal slash'() {
         Trace trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
@@ -62,7 +108,7 @@ class Laminas33Tests {
     }
 
     @Test
-    @Order(2)
+    @Order(5)
     void 'Login failure automated event'() {
         Trace trace = container.traceFromRequest('/authenticate?email=nonExisiting@email.com') {
             HttpResponse<InputStream> resp ->
@@ -78,7 +124,7 @@ class Laminas33Tests {
     }
 
     @Test
-    @Order(3)
+    @Order(6)
     void 'Login success automated event'() {
         def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com') {
             HttpResponse<InputStream> resp ->
@@ -94,7 +140,7 @@ class Laminas33Tests {
     }
 
     @Test
-    @Order(4)
+    @Order(7)
     void 'path params trigger WAF block and laminas http route template'() {
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
