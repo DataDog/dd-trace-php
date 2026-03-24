@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        php-version: [8.3, 8.4]
+        php-version: [8.3, 8.4, 8.5]
     container:
       image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-6
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
