@@ -1452,6 +1452,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "cbindgen 0.27.0",
+ "cc",
  "const-str",
  "datadog-ipc",
  "datadog-live-debugger",

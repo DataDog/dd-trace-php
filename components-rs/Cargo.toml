@@ -53,6 +53,7 @@ hashbrown = "0.15"
 
 [build-dependencies]
 cbindgen = "0.27"
+cc = "1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(php_shared_build)'] }

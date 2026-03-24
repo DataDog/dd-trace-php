@@ -228,11 +228,16 @@ if test "$PHP_DDTRACE" != "no"; then
   DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
     ext/compat_getrandom.c"
 
-  dnl On Linux, add the solib bootstrap (makes ddtrace.so directly executable)
+  dnl On Linux, add the solib bootstrap (makes the library directly executable).
+  dnl In rust-library-split (SSI) mode the bootstrap goes into libddtrace_php.so
+  dnl via components-rs/build.rs instead, because that is the library that
+  dnl carries the Rust code (and therefore DD_TRAMPOLINE_BIN).
   case $host_os in
     linux*)
-      DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
-        ext/solib_bootstrap.c"
+      if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+        DD_TRACE_PHP_SOURCES="$DD_TRACE_PHP_SOURCES \
+          ext/solib_bootstrap.c"
+      fi
       ;;
   esac
 
@@ -286,15 +291,19 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym -flto -fuse-linker-plugin"
 
-    dnl On Linux, set the ELF entry point so ddtrace.so can be executed directly
+    dnl On Linux, set the ELF entry point so ddtrace.so can be executed directly.
+    dnl In rust-library-split (SSI) mode the entry point is set on libddtrace_php.so
+    dnl via components-rs/build.rs instead.
     case $host_os in
       linux*)
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,_dd_solib_start"
-        dnl ExecSolib requires execute permission; PHP's make install defaults to
-        dnl INSTALL_DATA = install -m 644. Override to 0755 so execve() works.
-        cat <<'EOT' >> Makefile.fragments
+        if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" = "no"; then
+          EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,_dd_solib_start"
+          dnl ExecSolib requires execute permission; PHP's make install defaults to
+          dnl INSTALL_DATA = install -m 644. Override to 0755 so execve() works.
+          cat <<'EOT' >> Makefile.fragments
 INSTALL_DATA = $(INSTALL) -m 0755
 EOT
+        fi
         ;;
     esac
 
