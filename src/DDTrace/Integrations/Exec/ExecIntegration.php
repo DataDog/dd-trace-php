@@ -255,8 +255,6 @@ class ExecIntegration extends Integration
                 $span->exception = $hook->exception;
             } elseif ($hook->returned === false) {
                 $span->meta[Tag::ERROR_MSG] = "$variant() returned false";
-            } elseif ($hook->returned === null && $variant === 'shell_exec') {
-                $span->meta[Tag::ERROR_MSG] = "shell_exec() returned null";
             } elseif (
                 !empty($retCodeArg) &&
                 isset($hook->args[$retCodeArg]) &&
