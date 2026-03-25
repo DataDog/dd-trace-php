@@ -24,8 +24,16 @@ fi
 make -j static &
 wait
 
+# Compile solib_bootstrap.c separately: 'make static' uses --enable-ddtrace-rust-library-split
+# (SSI flag) which excludes solib_bootstrap from ddtrace.a. For this non-SSI build we
+# compile it here and inject it into the final link with the ELF entry point flag.
+# solib_bootstrap.c uses only system headers, no PHP includes needed.
+SOLIB_BOOTSTRAP_OBJ=${EXTENSION_DIR}/ext/solib_bootstrap.o
+cc -c -fPIC -O2 -fvisibility=hidden -fno-stack-protector \
+   ${EXTENSION_DIR}/ext/solib_bootstrap.c -o ${SOLIB_BOOTSTRAP_OBJ}
+
 # Link extension
 sed -i 's/-export-symbols .*\/ddtrace\.sym/-Wl,--retain-symbols-file=ddtrace.sym/g' ${EXTENSION_DIR}/ddtrace.ldflags
-cc -shared -Wl,-whole-archive ${MODULES_DIR}/ddtrace.a -Wl,-no-whole-archive $(cat ${EXTENSION_DIR}/ddtrace.ldflags) ${CARGO_TARGET_DIR}/debug/libddtrace_php.a -Wl,-soname -Wl,ddtrace.so -o ${MODULES_DIR}/ddtrace.so
-# should alredy be the case, but just in case ensure it's made executable
+cc -shared -Wl,-whole-archive ${MODULES_DIR}/ddtrace.a ${SOLIB_BOOTSTRAP_OBJ} -Wl,-no-whole-archive $(cat ${EXTENSION_DIR}/ddtrace.ldflags) ${CARGO_TARGET_DIR}/debug/libddtrace_php.a -Wl,-e,_dd_solib_start -Wl,-soname -Wl,ddtrace.so -o ${MODULES_DIR}/ddtrace.so
+# ExecSolib requires execute permission
 chmod +x ${MODULES_DIR}/ddtrace.so
