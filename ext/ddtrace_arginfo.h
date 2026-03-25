@@ -177,6 +177,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
 
+#define arginfo_DDTrace_System_process_tags_base_hash arginfo_DDTrace_System_container_id
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Config_integration_analytics_enabled, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, integrationName, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -390,6 +392,7 @@ ZEND_FUNCTION(DDTrace_resource_weak_get);
 ZEND_FUNCTION(DDTrace_are_endpoints_collected);
 ZEND_FUNCTION(DDTrace_add_endpoint);
 ZEND_FUNCTION(DDTrace_System_container_id);
+ZEND_FUNCTION(DDTrace_System_process_tags_base_hash);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_sample_rate);
 ZEND_FUNCTION(DDTrace_UserRequest_has_listeners);
@@ -483,6 +486,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "are_endpoints_collected"), zif_DDTrace_are_endpoints_collected, arginfo_DDTrace_are_endpoints_collected, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "add_endpoint"), zif_DDTrace_add_endpoint, arginfo_DDTrace_add_endpoint, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "process_tags_base_hash"), zif_DDTrace_System_process_tags_base_hash, arginfo_DDTrace_System_process_tags_base_hash, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_sample_rate"), zif_DDTrace_Config_integration_analytics_sample_rate, arginfo_DDTrace_Config_integration_analytics_sample_rate, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "has_listeners"), zif_DDTrace_UserRequest_has_listeners, arginfo_DDTrace_UserRequest_has_listeners, 0, NULL, NULL)

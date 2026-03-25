@@ -1,59 +1,70 @@
 Changelog for older versions can be found in our [release page](https://github.com/DataDog/dd-trace-php/releases).
 
 ## All products
+### Changed
+- Cache system getenv calls for improved request initialization performance #3670
+
 ### Fixed
-- Fix packaging apks for new alpine versions #3555
-- Fix http_response_header deprecation in installer #3553
+- Fix zombie creation in loader #3683
+
+### Internal
+- Changed defaults of configurations and fixed DD_TRACE_HTTP_CLIENT_ERROR_STATUSES #3621, #3677
 
 ## Tracer
 ### Added
-- Support OpenTelemetry Metrics #3487
-- Adds process_tags to the first span of each tracing payload #3566
-- Distributed tracing header injection in HyperF/Swoole environments #3544
-- Stream context integration with HTTP method #3534
+- Collect framework endpoints for Symfony, Laravel, and WordPress #3548
+- Add sidecar thread mode as fallback connection for restricted environments #3573
+- Add process_tags #3580, #3582, #3627, #3658, #3706, #3709
+- Add `_dd.p.ksr` propagated tag for Knuth sampling rate #3701
+- Add container tags support for DBM correlation #3708
 
 ### Changed
-- Enable http.endpoint calculation when appsec is explicitly enabled #3556
+- Optimize Symfony http.route caching with path map approach #3676
+- Change the sidecar communication protocol #3695, DataDog/libdatadog#1742
 
 ### Fixed
-- Fix panic after bailout in previous request #3537
-- Avoid curl_getenv for unix:// too #3540
-- Correct a bug on prepared statement regarding DBM correlation #3545
-- Fix onclose in cycle collected spans #3587
-- prefer poll() for channel DataDog/libdatadog#1443
-- AWS lambda also can return EACCESS for shm_open DataDog/libdatadog#1446
-
-### Internal
-- bump libdatadog to v25.0.0 #3568
+- Poll for new remote config after unblocking SIGVTALRM #3717
+- Fix crash during shutdown in FrankenPHP #3662
+- Fix possible race condition leading to crash on sidecar reconnect in ZTS mode #3655
+- Fix possible crash in end hook of traced closure #3624
+- Fix hook is_internal being backwards #3625
+- Enforce span limit in curl_multi_exec and DDTrace\start_span code paths #3691
+- Prevent dangling tracked_streams #3689
+- Fix debugger ephemerals handling for nested log probes #3685
+- Block sidecar notification signal during sleep to prevent premature wakeup #3656
+- Fix sidecar permission denied with IIS AppPools DataDog/libdatadog#1776
+- Cleanup limiters on sidecar shutdown DataDog/libdatadog#1659
+- Fix function and type name ordering in debugger DataDog/libdatadog#1715
 
 ## Profiler
-### Changed
-- Optimise allocation profiling for PHP >= 8.4 #3550
+### Added
+- Add I/O profiling support for macOS #3648
+- Add process_tags to profiler uploader #3609
+- Improve time sample accuracy by also gathering during allocation samples #3559
 
 ### Fixed
-- Fixed bindgen compatibility with PHP 8.5.1+ on macOS #3583
-- Fixed SystemSettings initialization #3579
-- Fixed UB and simplify SystemSettings #3578
-- Fixed crash in upload for DD_EXTERNAL_ENV #3576
-- Fixed crash in ddtrace_get_profiling_context #3563
-- Check long string before allocating #3561
-- Fixed incompatibility with ext-grpc #3542
-- Revert unsafe optimization in memory profiling #3541
-- Cap dependency name length to copied bytes #3538
+- Store and restore errno in I/O profiling wrappers #3654
 
 ### Internal
-- Pre-reserve function name buffer #3445
-- Use cached heap in alloc_prof_orig_* functions #3547
+- Add internal metrics for profiling overhead #3616
+- Avoid copy of function name when already UTF-8 encoded #3700
+- Use libdd-profiling's ThinStr for function names #3631
+- Shrink maximum file and function name length to 16,383 characters #3712
+- Refactor ErrnoBackup::new is safe #3659
+- Remove once_cell as a dependency #3607
 
 ## AppSec
 ### Added
-- Reduce cardinality of helper.connection_* #3586
-- Added fallback on http.endpoint for schema sampler #3557
+- Support parsing partial JSON #3680
+- Enable LLM event observability for OpenAI PHP client #3664
+
+### Changed
+- Revert DD_APPSEC_ENABLED to runtime config #3598
 
 ### Fixed
-- Use abstract namespace on linux #3525
-- Fix spurious munmaps in ZTS mode #3590
+- Send response headers on meta even without event #3653
 
 ### Internal
-- Improvements for appsec libxml2 usage #3564
-- Improve xml parsing in appsec #3558
+- Rewrite AppSec helper in Rust #3581
+- Submit worker count and route AppSec metrics directly to sidecar #3530
+- Upgrade libxml2 #3690

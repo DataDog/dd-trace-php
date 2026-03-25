@@ -18,6 +18,6 @@ echo $m[0];
 
 ?>
 --EXPECTF--
-[%s] [ddtrace] [span] Creating new root SpanStack: %d, parent_stack: 0
+[%s] [ddtrace] [span] [%d] Creating new root SpanStack: %d, parent_stack: 0
 --CLEAN--
 <?php @unlink(__DIR__ . "/dd_trace_log_file.log"); ?>

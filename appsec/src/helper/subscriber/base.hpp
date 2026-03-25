@@ -6,6 +6,7 @@
 #pragma once
 
 #include "../action.hpp"
+#include "../network/proto.hpp"
 #include "../parameter_view.hpp"
 #include "../remote_config/changeset.hpp"
 #include "../telemetry.hpp"
@@ -26,7 +27,7 @@ public:
         virtual ~listener() = default;
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void call(parameter_view &data, event &event,
-            const std::string &rasp_rule = "") = 0;
+            const network::request_exec_options &options) = 0;
 
         // NOLINTNEXTLINE(google-runtime-references)
         virtual void submit_metrics(

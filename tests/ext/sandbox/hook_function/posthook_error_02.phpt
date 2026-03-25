@@ -27,5 +27,5 @@ greet('Datadog');
 --EXPECTF--
 Hello, Datadog.
 greet hooked.
-[ddtrace] [warning] %s in ddtrace's closure defined at %s:%d for greet(): Undefined variable%sthis_normally_raises_an_%s
-[ddtrace] [info] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [warning] [%d] %s in ddtrace's closure defined at %s:%d for greet(): Undefined variable%sthis_normally_raises_an_%s
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s

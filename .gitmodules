@@ -14,3 +14,7 @@
 [submodule "tea/benchmarks/google-benchmark"]
 	path = tea/benchmarks/google-benchmark
 	url = https://github.com/google/benchmark.git
+[submodule "appsec/third_party/libddwaf-rust"]
+	path = appsec/third_party/libddwaf-rust
+	url = https://github.com/DataDog/libddwaf-rust.git
+	branch = glopes/v2

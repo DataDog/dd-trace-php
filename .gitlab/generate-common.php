@@ -45,6 +45,60 @@ function dockerhub_login() {
 <?php
 }
 
+function windows_git_setup() {
+?>
+    # Kill leftover containers — a previous run may still hold php_ddtrace.dll open.
+    $containers = docker ps -aq 2>$null
+    if ($containers) { docker rm -f $containers 2>$null }
+
+    # Use cmd.exe rd from the parent dir: handles junctions/symlinks that PS5.1 Remove-Item can't.
+    Write-Host "Performing workspace cleanup..."
+    $workspace = $PWD.Path
+    Push-Location ..
+    cmd /c "rd /s /q ""$workspace"""
+    if (-not (Test-Path $workspace)) {
+        New-Item -ItemType Directory -Path $workspace -Force | Out-Null
+    }
+    Pop-Location
+    $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
+    if ($remaining) { Write-Host "WARNING: could not remove: $($remaining.Name -join ', ')" }
+    Write-Host "Cleanup complete."
+
+    # PS 5.1 ignores $PSNativeCommandUseErrorActionPreference — use $LASTEXITCODE checks instead.
+    $ErrorActionPreference = 'Stop'
+
+    # Manual git clone with proper config
+    Write-Host "Cloning repository..."
+    git config --global core.longpaths true
+    git config --global core.symlinks true
+    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: git clone failed. Remaining workspace contents:"
+        Get-ChildItem -Force | Select-Object Name
+        exit $LASTEXITCODE
+    }
+    git checkout $env:CI_COMMIT_SHA
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # Initialize submodules
+    Write-Host "Initializing submodules..."
+    git submodule update --init --recursive
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Host "Git setup complete."
+<?php
+}
+
+function windows_git_setup_with_packages() {
+?>
+    # Preserve artifact packages before workspace cleanup, then restore after clone.
+    Move-Item packages $env:TEMP\dd-artifacts-packages -Force -ErrorAction SilentlyContinue
+<?php windows_git_setup() ?>
+    if (Test-Path "$env:TEMP\dd-artifacts-packages") {
+        Move-Item $env:TEMP\dd-artifacts-packages packages -Force
+    }
+<?php
+}
+
 ?>
 default:
   retry:

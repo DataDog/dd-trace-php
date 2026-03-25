@@ -17,7 +17,7 @@ greet('Datadog');
 
 ?>
 --EXPECTF--
-[ddtrace] [warning] DDTrace\hook_function was given neither prehook nor posthook in %s on line %d; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
+[ddtrace] [warning] [%d] DDTrace\hook_function was given neither prehook nor posthook in %s on line %d; This message is only displayed once. Specify DD_TRACE_ONCE_LOGS=0 to show all messages.
 bool(false)
 Hello, Datadog.
-[ddtrace] [info] Flushing trace of size 1 to send-queue for %s
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for %s

@@ -454,10 +454,7 @@ static void dd_activate_once(void) {
         }
 
         // if we're to enable appsec, we need to enable sidecar
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
-        if (!enable_sidecar) {
-            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
-        }
+        bool enable_sidecar = ddtrace_sidecar_should_enable(&appsec_activation, &appsec_config);
 
         if (enable_sidecar)
 #endif
@@ -1519,17 +1516,18 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_limiter_create();
     ddtrace_standalone_limiter_create();
 
+    ddtrace_log_minit();
+
 #ifndef _WIN32
     /* Snapshot proxy-related env vars once at startup to avoid getenv()
      * from the background writer thread inside libcurl. */
     ddtrace_coms_minit_proxy_env();
-
-    ddtrace_log_minit();
-
     ddtrace_dogstatsd_client_minit();
 #endif
+
     ddshared_minit();
     ddtrace_autoload_minit();
+    ddtrace_sidecar_minit();
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
@@ -1615,7 +1613,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_sidecar_shutdown();
 
-    ddtrace_live_debugger_mshutdown();
     ddtrace_process_tags_mshutdown();
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
@@ -1722,6 +1719,8 @@ static void dd_initialize_request(void) {
 #endif
 
     ddtrace_agent_info_rinit();
+
+    ddtrace_get_container_tags_hash();
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
@@ -2586,6 +2585,17 @@ PHP_FUNCTION(DDTrace_System_container_id) {
     }
 }
 
+PHP_FUNCTION(DDTrace_System_process_tags_base_hash) {
+    UNUSED(execute_data);
+
+    zend_string *base_hash = ddtrace_process_tags_get_base_hash();
+    if (base_hash) {
+        RETVAL_STRINGL(ZSTR_VAL(base_hash), ZSTR_LEN(base_hash));
+    } else {
+        RETURN_NULL();
+    }
+}
+
 PHP_FUNCTION(DDTrace_Testing_trigger_error) {
     ddtrace_string message;
     ddtrace_zpplong_t error_type;
@@ -2661,6 +2671,8 @@ void dd_internal_handle_fork(void) {
         ddtrace_coms_clean_background_sender_after_fork();
     }
 #endif
+
+    ddtrace_sidecar_handle_fork();
     if (DDTRACE_G(agent_config_reader)) {
         ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
         DDTRACE_G(agent_config_reader) = NULL;
@@ -2675,7 +2687,6 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar();
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
@@ -3030,6 +3041,20 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddtrace_generate_runtime_id();
             ddtrace_force_new_instance_id();
             RETURN_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("reload_process_tags")) {
+            if (ddtrace_process_tags_enabled()) {
+                ddtrace_process_tags_reload();
+                ddtrace_sidecar_update_process_tags();
+            }
+            RETVAL_TRUE;
+        } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {
+            zval *container_tags_hash = ZVAL_VARARG_PARAM(params, 0);
+            if (Z_TYPE_P(container_tags_hash) == IS_STRING) {
+                ddtrace_process_tags_set_container_tags_hash(Z_STR_P(container_tags_hash));
+                RETVAL_TRUE;
+            } else {
+                RETVAL_FALSE;
+            }
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 100;
             if (params_count == 1) {

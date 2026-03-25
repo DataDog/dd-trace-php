@@ -137,8 +137,9 @@ struct client_init {
 
         std::map<std::string, std::string> meta;
         std::map<std::string_view, double> metrics;
+        std::optional<std::string> helper_runtime;
 
-        MSGPACK_DEFINE(status, version, errors, meta, metrics)
+        MSGPACK_DEFINE(status, version, errors, meta, metrics, helper_runtime)
     };
 };
 
@@ -185,6 +186,14 @@ struct request_init {
     };
 };
 
+struct request_exec_options {
+    std::optional<std::string> rasp_rule;
+    std::optional<std::string> subctx_id;
+    std::optional<bool> subctx_last_call;
+
+    MSGPACK_DEFINE_MAP(rasp_rule, subctx_id, subctx_last_call)
+};
+
 struct request_exec {
     static constexpr const char *name = "request_exec";
 
@@ -192,8 +201,8 @@ struct request_exec {
         static constexpr const char *name = request_exec::name;
         static constexpr request_id id = request_id::request_exec;
 
-        std::string rasp_rule;
         dds::parameter data;
+        request_exec_options options;
 
         request() = default;
         request(const request &) = delete;
@@ -202,7 +211,7 @@ struct request_exec {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(rasp_rule, data)
+        MSGPACK_DEFINE(data, options)
     };
 
     struct response : base_response_generic<response> {

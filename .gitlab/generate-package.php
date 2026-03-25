@@ -295,6 +295,24 @@ if ($suffix == "-alpine") {
     paths:
       - "appsec_*"
 
+"compile appsec helper rust":
+  stage: appsec
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
+  tags: [ "arch:$ARCH" ]
+  needs: [ "prepare code" ]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64" ]
+  variables:
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+  script: .gitlab/build-appsec-helper-rust.sh
+  artifacts:
+    paths:
+      - "appsec_*"
+
 "pecl build":
   stage: tracing
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
@@ -506,28 +524,7 @@ foreach ($windows_build_platforms as $platform) {
     GIT_STRATEGY: none
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
-    # Aggressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
-    Write-Host "Cleanup complete."
-
-    # Make sure we actually fail if a command fails
-    $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
-
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
-    git config --global core.longpaths true
-    git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
-    git checkout $env:CI_COMMIT_SHA
-
-    # Initialize submodules
-    Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
-    Write-Host "Git setup complete."
+<?php windows_git_setup() ?>
 
     mkdir extensions_x86_64
     mkdir extensions_x86_64_debugsymbols
@@ -628,8 +625,15 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-    # Compile appsec helper
+    # Compile appsec helper (C++)
     - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $platform['arch'] ?>"
+      artifacts: true
+
+    # Compile appsec helper (Rust)
+    - job: "compile appsec helper rust"
       parallel:
         matrix:
           - ARCH: "<?= $platform['arch'] ?>"
@@ -701,6 +705,11 @@ foreach ($asan_build_platforms as $platform) {
     - job: "prepare code"
       artifacts: true
     - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $arch ?>"
+      artifacts: true
+    - job: "compile appsec helper rust"
       parallel:
         matrix:
           - ARCH: "<?= $arch ?>"
@@ -892,7 +901,7 @@ endforeach;
   script:
     - php datadog-setup.php --php-bin all --file $(ls packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
     - sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
-    - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
+    - DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
 
 "framework test":
   stage: verify
@@ -1107,19 +1116,16 @@ endforeach;
   stage: verify
   tags: [ "windows-v2:2019"]
   variables:
-    GIT_CONFIG_COUNT: 2
-    GIT_CONFIG_KEY_0: core.longpaths
-    GIT_CONFIG_VALUE_0: true
-    GIT_CONFIG_KEY_1: core.symlinks
-    GIT_CONFIG_VALUE_1: true
+    GIT_STRATEGY: none
   needs:
     - job: "package extension windows"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  before_script:
-    - mkdir build
-    - move packages build
+  before_script: |
+<?php windows_git_setup_with_packages() ?>
+    mkdir build
+    move packages build
   script:
     - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
     - .\dockerfiles\verify_packages\verify_windows.ps1
@@ -1148,7 +1154,7 @@ endforeach;
     - pecl install datadog_trace.tgz
     - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
     - php --ri=ddtrace
-    - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
+    - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
   after_script:
     - mkdir artifacts
     - find $(pecl config-get test_dir) -type f -name '*.diff' -exec cp --parents '{}' artifacts \;
@@ -1446,9 +1452,9 @@ foreach ($arch_targets as $arch) {
 "bundle for reliability env":
   stage: shared-pipeline
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
-  tags: [ "runner:main", "size:large" ]
+  tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY_BUILD
       when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: on_success

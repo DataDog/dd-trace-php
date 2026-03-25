@@ -126,7 +126,7 @@ impl<S, N> FormatEvent<S, N> for LogFormatter
             } else {
                 data.target()
             };
-            format!("[ddtrace] [{}] {}{}\0", target, msg, suffix)
+            format!("[ddtrace] [{}] [{}] {}{}\0", target, std::process::id(), msg, suffix)
         }
 
         if let Some(msg) = visitor.msg {

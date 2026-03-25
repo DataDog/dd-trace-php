@@ -30,6 +30,12 @@ enum ddtrace_sampling_rules_format {
     DD_TRACE_SAMPLING_RULES_FORMAT_GLOB
 };
 
+enum ddtrace_sidecar_connection_mode {
+    DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO = 0,       // Default: try subprocess, fallback to thread
+    DD_TRACE_SIDECAR_CONNECTION_MODE_SUBPROCESS = 1, // Force subprocess only
+    DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD = 2,     // Force thread only
+};
+
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
  *     portion of the transfer will still use full-second resolution for
@@ -222,9 +228,13 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_INITIAL_SIZE, "131072", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
+    CONFIG(INT, DD_TRACE_SIDECAR_BACKPRESSURE_BYTES, "4194304", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(INT, DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE, "100", .ini_change = zai_config_system_ini_change)        \
     CONFIG(STRING, DD_TRACE_AGENT_TEST_SESSION_TOKEN, "", .ini_change = ddtrace_alter_test_session_token)      \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
+    CONFIG(BOOL, DD_DBM_INJECT_SQL_BASEHASH, "false")                                                          \
+    CONFIG(CUSTOM(INT), DD_TRACE_SIDECAR_CONNECTION_MODE, "auto", .parser = dd_parse_sidecar_connection_mode) \
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                     \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "true")                                                         \
     CONFIG(BOOL, DD_INTEGRATION_METRICS_ENABLED, "true",                                                       \
@@ -263,7 +273,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
-    CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")                                      \
+    CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")                                       \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

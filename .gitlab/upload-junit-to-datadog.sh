@@ -41,7 +41,7 @@ if command -v apk &> /dev/null; then
   # Alpine Linux
   is_alpine=true
   echo "Using apk package manager..."
-  apk add --no-cache curl jq nodejs npm unzip || {
+  apk add --no-cache curl jq libxslt nodejs npm unzip || {
     echo "Warning: Failed to install dependencies. Skipping JUnit upload." >&2
     exit 0
   }

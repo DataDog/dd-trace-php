@@ -41,6 +41,13 @@ typedef struct ddtrace_span_event ddtrace_span_event;
 typedef struct ddtrace_exception_span_event ddtrace_exception_span_event;
 typedef struct ddtrace_git_metadata ddtrace_git_metadata;
 
+typedef struct dd_refcounted_linked dd_refcounted_linked;
+
+typedef struct {
+    zend_arena *arena;
+    dd_refcounted_linked *ephemerals;
+} dd_capture_arena;
+
 extern datadog_php_sapi ddtrace_active_sapi;
 
 extern ddog_CharSlice php_version_rt;
@@ -147,8 +154,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     ddog_AgentInfoReader *agent_info_reader;
-    zend_arena *debugger_capture_arena;
-    HashTable debugger_capture_ephemerals;
+    dd_capture_arena debugger_capture_arena;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
     HashTable active_rc_hooks;
     HashTable *agent_rate_by_service;
