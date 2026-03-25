@@ -9,7 +9,6 @@
 #include <php_ini.h>
 #include <stdbool.h>
 #include <errno.h>
-#include <pthread.h>
 #include <sys/wait.h>
 #include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
@@ -313,12 +312,6 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
     va_end(va);
 }
 
-static void *ddloader_reap_child(void *arg) {
-    pid_t pid = (pid_t)(intptr_t)arg;
-    waitpid(pid, NULL, 0);
-    return NULL;
-}
-
 /**
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
@@ -407,21 +400,36 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     }
 
     pid_t loader_pid = getpid();
+    // Use double-fork to avoid needing a background reaper thread.
+    // The intermediate child exits immediately and is reaped synchronously
+    // by the parent via waitpid(). The grandchild is reparented to init,
+    // which reaps it automatically after it calls execv().
+    // This avoids a race condition where dd_library_loader.so could be
+    // dlclose'd during PHP shutdown while a reaper thread is still blocked
+    // in waitpid(), causing a SIGSEGV when the thread returns to unmapped
+    // library code.
     pid_t pid = fork();
     if (pid < 0) {
         LOG(config, ERROR, "Telemetry error: cannot fork")
         return;
     }
     if (pid > 0) {
-        // reap the child in a background thread to avoid leaking it
-        pthread_t reaper;
-        pthread_attr_t attr;
-        pthread_attr_init(&attr);
-        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-        pthread_create(&reaper, &attr, ddloader_reap_child, (void *)(intptr_t)pid);
-        pthread_attr_destroy(&attr);
-        return;  // parent
+        // Parent: synchronously reap the intermediate child (exits immediately)
+        waitpid(pid, NULL, 0);
+        return;
     }
+
+    // Intermediate child: fork again, then exit immediately
+    pid_t grandchild = fork();
+    if (grandchild < 0) {
+        _exit(1);
+    }
+    if (grandchild > 0) {
+        // Intermediate child exits; grandchild is reparented to init
+        _exit(0);
+    }
+
+    // henceforth, we're in the grandchild
 
     char points_buf[256] = {0};
     char *points = points_buf;
