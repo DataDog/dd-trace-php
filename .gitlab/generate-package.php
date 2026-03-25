@@ -1283,8 +1283,7 @@ endforeach;
     - when: manual
       allow_failure: true
   script:
-    - curl -sfL "https://releases.hashicorp.com/vault/1.20.0/vault_1.20.0_linux_amd64.zip" -o /tmp/vault.zip && unzip -q /tmp/vault.zip -d /tmp && chmod +x /tmp/vault && rm -f /tmp/vault.zip
-    - DD_API_KEY=$(/tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])") || { echo "Failed to fetch DD_API_KEY from Vault"; exit 1; }
+    - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
     - export DD_API_KEY
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
