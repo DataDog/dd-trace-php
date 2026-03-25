@@ -357,6 +357,191 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
     )
 }
 
+def buildTracerCmakeTask = { String version, String variant, altBaseTag = null ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
+    buildRunInDockerTask(
+            baseName: 'buildTracerCmake',
+            baseTag: altBaseTag ?: 'php',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsAppsec: false,
+            description: 'Build tracer for PHP (cmake)',
+            inputs: [
+                    dirs: [
+                            '../../../ext',
+                            '../../../zend_abstract_interface',
+                            '../../../components-rs',
+                            '../../../libdatadog',
+                            '../../../ddtrace.sym',
+                            '../../cmake',
+                    ],
+                    files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
+            ],
+            outputs: [
+                    volume: 'php-tracer-cmake',
+                    files: ['build_extension/modules/ddtrace.so'],
+            ],
+            volumes: [
+                    ("php-tracer-cmake-${version}-${variant}"): [mountPoint: '/project/tmp'],
+            ],
+            command: [
+                    '-e', '-c',
+                    """
+                    git config --global --add safe.directory '*'
+                    cd /project/tmp
+                    mkdir -p build_extension/modules
+                    test -f CMakeCache.txt || \\
+                        cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                              -DDD_APPSEC_DDTRACE_ALT=ON \\
+                              -DDD_APPSEC_BUILD_HELPER=OFF \\
+                              -DDD_APPSEC_BUILD_EXTENSION=OFF \\
+                              -DDD_APPSEC_TESTING=OFF \\
+                              /project/appsec
+                    make -j ddtrace
+                    cp ddtrace.so build_extension/modules/ddtrace.so
+                    touch build_extension/modules/ddtrace.so
+                    """
+            ]
+    )
+}
+
+def buildTracerSsiTask = { String version, String variant ->
+    def isDebug = variant.contains('debug')
+    def cargoProfile = isDebug ? 'debug' : 'tracer-release'
+    buildRunInDockerTask(
+            baseName: 'buildTracerSsi',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsAppsec: false,
+            needsBoostCache: false,
+            description: 'Build tracer in SSI split configuration for PHP',
+            inputs: [
+                    dirs: [
+                            '../../../ext',
+                            '../../../zend_abstract_interface',
+                            '../../../components-rs',
+                            '../../../libdatadog',
+                            '../../../ddtrace.sym',
+                    ],
+            ],
+            outputs: [
+                    volume: 'php-tracer-ssi',
+                    files: ['ddtrace.so', 'libddtrace_php.so'],
+            ],
+            volumes: [
+                    ("php-tracer-ssi-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
+                    ("php-tracer-ssi-build-${version}-${variant}"): [mountPoint: '/project/tmp'],
+            ],
+            command: [
+                    '-e', '-c',
+                    """
+                    cd /project
+                    PHPRC= ${isDebug ? 'RUST_DEBUG_BUILD=1' : ''} EXTRA_CONFIGURE_OPTIONS=--enable-ddtrace-rust-library-split \\
+                        make /project/tmp/build_extension/modules/ddtrace.so
+                    cp /project/tmp/build_extension/modules/ddtrace.so /tracer-ssi/ddtrace.so
+
+                    # Build libddtrace_php.so (cdylib) via compile_rust.sh.
+                    CARGO_TARGET_DIR=/project/tmp/target \\
+                        SHARED=1 PROFILE=${cargoProfile} host_os=linux ./compile_rust.sh
+                    cp /project/tmp/target/${cargoProfile}/libddtrace_php.so /tracer-ssi/libddtrace_php.so
+
+                    touch /tracer-ssi/ddtrace.so /tracer-ssi/libddtrace_php.so
+                    """
+            ]
+    )
+}
+
+def buildTracerSsiCmakeTask = { String version, String variant ->
+    def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
+    def cargoSubdir = buildType == 'Debug' ? 'debug' : 'release'
+    buildRunInDockerTask(
+            baseName: 'buildTracerSsiCmake',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsAppsec: false,
+            needsBoostCache: false,
+            description: 'Build tracer in SSI split configuration for PHP (cmake)',
+            inputs: [
+                    dirs: [
+                            '../../../ext',
+                            '../../../zend_abstract_interface',
+                            '../../../components-rs',
+                            '../../../libdatadog',
+                            '../../../ddtrace.sym',
+                            '../../cmake',
+                    ],
+                    files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
+            ],
+            outputs: [
+                    volume: 'php-tracer-ssi-cmake',
+                    files: ['ddtrace.so', 'libddtrace_php.so'],
+            ],
+            volumes: [
+                    ("php-tracer-ssi-cmake-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
+            ],
+            command: [
+                    '-e', '-c',
+                    """
+                    git config --global --add safe.directory '*'
+                    cd /tracer-ssi
+                    test -f CMakeCache.txt || \\
+                        cmake -DCMAKE_BUILD_TYPE=${buildType} \\
+                              -DDD_APPSEC_DDTRACE_ALT=ON \\
+                              -DDD_APPSEC_SSI=ON \\
+                              -DDD_APPSEC_BUILD_HELPER=OFF \\
+                              -DDD_APPSEC_BUILD_EXTENSION=OFF \\
+                              -DDD_APPSEC_TESTING=OFF \\
+                              /project/appsec
+                    make -j ddtrace
+                    cp components_rs/${cargoSubdir}/libddtrace_php.so .
+                    touch ddtrace.so libddtrace_php.so
+                    """
+            ]
+    )
+}
+
+// TODO: loader is actually php independent?
+def buildLoaderTask = { String version, String variant ->
+    buildRunInDockerTask(
+            baseName: 'buildLoader',
+            version: version,
+            variant: variant,
+            needsTracer: false,
+            needsAppsec: false,
+            needsBoostCache: false,
+            needsCargoCache: false,
+            description: 'Build dd_library_loader extension for PHP',
+            inputs: [
+                    dirs: ['../../../loader'],
+            ],
+            outputs: [
+                    volume: 'php-loader',
+                    files: ['dd_library_loader.so'],
+            ],
+            volumes: [
+                    ("php-loader-${version}-${variant}"): [mountPoint: '/loader-build'],
+            ],
+            command: [
+                    '-e', '-c',
+                    '''
+                    PHP_PREFIX=$(dirname $(dirname $(php -r 'echo PHP_BINARY;')))
+                    echo "Using PHP from: $PHP_PREFIX"
+                    cd /project/loader
+                    make distclean 2>/dev/null || true
+                    $PHP_PREFIX/bin/phpize
+                    rm -f config.cache
+                    ./configure --with-php-config=$PHP_PREFIX/bin/php-config
+                    make -j
+                    cp modules/dd_library_loader.so /loader-build/
+                    touch /loader-build/dd_library_loader.so
+                    '''
+            ]
+    )
+}
+
 def buildAppSecTask = { String version, String variant, altBaseTag = null ->
     def buildType = variant.contains('debug') ? 'Debug' : 'RelWithDebInfo'
     buildRunInDockerTask(
@@ -465,6 +650,9 @@ def runMainTask = { String phpVersion, String variant ->
     def isMusl = variant =~ /\bmusl\b/
 
     buildTracerTask(phpVersion, variant, isMusl ? 'nginx-fpm-php' : null)
+    if (!isMusl) {
+        buildTracerCmakeTask(phpVersion, variant)
+    }
     buildAppSecTask(phpVersion, variant, isMusl ? 'nginx-fpm-php' : null)
     if (!isMusl) {
         runUnitTestsTask(phpVersion, variant)
@@ -510,8 +698,11 @@ def runMainTask = { String phpVersion, String variant ->
         if (!project.hasProperty("floatingImageTags")) {
             it.systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
         }
+        if (project.hasProperty('useCmake')) {
+            it.systemProperty 'USE_CMAKE', 'true'
+        }
 
-        dependsOn "buildTracer-${phpVersion}-${variant}"
+        dependsOn project.hasProperty('useCmake') ? "buildTracerCmake-${phpVersion}-${variant}" : "buildTracer-${phpVersion}-${variant}"
         dependsOn "buildAppsec-${phpVersion}-${variant}"
         if (project.hasProperty('helperBinary')) {
             // Skip building helper-rust when explicit binary path is provided
@@ -529,6 +720,85 @@ def runMainTask = { String phpVersion, String variant ->
     }
 
     tasks['check'].dependsOn task
+}
+
+if (project.hasProperty('testClass')) {
+    ['release', 'debug'].each { variant ->
+        tasks.create("runMain8.3-${variant}-ssi", JavaExec) {
+            mainClass = project.property('testClass')
+            classpath = sourceSets.test.runtimeClasspath
+            standardInput = System.in
+
+            systemProperty 'PHP_VERSION', '8.3'
+            systemProperty 'VARIANT', variant
+            systemProperty 'SSI', 'true'
+            systemProperty 'DOCKER_MIRROR', dockerMirror
+            if (!project.hasProperty('floatingImageTags')) {
+                systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
+            }
+            if (project.hasProperty('useCmake')) {
+                systemProperty 'USE_CMAKE', 'true'
+            }
+            if (project.hasProperty('helperBinary')) {
+                systemProperty 'USE_HELPER_RUST', '1'
+                systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
+            } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
+                systemProperty 'USE_HELPER_RUST', '1'
+            }
+            dependsOn project.hasProperty('useCmake') ? "buildTracerSsiCmake-8.3-${variant}" : "buildTracerSsi-8.3-${variant}"
+            dependsOn "buildLoader-8.3-${variant}"
+            dependsOn "buildAppsec-8.3-${variant}"
+            dependsOn downloadComposer
+        }
+    }
+}
+
+['release', 'debug'].each { variant ->
+    buildTracerSsiTask('8.3', variant)
+    buildTracerSsiCmakeTask('8.3', variant)
+    buildLoaderTask('8.3', variant)
+
+    tasks.register("test8.3-${variant}-ssi", Test) {
+        group = 'Verification'
+        description = "Run tests for PHP 8.3 ${variant} in SSI mode"
+
+        it.outputs.upToDateWhen { false }
+
+        it.useJUnitPlatform {
+            includeEngines('junit-jupiter')
+            excludeEngines('junit-vintage')
+        }
+
+        it.testClassesDirs = sourceSets.test.output.classesDirs
+        it.classpath = sourceSets.test.runtimeClasspath
+
+        it.systemProperty 'PHP_VERSION', '8.3'
+        it.systemProperty 'VARIANT', variant
+        it.systemProperty 'SSI', 'true'
+
+        if (project.hasProperty('XDEBUG')) {
+            it.systemProperty 'XDEBUG', '1'
+        }
+        if (project.hasProperty('helperBinary')) {
+            it.systemProperty 'USE_HELPER_RUST', '1'
+            it.systemProperty 'HELPER_BINARY_PATH', project.getProperty('helperBinary')
+        } else if (project.hasProperty('useHelperRust') || project.hasProperty('useHelperRustCoverage')) {
+            it.systemProperty 'USE_HELPER_RUST', '1'
+        }
+
+        it.systemProperty 'DOCKER_MIRROR', dockerMirror
+        if (!project.hasProperty('floatingImageTags')) {
+            it.systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
+        }
+        if (project.hasProperty('useCmake')) {
+            it.systemProperty 'USE_CMAKE', 'true'
+        }
+
+        dependsOn project.hasProperty('useCmake') ? "buildTracerSsiCmake-8.3-${variant}" : "buildTracerSsi-8.3-${variant}"
+        dependsOn "buildLoader-8.3-${variant}"
+        dependsOn "buildAppsec-8.3-${variant}"
+        dependsOn downloadComposer
+    }
 }
 
 task loadCaches(type: Exec) {
