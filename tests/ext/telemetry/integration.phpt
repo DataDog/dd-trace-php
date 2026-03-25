@@ -45,7 +45,7 @@ namespace
     dd_trace_internal_fn("finalize_telemetry");
 
     for ($i = 0; $i < 300; ++$i) {
-        usleep(100000);
+        ("us" . "leep")(100000);
         if (file_exists(__DIR__ . '/integration-telemetry.out')) {
             foreach (file(__DIR__ . '/integration-telemetry.out') as $l) {
                 if ($l) {
@@ -60,6 +60,9 @@ namespace
                 }
             }
         }
+    }
+    if ($i == 300) {
+        var_dump(file(__DIR__ . '/integration-telemetry.out'));
     }
 }
 

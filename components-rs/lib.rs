@@ -156,6 +156,24 @@ pub unsafe extern "C" fn posix_spawn_file_actions_addchdir_np(
 }
 
 const MAX_TAG_VALUE_LENGTH: usize = 100;
+const DD_FNV_PRIME: u64 = 1_099_511_628_211;
+const DD_FNV_OFFSET_BASIS: u64 = 14_695_981_039_346_656_037;
+
+#[no_mangle]
+pub unsafe extern "C" fn dd_fnv1a_64(data: *const u8, len: usize) -> u64 {
+    if data.is_null() || len == 0 {
+        return DD_FNV_OFFSET_BASIS;
+    }
+
+    let bytes = std::slice::from_raw_parts(data, len);
+    let mut hash = DD_FNV_OFFSET_BASIS;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(DD_FNV_PRIME);
+    }
+
+    hash
+}
 
 #[no_mangle]
 pub extern "C" fn ddog_normalize_process_tag_value(

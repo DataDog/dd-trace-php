@@ -90,6 +90,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv 'DD_TRACE_DEBUG', '1'
         withEnv 'DD_AUTOLOAD_NO_COMPILE', 'true' // must be exactly 'true'
         withEnv 'DD_TRACE_GIT_METADATA_ENABLED', '0'
+        withEnv 'DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED', '0'
         withEnv 'DD_INSTRUMENTATION_TELEMETRY_ENABLED', '1'
         // very verbose:
         withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'

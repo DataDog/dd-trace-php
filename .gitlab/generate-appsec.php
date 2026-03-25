@@ -106,6 +106,7 @@ stages:
     ARCH: amd64
     HELPER_RUST_FLAG: ""
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
+    DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -295,6 +296,7 @@ stages:
     KUBERNETES_MEMORY_REQUEST: 24Gi
     KUBERNETES_MEMORY_LIMIT: 30Gi
     ARCH: amd64
+    DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -427,6 +429,24 @@ stages:
       echo "Uploading helper coverage to codecov"
       cd "$CI_PROJECT_DIR"
       codecov -t "$CODECOV_TOKEN" -n appsec-helper -v -f appsec/build/coverage-helper.lcov
+    - |
+      echo "Uploading coverage to Datadog"
+      cd "$CI_PROJECT_DIR"
+
+      DATADOG_API_KEY=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key | jq -r .data.data.key)
+      export DATADOG_API_KEY
+      export DD_SITE="datadoghq.com"
+
+      # Install datadog-ci
+      DATADOG_CI_VERSION="v5.9.1"
+      curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/${DATADOG_CI_VERSION}/datadog-ci_linux-x64" --output "/tmp/datadog-ci"
+      chmod +x /tmp/datadog-ci
+
+      echo "Uploading extension coverage to Datadog"
+      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-ext.lcov || true
+
+      echo "Uploading helper coverage to Datadog"
+      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-helper.lcov || true
 
 
 "push appsec images":

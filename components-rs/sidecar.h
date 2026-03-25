@@ -204,7 +204,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 uintptr_t force_drop_size,
                                                 ddog_CharSlice log_level,
                                                 ddog_CharSlice log_path,
-                                                void *remote_config_notify_function,
+                                                void *_remote_config_notify_function,
                                                 const enum ddog_RemoteConfigProduct *remote_config_products,
                                                 uintptr_t remote_config_products_count,
                                                 const enum ddog_RemoteConfigCapabilities *remote_config_capabilities,
@@ -217,7 +217,6 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
  * Updates the process_tags for an existing session.
  */
 ddog_MaybeError ddog_sidecar_session_set_process_tags(struct ddog_SidecarTransport **transport,
-                                                      ddog_CharSlice session_id,
                                                       const struct ddog_Vec_Tag *process_tags);
 
 /**
@@ -371,7 +370,6 @@ ddog_MaybeError ddog_sidecar_dogstatsd_set(struct ddog_SidecarTransport **transp
  * Sets x-datadog-test-session-token on all requests for the given session.
  */
 ddog_MaybeError ddog_sidecar_set_test_session_token(struct ddog_SidecarTransport **transport,
-                                                    ddog_CharSlice session_id,
                                                     ddog_CharSlice token);
 
 /**
@@ -400,6 +398,12 @@ struct ddog_AgentInfoReader *ddog_get_agent_info_reader(const struct ddog_Endpoi
  * Gets the current agent info environment (or empty if not existing)
  */
 ddog_CharSlice ddog_get_agent_info_env(struct ddog_AgentInfoReader *reader, bool *changed);
+
+/**
+ * Gets the container tags hash from agent info (or empty if not existing)
+ */
+ddog_CharSlice ddog_get_agent_info_container_tags_hash(struct ddog_AgentInfoReader *reader,
+                                                       bool *changed);
 
 void ddog_send_traces_to_sidecar(ddog_TracesBytes *traces,
                                  struct ddog_SenderParameters *parameters);

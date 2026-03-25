@@ -41,7 +41,7 @@ var_dump(count($spans) === 1);
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-[ddtrace] [warning] Error loading deferred integration DDTrace\Integrations\Filesystem\FilesystemIntegration: Class not loaded and not autoloadable
+[ddtrace] [warning] [%d] Error loading deferred integration DDTrace\Integrations\Filesystem\FilesystemIntegration: Class not loaded and not autoloadable
 traceparent: %s
 tracestate: %s
 x-datadog-parent-id: %d
@@ -50,4 +50,4 @@ x-datadog-tags: %s
 x-datadog-trace-id: %d
 bool(true)
 Done.
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

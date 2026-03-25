@@ -21,6 +21,7 @@ DD_AGENT_HOST=
 DD_AUTOLOAD_NO_COMPILE=
 DD_TRACE_GIT_METADATA_ENABLED=0
 DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1
+DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
 --INI--
 datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
 --FILE--
@@ -37,7 +38,7 @@ dd_trace_serialize_closed_spans();
 dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 300; ++$i) {
-    usleep(100000);
+    ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/config-telemetry.out')) {
         foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
             if ($l) {
@@ -61,6 +62,9 @@ for ($i = 0; $i < 300; ++$i) {
             }
         }
     }
+}
+if ($i == 300) {
+    var_dump(file(__DIR__ . '/config-telemetry.out'));
 }
 
 ?>
@@ -114,6 +118,15 @@ Array
         )
 
     [5] => Array
+        (
+            [name] => experimental_propagate_process_tags_enabled
+            [value] => 0
+            [origin] => env_var
+            [config_id] => 
+            [seq_id] => 
+        )
+
+    [6] => Array
         (
             [name] => ssi_forced_injection_enabled
             [value] => False

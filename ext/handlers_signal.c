@@ -3,6 +3,22 @@
 #include <signal.h>
 #include <php.h>
 
+#ifdef __linux__
+# ifdef HAVE_VALGRIND
+#  include <valgrind/valgrind.h>
+# else
+#  define RUNNING_ON_VALGRIND 0
+# endif
+// On Linux, unblocking SIGVTALRM causes immediate delivery if it was pending.
+// We only need to poll explicitly when running under valgrind, which intercepts
+// SIGVTALRM for its own timing and makes signal delivery unreliable.
+# define REMOTE_CONFIG_NEEDS_POLLING_AFTER_SIGNAL RUNNING_ON_VALGRIND
+#else
+// On non-Linux platforms, SIGVTALRM delivery after unblock is not guaranteed,
+// so always poll explicitly.
+# define REMOTE_CONFIG_NEEDS_POLLING_AFTER_SIGNAL 1
+#endif
+
 /* We need to do signal blocking for the remote config signaling to not interfere with some PHP functions.
  * See e.g. https://github.com/php/php-src/issues/16800
  * I don't know the full problem space, so I expect there might be functions missing here, and we need to eventually expand this list.
@@ -16,10 +32,10 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     original_function(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 
     sigprocmask(SIG_UNBLOCK, &x, NULL);
-#ifndef __linux__
-    // At least on linux unblocking causes immediate signal delivery.
-    ddtrace_check_for_new_config_now();
-#endif
+    // ensures no double-processing when the signal was delivered normally.
+    if (REMOTE_CONFIG_NEEDS_POLLING_AFTER_SIGNAL) {
+        ddtrace_check_for_new_config_now();
+    }
 }
 
 #define BLOCKSIGFN(function) \

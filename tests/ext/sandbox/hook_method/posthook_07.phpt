@@ -57,4 +57,4 @@ $app->run();
 App::__construct hooked.
 App::run
 App::run traced.
-[ddtrace] [info] Flushing trace of size 2 to send-queue for %s
+[ddtrace] [info] [%d] Flushing trace of size 2 to send-queue for %s

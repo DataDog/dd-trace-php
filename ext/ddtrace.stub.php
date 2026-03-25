@@ -849,6 +849,16 @@ namespace DDTrace\System {
      * @return string|null The container id, or 'null' if no id was found
      */
     function container_id(): string|null {}
+
+    /**
+     * Get the process tags base hash
+     *
+     * Returns the FNV-1a 64-bit hash of serialized process tags combined with container tags hash.
+     * This hash is used for Database Monitoring to correlate queries with application processes.
+     *
+     * @return string|null The base hash as a binary string (8 bytes), or 'null' if process tags are disabled or not computed
+     */
+    function process_tags_base_hash(): string|null {}
 }
 
 namespace DDTrace\Config {

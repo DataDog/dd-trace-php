@@ -435,13 +435,10 @@ typedef struct ddog_RemoteConfigState ddog_RemoteConfigState;
 typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
 
 /**
- * `SidecarTransport` is a wrapper around a BlockingTransport struct from the `datadog_ipc` crate
- * that handles transparent reconnection.
- * It is used for sending `SidecarInterfaceRequest` and receiving `SidecarInterfaceResponse`.
+ * `SidecarTransport` wraps a [`SidecarSender`] with transparent reconnection support.
  *
  * This transport is used for communication between different parts of the sidecar service.
- * It is a blocking transport, meaning that it will block the current thread until the operation is
- * complete.
+ * It is a blocking transport (all operations block the current thread).
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 
