@@ -1248,7 +1248,7 @@ endforeach;
   after_script:
     - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
     - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
-    - DATADOG_API_KEY=${DATADOG_API_KEY:-} DD_SERVICE=system-tests DD_JUNIT_XPATH_TAGS="test.codeowners=/testcase/properties/property[@name='test.codeowners']" .gitlab/upload-junit-to-datadog.sh
+    - DATADOG_API_KEY=${DATADOG_API_KEY:-} DD_SERVICE=system-tests DD_JUNIT_XPATH_TAGS="test.codeowners=/testcase/properties/property[@name='test.codeowners']" .gitlab/silent-upload-junit-to-datadog.sh
   artifacts:
     paths:
       - "system-tests/logs*/"
