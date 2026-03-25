@@ -62,7 +62,6 @@ jobs:
           set -eux
           switch-php nts-asan
           cd profiling/tests
-          jobs=$(getconf _NPROCESSORS_ONLN)
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
-          php run-tests.php -j"${jobs}" --show-diff --asan -d extension=datadog-profiling.so phpt
+          php run-tests.php -j$(nproc) --show-diff --asan -d extension=datadog-profiling.so phpt
