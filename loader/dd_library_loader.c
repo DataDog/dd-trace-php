@@ -210,6 +210,8 @@ static bool ddloader_is_opcache_jit_enabled() {
 }
 
 static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
+    UNUSED(module);
+
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *sources_path;
@@ -251,11 +253,11 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
     }
 
     // Let ddtrace knows that it was loaded by the loader
-    bool *ddtrace_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_loaded_by_ssi");
+    bool *ddtrace_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(config->so_handle, "ddtrace_loaded_by_ssi");
     if (ddtrace_loaded_by_ssi) {
         *ddtrace_loaded_by_ssi = true;
     }
-    bool *ddtrace_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_ssi_forced_injection_enabled");
+    bool *ddtrace_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(config->so_handle, "ddtrace_ssi_forced_injection_enabled");
     if (ddtrace_ssi_forced_injection_enabled) {
         *ddtrace_ssi_forced_injection_enabled = force_load;
     }
@@ -996,15 +998,24 @@ static int ddloader_zend_extension_startup(zend_extension *ext) {
 
 static void ddloader_zend_extension_shutdown(zend_extension *ext) {
     UNUSED(ext);
-    /* Close injected extension handles first (ddtrace.so, ddappsec.so, etc.),
-     * then libddtrace_php.so which they may depend on. */
     for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
-        if (ddloader_injected_ext_config[i].so_handle) {
-            DL_UNLOAD(ddloader_injected_ext_config[i].so_handle);
-            ddloader_injected_ext_config[i].so_handle = NULL;
+        // Set the handle on the zend_extension so that zend_extension_dtor()
+        // will call DL_UNLOAD after this shutdown callback runs. Zend extension
+        // shutdown callbacks are run in the same order (not reverse) as they
+        // were loaded. So the callbacks for ddtrace/appsec/profiling will run
+        // AFTER this callback.
+        injected_ext *ext_config = &ddloader_injected_ext_config[i];
+        if (ext_config->so_handle) {
+            zend_extension *zend_ext = zend_get_extension(ext_config->ext_name);
+            if (zend_ext) {
+                zend_ext->handle = ext_config->so_handle;
+            }
+            ext_config->so_handle = NULL;
         }
     }
+
     if (libddtrace_php_handle) {
+        // This still won't unload it
         DL_UNLOAD(libddtrace_php_handle);
         libddtrace_php_handle = NULL;
     }
