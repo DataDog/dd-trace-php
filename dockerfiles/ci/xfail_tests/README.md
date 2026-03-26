@@ -120,6 +120,12 @@ Disabling the creation of the background sender thread the test passes (with a d
 
 See `ext/pcntl/tests/pcntl_unshare_01.phpt`.
 
+## `ext/openssl/tests/bug79145.phpt`
+
+Disabled on versions: `7.3`, `7.4`, `8.0`.
+
+This test verifies there is no memory leak in `openssl_get_publickey()` by looping 100,000 times. This is too slow sometimes, especially debug PHP build. The test was [rewritten in PHP 8.1](https://github.com/php/php-src/commit/6249172ae37f958f0a3ef92cb55d5bf7affa8214) to do a single warm-up call followed by one measured call, making it fast enough to run without a timeout. The test does not exist in PHP 7.2 and earlier.
+
 ## `ext/openssl/tests/bug74159.phpt`
 
 Disabled on versions: `7.2`.
