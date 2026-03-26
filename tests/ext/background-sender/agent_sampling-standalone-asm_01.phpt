@@ -28,7 +28,8 @@ for ($i = 0; $i < $maxIterations; $i++)
     \DDTrace\start_span();
     \DDTrace\close_span();
 	// Flush the span synchronously before reading from the request replayer
-	dd_trace_internal_fn("synchronous_flush");
+	// 5000ms timeout ensures the background sender writer cycle completes even under Valgrind
+	dd_trace_internal_fn("synchronous_flush", 5000);
 	try {
 		$request = $rr->waitForDataAndReplay();
 	} catch (Exception $e) {
