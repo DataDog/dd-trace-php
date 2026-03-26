@@ -544,6 +544,10 @@ class LaminasIntegration extends Integration
                 $rootSpan->resource = "$controller@$eventName $routeName";
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = $controller . '@' . $eventName;
+                $routeTemplate = LaminasIntegration::httpRouteTemplateFromMatchedRoute($event->getRouteMatch(), $event->getRouteMatch());
+                if ($routeTemplate !== null) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $routeTemplate;
+                }
 
                 if (isset($eventName, self::$EVENT_TYPES)) {
                     install_hook(
@@ -923,6 +927,22 @@ class LaminasIntegration extends Integration
      */
     public static function httpRouteTemplateFromMatchedRoute($matchedRoute, $routeMatch = null)
     {
+        if (is_object($matchedRoute)) {
+            if (method_exists($matchedRoute, 'getSpec')) {
+                $routeSpec = $matchedRoute->getSpec();
+                if (is_string($routeSpec) && $routeSpec !== '') {
+                    return $routeSpec;
+                }
+            }
+
+            if (method_exists($matchedRoute, 'getRoute')) {
+                $routeSpec = $matchedRoute->getRoute();
+                if (is_string($routeSpec) && $routeSpec !== '') {
+                    return $routeSpec;
+                }
+            }
+        }
+
         if ($matchedRoute instanceof \Laminas\Router\Http\Literal) {
             $rp = new \ReflectionProperty($matchedRoute, 'route');
             $rp->setAccessible(true);
@@ -930,18 +950,19 @@ class LaminasIntegration extends Integration
             return (string) $rp->getValue($matchedRoute);
         }
 
-        if ($matchedRoute instanceof \Laminas\Router\Http\Segment) {
-            $rp = new \ReflectionProperty($matchedRoute, 'parts');
-            $rp->setAccessible(true);
-            $parts = $rp->getValue($matchedRoute);
-
-            return \is_array($parts) ? self::laminasSegmentPartsToRouteTemplate($parts) : null;
-        }
-
         if (
             $matchedRoute instanceof \Laminas\Router\Http\TreeRouteStack
             && $routeMatch instanceof RouteMatch
         ) {
+            if (method_exists($routeMatch, 'getMatchedRoute')) {
+                $getMatchedRoute = [$routeMatch, 'getMatchedRoute'];
+                $nestedMatchedRoute = call_user_func($getMatchedRoute);
+                $nestedTemplate = self::httpRouteTemplateFromMatchedRoute($nestedMatchedRoute, $routeMatch);
+                if ($nestedTemplate !== null && $nestedTemplate !== '') {
+                    return $nestedTemplate;
+                }
+            }
+
             $matchedName = $routeMatch->getMatchedRouteName();
             if ($matchedName === null || $matchedName === '') {
                 return null;
@@ -1086,42 +1107,6 @@ class LaminasIntegration extends Integration
         $baseRoute = $rp->getValue($part);
 
         return self::httpRouteTemplateFromMatchedRoute($baseRoute, null);
-    }
-
-    /**
-     * Rebuilds the route string from {@see \Laminas\Router\Http\Segment} parsed parts (inverse of parseRouteDefinition).
-     *
-     * @internal
-     * @param array<int, array> $parts
-     */
-    public static function laminasSegmentPartsToRouteTemplate(array $parts): string
-    {
-        $buf = '';
-        foreach ($parts as $part) {
-            if (!\is_array($part) || !isset($part[0])) {
-                continue;
-            }
-            switch ($part[0]) {
-                case 'literal':
-                    $buf .= $part[1] ?? '';
-                    break;
-                case 'parameter':
-                    $buf .= ':';
-                    $buf .= $part[1] ?? '';
-                    if (isset($part[2]) && $part[2] !== null && $part[2] !== '') {
-                        $buf .= '{' . $part[2] . '}';
-                    }
-                    break;
-                case 'optional':
-                    $buf .= '[' . self::laminasSegmentPartsToRouteTemplate($part[1] ?? []) . ']';
-                    break;
-                case 'translated-literal':
-                    $buf .= '{' . ($part[1] ?? '') . '}';
-                    break;
-            }
-        }
-
-        return $buf;
     }
 
     public static function debugBacktraceToString(array $backtrace)
