@@ -210,6 +210,8 @@ static bool ddloader_is_opcache_jit_enabled() {
 }
 
 static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *module) {
+    UNUSED(module);
+
     HashTable *configuration_hash = php_ini_get_configuration_hash();
     if (configuration_hash) {
         char *sources_path;
@@ -251,11 +253,11 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
     }
 
     // Let ddtrace knows that it was loaded by the loader
-    bool *ddtrace_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_loaded_by_ssi");
+    bool *ddtrace_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(config->so_handle, "ddtrace_loaded_by_ssi");
     if (ddtrace_loaded_by_ssi) {
         *ddtrace_loaded_by_ssi = true;
     }
-    bool *ddtrace_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(module->handle, "ddtrace_ssi_forced_injection_enabled");
+    bool *ddtrace_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(config->so_handle, "ddtrace_ssi_forced_injection_enabled");
     if (ddtrace_ssi_forced_injection_enabled) {
         *ddtrace_ssi_forced_injection_enabled = force_load;
     }
