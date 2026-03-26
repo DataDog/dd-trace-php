@@ -156,6 +156,10 @@ foreach ($arch_targets as $arch_target) {
       DD_POOL_TRACE_CHECK_FAILURES: true
       DD_DISABLE_ERROR_RESPONSES: true
       SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
+      KUBERNETES_SERVICE_CPU_REQUEST: 1
+      KUBERNETES_SERVICE_CPU_LIMIT: 1
+      KUBERNETES_SERVICE_MEMORY_REQUEST: 512Mi
+      KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
 
   request-replayer:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0
