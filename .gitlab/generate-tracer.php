@@ -465,6 +465,8 @@ foreach ($all_minor_major_targets as $major_minor):
 
 "PHP Language Tests: [<?= $major_minor ?>]":
   extends: .debug_test
+  services:
+    - !reference [.services, test-agent]
   needs:
     - job: "compile extension: debug"
       parallel:
@@ -482,6 +484,7 @@ foreach ($all_minor_major_targets as $major_minor):
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TESTS: "1"
+    WAIT_FOR: test-agent:9126
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_CPU_LIMIT: 8
@@ -497,6 +500,10 @@ foreach ($all_minor_major_targets as $major_minor):
     KUBERNETES_HELPER_CPU_LIMIT: 1
     KUBERNETES_HELPER_MEMORY_REQUEST: 768Mi
     KUBERNETES_HELPER_MEMORY_LIMIT: 768Mi
+    KUBERNETES_SERVICE_CPU_REQUEST: 1
+    KUBERNETES_SERVICE_CPU_LIMIT: 1
+    KUBERNETES_SERVICE_MEMORY_REQUEST: 512Mi
+    KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
