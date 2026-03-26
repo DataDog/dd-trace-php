@@ -12,4 +12,5 @@ updates:
     groups:
       gh-actions-packages:
         patterns:
-          - "*"
+          - "*"    cooldown:
+      default-days: 2
