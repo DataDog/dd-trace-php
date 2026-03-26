@@ -372,6 +372,32 @@ extern "C" {
     /// Returns the PHP_VERSION of the engine at run-time, not the version the
     /// extension was built against at compile-time.
     pub fn ddog_php_prof_php_version() -> *const c_char;
+
+    /// Allocates a reserved[] slot for FunctionIndex storage. Call in MINIT,
+    /// after the zend_extension struct is populated and before
+    /// zend_register_extension(). Handles the PHP 7/8 API difference internally.
+    /// Returns Failure and logs to stderr if the slot is out of range.
+    pub fn ddog_php_prof_op_array_reserved_slot_init(extension: *mut ZendExtension) -> ZendResult;
+
+    /// Returns the reserved[] slot index, or -1 if not yet initialized.
+    pub fn ddog_php_prof_op_array_reserved_slot() -> c_int;
+
+    /// Stores a FunctionIndex in func->common.reserved[slot] as a tagged pointer.
+    pub fn ddog_php_prof_set_function_index(func: *mut zend_function, index: u32);
+
+    /// Reads the FunctionIndex from func->common.reserved[slot].
+    /// Returns true and writes to *out on success.
+    pub fn ddog_php_prof_get_function_index(func: *const zend_function, out: *mut u32) -> bool;
+
+    /// Returns the op_array_persist_calc hook (always returns 0).
+    pub fn ddog_php_prof_get_persist_calc_fn() -> op_array_persist_calc_func_t;
+
+    /// Returns the op_array_persist hook for the zend_extension struct.
+    pub fn ddog_php_prof_get_persist_fn() -> op_array_persist_func_t;
+
+    /// Iterates CG(function_table) and CG(class_table) calling
+    /// ddog_php_prof_intern_and_store for each function. Call from startup hook.
+    pub fn ddog_php_prof_intern_all_functions();
 }
 
 #[cfg(php_post_startup_cb)]

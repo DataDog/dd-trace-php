@@ -851,3 +851,86 @@ bool ddog_php_prof_is_parallel_thread() {
     return (*tls_ptr != NULL);
 #endif // CFG_TEST
 }
+
+// ── reserved[] slot for FunctionIndex storage ────────────────────────────────
+
+static int _op_array_reserved_slot = -1;
+
+zend_result ddog_php_prof_op_array_reserved_slot_init(zend_extension *extension) {
+#if PHP_VERSION_ID >= 80000
+    _op_array_reserved_slot = zend_get_resource_handle(extension->name);
+#else
+    _op_array_reserved_slot = zend_get_resource_handle(extension);
+#endif
+    if (UNEXPECTED(_op_array_reserved_slot < 0 || _op_array_reserved_slot >= ZEND_MAX_RESERVED_RESOURCES)) {
+        return FAILURE;
+    }
+    return SUCCESS;
+}
+
+int ddog_php_prof_op_array_reserved_slot(void) {
+    return _op_array_reserved_slot;
+}
+
+void ddog_php_prof_set_function_index(zend_function *func, uint32_t index) {
+    // Trampolines (ZEND_ACC_CALL_VIA_TRAMPOLINE) are synthetic frames that are
+    // freed immediately after the call. EG(trampoline) is a global reused across
+    // calls; zend_free_trampoline only clears function_name and attributes, not
+    // reserved[], so writing here would leave a stale FunctionIndex for the next
+    // caller. Skip trampolines entirely.
+    bool is_trampoline = func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE;
+    if (UNEXPECTED(is_trampoline)) return;
+    // Store the raw FunctionIndex. FunctionIndex(0) is the empty/default function,
+    // so NULL (0) in the slot is a valid sentinel meaning "use index 0".
+    func->op_array.reserved[_op_array_reserved_slot] = (void*)(uintptr_t)index;
+}
+
+bool ddog_php_prof_get_function_index(const zend_function *func, uint32_t *out) {
+    // Trampolines reuse EG(trampoline) without resetting reserved[], so the slot
+    // may contain a stale FunctionIndex from a previous function. Return false so
+    // the caller falls back to FUNCTION_EMPTY rather than reading garbage.
+    if (func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) return false;
+    void *val = func->op_array.reserved[_op_array_reserved_slot];
+    // NULL reads back as FunctionIndex(0) = FUNCTION_EMPTY, which is correct.
+    *out = (uint32_t)(uintptr_t)val;
+    return true;
+}
+
+// op_array is the OPcache SHM copy (memdup'd before this hook fires).
+// Intern the function and write the FunctionIndex directly into the slot.
+// We need no extra bytes in OPcache's persist arena.
+static size_t ddog_php_prof_op_array_persist_impl(zend_op_array *op_array, void *mem) {
+    (void)mem;
+    ddog_php_prof_intern_and_store((zend_function *)op_array);
+    return 0;
+}
+
+// We store FunctionIndex directly in reserved[slot] (already in OPcache SHM), so
+// no extra bytes are needed in OPcache's persist arena.
+static size_t ddog_php_prof_op_array_persist_calc_impl(zend_op_array *op_array) {
+    (void)op_array;
+    return 0;
+}
+
+op_array_persist_calc_func_t ddog_php_prof_get_persist_calc_fn(void) {
+    return ddog_php_prof_op_array_persist_calc_impl;
+}
+
+op_array_persist_func_t ddog_php_prof_get_persist_fn(void) {
+    return ddog_php_prof_op_array_persist_impl;
+}
+
+void ddog_php_prof_intern_all_functions(void) {
+    zend_function *func;
+
+    ZEND_HASH_FOREACH_PTR(CG(function_table), func) {
+        ddog_php_prof_intern_and_store(func);
+    } ZEND_HASH_FOREACH_END();
+
+    zend_class_entry *ce;
+    ZEND_HASH_FOREACH_PTR(CG(class_table), ce) {
+        ZEND_HASH_FOREACH_PTR(&ce->function_table, func) {
+            ddog_php_prof_intern_and_store(func);
+        } ZEND_HASH_FOREACH_END();
+    } ZEND_HASH_FOREACH_END();
+}

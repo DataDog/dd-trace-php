@@ -1,0 +1,16 @@
+[package]
+name    = "libdatadog-php-profiling-shm"
+version.workspace      = true
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+
+[lib]
+crate-type = ["rlib"]
+
+[dev-dependencies]
+bolero = "0.13"
+
+[dependencies]
+libc       = { version = "0.2", default-features = false }
+rustc-hash = { version = "2.1", default-features = false }

@@ -27,6 +27,7 @@ libdd-alloc = { path = "../libdatadog/libdd-alloc" }
 libdd-profiling = { path = "../libdatadog/libdd-profiling" }
 libdd-common = {  path = "../libdatadog/libdd-common" }
 libdd-library-config-ffi = { path = "../libdatadog/libdd-library-config-ffi" }
+profiling_shm = { package = "libdatadog-php-profiling-shm", path = "../profiling_shm" }
 env_logger = { version = "0.11", default-features = false }
 lazy_static = { version = "1.4" }
 libc = "0.2"

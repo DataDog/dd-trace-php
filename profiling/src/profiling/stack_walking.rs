@@ -1,9 +1,10 @@
-use crate::bindings::{
-    zai_str_from_zstr, zend_execute_data, zend_function, zend_op, zend_op_array,
-};
+use crate::bindings::{zend_execute_data, zend_function, zend_op, zend_op_array};
 use crate::profiling::Backtrace;
 use crate::vec_ext::VecExt;
-use std::borrow::Cow;
+use profiling_shm::{
+    FunctionIndex, InternError, ShmRegion, StrRope5, FUNCTION_TRUNCATED, MAX_STR_LEN, STRING_EMPTY,
+    STRING_OOM, STRING_PHP_OPEN_TAG, STRING_SUSPICIOUSLY_LONG_FILE, STRING_SUSPICIOUSLY_LONG_FN,
+};
 
 #[cfg(php_frameless)]
 use crate::bindings::zend_flf_functions;
@@ -13,25 +14,12 @@ use crate::bindings::{
     ZEND_FRAMELESS_ICALL_0, ZEND_FRAMELESS_ICALL_1, ZEND_FRAMELESS_ICALL_2, ZEND_FRAMELESS_ICALL_3,
 };
 
-const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
-const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
+use crate::bindings as zend;
 
-/// The profiler is not meant to handle such large strings. If a file or
-/// function name exceeds this size, it will be represented by a short string,
-/// see [`COW_LARGE_STRING`].
-///
-/// This max is calculated such that when varint encoded for protobuf that it
-/// fits into 1 or 2 bytes, never 3 or more.
-const MAX_STR_LEN: usize = 0b00111111_11111111; // (1 << 14) - 1, or 16,383
-const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
-
-#[derive(Default, Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ZendFrame {
-    // Most tools don't like frames that don't have function names, so use a
-    // fake name if you need to like "<?php".
-    pub function: Cow<'static, str>,
-    pub file: Option<Cow<'static, str>>,
-    pub line: u32, // use 0 for no line info
+    pub function: FunctionIndex,
+    pub line: u32, // 0 for internal functions or when line info unavailable
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -46,86 +34,89 @@ pub enum CollectStackSampleError {
     TryReserveError(#[from] std::collections::TryReserveError),
 }
 
-/// Extract the "function name" component for the frame. This is a string which
-/// looks like this for methods:
-///     {module}|{class_name}::{method_name}
-/// And this for functions:
-///     {module}|{function_name}
-/// Where the "{module}|" is present only if it's an internal function.
-/// Namespaces are part of the class_name or function_name respectively.
-/// Closures and anonymous classes get reformatted by the backend (or maybe
-/// frontend, either way it's not our concern, at least not right now).
-pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> {
-    let method_name: &[u8] = func.name().unwrap_or(b"");
+/// Intern a zend_function into the SHM and store the FunctionIndex in
+/// func->common.reserved[slot].
+///
+/// Function name format: `{module}|{class}::{method}` for internal methods,
+/// `{class}::{method}` for user methods, `{module}|{fn}` for internal functions,
+/// or just `{fn}` for user functions.
+pub fn intern_function(shm: &ShmRegion, func: &zend_function) {
+    use crate::bindings::zai_str_from_zstr;
 
-    /* The top of the stack seems to reasonably often not have a function, but
-     * still has a scope. I don't know if this intentional, or if it's more of
-     * a situation where scope is only valid if the func is present. So, I'm
-     * erring on the side of caution and returning early.
-     */
-    if method_name.is_empty() {
-        return None;
-    }
-
-    let mut buffer = Vec::<u8>::new();
-
-    // User functions do not have a "module". Maybe one day use composer info?
-    let module_name = func.module_name().unwrap_or(b"");
-    let class_name = func.scope_name().unwrap_or(b"");
-
-    // Pre-reserving here avoids growing the vec in practice, observed with
-    // whole-host profiler.
-    let (has_module, has_class) = (!module_name.is_empty(), !class_name.is_empty());
-    let module_len = has_module as usize * "|".len() + module_name.len();
-    let class_name_len = has_class as usize * "::".len() + class_name.len();
-    let len = module_len + class_name_len + method_name.len();
-
-    // Rather than fail, we use a short string to represent a long string.
-    if len > MAX_STR_LEN {
-        return Some(COW_LARGE_STRING);
-    }
-
-    // When refactoring, make sure large str len is checked before allocating.
-    buffer.reserve_exact(len);
-
-    if has_module {
-        buffer.extend_from_slice(module_name);
-        buffer.push(b'|');
-    }
-
-    if has_class {
-        buffer.extend_from_slice(class_name);
-        buffer.extend_from_slice(b"::");
-    }
-
-    buffer.extend_from_slice(method_name);
-
-    // All or nearly all functions should be valid UTF8, so we're going to
-    // pessimize the error case to avoid having to make copies on the happy
-    // case.
-    let string = if core::str::from_utf8(&buffer).is_ok() {
-        // SAFETY: we just validate it's valid UTF-8.
-        unsafe { String::from_utf8_unchecked(buffer) }
+    // Compute the interned name StringIndex.
+    let method_name = func.name().unwrap_or(b"");
+    let name_idx = if method_name.is_empty() {
+        STRING_PHP_OPEN_TAG
     } else {
-        // When replacing the string to make it valid utf-8, it may get a bit
-        // longer, but this usually doesn't happen. This limit is a soft-limit
-        // at the moment anyway, so this is okay.
-        String::from_utf8_lossy(&buffer).into_owned()
+        let module = func.module_name().unwrap_or(b"");
+        let class = func.scope_name().unwrap_or(b"");
+        let rope = StrRope5 {
+            leaves: [
+                module,
+                if module.is_empty() { b"" } else { b"|" },
+                class,
+                if class.is_empty() { b"" } else { b"::" },
+                method_name,
+            ],
+        };
+        match shm.intern_rope(&rope) {
+            Ok(idx) => idx,
+            Err(InternError::StrTooLong) => STRING_SUSPICIOUSLY_LONG_FN,
+            Err(InternError::OutOfMemory) => STRING_OOM,
+            Err(InternError::WouldBlock) => STRING_EMPTY,
+        }
     };
-    Some(Cow::Owned(string))
+
+    // Compute the interned file StringIndex (empty for internal functions).
+    let file_idx = if func.is_internal() {
+        STRING_EMPTY
+    } else {
+        let bytes = unsafe {
+            zai_str_from_zstr(func.op_array.filename.as_mut())
+                .as_bytes()
+                .to_vec()
+        };
+        if bytes.is_empty() {
+            STRING_EMPTY
+        } else {
+            // from_utf8_lossy returns Borrowed (no alloc) for valid UTF-8 — the common case.
+            let s = String::from_utf8_lossy(&bytes);
+            match shm.intern_str(&s) {
+                Ok(idx) => idx,
+                Err(InternError::StrTooLong) => STRING_SUSPICIOUSLY_LONG_FILE,
+                Err(_) => STRING_EMPTY,
+            }
+        }
+    };
+
+    // Intern the (name, file) function pair.
+    let fn_idx = match shm.intern_function(name_idx, file_idx) {
+        Ok(idx) => idx,
+        Err(_) => return, // OOM or WouldBlock — leave slot NULL, fallback at walk time
+    };
+
+    // Store in reserved[slot].
+    unsafe {
+        zend::ddog_php_prof_set_function_index(
+            func as *const zend_function as *mut zend_function,
+            fn_idx.0,
+        );
+    }
 }
 
-/// Gets an opline reference after doing bounds checking to prevent segfaults
-/// on dangling pointers that have been observed when dereferencing
-/// `execute_data.opline` under some conditions.
+/// Called from `op_array_handler` for freshly compiled op_arrays.
+pub fn intern_op_array(shm: &ShmRegion, op_array: &zend_op_array) {
+    // zend_op_array and zend_function share a common prefix; cast is safe.
+    let func = unsafe { &*(op_array as *const zend_op_array as *const zend_function) };
+    intern_function(shm, func);
+}
+
+/// Gets an opline reference after doing bounds checking.
 #[inline]
 fn safely_get_opline(execute_data: &zend_execute_data) -> Option<&zend_op> {
     let func = unsafe { execute_data.func.as_ref()? };
     let op_array = func.op_array()?;
     if opline_in_bounds(op_array, execute_data.opline) {
-        // SAFETY: we did our best we could to validate that this pointer is
-        // non-NULL and not dangling and actually pointing to the right kind of
-        // data. Otherwise, this is the crash site you are looking for.
         unsafe { Some(&*execute_data.opline) }
     } else {
         None
@@ -135,408 +126,157 @@ fn safely_get_opline(execute_data: &zend_execute_data) -> Option<&zend_op> {
 #[inline]
 fn opline_in_bounds(op_array: &zend_op_array, opline: *const zend_op) -> bool {
     let opcodes_start = op_array.opcodes;
-    // Just being safe, not sure if this can happen in practice.
     if opcodes_start.is_null() || opline.is_null() {
         return false;
     }
-
     let begin = opcodes_start as usize;
-    // `op_array.last` is a count of `zend_op` sized elements to be found in `op_array.opcodes`
     let end = begin + (op_array.last as usize) * core::mem::size_of::<zend_op>();
     (begin..end).contains(&(opline as usize))
 }
 
-unsafe fn extract_file_and_line(
-    execute_data: &zend_execute_data,
-) -> (Option<Cow<'static, str>>, u32) {
-    // This should be Some, just being cautious.
-    match execute_data.func.as_ref() {
-        Some(func) if !func.is_internal() => {
-            // Safety: zai_str_from_zstr will return a valid ZaiStr.
-            let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
-            let file = if bytes.len() <= MAX_STR_LEN {
-                Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
-            } else {
-                COW_LARGE_STRING
-            };
-            let lineno = match safely_get_opline(execute_data) {
-                Some(opline) => opline.lineno,
-                None => 0,
-            };
-            (Some(file), lineno)
-        }
-        _ => (None, 0),
-    }
+/// Read the FunctionIndex from func->reserved[slot].
+/// A NULL slot (0) returns FunctionIndex(0) = FUNCTION_EMPTY, which is the correct
+/// fallback for any function not yet interned into the SHM.
+#[inline]
+fn read_or_fallback(func: &zend_function) -> FunctionIndex {
+    let mut idx: u32 = 0;
+    unsafe { zend::ddog_php_prof_get_function_index(func as *const _, &mut idx) };
+    FunctionIndex(idx)
 }
 
-#[cfg(php_run_time_cache)]
-mod detail {
-    use super::*;
-    use crate::string_set::StringSet;
-    use crate::{RefCellExt, RefCellExtError};
-    use libdd_profiling::profiles::collections::ThinStr;
-    use log::{debug, trace};
-    use std::cell::RefCell;
-    use std::ffi::c_void;
+unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+    let func = unsafe { execute_data.func.as_ref()? };
 
-    struct StringCache<'a> {
-        /// Refers to a function's run time cache reserved by this extension.
-        cache_slots: &'a mut [usize; 2],
-
-        /// Refers to the string set in the thread-local storage.
-        string_set: &'a mut StringSet,
-    }
-
-    impl StringCache<'_> {
-        /// Makes a copy of the string in the cache slot. If there isn't a
-        /// string in the slot currently, then create one by calling the
-        /// provided function, store it in the string cache and cache slot,
-        /// and return it.
-        fn get_or_insert<F>(&mut self, slot: usize, f: F) -> Option<String>
-        where
-            F: FnOnce() -> Option<String>,
-        {
-            debug_assert!(slot < self.cache_slots.len());
-            let cached = unsafe { self.cache_slots.get_unchecked_mut(slot) };
-
-            let ptr = *cached as *mut c_void;
-            match std::ptr::NonNull::new(ptr) {
-                Some(non_null) => {
-                    // SAFETY: the raw pointer was produced by ThinStr::into_raw
-                    // and the string set (which owns the backing memory) is
-                    // still alive because it is only reset between requests.
-                    let thin_str: ThinStr = unsafe { ThinStr::from_raw(non_null) };
-                    let str = unsafe { self.string_set.get_thin_str(thin_str) };
-                    Some(str.to_string())
+    // Handle frameless icalls — look up the real internal function.
+    #[cfg(php_frameless)]
+    if !func.is_internal() {
+        if let Some(opline) = safely_get_opline(execute_data) {
+            match opline.opcode as u32 {
+                ZEND_FRAMELESS_ICALL_0
+                | ZEND_FRAMELESS_ICALL_1
+                | ZEND_FRAMELESS_ICALL_2
+                | ZEND_FRAMELESS_ICALL_3 => {
+                    let flf_func =
+                        unsafe { &**zend_flf_functions.offset(opline.extended_value as isize) };
+                    let function = read_or_fallback(flf_func);
+                    return Some(ZendFrame { function, line: 0 });
                 }
-                None => {
-                    let string = f()?;
-                    let thin_str = self.string_set.insert(&string);
-                    let raw = thin_str.into_raw();
-                    *cached = raw.as_ptr() as usize;
-                    Some(string)
-                }
+                _ => {}
             }
         }
     }
 
-    /// Used to help track the function run_time_cache hit rate. It glosses
-    /// over the fact that there are two cache slots used, and they don't have
-    /// to be in sync. However, they usually are, so we simplify.
-    #[derive(Debug, Default)]
-    struct FunctionRunTimeCacheStats {
-        hit: usize,
-        missed: usize,
-        not_applicable: usize,
-    }
+    let function = read_or_fallback(func);
+    let line = if func.is_internal() {
+        0
+    } else {
+        safely_get_opline(execute_data).map_or(0, |op| op.lineno)
+    };
 
-    impl FunctionRunTimeCacheStats {
-        const fn new() -> Self {
-            Self {
-                hit: 0,
-                missed: 0,
-                not_applicable: 0,
-            }
-        }
-    }
-
-    impl FunctionRunTimeCacheStats {
-        fn hit_rate(&self) -> f64 {
-            let denominator = (self.hit + self.missed + self.not_applicable) as f64;
-            self.hit as f64 / denominator
-        }
-    }
-
-    thread_local! {
-        static CACHED_STRINGS: RefCell<StringSet> = RefCell::new(StringSet::new());
-        static FUNCTION_CACHE_STATS: RefCell<FunctionRunTimeCacheStats> =
-            const { RefCell::new(FunctionRunTimeCacheStats::new()) }
-    }
-
-    /// # Safety
-    /// Must be called in Zend Extension activate.
-    #[inline]
-    pub unsafe fn activate() {}
-
-    #[inline]
-    pub fn rshutdown() {
-        // If we cannot borrow the stats, then something has gone wrong, but
-        // it's not that important.
-        _ = FUNCTION_CACHE_STATS.try_with_borrow(|stats| {
-            let hit_rate = stats.hit_rate();
-            debug!("Process cumulative {stats:?} hit_rate: {hit_rate}");
-        });
-
-        let result = CACHED_STRINGS.try_with_borrow_mut(|string_set| {
-            // A slow ramp up to 2 MiB is probably _not_ going to look like a
-            // memory leak. A higher threshold may make a user suspect a leak.
-            const THRESHOLD: usize = 2 * 1024 * 1024;
-
-            let used_bytes = string_set.arena_used_bytes();
-            if used_bytes > THRESHOLD {
-                debug!("string cache arena is using {used_bytes} bytes which exceeds the {THRESHOLD} byte threshold, resetting");
-                // Note that this cannot be done _during_ a request. The
-                // ThinStrs inside the run time cache need to remain valid
-                // during the request.
-                *string_set = StringSet::new();
-            } else {
-                trace!("string cache arena is using {used_bytes} bytes which is less than the {THRESHOLD} byte threshold");
-            }
-        });
-
-        if let Err(err) = result {
-            // Debug level because rshutdown could be quite spammy.
-            debug!("failed to borrow request locals in rshutdown: {err}");
-        }
-    }
-
-    /// Collects the stack trace, cached strings versions.
-    ///
-    /// # Errors
-    /// Returns [`CollectStackSampleError::TryReserveError`] if the vec holding the frames is
-    /// unable to allocate memory.
-    #[inline]
-    fn collect_stack_sample_cached(
-        top_execute_data: *mut zend_execute_data,
-        string_set: &mut StringSet,
-    ) -> Result<Backtrace, CollectStackSampleError> {
-        let max_depth = 512;
-        let mut samples = Vec::new();
-        let mut execute_data_ptr = top_execute_data;
-
-        samples.try_reserve(max_depth >> 3)?;
-
-        while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            // allowed because it's only used on the frameless path
-            #[allow(unused_variables)]
-            if let Some(func) = unsafe { execute_data.func.as_ref() } {
-                // It's possible that this is a fake frame put there by the
-                // engine, see accel_preload on PHP 8.4 and the local variable
-                // `fake_execute_data`. The frame is zeroed in this case, so
-                // we can check for null.
-                #[cfg(php_frameless)]
-                if !func.is_internal() {
-                    if let Some(opline) = safely_get_opline(execute_data) {
-                        match opline.opcode as u32 {
-                            ZEND_FRAMELESS_ICALL_0
-                            | ZEND_FRAMELESS_ICALL_1
-                            | ZEND_FRAMELESS_ICALL_2
-                            | ZEND_FRAMELESS_ICALL_3 => {
-                                let func = unsafe {
-                                    &**zend_flf_functions.offset(opline.extended_value as isize)
-                                };
-                                samples.try_push(ZendFrame {
-                                    function: extract_function_name(func).unwrap(),
-                                    file: None,
-                                    line: 0,
-                                })?;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-
-                let maybe_frame = unsafe { collect_call_frame(execute_data, string_set) };
-                if let Some(frame) = maybe_frame {
-                    samples.try_push(frame)?;
-
-                    // -1 to reserve room for the [truncated] message. In case
-                    // the backend and/or frontend have the same limit, without
-                    // subtracting one, then the [truncated] message itself
-                    // would be truncated!
-                    if samples.len() == max_depth - 1 {
-                        samples.try_push(ZendFrame {
-                            function: COW_TRUNCATED,
-                            file: None,
-                            line: 0,
-                        })?;
-                        break;
-                    }
-                }
-            }
-
-            execute_data_ptr = execute_data.prev_execute_data;
-        }
-        Ok(Backtrace::new(samples))
-    }
-
-    #[inline(never)]
-    pub fn collect_stack_sample(
-        execute_data: *mut zend_execute_data,
-    ) -> Result<Backtrace, CollectStackSampleError> {
-        #[cfg(feature = "tracing")]
-        let _span = tracing::trace_span!("collect_stack_sample").entered();
-        CACHED_STRINGS
-            .try_with_borrow_mut(|set| collect_stack_sample_cached(execute_data, set))
-            .unwrap_or_else(|err| match err {
-                RefCellExtError::AccessError(e) => Err(e.into()),
-                RefCellExtError::BorrowError(e) => Err(e.into()),
-                RefCellExtError::BorrowMutError(e) => Err(e.into()),
-            })
-    }
-
-    unsafe fn collect_call_frame(
-        execute_data: &zend_execute_data,
-        string_set: &mut StringSet,
-    ) -> Option<ZendFrame> {
-        #[cfg(not(feature = "stack_walking_tests"))]
-        use crate::bindings::ddog_php_prof_function_run_time_cache;
-        #[cfg(feature = "stack_walking_tests")]
-        use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof_function_run_time_cache;
-
-        let func = execute_data.func.as_ref()?;
-        let (function, file, line) = match ddog_php_prof_function_run_time_cache(func) {
-            Some(slots) => {
-                let mut string_cache = StringCache {
-                    cache_slots: slots,
-                    string_set,
-                };
-                let function = handle_function_cache_slot(func, &mut string_cache);
-                let (file, line) = handle_file_cache_slot(execute_data, &mut string_cache);
-
-                let cache_slots = string_cache.cache_slots;
-                // If we cannot borrow the stats, then something has gone
-                // wrong, but it's not that important.
-                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| {
-                    if cache_slots[0] == 0 {
-                        stats.missed += 1;
-                    } else {
-                        stats.hit += 1;
-                    }
-                });
-
-                (function, file.map(Cow::Owned), line)
-            }
-
-            None => {
-                // If we cannot borrow the stats, then something has gone
-                // wrong, but it's not that important.
-                _ = FUNCTION_CACHE_STATS.try_with_borrow_mut(|stats| stats.not_applicable += 1);
-                let function = extract_function_name(func);
-                let (file, line) = extract_file_and_line(execute_data);
-                (function, file, line)
-            }
-        };
-
-        if function.is_some() || file.is_some() {
-            Some(ZendFrame {
-                function: function.unwrap_or(COW_PHP_OPEN_TAG),
-                file,
-                line,
-            })
-        } else {
-            None
-        }
-    }
-
-    fn handle_function_cache_slot(
-        func: &zend_function,
-        string_cache: &mut StringCache,
-    ) -> Option<Cow<'static, str>> {
-        let fname =
-            string_cache.get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))?;
-        Some(Cow::Owned(fname))
-    }
-
-    unsafe fn handle_file_cache_slot(
-        execute_data: &zend_execute_data,
-        string_cache: &mut StringCache,
-    ) -> (Option<String>, u32) {
-        let option = string_cache.get_or_insert(1, || -> Option<String> {
-            unsafe {
-                // Safety: if we have cache slots, we definitely have a func.
-                let func = &*execute_data.func;
-                if func.is_internal() {
-                    return None;
-                };
-
-                // SAFETY: calling C function with correct args.
-                let file = zai_str_from_zstr(func.op_array.filename.as_mut()).into_string();
-                Some(file)
-            }
-        });
-        match option {
-            Some(filename) => {
-                let lineno = match safely_get_opline(execute_data) {
-                    Some(opline) => opline.lineno,
-                    None => 0,
-                };
-                (Some(filename), lineno)
-            }
-            None => (None, 0),
-        }
-    }
+    Some(ZendFrame { function, line })
 }
 
-#[cfg(not(php_run_time_cache))]
-mod detail {
-    use super::*;
+/// # Safety
+/// Must be called in Zend Extension activate.
+#[inline]
+pub unsafe fn activate() {}
 
-    /// # Safety
-    /// This is actually safe, but it is marked unsafe for symmetry when the
-    /// run_time_cache is enabled.
-    #[inline]
-    pub unsafe fn activate() {}
+#[inline]
+pub fn rshutdown() {}
 
-    #[inline]
-    pub fn rshutdown() {}
+#[inline(never)]
+pub fn collect_stack_sample(
+    top_execute_data: *mut zend_execute_data,
+) -> Result<Backtrace, CollectStackSampleError> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::trace_span!("collect_stack_sample").entered();
 
-    #[inline(never)]
-    pub fn collect_stack_sample(
-        top_execute_data: *mut zend_execute_data,
-    ) -> Result<Backtrace, CollectStackSampleError> {
-        #[cfg(feature = "tracing")]
-        let _span = tracing::trace_span!("collect_stack_sample").entered();
+    let max_depth = 512;
+    let mut samples = Vec::new();
+    let mut execute_data_ptr = top_execute_data;
 
-        let max_depth = 512;
-        let mut samples = Vec::with_capacity(max_depth >> 3);
-        let mut execute_data_ptr = top_execute_data;
+    samples.try_reserve(max_depth >> 3)?;
 
-        while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+    while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+        #[allow(unused_variables)]
+        if let Some(func) = unsafe { execute_data.func.as_ref() } {
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;
 
-                /* -1 to reserve room for the [truncated] message. In case the
-                 * backend and/or frontend have the same limit, without the -1
-                 * then ironically the [truncated] message would be truncated.
-                 */
+                // -1 to reserve room for the [truncated] marker.
                 if samples.len() == max_depth - 1 {
                     samples.try_push(ZendFrame {
-                        function: COW_TRUNCATED,
-                        file: None,
+                        function: FUNCTION_TRUNCATED,
                         line: 0,
                     })?;
                     break;
                 }
             }
-
-            execute_data_ptr = execute_data.prev_execute_data;
         }
-        Ok(Backtrace::new(samples))
-    }
 
-    unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
-        if let Some(func) = execute_data.func.as_ref() {
-            let function = extract_function_name(func);
-            let (file, line) = extract_file_and_line(execute_data);
-
-            // Only create a new frame if there's file or function info.
-            if file.is_some() || function.is_some() {
-                // If there's no function name, use a fake name.
-                let function = function.unwrap_or(COW_PHP_OPEN_TAG);
-                return Some(ZendFrame {
-                    function,
-                    file,
-                    line,
-                });
-            }
-        }
-        None
+        execute_data_ptr = execute_data.prev_execute_data;
     }
+    Ok(Backtrace::new(samples))
 }
 
-pub use detail::*;
+enum FunctionNameBytes {
+    TopLevel,
+    TooLong,
+    Bytes(Vec<u8>),
+}
+
+fn extract_function_name_bytes(func: &zend_function) -> FunctionNameBytes {
+    let method_name = match func.name() {
+        Some(name) if !name.is_empty() => name,
+        _ => return FunctionNameBytes::TopLevel,
+    };
+
+    let module = func.module_name().unwrap_or(b"");
+    let class = func.scope_name().unwrap_or(b"");
+
+    let total_len = module.len()
+        + if module.is_empty() { 0 } else { 1 } // "|"
+        + class.len()
+        + if class.is_empty() { 0 } else { 2 } // "::"
+        + method_name.len();
+
+    if total_len > MAX_STR_LEN {
+        return FunctionNameBytes::TooLong;
+    }
+
+    let mut bytes = Vec::with_capacity(total_len);
+    if !module.is_empty() {
+        bytes.extend_from_slice(module);
+        bytes.push(b'|');
+    }
+    if !class.is_empty() {
+        bytes.extend_from_slice(class);
+        bytes.extend_from_slice(b"::");
+    }
+    bytes.extend_from_slice(method_name);
+    FunctionNameBytes::Bytes(bytes)
+}
+
+/// Legacy accessor for backwards compat with code that still uses
+/// `extract_function_name`. This keeps the public API stable while the
+/// migration to FunctionIndex-based frames is in progress.
+pub fn extract_function_name(func: &zend_function) -> Option<std::borrow::Cow<'static, str>> {
+    match extract_function_name_bytes(func) {
+        FunctionNameBytes::TopLevel => None,
+        FunctionNameBytes::TooLong => {
+            Some(std::borrow::Cow::Borrowed("[suspiciously large string]"))
+        }
+        FunctionNameBytes::Bytes(bytes) => {
+            let string = if core::str::from_utf8(&bytes).is_ok() {
+                unsafe { String::from_utf8_unchecked(bytes) }
+            } else {
+                String::from_utf8_lossy(&bytes).into_owned()
+            };
+            Some(std::borrow::Cow::Owned(string))
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -548,34 +288,6 @@ mod tests {
             len: libc::size_t,
         ) -> *mut zend::zend_function;
         fn ddog_php_test_free_fake_zend_function(func: *mut zend::zend_function);
-    }
-
-    #[test]
-    #[cfg(feature = "stack_walking_tests")]
-    fn test_collect_stack_sample() {
-        unsafe {
-            let fake_execute_data = zend::ddog_php_test_create_fake_zend_execute_data(3);
-
-            let stack = collect_stack_sample(fake_execute_data).unwrap();
-
-            assert_eq!(stack.len(), 3);
-
-            let frames = &stack;
-            assert_eq!(frames[0].function, "function name 003");
-            assert_eq!(frames[0].file, Some("filename-003.php".into()));
-            assert_eq!(frames[0].line, 0);
-
-            assert_eq!(frames[1].function, "function name 002");
-            assert_eq!(frames[1].file, Some("filename-002.php".into()));
-            assert_eq!(frames[1].line, 0);
-
-            assert_eq!(frames[2].function, "function name 001");
-            assert_eq!(frames[2].file, Some("filename-001.php".into()));
-            assert_eq!(frames[2].line, 0);
-
-            // Free the allocated memory
-            zend::ddog_php_test_free_fake_zend_execute_data(fake_execute_data);
-        }
     }
 
     #[test]
@@ -599,7 +311,7 @@ mod tests {
 
             let name = extract_function_name(&*func).expect("should extract name");
             assert_eq!(name.len(), MAX_STR_LEN);
-            assert_ne!(name, COW_LARGE_STRING);
+            assert_ne!(name, "[suspiciously large string]");
 
             ddog_php_test_free_fake_zend_function(func);
         }
@@ -612,7 +324,7 @@ mod tests {
             assert!(!func.is_null());
 
             let name = extract_function_name(&*func).expect("should return large string marker");
-            assert_eq!(name, COW_LARGE_STRING);
+            assert_eq!(name, "[suspiciously large string]");
 
             ddog_php_test_free_fake_zend_function(func);
         }

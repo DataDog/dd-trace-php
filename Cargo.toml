@@ -1,5 +1,5 @@
 [workspace]
-members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling"]
+members = ["components-rs", "components-rs/php_sidecar_mockgen", "profiling", "profiling_shm", "profiling_shm/audit"]
 resolver = "2"
 
 [workspace.package]
@@ -8,6 +8,13 @@ edition = "2021"
 # Irrelevant version and license. These do NOT apply here, they just are here to make cargo build pass.
 version = "0.0.1"
 license = "Apache-2.0"
+
+[profile.panic-audit]
+inherits      = "release"
+panic         = "abort"
+lto           = "fat"
+codegen-units = 1
+opt-level     = 3
 
 [profile.dev]
 debug = 2 # full debug info
@@ -28,6 +35,16 @@ inherits = "release"
 [profile.profiler-release]
 panic = "abort"
 inherits = "release"
+
+[profile.fuzz]
+inherits = "dev"
+opt-level = 3
+incremental = false
+
+# Patch for rustc-hash to eliminate panic paths in hash_bytes (merged, pending v2.1.2 release):
+# https://github.com/rust-lang/rustc-hash/pull/65
+[patch.crates-io]
+rustc-hash = { git = "https://github.com/rust-lang/rustc-hash", rev = "140e5253440d595822e57b4f599b45aa500dde1d" }
 
 # These are to satistfy the build with libdatadog as a path dependency inside
 # components-rs. There may be a better way to fix this, but I'm alreday two

@@ -9,9 +9,6 @@ mod pthread;
 mod sapi;
 mod wall_time;
 
-#[cfg(php_run_time_cache)]
-mod string_set;
-
 #[macro_use]
 mod allocation;
 
@@ -48,6 +45,19 @@ use std::sync::{Arc, Once, OnceLock};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
+
+use profiling_shm::ShmRegion;
+
+/// Global shared-memory region for string and function interning.
+/// Created in the zend_extension startup hook (before fork), inherited by
+/// children. Lock-free reads; spinlock writes in non-signal context.
+pub static SHM: OnceLock<ShmRegion> = OnceLock::new();
+
+/// Convenience accessor — panics if called before startup.
+#[inline]
+pub fn shm() -> &'static ShmRegion {
+    SHM.get().expect("profiling SHM not initialized")
+}
 
 /// Name of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
@@ -353,7 +363,7 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
     // zend_llist_element. Every time a new PHP version is released, we should
     // double-check zend_register_extension to ensure the address is not
     // mutated nor stored. Well, hopefully we catch it _before_ a release.
-    let extension = ZendExtension {
+    let mut extension = ZendExtension {
         name: PROFILER_NAME.as_ptr(),
         version: PROFILER_VERSION.as_ptr().cast::<c_char>(),
         author: c"Datadog".as_ptr(),
@@ -362,8 +372,22 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         startup: Some(startup),
         shutdown: Some(shutdown),
         activate: Some(activate),
+        // SAFETY: these are valid C function pointers from php_ffi.c.
+        op_array_persist_calc: unsafe { zend::ddog_php_prof_get_persist_calc_fn() },
+        op_array_persist: unsafe { zend::ddog_php_prof_get_persist_fn() },
         ..Default::default()
     };
+
+    // Allocate 1 reserved[] slot for FunctionIndex storage. Must be done
+    // after the extension struct is populated (PHP 7's zend_get_resource_handle
+    // takes a zend_extension*) and before zend_register_extension().
+    // SAFETY: calling in MINIT, single-threaded, extension struct is valid.
+    if unsafe { zend::ddog_php_prof_op_array_reserved_slot_init(&mut extension) }
+        == ZendResult::Failure
+    {
+        error!("Failed to allocate a reserved[] slot for FunctionIndex storage; the profiler cannot run.");
+        return ZendResult::Failure;
+    }
 
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };
@@ -530,6 +554,20 @@ fn runtime_id() -> &'static Uuid {
 extern "C" fn activate() {
     // SAFETY: calling in activate as required.
     unsafe { profiling::stack_walking::activate() };
+}
+
+/// Intern a zend_function into the profiling SHM and store the FunctionIndex
+/// in func->common.reserved[slot]. Called from C (ddog_php_prof_intern_all_functions).
+///
+/// # Safety
+/// `func` must be a valid pointer to a zend_function for the duration of the call.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_intern_and_store(func: *mut bindings::zend_function) {
+    if let Some(shm) = SHM.get() {
+        if let Some(func) = unsafe { func.as_ref() } {
+            profiling::stack_walking::intern_function(shm, func);
+        }
+    }
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
@@ -1003,11 +1041,21 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
     // SAFETY: called during startup hook with correct params.
     unsafe { zend::datadog_php_profiling_startup(extension) };
 
-    #[cfg(php_run_time_cache)]
-    // SAFETY: calling this in startup/minit as required.
-    unsafe {
-        bindings::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME.as_ptr())
-    };
+    // Create the shared-memory region and pre-intern all strings/functions.
+    // This must happen before fork() so children inherit the mapping.
+    // SAFETY: called in startup hook, single-threaded at this point.
+    match unsafe { ShmRegion::create() } {
+        Ok(region) => {
+            SHM.set(region).ok(); // ok() because Apache may call startup twice
+                                  // Intern all already-registered PHP functions and internal methods
+                                  // so their reserved[] slots are populated before any requests.
+                                  // SAFETY: calling in startup hook with engine initialized.
+            unsafe { zend::ddog_php_prof_intern_all_functions() };
+        }
+        Err(()) => {
+            error!("Failed to create profiling shared memory region (mmap failed). Stack frames will use fallback names.");
+        }
+    }
 
     // SAFETY: calling this in zend_extension startup.
     unsafe {

@@ -37,6 +37,7 @@ use libdd_profiling::api::{
 };
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
+use profiling_shm::STRING_EMPTY;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -567,12 +568,18 @@ impl TimeCollector {
         let values = message.value.sample_values;
         let labels: Vec<ApiLabel> = message.value.labels.iter().map(ApiLabel::from).collect();
 
+        let shm = crate::shm();
         for frame in message.value.frames.iter() {
+            let (name_idx, file_idx) = shm
+                .get_function(frame.function)
+                .unwrap_or((STRING_EMPTY, STRING_EMPTY));
+            let name = shm.get_str(name_idx).unwrap_or("");
+            let file = shm.get_str(file_idx).unwrap_or("");
             let location = Location {
                 function: Function {
-                    name: frame.function.as_ref(),
+                    name,
                     system_name: "",
-                    filename: frame.file.as_deref().unwrap_or(""),
+                    filename: file,
                 },
                 line: frame.line as i64,
                 ..Location::default()
@@ -696,7 +703,21 @@ pub enum UploadMessage {
     Upload(Box<UploadRequest>),
 }
 
-const COW_EVAL: Cow<str> = Cow::Borrowed("[eval]");
+/// Intern a function name + optional filename and return a ZendFrame.
+/// Used for synthetic event frames (eval, fatal, gc, etc.).
+fn intern_event_frame(name: &str, file: Option<&str>, line: u32) -> ZendFrame {
+    use profiling_shm::{FUNCTION_UNKNOWN_USER, STRING_EMPTY};
+    let shm = crate::shm();
+    let name_idx = shm.intern_str(name).unwrap_or(STRING_EMPTY);
+    let file_idx = match file {
+        Some(f) if !f.is_empty() => shm.intern_str(f).unwrap_or(STRING_EMPTY),
+        _ => STRING_EMPTY,
+    };
+    let function = shm
+        .intern_function(name_idx, file_idx)
+        .unwrap_or(FUNCTION_UNKNOWN_USER);
+    ZendFrame { function, line }
+}
 
 const DDPROF_TIME: &str = "ddprof_time";
 const DDPROF_UPLOAD: &str = "ddprof_upload";
@@ -1139,11 +1160,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: COW_EVAL,
-                file: Some(Cow::Owned(filename)),
-                line,
-            }]),
+            Backtrace::new(vec![intern_event_frame("[eval]", Some(&filename), line)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1180,11 +1197,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: format!("[{include_type}]").into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![intern_event_frame(
+                &format!("[{include_type}]"),
+                None,
+                0,
+            )]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1217,11 +1234,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: format!("[{event}]").into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![intern_event_frame(&format!("[{event}]"), None, 0)]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1255,11 +1268,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[fatal]".into(),
-                file: Some(Cow::Owned(file)),
-                line,
-            }]),
+            Backtrace::new(vec![intern_event_frame("[fatal]", Some(&file), line)]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1302,11 +1311,11 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[opcache restart]".into(),
-                file: Some(Cow::Owned(file)),
+            Backtrace::new(vec![intern_event_frame(
+                "[opcache restart]",
+                Some(&file),
                 line,
-            }]),
+            )]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1336,11 +1345,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[idle]".into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![intern_event_frame("[idle]", None, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1392,11 +1397,7 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![ZendFrame {
-                function: "[gc]".into(),
-                file: None,
-                line: 0,
-            }]),
+            Backtrace::new(vec![intern_event_frame("[gc]", None, 0)]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1658,11 +1659,7 @@ mod tests {
     use log::LevelFilter;
 
     fn get_frames() -> Backtrace {
-        Backtrace::new(vec![ZendFrame {
-            function: "foobar()".into(),
-            file: Some("foobar.php".into()),
-            line: 42,
-        }])
+        Backtrace::new(vec![intern_event_frame("foobar()", Some("foobar.php"), 42)])
     }
 
     pub fn get_system_settings() -> SystemSettings {

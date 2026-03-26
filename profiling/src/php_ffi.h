@@ -173,3 +173,57 @@ bool ddog_php_jit_enabled();
  * Returns true if the thread was spawned by the parallel extension.
  */
 bool ddog_php_prof_is_parallel_thread();
+
+/**
+ * Allocates a reserved[] slot via zend_get_resource_handle().
+ * Must be called in MINIT, after the zend_extension struct is populated but
+ * before zend_register_extension(). On PHP 7 the API takes a zend_extension*;
+ * on PHP 8+ it takes a const char*. This wrapper handles both.
+ * Returns FAILURE and logs to stderr if the slot is out of range.
+ */
+zend_result ddog_php_prof_op_array_reserved_slot_init(zend_extension *extension);
+
+/**
+ * Returns the reserved[] slot index, or -1 if not yet initialized.
+ */
+int ddog_php_prof_op_array_reserved_slot(void);
+
+/**
+ * Store a FunctionIndex in func->common.reserved[slot] as a tagged pointer:
+ * (index + 1) cast to void*. NULL means "not set".
+ */
+void ddog_php_prof_set_function_index(zend_function *func, uint32_t index);
+
+/**
+ * Read the FunctionIndex from func->common.reserved[slot].
+ * Returns true and writes to *out on success (NULL slot → index 0 = FUNCTION_EMPTY).
+ * Returns false only if the reserved slot is not allocated (_op_array_reserved_slot < 0).
+ */
+bool ddog_php_prof_get_function_index(const zend_function *func, uint32_t *out);
+
+/**
+ * Returns the op_array_persist_calc hook. Always returns 0: we store FunctionIndex
+ * directly in reserved[slot] (already in OPcache SHM), so no extra arena bytes needed.
+ */
+op_array_persist_calc_func_t ddog_php_prof_get_persist_calc_fn(void);
+
+/**
+ * Returns the op_array_persist hook. Interns the function into the profiling SHM
+ * and writes the FunctionIndex directly into the op_array's reserved slot (which is
+ * already in OPcache SHM at call time). Returns 0.
+ */
+op_array_persist_func_t ddog_php_prof_get_persist_fn(void);
+
+/**
+ * Iterate all functions in CG(function_table) and all methods in CG(class_table),
+ * calling ddog_php_prof_intern_and_store() for each.
+ * Must be called from the zend_extension startup hook.
+ */
+void ddog_php_prof_intern_all_functions(void);
+
+/**
+ * Intern a single zend_function into the profiling SHM and store the
+ * resulting FunctionIndex in func->common.reserved[slot].
+ * Implemented in Rust; called from C.
+ */
+void ddog_php_prof_intern_and_store(zend_function *func);

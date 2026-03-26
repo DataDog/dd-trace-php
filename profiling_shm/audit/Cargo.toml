@@ -1,0 +1,13 @@
+[package]
+name         = "profiling-shm-panic-audit"
+version      = "0.0.1"
+edition      = "2021"
+rust-version = "1.84.1"
+license      = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+libdatadog-php-profiling-shm = { path = ".." }
+libc = { version = "0.2", default-features = false }
