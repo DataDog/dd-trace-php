@@ -485,8 +485,8 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_CPU_LIMIT: 8
-    KUBERNETES_MEMORY_REQUEST: 16Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 8Gi
 <?php else: ?>
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_CPU_LIMIT: 1
@@ -495,8 +495,8 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php endif; ?>
     KUBERNETES_HELPER_CPU_REQUEST: 1
     KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 512Mi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 512Mi
+    KUBERNETES_HELPER_MEMORY_REQUEST: 768Mi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 768Mi
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
