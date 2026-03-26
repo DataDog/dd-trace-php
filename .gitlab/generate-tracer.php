@@ -484,6 +484,17 @@ foreach ($all_minor_major_targets as $major_minor):
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TESTS: "1"
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_CPU_LIMIT: 2
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+<?php else: ?>
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_CPU_LIMIT: 1
+    KUBERNETES_MEMORY_REQUEST: 2Gi
+    KUBERNETES_MEMORY_LIMIT: 2Gi
+<?php endif; ?>
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
