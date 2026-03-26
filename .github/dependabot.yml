@@ -9,8 +9,10 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 2
     groups:
       gh-actions-packages:
         patterns:
-          - "*"    cooldown:
-      default-days: 2
+          - "*"
+          
