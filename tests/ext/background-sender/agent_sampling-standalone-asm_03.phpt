@@ -31,7 +31,7 @@ $get_sampling = function() use ($rr) {
 
 \DDTrace\start_span();
 \DDTrace\close_span();
-dd_trace_internal_fn("synchronous_flush");
+dd_trace_internal_fn("synchronous_flush", 5000);
 
 echo "First call it is used as heartbeat: {$get_sampling()}\n";
 
@@ -39,14 +39,14 @@ echo "First call it is used as heartbeat: {$get_sampling()}\n";
 \DDTrace\start_span();
 \DDTrace\close_span();
 // reset it for other tests
-dd_trace_internal_fn("synchronous_flush");
+dd_trace_internal_fn("synchronous_flush", 5000);
 echo "This call has the same sample rate: {$get_sampling()}\n";
 
 
 
 \DDTrace\start_span();
 \DDTrace\close_span();
-dd_trace_internal_fn("synchronous_flush");
+dd_trace_internal_fn("synchronous_flush", 5000);
 echo "This call also has the same sample rate: {$get_sampling()}\n";
 ?>
 --EXPECTF--
