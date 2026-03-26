@@ -1286,7 +1286,7 @@ dependencies = [
  "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
- "libdd-common 2.0.0",
+ "libdd-common 3.0.1",
  "libdd-library-config-ffi",
  "libdd-profiling",
  "log",
@@ -2688,49 +2688,10 @@ checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
 [[package]]
 name = "libdd-alloc"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v29.0.0#001bd56fcbba34fa4ec3f9798a6c4fbcddeffa40"
+source = "git+https://github.com/DataDog/libdatadog?rev=407c70b0d080614cfda8ff937e33670fed2588be#407c70b0d080614cfda8ff937e33670fed2588be"
 dependencies = [
  "allocator-api2",
  "libc 0.2.177",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "libdd-common"
-version = "2.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v29.0.0#001bd56fcbba34fa4ec3f9798a6c4fbcddeffa40"
-dependencies = [
- "anyhow",
- "bytes",
- "cc",
- "const_format",
- "futures",
- "futures-core",
- "futures-util",
- "hex",
- "http",
- "http-body",
- "http-body-util",
- "httparse",
- "hyper",
- "hyper-rustls",
- "hyper-util",
- "libc 0.2.177",
- "mime",
- "multer",
- "nix 0.29.0",
- "pin-project",
- "rand 0.8.5",
- "regex",
- "reqwest",
- "rustls",
- "rustls-native-certs",
- "serde",
- "static_assertions",
- "thiserror 1.0.69",
- "tokio",
- "tokio-rustls",
- "tower-service",
  "windows-sys 0.52.0",
 ]
 
@@ -2769,6 +2730,45 @@ dependencies = [
  "serde",
  "static_assertions",
  "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-rustls",
+ "tower-service",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "libdd-common"
+version = "3.0.1"
+source = "git+https://github.com/DataDog/libdatadog?rev=407c70b0d080614cfda8ff937e33670fed2588be#407c70b0d080614cfda8ff937e33670fed2588be"
+dependencies = [
+ "anyhow",
+ "bytes",
+ "cc",
+ "const_format",
+ "futures",
+ "futures-core",
+ "futures-util",
+ "hex",
+ "http",
+ "http-body",
+ "http-body-util",
+ "httparse",
+ "hyper",
+ "hyper-rustls",
+ "hyper-util",
+ "libc 0.2.177",
+ "mime",
+ "multer",
+ "nix 0.29.0",
+ "pin-project",
+ "rand 0.8.5",
+ "regex",
+ "reqwest",
+ "rustls",
+ "rustls-native-certs",
+ "serde",
+ "static_assertions",
  "thiserror 1.0.69",
  "tokio",
  "tokio-rustls",
@@ -2959,7 +2959,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v29.0.0#001bd56fcbba34fa4ec3f9798a6c4fbcddeffa40"
+source = "git+https://github.com/DataDog/libdatadog?rev=407c70b0d080614cfda8ff937e33670fed2588be#407c70b0d080614cfda8ff937e33670fed2588be"
 dependencies = [
  "allocator-api2",
  "anyhow",
@@ -2976,7 +2976,7 @@ dependencies = [
  "httparse",
  "indexmap 2.12.1",
  "libdd-alloc",
- "libdd-common 2.0.0",
+ "libdd-common 3.0.1",
  "libdd-profiling-protobuf",
  "mime",
  "parking_lot",
@@ -2998,7 +2998,7 @@ dependencies = [
 [[package]]
 name = "libdd-profiling-protobuf"
 version = "1.0.0"
-source = "git+https://github.com/DataDog/libdatadog?tag=v29.0.0#001bd56fcbba34fa4ec3f9798a6c4fbcddeffa40"
+source = "git+https://github.com/DataDog/libdatadog?rev=407c70b0d080614cfda8ff937e33670fed2588be#407c70b0d080614cfda8ff937e33670fed2588be"
 dependencies = [
  "prost",
 ]
