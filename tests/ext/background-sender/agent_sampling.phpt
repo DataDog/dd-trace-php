@@ -33,7 +33,7 @@ $rr->setResponse(["rate_by_service" => ["service:,env:" => 0]]);
 echo "Initial sampling: {$get_sampling()}\n";
 
 $rr->setResponse(["rate_by_service" => ["service:,env:" => 0, "service:foo,env:none" => 1]]);
-dd_trace_internal_fn("synchronous_flush");
+dd_trace_internal_fn("synchronous_flush", 5000);
 
 \DDTrace\start_span();
 \DDTrace\close_span();
@@ -42,7 +42,7 @@ echo "Generic sampling: {$get_sampling()}\n";
 
 // reset it for other tests
 $rr->setResponse(["rate_by_service" => []]);
-dd_trace_internal_fn("synchronous_flush");
+dd_trace_internal_fn("synchronous_flush", 5000);
 
 $s = \DDTrace\start_span();
 $s->service = "foo";
