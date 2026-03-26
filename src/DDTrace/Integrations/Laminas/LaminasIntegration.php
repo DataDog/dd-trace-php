@@ -274,6 +274,8 @@ class LaminasIntegration extends Integration
                 }
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+
+                self::setHttpRouteFromRouteMatch($routeMatch, $this);
             }
         );
 
@@ -495,11 +497,13 @@ class LaminasIntegration extends Integration
                 $event = $args[0];
                 $eventName = $event->getName();
                 $controller = $scope;
-                $routeName = $event->getRouteMatch()->getMatchedRouteName();
+                $routeMatch = $event->getRouteMatch();
+                $routeName = $routeMatch->getMatchedRouteName();
 
                 $rootSpan->resource = "$controller@$eventName $routeName";
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = $controller . '@' . $eventName;
+                self::setHttpRouteFromRouteMatch($routeMatch);
 
                 if (isset($eventName, self::$EVENT_TYPES)) {
                     install_hook(
@@ -604,5 +608,46 @@ class LaminasIntegration extends Integration
             $result .= $frame['function'] . "()\n"; // Args aren't shown
         }
         return $result;
+    }
+
+    private static function setHttpRouteFromRouteMatch(RouteMatch $routeMatch, $matchedRoute = null): void
+    {
+        $rootSpan = root_span();
+        if ($rootSpan === null) {
+            return;
+        }
+
+        $httpRoute = self::extractHttpRouteFromMatchedRoute($matchedRoute);
+        if ($httpRoute === null && method_exists($routeMatch, 'getMatchedRoute')) {
+            $getMatchedRoute = [$routeMatch, 'getMatchedRoute'];
+            $httpRoute = self::extractHttpRouteFromMatchedRoute(call_user_func($getMatchedRoute));
+        }
+
+        if ($httpRoute !== null) {
+            $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+        }
+    }
+
+    private static function extractHttpRouteFromMatchedRoute($matchedRoute): ?string
+    {
+        if (!is_object($matchedRoute)) {
+            return null;
+        }
+
+        if (method_exists($matchedRoute, 'getSpec')) {
+            $routeSpec = $matchedRoute->getSpec();
+            if (is_string($routeSpec) && $routeSpec !== '') {
+                return $routeSpec;
+            }
+        }
+
+        if (method_exists($matchedRoute, 'getRoute')) {
+            $routeSpec = $matchedRoute->getRoute();
+            if (is_string($routeSpec) && $routeSpec !== '') {
+                return $routeSpec;
+            }
+        }
+
+        return null;
     }
 }
