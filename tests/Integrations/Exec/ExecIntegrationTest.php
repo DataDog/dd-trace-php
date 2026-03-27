@@ -491,6 +491,32 @@ class ExecIntegrationTest extends IntegrationTestCase
     }
 
     /**
+     * shell_exec() returning null must NOT produce an error span.
+     *
+     * PHP docs state: "It is not possible to detect execution failures using
+     * this function." A null return means either no output was produced or the
+     * command failed — the two cases are indistinguishable. Flagging null as an
+     * error causes false-positive error spans for any intentionally silent
+     * command (e.g. Symfony's `stty 2>/dev/null`).
+     */
+    public function testShellExecNullReturnIsNotAnError()
+    {
+        $traces = $this->isolateTracer(function () {
+            // 'true' exits 0 with no output → shell_exec returns null.
+            $res = shell_exec('true');
+            $this->assertNull($res);
+        });
+
+        $this->assertSpans($traces, [
+            SpanAssertion::build('command_execution', $traces[0][0]['service'], 'system', 'sh')
+                ->withExactTags([
+                    'cmd.shell' => 'true',
+                    'component' => 'subprocess',
+                ])
+        ]);
+    }
+
+    /**
      * Test that the shell command is redacted.
      * @dataProvider allShellFunctionsProvider
      * @param $sf

@@ -61,3 +61,12 @@ add_custom_target(format_fix_chg
     COMMAND bash -c "git status --porcelain=1 :/appsec/ | grep -E '\.(c|h|cpp|hpp)$$' | awk '{ print \"${CMAKE_SOURCE_DIR}/../\" $NF }' | xargs '${CLANG_FORMAT}' --dry-run"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     VERBATIM)
+
+if(DD_APPSEC_BUILD_HELPER)
+    add_custom_command(TARGET format POST_BUILD
+        COMMAND cargo fmt --check
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
+    add_custom_command(TARGET format_fix POST_BUILD
+        COMMAND cargo fmt
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
+endif()

@@ -314,6 +314,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     void close() {
         flushProfilingData()
         copyLogs()
+        mockDatadogAgent.drainTraces()
         super.close()
     }
 
@@ -450,8 +451,25 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withFileSystemBind('src/test/resources/gdbinit', '/root/.gdbinit', BindMode.READ_ONLY)
         withFileSystemBind('src/test/bin/enable_extensions.sh',
                 '/usr/local/bin/enable_extensions.sh', BindMode.READ_ONLY)
-        addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
-        addVolumeMount("php-tracer-$phpVersion-$phpVariant", '/project/tmp')
+        if (System.getProperty('SSI')) {
+            addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
+            def ssiTracerVol = System.getProperty('USE_CMAKE')
+                ? "php-tracer-ssi-cmake-$phpVersion-$phpVariant"
+                : "php-tracer-ssi-$phpVersion-$phpVariant"
+            addVolumeMount(ssiTracerVol, '/tracer-ssi')
+            addVolumeMount("php-loader-$phpVersion-$phpVariant", '/loader-ssi')
+            withEnv 'USE_SSI', '1'
+            withEnv 'DD_LOADER_PACKAGE_PATH', '/tmp/dd-package'
+            withCreateContainerCmdModifier { cmd ->
+                cmd.hostConfig.withCapAdd(com.github.dockerjava.api.model.Capability.SYS_PTRACE)
+            }
+        } else {
+            addVolumeMount("php-appsec-$phpVersion-$phpVariant", '/appsec')
+            def tracerVol = System.getProperty('USE_CMAKE')
+                ? "php-tracer-cmake-$phpVersion-$phpVariant"
+                : "php-tracer-$phpVersion-$phpVariant"
+            addVolumeMount(tracerVol, '/project/tmp')
+        }
         if (System.getProperty('USE_HELPER_RUST')) {
             String helperBinaryPath = System.getProperty('HELPER_BINARY_PATH')
             if (helperBinaryPath) {
