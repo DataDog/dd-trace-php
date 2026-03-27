@@ -18,22 +18,37 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
-$picked = 0;
-$notPicked = 0;
-$maxIterations = 15;
-$spanRecords = [];
-for ($i = 0; $i < $maxIterations; $i++)
-{
-    //Do call and get sampling
-    \DDTrace\start_span();
-    \DDTrace\close_span();
-	// Flush the span synchronously before reading from the request replayer
-	// 5000ms timeout ensures the background sender writer cycle completes even under Valgrind
-	dd_trace_internal_fn("synchronous_flush", 5000);
+// Create all 3 spans before any network I/O so that the standalone ASM limiter's
+// tick() calls (which happen during close_span()) all occur within milliseconds of
+// each other, guaranteed to be in the same 60-second bucket regardless of how slow
+// the request-replayer polling is (e.g. under Valgrind).
+//
+// The standalone limiter uses zend_hrtime()/60_000_000_000 (60-second buckets):
+//   - Span 1: last_hit=0 at process start, timeval>0 → tick() returns true  → sampling=1
+//   - Span 2: same bucket → tick() returns false → sampling=0
+//   - Span 3: same bucket → tick() returns false → sampling=0
+\DDTrace\start_span();
+\DDTrace\close_span();
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+
+\DDTrace\start_span();
+\DDTrace\close_span();
+
+// Flush all 3 spans in one writer cycle
+// 5000ms timeout ensures the background sender writer cycle completes even under Valgrind
+dd_trace_internal_fn("synchronous_flush", 5000);
+
+// Collect samplings. The 3 traces may arrive batched in one HTTP request or in
+// separate requests depending on timing, so loop until we have 3 values.
+$samplings = [];
+$maxAttempts = 10;
+
+for ($attempt = 0; $attempt < $maxAttempts && count($samplings) < 3; $attempt++) {
 	try {
 		$request = $rr->waitForDataAndReplay();
 	} catch (Exception $e) {
-		// If no request yet, try next iteration
 		continue;
 	}
 	$body = $request["body"] ?? null;
@@ -44,40 +59,27 @@ for ($i = 0; $i < $maxIterations; $i++)
 	if (!is_array($root)) {
 		continue;
 	}
-    $spans = $root["chunks"][0]["spans"] ?? ($root[0] ?? null);
-	$spanRecords[] = $spans;
-	if (!is_array($spans) || !isset($spans[0]["metrics"]["_sampling_priority_v1"])) {
-		continue;
+	if (isset($root["chunks"])) {
+		foreach ($root["chunks"] as $chunk) {
+			$spans = $chunk["spans"] ?? [];
+			if (isset($spans[0]["metrics"]["_sampling_priority_v1"])) {
+				$samplings[] = (int)$spans[0]["metrics"]["_sampling_priority_v1"];
+			}
+		}
+	} else {
+		foreach ($root as $trace) {
+			if (is_array($trace) && isset($trace[0]["metrics"]["_sampling_priority_v1"])) {
+				$samplings[] = (int)$trace[0]["metrics"]["_sampling_priority_v1"];
+			}
+		}
 	}
-    $sampling = $spans[0]["metrics"]["_sampling_priority_v1"];
-
-	if ($sampling == 1) { // First pick this minute (or minute rollover)
-        $picked = 1;
-		$notPicked = 0;
-		continue;
-    }
-
-	// Ignore zeros until we've seen the first 1
-	if ($picked == 0) {
-		continue;
-	}
-
-	// After first 1, count zeros
-	if ($sampling == 0) {
-		$notPicked++;
-	}
-    if ($picked == 1 && $notPicked == 2) {
-        break;
-    }
 }
 
-if ($picked == 1 && $notPicked == 2) {
-    echo "All good" . PHP_EOL;
+if (count($samplings) === 3 && $samplings[0] === 1 && $samplings[1] === 0 && $samplings[2] === 0) {
+	echo "All good" . PHP_EOL;
 } else {
-	echo "Iterations: $i" . PHP_EOL;
-	echo "Picked: $picked" . PHP_EOL;
-	echo "notPicked: $notPicked" . PHP_EOL;
-	echo var_dump($spanRecords);
+	echo "Got " . count($samplings) . " samplings: " . implode(", ", $samplings) . PHP_EOL;
+	echo "Attempts: $attempt" . PHP_EOL;
 }
 
 echo "Done" . PHP_EOL;
