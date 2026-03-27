@@ -31,7 +31,7 @@ PHP
 # -j flag is only available in PHP 7.4+
 extra_args=""
 if [[ -n "${PHP_MAJOR_MINOR}" && $(version $PHP_MAJOR_MINOR) -ge $(version 7.4) ]]; then
-  extra_args="-j${KUBERNETES_CPU_REQUEST:-$(nproc)}"
+  extra_args="-j$(nproc)"
 fi
 
 # run-tests supports flaky since 8.1
