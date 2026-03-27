@@ -310,8 +310,10 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         let _connector = libdd_common::connector::Connector::default();
     }
 
-    // Initialize the lazy lock holding the env var for new origin detection.
+    // Initialize the lazy locks holding the env vars for new origin detection,
+    // Azure App Services, and so on.
     _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
+    _ = std::sync::LazyLock::force(&libdd_common::azure_app_services::AAS_METADATA);
 
     // Use a hybrid extension hack to load as a module but have the
     // zend_extension hooks available:
