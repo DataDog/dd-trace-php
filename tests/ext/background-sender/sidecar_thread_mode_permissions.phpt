@@ -2,7 +2,6 @@
 Thread mode sidecar uses abstract Unix socket
 --SKIPIF--
 <?php if (PHP_OS != "Linux") die('skip: Linux abstract socket test'); ?>
-<?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: thread mode not available on Windows'); ?>
 <?php if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip: valgrind incompatible with thread mode sidecar'); ?>
 --ENV--
 DD_TRACE_SIDECAR_CONNECTION_MODE=thread

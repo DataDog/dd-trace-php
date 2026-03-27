@@ -1516,15 +1516,15 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_limiter_create();
     ddtrace_standalone_limiter_create();
 
+    ddtrace_log_minit();
+
 #ifndef _WIN32
     /* Snapshot proxy-related env vars once at startup to avoid getenv()
      * from the background writer thread inside libcurl. */
     ddtrace_coms_minit_proxy_env();
-
-    ddtrace_log_minit();
-
     ddtrace_dogstatsd_client_minit();
 #endif
+
     ddshared_minit();
     ddtrace_autoload_minit();
     ddtrace_sidecar_minit();

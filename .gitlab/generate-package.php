@@ -1431,9 +1431,9 @@ foreach ($arch_targets as $arch) {
 "bundle for reliability env":
   stage: shared-pipeline
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
-  tags: [ "arch:amd64", "size:large" ]
+  tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY_BUILD
       when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: on_success

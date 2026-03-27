@@ -113,7 +113,14 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 
-$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
+# ensure list of rust files is up to date
+$(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
+	$(Q) printf '%s\n' $(RUST_FILES) | sort > $(BUILD_DIR)/.rust_files_list.tmp
+	$(Q) cmp -s $(BUILD_DIR)/.rust_files_list $(BUILD_DIR)/.rust_files_list.tmp 2>/dev/null \
+		&& rm -f $(BUILD_DIR)/.rust_files_list.tmp \
+		|| mv $(BUILD_DIR)/.rust_files_list.tmp $(BUILD_DIR)/.rust_files_list
+
+$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure $(BUILD_DIR)/.rust_files_list
 	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
@@ -578,7 +585,8 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
 	test_integrations_ratchet \
-	test_integrations_sqlsrv
+	test_integrations_sqlsrv \
+	test_integrations_stripe_latest
 
 TEST_WEB_70 := \
 	test_metrics \
@@ -622,6 +630,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_predis_1 \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_71 := \
@@ -678,6 +687,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_72 := \
@@ -740,6 +750,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_73 := \
@@ -804,6 +815,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_ratchet \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_74 := \
@@ -871,6 +883,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_integrations_swoole_5 \
 	test_opentracing_10
 
@@ -927,6 +940,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_integrations_swoole_5 \
 	test_opentracing_10
 
@@ -972,6 +986,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
@@ -1039,6 +1054,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
@@ -1101,6 +1117,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
@@ -1148,6 +1165,7 @@ TEST_INTEGRATIONS_85 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
@@ -1395,6 +1413,8 @@ test_integrations_openai_latest: global_test_run_dependencies tests/Integrations
 	$(eval TELEMETRY_ENABLED=1)
 	$(call run_tests_debug,tests/Integrations/OpenAI/Latest)
  	$(eval TELEMETRY_ENABLED=0)
+test_integrations_stripe_latest: global_test_run_dependencies tests/Integrations/Stripe/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Stripe/Latest)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies

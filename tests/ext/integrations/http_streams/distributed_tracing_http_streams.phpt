@@ -58,7 +58,7 @@ foreach ($span['meta'] as $k => $v) {
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-[ddtrace] [warning] Error loading deferred integration DDTrace\Integrations\Filesystem\FilesystemIntegration: Class not loaded and not autoloadable
+[ddtrace] [warning] [%d] Error loading deferred integration DDTrace\Integrations\Filesystem\FilesystemIntegration: Class not loaded and not autoloadable
 traceparent: %s
 tracestate: %s
 x-datadog-parent-id: %d
@@ -78,4 +78,4 @@ meta:
   network.destination.name: %s
   span.kind: client
 Done.
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

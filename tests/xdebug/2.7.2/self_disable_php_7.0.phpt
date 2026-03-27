@@ -11,6 +11,6 @@ if (!extension_loaded('Xdebug')) die('skip: Xdebug required');
 echo 'Done.' . PHP_EOL;
 ?>
 --EXPECTF--
-[ddtrace] [error] Found incompatible Xdebug version %s
-[ddtrace] [error] Found incompatible extension(s); disabling conflicting functionality
+[ddtrace] [error] [%d] Found incompatible Xdebug version %s
+[ddtrace] [error] [%d] Found incompatible extension(s); disabling conflicting functionality
 Done.

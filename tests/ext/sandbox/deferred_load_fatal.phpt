@@ -33,6 +33,6 @@ namespace
 }
 ?>
 --EXPECTF--
-[ddtrace] [warning] Error raised in ddtrace's integration autoloader for ddtrace\test\testsandboxedintegration: Fatal! in %sdeferred_load_fatal.php on line %d
+[ddtrace] [warning] [%d] Error raised in ddtrace's integration autoloader for ddtrace\test\testsandboxedintegration: Fatal! in %sdeferred_load_fatal.php on line %d
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD

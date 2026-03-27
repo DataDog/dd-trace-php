@@ -46,6 +46,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
+  AC_CHECK_HEADERS([valgrind/valgrind.h])
 
   dnl
   m4_ifndef([_LT_CHECK_OBJDIR], AC_LIBTOOL_OBJDIR, _LT_CHECK_OBJDIR)
@@ -62,6 +63,19 @@ if test "$PHP_DDTRACE" != "no"; then
       AS_IF([test "$DDTRACE_CARGO" = ":"], [AC_MSG_ERROR([Please install cargo before configuring, or specify it with --with-ddtrace-cargo=])])
     fi
     PHP_SUBST(DDTRACE_CARGO)
+  fi
+
+  dnl As required by libdd-libunwind-sys
+  if test "$PHP_DDTRACE_RUST_LIBRARY" = "-"; then
+    AC_CHECK_TOOL(DDTRACE_AUTOMAKE, automake, [:])
+    AS_IF([test "$DDTRACE_AUTOMAKE" = ":"], [AC_MSG_ERROR([Please install automake before configuring])])
+    AC_CHECK_TOOL(DDTRACE_LIBTOOL, libtool, [:])
+    AS_IF([test "$DDTRACE_LIBTOOL" = ":"], [
+      AC_CHECK_TOOL(DDTRACE_LIBTOOLIZE, libtoolize, [:])
+      AS_IF([test "$DDTRACE_LIBTOOLIZE" = ":"], [
+        AC_MSG_ERROR([Please install libtool before configuring])
+      ])
+    ])
   fi
 
   if test "$PHP_DDTRACE_SANITIZE" != "no"; then
@@ -402,7 +416,7 @@ EOT
 
     cat <<EOT >> Makefile.fragments
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
-	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 

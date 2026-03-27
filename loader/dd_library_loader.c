@@ -34,6 +34,7 @@ static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
 static char *package_path = NULL;
+static void *libddtrace_php_handle = NULL;
 
 static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
@@ -72,6 +73,23 @@ PHP_INI_END()
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...);
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
+    // Load libddtrace_php.so, on which ddtrace.so implicitly depends. Implicit
+    // because there's no DT_NEEDED(libddtrace_php.so) entry in ddtrace.so.
+    // This has unfortunate side effects. Resolution of libddtrace_php.so
+    // symbols against the handle of ddtrace.so (usually stored in
+    // module_ext->handle) will fail. Some code e.g. in zai or the profiler
+    // tries to resolve libddtrace_php.so symbols using module_ext->handle
+    // (these symbols are in ddtrace.so in the monolithic build). As a
+    // consequence, this can only work if actually module_ext->handle is NULL (=
+    // RTLD_DEFAULT) and the global namespace is searched. And, because of this,
+    // ddloader_load_extension() can't set module_entry->handle, which prevents
+    // PHP from calling dlclose() on module shutdown, which we have to work
+    // around in ddloader_zend_extension_shutdown().
+    //
+    // Adding DT_NEEDED(libddtrace_php.so) would be possible on glibc because it
+    // checks already loaded libraries first (with even a fallback to DT_SONAME
+    // as key). Musl only checks already loaded libraries if these were loaded
+    // without a path (only that sets dso->shortname).
     char *libddtrace_php;
     int res = asprintf(&libddtrace_php, "%s/%sloader/libddtrace_php.so", package_path, OS_PATH);
     if (res == -1) {
@@ -100,6 +118,7 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
         return dlerror();
     }
 
+    libddtrace_php_handle = handle;
     return NULL;
 }
 
@@ -312,6 +331,45 @@ void ddloader_logf(injected_ext *config, log_level level, const char *format, ..
     va_end(va);
 }
 
+typedef struct {
+    pid_t pid;
+    void *self_handle; // dlopen handle for this .so, closed by the thread
+} ddloader_reaper_arg;
+
+// Reaps the telemetry child process, then tail-calls dlclose() to release the
+// extra reference on this .so that was acquired before thread creation.
+// The tail call ensures dlclose() returns directly to libpthread's start_thread
+// without ever returning into this .so's code, which may be unmapped when
+// dlclose() releases the last reference and runs munmap.
+//
+// [[clang::musttail]] guarantees the tail call at the source level (compile
+// error if not possible). __attribute__((optimize("O2"))) is the GCC fallback
+// to enable sibling-call optimisation.  Both are needed because musttail
+// requires a single CK_IntegralToPointer cast, while GCC -Wint-to-pointer-cast
+// requires the (intptr_t) intermediate; using __has_attribute lets us pick the
+// right form for each compiler.
+// Redeclare dlclose under a private name with void* return type so the tail
+// call is type-correct without any cast.  int and void* share the same return
+// register on all supported ABIs; the return value is discarded anyway.
+extern void *ddloader_dlclose(void *) __asm__("dlclose");
+
+#if defined(__has_attribute) && __has_attribute(musttail)
+# define DDLOADER_MUSTTAIL __attribute__((musttail))
+#elif defined(__clang__) && __clang_major__ >= 13
+# define DDLOADER_MUSTTAIL [[clang::musttail]]
+#else
+# define DDLOADER_MUSTTAIL
+__attribute__((optimize("O2")))
+#endif
+static void *ddloader_reap_child(void *arg_) {
+    ddloader_reaper_arg *arg = (ddloader_reaper_arg *)arg_;
+    pid_t pid = arg->pid;
+    void *handle = arg->self_handle;
+    free(arg);
+    waitpid(pid, NULL, 0);
+    DDLOADER_MUSTTAIL return ddloader_dlclose(handle);
+}
+
 /**
  * @param error The c-string this is pointing to must not exceed 150 bytes
  */
@@ -400,36 +458,30 @@ static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, c
     }
 
     pid_t loader_pid = getpid();
-    // Use double-fork to avoid needing a background reaper thread.
-    // The intermediate child exits immediately and is reaped synchronously
-    // by the parent via waitpid(). The grandchild is reparented to init,
-    // which reaps it automatically after it calls execv().
-    // This avoids a race condition where dd_library_loader.so could be
-    // dlclose'd during PHP shutdown while a reaper thread is still blocked
-    // in waitpid(), causing a SIGSEGV when the thread returns to unmapped
-    // library code.
     pid_t pid = fork();
     if (pid < 0) {
         LOG(config, ERROR, "Telemetry error: cannot fork")
         return;
     }
     if (pid > 0) {
-        // Parent: synchronously reap the intermediate child (exits immediately)
-        waitpid(pid, NULL, 0);
-        return;
+        // reap the child in a background thread to avoid leaking it
+        ddloader_reaper_arg *reaper_arg = malloc(sizeof(*reaper_arg));
+        reaper_arg->pid = pid;
+        // Bump our own refcount so this .so stays mapped while the reaper
+        // thread is running. The thread will tail-call dlclose() to release it.
+        Dl_info info;
+        reaper_arg->self_handle =
+            (dladdr((void *)ddloader_telemetryf, &info) && info.dli_fname)
+            ? dlopen(info.dli_fname, RTLD_LAZY)
+            : NULL;
+        pthread_t reaper;
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+        pthread_create(&reaper, &attr, ddloader_reap_child, reaper_arg);
+        pthread_attr_destroy(&attr);
+        return;  // parent
     }
-
-    // Intermediate child: fork again, then exit immediately
-    pid_t grandchild = fork();
-    if (grandchild < 0) {
-        _exit(1);
-    }
-    if (grandchild > 0) {
-        // Intermediate child exits; grandchild is reparented to init
-        _exit(0);
-    }
-
-    // henceforth, we're in the grandchild
 
     char points_buf[256] = {0};
     char *points = points_buf;
@@ -767,6 +819,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
 
     config->module_number = module_entry->module_number;
     config->version = (char *)module_entry->version;
+    config->so_handle = handle;
 
     LOG(config, INFO, "Extension '%s' loaded", config->ext_name);
     goto ok;
@@ -940,6 +993,22 @@ static int ddloader_zend_extension_startup(zend_extension *ext) {
     return SUCCESS;
 }
 
+static void ddloader_zend_extension_shutdown(zend_extension *ext) {
+    UNUSED(ext);
+    /* Close injected extension handles first (ddtrace.so, ddappsec.so, etc.),
+     * then libddtrace_php.so which they may depend on. */
+    for (unsigned int i = 0; i < sizeof(ddloader_injected_ext_config) / sizeof(ddloader_injected_ext_config[0]); ++i) {
+        if (ddloader_injected_ext_config[i].so_handle) {
+            DL_UNLOAD(ddloader_injected_ext_config[i].so_handle);
+            ddloader_injected_ext_config[i].so_handle = NULL;
+        }
+    }
+    if (libddtrace_php_handle) {
+        DL_UNLOAD(libddtrace_php_handle);
+        libddtrace_php_handle = NULL;
+    }
+}
+
 // Define fake version information to force the engine to always call ddloader_api_no_check / ddloader_build_id_check
 ZEND_DLEXPORT zend_extension_version_info extension_version_info = {
     0,
@@ -953,7 +1022,7 @@ ZEND_DLEXPORT zend_extension zend_extension_entry = {
     "https://github.com/DataDog/dd-trace-php",
     "Copyright Datadog",
     ddloader_zend_extension_startup, /* startup() : module startup */
-    NULL,                            /* shutdown() : module shutdown */
+    ddloader_zend_extension_shutdown,/* shutdown() : module shutdown */
     NULL,                            /* activate() : request startup */
     NULL,                            /* deactivate() : request shutdown */
     NULL,                            /* message_handler() */

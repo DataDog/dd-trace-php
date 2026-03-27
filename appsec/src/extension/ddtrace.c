@@ -69,26 +69,17 @@ static bool _test_ddtrace_metric_add_point(
 
 static void dd_trace_load_symbols(zend_module_entry *module)
 {
+    UNUSED(module);
     bool testing = get_global_DD_APPSEC_TESTING();
-    // prefer loading directly from the ddtrace zend_extension
-    zend_extension *ddtrace = zend_get_extension("ddtrace");
-    DL_HANDLE handle = ddtrace ? ddtrace->handle : module->handle;
-    bool manually_opened = false;
-    if (!handle) {
-        // fallback, e.g. with static build
-        handle = dlopen(NULL, RTLD_NOW | RTLD_GLOBAL);
-        manually_opened = true;
-        if (!handle) {
-            if (!testing) {
-                mlog(dd_log_error, "Failed to acquire handle for ddtrace");
-            }
-            return;
-        }
-    }
 
+    /* Use the global symbol table. This works for both:
+     * - monolithic builds: ddtrace.so is loaded RTLD_GLOBAL, so its symbols
+     *   (including Rust ones linked statically) are visible via RTLD_DEFAULT.
+     * - SSI builds: libddtrace_php.so is pre-loaded RTLD_GLOBAL by the loader
+     *   before ddtrace.so is registered, so its symbols are also visible. */
 #define ASSIGN_DLSYM(var, export)                                              \
     do {                                                                       \
-        (var) = (typeof(var))(uintptr_t)dlsym(handle, export "");              \
+        (var) = (typeof(var))(uintptr_t)dlsym(RTLD_DEFAULT, export "");        \
         if ((var) == NULL && !testing) {                                       \
             /* NOLINTNEXTLINE(concurrency-mt-unsafe) */                        \
             mlog(dd_log_error, "Failed to load %s: %s", export, dlerror());    \
@@ -119,10 +110,6 @@ static void dd_trace_load_symbols(zend_module_entry *module)
     ASSIGN_DLSYM(_ddtrace_emit_asm_event, "ddtrace_emit_asm_event");
     ASSIGN_DLSYM(
         _ddtrace_guess_endpoint_from_url, "ddtrace_guess_endpoint_from_url");
-
-    if (manually_opened) {
-        dlclose(handle);
-    }
 }
 
 void dd_trace_startup(void)

@@ -168,6 +168,13 @@ stages:
           - test8.5-release-zts
           - test8.5-release-musl
 
+"appsec integration tests (ssi)":
+  extends: .appsec_integration_tests
+  parallel:
+    matrix:
+      - targets:
+          - test8.3-release-ssi
+
 "appsec integration tests (helper-rust)":
   extends: .appsec_integration_tests
   variables:
@@ -429,6 +436,24 @@ stages:
       echo "Uploading helper coverage to codecov"
       cd "$CI_PROJECT_DIR"
       codecov -t "$CODECOV_TOKEN" -n appsec-helper -v -f appsec/build/coverage-helper.lcov
+    - |
+      echo "Uploading coverage to Datadog"
+      cd "$CI_PROJECT_DIR"
+
+      DATADOG_API_KEY=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key | jq -r .data.data.key)
+      export DATADOG_API_KEY
+      export DD_SITE="datadoghq.com"
+
+      # Install datadog-ci
+      DATADOG_CI_VERSION="v5.9.1"
+      curl -L --fail "https://github.com/DataDog/datadog-ci/releases/download/${DATADOG_CI_VERSION}/datadog-ci_linux-x64" --output "/tmp/datadog-ci"
+      chmod +x /tmp/datadog-ci
+
+      echo "Uploading extension coverage to Datadog"
+      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-ext.lcov || true
+
+      echo "Uploading helper coverage to Datadog"
+      /tmp/datadog-ci coverage upload --format=lcov appsec/build/coverage-helper.lcov || true
 
 
 "push appsec images":

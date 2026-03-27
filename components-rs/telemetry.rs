@@ -168,21 +168,23 @@ pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
-    buffer: &mut SidecarActionsBuffer,
+pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric(
+    transport: &mut Box<SidecarTransport>,
     metric_name: CharSlice,
     metric_type: MetricType,
     namespace: MetricNamespace,
-) {
-    buffer
-        .buffer
-        .push(SidecarAction::RegisterTelemetryMetric(MetricContext {
+) -> MaybeError {
+    try_c!(blocking::register_telemetry_metric(
+        transport,
+        MetricContext {
             name: metric_name.to_utf8_lossy().into_owned(),
             namespace,
             metric_type,
             tags: Vec::default(),
             common: true,
-        }));
+        },
+    ));
+    MaybeError::None
 }
 
 #[no_mangle]
@@ -243,7 +245,7 @@ pub struct ShmCache {
 }
 
 #[derive(Hash, Eq, PartialEq)]
-struct ShmCacheKey(String, String);
+pub struct ShmCacheKey(String, String);
 
 impl Equivalent<ShmCacheKey> for (&str, &str) {
     fn equivalent(&self, key: &ShmCacheKey) -> bool {

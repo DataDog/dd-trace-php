@@ -37,7 +37,8 @@ function checkUpdated($marker) {
                     }
                 }
             }
-            usleep(100000);
+            $fn = "us" . "leep"; // do not retry
+            $fn(100000);
         } while (--$retries);
         foreach (glob("/dev/shm/*") as $f) {
             var_dump($f, bin2hex(file_get_contents($f)));
@@ -105,10 +106,10 @@ if ($error && PHP_OS === "Linux") {
 
 ?>
 --EXPECTF--
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Initial sampling: 1
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Generic sampling: 0
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Specific sampling: 1
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent
