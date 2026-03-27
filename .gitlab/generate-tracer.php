@@ -488,8 +488,8 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_CPU_REQUEST: 8
     KUBERNETES_CPU_LIMIT: 8
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_MEMORY_REQUEST: 7Gi
+    KUBERNETES_MEMORY_LIMIT: 7Gi
 <?php else: ?>
     KUBERNETES_CPU_REQUEST: 1
     KUBERNETES_CPU_LIMIT: 1
@@ -498,8 +498,8 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php endif; ?>
     KUBERNETES_HELPER_CPU_REQUEST: 1
     KUBERNETES_HELPER_CPU_LIMIT: 1
-    KUBERNETES_HELPER_MEMORY_REQUEST: 768Mi
-    KUBERNETES_HELPER_MEMORY_LIMIT: 768Mi
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
     KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
