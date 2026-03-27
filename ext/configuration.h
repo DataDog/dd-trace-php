@@ -206,7 +206,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(INT, DD_TELEMETRY_HEARTBEAT_INTERVAL, "60", .ini_change = zai_config_system_ini_change)             \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "0")                                                    \
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
-    CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
+    CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "false")                                                               \
     CONFIG(BOOL, DD_TRACE_ONCE_LOGS, "true")                                                                   \
     CONFIG(INT, DD_TRACE_AGENT_RETRIES, "0", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_TRACE_AGENT_DEBUG_VERBOSE_CURL, "false", .ini_change = zai_config_system_ini_change)       \

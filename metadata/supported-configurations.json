@@ -2288,7 +2288,7 @@
       {
         "implementation": "C",
         "type": "boolean",
-        "default": "true"
+        "default": "false"
       }
     ],
     "DD_TRACE_STRIPE_ANALYTICS_ENABLED": [

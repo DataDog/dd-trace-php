@@ -7,7 +7,6 @@
 #include <time.h>
 
 #include "configuration.h"
-#include <main/SAPI.h>
 
 #ifndef _WIN32
 #define atomic_compare_exchange_strong_int atomic_compare_exchange_strong
@@ -16,12 +15,19 @@
 
 static void dd_log_set_level(bool debug) {
     bool once = runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS();
+    bool startup = runtime_config_first_init ? get_DD_TRACE_STARTUP_LOGS() : get_global_DD_TRACE_STARTUP_LOGS();
     if (debug) {
-        if (strcmp("cli", sapi_module.name) != 0 && (runtime_config_first_init ? get_DD_TRACE_STARTUP_LOGS() : get_global_DD_TRACE_STARTUP_LOGS())) {
+        if (startup) {
             ddog_set_log_level(DDOG_CHARSLICE_C("debug"), once);
         } else {
             ddog_set_log_level(DDOG_CHARSLICE_C("debug,startup=error"), once);
         }
+    } else if (startup) {
+        zend_string *level = runtime_config_first_init ? get_DD_TRACE_LOG_LEVEL() : get_global_DD_TRACE_LOG_LEVEL();
+        char buf[256];
+        int len = snprintf(buf, sizeof(buf), "%s,startup=info", ZSTR_VAL(level));
+        if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
+        ddog_set_log_level((ddog_CharSlice){.ptr = buf, .len = len}, once);
     } else if (runtime_config_first_init) {
         ddog_set_log_level(dd_zend_string_to_CharSlice(get_DD_TRACE_LOG_LEVEL()), once);
     } else if (zend_string_equals_literal_ci(Z_STR(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_LOG_LEVEL].decoded_value), "error")) {
@@ -239,7 +245,16 @@ bool ddtrace_alter_dd_trace_log_level(zval *old_value, zval *new_value, zend_str
         return true;
     }
 
-    ddog_set_log_level(dd_zend_string_to_CharSlice(Z_STR_P(new_value)), runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS());
+    bool once = runtime_config_first_init ? get_DD_TRACE_ONCE_LOGS() : get_global_DD_TRACE_ONCE_LOGS();
+    bool startup = runtime_config_first_init ? get_DD_TRACE_STARTUP_LOGS() : get_global_DD_TRACE_STARTUP_LOGS();
+    if (startup) {
+        char buf[256];
+        int len = snprintf(buf, sizeof(buf), "%s,startup=info", Z_STRVAL_P(new_value));
+        if (len >= (int)sizeof(buf)) len = (int)sizeof(buf) - 1;
+        ddog_set_log_level((ddog_CharSlice){.ptr = buf, .len = len}, once);
+    } else {
+        ddog_set_log_level(dd_zend_string_to_CharSlice(Z_STR_P(new_value)), once);
+    }
 
     return true;
 }
