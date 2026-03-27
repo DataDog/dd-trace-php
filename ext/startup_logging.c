@@ -363,31 +363,58 @@ static void _dd_print_values_to_log(HashTable *ht, void (*log)(const char *forma
     ZEND_HASH_FOREACH_END();
 }
 
+static void _dd_log_to_stderr(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+    fprintf(stderr, "\n");
+}
+
 // Only show startup logs on the first request
 void ddtrace_startup_logging_first_rinit(void) {
+    bool to_stderr = get_DD_TRACE_STARTUP_LOGS();
+    bool to_log = ddog_shall_log(DDOG_LOG_STARTUP);
+    if (!to_stderr && !to_log) {
+        return;
+    }
+
+    HashTable *ht;
+    ALLOC_HASHTABLE(ht);
+    zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
+
+    ddtrace_startup_diagnostics(ht, true);
     LOGEV(STARTUP, {
-        HashTable *ht;
-        ALLOC_HASHTABLE(ht);
-        zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
-
-        ddtrace_startup_diagnostics(ht, true);
         _dd_print_values_to_log(ht, log);
-        _dd_get_startup_config(ht);
+    })
 
-        smart_str buf = {0};
-        _dd_serialize_json(ht, &buf, 0);
+    _dd_get_startup_config(ht);
+
+    smart_str buf = {0};
+    _dd_serialize_json(ht, &buf, 0);
+
+    if (to_stderr) {
+        _dd_log_to_stderr("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
+        _dd_log_to_stderr("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
+            "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
+            "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
+        if (get_DD_OPENAI_LOGS_ENABLED()) {
+            _dd_log_to_stderr("Note that DD_OPENAI_LOGS_ENABLED=1 may be changed or removed in any release.");
+        }
+    }
+
+    LOGEV(STARTUP, {
         log("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
         log("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
             "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
             "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
-
         if (get_DD_OPENAI_LOGS_ENABLED()) {
             log("Note that DD_OPENAI_LOGS_ENABLED=1 may be changed or removed in any release.");
         }
-
-        smart_str_free(&buf);
-
-        zend_hash_destroy(ht);
-        FREE_HASHTABLE(ht);
     })
+
+    smart_str_free(&buf);
+
+    zend_hash_destroy(ht);
+    FREE_HASHTABLE(ht);
 }
