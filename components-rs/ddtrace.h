@@ -135,6 +135,107 @@ bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint64_t hash,
                                      uint32_t granularity_seconds);
 
+/**
+ * Read `peer_tags` and `span_kinds_stats_computed` from the agent /info SHM and update the
+ * global span-concentrator configuration.
+ *
+ * Updates every concentrator that has already been lazily opened, and stores the config for
+ * concentrators created later.  Does nothing when no agent info is available yet or when the
+ * SHM has not changed since the last call (cheap no-op on the hot path).
+ *
+ * # Safety
+ * `reader` must be a valid pointer to an `AgentInfoReader`.
+ */
+void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
+
+/**
+ * Look up (or lazily create) the concentrator for `(env, version)` and invoke `callback` with a
+ * shared reference to it while holding the global read lock.
+ *
+ * The callback is **always** invoked — even before the sidecar has created the backing SHM.
+ * When the SHM is not yet available a *virtual* concentrator is used: peer-tag keys and
+ * span-kinds come from `DESIRED_CONFIG` so eligibility and peer-tag extraction still work
+ * correctly.  The C callback should call `ddog_span_concentrator_has_shm` to decide whether to
+ * write to the SHM (real concentrator) or store the stats for the IPC path (virtual).
+ *
+ * A virtual concentrator is always considered stale so it will be transparently upgraded to a
+ * real one on the next call once the sidecar has created the SHM.
+ *
+ * Returns `true` after the callback returns, `false` only on an internal locking error.
+ *
+ * # Safety
+ * `env` and `version` must be valid `CharSlice`s.  `callback` must be a valid function pointer.
+ * `userdata` is forwarded to `callback` as-is.
+ */
+bool ddog_span_concentrator_with(ddog_CharSlice env,
+                                 ddog_CharSlice version,
+                                 void (*callback)(const struct ddog_SpanConcentrator*, void*),
+                                 void *userdata);
+
+/**
+ * Returns `true` when the concentrator is backed by a real SHM and
+ * `ddog_span_concentrator_add_php_span` will actually persist data.
+ * Returns `false` for virtual concentrators (SHM not yet available) — the C callback should
+ * store the stats for the IPC fallback path in that case.
+ */
+bool ddog_span_concentrator_has_shm(const struct ddog_SpanConcentrator *c);
+
+/**
+ * Return a pointer to the concentrator's peer-tag-key array and write the count to `*out_count`.
+ *
+ * The returned pointer is valid for the lifetime of the guard passed to this call.
+ * May return null when there are no peer tag keys.
+ */
+const ddog_CharSlice *ddog_span_concentrator_peer_tag_keys(const struct ddog_SpanConcentrator *c,
+                                                           uintptr_t *out_count);
+
+/**
+ * Add a PHP span to the concentrator for stats computation.
+ *
+ * Fast eligibility pre-check: returns true if a span with these attributes would be accepted
+ * by `ddog_span_concentrator_add_php_span`.
+ *
+ * Call this before constructing the full `PhpSpanStats`.  If it returns false, skip the span
+ * entirely.  If it returns true, fill the remaining fields and call `add_php_span`.
+ */
+bool ddog_span_concentrator_is_eligible(const struct ddog_SpanConcentrator *c,
+                                        bool has_top_level,
+                                        bool is_measured,
+                                        ddog_CharSlice span_kind,
+                                        bool is_partial_snapshot);
+
+/**
+ * Write a PHP span to the concentrator's backing SHM.
+ *
+ * Only valid when `ddog_span_concentrator_has_shm` returns `true`.  For virtual concentrators
+ * (no SHM) the caller should use the IPC path instead.
+ *
+ * All `CharSlice` fields in `span` (and in the `peer_tags` array it points to) must remain valid
+ * for the duration of this call.
+ *
+ * # Safety
+ * `span` must point to a valid `PhpSpanStats`.  The concentrator must have a backing SHM
+ * (`ddog_span_concentrator_has_shm` returns `true`).
+ */
+void ddog_span_concentrator_add_php_span(const struct ddog_SpanConcentrator *c,
+                                         const struct ddog_PhpSpanStats *span);
+
+/**
+ * IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for (env, version).
+ *
+ * Called when [`ddog_span_concentrator_with`] returns false — the SHM for this (env, version)
+ * doesn't exist on the PHP side yet (startup race).  `set_universal_service_tags` is already
+ * queued in the sidecar's priority outbox and will be processed before this message, so the
+ * concentrator is guaranteed to exist when the sidecar handles this call.
+ *
+ * # Safety
+ * All pointers must be valid.
+ */
+void ddog_sidecar_add_php_span_to_concentrator(struct ddog_SidecarTransport **transport,
+                                               ddog_CharSlice env,
+                                               ddog_CharSlice version,
+                                               const struct ddog_PhpSpanStats *span);
+
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
                                             const ddog_QueueId *queue_id,

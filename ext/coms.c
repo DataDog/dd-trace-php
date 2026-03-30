@@ -771,8 +771,11 @@ static struct curl_slist *dd_agent_headers_alloc(void) {
     dd_append_header(&list, "Datadog-Meta-Lang-Interpreter", sapi_module.name, strlen(sapi_module.name));
     dd_append_header(&list, "Datadog-Meta-Lang-Version", php_version_rt.ptr, php_version_rt.len);
     dd_append_header(&list, "Datadog-Meta-Tracer-Version", ZEND_STRL(PHP_DDTRACE_VERSION));
-    if (!get_global_DD_APM_TRACING_ENABLED()) {
+    if (!get_global_DD_APM_TRACING_ENABLED() || (ddtrace_sidecar && get_global_DD_TRACE_STATS_COMPUTATION_ENABLED())) {
         dd_append_header(&list, "Datadog-Client-Computed-Stats", ZEND_STRL("true"));
+    }
+    if (ddtrace_sidecar && get_global_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+        dd_append_header(&list, "Datadog-Client-Computed-Top-Level", ZEND_STRL("true"));
     }
 
     ddog_CharSlice id = ddtrace_get_container_id();

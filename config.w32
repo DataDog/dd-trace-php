@@ -56,6 +56,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_EXT_SOURCES += " serializer.c";
 	DDTRACE_EXT_SOURCES += " sidecar.c";
 	DDTRACE_EXT_SOURCES += " span.c";
+	DDTRACE_EXT_SOURCES += " span_stats.c";
 	DDTRACE_EXT_SOURCES += " startup_logging.c";
 	DDTRACE_EXT_SOURCES += " telemetry.c";
 	DDTRACE_EXT_SOURCES += " trace_source.c";

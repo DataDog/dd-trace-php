@@ -6,6 +6,7 @@
 pub mod log;
 pub mod remote_config;
 pub mod sidecar;
+pub mod stats;
 pub mod telemetry;
 pub mod bytes;
 

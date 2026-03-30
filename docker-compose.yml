@@ -234,6 +234,8 @@ services:
     image: datadog/dd-trace-ci:php-request-replayer-2.0
     ports:
       - "8766:80"
+    volumes: # mounted for local testing / editing
+      - ./dockerfiles/services/request-replayer/src/index.php:/var/www/index.php
 
   agent:
     image: datadog/agent:latest

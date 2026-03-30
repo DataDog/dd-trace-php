@@ -268,6 +268,12 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_LOG_ONCE (1 << 3)
 
+/**
+ * Number of gRPC status-code keys checked by the stats aggregation (must match
+ * `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
+ */
+#define ddog_PHP_GRPC_KEY_COUNT 4
+
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
 
 typedef enum ddog_ConfigurationOrigin {
@@ -312,19 +318,6 @@ typedef enum ddog_Log {
   DDOG_LOG_SPAN_TRACE = (5 | (3 << 4)),
   DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
 } ddog_Log;
-
-typedef enum ddog_Method {
-  DDOG_METHOD_GET = 0,
-  DDOG_METHOD_POST = 1,
-  DDOG_METHOD_PUT = 2,
-  DDOG_METHOD_DELETE = 3,
-  DDOG_METHOD_PATCH = 4,
-  DDOG_METHOD_HEAD = 5,
-  DDOG_METHOD_OPTIONS = 6,
-  DDOG_METHOD_TRACE = 7,
-  DDOG_METHOD_CONNECT = 8,
-  DDOG_METHOD_OTHER = 9,
-} ddog_Method;
 
 typedef enum ddog_MetricKind {
   DDOG_METRIC_KIND_COUNT,
@@ -426,6 +419,8 @@ typedef enum ddog_SpanProbeTarget {
   DDOG_SPAN_PROBE_TARGET_ROOT,
 } ddog_SpanProbeTarget;
 
+typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
+
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
@@ -454,6 +449,20 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * It is a blocking transport (all operations block the current thread).
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
+
+/**
+ * Opaque shared-memory span stats concentrator exposed to C.
+ *
+ * Always heap-allocated (as a `Box`) — C holds a raw pointer and must pass it back to
+ * `ddog_span_concentrator_drop` to free.
+ *
+ * When `inner` is `None` this is a *virtual* concentrator: the SHM has not been created by the
+ * sidecar yet, but peer-tag keys and span-kinds from `DESIRED_CONFIG` are still available so the
+ * C callback can run eligibility checks and extract peer tags.  A virtual concentrator is always
+ * considered stale (`needs_refresh` returns `true`) so it will be upgraded to a real one on the
+ * next call once the SHM becomes available.
+ */
+typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -647,6 +656,72 @@ typedef struct ddog_Vec_DebuggerPayload {
  * It contains a single field, `inner`, which is a 64-bit unsigned integer.
  */
 typedef uint64_t ddog_QueueId;
+
+/**
+ * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
+ */
+typedef struct ddog_PhpPeerTag {
+  /**
+   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String>.
+   */
+  ddog_CharSlice key;
+  /**
+   * Value string — borrows from PHP span meta memory.
+   */
+  ddog_CharSlice value;
+} ddog_PhpPeerTag;
+
+/**
+ * Flat representation of a PHP span's stats-relevant fields, filled by C code in one call.
+ *
+ * All `CharSlice` fields borrow from PHP memory (or from the concentrator for peer-tag keys) and
+ * must remain valid for the duration of `ddog_span_concentrator_add_php_span`.
+ *
+ * For absent optional strings pass an empty slice (ptr may be non-null with len == 0).
+ * For absent optional `f64` values pass `f64::NAN`.
+ */
+typedef struct ddog_PhpSpanStats {
+  ddog_CharSlice service;
+  ddog_CharSlice resource;
+  ddog_CharSlice name;
+  ddog_CharSlice type;
+  int64_t start;
+  int64_t duration;
+  bool is_error;
+  bool is_trace_root;
+  bool is_measured;
+  bool has_top_level;
+  bool is_partial_snapshot;
+  ddog_CharSlice span_kind;
+  ddog_CharSlice http_status_code_str;
+  double http_status_code_f64;
+  ddog_CharSlice http_method;
+  ddog_CharSlice http_endpoint;
+  ddog_CharSlice http_route;
+  ddog_CharSlice origin;
+  /**
+   * Value of the `_dd.svc_src` meta tag; empty slice when absent.
+   */
+  ddog_CharSlice service_source;
+  /**
+   * gRPC meta values in order: rpc.grpc.status_code, grpc.code, rpc.grpc.status.code,
+   * grpc.status.code.  Empty slice = absent.
+   */
+  ddog_CharSlice grpc_meta[ddog_PHP_GRPC_KEY_COUNT];
+  /**
+   * Same gRPC keys but from metrics (NaN = absent).
+   */
+  double grpc_metrics[ddog_PHP_GRPC_KEY_COUNT];
+  /**
+   * Number of (key,value) pairs in `peer_tags`.
+   */
+  uintptr_t peer_tags_count;
+  /**
+   * Pointer to an array of `peer_tags_count` `PhpPeerTag` pairs.
+   * May be null when `peer_tags_count == 0`.
+   */
+  const struct ddog_PhpPeerTag *peer_tags;
+} ddog_PhpSpanStats;
 
 typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_ShmCacheMap;
 
@@ -1020,7 +1095,18 @@ typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
 } ddog_DynamicInstrumentationConfigState;
 
-typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
+typedef enum ddog_Method {
+  DDOG_METHOD_GET = 0,
+  DDOG_METHOD_POST = 1,
+  DDOG_METHOD_PUT = 2,
+  DDOG_METHOD_DELETE = 3,
+  DDOG_METHOD_PATCH = 4,
+  DDOG_METHOD_HEAD = 5,
+  DDOG_METHOD_OPTIONS = 6,
+  DDOG_METHOD_TRACE = 7,
+  DDOG_METHOD_CONNECT = 8,
+  DDOG_METHOD_OTHER = 9,
+} ddog_Method;
 
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 

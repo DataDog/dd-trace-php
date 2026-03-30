@@ -225,6 +225,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/sidecar.c \
     ext/signals.c \
     ext/span.c \
+    ext/span_stats.c \
     ext/startup_logging.c \
     ext/telemetry.c \
     ext/threads.c \
