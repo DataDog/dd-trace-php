@@ -137,7 +137,7 @@ class PDOIntegration extends Integration
             $pdo = $hook->returned;
             ObjectKVStore::propagate($hook->instance, $pdo, PDOIntegration::CONNECTION_TAGS_KEY);
             if ($pdo instanceof \PDOStatement && isset($hook->data)) {
-                \dd_trace_internal_fn("force_overwrite_property", $pdo, "queryString", $hook->data); // Restore the query string minus the DBM injected stuff
+                \dd_trace_internal_fn("force_overwrite_property", $pdo, "queryString", $hook->data); // Only reached when span was created (flag enabled) and DBM may have modified queryString; restores the original query
             }
         });
 
@@ -154,11 +154,12 @@ class PDOIntegration extends Integration
             'PDOStatement::execute',
             static function (HookData $hook) {
                 if (\dd_trace_env_config("DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED")) {
+                    $hook->data = true;
                     $hook->span();
                 }
             },
             static function (HookData $hook) {
-                if (!\dd_trace_env_config("DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED")) {
+                if (!isset($hook->data)) {
                     return;
                 }
                 $span = $hook->span();
