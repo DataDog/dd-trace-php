@@ -382,7 +382,32 @@ extern "C" {
     /// Returns the reserved[] slot index, or -1 if not yet initialized.
     pub fn ddog_php_prof_op_array_reserved_slot() -> c_int;
 
-    /// Stores a FunctionIndex in func->common.reserved[slot] as a tagged pointer.
+    /// Returns true when OPcache file cache is enabled in any mode.
+    pub fn ddog_php_prof_opcache_file_cache_enabled() -> bool;
+
+    /// Returns true when a runtime zero-slot write is allowed for this function.
+    pub fn ddog_php_prof_can_write_runtime_function_index(func: *const zend_function) -> bool;
+
+    /// Refreshes the cached request-local OPcache policy from active INI state.
+    pub fn ddog_php_prof_refresh_request_opcache_policy();
+
+    /// Releases the cached OPcache INI key strings created during startup.
+    pub fn ddog_php_prof_shutdown_opcache_ini_keys();
+
+    /// Updates the current thread's cached request-local OPcache policy state.
+    pub fn ddog_php_prof_set_cached_request_opcache_policy(
+        opcache_enabled: bool,
+        opcache_file_cache_enabled: bool,
+    );
+
+    /// Reads or updates the cached CLI `opcache.enable_cli` state.
+    pub fn ddog_php_prof_get_cached_cli_opcache_enable_state(
+        initialized: *mut bool,
+        enabled: *mut bool,
+    );
+    pub fn ddog_php_prof_set_cached_cli_opcache_enable_state(initialized: bool, enabled: bool);
+
+    /// Stores a FunctionIndex in func->common.reserved[slot].
     pub fn ddog_php_prof_set_function_index(func: *mut zend_function, index: u32);
 
     /// Reads the FunctionIndex from func->common.reserved[slot].

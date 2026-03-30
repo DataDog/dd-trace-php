@@ -575,6 +575,34 @@ static mut ZAI_CONFIG_ONCE: Once = Once::new();
 /// The mut here is *only* for resetting this back to uninitialized each minit.
 static mut RINIT_ONCE: Once = Once::new();
 
+fn request_opcache_policy_snapshot() -> Option<(bool, bool, bool)> {
+    unsafe {
+        module_globals::request_opcache_policy_initialized().then_some((
+            module_globals::request_opcache_enabled(),
+            module_globals::request_opcache_file_cache_enabled(),
+            module_globals::runtime_user_reserved_slot_write_allowed(),
+        ))
+    }
+}
+
+fn request_opcache_policy_change_message(
+    previous: (bool, bool, bool),
+    current: (bool, bool, bool),
+) -> Option<&'static str> {
+    if previous == current {
+        return None;
+    }
+
+    let (_opcache_enabled, file_cache_enabled, runtime_write_allowed) = current;
+    Some(if file_cache_enabled {
+        "OPcache file cache is now enabled for profiling. User function indexes will not be cached in OPcache reserved slots, and user frames may appear as [unknown user function]."
+    } else if runtime_write_allowed {
+        "OPcache profiling cache behavior changed. User function indexes can now be cached in OPcache reserved slots again, so user-function names should resolve normally."
+    } else {
+        "OPcache profiling cache behavior changed. User function indexes cannot be cached in OPcache reserved slots for this request."
+    })
+}
+
 #[cfg(feature = "tracing")]
 thread_local! {
     static REQUEST_SPAN: RefCell<Option<tracing::span::EnteredSpan>> = const {
@@ -602,6 +630,18 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     unsafe { bindings::zai_config_rinit() };
+    let previous_opcache_policy = log::log_enabled!(log::Level::Info)
+        .then(request_opcache_policy_snapshot)
+        .flatten();
+    unsafe { bindings::ddog_php_prof_refresh_request_opcache_policy() };
+    if let Some(previous) = previous_opcache_policy {
+        if let Some(message) = request_opcache_policy_change_message(
+            previous,
+            request_opcache_policy_snapshot().expect("request policy initialized after refresh"),
+        ) {
+            info!("{message}");
+        }
+    }
 
     // Needs to come after config::first_rinit, because that's what sets the
     // values to the ones in the configuration.
@@ -812,7 +852,6 @@ extern "C" fn rshutdown(_type: c_int, _module_number: c_int) -> ZendResult {
     // Not logging, rshutdown could be quite spammy.
     _ = REQUEST_LOCALS.try_with_borrow(|locals| {
         let system_settings = locals.system_settings();
-
         // The interrupt is only added if CPU- or wall-time are enabled BUT
         // wall-time is not expected to ever be disabled, except in testing,
         // and we don't need to optimize for that.
@@ -1040,6 +1079,9 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 
     // SAFETY: called during startup hook with correct params.
     unsafe { zend::datadog_php_profiling_startup(extension) };
+    trace!("Startup OPcache file-cache snapshot: enabled={}.", unsafe {
+        zend::ddog_php_prof_opcache_file_cache_enabled()
+    });
 
     // Create the shared-memory region and pre-intern all strings/functions.
     // This must happen before fork() so children inherit the mapping.
@@ -1095,6 +1137,7 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // anyway. If the join with the uploader times out, there could become a
     // data race condition.
     unsafe { config::shutdown() };
+    unsafe { bindings::ddog_php_prof_shutdown_opcache_ini_keys() };
 
     // SAFETY: zai_config_mshutdown should be safe to call in shutdown instead
     // of mshutdown.

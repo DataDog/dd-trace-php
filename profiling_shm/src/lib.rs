@@ -112,9 +112,10 @@ pub const STRING_COUNT: StringIndex = StringIndex(34); // "count"
 pub const FUNCTION_EMPTY: FunctionIndex = FunctionIndex(0);
 pub const FUNCTION_UNKNOWN_USER: FunctionIndex = FunctionIndex(1);
 pub const FUNCTION_UNKNOWN_INTERNAL: FunctionIndex = FunctionIndex(2);
-pub const FUNCTION_SUSPICIOUSLY_LONG: FunctionIndex = FunctionIndex(3);
-pub const FUNCTION_TRUNCATED: FunctionIndex = FunctionIndex(4);
-pub const FUNCTION_EVAL: FunctionIndex = FunctionIndex(5);
+pub const FUNCTION_OOM: FunctionIndex = FunctionIndex(3);
+pub const FUNCTION_SUSPICIOUSLY_LONG: FunctionIndex = FunctionIndex(4);
+pub const FUNCTION_TRUNCATED: FunctionIndex = FunctionIndex(5);
+pub const FUNCTION_EVAL: FunctionIndex = FunctionIndex(6);
 
 // Corresponding string literals for indices 0–34 (used by create())
 pub(crate) const STRING_EMPTY_STR: &str = "";

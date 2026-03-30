@@ -13,6 +13,12 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
+    pub opcache_policy_initialized: Cell<bool>,
+    pub opcache_enabled: Cell<bool>,
+    pub opcache_file_cache_enabled: Cell<bool>,
+    pub runtime_user_reserved_slot_write_allowed: Cell<bool>,
+    pub cli_opcache_enable_initialized: Cell<bool>,
+    pub cli_opcache_enable: Cell<bool>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -29,6 +35,12 @@ pub static mut GLOBALS_ID: i32 = 0;
 #[cfg(not(php_zts))]
 pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     zend_mm_state: Cell::new(ZendMMState::new()),
+    opcache_policy_initialized: Cell::new(false),
+    opcache_enabled: Cell::new(false),
+    opcache_file_cache_enabled: Cell::new(false),
+    runtime_user_reserved_slot_write_allowed: Cell::new(false),
+    cli_opcache_enable_initialized: Cell::new(false),
+    cli_opcache_enable: Cell::new(false),
 };
 
 #[cfg(php_zts)]
@@ -76,6 +88,79 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
     }
 }
 
+#[inline]
+pub unsafe fn request_opcache_policy_initialized() -> bool {
+    (&*get_profiler_globals()).opcache_policy_initialized.get()
+}
+
+#[inline]
+pub unsafe fn request_opcache_enabled() -> bool {
+    (&*get_profiler_globals()).opcache_enabled.get()
+}
+
+#[inline]
+pub unsafe fn request_opcache_file_cache_enabled() -> bool {
+    (&*get_profiler_globals()).opcache_file_cache_enabled.get()
+}
+
+#[inline]
+pub unsafe fn runtime_user_reserved_slot_write_allowed() -> bool {
+    (&*get_profiler_globals())
+        .runtime_user_reserved_slot_write_allowed
+        .get()
+}
+
+#[inline]
+pub unsafe fn cached_cli_opcache_enable_state() -> (bool, bool) {
+    let globals = &*get_profiler_globals();
+    (
+        globals.cli_opcache_enable_initialized.get(),
+        globals.cli_opcache_enable.get(),
+    )
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_set_cached_request_opcache_policy(
+    opcache_enabled: bool,
+    opcache_file_cache_enabled: bool,
+) {
+    let runtime_user_reserved_slot_write_allowed = !opcache_file_cache_enabled
+        && (crate::bindings::PHP_VERSION_ID >= 80100 || !opcache_enabled);
+    let globals = &*get_profiler_globals();
+    globals.opcache_policy_initialized.set(true);
+    globals.opcache_enabled.set(opcache_enabled);
+    globals
+        .opcache_file_cache_enabled
+        .set(opcache_file_cache_enabled);
+    globals
+        .runtime_user_reserved_slot_write_allowed
+        .set(runtime_user_reserved_slot_write_allowed);
+}
+
+#[export_name = "ddog_php_prof_get_cached_cli_opcache_enable_state"]
+pub unsafe extern "C" fn get_cached_cli_opcache_enable_state_ffi(
+    initialized: *mut bool,
+    enabled: *mut bool,
+) {
+    let (cached, value) = cached_cli_opcache_enable_state();
+    if let Some(initialized) = initialized.as_mut() {
+        *initialized = cached;
+    }
+    if let Some(enabled) = enabled.as_mut() {
+        *enabled = value;
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_php_prof_set_cached_cli_opcache_enable_state(
+    initialized: bool,
+    enabled: bool,
+) {
+    let globals = &*get_profiler_globals();
+    globals.cli_opcache_enable_initialized.set(initialized);
+    globals.cli_opcache_enable.set(enabled);
+}
+
 /// Initializes the module globals. Called by PHP during thread initialization (GINIT).
 ///
 /// # Safety
@@ -91,6 +176,12 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     {
         let globals = _globals_ptr.cast::<ProfilerGlobals>();
         (*globals).zend_mm_state = Cell::new(ZendMMState::new());
+        (*globals).opcache_policy_initialized = Cell::new(false);
+        (*globals).opcache_enabled = Cell::new(false);
+        (*globals).opcache_file_cache_enabled = Cell::new(false);
+        (*globals).runtime_user_reserved_slot_write_allowed = Cell::new(false);
+        (*globals).cli_opcache_enable_initialized = Cell::new(false);
+        (*globals).cli_opcache_enable = Cell::new(false);
     }
 
     // SAFETY: this is called in thread ginit as expected, and no other places.

@@ -189,14 +189,53 @@ zend_result ddog_php_prof_op_array_reserved_slot_init(zend_extension *extension)
 int ddog_php_prof_op_array_reserved_slot(void);
 
 /**
- * Store a FunctionIndex in func->common.reserved[slot] as a tagged pointer:
- * (index + 1) cast to void*. NULL means "not set".
+ * Returns true when OPcache file cache is enabled in any mode for this process.
+ * The result is computed during startup from system INI state.
+ */
+bool ddog_php_prof_opcache_file_cache_enabled(void);
+
+/**
+ * Returns true when a runtime zero-slot write is allowed for this function.
+ * This excludes trampolines and enforces the OPcache/file-cache/version policy
+ * for user op_arrays. Internal functions are allowed.
+ */
+bool ddog_php_prof_can_write_runtime_function_index(const zend_function *func);
+
+/**
+ * Refreshes the cached request-local OPcache policy booleans from active INI
+ * state. Call from RINIT after request configuration has been activated.
+ */
+void ddog_php_prof_refresh_request_opcache_policy(void);
+
+/**
+ * Releases the cached OPcache INI key strings created during startup.
+ * Call from zend extension shutdown.
+ */
+void ddog_php_prof_shutdown_opcache_ini_keys(void);
+
+/**
+ * Updates the current thread's cached request-local OPcache policy state.
+ * Implemented in Rust against profiling module globals.
+ */
+void ddog_php_prof_set_cached_request_opcache_policy(
+    bool opcache_enabled,
+    bool opcache_file_cache_enabled);
+
+/**
+ * Reads or updates the cached CLI `opcache.enable_cli` state for the current
+ * thread. Implemented in Rust against profiling module globals.
+ */
+void ddog_php_prof_get_cached_cli_opcache_enable_state(bool *initialized, bool *enabled);
+void ddog_php_prof_set_cached_cli_opcache_enable_state(bool initialized, bool enabled);
+
+/**
+ * Store a FunctionIndex in func->common.reserved[slot].
  */
 void ddog_php_prof_set_function_index(zend_function *func, uint32_t index);
 
 /**
  * Read the FunctionIndex from func->common.reserved[slot].
- * Returns true and writes to *out on success (NULL slot → index 0 = FUNCTION_EMPTY).
+ * Returns true and writes to *out on success (0 means FUNCTION_EMPTY).
  * Returns false only if the reserved slot is not allocated (_op_array_reserved_slot < 0).
  */
 bool ddog_php_prof_get_function_index(const zend_function *func, uint32_t *out);
@@ -209,8 +248,8 @@ op_array_persist_calc_func_t ddog_php_prof_get_persist_calc_fn(void);
 
 /**
  * Returns the op_array_persist hook. Interns the function into the profiling SHM
- * and writes the FunctionIndex directly into the op_array's reserved slot (which is
- * already in OPcache SHM at call time). Returns 0.
+ * and writes the FunctionIndex into reserved[slot] when the reserved-slot policy
+ * allows it. Returns 0.
  */
 op_array_persist_func_t ddog_php_prof_get_persist_fn(void);
 
@@ -223,7 +262,8 @@ void ddog_php_prof_intern_all_functions(void);
 
 /**
  * Intern a single zend_function into the profiling SHM and store the
- * resulting FunctionIndex in func->common.reserved[slot].
+ * resulting FunctionIndex in func->common.reserved[slot] when the reserved-slot
+ * policy allows it.
  * Implemented in Rust; called from C.
  */
 void ddog_php_prof_intern_and_store(zend_function *func);

@@ -42,6 +42,7 @@ use crate::{
     STRING_KEY_TRACE_ENDPOINT_STR,
     STRING_LOCAL_ROOT_SPAN_ID_STR,
     STRING_NANOSECONDS_STR,
+    STRING_OOM,
     STRING_OOM_STR,
     // PHP profiler string literals (indices 8–34)
     STRING_PHP_OPEN_TAG_STR,
@@ -247,14 +248,15 @@ impl ShmRegion {
             }
         }
 
-        // Pre-intern 6 functions in index order (0–5).
+        // Pre-intern 7 functions in index order (0–6).
         // Index 0 is the empty/default function (both name and file are STRING_EMPTY).
         // A NULL reserved[slot] (raw value 0) reads back as FunctionIndex(0), so this
         // doubles as the "not yet interned" sentinel — no +1 encoding needed.
-        let functions: [(StringIndex, StringIndex); 6] = [
+        let functions: [(StringIndex, StringIndex); 7] = [
             (STRING_EMPTY, STRING_EMPTY),                     // FUNCTION_EMPTY
             (STRING_UNKNOWN_USER_FUNCTION, STRING_EMPTY),     // FUNCTION_UNKNOWN_USER
             (STRING_UNKNOWN_INTERNAL_FUNCTION, STRING_EMPTY), // FUNCTION_UNKNOWN_INTERNAL
+            (STRING_OOM, STRING_EMPTY),                       // FUNCTION_OOM
             (STRING_SUSPICIOUSLY_LONG_FN, STRING_EMPTY),      // FUNCTION_SUSPICIOUSLY_LONG
             (STRING_TRUNCATED, STRING_EMPTY),                 // FUNCTION_TRUNCATED
             (STRING_EVAL, STRING_EMPTY),                      // FUNCTION_EVAL
@@ -341,8 +343,9 @@ mod tests {
     extern crate std;
     use super::*;
     use crate::{
-        FUNCTION_EMPTY, FUNCTION_EVAL, FUNCTION_SUSPICIOUSLY_LONG, FUNCTION_TRUNCATED,
-        FUNCTION_UNKNOWN_INTERNAL, FUNCTION_UNKNOWN_USER, STRING_COUNT, STRING_COUNT_STR,
+        FUNCTION_EMPTY, FUNCTION_EVAL, FUNCTION_OOM, FUNCTION_SUSPICIOUSLY_LONG,
+        FUNCTION_TRUNCATED, FUNCTION_UNKNOWN_INTERNAL, FUNCTION_UNKNOWN_USER, STRING_COUNT,
+        STRING_COUNT_STR,
         STRING_CPU_TIME, STRING_CPU_TIME_STR, STRING_EMPTY, STRING_EMPTY_STR,
         STRING_END_TIMESTAMP_NS, STRING_END_TIMESTAMP_NS_STR, STRING_EVAL, STRING_EVAL_STR,
         STRING_KEY_EVENT, STRING_KEY_EVENT_STR, STRING_KEY_EXCEPTION_MESSAGE,
@@ -530,6 +533,10 @@ mod tests {
             region.get_str(name).unwrap(),
             STRING_UNKNOWN_INTERNAL_FUNCTION_STR
         );
+        assert_eq!(region.get_str(file).unwrap(), STRING_EMPTY_STR);
+
+        let (name, file) = region.get_function(FUNCTION_OOM).unwrap();
+        assert_eq!(region.get_str(name).unwrap(), STRING_OOM_STR);
         assert_eq!(region.get_str(file).unwrap(), STRING_EMPTY_STR);
 
         let (name, file) = region.get_function(FUNCTION_SUSPICIOUSLY_LONG).unwrap();

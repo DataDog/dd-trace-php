@@ -683,6 +683,8 @@ impl TimeCollector {
                     if message.is_ok() {
                         update_cpu_time_counter(&mut last_cpu, &DDPROF_TIME_CPU_TIME_NS);
                         last_wall_export = self.handle_timeout(&mut profiles, &last_wall_export);
+                    } else {
+                        debug!("Upload tick channel closed.");
                     }
                 },
 
@@ -770,7 +772,6 @@ impl Profiler {
             Utc::now(),
             process_tags,
         );
-
         let sample_types_filter = SampleTypeFilter::new(system_settings);
         Profiler {
             fork_barrier,
@@ -1657,8 +1658,16 @@ mod tests {
     use crate::{allocation::DEFAULT_ALLOCATION_SAMPLING_INTERVAL, config::AgentEndpoint};
     use http::Uri;
     use log::LevelFilter;
+    use profiling_shm::ShmRegion;
+
+    fn ensure_test_shm() {
+        crate::SHM.get_or_init(|| unsafe {
+            ShmRegion::create().expect("failed to create profiling SHM for tests")
+        });
+    }
 
     fn get_frames() -> Backtrace {
+        ensure_test_shm();
         Backtrace::new(vec![intern_event_frame("foobar()", Some("foobar.php"), 42)])
     }
 
