@@ -54,6 +54,7 @@ class PHPRedisTest extends IntegrationTestCase
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED',
         ];
     }
 
@@ -2490,5 +2491,85 @@ class PHPRedisTest extends IntegrationTestCase
 
         $span = $traces[0][0];
         $this->assertEquals(0, $span['metrics']['_sampling_priority_v1']);
+    }
+
+    public function testLifecycleCommandsDisabledPhpRedis()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED=false']);
+
+        $redis = new \Redis();
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->connect($this->host, $this->port);
+            $redis->set('lc_key', 'lc_value');
+            $redis->get('lc_key');
+            $redis->del('lc_key');
+            $redis->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'Redis.set',
+                'phpredis',
+                'redis',
+                'Redis.set'
+            )->withExactTags([
+                'redis.raw_command' => 'set lc_key lc_value',
+                Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
+                Tag::DB_SYSTEM => 'redis',
+                Tag::TARGET_HOST => $this->host,
+            ]),
+            SpanAssertion::build(
+                'Redis.get',
+                'phpredis',
+                'redis',
+                'Redis.get'
+            )->withExactTags([
+                'redis.raw_command' => 'get lc_key',
+                Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
+                Tag::DB_SYSTEM => 'redis',
+                Tag::TARGET_HOST => $this->host,
+            ]),
+            SpanAssertion::build(
+                'Redis.del',
+                'phpredis',
+                'redis',
+                'Redis.del'
+            )->withExactTags([
+                'redis.raw_command' => 'del lc_key',
+                Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
+                Tag::DB_SYSTEM => 'redis',
+                Tag::TARGET_HOST => $this->host,
+            ]),
+        ]);
+    }
+
+    public function testLifecycleCommandsDisabledPreservesHostMetadata()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED=false']);
+
+        $redis = new \Redis();
+        $traces = $this->isolateTracer(function () use ($redis) {
+            $redis->connect($this->host, $this->port);
+            $redis->set('meta_key', 'meta_value');
+            $redis->close();
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build(
+                'Redis.set',
+                'phpredis',
+                'redis',
+                'Redis.set'
+            )->withExactTags([
+                'redis.raw_command' => 'set meta_key meta_value',
+                Tag::SPAN_KIND => 'client',
+                Tag::COMPONENT => 'phpredis',
+                Tag::DB_SYSTEM => 'redis',
+                Tag::TARGET_HOST => $this->host,
+            ]),
+        ]);
     }
 }
