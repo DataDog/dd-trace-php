@@ -31,6 +31,7 @@ const ENVS = [
     'DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE' => ['true'],
     'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => ['true'],
     'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST' => ['true'],
+    'DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED' => ['false'],
     'DD_TRACE_MEASURE_COMPILE_TIME' => ['false'],
     'DD_TRACE_NO_AUTOLOADER' => ['true'],
     'DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX' => ['^aaabbbccc$'],

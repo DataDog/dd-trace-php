@@ -2056,6 +2056,13 @@
         "default": "false"
       }
     ],
+    "DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
     "DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS": [
       {
         "implementation": "A",
