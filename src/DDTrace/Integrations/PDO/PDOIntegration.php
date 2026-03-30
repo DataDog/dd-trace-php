@@ -117,6 +117,11 @@ class PDOIntegration extends Integration
         // public PDOStatement PDO::prepare ( string $statement [, array $driver_options = array() ] )
         \DDTrace\install_hook('PDO::prepare', static function (HookData $hook) {
             list($query) = $hook->args;
+
+            if (!\dd_trace_env_config("DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED")) {
+                return; // No span; post-hook still propagates connection metadata
+            }
+
             $hook->data = $query;
 
             $span = $hook->span();
@@ -131,7 +136,7 @@ class PDOIntegration extends Integration
         }, static function (HookData $hook) {
             $pdo = $hook->returned;
             ObjectKVStore::propagate($hook->instance, $pdo, PDOIntegration::CONNECTION_TAGS_KEY);
-            if ($pdo instanceof \PDOStatement) {
+            if ($pdo instanceof \PDOStatement && isset($hook->data)) {
                 \dd_trace_internal_fn("force_overwrite_property", $pdo, "queryString", $hook->data); // Restore the query string minus the DBM injected stuff
             }
         });
@@ -148,9 +153,14 @@ class PDOIntegration extends Integration
         \DDTrace\install_hook(
             'PDOStatement::execute',
             static function (HookData $hook) {
-                $hook->span();
+                if (\dd_trace_env_config("DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED")) {
+                    $hook->span();
+                }
             },
             static function (HookData $hook) {
+                if (!\dd_trace_env_config("DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED")) {
+                    return;
+                }
                 $span = $hook->span();
                 $instance = $hook->instance;
                 Integration::handleOrphan($span);
