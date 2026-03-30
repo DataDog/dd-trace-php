@@ -1878,6 +1878,13 @@
         "default": "true"
       }
     ],
+    "DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
     "DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED": [
       {
         "implementation": "A",
