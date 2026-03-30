@@ -81,69 +81,25 @@ class PHPRedisIntegration extends Integration
             $traceNewCluster = function (SpanData $span, $args) {
                 Integration::handleOrphan($span);
 
-                if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
-                    $firstHostOrUDS = $args[1][0];
-                } else {
-                    $seeds = \ini_get('redis.clusters.seeds');
-                    if (!empty($seeds)) {
-                        $clusters = [];
-                        parse_str($seeds, $clusters);
-                        if (array_key_exists($args[0], $clusters) && !empty($clusters[$args[0]])) {
-                            $firstHostOrUDS = $clusters[$args[0]][0];
-                        }
-                    }
-                }
-                if (empty($firstHostOrUDS)) {
-                    $firstHostOrUDS = PHPRedisIntegration::DEFAULT_HOST;
-                }
+                PHPRedisIntegration::storeClusterMeta($this, $args);
 
-                $configuredClusterName = isset($args[0]) && \is_string($args[0]) ? $args[0] : null;
-                ObjectKVStore::put($this, PHPRedisIntegration::KEY_CLUSTER_NAME, $configuredClusterName);
-
-                $url = parse_url($firstHostOrUDS);
-                $firstConfiguredHost = is_array($url) && isset($url["host"]) ?
-                    $url["host"] :
-                    PHPRedisIntegration::DEFAULT_HOST;
+                $url = parse_url(
+                    ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS)
+                        ?? PHPRedisIntegration::DEFAULT_HOST
+                );
+                $firstConfiguredHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)
+                    ?? PHPRedisIntegration::DEFAULT_HOST;
                 $span->meta[Tag::TARGET_HOST] = $firstConfiguredHost;
-                $span->meta[Tag::TARGET_PORT] = is_array($url) && isset($url["port"]) ?
-                    $url["port"] :
-                    PHPRedisIntegration::DEFAULT_PORT;
-                ObjectKVStore::put($this, PHPRedisIntegration::KEY_FIRST_HOST, $firstConfiguredHost);
-                ObjectKVStore::put($this, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS, $firstHostOrUDS);
+                $span->meta[Tag::TARGET_PORT] = is_array($url) && isset($url["port"])
+                    ? $url["port"]
+                    : PHPRedisIntegration::DEFAULT_PORT;
 
                 PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster');
             };
             \DDTrace\trace_method('RedisCluster', '__construct', $traceNewCluster);
         } else {
             \DDTrace\install_hook('RedisCluster::__construct', null, static function (HookData $hook) {
-                $args = $hook->args;
-                $instance = $hook->instance;
-
-                if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
-                    $firstHostOrUDS = $args[1][0];
-                } else {
-                    $seeds = \ini_get('redis.clusters.seeds');
-                    if (!empty($seeds)) {
-                        $clusters = [];
-                        parse_str($seeds, $clusters);
-                        if (array_key_exists($args[0], $clusters) && !empty($clusters[$args[0]])) {
-                            $firstHostOrUDS = $clusters[$args[0]][0];
-                        }
-                    }
-                }
-                if (empty($firstHostOrUDS)) {
-                    $firstHostOrUDS = PHPRedisIntegration::DEFAULT_HOST;
-                }
-
-                $configuredClusterName = isset($args[0]) && \is_string($args[0]) ? $args[0] : null;
-                ObjectKVStore::put($instance, PHPRedisIntegration::KEY_CLUSTER_NAME, $configuredClusterName);
-
-                $url = parse_url($firstHostOrUDS);
-                $firstConfiguredHost = is_array($url) && isset($url["host"])
-                    ? $url["host"]
-                    : PHPRedisIntegration::DEFAULT_HOST;
-                ObjectKVStore::put($instance, PHPRedisIntegration::KEY_FIRST_HOST, $firstConfiguredHost);
-                ObjectKVStore::put($instance, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS, $firstHostOrUDS);
+                PHPRedisIntegration::storeClusterMeta($hook->instance, $hook->args);
             });
         }
 
@@ -465,6 +421,35 @@ class PHPRedisIntegration extends Integration
             }
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
+    }
+
+    public static function storeClusterMeta($instance, $args)
+    {
+        if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
+            $firstHostOrUDS = $args[1][0];
+        } else {
+            $seeds = \ini_get('redis.clusters.seeds');
+            if (!empty($seeds)) {
+                $clusters = [];
+                parse_str($seeds, $clusters);
+                if (array_key_exists($args[0], $clusters) && !empty($clusters[$args[0]])) {
+                    $firstHostOrUDS = $clusters[$args[0]][0];
+                }
+            }
+        }
+        if (empty($firstHostOrUDS)) {
+            $firstHostOrUDS = self::DEFAULT_HOST;
+        }
+
+        $configuredClusterName = isset($args[0]) && \is_string($args[0]) ? $args[0] : null;
+        ObjectKVStore::put($instance, self::KEY_CLUSTER_NAME, $configuredClusterName);
+
+        $url = parse_url($firstHostOrUDS);
+        $firstConfiguredHost = is_array($url) && isset($url["host"])
+            ? $url["host"]
+            : self::DEFAULT_HOST;
+        ObjectKVStore::put($instance, self::KEY_FIRST_HOST, $firstConfiguredHost);
+        ObjectKVStore::put($instance, self::KEY_FIRST_HOST_OR_UDS, $firstHostOrUDS);
     }
 
     /**
