@@ -24,31 +24,22 @@ To integrate new tracing and profiling features from the datadog shared library 
 The easiest way to get the development environment set up is to install [Docker](https://www.docker.com/) and
 [Docker Compose](https://docs.docker.com/compose/).
 
-## Developing and testing locally
+### Building a local full artifact
 
-### PHP linting
+There is a script []
 
-The PHP tracer conforms to the [PSR-2 coding style guide](https://www.php-fig.org/psr/psr-2/). The code style is checked with [PHP_CodeSniffer](https://github.com/squizlabs/PHP_CodeSniffer) which can be invoked with the following command:
+### Generated files
 
-```bash
-$ composer lint
-```
-
-To try to automatically fix the code style, you can run:
-
-```bash
-$ composer fix-lint
-```
+- Libdatadog bindings are generated via `make cbindgen`.
+- Arginfo files are rebuilt with `build/gen_stub.php` from php-src repository.
 
 ### Testing
 
 #### Start your container
 
-While tests in CI run on all php versions, you typically develop on one version locally. Currently the latest local
-dev environment we support is `8.3`.
+While tests in CI run on all php versions, you typically develop on one version locally. We recommend using the latest version for initial development.
 
-Ensure that docker has at least 12 GB of RAM available, otherwise composer may run out of memory or the tmpfs volume
-used to build the extension may run out of space.
+Ensure that docker has at least 12 GB of RAM available, otherwise composer may run out of memory or the tmpfs volume used to build the extension may run out of space.
 
 Execute one the following commands from your command line, this will bring up all required services:
 
@@ -73,6 +64,8 @@ $ docker compose run --rm 8.2-bookworm bash
 $ docker compose run --rm 8.3-bookworm bash
 # For 8.4
 $ docker compose run --rm 8.4-bookworm bash
+# For 8.5
+$ docker compose run --rm 8.5-bookworm bash
 ```
 
 > :memo: **Note:** To run the container in debug mode, pass `docker-compose` an environment variable: `DD_TRACE_DOCKER_DEBUG=1`, eg:
@@ -83,23 +76,13 @@ $ docker compose run -e DD_TRACE_DOCKER_DEBUG=1 --rm 8.3-bookworm bash
 
 #### Set up the container
 
-Once inside the container, update dependencies with Composer.
+Once inside the container, install the `ddtrace` extension.
 
 ```bash
-$ composer update
+$ make install_all
 ```
 
-Then install the `ddtrace` extension.
-
-```bash
-$ composer install-ext
-```
-or
-```bash
-$ sudo make install install_ini
-```
-
-> :memo: **Note:** You'll need to run the above `install-ext` command to install the `ddtrace` extension every time you access the container's bash for the first time.
+> :memo: **Note:** You'll need to run the above `make install` command to install the `ddtrace` extension every time you access the container's bash for the first time.
 
 You can check that the extension was installed properly.
 
@@ -180,11 +163,11 @@ You can even specify a singular test with the FILTER parameter, for example
 $ make test_integrations_curl FILTER=testLoad200UrlOnInit
 ```
 
-In order to run the `phpt` tests for the php extension:
+#### Debugging tests
 
-```bash
-$ composer test-ext
-```
+Setting env vars `DD_TRACE_LOG_FILE` to some log file and `DD_TRACE_LOG_LEVEL=trace` can help finding and understanding issues.
+
+Note that sidecar logs are only present when a log file is explicitly specified.
 
 #### Teardown the environment
 
@@ -212,8 +195,4 @@ review the snapshot file to maintain the accuracy of the tests.
 
 ## Sending a pull request (PR)
 
-There are a number of checks that are run automatically with [CircleCI](https://circleci.com/gh/DataDog/dd-trace-php/tree/master) when a PR is submitted. To ensure your PHP code changes pass the CircleCI checks, make sure to run all the same checks before submitting a PR.
-
-```bash
-$ composer lint && test-all-<php-version>
-```
+There are a number of checks that are run in our gitlab infrastructure. A maintainer will have to approve them for running.
