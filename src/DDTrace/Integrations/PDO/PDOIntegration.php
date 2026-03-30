@@ -42,24 +42,42 @@ class PDOIntegration extends Integration
         }
 
         // public PDO::__construct ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
-        \DDTrace\trace_method('PDO', '__construct', function (SpanData $span, array $args) {
-            Integration::handleOrphan($span);
-            $span->name = $span->resource = 'PDO.__construct';
-            $connectionMetadata = PDOIntegration::extractConnectionMetadata($args);
-            ObjectKVStore::put($this, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
-            // We have to use $connectionMetadata as a medium, instead of $this (aka the PDO instance) because in
-            // PHP 5.* $this is NULL in this callback when there is a connection error.
-            PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
-        });
+        \DDTrace\install_hook(
+            'PDO::__construct',
+            static function (HookData $hook) {
+                if (\dd_trace_env_config("DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED")) {
+                    $hook->span();
+                    $hook->data = true;
+                }
+            },
+            static function (HookData $hook) {
+                $connectionMetadata = PDOIntegration::extractConnectionMetadata($hook->args);
+                // $hook->instance may be NULL on connection error (PHP 5.* compat note still applies)
+                if ($hook->instance !== null) {
+                    ObjectKVStore::put($hook->instance, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+                }
+                if (!isset($hook->data)) {
+                    return;
+                }
+                $span = $hook->span();
+                Integration::handleOrphan($span);
+                $span->name = $span->resource = 'PDO.__construct';
+                PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
+            }
+        );
 
         if (PHP_VERSION_ID >= 80400) {
             // public PDO::connect ( string $dsn [, string $username [, string $passwd [, array $options ]]] )
-            \DDTrace\trace_method('PDO', 'connect', static function (SpanData $span, array $args, $pdo) {
+            \DDTrace\install_hook('PDO::connect', static function (HookData $hook) {
+                if (!\dd_trace_env_config("DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED")) {
+                    return;
+                }
+                $span = $hook->span();
                 Integration::handleOrphan($span);
                 $span->name = $span->resource = 'PDO.connect';
-                $connectionMetadata = self::extractConnectionMetadata($args);
-                ObjectKVStore::put($pdo, self::CONNECTION_TAGS_KEY, $connectionMetadata);
-                self::setCommonSpanInfo($connectionMetadata, $span);
+                $connectionMetadata = PDOIntegration::extractConnectionMetadata($hook->args);
+                ObjectKVStore::put($hook->instance, PDOIntegration::CONNECTION_TAGS_KEY, $connectionMetadata);
+                PDOIntegration::setCommonSpanInfo($connectionMetadata, $span);
             });
         }
 
@@ -141,11 +159,36 @@ class PDOIntegration extends Integration
             }
         });
 
+        // public bool PDO::beginTransaction ( void )
+        \DDTrace\install_hook('PDO::beginTransaction', static function (HookData $hook) {
+            if (!\dd_trace_env_config("DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+            $span = $hook->span();
+            Integration::handleOrphan($span);
+            $span->name = $span->resource = 'PDO.beginTransaction';
+            PDOIntegration::setCommonSpanInfo($hook->instance, $span);
+        });
+
         // public bool PDO::commit ( void )
         \DDTrace\install_hook('PDO::commit', static function (HookData $hook) {
+            if (!\dd_trace_env_config("DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
             $span = $hook->span();
             Integration::handleOrphan($span);
             $span->name = $span->resource = 'PDO.commit';
+            PDOIntegration::setCommonSpanInfo($hook->instance, $span);
+        });
+
+        // public bool PDO::rollBack ( void )
+        \DDTrace\install_hook('PDO::rollBack', static function (HookData $hook) {
+            if (!\dd_trace_env_config("DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+            $span = $hook->span();
+            Integration::handleOrphan($span);
+            $span->name = $span->resource = 'PDO.rollBack';
             PDOIntegration::setCommonSpanInfo($hook->instance, $span);
         });
 
