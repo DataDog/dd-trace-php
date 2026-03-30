@@ -139,6 +139,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                     \
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \
     CONFIG(BOOL, DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED, "true")                                             \
+    CONFIG(BOOL, DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED, "true")                                              \
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                                \
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                 \
     CONFIG(BOOL, DD_EXCEPTION_REPLAY_ENABLED, "false", .ini_change = ddtrace_alter_DD_EXCEPTION_REPLAY_ENABLED) \
