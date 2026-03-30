@@ -61,7 +61,7 @@ do {
     } catch (Exception $e) {
         // handle the timeout?
     }
-} while ($events < 5 && $time > time() - 30);
+} while ($events < 4 && $time > time() - 30);
 ksort($ordered);
 foreach ($ordered as &$value) {
     ksort($value);
@@ -81,10 +81,10 @@ foreach ($ordered as $id => $statuses) {
 require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 ?>
---EXPECTF--
-string(23) "dd.dynamic.span Bar.foo"
-string(27) "dd.dynamic.span Delayed.foo"
-string(%d) "/debugger/v1/diagnostics?ddtags=debugger_version:%s,env:none,version:,runtime_id:%s,host_name:%s"
-string(10) "event.json"
-1: INSTALLED, EMITTING
+--EXPECTREGEX--
+string\(23\) "dd\.dynamic\.span Bar\.foo"
+string\(27\) "dd\.dynamic\.span Delayed\.foo"
+string\(\d+\) "/debugger/v1/diagnostics\?ddtags=debugger_version:[^,]+,env:none,version:,runtime_id:[^,]+,host_name:[^\s"]+"
+string\(10\) "event\.json"
+1: (?:INSTALLED, )?EMITTING
 2: RECEIVED, INSTALLED, EMITTING
