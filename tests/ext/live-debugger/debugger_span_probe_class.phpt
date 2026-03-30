@@ -61,7 +61,7 @@ do {
     } catch (Exception $e) {
         // handle the timeout?
     }
-} while ($events < 5 && $time > time() - 10);
+} while ($events < 5 && $time > time() - 30);
 ksort($ordered);
 foreach ($ordered as &$value) {
     ksort($value);
