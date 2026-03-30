@@ -51,6 +51,7 @@ class WordPressIntegration extends Integration
                     $resourceName = $method . ' ' . $path;
                     \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
                 }
+                \DDTrace\flush_endpoints();
             }
             if (\property_exists($This, 'did_permalink') && $This->did_permalink === true) {
                 if (

@@ -669,6 +669,7 @@ class SymfonyIntegration extends Integration
                     foreach ($endpoints as $endpoint) {
                         \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
                     }
+                    \DDTrace\flush_endpoints();
                 }
             }
         ];

@@ -126,6 +126,24 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addDependency_buffer(
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
 
+/// Enqueues an endpoint into a telemetry actions buffer (to be sent via ddog_sidecar_telemetry_buffer_flush).
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_addEndpoint_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    method: data::Method,
+    path: CharSlice,
+    operation_name: CharSlice,
+    resource_name: CharSlice,
+) {
+    let action = TelemetryActions::AddEndpoint(data::Endpoint {
+        method: Some(method),
+        path: Some(path.to_utf8_lossy().into_owned()),
+        operation_name: operation_name.to_utf8_lossy().into_owned(),
+        resource_name: resource_name.to_utf8_lossy().into_owned(),
+    });
+    buffer.buffer.push(SidecarAction::Telemetry(action));
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     buffer: &mut SidecarActionsBuffer,
@@ -374,6 +392,5 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
     env: CharSlice,
 ) -> bool {
     let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
-    let result = cache_entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)); // 30 minutes
-    result
+    cache_entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)) // 30 minutes
 }
