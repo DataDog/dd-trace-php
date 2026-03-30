@@ -51,6 +51,7 @@ final class PDOTest extends IntegrationTestCase
         return [
             'DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE',
             'DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED',
+            'DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED',
             'DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE_MAPPING',
@@ -525,6 +526,47 @@ final class PDOTest extends IntegrationTestCase
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', 'SELECT * FROM tests WHERE id = 1')
                 ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPDOLifecycleCommandsDisabled()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED=false']);
+
+        $traces = $this->isolateTracer(function () {
+            $pdo = $this->pdoInstance();
+            $pdo->exec("SELECT * FROM tests WHERE id = 1");
+            $pdo = null;
+        });
+        // PDO.__construct and PDO.commit spans must NOT appear; PDO.exec must still appear
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.exec', 'pdo', 'sql', 'SELECT * FROM tests WHERE id = 1')
+                ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testPDOLifecycleCommandsDisabledTransactions()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_PDO_LIFECYCLE_COMMANDS_ENABLED=false']);
+
+        $query = "INSERT INTO tests (id, name) VALUES (1000, 'Sam')";
+        $traces = $this->isolateTracer(function () use ($query) {
+            $pdo = $this->pdoInstance();
+            $pdo->beginTransaction();
+            $pdo->exec($query);
+            $pdo->commit();
+            $pdo = null;
+        });
+        // PDO.beginTransaction, PDO.commit must NOT appear; PDO.exec must still appear
+        $this->assertSpans($traces, [
+            SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
+                ->withExactTags($this->baseTags())
+                ->withExactMetrics([
+                    Tag::DB_ROW_COUNT => 1.0,
+                    Tag::ANALYTICS_KEY => 1.0,
+                    '_dd.agent_psr' => 1.0,
+                    '_sampling_priority_v1' => 1.0,
+                ]),
         ]);
     }
 
