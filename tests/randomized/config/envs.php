@@ -29,6 +29,7 @@ const ENVS = [
     'DD_TRACE_AUTO_FLUSH_ENABLED' => ['true'],
     'DD_TAGS' => ['tag_1:hi,tag_2:hello'],
     'DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE' => ['true'],
+    'DD_TRACE_PDO_PREPARED_STATEMENTS_ENABLED' => ['false'],
     'DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN' => ['true'],
     'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST' => ['true'],
     'DD_TRACE_MEASURE_COMPILE_TIME' => ['false'],
