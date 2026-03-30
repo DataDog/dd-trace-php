@@ -234,6 +234,7 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.beginTransaction'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([
@@ -261,6 +262,7 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.beginTransaction'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setError('PDO error', 'SQL error: 42000. Driver error: 1064. Driver-specific error data: You have an error in your SQL syntax')
                 ->withExactTags($this->baseTags()),
@@ -285,6 +287,7 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.beginTransaction'),
             SpanAssertion::build('PDO.exec', 'pdo', 'sql', $query)
                 ->setError('PDOException', static::ERROR_EXEC, true)
                 ->withExactTags($this->baseTags()),
@@ -409,6 +412,7 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.beginTransaction'),
             SpanAssertion::exists('PDO.exec'),
             SpanAssertion::build('PDO.commit', 'pdo', 'sql', 'PDO.commit')
                 ->withExactTags($this->baseTags()),
@@ -900,6 +904,7 @@ final class PDOTest extends IntegrationTestCase
         });
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
+            SpanAssertion::exists('PDO.beginTransaction'),
             SpanAssertion::build('PDO.exec', 'configured_service', 'sql', $query)
                 ->withExactTags($this->baseTags())
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
