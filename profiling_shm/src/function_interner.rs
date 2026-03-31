@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use crate::atomic::{AtomicU32, AtomicU64, Ordering};
 
 use crate::group::{Group, WIDTH};
 use crate::hash::{h1, h2, hash_function};
@@ -91,10 +91,11 @@ pub(crate) unsafe fn intern_function(
     // Update ctrl byte (and its mirror)
     set_ctrl(ctrl_base, FN_HT_CAP, empty_slot, fingerprint);
 
-    // Publish packed (name, file) in the lock-free index array
+    // Publish packed (name, file) in the lock-free index array.
+    // ptr::write initialises the slot; the Release on function_count synchronises with readers.
     let fn_idx_base = seg.add(FN_IDX_OFF) as *mut AtomicU64;
     let packed = (name.0 as u64) | ((file.0 as u64) << 32);
-    (&*fn_idx_base.add(count)).store(packed, Ordering::Relaxed);
+    core::ptr::write(fn_idx_base.add(count), AtomicU64::new(packed));
 
     function_count.store(new_index + 1, Ordering::Release);
 
@@ -104,7 +105,7 @@ pub(crate) unsafe fn intern_function(
 /// Look up a function by index.  Lock-free.
 ///
 /// # Safety
-/// `seg` must be a valid pointer to an initialised shared memory region.
+/// `seg` must be a valid pointer to an initialized shared memory region.
 pub(crate) unsafe fn get_function(
     seg: *const u8,
     idx: FunctionIndex,

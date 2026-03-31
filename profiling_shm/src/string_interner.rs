@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicU32, Ordering};
+use crate::atomic::{AtomicU32, Ordering};
 
 use crate::group::{Group, WIDTH};
 use crate::hash::{h1, h2, hash_bytes};
@@ -16,6 +16,10 @@ pub(crate) struct StringHtSlot {
 impl StringHtSlot {
     #[inline]
     pub fn pack(string_index: u32, arena_offset: usize, len: usize) -> u64 {
+        // arena_offset occupies 29 bits (bits 21–49), fitting values 0..=2^29-1.
+        // The arena grows backward from SEGMENT_SIZE (= 2^29), so the largest
+        // offset ever stored is SEGMENT_SIZE - 2 = 2^29 - 2, which just fits
+        // (the -2 is 2 bytes for the length prefix).
         ((len as u64) << 50) | ((arena_offset as u64) << 21) | (string_index as u64)
     }
 
@@ -35,7 +39,7 @@ const _STR_SLOT_SIZE: [(); 8] = [(); core::mem::size_of::<StringHtSlot>()];
 ///
 /// # Safety
 /// `seg` must be a valid pointer to the start of a `SEGMENT_SIZE`-byte shared
-/// memory region initialised by `ShmRegion::create()`.
+/// memory region initialized by `ShmRegion::create()`.
 pub(crate) unsafe fn intern_str(seg: *mut u8, s: &str) -> Result<StringIndex, InternError> {
     let bytes = s.as_bytes();
 
@@ -109,9 +113,10 @@ pub(crate) unsafe fn intern_str(seg: *mut u8, s: &str) -> Result<StringIndex, In
     // Update ctrl byte (and its mirror if near the start)
     set_ctrl(ctrl_base, STR_HT_CAP, empty_slot, fingerprint);
 
-    // Publish the offset in the lock-free index array
+    // Publish the offset in the lock-free index array.
+    // ptr::write initialises the slot; the Release on string_count synchronises with readers.
     let str_idx_base = seg.add(STR_IDX_OFF) as *mut AtomicU32;
-    (&*str_idx_base.add(count)).store(new_offset as u32, Ordering::Relaxed);
+    core::ptr::write(str_idx_base.add(count), AtomicU32::new(new_offset as u32));
 
     // Increment counters; Release on string_count so readers see the offset
     arena_used.store((used + 2 + bytes.len()) as u32, Ordering::Relaxed);
@@ -130,7 +135,7 @@ pub(crate) unsafe fn intern_str(seg: *mut u8, s: &str) -> Result<StringIndex, In
 ///
 /// # Safety
 /// `seg` must be a valid pointer to the start of a `SEGMENT_SIZE`-byte shared
-/// memory region initialised by `ShmRegion::create()`.
+/// memory region initialized by `ShmRegion::create()`.
 pub(crate) unsafe fn intern_rope(
     seg: *mut u8,
     rope: &StrRope5,
@@ -164,91 +169,66 @@ pub(crate) unsafe fn intern_rope(
 
     let segments = rope.leaves;
 
-    let mut written = 0usize;
-    let mut slow = false;
+    // Optimistically copy all leaves into the arena as raw bytes.
+    // No per-leaf UTF-8 validation: a single utf8_chunks() pass over the
+    // concatenated buffer handles everything, including multibyte characters
+    // that straddle leaf boundaries.
+    let mut cursor = 0usize;
     for seg_bytes in segments {
-        if seg_bytes.is_empty() {
-            continue;
-        }
-        if core::str::from_utf8(seg_bytes).is_err() {
-            slow = true;
-            break;
-        }
-        core::ptr::copy_nonoverlapping(
-            seg_bytes.as_ptr(),
-            write_base.add(written),
-            seg_bytes.len(),
-        );
-        written += seg_bytes.len();
+        core::ptr::copy_nonoverlapping(seg_bytes.as_ptr(), write_base.add(cursor), seg_bytes.len());
+        cursor += seg_bytes.len();
     }
 
-    // --- Slow path: at least one segment contained invalid UTF-8 ---
-    if slow {
-        // Count the actual output length with U+FFFD replacements.
+    // Validate the full concatenation in one pass.
+    // If the buffer is all valid UTF-8, the fast path is complete.
+    // If not, measure the repaired length and rewrite with U+FFFD replacements.
+    //
+    // When actual_len > opt_len the repair region overlaps the raw region (both
+    // end at write_base + opt_len, but repair starts earlier).  The repair pass
+    // uses ptr::copy (memmove) for valid chunks so overlapping forward copies
+    // are handled correctly.  The write cursor never overtakes the read cursor
+    // because utf8_chunks() emits invalid sequences of at most 3 bytes
+    // (invariant: write_offset ≤ read_offset + delta,
+    // delta = actual_len − opt_len).
+    {
+        let raw = core::slice::from_raw_parts(write_base as *const u8, opt_len);
+
         let mut lossy_len = 0usize;
-        for seg_bytes in segments {
-            if seg_bytes.is_empty() {
-                continue;
-            }
-            // Separators are always ASCII; only user segments can be invalid.
-            let mut remaining = seg_bytes;
-            loop {
-                match core::str::from_utf8(remaining) {
-                    Ok(s) => {
-                        lossy_len += s.len();
-                        break;
-                    }
-                    Err(e) => {
-                        lossy_len += e.valid_up_to();
-                        lossy_len += 3; // U+FFFD is 3 bytes
-                        let skip = e.error_len().unwrap_or(1);
-                        remaining = &remaining[e.valid_up_to() + skip..];
-                    }
-                }
+        let mut is_valid = true;
+        for chunk in raw.utf8_chunks() {
+            lossy_len += chunk.valid().len();
+            if !chunk.invalid().is_empty() {
+                lossy_len += 3; // U+FFFD is 3 bytes
+                is_valid = false;
             }
         }
 
-        actual_len = lossy_len;
+        if !is_valid {
+            actual_len = lossy_len;
 
-        if actual_len > MAX_STR_LEN {
-            return Err(InternError::StrTooLong);
-        }
-        if used + 2 + actual_len > ARENA_CAPACITY {
-            return Err(InternError::OutOfMemory);
-        }
-
-        new_offset = SEGMENT_SIZE - used - 2 - actual_len;
-        let write_base = seg.add(new_offset + 2);
-        let mut cursor = 0usize;
-
-        for seg_bytes in segments {
-            if seg_bytes.is_empty() {
-                continue;
+            if actual_len > MAX_STR_LEN {
+                return Err(InternError::StrTooLong);
             }
-            let mut remaining = seg_bytes;
-            loop {
-                match core::str::from_utf8(remaining) {
-                    Ok(s) => {
-                        core::ptr::copy_nonoverlapping(s.as_ptr(), write_base.add(cursor), s.len());
-                        cursor += s.len();
-                        break;
-                    }
-                    Err(e) => {
-                        let valid = e.valid_up_to();
-                        core::ptr::copy_nonoverlapping(
-                            remaining.as_ptr(),
-                            write_base.add(cursor),
-                            valid,
-                        );
-                        cursor += valid;
-                        // Write U+FFFD replacement character
-                        write_base.add(cursor).write(0xEF);
-                        write_base.add(cursor + 1).write(0xBF);
-                        write_base.add(cursor + 2).write(0xBD);
-                        cursor += 3;
-                        let skip = e.error_len().unwrap_or(1);
-                        remaining = &remaining[valid + skip..];
-                    }
+            if used + 2 + actual_len > ARENA_CAPACITY {
+                return Err(InternError::OutOfMemory);
+            }
+
+            new_offset = SEGMENT_SIZE - used - 2 - actual_len;
+            let repair_base = seg.add(new_offset + 2);
+
+            let mut cursor = 0usize;
+            for chunk in raw.utf8_chunks() {
+                let valid = chunk.valid();
+                // ptr::copy (memmove) handles the overlap between the raw buffer
+                // and the repair buffer when actual_len > opt_len.
+                core::ptr::copy(valid.as_ptr(), repair_base.add(cursor), valid.len());
+                cursor += valid.len();
+                if !chunk.invalid().is_empty() {
+                    // One U+FFFD (EF BF BD) per maximal ill-formed subsequence.
+                    repair_base.add(cursor).write(0xEF);
+                    repair_base.add(cursor + 1).write(0xBF);
+                    repair_base.add(cursor + 2).write(0xBD);
+                    cursor += 3;
                 }
             }
         }
@@ -303,7 +283,7 @@ pub(crate) unsafe fn intern_rope(
     set_ctrl(ctrl_base, STR_HT_CAP, empty_slot, fingerprint);
 
     let str_idx_base = seg.add(STR_IDX_OFF) as *mut AtomicU32;
-    (&*str_idx_base.add(count)).store(new_offset as u32, Ordering::Relaxed);
+    core::ptr::write(str_idx_base.add(count), AtomicU32::new(new_offset as u32));
 
     arena_used.store((used + 2 + actual_len) as u32, Ordering::Relaxed);
     string_count.store(new_index + 1, Ordering::Release);
@@ -314,7 +294,7 @@ pub(crate) unsafe fn intern_rope(
 /// Look up a string by index.  Lock-free.
 ///
 /// # Safety
-/// `seg` must be a valid pointer to an initialised shared memory region.
+/// `seg` must be a valid pointer to an initialized shared memory region.
 /// The returned `&str` borrows from `seg`'s backing memory; the caller must
 /// ensure the region outlives the reference.
 pub(crate) unsafe fn get_str<'a>(seg: *const u8, idx: StringIndex) -> Option<&'a str> {
@@ -336,5 +316,49 @@ unsafe fn set_ctrl(ctrl: *mut u8, cap: usize, i: usize, byte: u8) {
     ctrl.add(i).write(byte);
     if i < WIDTH {
         ctrl.add(cap + i).write(byte);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MAX_STRINGS, MAX_STR_LEN, SEGMENT_SIZE};
+
+    #[test]
+    fn pack_unpack_roundtrip_max_values() {
+        let string_index = (MAX_STRINGS - 1) as u32;
+        let arena_offset = SEGMENT_SIZE - 2; // largest offset ever stored
+        let len = MAX_STR_LEN;
+
+        let packed = StringHtSlot::pack(string_index, arena_offset, len);
+        let (si, off, l) = StringHtSlot::unpack(packed);
+
+        assert_eq!(si, string_index);
+        assert_eq!(off, arena_offset);
+        assert_eq!(l, len);
+    }
+
+    #[test]
+    fn pack_unpack_roundtrip_zero_values() {
+        let packed = StringHtSlot::pack(0, 0, 0);
+        let (si, off, l) = StringHtSlot::unpack(packed);
+        assert_eq!(si, 0);
+        assert_eq!(off, 0);
+        assert_eq!(l, 0);
+    }
+
+    #[test]
+    fn pack_unpack_roundtrip_distinct_values() {
+        // Use distinct values for each field to catch field-overlap bugs.
+        let string_index = 0x1234_u32;
+        let arena_offset = 0x0ABC_DEF0_usize;
+        let len = 0x3FFF_usize;
+
+        let packed = StringHtSlot::pack(string_index, arena_offset, len);
+        let (si, off, l) = StringHtSlot::unpack(packed);
+
+        assert_eq!(si, string_index);
+        assert_eq!(off, arena_offset);
+        assert_eq!(l, len);
     }
 }

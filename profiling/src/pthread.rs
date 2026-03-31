@@ -1,5 +1,5 @@
 use crate::allocation::alloc_prof_rshutdown;
-use crate::{config, Profiler};
+use crate::{config, Profiler, SHM};
 use log::trace;
 
 pub(crate) fn startup() {
@@ -26,6 +26,13 @@ extern "C" fn parent() {
 }
 
 unsafe extern "C" fn child() {
+    // Increment the SHM refcount for this child process.  clone() increments
+    // the in-segment atomic; forget() prevents the cloned handle from
+    // decrementing it again, leaving exactly one extra count for this process.
+    if let Some(shm) = SHM.get() {
+        std::mem::forget(shm.clone());
+    }
+
     if Profiler::get().is_none() {
         // No profiler, so nothing to do. This can happen in Apache forking SAPI, where Apache
         // would first go through MINIT phase and then fork(), so we'd observe the fork but there

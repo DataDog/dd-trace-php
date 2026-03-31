@@ -118,7 +118,6 @@ pub fn h2(hash: u64) -> u8 {
 mod tests {
     extern crate std;
     use super::*;
-    use core::hash::Hasher as _;
 
     // Oracle: recover the raw hash_bytes value that rustc_hash computes
     // internally.  FxHasher::write(s) does:
@@ -190,7 +189,7 @@ mod tests {
 
     #[test]
     fn hash_bytes_bulk_suffix_overlap() {
-        // Explicitly verify the overlapping-suffix behaviour matches rustc_hash.
+        // Explicitly verify the overlapping-suffix behavior matches rustc_hash.
         // len=17: loop processes bytes[0..16], suffix is bytes[1..17].
         // len=32: loop processes bytes[0..16], suffix is bytes[16..32] (no overlap).
         // len=33: loop processes bytes[0..32], suffix is bytes[17..33].
@@ -246,14 +245,5 @@ mod tests {
         }
         assert!(h2(u64::MAX) >= 0x80);
         assert!(h2(0) >= 0x80);
-    }
-
-    #[test]
-    fn h2_never_equals_empty() {
-        for i in 0u64..=255 {
-            assert_ne!(h2(i << 57), 0x00);
-        }
-        assert_ne!(h2(u64::MAX), 0x00);
-        assert_ne!(h2(0), 0x00);
     }
 }

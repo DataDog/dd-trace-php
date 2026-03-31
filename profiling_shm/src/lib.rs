@@ -1,11 +1,15 @@
 #![no_std]
 
+pub(crate) mod atomic;
 pub(crate) mod function_interner;
 pub(crate) mod group;
 pub(crate) mod hash;
 pub mod shm;
 pub(crate) mod spinlock;
 pub(crate) mod string_interner;
+
+#[cfg(all(test, feature = "loom"))]
+mod loom_tests;
 
 // ── Public types ─────────────────────────────────────────────────────────────
 
@@ -36,8 +40,9 @@ pub struct Function {
     pub file: StringIndex,
 }
 
-/// A rope of up to 5 byte slices that are interned as a single contiguous string.
-/// Empty slices are skipped; non-empty slices are concatenated in order.
+/// A rope of up to 5 byte slices that are interned as a single contiguous
+/// string. Slices are concatenated in order; empty slices "disappear" as you
+/// would probably expect.
 pub struct StrRope5<'a> {
     pub leaves: [&'a [u8]; 5],
 }
@@ -107,7 +112,7 @@ pub const STRING_COUNT: StringIndex = StringIndex(34); // "count"
 // (e.g., zend_op_array->reserved[n]). A NULL slot (value 0) is therefore
 // indistinguishable from an explicitly stored FUNCTION_EMPTY, and both are
 // treated identically: an empty function with name="" and file="". This allows
-// callers to skip the +1 tagging trick and treat uninitialised slots correctly
+// callers to skip the +1 tagging trick and treat uninitialized slots correctly
 // without any special-casing.
 pub const FUNCTION_EMPTY: FunctionIndex = FunctionIndex(0);
 pub const FUNCTION_UNKNOWN_USER: FunctionIndex = FunctionIndex(1);
@@ -158,38 +163,68 @@ pub(crate) const STRING_COUNT_STR: &str = "count";
 
 pub(crate) const STR_HT_CAP: usize = 1 << 21; // 2_097_152 slots; StringIndex uses ≤21 bits
 pub(crate) const FN_HT_CAP: usize = 1 << 20; // 1_048_576 slots; FunctionIndex uses ≤20 bits
-pub(crate) const MAX_STRINGS: usize = STR_HT_CAP * 7 / 8; // 1_835_008
-pub(crate) const MAX_FUNCTIONS: usize = FN_HT_CAP * 7 / 8; //   917_504
-pub(crate) const SEGMENT_SIZE: usize = 512 * 1024 * 1024; // 536_870_912
+
+pub(crate) const MAX_STRINGS: usize = STR_HT_CAP * 7 / 8;
+pub(crate) const MAX_FUNCTIONS: usize = FN_HT_CAP * 7 / 8;
 
 // Fixed byte offsets within the segment
 pub(crate) const HEADER_OFF: usize = 0;
 pub(crate) const STR_DATA_OFF: usize = 256; // HEADER_OFF + 256
+
 pub(crate) const STR_CTRL_OFF: usize = STR_DATA_OFF + STR_HT_CAP * 8;
-pub(crate) const STR_IDX_OFF: usize = STR_CTRL_OFF + STR_HT_CAP + 16; // +16 for mirror tail
-pub(crate) const FN_DATA_OFF: usize = STR_IDX_OFF + MAX_STRINGS * 4;
+// +16: Group::load reads WIDTH=16 bytes at once; slots near cap would read past the
+// end of the ctrl array without this tail. set_ctrl mirrors slots 0..16 into it.
+pub(crate) const STR_IDX_OFF: usize = STR_CTRL_OFF + STR_HT_CAP + 16;
+
+// Stride of each entry in the index arrays is size_of the atomic type.
+// Pointer arithmetic on *mut AtomicU32/*mut AtomicU64 already uses this implicitly;
+// these constants make the byte-offset arithmetic explicit and loom-safe.
+pub(crate) const FN_DATA_OFF: usize =
+    STR_IDX_OFF + MAX_STRINGS * core::mem::size_of::<crate::atomic::AtomicU32>();
 pub(crate) const FN_CTRL_OFF: usize = FN_DATA_OFF + FN_HT_CAP * 8;
-pub(crate) const FN_IDX_OFF: usize = FN_CTRL_OFF + FN_HT_CAP + 16; // +16 for mirror tail
-pub(crate) const FIXED_END: usize = FN_IDX_OFF + MAX_FUNCTIONS * 8;
+// +16: same mirror tail as STR_IDX_OFF above.
+pub(crate) const FN_IDX_OFF: usize = FN_CTRL_OFF + FN_HT_CAP + 16;
+pub(crate) const FIXED_END: usize =
+    FN_IDX_OFF + MAX_FUNCTIONS * core::mem::size_of::<crate::atomic::AtomicU64>();
 pub(crate) const ARENA_CAPACITY: usize = SEGMENT_SIZE - FIXED_END;
 
-// Byte offsets within the header (HEADER_OFF = 0)
+// Byte offsets within the 256-byte header (HEADER_OFF = 0).
+// Header atomics are packed consecutively; each field is one AtomicU32 wide.
+// FN_SPINLOCK_OFF is fixed at 128 for cache-line separation from the str fields.
 pub(crate) const STR_SPINLOCK_OFF: usize = 0;
-pub(crate) const STRING_COUNT_OFF: usize = 4;
-pub(crate) const ARENA_USED_OFF: usize = 8;
+pub(crate) const STRING_COUNT_OFF: usize = core::mem::size_of::<crate::atomic::AtomicU32>();
+pub(crate) const ARENA_USED_OFF: usize = 2 * core::mem::size_of::<crate::atomic::AtomicU32>();
 pub(crate) const FN_SPINLOCK_OFF: usize = 128;
-pub(crate) const FUNCTION_COUNT_OFF: usize = 132;
-#[allow(dead_code)]
-pub(crate) const REFCOUNT_OFF: usize = 136;
+pub(crate) const FUNCTION_COUNT_OFF: usize =
+    FN_SPINLOCK_OFF + core::mem::size_of::<crate::atomic::AtomicU32>();
+pub(crate) const REFCOUNT_OFF: usize =
+    FUNCTION_COUNT_OFF + core::mem::size_of::<crate::atomic::AtomicU32>();
 
-// Compile-time verification of key offset values (compile error, not panic)
-const _: [(); 16_777_472] = [(); STR_CTRL_OFF];
-const _: [(); 18_874_640] = [(); STR_IDX_OFF];
-const _: [(); 26_214_672] = [(); FN_DATA_OFF];
-const _: [(); 34_603_280] = [(); FN_CTRL_OFF];
-const _: [(); 35_651_872] = [(); FN_IDX_OFF];
-const _: [(); 42_991_904] = [(); FIXED_END];
-const _: [(); 536_870_912] = [(); SEGMENT_SIZE];
+pub(crate) const SEGMENT_SIZE: usize = 512 * 1024 * 1024; // 536_870_912
+
+// Compile-time safety assertions for the header layout.
+const _: () = assert!(
+    FN_SPINLOCK_OFF >= ARENA_USED_OFF + core::mem::size_of::<crate::atomic::AtomicU32>(),
+    "FN_SPINLOCK_OFF overlaps str header fields"
+);
+const _: () = assert!(
+    REFCOUNT_OFF + core::mem::size_of::<crate::atomic::AtomicU32>() <= STR_DATA_OFF,
+    "header atomics overflow into STR_DATA_OFF; AtomicU32 is too large"
+);
+
+// Compile-time verification of exact byte values for production layout.
+// Gated on not(loom) because loom uses different AtomicU32/U64 sizes.
+#[cfg(not(feature = "loom"))]
+mod layout_checks {
+    use super::*;
+    const _: [(); 16_777_472] = [(); STR_CTRL_OFF];
+    const _: [(); 18_874_640] = [(); STR_IDX_OFF];
+    const _: [(); 26_214_672] = [(); FN_DATA_OFF];
+    const _: [(); 34_603_280] = [(); FN_CTRL_OFF];
+    const _: [(); 35_651_872] = [(); FN_IDX_OFF];
+    const _: [(); 42_991_904] = [(); FIXED_END];
+    const _: [(); 536_870_912] = [(); SEGMENT_SIZE];
+}
 
 // Re-export the main API type
 pub use shm::ShmRegion;

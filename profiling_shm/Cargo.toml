@@ -8,9 +8,13 @@ license.workspace      = true
 [lib]
 crate-type = ["rlib"]
 
+[features]
+loom = ["dep:loom"]
+
 [dev-dependencies]
 bolero = "0.13"
 
 [dependencies]
 libc       = { version = "0.2", default-features = false }
-rustc-hash = { version = "2.1", default-features = false }
+rustc-hash = { version = "2.1.2", default-features = false }
+loom       = { version = "0.7", optional = true }

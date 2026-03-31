@@ -113,3 +113,15 @@ foreach ($profiler_minor_major_targets as $version) {
     - switch-php nts # not compatible with debug
     - cd profiling
     - cargo test --all-features
+
+"loom tests":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.5_bookworm-5
+  variables:
+    KUBERNETES_CPU_REQUEST: 4
+    KUBERNETES_CPU_LIMIT: 4
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+  script:
+    - cargo test -p libdatadog-php-profiling-shm --features loom
