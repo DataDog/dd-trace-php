@@ -205,13 +205,13 @@ static void zai_config_dtor_memoized_zvals(void) {
 
 void zai_config_mshutdown(void) {
     zai_config_dtor_memoized_zvals();
+    zai_config_clear_sys_env_cache();
     zai_config_memoized_entries_count = 0;
     if (zai_config_name_map.nTableSize) {
         zend_hash_destroy(&zai_config_name_map);
     }
     zai_config_ini_mshutdown();
     zai_config_stable_file_mshutdown();
-    zai_config_clear_sys_env_cache();
 }
 
 void zai_config_runtime_config_ctor(void);
