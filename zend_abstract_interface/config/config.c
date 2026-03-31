@@ -99,9 +99,11 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             break;
         }
     }
-    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(&buf, true)) {
-        zai_config_process_env(memoized, buf, &value);
+    ZAI_ENV_BUFFER_INIT(fallback_buf, ZAI_ENV_MAX_BUFSIZ);
+    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(&fallback_buf, true)) {
+        zai_config_process_env(memoized, fallback_buf, &value);
         name_index = ZAI_CONFIG_ORIGIN_MODIFIED;
+        buf = fallback_buf;
     }
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
