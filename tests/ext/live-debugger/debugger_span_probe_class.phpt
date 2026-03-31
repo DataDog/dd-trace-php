@@ -72,7 +72,14 @@ foreach ($ordered as &$value) {
 var_dump($log["uri"]);
 var_dump($log["files"]["event"]["name"]);
 foreach ($ordered as $id => $statuses) {
-    print "$id: " . implode(", ", array_merge(...$statuses)) . "\n";
+    $states = array_merge(...$statuses);
+    // Probe 1 (already-defined class): INSTALLED is sent async via sidecar and may
+    // not arrive within the collection window under resource-constrained CI.
+    // Strip it — await_probe_installation() already confirmed the hook is installed.
+    if ($id == 1) {
+        $states = array_values(array_filter($states, function($s) { return $s !== 'INSTALLED'; }));
+    }
+    print "$id: " . implode(", ", $states) . "\n";
 }
 
 ?>
@@ -81,10 +88,10 @@ foreach ($ordered as $id => $statuses) {
 require __DIR__ . "/live_debugger.inc";
 reset_request_replayer();
 ?>
---EXPECTREGEX--
-string\(23\) "dd\.dynamic\.span Bar\.foo"
-string\(27\) "dd\.dynamic\.span Delayed\.foo"
-string\(\d+\) "/debugger/v1/diagnostics\?ddtags=debugger_version:[^,]+,env:none,version:,runtime_id:[^,]+,host_name:[^\s"]+"
-string\(10\) "event\.json"
-1: (?:INSTALLED, )?EMITTING
+--EXPECTF--
+string(23) "dd.dynamic.span Bar.foo"
+string(27) "dd.dynamic.span Delayed.foo"
+string(%d) "/debugger/v1/diagnostics?ddtags=debugger_version:%s,env:none,version:,runtime_id:%s,host_name:%s"
+string(10) "event.json"
+1: EMITTING
 2: RECEIVED, INSTALLED, EMITTING
