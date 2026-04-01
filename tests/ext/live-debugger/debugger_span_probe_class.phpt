@@ -73,9 +73,8 @@ var_dump($log["uri"]);
 var_dump($log["files"]["event"]["name"]);
 foreach ($ordered as $id => $statuses) {
     $states = array_merge(...$statuses);
-    // Probe 1 (already-defined class): INSTALLED is sent async via sidecar and may
-    // not arrive within the collection window under resource-constrained CI.
-    // Strip it — await_probe_installation() already confirmed the hook is installed.
+    // Probe 1 (already-defined class): INSTALLED is delivered async by the sidecar and may
+    // race the collection window. Strip it; await_probe_installation() confirms the hook.
     if ($id == 1) {
         $states = array_values(array_filter($states, function($s) { return $s !== 'INSTALLED'; }));
     }
