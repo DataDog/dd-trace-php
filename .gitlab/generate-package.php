@@ -91,6 +91,10 @@ stages:
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
+  # One pipeline injection package size ratchet
+  OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
+
 include:
   - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
