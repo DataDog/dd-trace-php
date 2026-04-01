@@ -1,5 +1,5 @@
 use crate::allocation::alloc_prof_rshutdown;
-use crate::{config, Profiler, SHM};
+use crate::{bindings, config, Profiler};
 use log::trace;
 
 pub(crate) fn startup() {
@@ -9,6 +9,11 @@ pub(crate) fn startup() {
 }
 
 extern "C" fn prepare() {
+    #[cfg(php_run_time_cache)]
+    unsafe {
+        bindings::ddog_php_prof_runtime_interner_lock_prepare_fork();
+    }
+
     // Hold mutexes across the handler. If there are any spurious wakeups by
     // the threads while the fork is occurring, they cannot acquire locks
     // since this thread holds them, preventing a deadlock situation.
@@ -19,6 +24,11 @@ extern "C" fn prepare() {
 }
 
 extern "C" fn parent() {
+    #[cfg(php_run_time_cache)]
+    unsafe {
+        bindings::ddog_php_prof_runtime_interner_lock_post_fork_parent();
+    }
+
     if let Some(profiler) = Profiler::get() {
         trace!("Re-enabling profiler in parent after fork call.");
         profiler.post_fork_parent();
@@ -26,11 +36,9 @@ extern "C" fn parent() {
 }
 
 unsafe extern "C" fn child() {
-    // Increment the SHM refcount for this child process.  clone() increments
-    // the in-segment atomic; forget() prevents the cloned handle from
-    // decrementing it again, leaving exactly one extra count for this process.
-    if let Some(shm) = SHM.get() {
-        std::mem::forget(shm.clone());
+    #[cfg(php_run_time_cache)]
+    unsafe {
+        bindings::ddog_php_prof_runtime_interner_lock_post_fork_child();
     }
 
     if Profiler::get().is_none() {

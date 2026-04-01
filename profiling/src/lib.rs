@@ -389,6 +389,11 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         return ZendResult::Failure;
     }
 
+    #[cfg(php_run_time_cache)]
+    unsafe {
+        zend::ddog_php_prof_function_run_time_cache_init(PROFILER_NAME.as_ptr());
+    }
+
     // SAFETY: during minit there shouldn't be any threads to race against these writes.
     unsafe { wall_time::minit() };
 
@@ -575,31 +580,30 @@ static mut ZAI_CONFIG_ONCE: Once = Once::new();
 /// The mut here is *only* for resetting this back to uninitialized each minit.
 static mut RINIT_ONCE: Once = Once::new();
 
-fn request_opcache_policy_snapshot() -> Option<(bool, bool, bool)> {
+fn request_opcache_policy_snapshot() -> Option<(bool, bool)> {
     unsafe {
         module_globals::request_opcache_policy_initialized().then_some((
             module_globals::request_opcache_enabled(),
             module_globals::request_opcache_file_cache_enabled(),
-            module_globals::runtime_user_reserved_slot_write_allowed(),
         ))
     }
 }
 
 fn request_opcache_policy_change_message(
-    previous: (bool, bool, bool),
-    current: (bool, bool, bool),
+    previous: (bool, bool),
+    current: (bool, bool),
 ) -> Option<&'static str> {
     if previous == current {
         return None;
     }
 
-    let (_opcache_enabled, file_cache_enabled, runtime_write_allowed) = current;
+    let (opcache_enabled, file_cache_enabled) = current;
     Some(if file_cache_enabled {
-        "OPcache file cache is now enabled for profiling. User function indexes will not be cached in OPcache reserved slots, and user frames may appear as [unknown user function]."
-    } else if runtime_write_allowed {
-        "OPcache profiling cache behavior changed. User function indexes can now be cached in OPcache reserved slots again, so user-function names should resolve normally."
+        "OPcache file cache is now enabled for profiling. The profiler will avoid storing user function indexes in OPcache reserved slots and will recover them through request-local runtime cache lookups instead."
+    } else if opcache_enabled {
+        "OPcache is enabled for profiling without file cache. Newly persisted user functions can be cached in OPcache reserved slots."
     } else {
-        "OPcache profiling cache behavior changed. User function indexes cannot be cached in OPcache reserved slots for this request."
+        "OPcache is disabled for this request. User function indexes will be recovered through request-local runtime cache lookups."
     })
 }
 

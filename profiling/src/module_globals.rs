@@ -16,7 +16,6 @@ pub struct ProfilerGlobals {
     pub opcache_policy_initialized: Cell<bool>,
     pub opcache_enabled: Cell<bool>,
     pub opcache_file_cache_enabled: Cell<bool>,
-    pub runtime_user_reserved_slot_write_allowed: Cell<bool>,
     pub cli_opcache_enable_initialized: Cell<bool>,
     pub cli_opcache_enable: Cell<bool>,
 }
@@ -38,7 +37,6 @@ pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
     opcache_policy_initialized: Cell::new(false),
     opcache_enabled: Cell::new(false),
     opcache_file_cache_enabled: Cell::new(false),
-    runtime_user_reserved_slot_write_allowed: Cell::new(false),
     cli_opcache_enable_initialized: Cell::new(false),
     cli_opcache_enable: Cell::new(false),
 };
@@ -104,13 +102,6 @@ pub unsafe fn request_opcache_file_cache_enabled() -> bool {
 }
 
 #[inline]
-pub unsafe fn runtime_user_reserved_slot_write_allowed() -> bool {
-    (&*get_profiler_globals())
-        .runtime_user_reserved_slot_write_allowed
-        .get()
-}
-
-#[inline]
 pub unsafe fn cached_cli_opcache_enable_state() -> (bool, bool) {
     let globals = &*get_profiler_globals();
     (
@@ -124,17 +115,12 @@ pub unsafe extern "C" fn ddog_php_prof_set_cached_request_opcache_policy(
     opcache_enabled: bool,
     opcache_file_cache_enabled: bool,
 ) {
-    let runtime_user_reserved_slot_write_allowed = !opcache_file_cache_enabled
-        && (crate::bindings::PHP_VERSION_ID >= 80100 || !opcache_enabled);
     let globals = &*get_profiler_globals();
     globals.opcache_policy_initialized.set(true);
     globals.opcache_enabled.set(opcache_enabled);
     globals
         .opcache_file_cache_enabled
         .set(opcache_file_cache_enabled);
-    globals
-        .runtime_user_reserved_slot_write_allowed
-        .set(runtime_user_reserved_slot_write_allowed);
 }
 
 #[export_name = "ddog_php_prof_get_cached_cli_opcache_enable_state"]
@@ -179,7 +165,6 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         (*globals).opcache_policy_initialized = Cell::new(false);
         (*globals).opcache_enabled = Cell::new(false);
         (*globals).opcache_file_cache_enabled = Cell::new(false);
-        (*globals).runtime_user_reserved_slot_write_allowed = Cell::new(false);
         (*globals).cli_opcache_enable_initialized = Cell::new(false);
         (*globals).cli_opcache_enable = Cell::new(false);
     }

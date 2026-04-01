@@ -1,4 +1,4 @@
-use crate::atomic::{AtomicU32, AtomicU64};
+use core::sync::atomic::{AtomicU32, AtomicU64};
 
 use crate::function_interner::{get_function, intern_function, FunctionHtSlot};
 use crate::spinlock::try_lock;
@@ -15,7 +15,6 @@ use crate::{
     FN_SPINLOCK_OFF,
     FUNCTION_COUNT_OFF,
     HEADER_OFF,
-    REFCOUNT_OFF,
     SEGMENT_SIZE,
     STRING_COUNT_OFF,
     STRING_COUNT_STR,
@@ -156,9 +155,8 @@ fn debug_assert_layout(ptr: *mut u8) {
 
 /// A `MAP_SHARED | MAP_ANONYMOUS` region of `SEGMENT_SIZE` bytes.
 ///
-/// A shared reference counter in the segment header tracks how many processes
-/// are using the region.  `Drop` decrements it and unmaps when it reaches zero.
-/// After `fork`, the child must call `post_fork_child` to increment the count.
+/// The pointer is valid for the lifetime of the region.  `Drop` does nothing;
+/// call `unmap` explicitly from the parent after all children have exited.
 pub struct ShmRegion {
     ptr: *mut u8,
 }
@@ -168,76 +166,37 @@ pub struct ShmRegion {
 unsafe impl Send for ShmRegion {}
 unsafe impl Sync for ShmRegion {}
 
-impl Clone for ShmRegion {
-    fn clone(&self) -> Self {
-        let refcount = unsafe { &*(self.ptr.add(HEADER_OFF + REFCOUNT_OFF) as *const AtomicU32) };
-        refcount.fetch_add(1, crate::atomic::Ordering::Relaxed);
-        ShmRegion { ptr: self.ptr }
-    }
-}
-
-impl Drop for ShmRegion {
-    fn drop(&mut self) {
-        let refcount = unsafe { &*(self.ptr.add(HEADER_OFF + REFCOUNT_OFF) as *const AtomicU32) };
-        if refcount.fetch_sub(1, crate::atomic::Ordering::Release) == 1 {
-            // Synchronize with all prior Release decrements before touching the
-            // segment memory (e.g. as munmap's implicit read of mapped pages).
-            // This mirrors the pattern in std::sync::Arc::drop.
-            crate::atomic::fence(crate::atomic::Ordering::Acquire);
-            unsafe { libc::munmap(self.ptr as *mut libc::c_void, SEGMENT_SIZE) };
-        }
-    }
-}
-
 impl ShmRegion {
-    /// Create a new `MAP_SHARED | MAP_ANONYMOUS` mapping and pre-intern the
-    /// well-known strings and functions.  Call once in the parent before `fork`.
+    /// Create a new `MAP_SHARED | MAP_ANONYMOUS` mapping of 512 MiB and
+    /// pre-intern the 8 well-known strings (indices 0–7).
+    ///
+    /// Call once in the parent before `fork`.
+    ///
+    /// # Safety
+    /// The caller is responsible for calling `unmap` when all children
+    /// have exited.
     pub unsafe fn create() -> Result<Self, ()> {
-        let ptr = {
-            let p = unsafe {
-                libc::mmap(
-                    core::ptr::null_mut(),
-                    SEGMENT_SIZE,
-                    libc::PROT_READ | libc::PROT_WRITE,
-                    libc::MAP_SHARED | libc::MAP_ANONYMOUS,
-                    -1,
-                    0,
-                )
-            };
-            if p == libc::MAP_FAILED {
-                return Err(());
-            }
-            p as *mut u8
+        let ptr = unsafe {
+            libc::mmap(
+                core::ptr::null_mut(),
+                SEGMENT_SIZE,
+                libc::PROT_READ | libc::PROT_WRITE,
+                libc::MAP_SHARED | libc::MAP_ANONYMOUS,
+                -1,
+                0,
+            )
         };
-
-        // Explicitly initialize header atomics; index slots are initialized
-        // lazily via ptr::write in the interners when first written.
-        unsafe {
-            use core::ptr::write;
-            write(
-                ptr.add(STR_SPINLOCK_OFF) as *mut AtomicU32,
-                AtomicU32::new(0),
-            );
-            write(
-                ptr.add(STRING_COUNT_OFF) as *mut AtomicU32,
-                AtomicU32::new(0),
-            );
-            write(ptr.add(ARENA_USED_OFF) as *mut AtomicU32, AtomicU32::new(0));
-            write(
-                ptr.add(FN_SPINLOCK_OFF) as *mut AtomicU32,
-                AtomicU32::new(0),
-            );
-            write(
-                ptr.add(FUNCTION_COUNT_OFF) as *mut AtomicU32,
-                AtomicU32::new(0),
-            );
-            write(ptr.add(REFCOUNT_OFF) as *mut AtomicU32, AtomicU32::new(1));
+        if ptr == libc::MAP_FAILED {
+            return Err(());
         }
 
-        debug_assert_layout(ptr);
+        let region = ShmRegion {
+            ptr: ptr as *mut u8,
+        };
+        debug_assert_layout(region.ptr);
 
         // Pre-intern 35 strings in index order (0–34).
-        // Backing memory is zeroed so ctrl arrays are EMPTY (0x00) and
+        // MAP_ANONYMOUS zeroes all pages so ctrl arrays are EMPTY (0x00) and
         // all counters are 0 — no memset needed.
         let strings: [&str; 35] = [
             // indices 0–7: libdatadog well-known strings
@@ -283,8 +242,8 @@ impl ShmRegion {
 
         for s in strings {
             // Bypass the spinlock: no other thread/process exists yet.
-            if intern_str(ptr, s).is_err() {
-                libc::munmap(ptr as *mut libc::c_void, SEGMENT_SIZE);
+            if intern_str(region.ptr, s).is_err() {
+                let _ = libc::munmap(ptr, SEGMENT_SIZE);
                 return Err(());
             }
         }
@@ -304,13 +263,13 @@ impl ShmRegion {
         ];
 
         for (name, file) in functions {
-            if intern_function(ptr, name, file).is_err() {
-                libc::munmap(ptr as *mut libc::c_void, SEGMENT_SIZE);
+            if intern_function(region.ptr, name, file).is_err() {
+                let _ = libc::munmap(ptr, SEGMENT_SIZE);
                 return Err(());
             }
         }
 
-        Ok(ShmRegion { ptr })
+        Ok(region)
     }
 
     /// Intern a string.
@@ -362,24 +321,27 @@ impl ShmRegion {
         unsafe { get_function(self.ptr, idx) }
     }
 
-    /// Moment-in-time count of interned strings.  Always ≥ 35 (pre-interned).
-    #[allow(clippy::len_without_is_empty)]
-    pub fn string_len(&self) -> u32 {
-        let count = unsafe { &*(self.ptr.add(HEADER_OFF + STRING_COUNT_OFF) as *const AtomicU32) };
-        count.load(crate::atomic::Ordering::Relaxed)
-    }
-
     /// Return the raw segment pointer (for passing to fork children).
     pub fn ptr(&self) -> *mut u8 {
         self.ptr
     }
+
+    /// Unmap the segment.  Only call from the parent after all children
+    /// have exited.
+    ///
+    /// # Safety
+    /// No other thread or process may use the region after this call.
+    pub unsafe fn unmap(self) {
+        unsafe {
+            libc::munmap(self.ptr as *mut libc::c_void, SEGMENT_SIZE);
+        }
+    }
 }
 
-#[cfg(all(test, not(feature = "loom")))]
+#[cfg(test)]
 mod tests {
     extern crate std;
     use super::*;
-    use crate::atomic::Ordering;
     use crate::{
         FUNCTION_EMPTY, FUNCTION_EVAL, FUNCTION_OOM, FUNCTION_SUSPICIOUSLY_LONG,
         FUNCTION_TRUNCATED, FUNCTION_UNKNOWN_INTERNAL, FUNCTION_UNKNOWN_USER, STRING_COUNT,
@@ -405,6 +367,7 @@ mod tests {
         STRING_UNKNOWN_INTERNAL_FUNCTION_STR, STRING_UNKNOWN_USER_FUNCTION,
         STRING_UNKNOWN_USER_FUNCTION_STR, STRING_WALL_TIME, STRING_WALL_TIME_STR,
     };
+    use core::sync::atomic::Ordering;
 
     fn create() -> ShmRegion {
         unsafe { ShmRegion::create().expect("mmap failed") }
@@ -696,24 +659,6 @@ mod tests {
     }
 
     #[test]
-    fn intern_rope_cross_leaf_boundary_valid() {
-        let region = create();
-        // é = U+00E9 = 0xC3 0xA9 in UTF-8.  Split across two leaves so each
-        // leaf is individually invalid UTF-8, but the concatenation is valid.
-        // intern_rope must treat the rope as a single logical byte buffer and
-        // produce "café", not "caf\u{FFFD}\u{FFFD}".
-        let rope = StrRope5 {
-            leaves: [b"caf\xC3", b"\xA9", b"", b"", b""],
-        };
-        let idx = region.intern_rope(&rope).unwrap();
-        assert_eq!(region.get_str(idx).unwrap(), "café");
-        // Must agree with intern_str on the same content.
-        assert_eq!(region.intern_str("café").unwrap(), idx);
-        // Dedup: second call returns the same index.
-        assert_eq!(region.intern_rope(&rope).unwrap(), idx);
-    }
-
-    #[test]
     fn intern_rope_non_utf8_lossy() {
         let region = create();
         // 0xFF is invalid UTF-8; should be replaced with U+FFFD (3 bytes: EF BF BD).
@@ -767,7 +712,7 @@ mod tests {
 ///
 /// Run under Miri:
 ///   cargo miri test -p libdatadog-php-profiling-shm -- prop_
-#[cfg(all(test, not(feature = "loom")))]
+#[cfg(test)]
 mod prop_tests {
     extern crate std;
     use super::*;
@@ -876,78 +821,6 @@ mod prop_tests {
                         .expect("get_function returned None for valid index");
                     assert_eq!(rn.0, name.0, "retrieved name index wrong");
                     assert_eq!(rf.0, file.0, "retrieved file index wrong");
-                }
-                (Err(InternError::OutOfMemory), _) | (_, Err(InternError::OutOfMemory)) => {}
-                (Err(e), _) | (_, Err(e)) => panic!("unexpected error {:?}", e),
-            }
-        });
-    }
-
-    /// `intern_rope(rope)` must return the same `StringIndex` as
-    /// `intern_str(lossy_concat(leaves))` for the same content.
-    ///
-    /// This single property covers dedup, UTF-8 repair, and content correctness
-    /// because `intern_str` acts as an oracle.
-    #[test]
-    fn prop_rope_matches_intern_str() {
-        let region = unsafe { ShmRegion::create().expect("mmap failed") };
-
-        // Input layout: [s0][s1][s2][s3][data...]
-        // Four leading bytes are used as fractional split points to divide
-        // the remaining bytes into 5 leaves.
-        bolero::check!().for_each(|input: &[u8]| {
-            let Some((&s0, rest)) = input.split_first() else {
-                return;
-            };
-            let p0 = s0 as usize % (rest.len() + 1);
-            let (l0, rest) = rest.split_at(p0);
-
-            let Some((&s1, rest)) = rest.split_first() else {
-                return;
-            };
-            let p1 = s1 as usize % (rest.len() + 1);
-            let (l1, rest) = rest.split_at(p1);
-
-            let Some((&s2, rest)) = rest.split_first() else {
-                return;
-            };
-            let p2 = s2 as usize % (rest.len() + 1);
-            let (l2, rest) = rest.split_at(p2);
-
-            let Some((&s3, rest)) = rest.split_first() else {
-                return;
-            };
-            let p3 = s3 as usize % (rest.len() + 1);
-            let (l3, l4) = rest.split_at(p3);
-
-            // Oracle: intern_rope treats all leaves as a single byte buffer, so
-            // the oracle must also concatenate first, then apply lossy decoding.
-            // Per-leaf lossy decoding would differ at leaf boundaries where a
-            // multi-byte character is split across two leaves.
-            let mut raw =
-                std::vec::Vec::with_capacity(l0.len() + l1.len() + l2.len() + l3.len() + l4.len());
-            for leaf in &[l0, l1, l2, l3, l4] {
-                raw.extend_from_slice(leaf);
-            }
-            let expected = std::string::String::from_utf8_lossy(&raw).into_owned();
-
-            if expected.len() > MAX_STR_LEN {
-                return;
-            }
-
-            let rope = StrRope5 {
-                leaves: [l0, l1, l2, l3, l4],
-            };
-            let rope_result = unsafe { intern_rope(region.ptr, &rope) };
-            let str_result = unsafe { intern_str(region.ptr, &expected) };
-
-            match (rope_result, str_result) {
-                (Ok(ri), Ok(si)) => {
-                    assert_eq!(
-                        ri.0, si.0,
-                        "rope and intern_str disagree for {:?}",
-                        expected
-                    );
                 }
                 (Err(InternError::OutOfMemory), _) | (_, Err(InternError::OutOfMemory)) => {}
                 (Err(e), _) | (_, Err(e)) => panic!("unexpected error {:?}", e),

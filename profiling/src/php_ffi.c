@@ -1,10 +1,14 @@
 #include "php_ffi.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef ZTS
+#include <pthread.h>
+#endif
 #include "SAPI.h"
 
 #if CFG_STACK_WALKING_TESTS
@@ -152,19 +156,7 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 #endif
 
 
-#if CFG_RUN_TIME_CACHE // defined by build.rs
-/**
- * Currently used to ignore run_time_cache on CLI SAPI as a precaution against
- * unbounded memory growth. Unbounded growth is more likely there since it's
- * always one PHP request, and we only reset it on each new request.
- */
-static bool _ignore_run_time_cache = false;
-#endif
-
 void datadog_php_profiling_startup(zend_extension *extension) {
-#if CFG_RUN_TIME_CACHE  // defined by build.rs
-    _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
-#endif
     _is_cli_sapi = strcmp(sapi_module.name, "cli") == 0;
 
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
@@ -286,27 +278,28 @@ static int _user_run_time_cache_handle = -1;
 static int _internal_run_time_cache_handle = -1;
 #endif
 
+#ifdef ZTS
+static pthread_mutex_t _runtime_interner_strings_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t _runtime_interner_functions_lock = PTHREAD_MUTEX_INITIALIZER;
+#define DDOG_RUNTIME_INTERNER_LOCK_SPIN_ATTEMPTS 8
+#endif
+
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #if CFG_RUN_TIME_CACHE // defined by build.rs
-    // Grab 1 slot for the full module|class::method name.
-    // Grab 1 slot for caching filename, as it turns out the utf-8 validity
-    // check is worth caching.
 #if PHP_VERSION_ID < 80200
     _user_run_time_cache_handle =
         zend_get_op_array_extension_handle(module_name);
-    int second = zend_get_op_array_extension_handle(module_name);
-    ZEND_ASSERT(_user_run_time_cache_handle + 1 == second);
 #else
     _user_run_time_cache_handle =
-        zend_get_op_array_extension_handles(module_name, 2);
+        zend_get_op_array_extension_handles(module_name, 1);
 
 #if PHP_VERSION_ID >= 80400
     // On PHP 8.4+, the internal cache slots need to be registered separately
     // from the user ones.
     _internal_run_time_cache_handle =
-        zend_get_internal_function_extension_handles(module_name, 2);
+        zend_get_internal_function_extension_handles(module_name, 1);
 #endif
 
 #endif
@@ -324,7 +317,6 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 // defined by build.rs
 #if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
 static bool has_invalid_run_time_cache(zend_function const *func) {
-    bool ignore_cache = _ignore_run_time_cache;
     bool inv_user_handle = _user_run_time_cache_handle < 0;
 
     // The bitwise-ors are intentional here. We don't expect any of these
@@ -332,10 +324,10 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
     // to pessimize since it'll predict well after it gets it wrong the first
     // time.
 #if PHP_VERSION_ID < 80400
-    bool fast_skip = ignore_cache | inv_user_handle;
+    bool fast_skip = inv_user_handle;
 #else
     bool inv_internal_handle = _internal_run_time_cache_handle < 0;
-    bool fast_skip = ignore_cache | inv_user_handle | inv_internal_handle;
+    bool fast_skip = inv_user_handle | inv_internal_handle;
 #endif
 
     if (UNEXPECTED(fast_skip))
@@ -406,24 +398,89 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_STACK_WALKING_TESTS
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_RUN_TIME_CACHE
-    if (_ignore_run_time_cache) return NULL;
     zend_function *non_const_func = (zend_function *)func;
 #if PHP_VERSION_ID < 80200
     if (non_const_func->op_array.run_time_cache__ptr == NULL) {
         non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->op_array.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
+        *non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
     }
     return (uintptr_t *)*non_const_func->op_array.run_time_cache__ptr;
 #else
     if (non_const_func->common.run_time_cache__ptr == NULL) {
         non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->common.run_time_cache__ptr = calloc(2, sizeof(uintptr_t));
+        *non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
     }
     return (uintptr_t *)*non_const_func->common.run_time_cache__ptr;
 #endif
 #else
     (void)func;
     return NULL;
+#endif
+}
+#endif
+
+#if CFG_RUN_TIME_CACHE
+#ifdef ZTS
+static bool ddog_php_prof_runtime_interner_try_lock(pthread_mutex_t *lock) {
+    for (unsigned attempts = 0; attempts < DDOG_RUNTIME_INTERNER_LOCK_SPIN_ATTEMPTS; attempts++) {
+        int result = pthread_mutex_trylock(lock);
+        if (result == 0) {
+            return true;
+        }
+        if (result != EBUSY) {
+            return false;
+        }
+    }
+    return false;
+}
+#endif
+
+bool ddog_php_prof_try_runtime_interner_strings_lock(void) {
+#ifdef ZTS
+    return ddog_php_prof_runtime_interner_try_lock(&_runtime_interner_strings_lock);
+#else
+    return true;
+#endif
+}
+
+void ddog_php_prof_runtime_interner_strings_unlock(void) {
+#ifdef ZTS
+    pthread_mutex_unlock(&_runtime_interner_strings_lock);
+#endif
+}
+
+bool ddog_php_prof_try_runtime_interner_functions_lock(void) {
+#ifdef ZTS
+    return ddog_php_prof_runtime_interner_try_lock(&_runtime_interner_functions_lock);
+#else
+    return true;
+#endif
+}
+
+void ddog_php_prof_runtime_interner_functions_unlock(void) {
+#ifdef ZTS
+    pthread_mutex_unlock(&_runtime_interner_functions_lock);
+#endif
+}
+
+void ddog_php_prof_runtime_interner_lock_prepare_fork(void) {
+#ifdef ZTS
+    pthread_mutex_lock(&_runtime_interner_strings_lock);
+    pthread_mutex_lock(&_runtime_interner_functions_lock);
+#endif
+}
+
+void ddog_php_prof_runtime_interner_lock_post_fork_parent(void) {
+#ifdef ZTS
+    pthread_mutex_unlock(&_runtime_interner_functions_lock);
+    pthread_mutex_unlock(&_runtime_interner_strings_lock);
+#endif
+}
+
+void ddog_php_prof_runtime_interner_lock_post_fork_child(void) {
+#ifdef ZTS
+    pthread_mutex_unlock(&_runtime_interner_functions_lock);
+    pthread_mutex_unlock(&_runtime_interner_strings_lock);
 #endif
 }
 #endif

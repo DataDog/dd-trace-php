@@ -1,8 +1,8 @@
 #[cfg(feature = "loom")]
-pub(crate) use loom::sync::atomic::{fence, AtomicU32, AtomicU64, Ordering};
+pub(crate) use loom::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 #[cfg(not(feature = "loom"))]
-pub(crate) use core::sync::atomic::{fence, AtomicU32, AtomicU64, Ordering};
+pub(crate) use core::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
 pub(crate) fn spin_loop() {
     #[cfg(feature = "loom")]

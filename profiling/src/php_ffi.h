@@ -169,6 +169,35 @@ void ddog_php_opcache_init_handle();
 bool ddog_php_jit_enabled();
 
 /**
+ * Registers a single run_time_cache slot for caching FunctionIndex values.
+ * Must be called during module/extension initialization.
+ */
+void ddog_php_prof_function_run_time_cache_init(const char *module_name);
+
+/**
+ * Returns the address of the single FunctionIndex run_time_cache slot, or NULL
+ * if the run_time_cache is unavailable for this function.
+ */
+uintptr_t *ddog_php_prof_function_run_time_cache(const zend_function *func);
+
+#if CFG_STACK_WALKING_TESTS
+uintptr_t *ddog_test_php_prof_function_run_time_cache(const zend_function *func);
+#endif
+
+/**
+ * Acquires/releases the profiler's ZTS-only process-local runtime interning
+ * locks. The try-lock variants use a brief bounded retry loop and return false
+ * if contended.
+ */
+bool ddog_php_prof_try_runtime_interner_strings_lock(void);
+void ddog_php_prof_runtime_interner_strings_unlock(void);
+bool ddog_php_prof_try_runtime_interner_functions_lock(void);
+void ddog_php_prof_runtime_interner_functions_unlock(void);
+void ddog_php_prof_runtime_interner_lock_prepare_fork(void);
+void ddog_php_prof_runtime_interner_lock_post_fork_parent(void);
+void ddog_php_prof_runtime_interner_lock_post_fork_child(void);
+
+/**
  * Detects if the current thread is a parallel extension thread.
  * Returns true if the thread was spawned by the parallel extension.
  */
@@ -193,13 +222,6 @@ int ddog_php_prof_op_array_reserved_slot(void);
  * The result is computed during startup from system INI state.
  */
 bool ddog_php_prof_opcache_file_cache_enabled(void);
-
-/**
- * Returns true when a runtime zero-slot write is allowed for this function.
- * This excludes trampolines and enforces the OPcache/file-cache/version policy
- * for user op_arrays. Internal functions are allowed.
- */
-bool ddog_php_prof_can_write_runtime_function_index(const zend_function *func);
 
 /**
  * Refreshes the cached request-local OPcache policy booleans from active INI

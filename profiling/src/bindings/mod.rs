@@ -352,18 +352,13 @@ extern "C" {
     /// module init or extension startup.
     pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
 
-    /// Gets the address of a function's run_time_cache slot. May return None
-    /// if it detects incomplete initialization, which is always a bug but
-    /// none-the-less has been seen in the wild. It may also return None if
-    /// the run_time_cache is not available on this function type.
-    #[cfg(not(feature = "stack_walking_tests"))]
-    pub fn ddog_php_prof_function_run_time_cache(func: &zend_function) -> Option<&mut [usize; 2]>;
-
-    /// mock for testing
-    #[cfg(feature = "stack_walking_tests")]
-    pub fn ddog_test_php_prof_function_run_time_cache(
-        func: &zend_function,
-    ) -> Option<&mut [usize; 2]>;
+    pub fn ddog_php_prof_try_runtime_interner_strings_lock() -> bool;
+    pub fn ddog_php_prof_runtime_interner_strings_unlock();
+    pub fn ddog_php_prof_try_runtime_interner_functions_lock() -> bool;
+    pub fn ddog_php_prof_runtime_interner_functions_unlock();
+    pub fn ddog_php_prof_runtime_interner_lock_prepare_fork();
+    pub fn ddog_php_prof_runtime_interner_lock_post_fork_parent();
+    pub fn ddog_php_prof_runtime_interner_lock_post_fork_child();
 
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
@@ -384,9 +379,6 @@ extern "C" {
 
     /// Returns true when OPcache file cache is enabled in any mode.
     pub fn ddog_php_prof_opcache_file_cache_enabled() -> bool;
-
-    /// Returns true when a runtime zero-slot write is allowed for this function.
-    pub fn ddog_php_prof_can_write_runtime_function_index(func: *const zend_function) -> bool;
 
     /// Refreshes the cached request-local OPcache policy from active INI state.
     pub fn ddog_php_prof_refresh_request_opcache_policy();
@@ -423,6 +415,34 @@ extern "C" {
     /// Iterates CG(function_table) and CG(class_table) calling
     /// ddog_php_prof_intern_and_store for each function. Call from startup hook.
     pub fn ddog_php_prof_intern_all_functions();
+}
+
+/// Gets the address of a function's single run_time_cache slot. May return
+/// None if it detects incomplete initialization, which is always a bug but
+/// none-the-less has been seen in the wild. It may also return None if the
+/// run_time_cache is not available on this function type.
+#[cfg(not(feature = "stack_walking_tests"))]
+pub unsafe fn ddog_php_prof_function_run_time_cache(
+    func: &zend_function,
+) -> Option<&mut [usize; 1]> {
+    let ptr = ffi::ddog_php_prof_function_run_time_cache(func as *const _);
+    (!ptr.is_null()).then(|| &mut *(ptr as *mut [usize; 1]))
+}
+
+// Test-only mock for stack walking tests.
+#[cfg(feature = "stack_walking_tests")]
+extern "C" {
+    #[link_name = "ddog_test_php_prof_function_run_time_cache"]
+    fn raw_ddog_test_php_prof_function_run_time_cache(func: *const zend_function) -> *mut usize;
+}
+
+/// Test-only mock for stack walking tests.
+#[cfg(feature = "stack_walking_tests")]
+pub unsafe fn ddog_test_php_prof_function_run_time_cache(
+    func: &zend_function,
+) -> Option<&mut [usize; 1]> {
+    let ptr = raw_ddog_test_php_prof_function_run_time_cache(func as *const _);
+    (!ptr.is_null()).then(|| &mut *(ptr as *mut [usize; 1]))
 }
 
 #[cfg(php_post_startup_cb)]
@@ -763,9 +783,9 @@ mod tests {
     // adjusted accordingly.
     #[test]
     fn test_sizeof_fixed_size_slice_is_same_as_pointer() {
-        assert_eq!(mem::size_of::<&[usize; 2]>(), mem::size_of::<*mut usize>());
+        assert_eq!(mem::size_of::<&[usize; 1]>(), mem::size_of::<*mut usize>());
         assert_eq!(
-            mem::align_of::<&[usize; 2]>(),
+            mem::align_of::<&[usize; 1]>(),
             mem::align_of::<*mut usize>()
         );
     }

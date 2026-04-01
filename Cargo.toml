@@ -41,11 +41,6 @@ inherits = "dev"
 opt-level = 3
 incremental = false
 
-# Patch for rustc-hash to eliminate panic paths in hash_bytes (merged, pending v2.1.2 release):
-# https://github.com/rust-lang/rustc-hash/pull/65
-[patch.crates-io]
-rustc-hash = { git = "https://github.com/rust-lang/rustc-hash", rev = "140e5253440d595822e57b4f599b45aa500dde1d" }
-
 # These are to satistfy the build with libdatadog as a path dependency inside
 # components-rs. There may be a better way to fix this, but I'm alreday two
 # tasks removed from what I'm trying to do, so pushing forward.

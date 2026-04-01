@@ -354,7 +354,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "rustc-hash 2.1.1",
+ "rustc-hash 2.1.2",
  "shlex",
  "syn 2.0.117",
 ]
@@ -1907,6 +1907,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "generator"
+version = "0.8.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52f04ae4152da20c76fe800fa48659201d5cf627c5149ca0b707b69d7eef6cf9"
+dependencies = [
+ "cc",
+ "cfg-if",
+ "libc 0.2.184",
+ "log",
+ "rustversion",
+ "windows-link 0.2.1",
+ "windows-result 0.4.1",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2735,7 +2750,8 @@ version = "0.0.1"
 dependencies = [
  "bolero",
  "libc 0.2.184",
- "rustc-hash 2.1.1",
+ "loom",
+ "rustc-hash 2.1.2",
 ]
 
 [[package]]
@@ -3258,6 +3274,19 @@ checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
 dependencies = [
  "serde_core",
  "value-bag",
+]
+
+[[package]]
+name = "loom"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "419e0dc8046cb947daa77eb95ae174acfbddb7673b4151f56d1eed8e93fbfaca"
+dependencies = [
+ "cfg-if",
+ "generator",
+ "scoped-tls",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -4663,8 +4692,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
-version = "2.1.1"
-source = "git+https://github.com/rust-lang/rustc-hash?rev=140e5253440d595822e57b4f599b45aa500dde1d#140e5253440d595822e57b4f599b45aa500dde1d"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94300abf3f1ae2e2b8ffb7b58043de3d399c73fa6f4b73826402a5c457614dbe"
 
 [[package]]
 name = "rustc_version"
@@ -4885,6 +4915,12 @@ dependencies = [
  "serde_derive_internals",
  "syn 2.0.117",
 ]
+
+[[package]]
+name = "scoped-tls"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
 
 [[package]]
 name = "scopeguard"
