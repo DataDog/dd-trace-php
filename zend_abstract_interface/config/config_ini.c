@@ -401,7 +401,8 @@ void zai_config_ini_rinit(void) {
                                    *ini = zend_hash_find_ptr(EG(ini_directives), source->name);
                     if (ini->modified) {
                         if (ini->orig_value == ini->value) {
-                            ini->value = source->value;
+                            // Keep owned refs for both fields; failure cleanup releases ini->value.
+                            ini->value = zend_string_copy(source->value);
                         }
                         zend_string_release(ini->orig_value);
                         ini->orig_value = zend_string_copy(source->value);
