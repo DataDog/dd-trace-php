@@ -186,7 +186,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         ]),
                 ],
                 'A GET request to a dynamic route returning a string' => [
-                    SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@dynamicRoute unnamed_route')
+                    SpanAssertion::build('laravel.request', 'laravel', 'web', 'HomeController@dynamicRoute dynamic_route/{param01}/static/{param02?}')
                         ->withExactTags([
                             'laravel.route.name' => 'unnamed_route',
                             'laravel.route.action' => 'HomeController@dynamicRoute',
