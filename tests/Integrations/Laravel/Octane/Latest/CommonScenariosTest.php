@@ -169,7 +169,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.request',
                 'swoole_test_app',
                 'web',
-                'App\Http\Controllers\CommonSpecsController@simple_view unnamed_route'
+                'App\Http\Controllers\CommonSpecsController@simple_view simple_view'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
                 Tag::HTTP_URL => 'http://localhost/simple_view?key=value&<redacted>',
@@ -258,7 +258,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.request',
                 'swoole_test_app',
                 'web',
-                'App\Http\Controllers\CommonSpecsController@error unnamed_route'
+                'App\Http\Controllers\CommonSpecsController@error error'
             )->withExactTags([
                 Tag::HTTP_METHOD => 'GET',
                 Tag::HTTP_URL => 'http://localhost/error?key=value&<redacted>',
