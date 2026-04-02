@@ -70,6 +70,12 @@ $rr->waitForRequest(function ($request) {
 %A{
     "message": {
 %A
+        "error": {
+%A
+            "source_type": "Crashtracking",
+%A
+        },
+        "experimental": {
             "runtime_stack": {
                 "format": "Datadog Runtime Callback 1.0",
                 "frames": [
@@ -94,10 +100,8 @@ $rr->waitForRequest(function ($request) {
                     }
                 ]
             }
-%A
-        "files": {
-%A
         },
+%A
         "incomplete": false,
         "metadata": {
             "library_name": "dd-trace-php",
@@ -110,12 +114,14 @@ $rr->waitForRequest(function ($request) {
         "os_info": {
 %A
         },
+%A
         "timestamp": "%s",
+%A
         "uuid": "%s"
     },
     "level": "ERROR",
     "count": 1,
-    "stack_trace": %s,
+    "stack_trace": null,
     "tags": "%ssi_signo_human_readable:SIGSEGV%S",
     "is_sensitive": true,
     "is_crash": true
