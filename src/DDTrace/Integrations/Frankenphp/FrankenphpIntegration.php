@@ -105,18 +105,18 @@ class FrankenphpIntegration extends Integration
 
                     $res = notify_commit(
                         $rootSpan,
-                        \http_response_code(),
+                        \http_response_code() ?: 200,
                         self::convertHeaders(\headers_list()),
                         null /* response body is available through special mechanisms */
                     );
 
                     // we did not block before and were now told to block
-                    if (!$hookData->data && $res) {
+                    if (!isset($hookData->data) && $res) {
                         $hookData->data = new FrankenphpAppSecException();
                         self::commitBlockingResponse($res);
                     }
 
-                    if ($hookData->data && !$rootSpan->exception) {
+                    if (isset($hookData->data) && !$rootSpan->exception) {
                         $rootSpan->exception = $hookData->data;
                     }
                 },

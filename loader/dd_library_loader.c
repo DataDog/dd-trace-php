@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <pthread.h>
 #include <main/SAPI.h>
 #include <ext/standard/basic_functions.h>
 
