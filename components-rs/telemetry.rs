@@ -256,7 +256,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 
 pub struct ShmCache {
     pub config_sent: bool,
-    pub integrations: HashSet<String>,
+    pub integrations: HashSet<Integration>,
     pub composer_paths: HashSet<PathBuf>,
     pub last_endpoints_push: SystemTime,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
@@ -314,7 +314,7 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
             }
 
             if let Ok((config_sent, integrations, composer_paths, last_endpoints_push)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, SystemTime)>(buf)
+                bincode::deserialize::<(bool, HashSet<Integration>, HashSet<PathBuf>, SystemTime)>(buf)
             {
                 cache.config_sent = config_sent;
                 cache.integrations = integrations;
@@ -365,7 +365,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
         .into_iter()
         .filter(|action| match action {
             SidecarAction::Telemetry(TelemetryActions::AddIntegration(integration)) => {
-                !cache_entry.integrations.contains(&integration.name)
+                !cache_entry.integrations.contains(integration)
             }
             SidecarAction::PhpComposerTelemetryFile(path) => {
                 !cache_entry.composer_paths.contains(path)
