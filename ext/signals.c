@@ -363,10 +363,7 @@ static int dd_call_prev_handler(bool flush) {
     }
 
     if (flush) {
-        // Load into a plain local: the function expects ddog_SidecarTransport **,
-        // but ddtrace_sidecar_for_signal is _Atomic so &it would be the wrong type.
-        ddog_SidecarTransport *sidecar = atomic_load(&ddtrace_sidecar_for_signal);
-        ddog_sidecar_flush_traces(&sidecar);
+        ddog_sidecar_flush_traces(&ddtrace_sidecar_for_signal);
     }
 
     if (prev_handler == SIG_DFL) {

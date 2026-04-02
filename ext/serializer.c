@@ -1362,7 +1362,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
 
     // Trace-level filter: when stats computation is enabled, drop the span from the
     // entire pipeline (trace sending + stats) if its trace is filtered.
-    if (ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
         if (DDTRACE_G(agent_info_reader)) {
             ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
         }
@@ -1534,7 +1534,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         ZEND_HASH_FOREACH_END();
 
 
-        if (!span_sampling_applied && ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
+        if (!span_sampling_applied && DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
             if (inferred_span) {
                 // Inferred span won't be serialized, so feed it to the concentrator here.
                 ddtrace_span_precomputed inferred_pre;
@@ -1779,7 +1779,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     zend_string_release(Z_STR(prop_root_service_as_string));
     zend_string_release(Z_STR(prop_service_as_string));
 
-    if (ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
+    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
         ddtrace_feed_span_to_concentrator(span, &pre);
     }
 
@@ -1804,7 +1804,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         }
     }
 
-    if (ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span) {
+    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span) {
         bool is_top_level_span = !span->parent;
         if (span->parent) {
             zval *parent_service = &SPANDATA(span->parent)->property_service;

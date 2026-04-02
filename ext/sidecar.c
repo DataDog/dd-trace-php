@@ -1,6 +1,5 @@
 #include <php.h>
 #include <main/SAPI.h>
-#include <stdatomic.h>
 #include "ddtrace.h"
 #include "auto_flush.h"
 #include "compat_string.h"
@@ -31,9 +30,10 @@ struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 static uint8_t dd_sidecar_formatted_session_id[36];
 
 // Best-effort pointer for the signal handler (SIGTERM/SIGINT). Set to the first
-// per-thread connection; never cleared until MSHUTDOWN. Signal context cannot
-// safely call TSRMLS_FETCH(), so this is the only option.
-_Atomic(ddog_SidecarTransport *) ddtrace_sidecar_for_signal = NULL;
+// per-thread connection; never cleared until MSHUTDOWN. Not atomic: concurrent
+// shutdown is already a best-effort race for signal handlers, so atomicity of
+// the pointer load alone would not prevent the underlying use-after-free.
+ddog_SidecarTransport *ddtrace_sidecar_for_signal = NULL;
 
 // Connection mode tracking
 dd_sidecar_active_mode_t ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_NONE;
@@ -408,9 +408,8 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     }
 
     // Record the first established connection for best-effort signal-handler use.
-    if (DDTRACE_G(sidecar)) {
-        ddog_SidecarTransport *expected = NULL;
-        atomic_compare_exchange_strong(&ddtrace_sidecar_for_signal, &expected, DDTRACE_G(sidecar));
+    if (DDTRACE_G(sidecar) && !ddtrace_sidecar_for_signal) {
+        ddtrace_sidecar_for_signal = DDTRACE_G(sidecar);
     }
 }
 
@@ -447,7 +446,7 @@ void ddtrace_sidecar_handle_fork(void) {
         ddog_sidecar_transport_drop(DDTRACE_G(sidecar));
         DDTRACE_G(sidecar) = NULL;
     }
-    atomic_store(&ddtrace_sidecar_for_signal, NULL);
+    ddtrace_sidecar_for_signal = NULL;
 
     if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
         ddtrace_ffi_try("Failed clearing inherited listener state",
@@ -488,7 +487,7 @@ void ddtrace_sidecar_handle_fork(void) {
     }
 
     if (DDTRACE_G(sidecar)) {
-        atomic_store(&ddtrace_sidecar_for_signal, DDTRACE_G(sidecar));
+        ddtrace_sidecar_for_signal = DDTRACE_G(sidecar);
     }
 #endif
 }
@@ -500,9 +499,8 @@ void ddtrace_sidecar_ensure_active(void) {
         // First RINIT on this thread: the process-level setup already ran (endpoint is
         // set), so establish this thread's own connection now.
         DDTRACE_G(sidecar) = ddtrace_sidecar_connect(false);
-        if (DDTRACE_G(sidecar)) {
-            ddog_SidecarTransport *expected = NULL;
-            atomic_compare_exchange_strong(&ddtrace_sidecar_for_signal, &expected, DDTRACE_G(sidecar));
+        if (DDTRACE_G(sidecar) && !ddtrace_sidecar_for_signal) {
+            ddtrace_sidecar_for_signal = DDTRACE_G(sidecar);
         }
     }
 }
@@ -528,6 +526,8 @@ void ddtrace_sidecar_finalize(bool clear_id) {
 }
 
 void ddtrace_sidecar_shutdown(void) {
+    ddtrace_sidecar_for_signal = NULL;
+
     // In thread mode, drop the main thread's connection before shutting down the
     // listener to avoid deadlock.  GSHUTDOWN owns transport cleanup for all other
     // threads; the main thread's GSHUTDOWN runs after MSHUTDOWN on some SAPIs,
@@ -555,8 +555,6 @@ void ddtrace_sidecar_shutdown(void) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
         ddtrace_sidecar_instance_id = NULL;
     }
-
-    atomic_store(&ddtrace_sidecar_for_signal, NULL);
 
     if (ddtrace_endpoint) {
         dd_free_endpoints();
@@ -875,6 +873,10 @@ void ddtrace_sidecar_rshutdown(void) {
 
 void ddtrace_sidecar_gshutdown(void) {
     if (DDTRACE_G(sidecar)) {
+        if (DDTRACE_G(sidecar) == ddtrace_sidecar_for_signal) {
+            ddtrace_sidecar_for_signal = NULL;
+        }
+
         // Drain any accumulated background-sender metrics before the transport goes away.
         ddtrace_telemetry_flush_bgs_metrics_final();
         ddog_sidecar_transport_drop(DDTRACE_G(sidecar));

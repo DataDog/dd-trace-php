@@ -14,12 +14,12 @@ typedef enum {
     DD_SIDECAR_CONNECTION_THREAD = 2
 } dd_sidecar_active_mode_t;
 
-// ddtrace_sidecar lives in DDTRACE_G(sidecar) — one transport per thread.
 // ddtrace_sidecar_instance_id is a process global — one identity per PHP process.
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 // Best-effort pointer used only by the signal handler (SIGTERM/SIGINT), which cannot call
 // TSRMLS_FETCH() safely.  Set to the first thread's connection; never cleared until MSHUTDOWN.
-extern _Atomic(ddog_SidecarTransport *) ddtrace_sidecar_for_signal;
+// Not atomic: concurrent shutdown is a pre-existing best-effort race for signal handlers.
+extern ddog_SidecarTransport *ddtrace_sidecar_for_signal;
 extern ddog_Endpoint *ddtrace_endpoint;
 extern dd_sidecar_active_mode_t ddtrace_sidecar_active_mode;
 extern int32_t ddtrace_sidecar_master_pid;
