@@ -384,7 +384,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_ob
     ddog_add_str_span_meta_str(span, "error.debug_info_captured", "true");
     ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_hash", (ddog_CharSlice){.ptr = exception_hash, .len = hash_len});
 
-    if (!ddog_exception_hash_limiter_inc(ddtrace_sidecar, (uint64_t)exception_long_hash, get_DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS())) {
+    if (!ddog_exception_hash_limiter_inc(DDTRACE_G(sidecar), (uint64_t)exception_long_hash, get_DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS())) {
         LOG(TRACE, "Skipping exception replay capture due to hash %.*s already recently hit", hash_len, exception_hash);
         goto cleanup;
     }

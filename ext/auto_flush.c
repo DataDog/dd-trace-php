@@ -47,7 +47,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     char *url = ddtrace_agent_url();
 
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        if (ddtrace_sidecar) {
+        if (DDTRACE_G(sidecar)) {
             ddog_SenderParameters parameters = {
                 .tracer_headers_tags = {
                     .container_id = ddtrace_get_container_id(),
@@ -59,7 +59,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                     .client_computed_top_level = get_DD_TRACE_STATS_COMPUTATION_ENABLED(),
                     .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED() || get_DD_TRACE_STATS_COMPUTATION_ENABLED(),
                 },
-                .transport = ddtrace_sidecar,
+                .transport = DDTRACE_G(sidecar),
                 .instance_id = ddtrace_sidecar_instance_id,
                 .limit = limit,
                 .n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS(),
