@@ -70,10 +70,20 @@ $rr->waitForRequest(function ($request) {
 %A{
     "message": {
 %A
+        "data_schema_version": "1.6",
         "error": {
-%A
+            "is_crash": true,
+            "kind": "UnixSignal",
+            "message": "Process terminated with SI_USER (SIGSEGV)",
+            "thread_name": "%s",
             "source_type": "Crashtracking",
+            "stack": {
+                "format": "Datadog Crashtracker 1.0",
+                "frames": [
 %A
+                ],
+                "incomplete": false
+            }
         },
         "experimental": {
             "runtime_stack": {
@@ -100,6 +110,9 @@ $rr->waitForRequest(function ($request) {
                     }
                 ]
             }
+        },
+        "files": {
+%A
         },
 %A
         "incomplete": false,
