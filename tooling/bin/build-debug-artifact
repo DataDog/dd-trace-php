@@ -209,7 +209,7 @@ _preamble() {  # $1 = shell commands before product-specific steps
     if [[ "$libc" == "musl" ]]; then
         printf 'set -e\n. /root/.bashrc\nswitch_php %s\n%s' "${thread_safety}" "$1"
     else
-        printf 'set -e\nswitch-php %s\n%s' "${thread_safety}" "$1"
+        printf 'set -e\nswitch-php %s\nsudo chown circleci: /home/circleci/app/tmp /rust/cargo/registry\n%s' "${thread_safety}" "$1"
     fi
 }
 
@@ -256,7 +256,7 @@ _common_volumes=(
     --platform "$DOCKER_PLATFORM"
     -v "${REPO_ROOT}:${HOME_DIR}"
     -v "${CACHE_VOLUME}:${HOME_DIR}/tmp"
-    -v "ddtrace-cargo-registry:/rust/cargo/registry"
+    -v "ddtrace-cargo-registry-$libc:/rust/cargo/registry"
     -v "${TMP_OUT}:/output"
 )
 
@@ -270,13 +270,13 @@ if [[ "$_should_generate" == "1" ]]; then
         bash -c "make generate"
 fi
 
-_launch "trace"   docker run --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
+_launch "trace"   docker run $([[ "$libc" == "musl" ]] || echo -w "/home/circleci/app") --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
 
 [[ "$BUILD_PROFILER" == "1" ]] && \
-    _launch "profiler" docker run --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$PROFILER_SCRIPT"
+    _launch "profiler" docker run $([[ "$libc" == "musl" ]] || echo -w "/home/circleci/app") --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$PROFILER_SCRIPT"
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
-    _launch "appsec" docker run --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
+    _launch "appsec" docker run $([[ "$libc" == "musl" ]] || echo -w "/home/circleci/app") --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
 
     # TODO rust helper soon
     _launch "helper" docker run --rm \
