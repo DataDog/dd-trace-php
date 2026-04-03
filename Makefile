@@ -211,7 +211,7 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 build_tea: TEA_BUILD_TESTS=ON
