@@ -66,7 +66,7 @@ pub const STRING_THREAD_ID: StringIndex = StringIndex(5);
 pub const STRING_THREAD_NAME: StringIndex = StringIndex(6);
 pub const STRING_OOM: StringIndex = StringIndex(7); // "[oom]"
 
-// ── Pre-interned PHP profiler strings (indices 8–34) ─────────────────────────
+// ── Pre-interned PHP profiler strings (indices 8–36) ─────────────────────────
 pub const STRING_PHP_OPEN_TAG: StringIndex = StringIndex(8); // "<?php"
 pub const STRING_UNKNOWN_USER_FUNCTION: StringIndex = StringIndex(9); // "[unknown user function]"
 pub const STRING_UNKNOWN_INTERNAL_FUNCTION: StringIndex = StringIndex(10); // "[unknown internal function]"
@@ -96,8 +96,11 @@ pub const STRING_WALL_TIME: StringIndex = StringIndex(31); // "wall-time"
 pub const STRING_TIMELINE: StringIndex = StringIndex(32); // "timeline"
 pub const STRING_NANOSECONDS: StringIndex = StringIndex(33); // "nanoseconds"
 pub const STRING_COUNT: StringIndex = StringIndex(34); // "count"
+pub const STRING_GC: StringIndex = StringIndex(35); // "[gc]"
+pub const STRING_IDLE: StringIndex = StringIndex(36); // "[idle]"
+pub(crate) const STRINGS_PRE_INTERNED: usize = STRING_IDLE.0 as usize + 1;
 
-// ── Pre-interned PHP profiler functions (indices 0–4) ────────────────────────
+// ── Pre-interned PHP profiler functions (indices 0–8) ────────────────────────
 // These are interned by create() immediately after the strings above.
 // Note: "<?php" (top-level code) is NOT pre-interned as a function because it
 // is always paired with a real filename, so each file gets its own FunctionIndex.
@@ -117,8 +120,11 @@ pub const FUNCTION_OOM: FunctionIndex = FunctionIndex(3);
 pub const FUNCTION_SUSPICIOUSLY_LONG: FunctionIndex = FunctionIndex(4);
 pub const FUNCTION_TRUNCATED: FunctionIndex = FunctionIndex(5);
 pub const FUNCTION_EVAL: FunctionIndex = FunctionIndex(6);
+pub const FUNCTION_GC: FunctionIndex = FunctionIndex(7);
+pub const FUNCTION_IDLE: FunctionIndex = FunctionIndex(8);
+pub(crate) const FUNCTIONS_PRE_INTERNED: usize = FUNCTION_IDLE.0 as usize + 1;
 
-// Corresponding string literals for indices 0–34 (used by create())
+// Corresponding string literals for indices 0–36 (used by create())
 pub(crate) const STRING_EMPTY_STR: &str = "";
 pub(crate) const STRING_END_TIMESTAMP_NS_STR: &str = "end_timestamp_ns";
 pub(crate) const STRING_LOCAL_ROOT_SPAN_ID_STR: &str = "local_root_span_id";
@@ -154,6 +160,8 @@ pub(crate) const STRING_WALL_TIME_STR: &str = "wall-time";
 pub(crate) const STRING_TIMELINE_STR: &str = "timeline";
 pub(crate) const STRING_NANOSECONDS_STR: &str = "nanoseconds";
 pub(crate) const STRING_COUNT_STR: &str = "count";
+pub(crate) const STRING_GC_STR: &str = "[gc]";
+pub(crate) const STRING_IDLE_STR: &str = "[idle]";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
 

@@ -20,6 +20,7 @@ use crate::bindings as zend;
 use crate::module_globals;
 use core::ffi::c_void;
 use log::trace;
+use std::borrow::Cow;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
 #[cfg(not(feature = "stack_walking_tests"))]
@@ -30,9 +31,26 @@ use crate::bindings::ddog_test_php_prof_function_run_time_cache as ddog_php_prof
 
 static FILE_CACHE_SKIP_LOG_COUNT: AtomicU64 = AtomicU64::new(0);
 
-#[derive(Debug, Clone, Copy)]
-pub struct ZendFrame {
-    pub function: FunctionIndex,
+/// Represents the PHP -> libdatadog intermediate representation of a function.
+/// The order of preference is:
+///  1. A `FunctionIndex` from shared memory.
+///  2. Borrowed static string.
+///  3. An owned string.
+///
+#[derive(Debug, Clone)]
+pub enum IrFunction {
+    Shm(FunctionIndex),
+    Owned {
+        name: Cow<'static, str>,
+        file: Cow<'static, str>,
+    },
+}
+
+/// Represents the PHP -> libdatadog intermediate representation of a location,
+/// e.g. a function + line number (no inlined functions, no mappings in PHP).
+#[derive(Debug, Clone)]
+pub struct IrLocation {
+    pub function: IrFunction,
     pub line: u32, // 0 for internal functions or when line info unavailable
 }
 
@@ -460,31 +478,40 @@ fn opline_in_bounds(op_array: &zend_op_array, opline: *const zend_op) -> bool {
     (begin..end).contains(&(opline as usize))
 }
 
-/// Read the FunctionIndex from func->reserved[slot].
-/// A NULL slot (0) falls back to FUNCTION_EMPTY for internal functions and
-/// FUNCTION_UNKNOWN_USER for user functions when symbolization is unavailable.
-#[inline]
-fn read_or_fallback(func: &zend_function) -> FunctionIndex {
-    let idx = load_function_index(func);
-    if idx.0 != 0 {
-        return idx;
-    }
-
-    let idx = load_runtime_function_index(func);
-    if idx.0 != 0 {
-        return idx;
-    }
-
-    let Some(shm) = crate::SHM.get() else {
-        return empty_function_fallback(func);
+fn owned_function_ir(func: &zend_function) -> IrFunction {
+    let name = match extract_function_name(func) {
+        Some(n) => n,
+        None => Cow::Borrowed("<?php"),
     };
-
-    let idx = intern_function_index_runtime(shm, func);
-    store_runtime_function_index_if_zero(func, idx);
-    idx
+    let file = if func.is_internal() {
+        Cow::Borrowed("")
+    } else {
+        let bytes = unsafe {
+            crate::bindings::zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes()
+        };
+        if bytes.is_empty() {
+            Cow::Borrowed("")
+        } else {
+            Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
+        }
+    };
+    IrFunction::Owned { name, file }
 }
 
-unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFrame> {
+/// Read the FunctionIndex from func->reserved[slot].
+/// If the reserved slot contains a non-zero index (the proven hot path), return
+/// `IrFunction::Shm`. Otherwise fall back to owned strings so this path can be
+/// enabled incrementally without risking SHM misattribution.
+#[inline]
+fn read_or_fallback(func: &zend_function) -> IrFunction {
+    let idx = load_function_index(func);
+    if idx.0 != 0 {
+        return IrFunction::Shm(idx);
+    }
+    owned_function_ir(func)
+}
+
+unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<IrLocation> {
     let func = unsafe { execute_data.func.as_ref()? };
 
     // Handle frameless icalls — look up the real internal function.
@@ -499,7 +526,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
                     let flf_func =
                         unsafe { &**zend_flf_functions.offset(opline.extended_value as isize) };
                     let function = read_or_fallback(flf_func);
-                    return Some(ZendFrame { function, line: 0 });
+                    return Some(IrLocation { function, line: 0 });
                 }
                 _ => {}
             }
@@ -513,7 +540,7 @@ unsafe fn collect_call_frame(execute_data: &zend_execute_data) -> Option<ZendFra
         safely_get_opline(execute_data).map_or(0, |op| op.lineno)
     };
 
-    Some(ZendFrame { function, line })
+    Some(IrLocation { function, line })
 }
 
 /// # Safety
@@ -546,8 +573,8 @@ pub fn collect_stack_sample(
 
                 // -1 to reserve room for the [truncated] marker.
                 if samples.len() == max_depth - 1 {
-                    samples.try_push(ZendFrame {
-                        function: FUNCTION_TRUNCATED,
+                    samples.try_push(IrLocation {
+                        function: IrFunction::Shm(FUNCTION_TRUNCATED),
                         line: 0,
                     })?;
                     break;
@@ -598,22 +625,17 @@ fn extract_function_name_bytes(func: &zend_function) -> FunctionNameBytes {
     FunctionNameBytes::Bytes(bytes)
 }
 
-/// Legacy accessor for backwards compat with code that still uses
-/// `extract_function_name`. This keeps the public API stable while the
-/// migration to FunctionIndex-based frames is in progress.
-pub fn extract_function_name(func: &zend_function) -> Option<std::borrow::Cow<'static, str>> {
+pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> {
     match extract_function_name_bytes(func) {
         FunctionNameBytes::TopLevel => None,
-        FunctionNameBytes::TooLong => {
-            Some(std::borrow::Cow::Borrowed("[suspiciously large string]"))
-        }
+        FunctionNameBytes::TooLong => Some(Cow::Borrowed("[suspiciously large string]")),
         FunctionNameBytes::Bytes(bytes) => {
             let string = if core::str::from_utf8(&bytes).is_ok() {
                 unsafe { String::from_utf8_unchecked(bytes) }
             } else {
                 String::from_utf8_lossy(&bytes).into_owned()
             };
-            Some(std::borrow::Cow::Owned(string))
+            Some(Cow::Owned(string))
         }
     }
 }

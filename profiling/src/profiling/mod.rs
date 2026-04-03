@@ -570,11 +570,15 @@ impl TimeCollector {
 
         let shm = crate::shm();
         for frame in message.value.frames.iter() {
-            let (name_idx, file_idx) = shm
-                .get_function(frame.function)
-                .unwrap_or((STRING_EMPTY, STRING_EMPTY));
-            let name = shm.get_str(name_idx).unwrap_or("");
-            let file = shm.get_str(file_idx).unwrap_or("");
+            let (name, file) = match &frame.function {
+                IrFunction::Shm(idx) => {
+                    let (ni, fi) = shm
+                        .get_function(*idx)
+                        .unwrap_or((STRING_EMPTY, STRING_EMPTY));
+                    (shm.get_str(ni).unwrap_or(""), shm.get_str(fi).unwrap_or(""))
+                }
+                IrFunction::Owned { name, file } => (name.as_ref(), file.as_ref()),
+            };
             let location = Location {
                 function: Function {
                     name,
@@ -703,22 +707,6 @@ pub struct UploadRequest {
 pub enum UploadMessage {
     Pause,
     Upload(Box<UploadRequest>),
-}
-
-/// Intern a function name + optional filename and return a ZendFrame.
-/// Used for synthetic event frames (eval, fatal, gc, etc.).
-fn intern_event_frame(name: &str, file: Option<&str>, line: u32) -> ZendFrame {
-    use profiling_shm::{FUNCTION_UNKNOWN_USER, STRING_EMPTY};
-    let shm = crate::shm();
-    let name_idx = shm.intern_str(name).unwrap_or(STRING_EMPTY);
-    let file_idx = match file {
-        Some(f) if !f.is_empty() => shm.intern_str(f).unwrap_or(STRING_EMPTY),
-        _ => STRING_EMPTY,
-    };
-    let function = shm
-        .intern_function(name_idx, file_idx)
-        .unwrap_or(FUNCTION_UNKNOWN_USER);
-    ZendFrame { function, line }
 }
 
 const DDPROF_TIME: &str = "ddprof_time";
@@ -1161,7 +1149,13 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![intern_event_frame("[eval]", Some(&filename), line)]),
+            Backtrace::new(vec![IrLocation {
+                function: IrFunction::Owned {
+                    name: Cow::Borrowed("[eval]"),
+                    file: Cow::Owned(filename),
+                },
+                line,
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1198,11 +1192,13 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![intern_event_frame(
-                &format!("[{include_type}]"),
-                None,
-                0,
-            )]),
+            Backtrace::new(vec![IrLocation {
+                function: IrFunction::Owned {
+                    name: Cow::Owned(format!("[{include_type}]")),
+                    file: Cow::Borrowed(""),
+                },
+                line: 0,
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1235,7 +1231,13 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![intern_event_frame(&format!("[{event}]"), None, 0)]),
+            Backtrace::new(vec![IrLocation {
+                function: IrFunction::Owned {
+                    name: Cow::Owned(format!("[{event}]")),
+                    file: Cow::Borrowed(""),
+                },
+                line: 0,
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1269,7 +1271,13 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![intern_event_frame("[fatal]", Some(&file), line)]),
+            Backtrace::new(vec![IrLocation {
+                function: IrFunction::Owned {
+                    name: Cow::Borrowed("[fatal]"),
+                    file: Cow::Owned(file),
+                },
+                line,
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1312,11 +1320,13 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![intern_event_frame(
-                "[opcache restart]",
-                Some(&file),
+            Backtrace::new(vec![IrLocation {
+                function: IrFunction::Owned {
+                    name: Cow::Borrowed("[opcache restart]"),
+                    file: Cow::Owned(file),
+                },
                 line,
-            )]),
+            }]),
             SampleValues {
                 timeline: 1,
                 ..Default::default()
@@ -1346,7 +1356,10 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![intern_event_frame("[idle]", None, 0)]),
+            Backtrace::new(vec![IrLocation {
+                function: IrFunction::Shm(profiling_shm::FUNCTION_IDLE),
+                line: 0,
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1398,7 +1411,10 @@ impl Profiler {
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
-            Backtrace::new(vec![intern_event_frame("[gc]", None, 0)]),
+            Backtrace::new(vec![IrLocation {
+                function: IrFunction::Shm(profiling_shm::FUNCTION_GC),
+                line: 0,
+            }]),
             SampleValues {
                 timeline: duration,
                 ..Default::default()
@@ -1668,7 +1684,13 @@ mod tests {
 
     fn get_frames() -> Backtrace {
         ensure_test_shm();
-        Backtrace::new(vec![intern_event_frame("foobar()", Some("foobar.php"), 42)])
+        Backtrace::new(vec![IrLocation {
+            function: IrFunction::Owned {
+                name: Cow::Borrowed("foobar()"),
+                file: Cow::Borrowed("foobar.php"),
+            },
+            line: 42,
+        }])
     }
 
     pub fn get_system_settings() -> SystemSettings {

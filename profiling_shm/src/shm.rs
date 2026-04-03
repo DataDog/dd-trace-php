@@ -13,9 +13,11 @@ use crate::{
     FN_DATA_OFF,
     FN_IDX_OFF,
     FN_SPINLOCK_OFF,
+    FUNCTIONS_PRE_INTERNED,
     FUNCTION_COUNT_OFF,
     HEADER_OFF,
     SEGMENT_SIZE,
+    STRINGS_PRE_INTERNED,
     STRING_COUNT_OFF,
     STRING_COUNT_STR,
     STRING_CPU_TIME_STR,
@@ -25,6 +27,10 @@ use crate::{
     STRING_END_TIMESTAMP_NS_STR,
     STRING_EVAL,
     STRING_EVAL_STR,
+    STRING_GC,
+    STRING_GC_STR,
+    STRING_IDLE,
+    STRING_IDLE_STR,
     STRING_KEY_EVENT_STR,
     STRING_KEY_EXCEPTION_MESSAGE_STR,
     STRING_KEY_EXCEPTION_TYPE_STR,
@@ -44,7 +50,7 @@ use crate::{
     STRING_NANOSECONDS_STR,
     STRING_OOM,
     STRING_OOM_STR,
-    // PHP profiler string literals (indices 8–34)
+    // PHP profiler string literals (indices 8–36)
     STRING_PHP_OPEN_TAG_STR,
     STRING_SPAN_ID_STR,
     STRING_SUSPICIOUSLY_LONG_FILE_STR,
@@ -168,7 +174,7 @@ unsafe impl Sync for ShmRegion {}
 
 impl ShmRegion {
     /// Create a new `MAP_SHARED | MAP_ANONYMOUS` mapping of 512 MiB and
-    /// pre-intern the 8 well-known strings (indices 0–7).
+    /// pre-intern [`STRINGS_PRE_INTERNED`] strings and [`FUNCTIONS_PRE_INTERNED`] functions.
     ///
     /// Call once in the parent before `fork`.
     ///
@@ -195,10 +201,10 @@ impl ShmRegion {
         };
         debug_assert_layout(region.ptr);
 
-        // Pre-intern 35 strings in index order (0–34).
+        // Pre-intern all STRINGS_PRE_INTERNED strings in index order.
         // MAP_ANONYMOUS zeroes all pages so ctrl arrays are EMPTY (0x00) and
         // all counters are 0 — no memset needed.
-        let strings: [&str; 35] = [
+        let strings: [&str; STRINGS_PRE_INTERNED] = [
             // indices 0–7: libdatadog well-known strings
             STRING_EMPTY_STR,
             STRING_END_TIMESTAMP_NS_STR,
@@ -238,6 +244,9 @@ impl ShmRegion {
             STRING_TIMELINE_STR,
             STRING_NANOSECONDS_STR,
             STRING_COUNT_STR,
+            // indices 35–36: synthetic event names
+            STRING_GC_STR,
+            STRING_IDLE_STR,
         ];
 
         for s in strings {
@@ -248,11 +257,11 @@ impl ShmRegion {
             }
         }
 
-        // Pre-intern 7 functions in index order (0–6).
+        // Pre-intern all FUNCTIONS_PRE_INTERNED functions in index order.
         // Index 0 is the empty/default function (both name and file are STRING_EMPTY).
         // A NULL reserved[slot] (raw value 0) reads back as FunctionIndex(0), so this
         // doubles as the "not yet interned" sentinel — no +1 encoding needed.
-        let functions: [(StringIndex, StringIndex); 7] = [
+        let functions: [(StringIndex, StringIndex); FUNCTIONS_PRE_INTERNED] = [
             (STRING_EMPTY, STRING_EMPTY),                     // FUNCTION_EMPTY
             (STRING_UNKNOWN_USER_FUNCTION, STRING_EMPTY),     // FUNCTION_UNKNOWN_USER
             (STRING_UNKNOWN_INTERNAL_FUNCTION, STRING_EMPTY), // FUNCTION_UNKNOWN_INTERNAL
@@ -260,6 +269,8 @@ impl ShmRegion {
             (STRING_SUSPICIOUSLY_LONG_FN, STRING_EMPTY),      // FUNCTION_SUSPICIOUSLY_LONG
             (STRING_TRUNCATED, STRING_EMPTY),                 // FUNCTION_TRUNCATED
             (STRING_EVAL, STRING_EMPTY),                      // FUNCTION_EVAL
+            (STRING_GC, STRING_EMPTY),                        // FUNCTION_GC
+            (STRING_IDLE, STRING_EMPTY),                      // FUNCTION_IDLE
         ];
 
         for (name, file) in functions {
@@ -375,7 +386,7 @@ mod tests {
 
     #[test]
     fn pre_interned_strings_have_correct_indices() {
-        // create() pre-interns indices 0–34; verify all of them.
+        // create() pre-interns STRINGS_PRE_INTERNED strings; verify all of them.
         let region = create();
 
         // indices 0–7: libdatadog well-known strings
@@ -602,7 +613,7 @@ mod tests {
     #[test]
     fn get_str_out_of_range_returns_none() {
         let region = create();
-        // create() pre-interns 8 strings (indices 0–7); u32::MAX is always out of range.
+        // create() pre-interns STRINGS_PRE_INTERNED strings; u32::MAX is always out of range.
         assert!(region.get_str(StringIndex(u32::MAX)).is_none());
     }
 
