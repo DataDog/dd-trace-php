@@ -99,7 +99,10 @@ static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_
         }
     } else {
         ZEND_ASSERT(mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE);
+        ddog_RemoteConfigState *saved = DDTRACE_G(remote_config_state);
+        DDTRACE_G(remote_config_state) = NULL;
         zend_alter_ini_entry(name, value, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
+        DDTRACE_G(remote_config_state) = saved;
         zend_string_release(value);
     }
     zend_string_release(name);
