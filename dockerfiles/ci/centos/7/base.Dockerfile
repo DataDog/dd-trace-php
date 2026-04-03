@@ -188,7 +188,7 @@ RUN source scl_source enable devtoolset-7; set -ex; \
 ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib64/pkgconfig:/usr/local/openssl/lib/pkgconfig:/usr/local/zlib/lib/pkgconfig:/usr/local/curl/lib/pkgconfig:/usr/local/sqlite3/lib/pkgconfig"
 
 # Caution, takes a very long time! Since we have to build one from source,
-# I picked LLVM 17, which matches Rust 1.76.
+# I picked LLVM 19, which matches Rust 1.84.
 # Ordinarily we leave sources, but LLVM is 2GiB just for the sources...
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
@@ -204,7 +204,7 @@ RUN source scl_source enable devtoolset-9 \
   && cd - \
   && rm -fr "${SRC_DIR}/ninja" \
   && cd /usr/local/src \
-  && git clone --depth 1 -b release/17.x https://github.com/llvm/llvm-project.git \
+  && git clone --depth 1 -b release/19.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
   && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
