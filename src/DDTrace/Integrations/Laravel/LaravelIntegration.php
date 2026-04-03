@@ -158,6 +158,7 @@ class LaravelIntegration extends Integration
                         $resourceName = $method . ' ' . $path;
                         \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
                     }
+                    \DDTrace\flush_endpoints();
                 }
             }
         );

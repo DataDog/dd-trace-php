@@ -153,6 +153,15 @@ void ddog_sidecar_telemetry_addDependency_buffer(struct ddog_SidecarActionsBuffe
                                                  ddog_CharSlice dependency_name,
                                                  ddog_CharSlice dependency_version);
 
+/**
+ * Enqueues an endpoint into a telemetry actions buffer (to be sent via ddog_sidecar_telemetry_buffer_flush).
+ */
+void ddog_sidecar_telemetry_addEndpoint_buffer(struct ddog_SidecarActionsBuffer *buffer,
+                                               enum ddog_Method method,
+                                               ddog_CharSlice path,
+                                               ddog_CharSlice operation_name,
+                                               ddog_CharSlice resource_name);
+
 void ddog_sidecar_telemetry_enqueueConfig_buffer(struct ddog_SidecarActionsBuffer *buffer,
                                                  ddog_CharSlice config_key,
                                                  ddog_CharSlice config_value,

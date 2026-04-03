@@ -580,9 +580,10 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
+        $endpoints_collected = false;
         $eventDispatcherTracer = [
             'recurse' => true,
-            'prehook' => static function(SpanData $span, $args) use (&$injectedActionInfo) {
+            'prehook' => static function(SpanData $span, $args) use (&$injectedActionInfo, &$endpoints_collected) {
                 if (\DDTrace\root_span() === $span) {
                     return false; // e.g., lone symfony.console.terminate
                 }
@@ -657,17 +658,21 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                if (self::$kernel !== null
+                // This hook may be called multiple times, so we need to make sure we only collect endpoints once
+                if (!$endpoints_collected
+                    && self::$kernel !== null
                     && \defined(\get_class(self::$kernel) . '::VERSION')
                     && \strpos(self::$kernel::VERSION, '4.') !== 0
-                    && self::$frameworkPrefix === SymfonyIntegration::NAME
-                    && !\DDTrace\are_endpoints_collected())
-                {
-                    /** @var ContainerInterface $container */
-                    $container = self::$kernel->getContainer();
-                    $endpoints = EndpointCatalog::generate($container);
-                    foreach ($endpoints as $endpoint) {
-                        \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
+                    && self::$frameworkPrefix === SymfonyIntegration::NAME) {
+                    $endpoints_collected = true;
+                    if (!\DDTrace\are_endpoints_collected()) {
+                        /** @var ContainerInterface $container */
+                        $container = self::$kernel->getContainer();
+                        $endpoints = EndpointCatalog::generate($container);
+                        foreach ($endpoints as $endpoint) {
+                            \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
+                        }
+                        \DDTrace\flush_endpoints();
                     }
                 }
             }

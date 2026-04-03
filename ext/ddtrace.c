@@ -2811,6 +2811,10 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
 PHP_FUNCTION(DDTrace_are_endpoints_collected) {
     UNUSED(execute_data);
 
+    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        RETURN_TRUE; // Skip overhead if unnecessary
+    }
+
     if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
         RETURN_FALSE;
     }
@@ -2872,10 +2876,6 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     ddog_CharSlice operation_name_slice = dd_zend_string_to_CharSlice(operation_name);
     ddog_CharSlice resource_name_slice = dd_zend_string_to_CharSlice(resource_name);
 
-    ddog_MaybeError result = ddog_sidecar_telemetry_addEndpoint(
-        &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), method_enum, path_slice, operation_name_slice,
-        resource_name_slice);
-
     LOG_LINE(DEBUG,
              "Adding endpoint: %.*s (%zu) - operation_name: %.*s (%zu) - resource_name: %.*s (%zu) - method: %.*s (%zu)",
              (int)path_slice.len, (char *)path_slice.ptr, path_slice.len,
@@ -2883,14 +2883,28 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
              (int)resource_name_slice.len, (char *)resource_name_slice.ptr, resource_name_slice.len,
              (int)method->len, ZSTR_VAL(method), (size_t)method->len);
 
-    if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice message = ddog_Error_message(&result.some);
-        LOG_LINE(ERROR, "Error submitting  endpoint to sidecar: %.*s", (int)message.len, (char *)message.ptr);
-        ZVAL_FALSE(return_value);
-    } else {
-        ZVAL_TRUE(return_value);
+    ddog_sidecar_telemetry_addEndpoint_buffer(ddtrace_telemetry_buffer(), method_enum, path_slice, operation_name_slice, resource_name_slice);
+
+    RETURN_TRUE;
+}
+
+PHP_FUNCTION(DDTrace_flush_endpoints) {
+    UNUSED(execute_data);
+    UNUSED(return_value);
+
+    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id) || !DDTRACE_G(telemetry_buffer)) {
+        return;
     }
-    ddog_MaybeError_drop(result);
+
+    if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
+        return;
+    }
+
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+
+    ddtrace_ffi_try("Failed flushing endpoint telemetry buffer",
+        ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_name, env_name));
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
