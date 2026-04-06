@@ -207,7 +207,7 @@ RUN source scl_source enable devtoolset-9 \
   && git clone --depth 1 -b release/19.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
-  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local ../llvm \
+  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF ../llvm \
   && cmake --build . --parallel $(nproc) --target "install/strip" \
   && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
   && cd - \
@@ -215,24 +215,6 @@ RUN source scl_source enable devtoolset-9 \
   && yum remove -y python3 \
   && yum clean all
 
-ARG PROTOBUF_VERSION="3.19.4"
-ARG PROTOBUF_SHA256="89ac31a93832e204db6d73b1e80f39f142d5747b290f17340adce5be5b122f94"
-RUN source scl_source enable devtoolset-7 \
-  && FILENAME=protobuf-cpp-${PROTOBUF_VERSION}.tar.gz \
-  && cd /usr/local/src \
-  && curl -L -O "https://github.com/protocolbuffers/protobuf/releases/download/v${PROTOBUF_VERSION}/${FILENAME}" \
-  && tar --no-same-owner -xf "$FILENAME" \
-  && cd protobuf-${PROTOBUF_VERSION} \
-  && ./configure \
-    --prefix=/usr/local \
-    --libdir=/usr/local/lib64 \
-    --with-pic \
-    --disable-shared \
-    --enable-static \
-  && make -j $(nproc) \
-  && make install \
-  && cd - \
-  && rm -fr "$FILENAME" "${FILENAME%.tar.gz}" "protobuf-${PROTOBUF_VERSION}"
 
 # rust sha256sum generated locally after verifying it with sha256
 ARG RUST_VERSION="1.84.1"
