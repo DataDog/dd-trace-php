@@ -16,7 +16,7 @@ jobs:
       CARGO_TARGET_DIR: /tmp/build-cargo
       RUST_TOOLCHAIN: nightly-2025-06-13
     container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-6
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-7
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root --privileged
 
