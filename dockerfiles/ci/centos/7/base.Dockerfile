@@ -121,7 +121,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     mkdir -v 'build' && cd 'build'; \
     ../bootstrap -- -DBUILD_CursesDialog=OFF && make -j $(nproc) && make install; \
     cd - && rm -fr build "${SRC_DIR}/cmake" \
-    && rm -f /usr/local/bin/cpack /usr/local/bin/ctest \
+    && rm -f /usr/local/bin/cpack \
     && rm -rf /usr/local/share/cmake-*/Help /usr/local/share/doc/cmake* /usr/local/share/man/man1/cmake*
 
 # Install Catch2
