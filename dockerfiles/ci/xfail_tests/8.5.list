@@ -81,6 +81,7 @@ ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt
 ext/openssl/tests/sni_server.phpt
 ext/openssl/tests/sni_server_key_cert.phpt
+ext/openssl/tests/bug74796.phpt
 ext/openssl/tests/session_meta_capture.phpt
 ext/openssl/tests/session_meta_capture_tlsv13.phpt
 ext/openssl/tests/stream_crypto_flags_001.phpt
