@@ -149,122 +149,31 @@ WEBLOG_VARIANT=php-fpm-8.5 ./run.sh
 
 ### 1c. Slim build — one PHP version only
 
-If you only want to test a specific PHP version and variant, build just that one and stub
-the rest with empty files. `generate-final-artifact.sh` requires a `.so` to exist for
-every PHP API × variant combination; empty stubs satisfy that requirement without building
-unused code.
-
-**The weblog variant must match the PHP version you build** — `datadog-setup.php` installs
-the ABI that matches the weblog's running PHP. If the matching `.so` is a zero-byte
-stub, the extension will fail to load. You **must** set `WEBLOG_VARIANT` to match the
-PHP version you actually compiled. Available weblogs: `apache-mod-7.0` through
-`apache-mod-8.2`, and `php-fpm-7.0` through `php-fpm-8.2` plus `php-fpm-8.5`. ZTS
-variants also exist (`apache-mod-7.0-zts` through `apache-mod-8.2-zts`). There is no
-PHP 8.3 or 8.4 weblog.
-
-Example for **PHP 8.2 NTS** with `apache-mod-8.2` (ABI `20220829`):
+`build-slim-package.py` builds a tarball containing only the PHP
+version you need — no stubs, no `generate-final-artifact.sh`. It
+uses the same centos-7 images as the package pipeline and assembles
+the tarball directly in the `dd-library-php/` layout that
+`datadog-setup.php` expects.
 
 ```bash
-# Build only PHP 8.2 NTS tracing extension
-.claude/ci/dockerh --cache st-compile-8.2-nts --overlayfs --php nts \
-  datadog/dd-trace-ci:php-8.2_centos-7 \
-  -- bash -c 'export CARGO_HOME=$PWD/tmp/cargo_home;
-    make clean && make -j$(nproc)'
+# Tracer only
+.claude/ci/build-slim-package.py 8.2
 
-# Extract the .so from the overlay volume to the host
-mkdir -p extensions_x86_64
-.claude/ci/docker-upper-cp dd-ci-st-compile-8.2-nts \
-  tmp/build_extension/modules/ddtrace.so \
-  extensions_x86_64/ddtrace-20220829.so
+# Tracer + appsec (extension + both helpers) + profiler
+.claude/ci/build-slim-package.py 8.2 --appsec --profiler
 
-# Stub ddtrace variants we didn't build
-touch extensions_x86_64/ddtrace-20220829-zts.so
-touch extensions_x86_64/ddtrace-20220829-debug.so
-touch extensions_x86_64/ddtrace-20220829-debug-zts.so
-for api in 20151012 20160303 20170718 20180731 20190902 20200930 20210902 20230831 20240924 20250925; do
-  for suffix in "" -zts -debug -debug-zts; do
-    touch "extensions_x86_64/ddtrace-${api}${suffix}.so"
-  done
-done
-
-# Build appsec extension for 8.2; stub the rest
-.claude/ci/dockerh --cache st-compile-appsec-8.2 --overlayfs --root \
-  datadog/dd-trace-ci:php-8.2_centos-7 \
-  -- bash -c 'source /opt/rh/devtoolset-7/enable;
-    PHP_VERSION=8.2 .gitlab/build-appsec.sh'
-.claude/ci/docker-upper-cp dd-ci-st-compile-appsec-8.2 \
-  appsec_x86_64 appsec_x86_64
-
-for api in 20151012 20160303 20170718 20180731 20190902 20200930 20210902 20230831 20240924 20250925; do
-  for suffix in "" -zts; do
-    touch "appsec_x86_64/ddappsec-${api}${suffix}.so"
-  done
-done
-
-# Build appsec helpers (see building-locally.md § Appsec Helpers)
-.claude/ci/dockerh --cache compile-appsec-helper-rust --overlayfs \
-    datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash .gitlab/build-appsec-helper-rust.sh
-.claude/ci/docker-upper-cp dd-ci-compile-appsec-helper-rust \
-  appsec_x86_64/libddappsec-helper-rust.so \
-  appsec_x86_64/libddappsec-helper-rust.so
-
-# Build C++ helper (see building-locally.md § C++ helper)
-.claude/ci/dockerh --cache compile-appsec-helper-cpp --overlayfs \
-    registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash .gitlab/build-appsec-helper.sh
-.claude/ci/docker-upper-cp dd-ci-compile-appsec-helper-cpp \
-  appsec_x86_64/libddappsec-helper.so \
-  appsec_x86_64/libddappsec-helper.so
-.claude/ci/docker-upper-cp dd-ci-compile-appsec-helper-cpp \
-  appsec_x86_64/recommended.json \
-  appsec_x86_64/recommended.json
-
-# Build profiler for PHP 8.2 (see building-locally.md § Profiler)
-.claude/ci/dockerh --cache compile-profiler-8.2-gnu --overlayfs \
-    --root \
-    datadog/dd-trace-ci:php-8.2_centos-7 \
-    -e CI_COMMIT_SHA=$(git rev-parse HEAD) \
-    -e CI_COMMIT_BRANCH=$(git rev-parse --abbrev-ref HEAD) \
-    -- bash -c 'PHP_VERSION=8.2 bash .gitlab/build-profiler.sh \
-      datadog-profiling/x86_64-unknown-linux-gnu/lib/php/20220829 nts'
-.claude/ci/docker-upper-cp dd-ci-compile-profiler-8.2-gnu \
-  datadog-profiling datadog-profiling
-
-# Stub profiling for other API versions
-for api in 20160303 20170718 20180731 20190902 20200930 20210902 20230831 20240924 20250925; do
-  mkdir -p "datadog-profiling/x86_64-unknown-linux-gnu/lib/php/${api}"
-  touch "datadog-profiling/x86_64-unknown-linux-gnu/lib/php/${api}/datadog-profiling.so"
-  touch "datadog-profiling/x86_64-unknown-linux-gnu/lib/php/${api}/datadog-profiling-zts.so"
-done
-
-# Assemble the tarball (see building-locally.md for details)
-.claude/ci/dockerh --cache pkg-8.2 --overlayfs \
-  datadog/dd-trace-ci:php_fpm_packaging -- -c '
-set -e
-TRIPLET=x86_64-unknown-linux-gnu \
-  ./tooling/bin/generate-final-artifact.sh \
-  $(<VERSION) "build/packages" "${PWD}"
-'
-.claude/ci/docker-upper-cp dd-ci-pkg-8.2 \
-  build/packages build/packages
-
-# Build datadog-setup.php (not produced by generate-final-artifact.sh)
-.claude/ci/dockerh --cache pkg-8.2 --overlayfs \
-  php:8.2-cli -- bash -c 'make build/packages/datadog-setup.php VERSION=$(cat VERSION)'
-.claude/ci/docker-upper-cp dd-ci-pkg-8.2 \
-  build/packages/datadog-setup.php build/packages/datadog-setup.php
-
-WEBLOG_VARIANT=apache-mod-8.2 ./build.sh php
-WEBLOG_VARIANT=apache-mod-8.2 ./run.sh
+# ZTS variant, custom output directory
+.claude/ci/build-slim-package.py 8.2 --zts --output-dir /tmp/out
 ```
 
-The stub files are only there to keep the packaging script from aborting.
-`datadog-setup.php` installs only the ABI that matches the running PHP and ignores the rest.
+All products build in parallel. Build logs go to a temporary
+directory printed at the start.
+
+**The weblog variant must match the PHP version you build.** Available
+weblogs: `apache-mod-7.0` through `apache-mod-8.2`, and `php-fpm-7.0`
+through `php-fpm-8.2` plus `php-fpm-8.5`. ZTS variants also exist
+(`apache-mod-7.0-zts` through `apache-mod-8.2-zts`). There is no
+PHP 8.3 or 8.4 weblog.
 
 ### 1b. Alternative: place only the .so files you want to test
 
@@ -315,8 +224,13 @@ component without reassembling the full tarball.
 git clone https://github.com/DataDog/system-tests.git
 mkdir -p system-tests/binaries
 
+# From a full build (section 1a):
 cp build/packages/datadog-setup.php system-tests/binaries/
-cp build/packages/dd-library-php-*-x86_64-linux-gnu.tar.gz system-tests/binaries/
+cp build/packages/dd-library-php-*-linux-gnu.tar.gz system-tests/binaries/
+
+# Or from a slim build (section 1c):
+cp dd-library-php-*-linux-gnu.tar.gz system-tests/binaries/
+cp datadog-setup.php system-tests/binaries/
 ```
 
 ### 3. Build the weblog image
