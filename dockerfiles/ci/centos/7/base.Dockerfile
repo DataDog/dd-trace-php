@@ -119,8 +119,9 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh cmake https://github.com/Kitware/CMake/releases/download/v3.28.6/cmake-3.28.6.tar.gz; \
     cd "${SRC_DIR}/cmake"; \
     mkdir -v 'build' && cd 'build'; \
-    ../bootstrap && make -j $(nproc) && make install; \
+    ../bootstrap -- -DBUILD_CursesDialog=OFF && make -j $(nproc) && make install; \
     cd - && rm -fr build "${SRC_DIR}/cmake" \
+    && rm -f /usr/local/bin/cpack /usr/local/bin/ctest \
     && rm -rf /usr/local/share/cmake-*/Help /usr/local/share/doc/cmake* /usr/local/share/man/man1/cmake*
 
 # Install Catch2
