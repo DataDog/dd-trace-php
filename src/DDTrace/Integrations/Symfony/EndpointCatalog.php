@@ -44,9 +44,14 @@ class EndpointCatalog
             return null;
         }
 
-        $genFile = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
+        $base = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR;
+        // Symfony 5+ uses url_generating_routes.php; 4.3–4.4 uses UrlGenerator.php
+        $genFile = $base . 'url_generating_routes.php';
         if (!is_file($genFile)) {
-            return null;
+            $genFile = $base . 'UrlGenerator.php';
+            if (!is_file($genFile)) {
+                return null;
+            }
         }
 
         $gen = require $genFile;

@@ -1543,7 +1543,7 @@ test_web_symfony_42: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 	php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_2)
 test_web_symfony_44: global_test_run_dependencies tests/Frameworks/Symfony/Version_4_4/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
+	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --env=prod
 	$(call run_tests_debug,--testsuite=symfony-44-test)
 test_web_symfony_50: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install # EOL; install from lock
