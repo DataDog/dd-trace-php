@@ -8,7 +8,7 @@ PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 EXTENSION_DIR=$(php-config --extension-dir)
 
 # This make `pecl install` use all available cores
-export MAKEFLAGS="-j $(nproc)"
+export MAKEFLAGS="-s -j $(nproc)"
 
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then

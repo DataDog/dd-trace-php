@@ -9,15 +9,16 @@ in llvm-project (commit 996157c).
 
 See: https://github.com/llvm/llvm-project/issues/95928
 ---
- Zend/zend_portability.h | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ Zend/zend_portability.h | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
 
 diff --git a/Zend/zend_portability.h b/Zend/zend_portability.h
-index 1111111..2222222 100644
+index 6546ebfb5b7..3b657f7b9d9 100644
 --- a/Zend/zend_portability.h
 +++ b/Zend/zend_portability.h
-@@ -333,7 +333,11 @@ static zend_always_inline double _zend_get_nan(void) /* {{{ */
-
+@@ -333,7 +333,12 @@ char *alloca();
+ #endif
+ 
  #ifdef HAVE_PRESERVE_NONE
 -# define ZEND_PRESERVE_NONE __attribute__((preserve_none))
 +# if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
@@ -27,3 +28,5 @@ index 1111111..2222222 100644
 +#  define ZEND_PRESERVE_NONE __attribute__((preserve_none))
 +# endif
  #endif
+ 
+ 
