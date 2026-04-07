@@ -49,7 +49,7 @@ jobs:
           set -eux
           switch-php nts-asan
           cd profiling
-          export CC=clang-17
+          export CC=clang-19
           export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
           export RUSTC_LINKER=lld-17
