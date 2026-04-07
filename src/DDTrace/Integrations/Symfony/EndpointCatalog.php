@@ -29,6 +29,41 @@ class EndpointCatalog
         return $memo = $fromCollection;
     }
 
+
+    /**
+     * Looks up the path template for a given route name from the compiled
+     * url_generating_routes.php file. Returns null if the file is missing
+     * or the route is not found.
+     *
+     * This never falls back to getRouteCollection().
+     */
+    public static function pathForRoute($routeName, ContainerInterface $container)
+    {
+        $cacheDir = self::getCacheDir($container);
+        if ($cacheDir === null) {
+            return null;
+        }
+
+        $genFile = rtrim($cacheDir, '/\\') . DIRECTORY_SEPARATOR . 'url_generating_routes.php';
+        if (!is_file($genFile)) {
+            return null;
+        }
+
+        $gen = require $genFile;
+        if (!is_array($gen) || !isset($gen[$routeName])) {
+            return null;
+        }
+
+        $routeData = $gen[$routeName];
+        $tokens = isset($routeData[3]) ? $routeData[3] : null;
+        if (!is_array($tokens)) {
+            return null;
+        }
+
+        return self::tokensToPathTemplate($tokens);
+    }
+
+
     private static function getCacheDir(ContainerInterface $container)
     {
         if ($container->hasParameter('kernel.cache_dir')) {
