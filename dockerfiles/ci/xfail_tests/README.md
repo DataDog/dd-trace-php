@@ -242,3 +242,9 @@ Disabled on versions: `8.1+`.
 
 This test checks PHP's handling of excessively large QName prefix in SoapVar (a stress test for edge cases). With ddtrace loaded, the additional memory overhead causes the test to be killed before it can complete, due to hitting memory limits during the stress test.
 
+## `ext/openssl/tests/sni_server.phpt`, `ext/openssl/tests/sni_server_key_cert.phpt`, `ext/openssl/tests/bug74796.phpt`
+
+Disabled on all versions (where present).
+
+The bundled test certificates expired on 2026-04-02. The TLS handshake fails because the client rejects the expired server certificates, causing `stream_socket_client` to return `false`.
+
