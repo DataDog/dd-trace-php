@@ -7,6 +7,9 @@ RUN set -eux; \
     sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo; \
     sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo; \
     echo 'ip_resolve = IPv4' >>/etc/yum.conf; \
+# kernel and linux-firmware are useless in containers (host kernel is used);
+# excluding them globally prevents ~183 MB of waste from being pulled in as side-effects.
+    echo 'exclude=kernel-core* kernel-modules* linux-firmware' >>/etc/yum.conf; \
     yum update -y; \
     yum install -y \
         centos-release-scl \
@@ -33,7 +36,6 @@ RUN set -eux; \
     sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/CentOS-SCLo-*.repo; \
     yum update nss nss-util nss-sysinit nss-tools; \
     yum install -y --nogpgcheck devtoolset-7; \
-    yum install -y --nogpgcheck devtoolset-9; \
     yum clean all;
 
 ENV SRC_DIR=/usr/local/src
@@ -46,7 +48,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     cd "${SRC_DIR}/m4"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    cd - && rm -fr build "${SRC_DIR}/m4"
 
 # Latest version of autoconf required
 RUN set -eux; \
@@ -54,7 +56,7 @@ RUN set -eux; \
     cd "${SRC_DIR}/autoconf"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    cd - && rm -fr build "${SRC_DIR}/autoconf"
 
 # Automake required
 RUN set -eux; \
@@ -62,7 +64,7 @@ RUN set -eux; \
     cd "${SRC_DIR}/automake"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    cd - && rm -fr build "${SRC_DIR}/automake"
 
 # Libtool required
 RUN set -eux; \
@@ -70,14 +72,14 @@ RUN set -eux; \
     cd "${SRC_DIR}/libtool"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    cd - && rm -fr build "${SRC_DIR}/libtool"
 
 # Required: libxml >= 2.9.0 (default version is 2.7.6)
 RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh libxml2 http://xmlsoft.org/sources/libxml2-2.9.10.tar.gz; \
     cd "${SRC_DIR}/libxml2"; \
     mkdir -v 'build' && cd 'build'; \
-    ../configure --with-python=no && make -j $(nproc) && make install; \
+    ../configure --with-python=no --disable-static && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
 # Required: libffi >= 3.0.11 (default version is 3.0.5)
@@ -85,7 +87,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh libffi https://github.com/libffi/libffi/releases/download/v3.4.2/libffi-3.4.2.tar.gz; \
     cd "${SRC_DIR}/libffi"; \
     mkdir -v 'build' && cd 'build'; \
-    ../configure && make -j $(nproc) && make install; \
+    ../configure --disable-static && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
 # Required: oniguruma (not installed by default)
@@ -93,7 +95,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     /root/download-src.sh oniguruma https://github.com/kkos/oniguruma/releases/download/v6.9.5_rev1/onig-6.9.5-rev1.tar.gz; \
     cd "${SRC_DIR}/oniguruma"; \
     mkdir -v 'build' && cd 'build'; \
-    ../configure && make -j $(nproc) && make install; \
+    ../configure --disable-static && make -j $(nproc) && make install; \
     cd - && rm -fr build
 
 # Required: bison >= 3.0.0 (not installed by default)
@@ -102,7 +104,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     cd "${SRC_DIR}/bison"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    cd - && rm -fr build "${SRC_DIR}/bison"
 
 # Required: re2c >= 0.13.4 (not installed by default)
 RUN source scl_source enable devtoolset-7; set -eux; \
@@ -110,7 +112,7 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     cd "${SRC_DIR}/re2c"; \
     mkdir -v 'build' && cd 'build'; \
     ../configure && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    cd - && rm -fr build "${SRC_DIR}/re2c"
 
 # Required: CMake >= 3.20.0 (default version is 2.8.12.2)
 RUN source scl_source enable devtoolset-7; set -eux; \
@@ -118,7 +120,8 @@ RUN source scl_source enable devtoolset-7; set -eux; \
     cd "${SRC_DIR}/cmake"; \
     mkdir -v 'build' && cd 'build'; \
     ../bootstrap && make -j $(nproc) && make install; \
-    cd - && rm -fr build
+    cd - && rm -fr build "${SRC_DIR}/cmake" \
+    && rm -rf /usr/local/share/cmake-*/Help /usr/local/share/doc/cmake* /usr/local/share/man/man1/cmake*
 
 # Install Catch2
 RUN set -eux; \
@@ -126,7 +129,7 @@ RUN set -eux; \
     cd "${SRC_DIR}/catch2"; \
     cmake -Bbuild -H. -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX=/opt/catch2 -DCATCH_BUILD_STATIC_LIBRARY=ON; \
     cmake --build build/ --target install; \
-    cd - && rm -fr build
+    rm -fr "${SRC_DIR}/catch2"
 
 # PHP 8.4+ requires OpenSSL >= 1.1.1
 RUN source scl_source enable devtoolset-7; set -ex; \
@@ -135,6 +138,7 @@ RUN source scl_source enable devtoolset-7; set -ex; \
     mkdir -v 'build' && cd 'build'; \
     ../config --prefix=/usr/local/openssl --openssldir=/usr/local/openssl shared zlib; \
     make -j $(nproc) && make install; \
+    rm -f /usr/local/openssl/lib/*.a; \
     echo "export PATH=/usr/local/openssl/bin:\$PATH" > /etc/profile.d/openssl.sh; \
     echo "export LD_LIBRARY_PATH=/usr/local/openssl/lib:\$LD_LIBRARY_PATH" >> /etc/profile.d/openssl.sh; \
     source /etc/profile.d/openssl.sh; \
@@ -148,6 +152,7 @@ RUN source scl_source enable devtoolset-7; set -ex; \
     mkdir -v 'build' && cd 'build'; \
     ../configure --prefix=/usr/local/zlib; \
     make -j $(nproc) && make install; \
+    rm -f /usr/local/zlib/lib/*.a; \
     cd - && rm -fr build
 
 RUN source scl_source enable devtoolset-7; set -eux; \
@@ -172,7 +177,7 @@ RUN source scl_source enable devtoolset-7; set -ex; \
     /root/download-src.sh curl https://curl.se/download/curl-7.61.1.tar.gz; \
     cd "${SRC_DIR}/curl"; \
     mkdir -v 'build' && cd 'build'; \
-    ../configure --prefix=/usr/local/curl --with-ssl=/usr/local/openssl; \
+    ../configure --prefix=/usr/local/curl --with-ssl=/usr/local/openssl --disable-static; \
     make -j $(nproc) && make install; \
     cd - && rm -fr build
 
@@ -181,7 +186,7 @@ RUN source scl_source enable devtoolset-7; set -ex; \
     /root/download-src.sh sqlite3 https://www.sqlite.org/2024/sqlite-autoconf-3460000.tar.gz; \
     cd "${SRC_DIR}/sqlite3"; \
     mkdir -v 'build' && cd 'build'; \
-    ../configure --prefix=/usr/local/sqlite3; \
+    ../configure --prefix=/usr/local/sqlite3 --disable-static; \
     make -j $(nproc) && make install; \
     cd - && rm -fr build
 
@@ -193,7 +198,8 @@ ENV PKG_CONFIG_PATH="${PKG_CONFIG_PATH}:/usr/local/lib/pkgconfig:/usr/local/lib6
 # Minimum: libclang. Nice-to-have: full toolchain including linker to play
 # with cross-language link-time optimization. Needs to match rustc -Vv's llvm
 # version.
-RUN source scl_source enable devtoolset-9 \
+RUN yum install -y --nogpgcheck devtoolset-9 \
+  && source scl_source enable devtoolset-9 \
   && yum install -y python3 \
   && /root/download-src.sh ninja https://github.com/ninja-build/ninja/archive/refs/tags/v1.11.0.tar.gz \
   && mkdir -vp "${SRC_DIR}/ninja/build" \
@@ -207,12 +213,14 @@ RUN source scl_source enable devtoolset-9 \
   && git clone --depth 1 -b release/19.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
-  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF ../llvm \
+  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF -DCLANG_BUILD_TOOLS=OFF -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON ../llvm \
   && cmake --build . --parallel $(nproc) --target "install/strip" \
   && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
+  && rm -rf /usr/local/include/llvm /usr/local/include/clang \
+  && rm -rf /usr/local/lib/cmake/llvm /usr/local/lib/cmake/clang /usr/local/lib/cmake/lld \
   && cd - \
   && rm -fr llvm-project \
-  && yum remove -y python3 \
+  && yum remove -y python3 'devtoolset-9*' \
   && yum clean all
 
 
