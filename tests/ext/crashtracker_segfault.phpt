@@ -75,6 +75,32 @@ $rr->waitForRequest(function ($request) {
             "source_type": "Crashtracking",
 %A
         },
+        "experimental": {
+            "runtime_stack": {
+                "format": "Datadog Runtime Callback 1.0",
+                "frames": [
+                    {
+                        "file": "[internal function]",
+                        "function": "posix_kill"
+                    },
+                    {
+                        "file": "Command line code",
+                        "function": "{closur%s}",
+                        "line": 1
+                    },
+%A                  {
+                        "file": "[internal function]",
+                        "function": "class_exists",
+                        "line": 1
+                    },
+                    {
+                        "file": "Command line code",
+                        "function": "[top-level code]",
+                        "line": 1
+                    }
+                ]
+            }
+        },
 %A
         "incomplete": false,
         "metadata": {
