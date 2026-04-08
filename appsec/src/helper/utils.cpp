@@ -20,7 +20,7 @@ std::string read_file(std::string_view filename)
         throw std::system_error(errno, std::generic_category());
     }
 
-    struct stat statbuf{};
+    struct stat statbuf {};
     auto rc = stat(std::string{filename}.c_str(), &statbuf);
     auto file_size = rc == 0 ? statbuf.st_size : 0;
     std::string buffer(file_size, '\0');

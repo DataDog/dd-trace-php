@@ -1,4 +1,4 @@
-Checks: 'readability-identifier-naming,-bugprone-lambda-function-name,-modernize-use-designated-initializers'
+Checks: 'readability-identifier-naming,-bugprone-lambda-function-name'
 
 CheckOptions:
   - key: readability-identifier-naming.StructCase

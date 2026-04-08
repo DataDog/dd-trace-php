@@ -1,3 +1,3 @@
-Checks: '-fuchsia-trailing-return,-hicpp-vararg,-cppcoreguidelines-pro-type-vararg,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-clang-diagnostic-c23-extensions,-readability-math-missing-parentheses,-cppcoreguidelines-macro-to-enum,-bugprone-multi-level-implicit-pointer-conversion,-readability-redundant-casting'
+Checks: '-fuchsia-trailing-return,-hicpp-vararg,-cppcoreguidelines-pro-type-vararg,-clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,-cppcoreguidelines-pro-bounds-array-to-pointer-decay'
 
 InheritParentConfig: true

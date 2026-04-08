@@ -135,7 +135,9 @@ private:
     std::string key_;
     std::string_view source_;
     std::uint64_t org_id_{};
-    class product product_{known_products::UNKNOWN};
+    class product product_ {
+        known_products::UNKNOWN
+    };
     std::string_view config_id_;
     std::string_view name_;
 };

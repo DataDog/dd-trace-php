@@ -689,8 +689,7 @@ void instance::listener::call(dds::parameter_view &data, event &event,
     switch (code) {
     case DDWAF_MATCH:
         rule_triggered_ = true;
-        format_waf_result(actions, events, event);
-        return;
+        return format_waf_result(actions, events, event);
     case DDWAF_ERR_INTERNAL:
         waf_run_error_ = true;
         throw internal_error();

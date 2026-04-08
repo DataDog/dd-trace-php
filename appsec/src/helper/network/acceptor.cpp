@@ -28,7 +28,7 @@ acceptor::acceptor(const std::string_view &sv)
         throw std::system_error(errno, std::generic_category());
     }
 
-    struct sockaddr_un addr{};
+    struct sockaddr_un addr {};
     std::size_t addr_size;
     addr.sun_family = AF_UNIX;
     bool const is_abstract = (!sv.empty() && sv[0] == '@');
@@ -101,7 +101,7 @@ acceptor::acceptor(const std::string_view &sv)
 
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 {
-    struct timeval tv = {.tv_sec = timeout.count(), .tv_usec = 0};
+    struct timeval tv = {timeout.count(), 0};
     int const res =
         setsockopt(sock_.get(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (res == -1) {
@@ -111,7 +111,7 @@ void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 
 std::unique_ptr<base_socket> acceptor::accept()
 {
-    struct sockaddr_un addr{};
+    struct sockaddr_un addr {};
     socklen_t len = sizeof(addr);
 
     int s =

@@ -130,7 +130,7 @@ static void _pack_headers_no_cookies_llist(
 
     zend_llist_position pos;
     for (sapi_header_struct *header = zend_llist_get_first_ex(hl, &pos); header;
-        header = zend_llist_get_next_ex(hl, &pos)) {
+         header = zend_llist_get_next_ex(hl, &pos)) {
         const char *pcol = memchr(header->header, ':', header->header_len);
         if (!pcol) {
             continue;
@@ -172,7 +172,7 @@ static void _pack_headers_no_cookies_llist(
         mpack_start_array(w, zend_llist_count(coll));
         zend_llist_position p;
         for (struct _header_val *hv = zend_llist_get_first_ex(coll, &p); hv;
-            hv = zend_llist_get_next_ex(coll, &p)) {
+             hv = zend_llist_get_next_ex(coll, &p)) {
             dd_mpack_write_nullable_str_lim(
                 w, hv->val, hv->len, DD_MPACK_DEF_STRING_LIMIT);
         }
@@ -189,7 +189,7 @@ static const char *nullable _header_content_type_llist(
 {
     zend_llist_position pos;
     for (sapi_header_struct *header = zend_llist_get_first_ex(hl, &pos); header;
-        header = zend_llist_get_next_ex(hl, &pos)) {
+         header = zend_llist_get_next_ex(hl, &pos)) {
         if (header->header_len >= LSTRLEN("content-type") &&
             strncasecmp(header->header, LSTRARG("content-type")) == 0) {
             const char *pcol = memchr(header->header, ':', header->header_len);
