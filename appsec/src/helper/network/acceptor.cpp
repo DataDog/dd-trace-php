@@ -101,7 +101,7 @@ acceptor::acceptor(const std::string_view &sv)
 
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 {
-    struct timeval tv = {timeout.count(), 0};
+    struct timeval tv = {.tv_sec = timeout.count(), .tv_usec = 0};
     int const res =
         setsockopt(sock_.get(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (res == -1) {
