@@ -1,0 +1,8 @@
+# stack-use-after-return in zai_reset_observed_frame_post_bailout when
+# zend_observer_fcall_end_all walks a freed dummy_execute_data frame that
+# was stack-allocated inside zend_call_function during a sandboxed call
+# that bailed out. PHP 8.2+ avoids this via zai_set_observed_frame(NULL)
+# before the sandbox call; 8.0/8.1 use zai_reset_observed_frame_post_bailout
+# which does not protect current_observed_frame from the freed frame.
+# TODO: Bob to fix properly in zai_reset_observed_frame_post_bailout.
+fun:zai_reset_observed_frame_post_bailout

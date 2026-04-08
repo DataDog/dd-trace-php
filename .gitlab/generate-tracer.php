@@ -311,6 +311,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
+    ASAN_OPTIONS: "abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:suppressions=${CI_PROJECT_DIR}/tests/asan/suppress_sandbox_observer.txt"
   script:
     - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c_observer
