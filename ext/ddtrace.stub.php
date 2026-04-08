@@ -839,6 +839,12 @@ namespace DDTrace {
      * @param string $method The method of the endpoint
      */
     function add_endpoint(string $path, string $operation_name, string $resource_name, string $method): bool {}
+
+    /**
+     * Flush all buffered endpoints to the sidecar immediately.
+     * Call this once after batching all add_endpoint() calls.
+     */
+    function flush_endpoints(): void {}
 }
 
 namespace DDTrace\System {

@@ -17,6 +17,7 @@
         "symfony/console": "7.3.4",
         "symfony/doctrine-messenger": "^7.1",
         "symfony/dotenv": "*",
+        "symfony/event-dispatcher": "7.3.*",
         "symfony/flex": "^2",
         "symfony/form": "*",
         "symfony/framework-bundle": "7.3.4",

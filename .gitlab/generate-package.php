@@ -91,6 +91,10 @@ stages:
 variables:
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
+  # One pipeline injection package size ratchet
+  OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
+
 include:
   - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
@@ -1235,6 +1239,7 @@ endforeach;
       # Install Python dependencies
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
+    - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
     - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
@@ -1244,10 +1249,13 @@ endforeach;
       when: always
       paths:
         - .cache/
+  after_script:
+    - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
+    - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
+    - DATADOG_API_KEY=${DATADOG_API_KEY:-} DD_SERVICE=system-tests DD_JUNIT_XPATH_TAGS="test.codeowners=/testcase/properties/property[@name='test.codeowners']" .gitlab/silent-upload-junit-to-datadog.sh
   artifacts:
     paths:
-      - "system-tests/logs_parametric/"
-      - "system-tests/logs/"
+      - "system-tests/logs*/"
     when: "always"
 
 "System Tests: [default]":
@@ -1267,6 +1275,22 @@ endforeach;
         - CROSSED_TRACING_LIBRARIES
   script:
     - ./run.sh $TESTSUITE
+
+"System Tests: [tracer-release]":
+  extends: .system_tests
+  timeout: 4h
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - when: manual
+      allow_failure: true
+  script:
+    - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
+    - export DD_API_KEY
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
+    - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
 "System Tests: [parametric]":
   extends: .system_tests
@@ -1433,7 +1457,7 @@ foreach ($arch_targets as $arch) {
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
   tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY_BUILD
+    - if: $NIGHTLY_BUILD
       when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: on_success

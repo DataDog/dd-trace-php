@@ -63,7 +63,7 @@ typedef struct _injected_ext {
     const zend_function_entry *orig_module_functions;
     int module_number;
     char *version;
-    void *so_handle; // dlopen handle of the loaded .so; closed in ddloader_zend_extension_shutdown
+    void *so_handle; // dlopen handle of the loaded .so
 
     // phpinfo data
     bool injection_success;

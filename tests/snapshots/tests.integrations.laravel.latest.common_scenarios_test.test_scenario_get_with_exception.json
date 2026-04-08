@@ -2,7 +2,7 @@
   {
     "name": "laravel.request",
     "service": "my_service",
-    "resource": "App\\Http\\Controllers\\CommonSpecsController@error unnamed_route",
+    "resource": "App\\Http\\Controllers\\CommonSpecsController@error error",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 5879388483676493807,
