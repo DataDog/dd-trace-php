@@ -53,8 +53,8 @@ services:
       dockerfile: php7.Dockerfile
       args:
         phpVersion: "7.4"
-        phpTarGzUrl: https://www.php.net/distributions/php-7.4.33.tar.gz
-        phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
+        phpTarGzUrl: https://www.php.net/distributions/php-7.4.30.tar.gz
+        phpSha256Hash: e37ea37e0f79109351ac615da85eb7c2c336101fc5bc802ee79a124a4310dc10
     image: 'datadog/dd-trace-ci:php-7.4_centos-6'
 
   php-8.0:
@@ -63,8 +63,8 @@ services:
       dockerfile: php8.Dockerfile
       args:
         phpVersion: "8.0"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.30.tar.gz
-        phpSha256Hash: 449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.21.tar.gz
+        phpSha256Hash: 2f51f6e90e2e8efd3a20db08f0dd61d7f8d5a9362f8c7325f1ad28ccea5be0ac
     image: 'datadog/dd-trace-ci:php-8.0_centos-6'
 
   php-8.1:
@@ -73,7 +73,7 @@ services:
       dockerfile: php8.Dockerfile
       args:
         phpVersion: "8.1"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.1.32.tar.gz
-        phpSha256Hash: 4846836d1de27dbd28e89180f073531087029a77e98e8e019b7b2eddbdb1baff
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.8.tar.gz
+        phpSha256Hash: 889d910558d2492f7f2236921b9bcde620674c8b684ec02d126060f8ca45dc8d
     image: 'datadog/dd-trace-ci:php-8.1_centos-6'
 
