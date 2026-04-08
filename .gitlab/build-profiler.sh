@@ -20,9 +20,8 @@ if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then
     ln -sf ../lib/llvm17/bin/clang /usr/bin/clang
 fi
 
-# On CentOS 7 aarch64, clang's built-in stddef.h is not on the default include path,
-# causing bindgen to fail with "fatal error: 'stddef.h' file not found".
-# Explicitly point BINDGEN_EXTRA_CLANG_ARGS at the resource directory.
+# On CentOS 7 aarch64, clang's resource dir isn't on the default include path,
+# causing bindgen to fail with "stddef.h not found".
 if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then
     export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"
 fi
