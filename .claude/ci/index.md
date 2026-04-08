@@ -285,7 +285,7 @@ When the Haiku agent returns, you (the main agent) decide what to do:
 
 ### Downloading artifacts
 
-Use `.claude/ci/download-artifacts` to download CI artifacts from GitLab jobs.
+Use `tooling/bin/download-artifacts` to download CI artifacts from GitLab jobs.
 
 **Modes:**
 - `--preset KEY` — download a well-known artifact by key (e.g., `ssi-amd64`,
@@ -300,13 +300,13 @@ Use `.claude/ci/download-artifacts` to download CI artifacts from GitLab jobs.
 
 ```bash
 # Download the SSI loader for amd64 from HEAD's pipeline
-.claude/ci/download-artifacts --preset ssi-amd64 -o /tmp/artifacts
+tooling/bin/download-artifacts --preset ssi-amd64 -o /tmp/artifacts
 
 # Download artifacts from a specific job by name
-.claude/ci/download-artifacts --job-name "compile extension: debug [8.3]" --pipeline 12345
+tooling/bin/download-artifacts --job-name "compile extension: debug [8.3]" --pipeline 12345
 
 # Download directly by job ID
-.claude/ci/download-artifacts --job-id 98765 -o /tmp/artifacts
+tooling/bin/download-artifacts --job-id 98765 -o /tmp/artifacts
 ```
 
 ---

@@ -230,6 +230,39 @@ for f in sorted(glob.glob('logs/interfaces/library/*traces*.json')):
 PHP/tracer logs:
 
 ```
-logs/docker/weblog/logs/php_error.log
-logs/docker/weblog/logs/tracer.log
+logs/docker/weblog/logs/tracer.log      ← tracer LOG(ERROR, ...) output
+logs/docker/weblog/logs/php_error.log   ← php_log_err() / error_log() / trigger_error() output
+logs/docker/weblog/logs/appsec.log      ← appsec extension mlog() output
+logs/docker/weblog/logs/helper.log      ← appsec C++ helper SPDLOG_*() output
+logs/docker/weblog/logs/apache2/error.log  ← profiler error!() output (if log level enabled)
 ```
+
+### Adding debug output
+
+Use the project's own logging macros — they route to the collected log files
+above. All verified empirically on the `apache-mod-8.2` weblog.
+
+**Reliable methods:**
+
+| Component | Macro | Lands in |
+|---|---|---|
+| Tracer (C) | `LOG(ERROR, "fmt", args)` | `tracer.log` |
+| Tracer (C) | `php_log_err("msg")` | `php_error.log` |
+| Appsec extension (C) | `mlog(dd_log_error, "fmt", args)` | `appsec.log` + `php_error.log` |
+| Appsec C++ helper | `SPDLOG_ERROR("fmt", args)` | `helper.log` |
+| Appsec Rust helper | `log::error!("fmt", args)` | `helper.log` (only when Rust helper is active) |
+| Profiler (Rust) | `error!("msg")` | `apache2/error.log` (requires `datadog.profiling.log_level=error`) |
+
+**Methods that lose output** (verified with gdb):
+
+- **`fprintf(stderr, ...)`** — lost due to stdio buffering. `stderr` is fully
+  buffered (fd 2 points to a file, not a tty). Output sits in the `FILE*`
+  buffer and never reaches disk before system-tests stops the containers.
+  Confirmed: calling `fflush(stderr)` from gdb made the output appear.
+
+- **`trigger_error(E_USER_NOTICE)`** — silently dropped when `log_errors=Off`
+  (the weblog default). Works after adding `log_errors=On` to `php.ini`.
+
+- **Profiler `error!()`** — silently filtered when `datadog.profiling.log_level`
+  is `off` (the default). Works after setting `datadog.profiling.log_level=error`
+  in `php.ini`.

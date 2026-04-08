@@ -52,7 +52,7 @@ The user presented this problem:
 
 I inspected the source code, and I found the following:
 
-> (fill in your findinds, with references to source files and lines)
+> (fill in your findings, with references to source files and lines)
 
 The following commands validate my hypothesis:
 

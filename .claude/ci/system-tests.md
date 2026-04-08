@@ -89,54 +89,25 @@ The system tests need two artifacts in the `binaries/` directory of the
 - `datadog-setup.php`
 - `dd-library-php-<version>-x86_64-linux-gnu.tar.gz`
 
-Build them from the working tree. Before starting, ensure submodules
-are initialised (see
-[building-locally.md](building-locally.md#submodule-initialisation)).
-The build has three parts: tracing extension, appsec components, and
-tarball assembly. See
-[building-locally.md](building-locally.md) for all build commands
-and common gotchas (CARGO_HOME, devtoolset-7, `make` vs
-`make static`, etc.).
-
-`generate-final-artifact.sh` assembles the tarball from these
-artifact directories. See
-[building-locally.md](building-locally.md) for build commands and
-gotchas (CARGO_HOME, devtoolset-7, `make` vs `make static`, etc.):
-
-| Directory | Contents | Build reference |
-|-----------|----------|----------------|
-| `extensions_x86_64/` | `ddtrace-{API}[-zts\|-debug].so` | [Tracer (centos-7)](building-locally.md#for-system-tests-centos-7-release-like-build) |
-| `appsec_x86_64/` | `ddappsec-{API}[-zts].so` | [Appsec extension](building-locally.md#for-release--system-tests-centos-7) |
-| `appsec_x86_64/` | `libddappsec-helper-rust.so` | [Rust helper](building-locally.md#rust-helper) |
-| `appsec_x86_64/` | `libddappsec-helper.so` | [C++ helper](building-locally.md#c-helper) |
-| `appsec_x86_64/` | `recommended.json` | `cp appsec/recommended.json appsec_x86_64/` |
-| `datadog-profiling/` | `datadog-profiling[-zts].so` | Can be fully stubbed (see section 1c) |
-
-Each `php-{ver}_centos-7` image only ships one PHP version. In
-practice you only need the version matching your weblog — **use the
-[slim build](#1c-slim-build--one-php-version-only)** and stub the
-rest with empty files. Section 1c has a complete copy-paste recipe
-(build + stubs + tarball assembly) for PHP 8.2 NTS.
-
-`generate-final-artifact.sh` does a hard `cp` for every PHP API ×
-variant. Empty stub files satisfy this for versions you don't build.
-Profiling can also be fully stubbed. See
-[section 1c](#1c-slim-build--one-php-version-only) for all stub
-commands.
-
-See [building-locally.md § Appsec Helpers](building-locally.md#appsec-helpers)
-for build commands for both helpers.
-
-For tarball assembly and `datadog-setup.php`, see
-[building-locally.md § Release Package Assembly](building-locally.md#release-package-assembly).
-Output in `build/packages/`:
-- `dd-library-php-<version>-x86_64-linux-gnu.tar.gz`
-- `datadog-setup.php`
+Build them from the working tree. Before starting, ensure submodules are
+initialised (see
+[building-locally.md](building-locally.md#submodule-initialisation)). The build
+has three parts: tracing extension, appsec components, and tarball assembly.
+See [building-locally.md](building-locally.md) for all build information. In
+particular, see the section "Slim package with debug binaries". The
+alternative of generating/downloading ALL the binaries (full all
+versions/variants) and invoking `generate-final-artifact.sh` is possible, but
+strongly discouraged locally, even if CI does it.
 
 **Weblog PHP version:** the default weblog (`apache-mod-8.0`) may not be supported by
 newer working-tree branches. Use `WEBLOG_VARIANT=apache-mod-8.2` if the default build
 fails with "not supported". `apache-mod` variants stop at 8.2; for PHP 8.5
-use `WEBLOG_VARIANT=php-fpm-8.5` (there is no 8.3 or 8.4 weblog):
+use `WEBLOG_VARIANT=php-fpm-8.5` (there is no 8.3 or 8.4 weblog).
+
+**The weblog variant must match the PHP version you build.** Available
+weblogs: `apache-mod-7.0` through `apache-mod-8.2`, and `php-fpm-7.0`
+through `php-fpm-8.2` plus `php-fpm-8.5`. ZTS variants also exist
+(`apache-mod-7.0-zts` through `apache-mod-8.2-zts`).
 
 ```bash
 WEBLOG_VARIANT=apache-mod-8.2 ./build.sh php
@@ -147,35 +118,7 @@ WEBLOG_VARIANT=php-fpm-8.5 ./build.sh php
 WEBLOG_VARIANT=php-fpm-8.5 ./run.sh
 ```
 
-### 1c. Slim build — one PHP version only
-
-`build-slim-package.py` builds a tarball containing only the PHP
-version you need — no stubs, no `generate-final-artifact.sh`. It
-uses the same centos-7 images as the package pipeline and assembles
-the tarball directly in the `dd-library-php/` layout that
-`datadog-setup.php` expects.
-
-```bash
-# Tracer only
-.claude/ci/build-slim-package.py 8.2
-
-# Tracer + appsec (extension + both helpers) + profiler
-.claude/ci/build-slim-package.py 8.2 --appsec --profiler
-
-# ZTS variant, custom output directory
-.claude/ci/build-slim-package.py 8.2 --zts --output-dir /tmp/out
-```
-
-All products build in parallel. Build logs go to a temporary
-directory printed at the start.
-
-**The weblog variant must match the PHP version you build.** Available
-weblogs: `apache-mod-7.0` through `apache-mod-8.2`, and `php-fpm-7.0`
-through `php-fpm-8.2` plus `php-fpm-8.5`. ZTS variants also exist
-(`apache-mod-7.0-zts` through `apache-mod-8.2-zts`). There is no
-PHP 8.3 or 8.4 weblog.
-
-### 1b. Alternative: place only the .so files you want to test
+### Alternative: place only the .so files you want to test
 
 `install_ddtrace.sh` in system-tests supports `.so` overrides: when no
 `dd-library-php-*.tar.gz` is present it downloads the **latest released package**
@@ -224,11 +167,7 @@ component without reassembling the full tarball.
 git clone https://github.com/DataDog/system-tests.git
 mkdir -p system-tests/binaries
 
-# From a full build (section 1a):
-cp build/packages/datadog-setup.php system-tests/binaries/
-cp build/packages/dd-library-php-*-linux-gnu.tar.gz system-tests/binaries/
-
-# Or from a slim build (section 1c):
+# From a .tar.gz package (full or slim):
 cp dd-library-php-*-linux-gnu.tar.gz system-tests/binaries/
 cp datadog-setup.php system-tests/binaries/
 ```
@@ -360,8 +299,7 @@ cd /path/to/system-tests
   the weblog Docker image, the sidecar's `maybe_start_appsec()` skips WAF
   loading without any visible error. All AppSec-related scenarios (`default`,
   `APPSEC_API_SECURITY*`) will report "No appsec event validates this
-  condition" or "No telemetry data to validate on". This also happens when
-  building packages locally without the appsec components (see Phase 1b).
+  condition" or "No telemetry data to validate on".
   After any change to `generate-package.php` or the tarball assembly that
   touches helper packaging, confirm that
   `libddappsec-helper.so` is present inside the assembled `.tar.gz`

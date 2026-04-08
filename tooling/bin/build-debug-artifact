@@ -119,7 +119,10 @@ BOOKWORM_VERSION=6
 if [[ "$libc" == "musl" ]]; then
     DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
 else
-    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_bookworm-${BOOKWORM_VERSION}"
+    # centos-7 targets GLIBC 2.17 — compatible with all weblog base images.
+    # bookworm (GLIBC 2.36) produces .so files that fail to load on Bullseye
+    # weblogs with "GLIBC_2.32 not found".
+    DOCKER_IMAGE="datadog/dd-trace-ci:php-${php_version}_centos-7"
 fi
 
 if [[ "$arch" == "aarch64" ]]; then
@@ -151,7 +154,7 @@ EXT_SUFFIX=$([[ "$thread_safety" == "zts" ]] && echo "-zts" || echo "")
 
 # Build commands differ slightly between musl and gnu:
 #   - Alpine images: user=root, shell=sh, switch_php defined in /root/.bashrc
-#   - Bookworm images: user=circleci (WORKDIR=/home/circleci/app), shell=bash, switch-php in PATH
+#   - centos-7 images: user=root, shell=bash, switch-php takes version-prefixed names (e.g. "8.2")
 #
 # DD_TRACE_DOCKER_DEBUG=1 → CFLAGS=-O0 -g (debug-friendly)
 # The volume at HOME_DIR/tmp persists build artifacts (C objects, Rust target/) across runs.
@@ -161,7 +164,7 @@ if [[ "$libc" == "musl" ]]; then
     HOME_DIR="/app"
 else
     DOCKER_SHELL="bash"
-    HOME_DIR="/home/circleci/app"
+    HOME_DIR="/home/builduser/app"
 fi
 
 # ─── Generate PHP bridge files ───────────────────────────────────────────────
@@ -203,42 +206,81 @@ trap 'rm -rf "$TMP_OUT" "$TMP_PKG"' EXIT
 
 # ─── Build script construction ────────────────────────────────────────────────
 # Each product gets its own script; all run in separate containers in parallel.
-# The preamble (set -e, bashrc source, switch_php) is duplicated per product.
+# The preamble starts as root (to call switch-php and chown), then drops to the
+# host uid/gid so build artifacts have the right ownership.  Follows the same
+# pattern as dockerh: register host user in /etc/passwd, switch-php, chown, exec
+# the build commands as the unprivileged user.
 
-_preamble() {  # $1 = shell commands before product-specific steps
+HOST_UID=$(id -u)
+HOST_GID=$(id -g)
+
+_switch_php_variant="${php_version}$([[ "$thread_safety" == "nts" ]] && echo "" || echo "-${thread_safety}")"
+
+_preamble() {  # $1 = shell commands to run as the host user
     if [[ "$libc" == "musl" ]]; then
         printf 'set -e\n. /root/.bashrc\nswitch_php %s\n%s' "${thread_safety}" "$1"
     else
-        printf 'set -e\nswitch-php %s\nsudo chown circleci: /home/circleci/app/tmp /rust/cargo/registry\n%s' "${thread_safety}" "$1"
+        # centos-7: start as root for switch-php, then drop to host uid.
+        # Write the build commands to a script file so we avoid nested quoting.
+        printf '%s\n' \
+            "set -e" \
+            "echo 'builduser:x:${HOST_UID}:${HOST_GID}::/tmp:/bin/bash' >> /etc/passwd" \
+            "echo 'buildgroup:x:${HOST_GID}:builduser' >> /etc/group" \
+            "switch-php ${_switch_php_variant}" \
+            "chown -R ${HOST_UID}:${HOST_GID} ${HOME_DIR}/tmp /output /rust/cargo 2>/dev/null || true" \
+            'chown '"${HOST_UID}:${HOST_GID}"' "$(php-config --extension-dir)" "$(php -r '"'"'echo PHP_CONFIG_FILE_SCAN_DIR;'"'"')" 2>/dev/null || true' \
+            "cat > /tmp/build.sh <<'BUILDEOF'" \
+            "set -e" \
+            "export CARGO_HOME=/rust/cargo" \
+            "cd ${HOME_DIR}" \
+            "$1" \
+            "BUILDEOF" \
+            "exec su builduser -s /bin/bash /tmp/build.sh"
     fi
 }
 
-TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 make
+TRACE_SCRIPT="$(_preamble "DD_TRACE_DOCKER_DEBUG=1 CFLAGS='-std=gnu11 -O0 -g' make
 cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
     PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
     ln -sf ../lib/llvm17/bin/clang /usr/bin/clang
 fi
-(cd profiling && CARGO_TARGET_DIR=${HOME_DIR}/tmp/build_profiler cargo build --profile profiler-release)
-cp ${HOME_DIR}/tmp/build_profiler/profiler-release/libdatadog_php_profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"
+(cd profiling && CARGO_TARGET_DIR=${HOME_DIR}/tmp/build_profiler cargo build --profile dev)
+cp ${HOME_DIR}/tmp/build_profiler/debug/libdatadog_php_profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"
 fi
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
+    # Resolve libddwaf commit on the host (avoids git inside the container,
+    # which fails in worktrees where the .git pointer doesn't resolve).
+    LIBDDWAF_COMMIT=$(git -C "${REPO_ROOT}/appsec/third_party/libddwaf" rev-parse HEAD 2>/dev/null || echo "")
+
     # Use a per-variant cmake build dir in the cache volume (nts and zts need separate builds).
     APPSEC_SCRIPT="$(_preamble "git config --global --add safe.directory '*' 2>/dev/null || true
 mkdir -p tmp/build_appsec${EXT_SUFFIX}
-(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
+(cd tmp/build_appsec${EXT_SUFFIX} && cmake ${HOME_DIR}/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON -DGIT_COMMIT=${LIBDDWAF_COMMIT} && make -j \$(nproc) && cp ddappsec.so /output/ddappsec${EXT_SUFFIX}.so)")"
 
-    # The helper is a musl-statically-linked binary that works on both gnu and musl systems.
+    # C++ helper — musl-statically-linked, works on both gnu and musl systems.
     HELPER_IMAGE="registry.ddbuild.io/images/mirror/b1o7r7e0/nginx_musl_toolchain"
-    HELPER_SCRIPT="set -e
-git config --global --add safe.directory '*' 2>/dev/null || true
-mkdir -p appsec/build_helper
-cd appsec/build_helper
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON -DCMAKE_TOOLCHAIN_FILE=/sysroot/\$(uname -m)-none-linux-musl/Toolchain.cmake
+    HELPER_CPP_SCRIPT="set -e
+mkdir -p /repo/tmp/build_helper
+cd /repo/tmp/build_helper
+cmake /repo/appsec -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DDD_APPSEC_ENABLE_PATCHELF_LIBC=ON -DGIT_COMMIT=${LIBDDWAF_COMMIT} -DCMAKE_TOOLCHAIN_FILE=/sysroot/\$(uname -m)-none-linux-musl/Toolchain.cmake
 make -j \$(nproc)
 cp libddappsec-helper.so /output/libddappsec-helper.so"
+
+    # Rust helper — debug build (no --release)
+    HELPER_RUST_SCRIPT='set -e
+cd appsec/helper-rust
+export CARGO_TARGET_DIR=/repo/tmp/cargo-target-helper-rust
+RUST_TARGET=$(uname -m)-unknown-linux-musl
+cargo +nightly-$RUST_TARGET build \
+    -Zhost-config -Ztarget-applies-to-host --target $RUST_TARGET
+BINARY_PATH="/repo/tmp/cargo-target-helper-rust/$RUST_TARGET/debug/libddappsec_helper_rust.so"
+ARCH=$(uname -m)
+[ "$ARCH" = x86_64 ] && patchelf --remove-needed libc.musl-x86_64.so.1 "$BINARY_PATH" 2>/dev/null || true
+[ "$ARCH" = aarch64 ] && patchelf --remove-needed libc.musl-aarch64.so.1 "$BINARY_PATH" 2>/dev/null || true
+cp -v "$BINARY_PATH" /output/libddappsec-helper-rust.so'
 fi
 
 # ─── Launch all builds in parallel ────────────────────────────────────────────
@@ -270,22 +312,34 @@ if [[ "$_should_generate" == "1" ]]; then
         bash -c "make generate"
 fi
 
-_launch "trace"   docker run $([[ "$libc" == "musl" ]] || echo -w "/home/circleci/app") --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
+_launch "trace"   docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$TRACE_SCRIPT"
 
 [[ "$BUILD_PROFILER" == "1" ]] && \
-    _launch "profiler" docker run $([[ "$libc" == "musl" ]] || echo -w "/home/circleci/app") --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$PROFILER_SCRIPT"
+    _launch "profiler" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$PROFILER_SCRIPT"
 
 if [[ "$BUILD_APPSEC" == "1" ]]; then
-    _launch "appsec" docker run $([[ "$libc" == "musl" ]] || echo -w "/home/circleci/app") --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
+    _launch "appsec" docker run -w "${HOME_DIR}" --rm "${_common_volumes[@]}" "$DOCKER_IMAGE" "$DOCKER_SHELL" -c "$APPSEC_SCRIPT"
 
-    # TODO rust helper soon
-    _launch "helper" docker run --rm \
+    # C++ helper — musl-statically-linked, works on both gnu and musl systems.
+    _launch "helper-cpp" docker run --rm \
         --platform "$DOCKER_PLATFORM" \
         -v "${REPO_ROOT}:/repo" \
         -w "/repo" \
+        -v "${CACHE_VOLUME}:/repo/tmp" \
         -v "${TMP_OUT}:/output" \
         "$HELPER_IMAGE" \
-        sh -c "$HELPER_SCRIPT"
+        sh -c "$HELPER_CPP_SCRIPT"
+
+    # Rust helper
+    RUST_HELPER_IMAGE="datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
+    _launch "helper-rust" docker run --rm \
+        --platform "$DOCKER_PLATFORM" \
+        -v "${REPO_ROOT}:/repo" \
+        -w "/repo" \
+        -v "${CACHE_VOLUME}:/repo/tmp" \
+        -v "${TMP_OUT}:/output" \
+        "$RUST_HELPER_IMAGE" \
+        bash -c "$HELPER_RUST_SCRIPT"
 fi
 
 # ─── Wait for all builds ──────────────────────────────────────────────────────
@@ -324,6 +378,9 @@ if [[ "$BUILD_APPSEC" == "1" ]]; then
     cp "${TMP_OUT}/ddappsec${EXT_SUFFIX}.so" "${APPSEC_BASE}/ext/${php_api}/ddappsec${EXT_SUFFIX}.so"
     if [[ -f "${TMP_OUT}/libddappsec-helper.so" ]]; then
         cp "${TMP_OUT}/libddappsec-helper.so" "${APPSEC_BASE}/lib/libddappsec-helper.so"
+    fi
+    if [[ -f "${TMP_OUT}/libddappsec-helper-rust.so" ]]; then
+        cp "${TMP_OUT}/libddappsec-helper-rust.so" "${APPSEC_BASE}/lib/libddappsec-helper-rust.so"
     fi
     if [[ -f "${REPO_ROOT}/appsec/recommended.json" ]]; then
         cp "${REPO_ROOT}/appsec/recommended.json" "${APPSEC_BASE}/etc/recommended.json"

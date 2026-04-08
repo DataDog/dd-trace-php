@@ -129,7 +129,7 @@ Fastest when you don't need to modify the extension itself. See
 
 ```bash
 # Download the "compile extension: debug" artifact for PHP 8.2
-.claude/ci/download-artifacts \
+tooling/bin/download-artifacts \
     --job-name "compile extension: debug [8.2, amd64]" \
     -o /tmp/bench-ext
 

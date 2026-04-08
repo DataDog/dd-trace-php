@@ -213,37 +213,14 @@ Use the same `php -d extension=...` command, just point to the debug path.
 
 ## ZTS tests -- parallel PECL extension
 
-The `exceptions_zts.php` test uses the `parallel` PECL extension. It is not installed in
-the dd-trace-ci image by default. CI installs version `v1.2.7` via `shivammathur/setup-php`.
+The `exceptions_zts.php` test uses the `parallel` PECL extension. The dd-trace-ci bookworm
+images already include it for PHP 8+ ZTS builds (installed by `build-extensions.sh`), so no
+extra setup is needed when reproducing locally with `dockerh`.
 
-To install it locally, use the GitHub source URL (the default PECL channel may give a
-different version and may fail without `libpcre2-dev`):
-
-```bash
-dockerh --cache profiler-8.1-zts --php zts datadog/dd-trace-ci:php-8.1_bookworm-6 --user root -- bash -c '
-apt-get update -qq && apt-get install -y -qq libpcre2-dev
-pecl install https://github.com/krakjoe/parallel/archive/refs/tags/v1.2.7.tar.gz
-'
-```
-
-Note that `pecl install` writes `parallel.so` into the system PHP extensions directory,
-which is read-only in the `dockerh` overlay cache. The installed `.so` does **not** persist
-between container runs. To avoid reinstalling every time, copy it to the writable project
-cache after installation:
-
-```bash
-cp $(php-config --extension-dir)/parallel.so /project/dd-trace-php/tmp/parallel.so
-```
-
-Then load it in subsequent runs with `-d extension=/project/dd-trace-php/tmp/parallel.so`.
-
-When running `exceptions_zts.php`, load both extensions:
-
-```bash
-php -d extension=/project/dd-trace-php/target/profiler-release/libdatadog_php_profiling.so \
-    -d extension=/project/dd-trace-php/tmp/parallel.so \
-    /project/dd-trace-php/profiling/tests/correctness/exceptions_zts.php
-```
+CI, on the other hand, runs on a bare `ubuntu-24.04` runner and installs PHP via
+`shivammathur/setup-php`, which does not include `parallel` by default. The workflow
+installs version `v1.2.7` from GitHub via the `extensions` matrix parameter
+(`parallel-krakjoe/parallel@v1.2.7`).
 
 ## ASAN Build
 

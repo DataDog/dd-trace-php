@@ -73,7 +73,7 @@ ASAN-instrumented package to catch memory errors.
 All DinD verification jobs need packaged artifacts from upstream
 compile/package jobs. Two ways to obtain them:
 
-- **From CI:** use `.claude/ci/download-artifacts` (e.g., `--preset
+- **From CI:** use `tooling/bin/download-artifacts` (e.g., `--preset
   extension-amd64-gnu`, `--preset extension-asan`, `--preset datadog-setup`).
   See "Downloading artifacts" in [index.md](index.md).
 - **Build locally:** see the ".deb from source" section below.
@@ -155,7 +155,7 @@ The `dockerfiles/frameworks/Makefile` has two modes:
 make -f dockerfiles/frameworks/Makefile wordpress
 
 # Test with your own build:
-.claude/ci/download-artifacts --preset extension-amd64-gnu
+tooling/bin/download-artifacts --preset extension-amd64-gnu
 mkdir -p build/packages
 cp packages/datadog-php-tracer_*.deb build/packages/
 CI=true make -f dockerfiles/frameworks/Makefile wordpress
@@ -235,9 +235,9 @@ The key pieces that must all agree:
 **Option A -- From CI artifacts:**
 
 ```bash
-.claude/ci/download-artifacts --preset extension-amd64-gnu \
+tooling/bin/download-artifacts --preset extension-amd64-gnu \
   -o /tmp/ci-artifacts-gnu
-.claude/ci/download-artifacts --preset extension-amd64-musl \
+tooling/bin/download-artifacts --preset extension-amd64-musl \
   -o /tmp/ci-artifacts-musl
 ```
 

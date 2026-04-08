@@ -8,17 +8,16 @@ CI job details and exact CI command equivalents, see
 
 ### CARGO_HOME is root-owned in CI images
 
-`/rust/cargo/` in CI images is root-owned. When running as non-root
+`/rust/cargo/` in CI images is root-owned. When running `dockerh` as non-root
 (i.e. without `--root`), Cargo cannot write to it. Override it:
 
 - With `--overlayfs` (recommended): pass
-  `-e CARGO_HOME=/project/dd-trace-php/.cache/cargo`. This path
-  persists across runs via the overlay volume.
-- Without overlayfs: `export CARGO_HOME=$PWD/tmp/cargo_home`.
+  `-e CARGO_HOME=/project/dd-trace-php/.cache/cargo`.
+- Without overlayfs, place it in one of the cache bind mounted directories:
+  `-e CARGO_HOME=/project/dd-trace-php/tmp/cargo_home`.
 
-This affects `build-sidecar.sh`, profiler builds, and any other Rust
-build that does not use `--root`. First local run downloads all
-crates from scratch (the `cache cargo deps` CI step is skipped).
+This affects `build-sidecar.sh`, profiler builds, and any other Rust build that
+does not use `--root`. First local run downloads all crates from scratch.
 
 ### Submodule initialisation
 
@@ -242,6 +241,8 @@ cd profiling && cargo rustc --features=trigger_time_sample \
 
 ### For release / packaging / system tests (centos-7)
 
+Bookworm is too recent for binary compatibility purposes.
+
 `build-profiler.sh` takes two arguments: the output directory prefix
 and the thread safety mode (`nts` or `zts`). It calls `switch-php`
 internally, so use `--root` (not `--php`). The output prefix must
@@ -260,10 +261,6 @@ version). For a single version (e.g. 8.2, ABI `20220829`):
     -- bash -c 'PHP_VERSION=8.2 bash .gitlab/build-profiler.sh \
       datadog-profiling/x86_64-unknown-linux-gnu/lib/php/20220829 nts'
 ```
-
-Stub remaining API versions with empty files (see
-[system-tests.md § 1c](system-tests.md#1c-slim-build--one-php-version-only)
-for the full stub loop).
 
 ## Sidecar (Rust)
 
@@ -315,10 +312,17 @@ platforms and fails if artifacts are missing.
 compiled `.so` files:
 - `extensions_$(uname -m)/` — ddtrace extensions
   (`ddtrace-{API}[-zts|-debug|-debug-zts].so`)
-- `appsec_$(uname -m)/` — appsec extensions + helpers +
+- `appsec_$(uname -m)/` — appsec extensions (`ddappsec-{API}[-zts].so`) +
+  helpers (`libddappsec-helper.so` and `libddappsec-helper-rust.so`) +
   `recommended.json`
 - `datadog-profiling/{triplet}/lib/php/{API}/` — profiler
   extensions
+
+Missing files cause hard `cp` failures. This means that we need to build (or
+download from CI) all these individual artifacts. This is rarely desirable when
+testing locally. See the section "Slim package with debug binaries" for a more
+practical alternative when locally producing artifacts from some jobs, like
+system tests.
 
 **Naming conventions differ by platform.** GNU/glibc extensions use
 bare names (`ddtrace-{API}.so`, `ddtrace-{API}-zts.so`) plus
@@ -327,10 +331,6 @@ use the `-alpine` suffix (`ddtrace-{API}-alpine.so`,
 `ddtrace-{API}-alpine-zts.so`) and have **no `-debug` variants**
 (2 total). Appsec follows the same pattern (no `-debug` for either
 platform).
-
-Missing files cause hard `cp` failures. Stub with empty files for
-versions you don't need (see
-[system-tests.md § 1c](system-tests.md#1c-slim-build--one-php-version-only)).
 
 The script only needs basic shell tools (`cp`, `tar`, `mkdir`).
 The `php_fpm_packaging` image is used in CI because the same job
@@ -434,3 +434,29 @@ set -e
 
 Set `ARCHITECTURE=aarch64` for arm64 (still runs in the amd64
 `php_fpm_packaging` image, using cross-tools).
+
+### Slim package with debug binaries
+
+`tooling/bin/build-debug-artifact` builds a tarball containing only the PHP
+version you need — no stubs, no `generate-final-artifact.sh`. It
+uses the same centos-7 images as the package pipeline and assembles
+the tarball directly in the `dd-library-php/` layout that
+`datadog-setup.php` expects.
+
+**Note:** this produces debug (unoptimized) binaries, which differ from the
+release binaries built by CI. They are suitable for development and
+troubleshooting but not for performance testing.
+
+```bash
+# Tracer only (gnu, x86_64, PHP 8.2, NTS)
+tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts
+
+# Tracer + appsec (extension + both helpers) + profiler
+tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts --appsec --profiler
+
+# Musl/arm64 variant, custom output directory
+tooling/bin/build-debug-artifact musl-aarch64-8.2-nts /tmp/out
+```
+
+All products build in parallel. Build logs go to a temporary
+directory printed at the start.

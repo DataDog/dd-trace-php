@@ -155,7 +155,7 @@ All jobs need artifacts from packaging jobs (Group I / Group D):
 Most of these jobs are difficult to reproduce locally because they require packaged
 artifacts from upstream compile/package jobs. Two ways to obtain them:
 
-- **From CI:** use `.claude/ci/download-artifacts` to download preset packages
+- **From CI:** use `tooling/bin/download-artifacts` to download preset packages
   (e.g., `--preset extension-amd64-gnu`, `--preset ssi-amd64`, `--preset datadog-setup`).
   See the "Downloading artifacts" section in [index.md](index.md) for full usage.
 - **Build locally:** follow [compile-artifacts.md](compile-artifacts.md) to compile
