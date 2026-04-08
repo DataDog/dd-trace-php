@@ -47,7 +47,7 @@ reset_request_replayer();
 --EXPECTF--
 array(2) {
   [0]=>
-  array(6) {
+  array(4) {
     ["service"]=>
     string(24) "exception-replay_001.php"
     ["ddsource"]=>
@@ -64,16 +64,16 @@ array(2) {
         string(36) "%s"
         ["timestamp"]=>
         int(%d)
-        ["exceptionCaptureId"]=>
+        ["exceptionId"]=>
         string(36) "%s"
         ["exceptionHash"]=>
         string(%d) "%s"
         ["frameIndex"]=>
-        int(0)
+        string(1) "0"
         ["captures"]=>
         array(1) {
           ["return"]=>
-          array(2) {
+          array(3) {
             ["arguments"]=>
             array(1) {
               ["foo"]=>
@@ -110,6 +110,13 @@ array(2) {
                 }
               }
             }
+            ["throwable"]=>
+            array(2) {
+              ["type"]=>
+              string(9) "Exception"
+              ["message"]=>
+              string(4) "test"
+            }
           }
         }
         ["probe"]=>
@@ -124,13 +131,9 @@ array(2) {
         }
       }
     }
-    ["message"]=>
-    NULL
-    ["process_tags"]=>
-    NULL
   }
   [1]=>
-  array(6) {
+  array(4) {
     ["service"]=>
     string(24) "exception-replay_001.php"
     ["ddsource"]=>
@@ -147,16 +150,16 @@ array(2) {
         string(36) "%s"
         ["timestamp"]=>
         int(%d)
-        ["exceptionCaptureId"]=>
+        ["exceptionId"]=>
         string(36) "%s"
         ["exceptionHash"]=>
         string(16) "0547bb1d4e434257"
         ["frameIndex"]=>
-        int(1)
+        string(1) "1"
         ["captures"]=>
         array(1) {
           ["return"]=>
-          &array(1) {
+          &array(2) {
             ["locals"]=>
             array(8) {
               ["_COOKIE"]=>
@@ -219,6 +222,13 @@ array(2) {
                 string(1) "1"
               }
             }
+            ["throwable"]=>
+            array(2) {
+              ["type"]=>
+              string(9) "Exception"
+              ["message"]=>
+              string(4) "test"
+            }
           }
         }
         ["probe"]=>
@@ -231,9 +241,5 @@ array(2) {
         }
       }
     }
-    ["message"]=>
-    NULL
-    ["process_tags"]=>
-    NULL
   }
 }

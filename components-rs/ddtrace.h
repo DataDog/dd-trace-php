@@ -108,7 +108,8 @@ void ddog_init_remote_config(bool live_debugging_enabled,
                              bool appsec_activation,
                              bool appsec_config);
 
-struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint);
+struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
+                                                             bool di_enabled);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
@@ -134,6 +135,14 @@ bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remo
 
 void ddog_setup_remote_config(ddog_DynamicConfigUpdate update_config,
                               const struct ddog_LiveDebuggerSetup *setup);
+
+/**
+ * Enable or disable dynamic instrumentation.
+ * When disabling: all installed probe hooks are removed (but kept in `active` for reinstallation).
+ * When enabling: all probes in `active` that have no installed hook are (re-)installed.
+ */
+void ddog_set_dynamic_instrumentation_enabled(struct ddog_RemoteConfigState *remote_config,
+                                              bool enabled);
 
 void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 

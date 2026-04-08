@@ -1675,7 +1675,7 @@ static void dd_initialize_request(void) {
     DDTRACE_G(request_initialized) = true;
 
     if (!DDTRACE_G(remote_config_state) && ddtrace_endpoint) {
-        DDTRACE_G(remote_config_state) = ddog_init_remote_config_state(ddtrace_endpoint);
+        DDTRACE_G(remote_config_state) = ddog_init_remote_config_state(ddtrace_endpoint, get_DD_DYNAMIC_INSTRUMENTATION_ENABLED());
     }
 
     // We need to init RC for the sidecar to write to it immediately
