@@ -1,0 +1,16 @@
+diff --git a/.gitlab/generate-appsec.php b/.gitlab/generate-appsec.php
+index cd8ef347a..cf729d887 100644
+--- a/.gitlab/generate-appsec.php
++++ b/.gitlab/generate-appsec.php
+@@ -71,8 +71,9 @@ stages:
+   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
+   variables:
+     KUBERNETES_CPU_REQUEST: 3
+-    KUBERNETES_MEMORY_REQUEST: 4Gi
+-    KUBERNETES_MEMORY_LIMIT: 4Gi
++    KUBERNETES_CPU_LIMIT: 3
++    KUBERNETES_MEMORY_REQUEST: 6Gi
++    KUBERNETES_MEMORY_LIMIT: 6Gi
+   parallel:
+     matrix:
+       - PHP_MAJOR_MINOR: *all_minor_major_targets

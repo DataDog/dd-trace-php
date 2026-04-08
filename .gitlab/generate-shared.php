@@ -158,7 +158,7 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
 <?php if ($switch_php_version == "debug-zts-asan"): ?>
-    ASAN_OPTIONS: "suppressions=${CI_PROJECT_DIR}/tests/asan/suppress_sandbox_observer.txt"
+    ASAN_OPTIONS: "detect_stack_use_after_return=0"
 <?php endif; ?>
   needs:
     - job: "Build & Test Tea"
