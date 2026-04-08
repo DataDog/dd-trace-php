@@ -218,7 +218,7 @@ cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
     PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
-    ln -sf ../lib/llvm17/bin/clang /usr/bin/clang
+    ln -sf ../lib/llvm19/bin/clang /usr/bin/clang
 fi
 (cd profiling && CARGO_TARGET_DIR=${HOME_DIR}/tmp/build_profiler cargo build --profile profiler-release)
 cp ${HOME_DIR}/tmp/build_profiler/profiler-release/libdatadog_php_profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"

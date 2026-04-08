@@ -214,7 +214,7 @@ RUN yum install -y --nogpgcheck devtoolset-9 \
   && git clone --depth 1 -b release/19.x https://github.com/llvm/llvm-project.git \
   && mkdir -vp llvm-project/build \
   && cd llvm-project/build \
-  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF -DCLANG_BUILD_TOOLS=OFF -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON ../llvm \
+  && cmake -G Ninja -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_BINDINGS=OFF -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON ../llvm \
   && cmake --build . --parallel $(nproc) --target "install/strip" \
   && rm -f /usr/local/lib/libclang*.a /usr/local/lib/libLLVM*.a \
   && rm -rf /usr/local/include/llvm /usr/local/include/clang \
