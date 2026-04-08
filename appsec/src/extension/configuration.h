@@ -116,7 +116,7 @@ typedef enum { DD_CONFIGURATION } dd_config_id;
         zai_config_memoized_entries[DDAPPSEC_CONFIG_##name].decoded_value)
 #define CONFIG(type, name, ...)                                                \
     type(get_##name, *zai_config_get_value(DDAPPSEC_CONFIG_##name))            \
-        SYSCFG(type, name)
+        SYSCFG(type, name, __VA_ARGS__)
 DD_CONFIGURATION
 #undef CONFIG
 #undef SYSCFG
