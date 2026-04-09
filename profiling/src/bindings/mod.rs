@@ -415,9 +415,9 @@ extern "C" {
 /// run_time_cache is not available on this function type.
 /// Slot 0 = function name ThinStr raw pointer, slot 1 = file ThinStr raw pointer.
 pub unsafe fn ddog_php_prof_function_run_time_cache(
-    func: &zend_function,
-) -> Option<&mut [usize; 2]> {
-    let ptr = ffi::ddog_php_prof_function_run_time_cache(func as *const _);
+    func: *const zend_function,
+) -> Option<&'static mut [usize; 2]> {
+    let ptr = ffi::ddog_php_prof_function_run_time_cache(func);
     (!ptr.is_null()).then(|| &mut *(ptr as *mut [usize; 2]))
 }
 
