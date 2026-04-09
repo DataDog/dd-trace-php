@@ -336,9 +336,10 @@ fn read_or_fallback(func: &zend_function) -> IrFunction {
     {
         let string_cache = unsafe { module_globals::get_string_cache() };
         if let Ok(mut string_set) = string_cache.try_borrow_mut() {
-            if let Some(slots) = unsafe { ddog_php_prof_function_run_time_cache(func as *const _) } {
+            let slots = unsafe { ddog_php_prof_function_run_time_cache(func as *const _) };
+            if !slots.is_null() {
                 let mut cache = StringCache {
-                    cache_slots: slots,
+                    cache_slots: unsafe { &mut *slots },
                     string_set: &mut *string_set,
                 };
                 let name = cache
@@ -350,10 +351,8 @@ fn read_or_fallback(func: &zend_function) -> IrFunction {
                             return None;
                         }
                         let bytes = unsafe {
-                            crate::bindings::zai_str_from_zstr(
-                                func.op_array.filename.as_mut(),
-                            )
-                            .as_bytes()
+                            crate::bindings::zai_str_from_zstr(func.op_array.filename.as_mut())
+                                .as_bytes()
                         };
                         if bytes.is_empty() {
                             None
