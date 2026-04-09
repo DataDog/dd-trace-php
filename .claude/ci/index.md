@@ -179,7 +179,7 @@ curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" \
   "https://gitlab.ddbuild.io/api/v4/projects/355/jobs/<JOB_ID>/trace"
 ```
 
-### Monitoring a pipeline
+### Checking CI (Gitlab)
 
 Use `.claude/ci/check-ci` to follow a pipeline until all jobs complete.
 
@@ -192,7 +192,7 @@ Exit codes: 0 = all passed, 1 = failures or threshold reached.
 
 #### Invocation pattern
 
-Available options: `--commit <ref>`, `--pipeline <id>`,
+Available options: `--commit <ref>` OR `--pipeline <id>`,
 `--discovery-timeout <s>` (default 60), `--poll-interval <s>` (default 60),
 `--max-failures <n>` (default 50), `--timeout <s>` (default 7200 = 2 h),
 `--list-jobs` (see below).
@@ -204,9 +204,7 @@ immediately — does not monitor or download logs. Useful for a quick
 snapshot of what ran and what failed:
 
 ```bash
-export GITLAB_PERSONAL_ACCESS_TOKEN=$(jq -r \
-  '.mcpServers.gitlab.env.GITLAB_PERSONAL_ACCESS_TOKEN' ~/.claude.json)
-PYTHONUNBUFFERED=1 .claude/ci/check-ci --pipeline <id> --list-jobs
+.claude/ci/check-ci --commit HEAD --list-jobs
 ```
 
 Output format:
@@ -217,6 +215,11 @@ Pipeline 105413994 (status: failed):
   success   compile extension: debug [8.3]
   ...
 ```
+
+#### Monitor CI
+
+If --list-jobs is not passed, check-ci will run until all monitored pipelines
+finish, until a timeout, or until the maximum number of failures is reached.
 
 **Step 1 — Start check-ci in the background (Bash tool,
 `run_in_background: true`):**
@@ -234,54 +237,50 @@ Output is being written to: /path/to/tasks/<id>.output
 ```
 Note that path — it is the output file for the next step.
 
-**Step 2 — Launch a Haiku agent IN THE FOREGROUND (not backgrounded) with
-this prompt, substituting the actual output-file path.**
+**Step 2 — Run ci-watch in the background (Bash tool,
+`run_in_background: true`):**
 
-**Do NOT read or poll the output file yourself — all monitoring must happen
-inside the Haiku subagent.**
-
-```
-Monitor the CI output file OUTPUT_FILE and report when there is
-something to act on.
-
-Loop with ~60 s sleeps. Each iteration, run TWO Bash commands:
-
-1. grep "FAILED:" OUTPUT_FILE
-2. grep -E "All pipelines completed|Stopping script after maximum" OUTPUT_FILE
-
-After EACH iteration, check the grep results (do NOT skip to the
-next sleep). Exit as soon as ONE condition is met:
-
-- If grep 1 found matches: exit immediately. Return ALL the
-  FAILED: lines. Do NOT wait for more failures.
-- If grep 2 found a match: return that line (it has the final
-  passed/failed counts).
-
-Before exiting, call the speak_when_done MCP tool:
-- "All CI jobs passed" if the final-status line shows failed=0.
-- "<N> CI jobs failed" otherwise.
-
-If you exit due to FAILED: lines and grep 2 had no match, say
-the script is still running so the main agent knows to come back.
+```bash
+.claude/ci/ci-watch [--start-offset N] OUTPUT_FILE
 ```
 
-**Step 3 — Main agent acts on the result**
+`ci-watch` tails the output file and exits when there is something to
+act on. Run it with `run_in_background: true` — you will be notified
+when it completes. While it runs, you can do other work.
 
-When the Haiku agent returns, you (the main agent) decide what to do:
+Exit codes:
+- 0 — all pipelines completed (no failures)
+- 1 — one or more FAILED: lines detected
+- 2 — stale: no new output for 5 minutes
+- 3 — check-ci timed out
+
+On exit, ci-watch always prints `RESUME_OFFSET: <N>`. Record this
+value — pass it as `--start-offset N` when re-running ci-watch to
+skip already-processed content and wait for further failures.
+
+When ci-watch completes, immediately call the `speak_when_done` MCP tool:
+- "All CI jobs passed" if exit 0.
+- "<N> CI jobs failed" if exit 1 (count is
+  `grep "^FAILED:" OUTPUT_FILE | wc -l`).
+- "CI monitor timed out" if exit 2 or 3.
+
+**Step 3 — Act on the result**
+
+Choose mong these actions, as appropriate:
 
 - **Just report:** summarise the result to the user and stop.
-- **Investigate failures:** read `fail_logs/<job_id>.log` under the output
-  directory for each failed job and diagnose the root cause. Once done,
-  check again the file with the list of failures -- maybe new ones were
-  reported in the interim and investigate them or just move to the next step
-  (kill the script).
-- **Kill the script:** if `check-ci` is still running and you want to stop
-  monitoring, kill it by its PID (noted from Step 1).
-- **Push fixes**: if a) the user asked you to (NOT OTHERWISE), AND b) you have
-  made changes to fix the CI failures AND c) the current branch has an upstream
-  branch, then commit and push. Then go back to step one. If any of the three
-  preconditions don't match, stop and report the results (and your findings, if
-  any).
+- **Investigate failures:** read `fail_logs/<job_id>.log` under the
+  output directory for each failed job and diagnose the root cause.
+- **Wait for more failures:** if check-ci is still running and you want
+  to keep watching after investigating, re-run ci-watch with
+  `--start-offset <RESUME_OFFSET>` (back to Step 2).
+- **Kill check-ci:** if you want to stop monitoring entirely, kill it
+  by its task ID or PID (noted from Step 1).
+- **Push fixes**: if a) the user asked you to (NOT OTHERWISE), AND b)
+  you have made changes to fix the CI failures AND c) the current
+  branch has an upstream branch, then commit and push. Then go back to
+  Step 1. If any of the three preconditions don't match, stop and
+  report the results (and your findings, if any).
 
 ### Downloading artifacts
 
