@@ -19,20 +19,24 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSIO
         OUTPUT_VARIABLE LLVM_RUNTIME_DIR
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+    # Newer clang versions return a per-target path (e.g. .../lib/x86_64-pc-linux-gnu) but
+    # Debian/Ubuntu packages install runtime libs in the sibling "linux" directory.
+    get_filename_component(LLVM_RUNTIME_PARENT "${LLVM_RUNTIME_DIR}" DIRECTORY)
+    set(LLVM_RUNTIME_LINUX_DIR "${LLVM_RUNTIME_PARENT}/linux")
 
     execute_process(COMMAND uname -m COMMAND tr -d '\n' OUTPUT_VARIABLE ARCHITECTURE)
     target_compile_definitions(ddappsec_helper_fuzzer PUBLIC ZLIB_CONST=1)
-    target_link_directories(ddappsec_helper_fuzzer PRIVATE ${LLVM_RUNTIME_DIR})
+    target_link_directories(ddappsec_helper_fuzzer PRIVATE ${LLVM_RUNTIME_DIR} ${LLVM_RUNTIME_LINUX_DIR})
     target_link_libraries(ddappsec_helper_fuzzer PRIVATE
         libddwaf_objects pthread spdlog cpp-base64 msgpack_c rapidjson_appsec
         boost_system zlibstatic)
 
     set(FUZZER_LIB_NAME "libclang_rt.fuzzer_no_main-${ARCHITECTURE}.a")
-    find_library(FUZZER_LIB ${FUZZER_LIB_NAME} PATHS ${LLVM_RUNTIME_DIR})
+    find_library(FUZZER_LIB ${FUZZER_LIB_NAME} PATHS ${LLVM_RUNTIME_DIR} ${LLVM_RUNTIME_LINUX_DIR})
 
     if(NOT FUZZER_LIB)
         set(FUZZER_LIB_NAME_FALLBACK "libclang_rt.fuzzer_no_main.a")
-        find_library(FUZZER_LIB ${FUZZER_LIB_NAME_FALLBACK} PATHS ${LLVM_RUNTIME_DIR})
+        find_library(FUZZER_LIB ${FUZZER_LIB_NAME_FALLBACK} PATHS ${LLVM_RUNTIME_DIR} ${LLVM_RUNTIME_LINUX_DIR})
     endif()
 
     if(NOT FUZZER_LIB)
