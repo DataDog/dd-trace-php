@@ -34,7 +34,7 @@ CentOS:
         - php-7.0
   script:
     - cd dockerfiles/ci/centos/7
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Alpine:
@@ -63,7 +63,7 @@ Alpine:
         - 7.0-alpine
   script:
     - cd dockerfiles/ci/alpine_compile_extension
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Bookworm:
@@ -94,7 +94,7 @@ Bookworm:
         - php-7.0
   script:
     - cd dockerfiles/ci/bookworm
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Buster:
@@ -125,5 +125,5 @@ Buster:
         - php-7.0
   script:
     - cd dockerfiles/ci/buster
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION

@@ -43,7 +43,7 @@ foreach ($profiler_minor_major_targets as $version) {
         IMAGE_SUFFIX: _centos-7
   script:
     - if [ -d '/opt/rh/devtoolset-7' ]; then set +eo pipefail; source scl_source enable devtoolset-7; set -eo pipefail; fi
-    - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm17/bin/clang /usr/bin/clang; fi
+    - if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then ln -sf ../lib/llvm19/bin/clang /usr/bin/clang; fi
     - if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"; fi
 
     - cd profiling
@@ -83,7 +83,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "clippy NTS":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -102,7 +102,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "Cargo test":
   stage: test
   tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.5_bookworm-5
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.5_bookworm-7
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
