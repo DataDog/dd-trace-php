@@ -11,7 +11,7 @@
 #endif
 #include "SAPI.h"
 
-#if CFG_STACK_WALKING_TESTS
+#if CFG_TEST
 #include <dlfcn.h> // for dlsym
 #endif
 
@@ -21,7 +21,7 @@ static int _op_array_reserved_slot = -1;
 static zend_string *_opcache_enable_key = NULL;
 static zend_string *_opcache_enable_cli_key = NULL;
 static zend_string *_opcache_file_cache_key = NULL;
-#if CFG_STACK_WALKING_TESTS || CFG_TEST
+#if CFG_TEST
 static int _opcache_enabled_override = -1;
 static int _opcache_file_cache_enabled_override = -1;
 #endif
@@ -278,12 +278,6 @@ static int _user_run_time_cache_handle = -1;
 static int _internal_run_time_cache_handle = -1;
 #endif
 
-#ifdef ZTS
-static pthread_mutex_t _runtime_interner_strings_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_mutex_t _runtime_interner_functions_lock = PTHREAD_MUTEX_INITIALIZER;
-#define DDOG_RUNTIME_INTERNER_LOCK_SPIN_ATTEMPTS 8
-#endif
-
 #endif
 
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
@@ -293,13 +287,13 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
         zend_get_op_array_extension_handle(module_name);
 #else
     _user_run_time_cache_handle =
-        zend_get_op_array_extension_handles(module_name, 1);
+        zend_get_op_array_extension_handles(module_name, 2);
 
 #if PHP_VERSION_ID >= 80400
     // On PHP 8.4+, the internal cache slots need to be registered separately
     // from the user ones.
     _internal_run_time_cache_handle =
-        zend_get_internal_function_extension_handles(module_name, 1);
+        zend_get_internal_function_extension_handles(module_name, 2);
 #endif
 
 #endif
@@ -315,7 +309,7 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 }
 
 // defined by build.rs
-#if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
+#if CFG_RUN_TIME_CACHE
 static bool has_invalid_run_time_cache(zend_function const *func) {
     bool inv_user_handle = _user_run_time_cache_handle < 0;
 
@@ -359,7 +353,7 @@ static bool has_invalid_run_time_cache(zend_function const *func) {
 #endif
 
 uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
-#if CFG_RUN_TIME_CACHE && !CFG_STACK_WALKING_TESTS
+#if CFG_RUN_TIME_CACHE
     if (UNEXPECTED(has_invalid_run_time_cache(func))) return NULL;
 
 #if PHP_VERSION_ID < 80200
@@ -395,97 +389,7 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 #endif
 }
 
-#if CFG_STACK_WALKING_TESTS
-uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
-#if CFG_RUN_TIME_CACHE
-    zend_function *non_const_func = (zend_function *)func;
-#if PHP_VERSION_ID < 80200
-    if (non_const_func->op_array.run_time_cache__ptr == NULL) {
-        non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->op_array.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-    }
-    return (uintptr_t *)*non_const_func->op_array.run_time_cache__ptr;
-#else
-    if (non_const_func->common.run_time_cache__ptr == NULL) {
-        non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-        *non_const_func->common.run_time_cache__ptr = calloc(1, sizeof(uintptr_t));
-    }
-    return (uintptr_t *)*non_const_func->common.run_time_cache__ptr;
-#endif
-#else
-    (void)func;
-    return NULL;
-#endif
-}
-#endif
-
-#if CFG_RUN_TIME_CACHE
-#ifdef ZTS
-static bool ddog_php_prof_runtime_interner_try_lock(pthread_mutex_t *lock) {
-    for (unsigned attempts = 0; attempts < DDOG_RUNTIME_INTERNER_LOCK_SPIN_ATTEMPTS; attempts++) {
-        int result = pthread_mutex_trylock(lock);
-        if (result == 0) {
-            return true;
-        }
-        if (result != EBUSY) {
-            return false;
-        }
-    }
-    return false;
-}
-#endif
-
-bool ddog_php_prof_try_runtime_interner_strings_lock(void) {
-#ifdef ZTS
-    return ddog_php_prof_runtime_interner_try_lock(&_runtime_interner_strings_lock);
-#else
-    return true;
-#endif
-}
-
-void ddog_php_prof_runtime_interner_strings_unlock(void) {
-#ifdef ZTS
-    pthread_mutex_unlock(&_runtime_interner_strings_lock);
-#endif
-}
-
-bool ddog_php_prof_try_runtime_interner_functions_lock(void) {
-#ifdef ZTS
-    return ddog_php_prof_runtime_interner_try_lock(&_runtime_interner_functions_lock);
-#else
-    return true;
-#endif
-}
-
-void ddog_php_prof_runtime_interner_functions_unlock(void) {
-#ifdef ZTS
-    pthread_mutex_unlock(&_runtime_interner_functions_lock);
-#endif
-}
-
-void ddog_php_prof_runtime_interner_lock_prepare_fork(void) {
-#ifdef ZTS
-    pthread_mutex_lock(&_runtime_interner_strings_lock);
-    pthread_mutex_lock(&_runtime_interner_functions_lock);
-#endif
-}
-
-void ddog_php_prof_runtime_interner_lock_post_fork_parent(void) {
-#ifdef ZTS
-    pthread_mutex_unlock(&_runtime_interner_functions_lock);
-    pthread_mutex_unlock(&_runtime_interner_strings_lock);
-#endif
-}
-
-void ddog_php_prof_runtime_interner_lock_post_fork_child(void) {
-#ifdef ZTS
-    pthread_mutex_unlock(&_runtime_interner_functions_lock);
-    pthread_mutex_unlock(&_runtime_interner_strings_lock);
-#endif
-}
-#endif
-
-#if CFG_STACK_WALKING_TESTS || defined(CFG_TEST)
+#if CFG_TEST
 static int (*og_snprintf)(char *, size_t, const char *, ...);
 
 static ZEND_COLD ZEND_NORETURN void out_of_memory(void) {
@@ -608,32 +512,6 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
     free(execute_data);
 }
 
-zend_function *ddog_php_test_create_fake_zend_function_with_name_len(size_t len) {
-    zend_op_array *op_array = calloc(1, sizeof(zend_function));
-    if (!op_array) return NULL;
-
-    op_array->type = ZEND_USER_FUNCTION;
-
-    if (len > 0) {
-        zend_string *zstr = test_zend_string_alloc(len);
-        memset(ZSTR_VAL(zstr), 'x', len);
-        op_array->function_name = zstr;
-    }
-
-    return (zend_function *)op_array;
-}
-
-void ddog_php_test_free_fake_zend_function(zend_function *func) {
-    if (!func) return;
-
-    free(func->common.function_name);
-    free(func);
-}
-
-void ddog_php_test_set_op_array_reserved_slot(int slot) {
-    _op_array_reserved_slot = slot;
-}
-
 void ddog_php_test_set_opcache_enabled(int enabled) {
     _opcache_enabled_override = enabled;
 }
@@ -645,7 +523,7 @@ void ddog_php_test_set_opcache_file_cache_enabled(int enabled) {
 // Stub for zend_flf_functions (PHP 8.4+ frameless calls) to allow tests to link
 // without the real PHP runtime. The test doesn't exercise frameless code paths.
 __attribute__((weak)) zend_function **zend_flf_functions;
-#endif // CFG_STACK_WALKING_TESTS || CFG_TEST
+#endif // CFG_TEST
 
 void *opcache_handle = NULL;
 
@@ -707,7 +585,7 @@ static zend_string *active_ini_get(zend_string *key) {
         return NULL;
     }
 
-#if CFG_STACK_WALKING_TESTS || CFG_TEST
+#if CFG_TEST
     (void)key;
     return NULL;
 #elif PHP_VERSION_ID >= 70300
@@ -769,7 +647,7 @@ static bool ddog_php_prof_ini_file_cache_enabled(zend_string *value) {
 }
 
 bool ddog_php_prof_opcache_file_cache_enabled(void) {
-#if CFG_STACK_WALKING_TESTS || CFG_TEST
+#if CFG_TEST
     if (_opcache_file_cache_enabled_override >= 0) {
         return _opcache_file_cache_enabled_override != 0;
     }
@@ -781,7 +659,7 @@ void ddog_php_prof_refresh_request_opcache_policy(void) {
     bool opcache_enabled;
     bool file_cache_enabled;
 
-#if CFG_STACK_WALKING_TESTS || CFG_TEST
+#if CFG_TEST
     if (_opcache_enabled_override >= 0 || _opcache_file_cache_enabled_override >= 0) {
         opcache_enabled = _opcache_enabled_override < 0 || _opcache_enabled_override != 0;
         file_cache_enabled =

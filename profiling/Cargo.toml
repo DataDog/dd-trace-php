@@ -66,7 +66,6 @@ harness = false
 default = ["io_profiling"]
 debug_stats = []
 io_profiling = []
-stack_walking_tests = []
 test = []
 
 # Not for prod:
@@ -80,5 +79,3 @@ cc = { version = "1.0" }
 
 # profiling release options in root Cargo.toml
 
-[lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(stack_walking_tests)'] }

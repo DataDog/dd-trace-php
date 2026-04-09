@@ -8,6 +8,11 @@ use crate::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 use crate::allocation::allocation_le83::ZendMMState;
 
+#[cfg(php_run_time_cache)]
+use crate::string_set::StringSet;
+#[cfg(php_run_time_cache)]
+use core::cell::RefCell;
+
 #[repr(C)]
 pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
@@ -18,6 +23,10 @@ pub struct ProfilerGlobals {
     pub opcache_file_cache_enabled: Cell<bool>,
     pub cli_opcache_enable_initialized: Cell<bool>,
     pub cli_opcache_enable: Cell<bool>,
+    /// Per-worker string intern arena. Valid only between GINIT and GSHUTDOWN.
+    /// Only present when runtime cache slots are available (PHP ≥ 8.0).
+    #[cfg(php_run_time_cache)]
+    pub string_cache: RefCell<StringSet>,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -28,18 +37,13 @@ pub struct ProfilerGlobals {
 #[cfg(php_zts)]
 pub static mut GLOBALS_ID: i32 = 0;
 
-/// Module globals for NTS builds. In NTS mode, PHP uses this static directly.
-/// The `globals_ctor` function will re-initialize this (though it's already
-/// initialized here).
+/// Module globals for NTS builds. PHP uses this static directly and will
+/// pass a pointer to it in `globals_ctor`/`globals_dtor`. Using
+/// `MaybeUninit` avoids the need for const-constructible initializers for
+/// all fields (e.g. `RefCell<StringSet>` is not const-constructible).
 #[cfg(not(php_zts))]
-pub static mut GLOBALS: ProfilerGlobals = ProfilerGlobals {
-    zend_mm_state: Cell::new(ZendMMState::new()),
-    opcache_policy_initialized: Cell::new(false),
-    opcache_enabled: Cell::new(false),
-    opcache_file_cache_enabled: Cell::new(false),
-    cli_opcache_enable_initialized: Cell::new(false),
-    cli_opcache_enable: Cell::new(false),
-};
+pub static mut GLOBALS: core::mem::MaybeUninit<ProfilerGlobals> =
+    core::mem::MaybeUninit::uninit();
 
 #[cfg(php_zts)]
 mod zts {
@@ -82,8 +86,19 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
 
     #[cfg(not(php_zts))]
     {
-        ptr::addr_of_mut!(GLOBALS)
+        // MaybeUninit<T> has the same layout as T; valid after GINIT.
+        ptr::addr_of_mut!(GLOBALS).cast::<ProfilerGlobals>()
     }
+}
+
+/// Returns the per-worker string cache for borrowing.
+///
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
+#[cfg(php_run_time_cache)]
+#[inline]
+pub unsafe fn get_string_cache() -> &'static RefCell<StringSet> {
+    &(&*get_profiler_globals()).string_cache
 }
 
 #[inline]
@@ -156,18 +171,21 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
-    // this was already done in its const initializer.
-    #[cfg(php_zts)]
-    {
-        let globals = _globals_ptr.cast::<ProfilerGlobals>();
-        (*globals).zend_mm_state = Cell::new(ZendMMState::new());
-        (*globals).opcache_policy_initialized = Cell::new(false);
-        (*globals).opcache_enabled = Cell::new(false);
-        (*globals).opcache_file_cache_enabled = Cell::new(false);
-        (*globals).cli_opcache_enable_initialized = Cell::new(false);
-        (*globals).cli_opcache_enable = Cell::new(false);
-    }
+    // Initialize all fields unconditionally (NTS and ZTS). Using ptr::write avoids
+    // running drop on the uninitialized memory provided by PHP.
+    ptr::write(
+        _globals_ptr.cast::<ProfilerGlobals>(),
+        ProfilerGlobals {
+            zend_mm_state: Cell::new(ZendMMState::new()),
+            opcache_policy_initialized: Cell::new(false),
+            opcache_enabled: Cell::new(false),
+            opcache_file_cache_enabled: Cell::new(false),
+            cli_opcache_enable_initialized: Cell::new(false),
+            cli_opcache_enable: Cell::new(false),
+            #[cfg(php_run_time_cache)]
+            string_cache: RefCell::new(StringSet::new()),
+        },
+    );
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
     allocation::ginit();
@@ -182,9 +200,8 @@ pub unsafe extern "C" fn gshutdown(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_gshutdown();
 
-    // TODO: Florian, do we need this?
-    // let globals = globals_ptr.cast::<ProfilerGlobals>();
-    // (*globals).zend_mm_state = ZendMMState::new();
+    // Drop all fields in place (e.g. StringSet's arena allocation).
+    ptr::drop_in_place(_globals_ptr.cast::<ProfilerGlobals>());
 
     // SAFETY: this is called in thread gshutdown as expected, no other places.
     allocation::gshutdown();

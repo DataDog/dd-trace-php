@@ -352,14 +352,6 @@ extern "C" {
     /// module init or extension startup.
     pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
 
-    pub fn ddog_php_prof_try_runtime_interner_strings_lock() -> bool;
-    pub fn ddog_php_prof_runtime_interner_strings_unlock();
-    pub fn ddog_php_prof_try_runtime_interner_functions_lock() -> bool;
-    pub fn ddog_php_prof_runtime_interner_functions_unlock();
-    pub fn ddog_php_prof_runtime_interner_lock_prepare_fork();
-    pub fn ddog_php_prof_runtime_interner_lock_post_fork_parent();
-    pub fn ddog_php_prof_runtime_interner_lock_post_fork_child();
-
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
     pub fn ddog_php_prof_php_version_id() -> u32;
@@ -417,32 +409,16 @@ extern "C" {
     pub fn ddog_php_prof_intern_all_functions();
 }
 
-/// Gets the address of a function's single run_time_cache slot. May return
+/// Gets the address of a function's 2-slot run_time_cache region. May return
 /// None if it detects incomplete initialization, which is always a bug but
 /// none-the-less has been seen in the wild. It may also return None if the
 /// run_time_cache is not available on this function type.
-#[cfg(not(feature = "stack_walking_tests"))]
+/// Slot 0 = function name ThinStr raw pointer, slot 1 = file ThinStr raw pointer.
 pub unsafe fn ddog_php_prof_function_run_time_cache(
     func: &zend_function,
-) -> Option<&mut [usize; 1]> {
+) -> Option<&mut [usize; 2]> {
     let ptr = ffi::ddog_php_prof_function_run_time_cache(func as *const _);
-    (!ptr.is_null()).then(|| &mut *(ptr as *mut [usize; 1]))
-}
-
-// Test-only mock for stack walking tests.
-#[cfg(feature = "stack_walking_tests")]
-extern "C" {
-    #[link_name = "ddog_test_php_prof_function_run_time_cache"]
-    fn raw_ddog_test_php_prof_function_run_time_cache(func: *const zend_function) -> *mut usize;
-}
-
-/// Test-only mock for stack walking tests.
-#[cfg(feature = "stack_walking_tests")]
-pub unsafe fn ddog_test_php_prof_function_run_time_cache(
-    func: &zend_function,
-) -> Option<&mut [usize; 1]> {
-    let ptr = raw_ddog_test_php_prof_function_run_time_cache(func as *const _);
-    (!ptr.is_null()).then(|| &mut *(ptr as *mut [usize; 1]))
+    (!ptr.is_null()).then(|| &mut *(ptr as *mut [usize; 2]))
 }
 
 #[cfg(php_post_startup_cb)]

@@ -180,23 +180,6 @@ void ddog_php_prof_function_run_time_cache_init(const char *module_name);
  */
 uintptr_t *ddog_php_prof_function_run_time_cache(const zend_function *func);
 
-#if CFG_STACK_WALKING_TESTS
-uintptr_t *ddog_test_php_prof_function_run_time_cache(const zend_function *func);
-#endif
-
-/**
- * Acquires/releases the profiler's ZTS-only process-local runtime interning
- * locks. The try-lock variants use a brief bounded retry loop and return false
- * if contended.
- */
-bool ddog_php_prof_try_runtime_interner_strings_lock(void);
-void ddog_php_prof_runtime_interner_strings_unlock(void);
-bool ddog_php_prof_try_runtime_interner_functions_lock(void);
-void ddog_php_prof_runtime_interner_functions_unlock(void);
-void ddog_php_prof_runtime_interner_lock_prepare_fork(void);
-void ddog_php_prof_runtime_interner_lock_post_fork_parent(void);
-void ddog_php_prof_runtime_interner_lock_post_fork_child(void);
-
 /**
  * Detects if the current thread is a parallel extension thread.
  * Returns true if the thread was spawned by the parallel extension.

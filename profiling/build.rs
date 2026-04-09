@@ -147,12 +147,6 @@ fn build_zend_php_ffis(
     let trigger_time_sample = if trigger_time_sample { "1" } else { "0" };
     let zend_error_observer = if zend_error_observer { "1" } else { "0" };
 
-    #[cfg(feature = "stack_walking_tests")]
-    let stack_walking_tests = "1";
-
-    #[cfg(not(feature = "stack_walking_tests"))]
-    let stack_walking_tests = "0";
-
     let mut build = cc::Build::new();
     build
         .files(files.into_iter().chain(zai_c_files))
@@ -160,7 +154,6 @@ fn build_zend_php_ffis(
         .define("CFG_PRELOAD", preload)
         .define("CFG_FIBERS", fibers)
         .define("CFG_RUN_TIME_CACHE", run_time_cache)
-        .define("CFG_STACK_WALKING_TESTS", stack_walking_tests)
         .define("CFG_TRIGGER_TIME_SAMPLE", trigger_time_sample)
         .define("CFG_ZEND_ERROR_OBSERVER", zend_error_observer)
         .includes([Path::new("../ext")])

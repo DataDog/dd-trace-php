@@ -7,6 +7,8 @@ pub mod module_globals;
 pub mod profiling;
 mod pthread;
 mod sapi;
+#[cfg(php_run_time_cache)]
+pub(crate) mod string_set;
 mod wall_time;
 
 #[macro_use]

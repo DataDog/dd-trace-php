@@ -1,5 +1,5 @@
 use crate::allocation::alloc_prof_rshutdown;
-use crate::{bindings, config, Profiler};
+use crate::{config, Profiler};
 use log::trace;
 
 pub(crate) fn startup() {
@@ -9,11 +9,6 @@ pub(crate) fn startup() {
 }
 
 extern "C" fn prepare() {
-    #[cfg(php_run_time_cache)]
-    unsafe {
-        bindings::ddog_php_prof_runtime_interner_lock_prepare_fork();
-    }
-
     // Hold mutexes across the handler. If there are any spurious wakeups by
     // the threads while the fork is occurring, they cannot acquire locks
     // since this thread holds them, preventing a deadlock situation.
@@ -24,11 +19,6 @@ extern "C" fn prepare() {
 }
 
 extern "C" fn parent() {
-    #[cfg(php_run_time_cache)]
-    unsafe {
-        bindings::ddog_php_prof_runtime_interner_lock_post_fork_parent();
-    }
-
     if let Some(profiler) = Profiler::get() {
         trace!("Re-enabling profiler in parent after fork call.");
         profiler.post_fork_parent();
@@ -36,11 +26,6 @@ extern "C" fn parent() {
 }
 
 unsafe extern "C" fn child() {
-    #[cfg(php_run_time_cache)]
-    unsafe {
-        bindings::ddog_php_prof_runtime_interner_lock_post_fork_child();
-    }
-
     if Profiler::get().is_none() {
         // No profiler, so nothing to do. This can happen in Apache forking SAPI, where Apache
         // would first go through MINIT phase and then fork(), so we'd observe the fork but there
