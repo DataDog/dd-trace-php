@@ -38,7 +38,7 @@ with columns `CI Job`, `Image`, `What it does`:
 | `appsec code coverage` | `dd-trace-ci:php-8.3_bookworm-6` | (not needed locally) |
 
 Runner: `arch:amd64` + `arch:arm64`
-Matrix: PHP 7.0--8.5 × {debug, debug-zts, debug-zts-asan (7.4+)}
+Matrix: PHP 7.0+ × {debug, debug-zts, debug-zts-asan (7.4+)}
 ```
 
 If there is only one source file, the single-line form is fine:

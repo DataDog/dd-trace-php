@@ -36,18 +36,18 @@ Runner: `arch:amd64` for all test jobs. Compile jobs also run on
 `arch:arm64`.
 
 Matrix:
-- **Non-ASAN jobs**: PHP 7.0--8.5, amd64 only.
-- **ASAN jobs**: PHP 7.4--8.5 x {amd64, arm64} for `ASAN test_c`;
-  PHP 7.4--8.5 amd64-only for other ASAN jobs. `ASAN test_c with
+- **Non-ASAN jobs**: PHP 7.0+, amd64 only.
+- **ASAN jobs**: PHP 7.4+ x {amd64, arm64} for `ASAN test_c`;
+  PHP 7.4+ amd64-only for other ASAN jobs. `ASAN test_c with
   multiple observers` is PHP 8.0+ only.
 - **xDebug tests**: specific (PHP, xdebug) version pairs; see the
   `$xdebug_test_matrix` array in `generate-tracer.php`. Xdebug is
   not yet supported on PHP 8.5.
-- **`test_distributed_tracing`**: PHP 7.0--8.5 x {cli-server,
+- **`test_distributed_tracing`**: PHP 7.0+ x {cli-server,
   cgi-fcgi}. The cgi-fcgi variant sets
   `DD_DISTRIBUTED_TRACING=false`.
 - **`test_auto_instrumentation`, `test_composer`, `test_integration`**:
-  PHP 7.0--8.5, amd64.
+  PHP 7.0+, amd64.
 
 ## Quick start: build once, run many
 

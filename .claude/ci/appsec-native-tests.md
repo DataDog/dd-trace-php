@@ -16,7 +16,7 @@ file.
 | `appsec code coverage` | `datadog/dd-trace-ci:php-8.3_bookworm-6` | Coverage instrumented build (not needed locally) |
 
 Runner: `arch:amd64` + `arch:arm64`
-Matrix: PHP 7.0--8.5 × {debug, debug-zts, debug-zts-asan (7.4+)}
+Matrix: PHP 7.0+ × {debug, debug-zts, debug-zts-asan (7.4+)}
 
 The `{arch}` dimension only controls the GitLab runner tag. It has no
 effect on the Docker image or commands run. On macOS (Apple Silicon),
@@ -38,8 +38,7 @@ source directory.  See [index.md](index.md) for how `--overlayfs` works.
 
 ### Full suite
 
-All commands are run from the repo root. Replace `8.3` with the desired
-PHP version (`7.0`--`8.5`) and `debug` with the desired variant
+All commands are run from the repo root. Replace `8.3` with the desired PHP version and `debug` with the desired variant
 (`debug`, `debug-zts`, `debug-zts-asan`).
 
 ```bash

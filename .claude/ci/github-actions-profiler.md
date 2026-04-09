@@ -15,8 +15,8 @@
 | `Profiling correctness / prof-correctness ({ver}, zts)` | `ubuntu-24.04` | Same + `exceptions_zts` (requires `parallel` PECL extension) |
 | `Profiling ASAN Tests / prof-asan ({ver}, {arch})` | `arm-8core-linux` / `ubuntu-8-core-latest` | Builds profiler with ASAN + runs `.phpt` profiling tests |
 
-Correctness matrix: PHP 8.0--8.5 × {nts, zts}.
-ASAN matrix: PHP {8.3, 8.4, 8.5} × {arm64, amd64}.
+Correctness matrix: PHP 8.0+ × {nts, zts}.
+ASAN matrix: PHP 8.3+ × {arm64, amd64}.
 
 ## What It Tests
 

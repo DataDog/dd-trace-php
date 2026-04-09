@@ -16,7 +16,7 @@ file.
 | `helper-rust integration coverage` | same | Integration coverage collection (not needed locally) |
 
 Runner: `docker-in-docker:amd64`
-Matrix: PHP 7.0--8.5 × release/debug/zts/musl/ssi (varies by job group)
+Matrix: PHP 7.0+ × release/debug/zts/musl/ssi (varies by job group)
 
 **Important:** `testX.Y-debug` are not gradle targets that are run on CI. They
 may, however, be useful for debugging.

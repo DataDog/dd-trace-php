@@ -36,7 +36,7 @@ in the `verify` stage of the **package-trigger** child pipeline and use native r
 
 **verify alpine:**
 Runner: `arch:amd64`
-Matrix: (Alpine 3.8--3.20 + latest with `php7`/`php` packages) + (`php:{ver}-fpm-alpine` for PHP 7.0--8.5)
+Matrix: (Alpine 3.8+ including latest, with `php7`/`php` packages) + (`php:{ver}-fpm-alpine` for PHP 7.0+)
 Install types: `php_installer` (uses `datadog-setup.php`) and `native_package` (uses `.apk`)
 
 **verify centos:**
@@ -45,7 +45,7 @@ Matrix: PHP 7.0--8.3 x {php_installer, native_package}
 
 **verify debian:**
 Runner: `arch:amd64`
-Matrix: PHP 7.0--8.5 x {php_installer, native_package} x {bullseye-slim, bookworm-slim}
+Matrix: PHP 7.0+ x {php_installer, native_package} x {bullseye-slim, bookworm-slim}
 
 **verify .tar.gz:**
 Runner: `arch:{amd64,arm64}` (amd64 tests PHP 7.0 package, arm64 tests PHP 8.1 package)
@@ -57,8 +57,8 @@ Runner: `arch:amd64`
 
 **Loader test on {arch} libc:**
 Runner: `arch:{amd64,arm64}`
-Matrix (amd64): PHP 5.6 (buster) + 7.0--7.3 (nts) + 7.4--8.5 (nts + zts, with valgrind)
-Matrix (arm64): PHP 7.0--7.3 (nts) + 7.4--8.5 (nts + zts)
+Matrix (amd64): PHP 5.6 (buster) + 7.0--7.3 (nts) + 7.4+ (nts + zts, with valgrind)
+Matrix (arm64): PHP 7.0--7.3 (nts) + 7.4+ (nts + zts)
 
 **Loader test on {arch} alpine:**
 Runner: `arch:{amd64,arm64}`
@@ -68,14 +68,14 @@ Runner: `arch:amd64`
 
 **pecl tests:**
 Runner: `arch:amd64`
-Matrix: PHP 7.0--8.5
+Matrix: PHP 7.0+
 
 **test early PHP 8.1:**
 Runner: `arch:amd64`
 
 **x-profiling phpt tests on Alpine:**
 Runner: `arch:amd64`
-Matrix: PHP 7.1--8.5
+Matrix: PHP 7.1+
 
 ## What It Tests
 

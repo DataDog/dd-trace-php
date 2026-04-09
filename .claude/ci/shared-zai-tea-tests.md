@@ -18,12 +18,12 @@ child pipeline; all job definitions and matrices are inline.
 Runner: `arch:amd64` (all jobs in this pipeline are amd64-only)
 
 Matrix:
-- **Build & Test Tea**: PHP 7.0--8.5 x {debug, debug-zts-asan (7.4+),
+- **Build & Test Tea**: PHP 7.0+ x {debug, debug-zts-asan (7.4+),
   nts, zts}. Pre-7.4 versions skip `debug-zts-asan` and use
   `debug-zts` instead.
 - **ZAI Tests**: same matrix as TEA, plus UBSAN toolchain for `debug`
   variant on PHP 7.4+.
-- **Extension Tea Tests**: PHP 7.0--8.5 x {debug, debug-zts-asan
+- **Extension Tea Tests**: PHP 7.0+ x {debug, debug-zts-asan
   (7.4+), nts, zts}. Pre-7.4 skips `debug-zts-asan`.
 - **ZAI Shared Tests**: PHP 7.4, 8.0 only, `nts` variant only.
 - **C components ASAN**: three images (centos-7, alpine, bookworm-6);

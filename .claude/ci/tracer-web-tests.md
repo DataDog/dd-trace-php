@@ -7,7 +7,8 @@
   pipeline; the web test jobs are generated from `TEST_WEB_{XY}` lists in
   the `Makefile`, expanded by the PHP loop starting at the
   `foreach ($jobs as $type => $type_jobs)` block
-- `Makefile` -- defines `TEST_WEB_70` through `TEST_WEB_85` target lists
+- `Makefile` -- defines per-version `TEST_WEB_{XY}` target lists (where XY is
+  the PHP major+minor digits, e.g. `70` for PHP 7.0)
   and the individual `test_web_*` / `test_metrics` make targets
 - `.gitlab/generate-common.php` -- shared service definitions (test-agent,
   request-replayer, httpbin-integration, mysql)
@@ -31,7 +32,7 @@
 | `test_metrics: [{php}, {sapi}]` | same | Metrics integration tests |
 
 Runner: `arch:amd64`
-Matrix: PHP 7.0--8.5 (varies per framework) x SAPI {cli-server, cgi-fcgi, apache2handler}
+Matrix: PHP 7.0+ (varies per framework) x SAPI {cli-server, cgi-fcgi, apache2handler}
 (PHP >= 7.2 gets all three SAPIs; PHP 7.0--7.1 gets only a bare run without SAPI dimension.
 `test_web_custom` additionally gets `fpm-fcgi`.)
 
@@ -61,7 +62,7 @@ All web test jobs use four GitLab service containers:
 | Service | Image | Alias | Port | Purpose |
 |---------|-------|-------|------|---------|
 | test-agent | `ddapm-test-agent:v1.22.1` | `test-agent` | 9126 | Receives traces; validates snapshots |
-| request-replayer | `dd-trace-ci:php-request-replayer-2.0` | `request-replayer` | 80 | Replays HTTP requests for trace forwarding |
+| request-replayer | `dd-trace-ci:php-request-replayer-*` | `request-replayer` | 80 | Replays HTTP requests for trace forwarding |
 | httpbin | `kong/httpbin:0.2.2` | `httpbin-integration` | 80 | HTTP echo service for curl/guzzle tests |
 | mysql | `dd-trace-ci:php-mysql-dev-5.6` | `mysql-integration` | 3306 | MySQL for WordPress, Drupal, Magento, etc. |
 

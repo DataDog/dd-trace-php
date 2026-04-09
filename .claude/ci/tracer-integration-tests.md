@@ -7,8 +7,9 @@
   pipeline; integration test jobs are generated from `TEST_INTEGRATIONS_{XY}`
   lists in the `Makefile`, expanded by the PHP loop starting at the
   `foreach ($jobs as $type => $type_jobs)` block
-- `Makefile` -- defines `TEST_INTEGRATIONS_70` through `TEST_INTEGRATIONS_85`
-  target lists and the individual `test_integrations_*`, `test_opentelemetry_*`,
+- `Makefile` -- defines per-version `TEST_INTEGRATIONS_{XY}` (where XY is the
+  PHP major+minor digits, e.g. `70` for PHP 7.0) target lists and the
+  individual `test_integrations_*`, `test_opentelemetry_*`,
   `test_opentracing_*` make targets
 - `.gitlab/generate-common.php` -- shared service definitions (test-agent,
   request-replayer, httpbin, mysql, redis, memcache, amqp, mongodb, kafka,
@@ -45,7 +46,7 @@
 | `test_opentracing_10: [{php}]` | same | OpenTracing 1.0 bridge tests |
 
 Runner: `arch:amd64`
-Matrix: PHP 7.0--8.5 (varies per integration; see `TEST_INTEGRATIONS_{XY}` in Makefile)
+Matrix: PHP 7.0+ (varies per integration; see `TEST_INTEGRATIONS_{XY}` in Makefile)
 
 Stage: `integrations test`
 
@@ -74,7 +75,7 @@ substring.
 | Service | Image | Alias | Port | Purpose |
 |---------|-------|-------|------|---------|
 | test-agent | `ddapm-test-agent:v1.22.1` | `test-agent` | 9126 | Receives traces; validates snapshots |
-| request-replayer | `dd-trace-ci:php-request-replayer-2.0` | `request-replayer` | 80 | HTTP request replay |
+| request-replayer | `dd-trace-ci:php-request-replayer-*` | `request-replayer` | 80 | HTTP request replay |
 | httpbin | `kong/httpbin:0.2.2` | `httpbin-integration` | 8080 | HTTP echo service |
 
 ### Additional services by target substring

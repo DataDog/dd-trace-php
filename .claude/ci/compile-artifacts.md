@@ -48,8 +48,8 @@ If you need to run this step outside a build script and your host lacks `binutil
 | `Prepare code` | `php:8.2-cli` | Runs `composer update` + `make generate` to produce `src/bridge/_generated_*.php` |
 
 Runner: `arch:{amd64,arm64}`
-Matrix (`compile extension: debug`): PHP 7.0--8.5 x {amd64, arm64}
-Matrix (`compile extension: debug-zts-asan`): PHP 7.4--8.5 x {amd64, arm64}
+Matrix (`compile extension: debug`): PHP 7.0+ x {amd64, arm64}
+Matrix (`compile extension: debug-zts-asan`): PHP 7.4+ x {amd64, arm64}
 
 **Note on `Prepare code` vs `prepare code`:** These are two distinct jobs. The tracer
 pipeline `Prepare code` uses `php:8.2-cli` (which has no Composer), installs Composer
@@ -83,10 +83,10 @@ files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
 | `pecl build` | `dd-trace-ci:php-7.4_bookworm-6` | Runs `tooling/bin/pecl-build` via `make build_pecl_package`; regenerates PHP bridge files via `composer -dtooling/generation`; mutates `package.xml` (version, date, file list) and `Cargo.toml` (strips profiling workspace member) in-place; produces `datadog_trace-*.tgz` via `pear package`; requires a clean tree to re-run |
 
 Runner: `arch:{amd64,arm64}` (Linux jobs) or `windows-v2:2019` (Windows)
-Matrix (tracing/appsec extension): PHP 7.0--8.5 x 4 build platforms (x86_64-alpine-linux-musl, aarch64-alpine-linux-musl, x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu)
-Matrix (profiler extension): PHP 7.1--8.5 x same 4 platforms
-Matrix (ASAN tracing): PHP 7.4--8.5 x {x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu}
-Matrix (Windows): PHP 7.2--8.5
+Matrix (tracing/appsec extension): PHP 7.0+ x 4 build platforms (x86_64-alpine-linux-musl, aarch64-alpine-linux-musl, x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu)
+Matrix (profiler extension): PHP 7.1+ x same 4 platforms
+Matrix (ASAN tracing): PHP 7.4+ x {x86_64-unknown-linux-gnu, aarch64-unknown-linux-gnu}
+Matrix (Windows): PHP 7.2+
 
 ## What It Builds
 

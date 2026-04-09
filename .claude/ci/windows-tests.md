@@ -19,11 +19,11 @@
 
 Runner: `windows-v2:2019`
 Image: `registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-{ver}_windows`
-Matrix: PHP 7.2--8.5 (versions where `version_compare($v, "7.2", ">=")`)
+Matrix: PHP 7.2+
 
 ## What It Tests
 
-`windows test_c` starts `httpbin-windows` and `php-request-replayer-2.0-windows`
+`windows test_c` starts `httpbin-windows` and `php-request-replayer-*-windows`
 service containers, builds `php_ddtrace.dll` from source inline (no pre-built
 artifact needed), then runs `run-tests.php` against `tests/ext/`.
 
