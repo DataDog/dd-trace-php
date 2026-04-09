@@ -709,6 +709,11 @@ static int elf_load_trampoline(const void *src, size_t src_len,
     const Elf64_Ehdr *ehdr = (const Elf64_Ehdr *)src;
 
     if (elf_check_header(ehdr, 1u << ET_DYN, 32) < 0) return -1;
+    // The trampoline must be a PIE (ET_DYN) executable. ET_EXEC cannot be
+    // loaded at a random base address. build.rs enforces -fPIE/-pie; if
+    // something goes wrong in the build and ET_EXEC slips through, abort
+    // loudly rather than silently misbehaving.
+    if (ehdr->e_type != ET_DYN) __builtin_trap();
     if (ehdr->e_phoff + (uint64_t)ehdr->e_phnum * sizeof(Elf64_Phdr) > src_len) return -1;
 
     const Elf64_Phdr *phdrs = (const Elf64_Phdr *)((const char *)src + ehdr->e_phoff);
