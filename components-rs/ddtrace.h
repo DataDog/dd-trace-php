@@ -149,8 +149,8 @@ bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
 
 /**
- * Look up (or lazily create) the concentrator for `(env, version)` and invoke `callback` with a
- * shared reference to it while holding the global read lock.
+ * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke
+ * `callback` with a shared reference to it while holding the global read lock.
  *
  * The callback is **always** invoked — even before the sidecar has created the backing SHM.
  * When the SHM is not yet available a *virtual* concentrator is used: peer-tag keys and
@@ -164,11 +164,12 @@ void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *read
  * Returns `true` after the callback returns, `false` only on an internal locking error.
  *
  * # Safety
- * `env` and `version` must be valid `CharSlice`s.  `callback` must be a valid function pointer.
- * `userdata` is forwarded to `callback` as-is.
+ * `env`, `version`, and `service` must be valid `CharSlice`s.  `callback` must be a valid
+ * function pointer. `userdata` is forwarded to `callback` as-is.
  */
 bool ddog_span_concentrator_with(ddog_CharSlice env,
                                  ddog_CharSlice version,
+                                 ddog_CharSlice service,
                                  void (*callback)(const struct ddog_SpanConcentrator*, void*),
                                  void *userdata);
 
@@ -221,12 +222,12 @@ void ddog_span_concentrator_add_php_span(const struct ddog_SpanConcentrator *c,
                                          const struct ddog_PhpSpanStats *span);
 
 /**
- * IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for (env, version).
+ * IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for
+ * (env, version, service).
  *
- * Called when [`ddog_span_concentrator_with`] returns false — the SHM for this (env, version)
- * doesn't exist on the PHP side yet (startup race).  `set_universal_service_tags` is already
- * queued in the sidecar's priority outbox and will be processed before this message, so the
- * concentrator is guaranteed to exist when the sidecar handles this call.
+ * Called when the SHM is not yet available.  The sidecar processes IPC messages sequentially,
+ * and `set_universal_service_tags` is always sent before this message, so the concentrator
+ * is guaranteed to exist when the sidecar handles this call.
  *
  * # Safety
  * All pointers must be valid.

@@ -15,7 +15,6 @@ use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void};
 use std::sync::{LazyLock, RwLock};
-use log::error;
 use tracing::trace;
 
 /// Number of gRPC status-code keys checked by the stats aggregation (must match
@@ -287,8 +286,8 @@ pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(reader: &mut 
     }
 }
 
-/// Look up (or lazily create) the concentrator for `(env, version)` and invoke `callback` with a
-/// shared reference to it while holding the global read lock.
+/// Look up (or lazily create) the concentrator for `(env, version, service)` and invoke
+/// `callback` with a shared reference to it while holding the global read lock.
 ///
 /// The callback is **always** invoked — even before the sidecar has created the backing SHM.
 /// When the SHM is not yet available a *virtual* concentrator is used: peer-tag keys and
@@ -302,18 +301,20 @@ pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(reader: &mut 
 /// Returns `true` after the callback returns, `false` only on an internal locking error.
 ///
 /// # Safety
-/// `env` and `version` must be valid `CharSlice`s.  `callback` must be a valid function pointer.
-/// `userdata` is forwarded to `callback` as-is.
+/// `env`, `version`, and `service` must be valid `CharSlice`s.  `callback` must be a valid
+/// function pointer. `userdata` is forwarded to `callback` as-is.
 #[no_mangle]
 pub unsafe extern "C" fn ddog_span_concentrator_with(
     env: CharSlice<'_>,
     version: CharSlice<'_>,
+    service: CharSlice<'_>,
     callback: unsafe extern "C" fn(*const SpanConcentrator, *mut c_void),
     userdata: *mut c_void,
 ) -> bool {
     let env_key = char_slice_str(env).to_owned();
     let version_key = char_slice_str(version).to_owned();
-    let map_key = format!("{env_key}\0{version_key}");
+    let service_key = char_slice_str(service).to_owned();
+    let map_key = format!("{env_key}\0{version_key}\0{service_key}");
     let map = &SPAN_CONCENTRATORS;
 
     // Fast path: read lock — entry present and up-to-date (real or virtual).
@@ -333,11 +334,11 @@ pub unsafe extern "C" fn ddog_span_concentrator_with(
         let refresh = wg.get(&map_key).map_or(true, |c| c.needs_refresh());
         if refresh {
             wg.remove(&map_key);
-            let path = datadog_sidecar::service::stats_flusher::env_stats_shm_path(&env_key, &version_key);
+            let path = datadog_sidecar::service::stats_flusher::env_stats_shm_path(&env_key, &version_key, &service_key);
             let (shm, has_shm) = match ShmSpanConcentrator::open(path.as_c_str()) {
                 Ok(s) => (Some(s), true),
                 Err(e) => {
-                    trace!("SHM for env={env_key} version={version_key} not yet available ({e}); using virtual concentrator");
+                    trace!("SHM for env={env_key} version={version_key} service={service_key} not yet available ({e}); using virtual concentrator");
                     (None, false)
                 }
             };
@@ -479,10 +480,10 @@ unsafe fn php_span_to_owned_input(span: &PhpSpanStats<'_>) -> OwnedShmSpanInput 
 
 /// IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for (env, version).
 ///
-/// Called when [`ddog_span_concentrator_with`] returns false — the SHM for this (env, version)
-/// doesn't exist on the PHP side yet (startup race).  `set_universal_service_tags` is already
-/// queued in the sidecar's priority outbox and will be processed before this message, so the
-/// concentrator is guaranteed to exist when the sidecar handles this call.
+/// Called when the SHM is not yet available.  The sidecar processes IPC messages sequentially,
+/// and `set_universal_service_tags` is always sent before this message, so the concentrator
+/// is guaranteed to exist when the sidecar handles this call.  The sidecar resolves the service
+/// dimension from the session's `DD_SERVICE` config.
 ///
 /// # Safety
 /// All pointers must be valid.

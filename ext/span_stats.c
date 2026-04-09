@@ -337,25 +337,41 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
 
     ddog_PhpSpanStats stats = ddtrace_build_span_stats_core(span, pre, span_kind_slice);
 
-    size_t peer_tag_keys_count = 0;
-    const ddog_CharSlice *peer_tag_keys = ddog_span_concentrator_peer_tag_keys(c, &peer_tag_keys_count);
-    if (peer_tag_keys_count > DDTRACE_MAX_PEER_TAGS) {
-        peer_tag_keys_count = DDTRACE_MAX_PEER_TAGS;
-    }
-
+    // Peer tag extraction rules by span kind (spec: Peer Tags in Aggregation):
+    //   client/producer/consumer → all configured peer tag keys
+    //   server                   → no peer tags
+    //   internal / no span.kind  → only _dd.base_service if a service override is present
     ddog_PhpPeerTag peer_tags[DDTRACE_MAX_PEER_TAGS];
     size_t actual_peer_tags = 0;
-    if (peer_tag_keys_count > 0 && peer_tag_keys && pre->meta) {
-        for (size_t i = 0; i < peer_tag_keys_count; i++) {
-            const ddog_CharSlice *k = &peer_tag_keys[i];
-            zval *val = zend_hash_str_find(pre->meta, k->ptr, k->len);
-            if (val && Z_TYPE_P(val) == IS_STRING) {
-                peer_tags[actual_peer_tags].key   = *k;
-                peer_tags[actual_peer_tags].value = dd_zend_string_to_CharSlice(Z_STR_P(val));
-                actual_peer_tags++;
+
+    if (pre->span_kind && (zend_string_equals_literal(pre->span_kind, "client") || zend_string_equals_literal(pre->span_kind, "producer") || zend_string_equals_literal(pre->span_kind, "consumer"))) {
+        size_t peer_tag_keys_count = 0;
+        const ddog_CharSlice *peer_tag_keys = ddog_span_concentrator_peer_tag_keys(c, &peer_tag_keys_count);
+        if (peer_tag_keys_count > DDTRACE_MAX_PEER_TAGS) {
+            peer_tag_keys_count = DDTRACE_MAX_PEER_TAGS;
+        }
+        if (peer_tag_keys_count > 0 && peer_tag_keys) {
+            for (size_t i = 0; i < peer_tag_keys_count; i++) {
+                const ddog_CharSlice *k = &peer_tag_keys[i];
+                zval *val = zend_hash_str_find(pre->meta, k->ptr, k->len);
+                if (val && Z_TYPE_P(val) == IS_STRING) {
+                    peer_tags[actual_peer_tags].key   = *k;
+                    peer_tags[actual_peer_tags].value = dd_zend_string_to_CharSlice(Z_STR_P(val));
+                    actual_peer_tags++;
+                }
             }
         }
+    } else if (!pre->span_kind || !zend_string_equals_literal(pre->span_kind, "server")) {
+        // internal or no span.kind: use _dd.base_service only if it marks a service override
+        static const ddog_CharSlice BASE_SERVICE_KEY = DDOG_CHARSLICE_C("_dd.base_service");
+        zval *base_svc_zv = zend_hash_str_find(pre->meta, ZEND_STRL("_dd.base_service"));
+        if (base_svc_zv && Z_TYPE_P(base_svc_zv) == IS_STRING) {
+            peer_tags[0].key   = BASE_SERVICE_KEY;
+            peer_tags[0].value = dd_zend_string_to_CharSlice(Z_STR_P(base_svc_zv));
+            actual_peer_tags   = 1;
+        }
     }
+    // "server" spans have no special handling
     stats.peer_tags_count = actual_peer_tags;
     stats.peer_tags = actual_peer_tags > 0 ? peer_tags : NULL;
 
@@ -383,9 +399,12 @@ void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_sp
 
     ddog_CharSlice env_slice     = dd_zend_string_to_CharSlice(pre->env);
     ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(pre->version);
+    // Use the process-level DD_SERVICE as the concentrator key so all spans from this PHP
+    // process share one SHM concentrator regardless of per-request service overrides.
+    ddog_CharSlice service_slice = dd_zend_string_to_CharSlice(get_global_DD_SERVICE());
 
     ddtrace_concentrator_cb_data data = { .span = span, .pre = pre, .needs_ipc = false };
-    ddog_span_concentrator_with(env_slice, version_slice, ddtrace_span_concentrator_feed_cb, &data);
+    ddog_span_concentrator_with(env_slice, version_slice, service_slice, ddtrace_span_concentrator_feed_cb, &data);
 
     if (data.needs_ipc && ddtrace_sidecar) {
         ddog_sidecar_add_php_span_to_concentrator(&ddtrace_sidecar, env_slice, version_slice, &data.ipc_stats);

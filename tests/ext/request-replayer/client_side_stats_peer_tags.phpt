@@ -57,6 +57,7 @@ $root = \DDTrace\start_trace_span();
 $root->name = "web.request";
 $root->resource = "GET /db";
 $root->service = "stats-test-service";
+$root->meta['span.kind'] = 'client';
 $root->meta['db.hostname'] = 'my-db-host';
 \DDTrace\close_span();
 

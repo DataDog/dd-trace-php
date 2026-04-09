@@ -118,7 +118,9 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.len,
                                     get_global_DD_REMOTE_CONFIG_ENABLED(),
                                     is_fork,
-                                    process_tags
+                                    process_tags,
+                                    dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
+                                    dd_zend_string_to_CharSlice(get_global_DD_SERVICE())
                                 );
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
