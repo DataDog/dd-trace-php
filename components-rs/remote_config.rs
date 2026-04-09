@@ -60,11 +60,31 @@ type VecRemoteConfigCapabilities = libdd_common_ffi::Vec<RemoteConfigCapabilitie
 pub static mut DDTRACE_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities =
     libdd_common_ffi::Vec::new();
 
+struct ActiveDynamicConfig {
+    priority: u8,
+    configs: Vec<Configs>,
+}
+
 #[derive(Default)]
 struct DynamicConfig {
-    active_config_path: Option<String>,
-    configs: Vec<Configs>,
+    active_configs: HashMap<String, ActiveDynamicConfig>,
+    merged_configs: Vec<Configs>,
     old_config_values: HashMap<String, Option<OwnedZendString>>,
+}
+
+fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>) -> Vec<Configs> {
+    let mut sorted: Vec<_> = active_configs.values().collect();
+    sorted.sort_by_key(|c| c.priority);
+    let mut seen = HashSet::new();
+    let mut merged = vec![];
+    for entry in sorted {
+        for config in &entry.configs {
+            if seen.insert(mem::discriminant(config)) {
+                merged.push(config.clone());
+            }
+        }
+    }
+    merged
 }
 
 pub struct RemoteConfigState {
@@ -109,6 +129,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingLogsInjection);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingMulticonfig);
 
     DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
@@ -254,8 +275,8 @@ fn remove_old_configs(remote_config: &mut RemoteConfigState) {
     for (name, val) in remote_config.dynamic_config.old_config_values.drain() {
         reset_old_config(name.as_str(), val);
     }
-    remote_config.dynamic_config.old_config_values.clear();
-    remote_config.dynamic_config.active_config_path = None;
+    remote_config.dynamic_config.active_configs.clear();
+    remote_config.dynamic_config.merged_configs.clear();
 }
 
 fn insert_new_configs(
@@ -338,14 +359,17 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     apply_config(rc_ref, debugger, limiter);
                 }
                 RemoteConfigData::DynamicConfig(config_data) => {
+                    let priority = config_data.priority();
                     let configs: Vec<Configs> = config_data.lib_config.into();
                     if !configs.is_empty() {
+                        remote_config.dynamic_config.active_configs
+                            .insert(value.config_id, ActiveDynamicConfig { priority, configs });
+                        let merged = compute_merged_configs(&remote_config.dynamic_config.active_configs);
                         insert_new_configs(
                             &mut remote_config.dynamic_config.old_config_values,
-                            &mut remote_config.dynamic_config.configs,
-                            configs,
+                            &mut remote_config.dynamic_config.merged_configs,
+                            merged,
                         );
-                        remote_config.dynamic_config.active_config_path = Some(value.config_id);
                     }
                 }
                 RemoteConfigData::Ignored(_) => (),
@@ -360,8 +384,17 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
                 RemoteConfigProduct::ApmTracing => {
-                    if Some(path.config_id) == remote_config.dynamic_config.active_config_path {
-                        remove_old_configs(remote_config);
+                    if remote_config.dynamic_config.active_configs.remove(&path.config_id).is_some() {
+                        if remote_config.dynamic_config.active_configs.is_empty() {
+                            remove_old_configs(remote_config);
+                        } else {
+                            let merged = compute_merged_configs(&remote_config.dynamic_config.active_configs);
+                            insert_new_configs(
+                                &mut remote_config.dynamic_config.old_config_values,
+                                &mut remote_config.dynamic_config.merged_configs,
+                                merged,
+                            );
+                        }
                     }
                 }
                 _ => (),
@@ -529,7 +562,7 @@ pub unsafe extern "C" fn ddog_remote_config_alter_dynamic_config(
     {
         let mut ret = false;
         let config_name = config.to_utf8_lossy();
-        for config in remote_config.dynamic_config.configs.iter() {
+        for config in remote_config.dynamic_config.merged_configs.iter() {
             let name = map_config_name(config);
             if name == config_name.as_ref() {
                 let val = map_config_value(config);
@@ -559,6 +592,8 @@ pub unsafe extern "C" fn ddog_setup_remote_config(
 pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigState) {
     remote_config.live_debugger.spans_map.clear();
     remote_config.dynamic_config.old_config_values.clear();
+    remote_config.dynamic_config.active_configs.clear();
+    remote_config.dynamic_config.merged_configs.clear();
     remote_config.manager.unload_configs(&[
         RemoteConfigProduct::ApmTracing,
         RemoteConfigProduct::LiveDebugger,
