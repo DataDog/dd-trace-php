@@ -15,13 +15,6 @@
 //   ...
 //   argv[argc-1] = symbol_name
 //
-// NOTE: we avoid dlopen()/dlsym() here.  They would actually work once the
-// stack is properly aligned (see below), because ld.so sets up TLS and the
-// pthread lock infrastructure before calling our entry point.  However,
-// using them is unnecessary: this file is compiled into libddtrace_php.so
-// alongside the Rust entry points, so the linker resolves the calls at link
-// time via ordinary extern references — no runtime symbol lookup needed.
-//
 // NOTE: .init_array constructors are NOT called automatically when a shared
 // library is exec'd as the main program via ld.so.  ld.so's _dl_init skips
 // the main object, expecting __libc_start_main to handle it — but we never
@@ -29,33 +22,10 @@
 // entering any Rust code (Rust runtime init, TLS, allocator setup, ...
 // all live in .init_array).
 //
-// On every glibc version, _dl_init (in ld.so) only calls .init_array for
-// shared libraries, never for the main executable.  The main executable's
-// .init_array is always the responsibility of __libc_start_main, via its
-// `init` function-pointer argument.  The mechanism differs by version:
-//
-//   glibc < 2.34:
-//
-//     ld.so _dl_init
-//       └─ call_init() for each shared lib (NOT main exe)
-//     app _start (glibc Scrt1.o)
-//       └─ __libc_start_main(main, init=__libc_csu_init, ...)
-//            ├─ init != NULL → call __libc_csu_init()
-//            │   └─ iterates __init_array_start..__end  ← called here
-//            └─ main()
-//
-//   glibc >= 2.34 (__libc_csu_init removed):
-//
-//     ld.so _dl_init
-//       └─ call_init() for each shared lib (NOT main exe)
-//     app _start (glibc Scrt1.o)
-//       └─ __libc_start_main(main, init=NULL, ...)
-//            ├─ init == NULL → inlined call_init reads DT_INIT_ARRAY
-//            │   └─ iterates entries from link map  ← called here
-//            └─ main()
-//
-// In our case: we ARE the main executable (exec'd via ld.so), but we never
-// call __libc_start_main.  So .init_array is skipped.  We fix this below.
+// Confirmed in glibc elf/dl-init.c call_init():
+//   if (l->l_name[0] == '\0' && l->l_type == lt_executable) return;
+// The main executable always gets l_name="" and l_type=lt_executable,
+// regardless of whether it is ET_EXEC or an ET_DYN exec'd via ld.so.
 //
 // Implementation notes for run_own_init_array():
 //
@@ -86,11 +56,11 @@ struct trampoline_data {
     char **dependency_paths;
 };
 
-// Direct references to the known sidecar entry points in libddtrace_php.so.
-// Declared weak so that if either symbol is absent the linker still accepts
-// the build (the comparison below guards against calling a NULL pointer).
-extern __attribute__((weak)) void ddog_daemon_entry_point(struct trampoline_data *);
-extern __attribute__((weak)) void ddog_crashtracker_entry_point(struct trampoline_data *);
+// Direct references to the sidecar entry points defined in this same .so.
+// Since ssi_entry.c is compiled into libddtrace_php.so alongside the Rust
+// code, the linker resolves these at link time — no runtime dlsym needed.
+extern void ddog_daemon_entry_point(struct trampoline_data *);
+extern void ddog_crashtracker_entry_point(struct trampoline_data *);
 
 // Linker-defined symbol at VMA 0 of this DSO (= load base for a standard build).
 extern __attribute__((visibility("hidden"))) char __ehdr_start;
@@ -153,13 +123,10 @@ static void ssi_main(int argc, char **argv)
     const char *symbol = argv[argc - 1];
 
     void (*fn)(struct trampoline_data *) = NULL;
-    if (ddog_daemon_entry_point &&
-            strcmp(symbol, "ddog_daemon_entry_point") == 0) {
+    if (strcmp(symbol, "ddog_daemon_entry_point") == 0)
         fn = ddog_daemon_entry_point;
-    } else if (ddog_crashtracker_entry_point &&
-            strcmp(symbol, "ddog_crashtracker_entry_point") == 0) {
+    else if (strcmp(symbol, "ddog_crashtracker_entry_point") == 0)
         fn = ddog_crashtracker_entry_point;
-    }
 
     if (!fn) _exit(2);
 
