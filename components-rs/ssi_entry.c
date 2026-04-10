@@ -44,11 +44,26 @@
 //   ld.so before our entry point runs, so they are already absolute VAs.
 //   We call them directly without adding the load base again.
 
-#include <elf.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+
+// Minimal ELF dynamic section types — avoids depending on system elf.h,
+// which some clang configurations cannot find.  ssi_entry.c targets Linux
+// LP64 (x86-64 and aarch64) only, so intptr_t/uintptr_t are the right widths.
+typedef struct {
+    intptr_t  d_tag;
+    union {
+        uintptr_t d_val;
+        uintptr_t d_ptr;
+    } d_un;
+} SsiDyn;
+
+#define DT_NULL         0
+#define DT_INIT        12
+#define DT_INIT_ARRAY  25
+#define DT_INIT_ARRAYSZ 27
 
 struct trampoline_data {
     int    argc;
@@ -66,7 +81,7 @@ extern void ddog_crashtracker_entry_point(struct trampoline_data *);
 extern __attribute__((visibility("hidden"))) char __ehdr_start;
 
 // Linker-defined pointer to the .dynamic section of this object.
-extern __attribute__((visibility("hidden"))) ElfW(Dyn) _DYNAMIC[];
+extern __attribute__((visibility("hidden"))) SsiDyn _DYNAMIC[];
 
 // ELF spec (glibc ldsodefs.h): init_array entries have signature
 // void fn(int argc, char **argv, char **envp), matching dl_init_t.
@@ -85,7 +100,7 @@ static void run_own_init_array(int argc, char **argv, char **envp)
     uintptr_t init_array_off = 0;
     size_t    init_array_sz  = 0;
 
-    for (ElfW(Dyn) *d = _DYNAMIC; d->d_tag != DT_NULL; d++) {
+    for (SsiDyn *d = _DYNAMIC; d->d_tag != DT_NULL; d++) {
         switch (d->d_tag) {
         case DT_INIT:
             has_init = 1;
