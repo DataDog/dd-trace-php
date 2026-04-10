@@ -1671,9 +1671,6 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
-    // Check for the env first, before the first RC
-    ddtrace_check_agent_info_env();
-
     // Do after env check, so that RC data is not updated before RC init
     DDTRACE_G(request_initialized) = true;
 
@@ -1720,7 +1717,8 @@ static void dd_initialize_request(void) {
 
     ddtrace_agent_info_rinit();
 
-    ddtrace_get_container_tags_hash();
+    // Single combined read: applies env, container-hash, and concentrator config.
+    ddtrace_apply_agent_info();
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();

@@ -7,8 +7,8 @@
 //! `ddog_span_concentrator_add_php_span`. All string slices borrow from PHP memory and are only
 //! valid for the duration of that call.
 
+use crate::trace_filter;
 use datadog_ipc::shm_stats::{OwnedShmSpanInput, ShmSpanConcentrator, ShmSpanInput, MAX_PEER_TAGS};
-use datadog_sidecar::service::agent_info::AgentInfoReader;
 use datadog_sidecar::service::blocking::{add_span_to_concentrator, SidecarTransport};
 use libdd_trace_stats::span_concentrator::FixedAggregationKey;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
@@ -231,7 +231,7 @@ impl SpanConcentrator {
 static SPAN_CONCENTRATORS: LazyLock<RwLock<HashMap<String, SpanConcentrator>>> = LazyLock::new(|| RwLock::default());
 
 /// Desired concentrator configuration sourced from the agent's /info endpoint.
-/// Populated via `ddog_set_span_concentrator_config`; applied to every concentrator
+/// Populated via `ddog_apply_agent_info`; applied to every concentrator
 /// at creation time and when the config changes.
 #[derive(Default)]
 struct DesiredConfig {
@@ -241,8 +241,21 @@ struct DesiredConfig {
 
 static DESIRED_CONFIG: LazyLock<RwLock<DesiredConfig>> = LazyLock::new(|| RwLock::default());
 
-/// Apply updated peer-tag-keys and span-kinds to the desired config and all open concentrators.
-fn apply_concentrator_config(peer_tag_keys: Vec<String>, span_kinds: Vec<String>) {
+/// Apply updated concentrator config (peer-tag keys, span kinds, trace filters) to
+/// `DESIRED_CONFIG` and propagate peer-tag / span-kind changes to all open concentrators.
+pub(crate) fn apply_concentrator_config(
+    peer_tag_keys: Vec<String>,
+    span_kinds: Vec<String>,
+    tags_require: Vec<String>,
+    tags_reject: Vec<String>,
+    regex_require: Vec<String>,
+    regex_reject: Vec<String>,
+    ignore_resources: Vec<String>,
+) {
+    let compiled = trace_filter::compile_trace_filter(
+        &tags_require, &tags_reject, &regex_require, &regex_reject, &ignore_resources,
+    );
+    trace_filter::set_trace_filter(compiled);
     {
         let mut dc = DESIRED_CONFIG.write().unwrap();
         dc.peer_tag_keys = peer_tag_keys.clone();
@@ -253,36 +266,6 @@ fn apply_concentrator_config(peer_tag_keys: Vec<String>, span_kinds: Vec<String>
         c.peer_tag_keys = peer_tag_keys.clone();
         c.span_kinds = span_kinds.clone();
         c.rebuild_key_slices();
-    }
-}
-
-/// Read `peer_tags` and `span_kinds_stats_computed` from the agent /info SHM and update the
-/// global span-concentrator configuration.
-///
-/// Updates every concentrator that has already been lazily opened, and stores the config for
-/// concentrators created later.  Does nothing when no agent info is available yet or when the
-/// SHM has not changed since the last call (cheap no-op on the hot path).
-///
-/// # Safety
-/// `reader` must be a valid pointer to an `AgentInfoReader`.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(reader: &mut AgentInfoReader) {
-    let (changed, info) = reader.read();
-    if let Some(info) = info {
-        let peer_tag_keys = info.peer_tags.as_deref().unwrap_or(&[]);
-        let span_kinds = info.span_kinds_stats_computed.as_deref().unwrap_or(&[]);
-
-        // Apply if the sidecar reported new data, or if DESIRED_CONFIG has never been populated
-        // yet (e.g. the `changed` signal was consumed by another reader call such as
-        // `ddtrace_check_agent_info_env` before we had a chance to act on it).
-        let should_apply = changed || {
-            let dc = DESIRED_CONFIG.read().unwrap();
-            dc.peer_tag_keys.as_slice() != peer_tag_keys || dc.span_kinds.as_slice() != span_kinds
-        };
-
-        if should_apply {
-            apply_concentrator_config(peer_tag_keys.to_owned(), span_kinds.to_owned());
-        }
     }
 }
 

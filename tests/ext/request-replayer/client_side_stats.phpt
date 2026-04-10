@@ -10,9 +10,9 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=1
 DD_TRACE_STATS_COMPUTATION_ENABLED=1
-DD_ENV=test-env
-DD_VERSION=1.2.3
 --INI--
+datadog.env=test-env
+datadog.version=1.2.3-basic
 datadog.trace.agent_test_session_token=client_side_stats
 --FILE--
 <?php
@@ -27,7 +27,7 @@ $root->resource = "GET /test";
 $root->service = "stats-test-service";
 \DDTrace\close_span();
 
-\DDTrace\flush();
+dd_trace_internal_fn('synchronous_flush');
 $rr->waitForDataAndReplay();
 
 // The request-replayer stores the msgpack-decoded body as JSON, with OkSummary/ErrorSummary
@@ -61,7 +61,7 @@ if (!$found) {
 ?>
 --EXPECT--
 env: test-env
-version: 1.2.3
+version: 1.2.3-basic
 service: stats-test-service
 name: web.request
 resource: GET /test

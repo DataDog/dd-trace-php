@@ -3,11 +3,13 @@
 #![feature(linkage)]
 #![allow(static_mut_refs)] // remove with move to Rust 2024 edition
 
+pub mod agent_info;
 pub mod log;
 pub mod remote_config;
 pub mod sidecar;
 pub mod stats;
 pub mod telemetry;
+pub mod trace_filter;
 pub mod bytes;
 
 use libdd_common::entity_id::{get_container_id, set_cgroup_file};

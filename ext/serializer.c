@@ -52,6 +52,7 @@
 #include "exception_serialize.h"
 #include "sidecar.h"
 #include "span_stats.h"
+#include "trace_filter.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -1335,6 +1336,18 @@ void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, 
 ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace) {
     ddtrace_span_precomputed pre;
     ddtrace_precompute_span(span, &pre);
+
+    // Trace-level filter: when stats computation is enabled, drop the span from the
+    // entire pipeline (trace sending + stats) if its trace is filtered.
+    if (ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+        if (DDTRACE_G(agent_info_reader)) {
+            ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
+        }
+        if (!ddtrace_trace_passes_filter(span)) {
+            ddtrace_free_span_precomputed(&pre);
+            return NULL;
+        }
+    }
 
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;

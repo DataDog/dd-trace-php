@@ -53,6 +53,38 @@ const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 
 void ddog_free_normalized_tag_value(const char *ptr);
 
+/**
+ * Read all agent /info data in one SHM read and apply env, container-hash and concentrator
+ * config atomically.
+ *
+ * Fills `env_out` with the agent's `config.default_env` (zero-length slice if absent).
+ * Fills `container_hash_out` with `container_tags_hash` (zero-length slice if absent).
+ * Both slices borrow from the reader's cached info — valid until the next `reader.read()`.
+ *
+ * Concentrator config (peer tags, span kinds, trace filters) is applied only when the
+ * SHM has changed since the last read (`changed == true`).  Calling this once at RINIT
+ * ensures the config is always applied before the first span is processed, so the
+ * per-span `ddog_apply_agent_info_concentrator_config` can safely rely on `changed` alone.
+ *
+ * # Safety
+ * `reader` must be a valid pointer to an `AgentInfoReader`.
+ */
+void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
+                           ddog_CharSlice *env_out,
+                           ddog_CharSlice *container_hash_out);
+
+/**
+ * Apply concentrator config changes from the agent /info SHM.
+ *
+ * Cheap no-op when the SHM has not changed (`changed == false`).  Only applies when
+ * new data has arrived mid-request — `ddog_apply_agent_info` at RINIT guarantees the
+ * initial configuration is already in place, so `changed` alone is sufficient here.
+ *
+ * # Safety
+ * `reader` must be a valid pointer to an `AgentInfoReader`.
+ */
+void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -136,19 +168,6 @@ bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint32_t granularity_seconds);
 
 /**
- * Read `peer_tags` and `span_kinds_stats_computed` from the agent /info SHM and update the
- * global span-concentrator configuration.
- *
- * Updates every concentrator that has already been lazily opened, and stores the config for
- * concentrators created later.  Does nothing when no agent info is available yet or when the
- * SHM has not changed since the last call (cheap no-op on the hot path).
- *
- * # Safety
- * `reader` must be a valid pointer to an `AgentInfoReader`.
- */
-void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
-
-/**
  * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke
  * `callback` with a shared reference to it while holding the global read lock.
  *
@@ -222,12 +241,12 @@ void ddog_span_concentrator_add_php_span(const struct ddog_SpanConcentrator *c,
                                          const struct ddog_PhpSpanStats *span);
 
 /**
- * IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for
- * (env, version, service).
+ * IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for (env, version).
  *
  * Called when the SHM is not yet available.  The sidecar processes IPC messages sequentially,
  * and `set_universal_service_tags` is always sent before this message, so the concentrator
- * is guaranteed to exist when the sidecar handles this call.
+ * is guaranteed to exist when the sidecar handles this call.  The sidecar resolves the service
+ * dimension from the session's `DD_SERVICE` config.
  *
  * # Safety
  * All pointers must be valid.
@@ -308,6 +327,25 @@ ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport
 bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
+
+/**
+ * Check whether the trace rooted at `resource` / `root_span` passes all configured trace
+ * filters (filter_tags, filter_tags_regex, ignore_resources from agent /info).
+ *
+ * Returns `true` to include in the pipeline, `false` to drop the entire trace (no sending,
+ * no stats).  Filters are evaluated against the root span — the decision applies uniformly
+ * to all spans of the trace.
+ *
+ * * **Common case**: `filter_tags` and literal-key `filter_tags_regex` entries — one O(1)
+ *   `lookup_fn` call per filter entry.
+ * * **Rare case**: `filter_tags_regex` entries with regex key patterns — `iter_fn` is invoked
+ *   to scan all meta entries for those filters.  Pass `NULL` when not needed.
+ * * **Fast path**: returns `true` immediately when no filters are configured.
+ */
+bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
+                                   const void *root_span,
+                                   ddog_RootTagLookupFn lookup_fn,
+                                   ddog_RootMetaIterFn iter_fn);
 
 void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),

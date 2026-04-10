@@ -226,6 +226,7 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/signals.c \
     ext/span.c \
     ext/span_stats.c \
+    ext/trace_filter.c \
     ext/startup_logging.c \
     ext/telemetry.c \
     ext/threads.c \

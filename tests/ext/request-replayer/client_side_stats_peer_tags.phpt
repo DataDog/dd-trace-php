@@ -27,10 +27,10 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_TRACE_SIDECAR_TRACE_SENDER=1
 DD_TRACE_STATS_COMPUTATION_ENABLED=1
-DD_ENV=test-env
-DD_VERSION=1.2.3-peer
 DD_TRACE_LOG_LEVEL=off
 --INI--
+datadog.env=test-env
+datadog.version=1.2.3-peer
 datadog.trace.agent_test_session_token=client_side_stats_peer_tags
 --FILE--
 <?php

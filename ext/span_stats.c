@@ -390,13 +390,6 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
 }
 
 void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_span_precomputed *pre) {
-    // Refresh peer-tag keys and span-kind config from the latest agent /info SHM.  This is a
-    // cheap no-op when the SHM has not changed, but ensures the concentrator picks up config
-    // that the sidecar wrote after rinit (e.g. the first /info response arriving mid-request).
-    if (DDTRACE_G(agent_info_reader)) {
-        ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
-    }
-
     ddog_CharSlice env_slice     = dd_zend_string_to_CharSlice(pre->env);
     ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(pre->version);
     // Use the process-level DD_SERVICE as the concentrator key so all spans from this PHP

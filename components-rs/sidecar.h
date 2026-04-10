@@ -213,7 +213,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 bool is_fork,
                                                 const struct ddog_Vec_Tag *process_tags,
                                                 ddog_CharSlice hostname,
-                                                ddog_CharSlice service);
+                                                ddog_CharSlice root_service);
 
 /**
  * Updates the process_tags for an existing session.

@@ -319,6 +319,19 @@ typedef enum ddog_Log {
   DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
 } ddog_Log;
 
+typedef enum ddog_Method {
+  DDOG_METHOD_GET = 0,
+  DDOG_METHOD_POST = 1,
+  DDOG_METHOD_PUT = 2,
+  DDOG_METHOD_DELETE = 3,
+  DDOG_METHOD_PATCH = 4,
+  DDOG_METHOD_HEAD = 5,
+  DDOG_METHOD_OPTIONS = 6,
+  DDOG_METHOD_TRACE = 7,
+  DDOG_METHOD_CONNECT = 8,
+  DDOG_METHOD_OTHER = 9,
+} ddog_Method;
+
 typedef enum ddog_MetricKind {
   DDOG_METRIC_KIND_COUNT,
   DDOG_METRIC_KIND_GAUGE,
@@ -399,6 +412,7 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_MULTICONFIG = 45,
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
 } ddog_RemoteConfigCapabilities;
 
@@ -724,6 +738,29 @@ typedef struct ddog_PhpSpanStats {
 } ddog_PhpSpanStats;
 
 typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_ShmCacheMap;
+
+/**
+ * Fast path: exact-key lookup into a root span.  Returns null when the key is absent.
+ */
+typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
+                                            const char *key,
+                                            uintptr_t key_len,
+                                            uintptr_t *out_len);
+
+/**
+ * Per-entry callback passed to `RootMetaIterFn`.  Return `false` to stop iteration early.
+ */
+typedef bool (*ddog_MetaEntryCb)(void *iter_ctx,
+                                 const char *key,
+                                 uintptr_t key_len,
+                                 const char *val,
+                                 uintptr_t val_len);
+
+/**
+ * Slow-path meta iterator.  `NULL` when no regex-key filter entries are present.
+ * Iterates all string meta entries, calling `cb` for each; stops when `cb` returns `false`.
+ */
+typedef void (*ddog_RootMetaIterFn)(const void *ctx, void *iter_ctx, ddog_MetaEntryCb cb);
 
 /**
  * A 128-bit (16 byte) buffer containing the UUID.
@@ -1094,19 +1131,6 @@ typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED,
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
 } ddog_DynamicInstrumentationConfigState;
-
-typedef enum ddog_Method {
-  DDOG_METHOD_GET = 0,
-  DDOG_METHOD_POST = 1,
-  DDOG_METHOD_PUT = 2,
-  DDOG_METHOD_DELETE = 3,
-  DDOG_METHOD_PATCH = 4,
-  DDOG_METHOD_HEAD = 5,
-  DDOG_METHOD_OPTIONS = 6,
-  DDOG_METHOD_TRACE = 7,
-  DDOG_METHOD_CONNECT = 8,
-  DDOG_METHOD_OTHER = 9,
-} ddog_Method;
 
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
