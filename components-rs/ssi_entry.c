@@ -6,27 +6,36 @@
 // By that time the process is fully initialised (TLS, libc, allocator) so we
 // can use ordinary C library calls.
 //
-// argv layout as seen by _dd_ssi_entry (from the kernel stack):
-//   argv[0] = ld_path       ← skip
-//   argv[1] = lib_path      ← skip
-//   argv[2] = process_name  ← standard trampoline argv[0]
-//   argv[3] = ""            ← standard trampoline argv[1]
-//   argv[4] = lib_path      ← standard trampoline argv[2]
+// argv layout as seen by _dd_ssi_entry:
+//   ld.so strips its own path before calling the entry point, so we see:
+//   argv[0] = lib_path      ← skip  (ld.so already removed ld_path)
+//   argv[1] = process_name  ← skip
+//   argv[2] = ""            ← standard trampoline argv[1]
+//   argv[3] = lib_path      ← standard trampoline argv[2]
 //   ...
 //   argv[argc-1] = symbol_name
 //
-// In fact, this file's like a simplified version of trampoline.c. We ignore
-// everything but the symbol name, which we assume lives in libddtrace_php.so.
+// NOTE: dlopen()/dlsym() cannot be called here.  When a shared library is
+// exec'd as the main program via ld.so, glibc's __libc_start_main is never
+// invoked, so the internal dynamic-linker state that dlopen/dlsym rely on is
+// not properly initialised.  Instead, we call the known entry points directly
+// (this file is compiled as part of libddtrace_php.so so both symbols are in
+// the same binary and will be resolved at link time).
 
-#define _GNU_SOURCE
-#include <dlfcn.h>
 #include <unistd.h>
+#include <string.h>
 
 struct trampoline_data {
     int    argc;
     char **argv;
     char **dependency_paths;
 };
+
+// Direct references to the known sidecar entry points in libddtrace_php.so.
+// Declared weak so that if either symbol is absent the linker still accepts
+// the build (the comparison below guards against calling a NULL pointer).
+extern __attribute__((weak)) void ddog_daemon_entry_point(struct trampoline_data *);
+extern __attribute__((weak)) void ddog_crashtracker_entry_point(struct trampoline_data *);
 
 __attribute__((noreturn, used))
 static void ssi_main(int argc, char **argv)
@@ -37,8 +46,14 @@ static void ssi_main(int argc, char **argv)
 
     const char *symbol = argv[argc - 1];
 
-    void (*fn)(struct trampoline_data *) =
-        (void (*)(struct trampoline_data *))dlsym(RTLD_DEFAULT, symbol);
+    void (*fn)(struct trampoline_data *) = NULL;
+    if (ddog_daemon_entry_point &&
+            strcmp(symbol, "ddog_daemon_entry_point") == 0) {
+        fn = ddog_daemon_entry_point;
+    } else if (ddog_crashtracker_entry_point &&
+            strcmp(symbol, "ddog_crashtracker_entry_point") == 0) {
+        fn = ddog_crashtracker_entry_point;
+    }
 
     if (!fn) _exit(2);
 
