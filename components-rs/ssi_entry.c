@@ -68,11 +68,15 @@ extern __attribute__((visibility("hidden"))) char __ehdr_start;
 // Linker-defined pointer to the .dynamic section of this object.
 extern __attribute__((visibility("hidden"))) ElfW(Dyn) _DYNAMIC[];
 
+// ELF spec (glibc ldsodefs.h): init_array entries have signature
+// void fn(int argc, char **argv, char **envp), matching dl_init_t.
+typedef void (*dl_init_t)(int, char **, char **);
+
 // Call DT_INIT and DT_INIT_ARRAY for this library.
 //
 // ld.so skips the main object's .init_array (leaves it for __libc_start_main),
 // so we must run it manually before calling any Rust code.
-static void run_own_init_array(void)
+static void run_own_init_array(int argc, char **argv, char **envp)
 {
     uintptr_t base = (uintptr_t)&__ehdr_start;
 
@@ -98,17 +102,17 @@ static void run_own_init_array(void)
 
     // ELF spec: DT_INIT runs before DT_INIT_ARRAY.
     if (has_init)
-        ((void (*)(void))(base + init_off))();
+        ((dl_init_t)(base + init_off))(argc, argv, envp);
 
     if (init_array_off) {
         // DT_INIT_ARRAY d_ptr is a link-time offset; add load base.
         // The entries themselves are already absolute VAs (RELATIVE relocs applied).
-        void (**arr)(void) = (void (**)(void))(base + init_array_off);
+        dl_init_t *arr = (dl_init_t *)(base + init_array_off);
         size_t n = init_array_sz / sizeof(*arr);
         for (size_t i = 0; i < n; i++) {
             // Slots with value 0 or -1 are sentinels meaning "empty".
             if (arr[i] && (uintptr_t)arr[i] != (uintptr_t)-1)
-                arr[i]();
+                arr[i](argc, argv, envp);
         }
     }
 }
@@ -117,6 +121,10 @@ __attribute__((noreturn, used))
 static void ssi_main(int argc, char **argv)
 {
     if (argc < 4) _exit(1);
+
+    // envp sits just past the argv null terminator in the initial stack layout.
+    char **envp = argv + argc + 1;
+
     argc -= 2;
     argv += 2;
 
@@ -133,7 +141,7 @@ static void ssi_main(int argc, char **argv)
     // Run our own .init_array before entering Rust code.  ld.so skips it
     // for the main executable, expecting __libc_start_main to handle it,
     // but we never call __libc_start_main.
-    run_own_init_array();
+    run_own_init_array(argc, argv, envp);
 
     struct trampoline_data td = { argc, argv, NULL };
     fn(&td);
