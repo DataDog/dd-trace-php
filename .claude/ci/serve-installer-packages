@@ -1,0 +1,124 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# ///
+"""
+serve-installer-packages - HTTP server for local installer tests.
+
+Serves extension tarballs from a local directory for dd-trace-php installer
+tests. Requests for files not found locally are proxied to GitHub releases,
+so tests that install old released versions (e.g., test_upgrade_from_php_installer.sh)
+still work.
+
+Usage:
+  # Serve tarballs from /tmp/fake-repo on port 8888 (default):
+  serve-installer-packages /tmp/fake-repo
+
+  # Custom port:
+  serve-installer-packages /tmp/fake-repo --port 9999
+
+The directory must contain tarballs at the path:
+  releases/download/{VERSION}/dd-library-php-{VERSION}-{arch}-linux-{libc}.tar.gz
+
+Example setup:
+  VERSION=1.18.0+abc123
+  mkdir -p /tmp/fake-repo/releases/download/$VERSION
+  cp dd-library-php-$VERSION-x86_64-linux-gnu.tar.gz \\
+     /tmp/fake-repo/releases/download/$VERSION/
+  serve-installer-packages /tmp/fake-repo
+
+Then set DD_TEST_INSTALLER_REPO=http://<docker-bridge-gateway>:8888 in
+dockerfiles/verify_packages/.env and run the tests.
+
+See package-dind-verification.md for the full procedure.
+"""
+
+import argparse
+import http.server
+import os
+import sys
+import urllib.request
+import urllib.error
+from pathlib import Path
+
+GITHUB_BASE = "https://github.com/DataDog/dd-trace-php"
+
+
+class ProxyHandler(http.server.SimpleHTTPRequestHandler):
+    """Serves local files; proxies misses to GitHub."""
+
+    serve_dir: str = "."
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=self.serve_dir, **kwargs)
+
+    def log_message(self, format, *args):
+        sys.stderr.write(f"[http] {format % args}\n")
+
+    def do_GET(self):
+        if os.path.isfile(self.translate_path(self.path)):
+            return super().do_GET()
+        self._proxy("GET")
+
+    def do_HEAD(self):
+        if os.path.isfile(self.translate_path(self.path)):
+            return super().do_HEAD()
+        self._proxy("HEAD")
+
+    def _proxy(self, method: str):
+        url = GITHUB_BASE + self.path
+        self.log_message("Proxying %s -> %s", method, url)
+        try:
+            req = urllib.request.Request(url, method=method)
+            with urllib.request.urlopen(req, timeout=120) as resp:
+                self.send_response(resp.status)
+                for h in ("Content-Type", "Content-Length",
+                           "Content-Disposition"):
+                    v = resp.getheader(h)
+                    if v:
+                        self.send_header(h, v)
+                self.end_headers()
+                if method != "HEAD":
+                    while True:
+                        chunk = resp.read(65536)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+        except urllib.error.HTTPError as e:
+            self.send_error(e.code, str(e))
+        except Exception as e:
+            self.send_error(502, str(e))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="HTTP server for local installer tests. "
+                    "Serves local files, proxies misses to GitHub.",
+    )
+    parser.add_argument(
+        "directory", type=Path,
+        help="Directory to serve (must contain releases/download/...)",
+    )
+    parser.add_argument(
+        "--port", type=int, default=8888,
+        help="Port to listen on (default: 8888)",
+    )
+    args = parser.parse_args()
+
+    if not args.directory.is_dir():
+        print(f"Error: {args.directory} is not a directory", file=sys.stderr)
+        sys.exit(1)
+
+    ProxyHandler.serve_dir = str(args.directory.resolve())
+    server = http.server.HTTPServer(("0.0.0.0", args.port), ProxyHandler)
+    print(f"Serving {args.directory.resolve()} on port {args.port}")
+    print(f"  Misses proxied to {GITHUB_BASE}")
+    print(f"  Ctrl+C to stop")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped.")
+
+
+if __name__ == "__main__":
+    main()
