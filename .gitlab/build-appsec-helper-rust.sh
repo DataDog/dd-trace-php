@@ -5,7 +5,7 @@ MAKE_JOBS=${MAKE_JOBS:-$(nproc)}
 
 mkdir -p appsec_$(uname -m)
 
-git config --global --add safe.directory '*'
+git config --global --add safe.directory '*' 2>/dev/null || true
 
 cd appsec/helper-rust
 
