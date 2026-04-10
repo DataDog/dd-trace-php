@@ -42,8 +42,7 @@ pub static mut GLOBALS_ID: i32 = 0;
 /// `MaybeUninit` avoids the need for const-constructible initializers for
 /// all fields (e.g. `RefCell<StringSet>` is not const-constructible).
 #[cfg(not(php_zts))]
-pub static mut GLOBALS: core::mem::MaybeUninit<ProfilerGlobals> =
-    core::mem::MaybeUninit::uninit();
+pub static mut GLOBALS: core::mem::MaybeUninit<ProfilerGlobals> = core::mem::MaybeUninit::uninit();
 
 #[cfg(php_zts)]
 mod zts {
