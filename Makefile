@@ -94,7 +94,7 @@ $(BUILD_DIR)/Cargo.toml: Cargo.toml
 	$(Q) echo Copying Cargo.toml to $@
 	$(Q) mkdir -p $(dir $@)
 	$(Q) cp -a Cargo.toml $@
-	$(SED_I) -E 's/, "profiling",?//' $@
+	$(SED_I) -E 's/, "profiling"//; s/, "profiling_shm\/audit"//; s/, "profiling_shm"//' $@
 
 $(BUILD_DIR)/%: %
 	$(Q) echo Copying $* to $@
