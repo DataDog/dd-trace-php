@@ -11,3 +11,4 @@ pub(crate) fn spin_loop() {
     #[cfg(not(feature = "loom"))]
     core::hint::spin_loop();
 }
+

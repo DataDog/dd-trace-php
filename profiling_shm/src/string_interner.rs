@@ -304,7 +304,7 @@ pub(crate) unsafe fn get_str<'a>(seg: *const u8, idx: StringIndex) -> Option<&'a
     }
 
     let str_idx_base = seg.add(STR_IDX_OFF) as *const AtomicU32;
-    let off = (&*str_idx_base.add(idx.0 as usize)).load(Ordering::Relaxed) as usize;
+    let off = (*str_idx_base.add(idx.0 as usize)).load(Ordering::Relaxed) as usize;
 
     let len = (seg.add(off) as *const u16).read_unaligned() as usize;
     let slice = core::slice::from_raw_parts(seg.add(off + 2), len);

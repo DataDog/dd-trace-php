@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicU32, AtomicU64};
+use crate::atomic::{AtomicU32, AtomicU64};
 
 use crate::function_interner::{get_function, intern_function, FunctionHtSlot};
 use crate::spinlock::try_lock;
@@ -181,6 +181,8 @@ impl ShmRegion {
     /// # Safety
     /// The caller is responsible for calling `unmap` when all children
     /// have exited.
+    // () conveys the only meaningful information: mmap failed.
+    #[allow(clippy::result_unit_err)]
     pub unsafe fn create() -> Result<Self, ()> {
         let ptr = unsafe {
             libc::mmap(
@@ -349,10 +351,11 @@ impl ShmRegion {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "loom")))]
 mod tests {
     extern crate std;
     use super::*;
+    use crate::atomic::Ordering;
     use crate::{
         FUNCTION_EMPTY, FUNCTION_EVAL, FUNCTION_OOM, FUNCTION_SUSPICIOUSLY_LONG,
         FUNCTION_TRUNCATED, FUNCTION_UNKNOWN_INTERNAL, FUNCTION_UNKNOWN_USER, STRING_COUNT,
@@ -378,7 +381,6 @@ mod tests {
         STRING_UNKNOWN_INTERNAL_FUNCTION_STR, STRING_UNKNOWN_USER_FUNCTION,
         STRING_UNKNOWN_USER_FUNCTION_STR, STRING_WALL_TIME, STRING_WALL_TIME_STR,
     };
-    use core::sync::atomic::Ordering;
 
     fn create() -> ShmRegion {
         unsafe { ShmRegion::create().expect("mmap failed") }
@@ -723,7 +725,7 @@ mod tests {
 ///
 /// Run under Miri:
 ///   cargo miri test -p libdatadog-php-profiling-shm -- prop_
-#[cfg(test)]
+#[cfg(all(test, not(feature = "loom")))]
 mod prop_tests {
     extern crate std;
     use super::*;

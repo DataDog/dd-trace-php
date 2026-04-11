@@ -4,7 +4,6 @@
 /// - x86_64  → SSE2 (WIDTH = 16, BitMask = u16)
 /// - aarch64 → NEON (WIDTH = 16, BitMask = u16)
 /// - else    → generic u64 word (WIDTH = 8, BitMask = u8)
-
 #[cfg(target_arch = "x86_64")]
 mod sse2;
 #[cfg(target_arch = "x86_64")]

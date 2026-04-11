@@ -116,7 +116,7 @@ pub(crate) unsafe fn get_function(
     }
 
     let fn_idx_base = seg.add(FN_IDX_OFF) as *const AtomicU64;
-    let packed = (&*fn_idx_base.add(idx.0 as usize)).load(Ordering::Relaxed);
+    let packed = (*fn_idx_base.add(idx.0 as usize)).load(Ordering::Relaxed);
     let name = StringIndex(packed as u32);
     let file = StringIndex((packed >> 32) as u32);
     Some((name, file))

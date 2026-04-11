@@ -171,34 +171,45 @@ pub(crate) const MAX_STRINGS: usize = STR_HT_CAP * 7 / 8; // 1_835_008
 pub(crate) const MAX_FUNCTIONS: usize = FN_HT_CAP * 7 / 8; //   917_504
 pub(crate) const SEGMENT_SIZE: usize = 512 * 1024 * 1024; // 536_870_912
 
-// Fixed byte offsets within the segment
+// Fixed byte offsets within the segment.
+// The STR_IDX array stores one AtomicU32 per string slot; FN_IDX stores one
+// AtomicU64 per function slot.  Both sizes vary between production and loom,
+// so these constants are derived from crate::atomic::{AtomicU32, AtomicU64}.
 pub(crate) const HEADER_OFF: usize = 0;
-pub(crate) const STR_DATA_OFF: usize = 256; // HEADER_OFF + 256
-pub(crate) const STR_CTRL_OFF: usize = STR_DATA_OFF + STR_HT_CAP * 8;
+pub(crate) const STR_DATA_OFF: usize = 256; // header always fits in 256 B
+pub(crate) const STR_CTRL_OFF: usize = STR_DATA_OFF + STR_HT_CAP * 8; // StringHtSlot = u64
 pub(crate) const STR_IDX_OFF: usize = STR_CTRL_OFF + STR_HT_CAP + 16; // +16 for mirror tail
-pub(crate) const FN_DATA_OFF: usize = STR_IDX_OFF + MAX_STRINGS * 4;
-pub(crate) const FN_CTRL_OFF: usize = FN_DATA_OFF + FN_HT_CAP * 8;
+pub(crate) const FN_DATA_OFF: usize =
+    STR_IDX_OFF + MAX_STRINGS * core::mem::size_of::<crate::atomic::AtomicU32>();
+pub(crate) const FN_CTRL_OFF: usize = FN_DATA_OFF + FN_HT_CAP * 8; // FunctionHtSlot = u64
 pub(crate) const FN_IDX_OFF: usize = FN_CTRL_OFF + FN_HT_CAP + 16; // +16 for mirror tail
-pub(crate) const FIXED_END: usize = FN_IDX_OFF + MAX_FUNCTIONS * 8;
+pub(crate) const FIXED_END: usize =
+    FN_IDX_OFF + MAX_FUNCTIONS * core::mem::size_of::<crate::atomic::AtomicU64>();
+/// Arena capacity: whatever remains after the fixed tables.  Shrinks to a
+/// smaller value under loom (AtomicU32 = 8 B instead of 4 B), but the tests
+/// only need a handful of strings so this is fine.
 pub(crate) const ARENA_CAPACITY: usize = SEGMENT_SIZE - FIXED_END;
 
-// Byte offsets within the header (HEADER_OFF = 0)
+// Byte offsets within the header (HEADER_OFF = 0).
+// Derived from the size of the atomic types so the layout is self-consistent
+// under both production (AtomicU32 = 4 B) and loom (AtomicU32 = 8 B).
 pub(crate) const STR_SPINLOCK_OFF: usize = 0;
-pub(crate) const STRING_COUNT_OFF: usize = 4;
-pub(crate) const ARENA_USED_OFF: usize = 8;
+pub(crate) const STRING_COUNT_OFF: usize =
+    STR_SPINLOCK_OFF + core::mem::size_of::<crate::atomic::AtomicU32>();
+pub(crate) const ARENA_USED_OFF: usize =
+    STRING_COUNT_OFF + core::mem::size_of::<crate::atomic::AtomicU32>();
+// FN_SPINLOCK is placed on a fresh cache line (≥ 64 B from the start of the
+// header).  128 always fits: even under loom (AtomicU32 = 8 B) the three
+// header atomics before FN_SPINLOCK occupy at most 24 B.
 pub(crate) const FN_SPINLOCK_OFF: usize = 128;
-pub(crate) const FUNCTION_COUNT_OFF: usize = 132;
+pub(crate) const FUNCTION_COUNT_OFF: usize =
+    FN_SPINLOCK_OFF + core::mem::size_of::<crate::atomic::AtomicU32>();
 #[allow(dead_code)]
-pub(crate) const REFCOUNT_OFF: usize = 136;
+pub(crate) const REFCOUNT_OFF: usize =
+    FUNCTION_COUNT_OFF + core::mem::size_of::<crate::atomic::AtomicU32>();
 
-// Compile-time verification of key offset values (compile error, not panic)
-const _: [(); 16_777_472] = [(); STR_CTRL_OFF];
-const _: [(); 18_874_640] = [(); STR_IDX_OFF];
-const _: [(); 26_214_672] = [(); FN_DATA_OFF];
-const _: [(); 34_603_280] = [(); FN_CTRL_OFF];
-const _: [(); 35_651_872] = [(); FN_IDX_OFF];
-const _: [(); 42_991_904] = [(); FIXED_END];
-const _: [(); 536_870_912] = [(); SEGMENT_SIZE];
+// Compile-time sanity: the fixed tables must always fit within SEGMENT_SIZE.
+const _: () = assert!(FIXED_END <= SEGMENT_SIZE, "fixed tables exceed SEGMENT_SIZE");
 
 // Re-export the main API type
 pub use shm::ShmRegion;
