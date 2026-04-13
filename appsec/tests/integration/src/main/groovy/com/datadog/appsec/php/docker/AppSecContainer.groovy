@@ -491,6 +491,11 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 }
             }
             withEnv 'USE_HELPER_RUST', '1'
+        } else {
+            // Mount helper-rust volume so enable_extensions.sh can copy the binary
+            // for the redirection mechanism (DD_APPSEC_HELPER_RUST_REDIRECTION
+            // defaults to true on PHP 8.5+)
+            addVolumeMount('php-helper-rust', '/helper-rust')
         }
 
         String fullWorkVolume = "php-workvol-$workVolume-$phpVersion-$phpVariant"

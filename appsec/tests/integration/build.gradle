@@ -639,6 +639,9 @@ def runMainTask = { String phpVersion, String variant ->
             dependsOn 'buildHelperRustWithCoverage'
         } else if (project.hasProperty('useHelperRust')) {
             dependsOn 'buildHelperRust'
+        } else if (phpVersion == '8.5') {
+            // PHP 8.5+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
+            dependsOn 'buildHelperRust'
         }
     }
 }
@@ -709,6 +712,9 @@ def runMainTask = { String phpVersion, String variant ->
         } else if (project.hasProperty('useHelperRustCoverage')) {
             dependsOn 'buildHelperRustWithCoverage'
         } else if (project.hasProperty('useHelperRust')) {
+            dependsOn 'buildHelperRust'
+        } else if (phpVersion == '8.5') {
+            // PHP 8.5+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
             dependsOn 'buildHelperRust'
         }
 
