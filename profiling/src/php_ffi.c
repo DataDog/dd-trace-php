@@ -283,8 +283,12 @@ static int _internal_run_time_cache_handle = -1;
 void ddog_php_prof_function_run_time_cache_init(const char *module_name) {
 #if CFG_RUN_TIME_CACHE // defined by build.rs
 #if PHP_VERSION_ID < 80200
+    /* PHP 8.0/8.1 only has the single-slot API; call it twice to claim two
+     * consecutive slots (name ThinStr at handle N, file ThinStr at N+1).
+     * MINIT is single-threaded so the two handles are guaranteed adjacent. */
     _user_run_time_cache_handle =
         zend_get_op_array_extension_handle(module_name);
+    (void)zend_get_op_array_extension_handle(module_name); /* +1: file slot */
 #else
     _user_run_time_cache_handle =
         zend_get_op_array_extension_handles(module_name, 2);
