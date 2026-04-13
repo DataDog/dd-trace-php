@@ -11,7 +11,6 @@
       "_dd.p.dm": "-0",
       "component": "laminas",
       "http.method": "GET",
-      "http.route": "[/v:version]/datadog-rest-service[/:datadog_rest_service_id]",
       "http.status_code": "405",
       "http.url": "http://localhost/datadog-rest-service/1",
       "http.version": "1.1",

@@ -275,14 +275,6 @@ class LaminasIntegration extends Integration
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
 
-                // http.route: developer-defined template (e.g. /dynamic_route[/:param01[/static[/:param02]]])
-                // Use LaminasIntegration:: not self:: — non-static hook closure is bound to the route object;
-                // ddtrace resolves self to the instrumented class (e.g. TreeRouteStack).
-                $routeTemplate = LaminasIntegration::httpRouteTemplateFromMatchedRoute($this, $routeMatch);
-                if ($routeTemplate !== null) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $routeTemplate;
-                }
-
                 // Push path params to appsec
                 if (function_exists('\datadog\appsec\push_addresses')) {
                     $params = $routeMatch->getParams();
@@ -544,10 +536,6 @@ class LaminasIntegration extends Integration
                 $rootSpan->resource = "$controller@$eventName $routeName";
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = $controller . '@' . $eventName;
-                $routeTemplate = LaminasIntegration::httpRouteTemplateFromMatchedRoute($event->getRouteMatch(), $event->getRouteMatch());
-                if ($routeTemplate !== null) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $routeTemplate;
-                }
 
                 if (isset($eventName, self::$EVENT_TYPES)) {
                     install_hook(
@@ -935,7 +923,13 @@ class LaminasIntegration extends Integration
                 }
             }
 
-            if (method_exists($matchedRoute, 'getRoute')) {
+            // Segment (and similar leaf routes) expose getRoute() with no args as the path template.
+            // RouteStackInterface (TreeRouteStack, Part, …) inherits SimpleRouteStack::getRoute($name), which
+            // requires the route name — calling it with no arguments throws ArgumentCountError.
+            if (
+                method_exists($matchedRoute, 'getRoute')
+                && !($matchedRoute instanceof \Laminas\Router\RouteStackInterface)
+            ) {
                 $routeSpec = $matchedRoute->getRoute();
                 if (is_string($routeSpec) && $routeSpec !== '') {
                     return $routeSpec;

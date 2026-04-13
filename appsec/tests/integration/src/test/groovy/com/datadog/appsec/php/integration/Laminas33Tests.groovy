@@ -99,16 +99,6 @@ class Laminas33Tests {
 
     @Test
     @Order(4)
-    void 'home request sets http route to literal slash'() {
-        Trace trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
-            assert resp.statusCode() == 200
-        }
-        Span span = trace.first()
-        assert span.meta.'http.route' == '/'
-    }
-
-    @Test
-    @Order(5)
     void 'Login failure automated event'() {
         Trace trace = container.traceFromRequest('/authenticate?email=nonExisiting@email.com') {
             HttpResponse<InputStream> resp ->
@@ -119,12 +109,11 @@ class Laminas33Tests {
         assert span.meta.'appsec.events.users.login.failure.track' == 'true'
         assert span.meta.'_dd.appsec.events.users.login.failure.auto.mode' == 'identification'
         assert span.meta.'appsec.events.users.login.failure.usr.exists' == 'false'
-        assert span.meta.'http.route' == '/authenticate'
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
 
     @Test
-    @Order(6)
+    @Order(5)
     void 'Login success automated event'() {
         def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com') {
             HttpResponse<InputStream> resp ->
@@ -135,12 +124,11 @@ class Laminas33Tests {
         assert span.meta.'usr.id' == '1'
         assert span.meta.'_dd.appsec.events.users.login.success.auto.mode' == 'identification'
         assert span.meta.'appsec.events.users.login.success.track' == 'true'
-        assert span.meta.'http.route' == '/authenticate'
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
 
     @Test
-    @Order(7)
+    @Order(6)
     void 'path params trigger WAF block and laminas http route template'() {
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
@@ -153,6 +141,5 @@ class Laminas33Tests {
         assert span.metrics.'_dd.appsec.waf.duration' > 0.0d
         assert span.meta.'_dd.appsec.event_rules.version' != ''
         assert span.meta.'appsec.blocked' == 'true'
-        assert span.meta.'http.route' == '/dynamic-path[/:param01]'
     }
 }
