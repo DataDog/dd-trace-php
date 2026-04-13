@@ -181,8 +181,20 @@ static void ssi_main(int argc, char **argv)
 //   argc and argv must be read *before* the stack pointer is moved.
 //
 //   aarch64: sp is required to be 16-byte aligned at all times by the ABI,
-//   and the kernel guarantees this at entry.  There is no return-address-on-
-//   stack convention (lr carries it), so no adjustment is needed.
+//   but the kernel only guarantees 8-byte alignment at process entry (the
+//   initial stack layout is [argc, argv[], NULL, envp[], NULL, auxv...] and
+//   the number of entries can leave sp at an 8-byte boundary).
+//
+//   When SCTLR_EL1.SA0 is set (stack-pointer alignment checking), any load or
+//   store that uses sp as the base register faults with BUS_ADRALN if sp is
+//   not 16-byte aligned.  Therefore we must NOT use sp directly as a memory
+//   base.
+//
+//   Fix: copy sp into a plain GPR (x9) first.  The ldr/add use x9 as base —
+//   which only requires natural alignment and is not subject to the SA0 check.
+//   After reading argc/argv from x9, align sp down to 16 bytes with
+//   'and sp, x9, #-16' so that ssi_main's compiled prologue (stp x29,x30,...)
+//   does not also fault.  No lr/return-address adjustment needed.
 
 #if defined(__aarch64__)
 __asm__(
@@ -192,9 +204,11 @@ __asm__(
     "_dd_ssi_entry:\n"
     "    mov  x29, #0\n"
     "    mov  x30, #0\n"
-    "    ldr  x0,  [sp]\n"       /* argc */
-    "    add  x1,  sp, #8\n"     /* argv */
-    "    b    ssi_main\n"        /* noreturn tail call */
+    "    mov  x9,  sp\n"         /* copy sp to GPR — sp-based loads fault  */
+    "    ldr  x0,  [x9]\n"       /* argc (no SA0 alignment check on x9)    */
+    "    add  x1,  x9, #8\n"     /* argv                                   */
+    "    and  sp,  x9, #-16\n"   /* 16-byte-align sp before C call         */
+    "    b    ssi_main\n"        /* noreturn tail call                     */
     ".size _dd_ssi_entry, .-_dd_ssi_entry\n"
 );
 #elif defined(__x86_64__)

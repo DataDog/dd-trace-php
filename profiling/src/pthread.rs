@@ -1,6 +1,20 @@
 use crate::allocation::alloc_prof_rshutdown;
 use crate::{config, Profiler};
 use log::trace;
+use std::cell::Cell;
+
+// Tracks whether fork_prepare() successfully entered the barrier for the
+// current fork. post_fork_parent() must only call fork_barrier.wait() when
+// fork_prepare() did; otherwise the barrier never reaches its required count
+// and the parent deadlocks indefinitely.
+//
+// A thread-local is correct here because prepare() and parent() are always
+// invoked on the same thread (the one that called fork()).  The flag is
+// cleared by parent() after reading it so that nested or subsequent forks
+// start fresh.
+thread_local! {
+    static FORK_PREPARE_BARRIER_ENTERED: Cell<bool> = const { Cell::new(false) };
+}
 
 pub(crate) fn startup() {
     unsafe {
@@ -13,15 +27,22 @@ extern "C" fn prepare() {
     // the threads while the fork is occurring, they cannot acquire locks
     // since this thread holds them, preventing a deadlock situation.
     if let Some(profiler) = Profiler::get() {
-        trace!("Preparing profiler for upcomming fork call.");
-        let _ = profiler.fork_prepare();
+        trace!("Preparing profiler for upcoming fork call.");
+        let entered = profiler.fork_prepare().is_ok();
+        FORK_PREPARE_BARRIER_ENTERED.with(|c| c.set(entered));
     }
 }
 
 extern "C" fn parent() {
-    if let Some(profiler) = Profiler::get() {
-        trace!("Re-enabling profiler in parent after fork call.");
-        profiler.post_fork_parent();
+    // Only enter the barrier if fork_prepare() entered it.  If the background
+    // threads were not alive when fork() was called, fork_prepare() returns
+    // Err without touching the barrier, so post_fork_parent() must also skip
+    // it — otherwise we wait for two parties that will never arrive.
+    if FORK_PREPARE_BARRIER_ENTERED.with(|c| c.replace(false)) {
+        if let Some(profiler) = Profiler::get() {
+            trace!("Re-enabling profiler in parent after fork call.");
+            profiler.post_fork_parent();
+        }
     }
 }
 
