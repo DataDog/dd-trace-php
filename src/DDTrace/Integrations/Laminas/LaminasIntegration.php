@@ -944,6 +944,17 @@ class LaminasIntegration extends Integration
             return (string) $rp->getValue($matchedRoute);
         }
 
+        // Segment keeps the developer route string only as parsed parts (protected); there is no public
+        // getRoute() template accessor on older Laminas (e.g. 3.3). Without this, endpoint collection skips
+        // every Segment route (e.g. /dynamic-path[/:param01]).
+        if ($matchedRoute instanceof \Laminas\Router\Http\Segment) {
+            $rp = new \ReflectionProperty($matchedRoute, 'parts');
+            $rp->setAccessible(true);
+            $parts = $rp->getValue($matchedRoute);
+
+            return \is_array($parts) ? self::laminasSegmentPartsToRouteTemplate($parts) : null;
+        }
+
         if (
             $matchedRoute instanceof \Laminas\Router\Http\TreeRouteStack
             && $routeMatch instanceof RouteMatch
@@ -966,6 +977,42 @@ class LaminasIntegration extends Integration
         }
 
         return null;
+    }
+
+    /**
+     * Rebuilds the route string from {@see \Laminas\Router\Http\Segment} parsed parts (inverse of parseRouteDefinition).
+     *
+     * @internal
+     * @param array<int, array> $parts
+     */
+    private static function laminasSegmentPartsToRouteTemplate(array $parts): string
+    {
+        $buf = '';
+        foreach ($parts as $part) {
+            if (!\is_array($part) || !isset($part[0])) {
+                continue;
+            }
+            switch ($part[0]) {
+                case 'literal':
+                    $buf .= $part[1] ?? '';
+                    break;
+                case 'parameter':
+                    $buf .= ':';
+                    $buf .= $part[1] ?? '';
+                    if (isset($part[2]) && $part[2] !== null && $part[2] !== '') {
+                        $buf .= '{' . $part[2] . '}';
+                    }
+                    break;
+                case 'optional':
+                    $buf .= '[' . self::laminasSegmentPartsToRouteTemplate($part[1] ?? []) . ']';
+                    break;
+                case 'translated-literal':
+                    $buf .= '{' . ($part[1] ?? '') . '}';
+                    break;
+            }
+        }
+
+        return $buf;
     }
 
     /**
