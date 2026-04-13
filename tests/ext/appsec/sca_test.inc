@@ -34,7 +34,7 @@ for ($i = 0; $i < 300; ++$i) {
                 return false;
             }
             foreach($json["payload"]["configuration"] as $configuration) {
-                if (strpos($configuration["name"], "sca_enabled") !== false) {
+                if (stripos($configuration["name"], "sca_enabled") !== false) {
                     var_dump($configuration);
                     return true;
                 }
