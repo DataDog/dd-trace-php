@@ -209,7 +209,10 @@ pub(crate) const REFCOUNT_OFF: usize =
     FUNCTION_COUNT_OFF + core::mem::size_of::<crate::atomic::AtomicU32>();
 
 // Compile-time sanity: the fixed tables must always fit within SEGMENT_SIZE.
-const _: () = assert!(FIXED_END <= SEGMENT_SIZE, "fixed tables exceed SEGMENT_SIZE");
+const _: () = assert!(
+    FIXED_END <= SEGMENT_SIZE,
+    "fixed tables exceed SEGMENT_SIZE"
+);
 
 // Re-export the main API type
 pub use shm::ShmRegion;

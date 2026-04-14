@@ -72,7 +72,7 @@ pub enum CollectStackSampleError {
 
 #[inline]
 fn function_index_slot(func: &zend_function) -> Option<*const AtomicU64> {
-    if unsafe { func.common.fn_flags } & zend::ZEND_ACC_CALL_VIA_TRAMPOLINE as u32 != 0 {
+    if unsafe { func.common.fn_flags } & zend::ZEND_ACC_CALL_VIA_TRAMPOLINE != 0 {
         return None;
     }
 
@@ -142,7 +142,7 @@ struct StringCache<'a> {
 }
 
 #[cfg(php_run_time_cache)]
-impl<'a> StringCache<'a> {
+impl StringCache<'_> {
     fn get_or_insert<F>(&mut self, slot: usize, f: F) -> Option<String>
     where
         F: FnOnce() -> Option<String>,
@@ -225,7 +225,7 @@ fn intern_function_index(shm: &ShmRegion, func: &zend_function) -> FunctionIndex
     };
 
     // Intern the (name, file) function pair.
-    let fn_idx = match shm.intern_function(name_idx, file_idx) {
+    match shm.intern_function(name_idx, file_idx) {
         Ok(idx) => idx,
         Err(InternError::StrTooLong) => return FUNCTION_SUSPICIOUSLY_LONG,
         Err(InternError::OutOfMemory) => return FUNCTION_OOM,
@@ -236,9 +236,7 @@ fn intern_function_index(shm: &ShmRegion, func: &zend_function) -> FunctionIndex
                 FUNCTION_UNKNOWN_USER
             }
         }
-    };
-
-    fn_idx
+    }
 }
 
 /// Intern a zend_function into the SHM and store the FunctionIndex in
@@ -340,7 +338,7 @@ fn read_or_fallback(func: &zend_function) -> IrFunction {
             if !slots.is_null() {
                 let mut cache = StringCache {
                     cache_slots: unsafe { &mut *slots },
-                    string_set: &mut *string_set,
+                    string_set: &mut string_set,
                 };
                 let name = cache
                     .get_or_insert(0, || extract_function_name(func).map(Cow::into_owned))
@@ -421,7 +419,7 @@ pub fn rshutdown() {
             // A slow ramp up to 2 MiB is probably _not_ going to look like a
             // memory leak. A higher threshold may make a user suspect a leak.
             const THRESHOLD: usize = 2 * 1024 * 1024;
-            let string_set: &mut StringSet = &mut *string_set;
+            let string_set: &mut StringSet = &mut string_set;
             let used_bytes = string_set.arena_used_bytes();
             if used_bytes > THRESHOLD {
                 log::debug!(

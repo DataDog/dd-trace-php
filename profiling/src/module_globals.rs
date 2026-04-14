@@ -97,24 +97,32 @@ pub unsafe fn get_profiler_globals() -> *mut ProfilerGlobals {
 #[cfg(php_run_time_cache)]
 #[inline]
 pub unsafe fn get_string_cache() -> &'static RefCell<StringSet> {
-    &(&*get_profiler_globals()).string_cache
+    &(*get_profiler_globals()).string_cache
 }
 
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
 #[inline]
 pub unsafe fn request_opcache_policy_initialized() -> bool {
-    (&*get_profiler_globals()).opcache_policy_initialized.get()
+    (*get_profiler_globals()).opcache_policy_initialized.get()
 }
 
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
 #[inline]
 pub unsafe fn request_opcache_enabled() -> bool {
-    (&*get_profiler_globals()).opcache_enabled.get()
+    (*get_profiler_globals()).opcache_enabled.get()
 }
 
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
 #[inline]
 pub unsafe fn request_opcache_file_cache_enabled() -> bool {
-    (&*get_profiler_globals()).opcache_file_cache_enabled.get()
+    (*get_profiler_globals()).opcache_file_cache_enabled.get()
 }
 
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
 #[inline]
 pub unsafe fn cached_cli_opcache_enable_state() -> (bool, bool) {
     let globals = &*get_profiler_globals();
@@ -124,6 +132,8 @@ pub unsafe fn cached_cli_opcache_enable_state() -> (bool, bool) {
     )
 }
 
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
 #[no_mangle]
 pub unsafe extern "C" fn ddog_php_prof_set_cached_request_opcache_policy(
     opcache_enabled: bool,
@@ -137,6 +147,9 @@ pub unsafe extern "C" fn ddog_php_prof_set_cached_request_opcache_policy(
         .set(opcache_file_cache_enabled);
 }
 
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
+/// `initialized` and `enabled` must be valid pointers or null.
 #[export_name = "ddog_php_prof_get_cached_cli_opcache_enable_state"]
 pub unsafe extern "C" fn get_cached_cli_opcache_enable_state_ffi(
     initialized: *mut bool,
@@ -151,6 +164,8 @@ pub unsafe extern "C" fn get_cached_cli_opcache_enable_state_ffi(
     }
 }
 
+/// # Safety
+/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
 #[no_mangle]
 pub unsafe extern "C" fn ddog_php_prof_set_cached_cli_opcache_enable_state(
     initialized: bool,

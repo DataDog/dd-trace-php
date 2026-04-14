@@ -414,6 +414,10 @@ extern "C" {
 /// none-the-less has been seen in the wild. It may also return None if the
 /// run_time_cache is not available on this function type.
 /// Slot 0 = function name ThinStr raw pointer, slot 1 = file ThinStr raw pointer.
+///
+/// # Safety
+/// `func` must be a valid pointer to an initialized `zend_function`. Must be
+/// called between GINIT and GSHUTDOWN on the owning worker thread.
 pub unsafe fn ddog_php_prof_function_run_time_cache(func: *const zend_function) -> *mut [usize; 2] {
     ffi::ddog_php_prof_function_run_time_cache(func) as *mut [usize; 2]
 }
