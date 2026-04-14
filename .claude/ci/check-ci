@@ -14,8 +14,9 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 
@@ -25,6 +26,10 @@ API_BASE = f"{GITLAB_HOST}/api/v4"
 
 DONE_STATUSES = {"success", "failed", "canceled", "skipped"}
 ACTIVE_STATUSES = {"running", "pending", "created"}
+
+
+class GitLabError(Exception):
+    """Raised on fatal GitLab API errors (auth failure, network error, timeout)."""
 
 
 def parse_args():
@@ -48,25 +53,27 @@ def resolve_sha(ref: str) -> str:
     return result.stdout.strip()
 
 
-async def api_get(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> tuple[int, any]:
-    """Make a GET request. Returns (status_code, json_or_text)."""
+async def api_get(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> tuple[int, Any, dict]:
+    """Make a GET request. Returns (status_code, json_or_text, headers)."""
     url = f"{API_BASE}{path}"
     try:
         async with session.get(url, params=params) as resp:
             if resp.status in (401, 403):
                 text = await resp.text()
-                print(f"Error: authentication failed ({resp.status}): {text}", file=sys.stderr)
-                sys.exit(1)
+                msg = f"Error: authentication failed ({resp.status}): {text}"
+                print(msg, file=sys.stderr)
+                raise GitLabError(msg)
+            headers = dict(resp.headers)
             if resp.content_type and "json" in resp.content_type:
-                return resp.status, await resp.json()
-            return resp.status, await resp.text()
+                return resp.status, await resp.json(), headers
+            return resp.status, await resp.text(), headers
     except aiohttp.ClientError as e:
-        return 0, str(e)
+        return 0, str(e), {}
 
 
-async def api_get_json(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> any:
+async def api_get_json(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> Any:
     """GET request expecting JSON. Returns None on network error."""
-    status, data = await api_get(session, path, params)
+    status, data, _ = await api_get(session, path, params)
     if status == 0:
         print(f"Warning: network error fetching {path}: {data}", file=sys.stderr)
         return None
@@ -78,28 +85,43 @@ async def api_get_json(session: aiohttp.ClientSession, path: str, params: dict |
 
 async def api_get_text(session: aiohttp.ClientSession, path: str) -> str | None:
     """GET request expecting text. Returns None on error."""
-    status, data = await api_get(session, path)
+    status, data, _ = await api_get(session, path)
     if status == 0 or status >= 400:
         return None
     return data
 
 
 async def paginated_get(session: aiohttp.ClientSession, path: str, params: dict | None = None) -> list:
-    """Fetch all pages of a paginated endpoint."""
-    all_items = []
+    """Fetch all pages of a paginated endpoint.
+
+    Reads X-Total-Pages from the first response, then fetches all remaining pages in parallel.
+    """
     p = dict(params or {})
     p["per_page"] = 100
-    page = 1
-    while True:
-        p["page"] = page
-        data = await api_get_json(session, path, p)
-        if data is None or not isinstance(data, list) or len(data) == 0:
-            break
-        all_items.extend(data)
-        if len(data) < 100:
-            break
-        page += 1
-    return all_items
+    p["page"] = 1
+
+    status, first_page, headers = await api_get(session, path, p)
+    if status == 0:
+        print(f"Warning: network error fetching {path}: {first_page}", file=sys.stderr)
+        return []
+    if status >= 400:
+        print(f"Warning: HTTP {status} fetching {path}", file=sys.stderr)
+        return []
+
+    total_pages = int(headers.get("X-Total-Pages", 1))
+
+    if not isinstance(first_page, list) or total_pages <= 1:
+        if not isinstance(first_page, list):
+            print(f"Warning: expected list from {path}, got {type(first_page).__name__}", file=sys.stderr)
+        return first_page if isinstance(first_page, list) else []
+
+    async def fetch_page(n: int) -> list:
+        pp = {**p, "page": n}
+        data = await api_get_json(session, path, pp)
+        return data if isinstance(data, list) else []
+
+    rest = await asyncio.gather(*[fetch_page(n) for n in range(2, total_pages + 1)])
+    return first_page + [item for page in rest for item in page]
 
 
 async def discover_pipeline(session: aiohttp.ClientSession, sha: str, timeout: int) -> int:
@@ -107,24 +129,24 @@ async def discover_pipeline(session: aiohttp.ClientSession, sha: str, timeout: i
     deadline = time.monotonic() + timeout
     interval = 5
     while True:
-        status, data = await api_get(session, f"/projects/{PROJECT_ID}/pipelines", {"sha": sha, "per_page": 20})
+        status, data, _ = await api_get(session, f"/projects/{PROJECT_ID}/pipelines", {"sha": sha, "per_page": 20})
         if status == 0:
-            print(f"Error: network error during pipeline discovery: {data}", file=sys.stderr)
-            sys.exit(1)
-        if status in (401, 403):
-            # already handled in api_get
-            sys.exit(1)
+            msg = f"Error: network error during pipeline discovery: {data}"
+            print(msg, file=sys.stderr)
+            raise GitLabError(msg)
         if status >= 400:
-            print(f"Error: HTTP {status} during pipeline discovery", file=sys.stderr)
-            sys.exit(1)
+            msg = f"Error: HTTP {status} during pipeline discovery"
+            print(msg, file=sys.stderr)
+            raise GitLabError(msg)
         if isinstance(data, list) and len(data) > 0:
             # Pick the most recently updated pipeline
             best = max(data, key=lambda p: p.get("updated_at", ""))
             print(f"Found pipeline {best['id']} (status: {best.get('status', 'unknown')})")
             return best["id"]
         if time.monotonic() >= deadline:
-            print(f"Error: no pipeline found for SHA {sha} within {timeout}s", file=sys.stderr)
-            sys.exit(1)
+            msg = f"Error: no pipeline found for SHA {sha} within {timeout}s"
+            print(msg, file=sys.stderr)
+            raise GitLabError(msg)
         remaining = deadline - time.monotonic()
         wait = min(interval, remaining)
         if wait > 0:
@@ -132,64 +154,71 @@ async def discover_pipeline(session: aiohttp.ClientSession, sha: str, timeout: i
             await asyncio.sleep(wait)
 
 
-async def get_child_pipelines(session: aiohttp.ClientSession, pipeline_id: int, depth: int = 0) -> list[int]:
-    """Recursively find all descendant pipeline IDs within this project (up to 3 levels)."""
-    if depth >= 3:
-        return []
-    bridges = await paginated_get(session, f"/projects/{PROJECT_ID}/pipelines/{pipeline_id}/bridges")
-    child_ids = []
-    for bridge in bridges:
-        downstream = bridge.get("downstream_pipeline")
-        if not downstream or not downstream.get("id"):
-            continue
-        if downstream.get("project_id") != PROJECT_ID:
-            continue  # cross-project trigger — different project, skip
-        cid = downstream["id"]
-        child_ids.append(cid)
-        grandchildren = await get_child_pipelines(session, cid, depth + 1)
-        child_ids.extend(grandchildren)
-    return child_ids
+async def discover_pipelines_and_jobs(
+    session: aiohttp.ClientSession, root_id: int
+) -> tuple[list[int], dict[int, str], dict[int, list[dict]], dict[int, dict]]:
+    """Discover all pipelines and fetch all jobs in a single pass (no double bridge fetches).
 
+    For each pipeline, regular jobs, bridges, and pipeline details are fetched in parallel.
+    Child pipelines are discovered from bridges and recursed into (up to 3 levels deep).
 
-async def get_all_pipeline_ids(session: aiohttp.ClientSession, root_id: int) -> list[int]:
-    """Get root + all descendant pipeline IDs."""
-    children = await get_child_pipelines(session, root_id)
-    return [root_id] + children
+    Returns:
+        pipeline_ids: root + descendants in discovery order
+        pipeline_names: {child_pipeline_id: bridge_job_name} for display
+        jobs_by_pipeline: {pipeline_id: [jobs + bridges]}
+        pipeline_info: {pipeline_id: {"status": ..., "name": ...}}
+    """
+    pipeline_ids: list[int] = []
+    pipeline_names: dict[int, str] = {}
+    jobs_by_pipeline: dict[int, list[dict]] = {}
+    pipeline_info: dict[int, dict] = {}
 
+    async def visit(pid: int, depth: int):
+        pipeline_ids.append(pid)
+        jobs, bridges, details = await asyncio.gather(
+            paginated_get(session, f"/projects/{PROJECT_ID}/pipelines/{pid}/jobs"),
+            paginated_get(session, f"/projects/{PROJECT_ID}/pipelines/{pid}/bridges"),
+            api_get_json(session, f"/projects/{PROJECT_ID}/pipelines/{pid}"),
+        )
+        jobs_by_pipeline[pid] = list(jobs or []) + list(bridges or [])
+        if details and isinstance(details, dict):
+            name = details.get("name") or details.get("ref") or str(pid)
+            pipeline_info[pid] = {"status": details.get("status", "unknown"), "name": name}
+        else:
+            pipeline_info[pid] = {"status": "unknown", "name": str(pid)}
+        if depth >= 3:
+            return
+        child_tasks = []
+        for bridge in (bridges or []):
+            downstream = bridge.get("downstream_pipeline")
+            if not downstream or not downstream.get("id"):
+                continue
+            if downstream.get("project_id") != PROJECT_ID:
+                continue  # cross-project trigger — skip
+            cid = downstream["id"]
+            pipeline_names[cid] = bridge.get("name", str(cid))
+            child_tasks.append(visit(cid, depth + 1))
+        if child_tasks:
+            await asyncio.gather(*child_tasks)
 
-async def fetch_all_jobs(session: aiohttp.ClientSession, pipeline_ids: list[int]) -> list[dict]:
-    """Fetch jobs for all pipelines in parallel."""
-    tasks = [paginated_get(session, f"/projects/{PROJECT_ID}/pipelines/{pid}/jobs") for pid in pipeline_ids]
-    results = await asyncio.gather(*tasks)
-    all_jobs = []
-    for job_list in results:
-        if job_list:
-            all_jobs.extend(job_list)
-    return all_jobs
+    await visit(root_id, 0)
+    return pipeline_ids, pipeline_names, jobs_by_pipeline, pipeline_info
 
-
-async def fetch_pipeline_statuses(session: aiohttp.ClientSession, pipeline_ids: list[int]) -> dict[int, str]:
-    """Fetch status of each pipeline in parallel."""
-    async def fetch_one(pid):
-        data = await api_get_json(session, f"/projects/{PROJECT_ID}/pipelines/{pid}")
-        if data and isinstance(data, dict):
-            return pid, data.get("status", "unknown")
-        return pid, "unknown"
-
-    results = await asyncio.gather(*[fetch_one(pid) for pid in pipeline_ids])
-    return dict(results)
 
 
 def compute_duration(job: dict) -> int | None:
-    """Compute duration in seconds from created_at to finished_at."""
-    created = job.get("created_at")
+    """Compute actual run duration in seconds for a job."""
+    duration = job.get("duration")
+    if duration is not None and isinstance(duration, (int, float)):
+        return round(duration)
+    started = job.get("started_at")
     finished = job.get("finished_at")
-    if not created or not finished:
+    if not started or not finished:
         return None
     try:
-        t_created = datetime.fromisoformat(created.replace("Z", "+00:00"))
-        t_finished = datetime.fromisoformat(finished.replace("Z", "+00:00"))
-        return round((t_finished - t_created).total_seconds())
+        t_started = datetime.fromisoformat(started)
+        t_finished = datetime.fromisoformat(finished)
+        return round((t_finished - t_started).total_seconds())
     except (ValueError, TypeError):
         return None
 
@@ -208,29 +237,31 @@ async def download_job_log(session: aiohttp.ClientSession, job_id: int, log_dir:
 
 async def list_jobs(session: aiohttp.ClientSession, root_id: int):
     """List all jobs grouped by pipeline, then exit."""
-    pipeline_ids = await get_all_pipeline_ids(session, root_id)
-    pipeline_statuses = await fetch_pipeline_statuses(session, pipeline_ids)
-
-    # Fetch jobs for all pipelines individually so we can group them
-    jobs_by_pipeline: dict[int, list[dict]] = {}
-    tasks = []
-    for pid in pipeline_ids:
-        tasks.append(paginated_get(session, f"/projects/{PROJECT_ID}/pipelines/{pid}/jobs"))
-    results = await asyncio.gather(*tasks)
-    for pid, job_list in zip(pipeline_ids, results):
-        jobs_by_pipeline[pid] = sorted(job_list or [], key=lambda j: j.get("name", ""))
+    pipeline_ids, pipeline_names, jobs_by_pipeline, pipeline_statuses = await discover_pipelines_and_jobs(session, root_id)
 
     for pid in pipeline_ids:
-        status = pipeline_statuses.get(pid, "unknown")
+        jobs_by_pipeline[pid] = sorted(jobs_by_pipeline.get(pid, []), key=lambda j: j.get("name", ""))
+
+    for pid in pipeline_ids:
+        info = pipeline_statuses.get(pid, {"status": "unknown", "name": str(pid)})
+        display_name = pipeline_names.get(pid, info["name"])
         jobs = jobs_by_pipeline.get(pid, [])
-        print(f"\nPipeline {pid} (status: {status}):")
+        print(f"\nPipeline {pid} '{display_name}' (status: {info['status']}):")
         for job in jobs:
             job_status = job.get("status", "unknown")
             job_name = job.get("name", "")
-            print(f"  {job_status:<10}{job_name}")
+            job_id = job.get("id", "")
+            print(f"  {job_status:<10}({job_id}) {job_name}")
 
 
 async def run(args):
+    try:
+        await _run(args)
+    except GitLabError:
+        sys.exit(1)
+
+
+async def _run(args):
     token = os.environ.get("GITLAB_PERSONAL_ACCESS_TOKEN", "").strip()
     if not token:
         print("Error: GITLAB_PERSONAL_ACCESS_TOKEN environment variable is not set or empty", file=sys.stderr)
@@ -266,45 +297,59 @@ async def run(args):
         deadline = time.monotonic() + args.timeout
 
         while True:
-            # Discover all pipeline IDs
-            pipeline_ids = await get_all_pipeline_ids(session, root_id)
+            # Discover all pipelines and fetch all jobs in one pass
+            pipeline_ids, _, jobs_by_pipeline, pipeline_statuses = await discover_pipelines_and_jobs(session, root_id)
+            all_jobs = [job for jobs in jobs_by_pipeline.values() for job in jobs]
 
-            # Fetch all jobs in parallel
-            all_jobs = await fetch_all_jobs(session, pipeline_ids)
-
-            # Process new successes
+            # Process jobs: track successes, failures, and counts in one pass
             success_path = wdir / "success.txt"
-            for job in all_jobs:
-                jid = job["id"]
-                if job.get("status") == "success" and jid not in seen_success:
-                    with open(success_path, "a") as f:
-                        f.write(f"{jid}\t{job.get('name', '')}\n")
-                    seen_success.add(jid)
-
-            # Process new failures
             failure_path = wdir / "failure.txt"
             new_failure_jobs = []
-            for job in all_jobs:
-                jid = job["id"]
-                if job.get("status") == "failed" and jid not in seen_failure:
-                    new_failure_jobs.append(job)
+            new_allow_fail_jobs = []
+            running = 0
+            passed = 0
+            failed = 0
+            allow_fail = 0
+            with open(success_path, "a") as success_f:
+                for job in all_jobs:
+                    jid = job["id"]
+                    status = job.get("status")
+                    if status == "success":
+                        passed += 1
+                        if jid not in seen_success:
+                            success_f.write(f"{jid}\t{job.get('name', '')}\n")
+                            seen_success.add(jid)
+                    elif status == "failed":
+                        if job.get("allow_failure", False):
+                            allow_fail += 1
+                            if jid not in seen_failure:
+                                new_allow_fail_jobs.append(job)
+                        else:
+                            failed += 1
+                            if jid not in seen_failure:
+                                new_failure_jobs.append(job)
+                    elif status in ACTIVE_STATUSES:
+                        running += 1
 
-            # Download logs in parallel for new failures
+            # Download logs in parallel for new real failures
             if new_failure_jobs:
                 await asyncio.gather(*[download_job_log(session, job["id"], fail_log_dir) for job in new_failure_jobs])
 
-            for job in new_failure_jobs:
-                jid = job["id"]
-                name = job.get("name", "")
-                with open(failure_path, "a") as f:
-                    f.write(f"{jid}\t{name}\n")
-                duration = compute_duration(job)
-                if duration is not None:
-                    print(f'FAILED: ({jid}) "{name}" in {duration} secs')
-                else:
-                    print(f'FAILED: ({jid}) "{name}"')
-                seen_failure.add(jid)
-                failure_count += 1
+            with open(failure_path, "a") as failure_f:
+                for job in new_failure_jobs:
+                    jid = job["id"]
+                    name = job.get("name", "")
+                    failure_f.write(f"{jid}\t{name}\n")
+                    duration = compute_duration(job)
+                    if duration is not None:
+                        print(f'FAILED: ({jid}) "{name}" in {duration} secs')
+                    else:
+                        print(f'FAILED: ({jid}) "{name}"')
+                    seen_failure.add(jid)
+                    failure_count += 1
+
+            for job in new_allow_fail_jobs:
+                seen_failure.add(job["id"])
 
             # Check failure threshold
             if failure_count >= args.max_failures:
@@ -313,16 +358,11 @@ async def run(args):
 
             # Status line
             now = datetime.now().strftime("%H:%M:%S")
-            total_jobs = len(all_jobs)
-            running = sum(1 for j in all_jobs if j.get("status") in ACTIVE_STATUSES)
-            passed = sum(1 for j in all_jobs if j.get("status") == "success")
-            failed = sum(1 for j in all_jobs if j.get("status") == "failed")
-            print(f"[{now}] pipelines={len(pipeline_ids)}  jobs={total_jobs}  running={running}  passed={passed}  failed={failed}")
+            print(f"[{now}] pipelines={len(pipeline_ids)}  jobs={len(all_jobs)}  running={running}  passed={passed}  failed={failed}  allow_fail={allow_fail}")
 
             # Check if all pipelines are done
-            pipeline_statuses = await fetch_pipeline_statuses(session, pipeline_ids)
-            all_pipelines_done = all(s in DONE_STATUSES for s in pipeline_statuses.values())
-            no_active_jobs = all(j.get("status") not in ACTIVE_STATUSES for j in all_jobs)
+            all_pipelines_done = all(info["status"] in DONE_STATUSES for info in pipeline_statuses.values())
+            no_active_jobs = running == 0
 
             if all_pipelines_done and no_active_jobs:
                 if failure_count == 0:
