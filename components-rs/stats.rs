@@ -14,6 +14,7 @@ use libdd_trace_stats::span_concentrator::FixedAggregationKey;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{LazyLock, RwLock};
 use tracing::trace;
 
@@ -227,6 +228,18 @@ impl SpanConcentrator {
 
 static SPAN_CONCENTRATORS: LazyLock<RwLock<HashMap<String, SpanConcentrator>>> = LazyLock::new(|| RwLock::default());
 
+/// Set to true once `apply_concentrator_config` has been called at least once,
+/// i.e. the sidecar has received and applied the agent's /info response.
+static AGENT_INFO_RECEIVED: AtomicBool = AtomicBool::new(false);
+
+/// Returns true once the agent /info has been received and applied.
+/// Used by the PHP extension to skip stats computation until the concentrator
+/// has been properly initialised with peer-tag keys and span kinds.
+#[no_mangle]
+pub extern "C" fn ddog_is_agent_info_ready() -> bool {
+    AGENT_INFO_RECEIVED.load(Ordering::Acquire)
+}
+
 /// Desired concentrator configuration sourced from the agent's /info endpoint.
 /// Populated via `ddog_apply_agent_info`; applied to every concentrator
 /// at creation time and when the config changes.
@@ -253,6 +266,7 @@ pub(crate) fn apply_concentrator_config(
         &tags_require, &tags_reject, &regex_require, &regex_reject, &ignore_resources,
     );
     trace_filter::set_trace_filter(compiled);
+    AGENT_INFO_RECEIVED.store(true, Ordering::Release);
     {
         let mut dc = DESIRED_CONFIG.write().unwrap();
         dc.peer_tag_keys = peer_tag_keys.clone();

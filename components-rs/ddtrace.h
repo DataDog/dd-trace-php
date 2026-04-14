@@ -85,6 +85,13 @@ void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
 
+/**
+ * Returns true once the sidecar has received and applied the agent /info response.
+ * Used by `dd_trace_internal_fn('await_agent_info')` to block until the concentrator
+ * peer-tag keys and span kinds are initialised.
+ */
+bool ddog_is_agent_info_ready(void);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);

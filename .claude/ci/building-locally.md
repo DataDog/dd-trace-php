@@ -435,7 +435,7 @@ set -e
 Set `ARCHITECTURE=aarch64` for arm64 (still runs in the amd64
 `php_fpm_packaging` image, using cross-tools).
 
-### Slim package with debug binaries
+### Slim package with debug binaries (preferred, if possible)
 
 `tooling/bin/build-debug-artifact` builds a tarball containing only the PHP
 version you need — no stubs, no `generate-final-artifact.sh`. It
@@ -454,7 +454,7 @@ tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts
 # Tracer + appsec (extension + both helpers) + profiler
 tooling/bin/build-debug-artifact gnu-x86_64-8.2-nts --appsec --profiler
 
-# Musl/arm64 variant, custom output directory
+# Musl/arm64 variant, custom output directory (preferred if the location is somewhere else)
 tooling/bin/build-debug-artifact musl-aarch64-8.2-nts /tmp/out
 ```
 

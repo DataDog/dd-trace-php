@@ -69,6 +69,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "http.status_code": "500",
             "http.url": "http:\/\/localhost:8888\/foo",
             "runtime-id": "%s",
+            "span.kind": "server",
             "version": "1.0"
         },
         "metrics": {

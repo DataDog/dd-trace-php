@@ -74,6 +74,7 @@ if ($percentageDifference > 0.01) { // 0.01% difference for the sake of the test
             "http.status_code": "200",
             "http.url": "http:\/\/localhost:8888\/foo",
             "runtime-id": "%s",
+            "span.kind": "server",
             "version": "1.0"
         },
         "metrics": {

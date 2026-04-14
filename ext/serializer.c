@@ -638,6 +638,14 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
         zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &http_method);
 
+        // Mark HTTP server entry spans with span.kind=server for client-side stats aggregation.
+        // Only add if not already set (e.g. by an OTel or framework integration).
+        zval span_kind_server;
+        ZVAL_STRING(&span_kind_server, "server");
+        if (!zend_hash_str_add(meta, ZEND_STRL("span.kind"), &span_kind_server)) {
+            zval_ptr_dtor(&span_kind_server);
+        }
+
         if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
             const char *uri = dd_get_req_uri(data->server);
             zval *prop_resource = &span->property_resource;
@@ -1526,7 +1534,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         ZEND_HASH_FOREACH_END();
 
 
-        if (!span_sampling_applied && ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+        if (!span_sampling_applied && ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
             if (inferred_span) {
                 // Inferred span won't be serialized, so feed it to the concentrator here.
                 ddtrace_span_precomputed inferred_pre;
@@ -1771,7 +1779,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     zend_string_release(Z_STR(prop_root_service_as_string));
     zend_string_release(Z_STR(prop_service_as_string));
 
-    if (ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+    if (ddtrace_sidecar && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
         ddtrace_feed_span_to_concentrator(span, &pre);
     }
 

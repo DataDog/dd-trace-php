@@ -3122,6 +3122,20 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_logf(DDOG_LOG_WARN, false, "bar");
             ddog_logf(DDOG_LOG_ERROR, false, "Boum");
             RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("await_agent_info")) {
+            // Block until the sidecar has received and applied the agent /info response.
+            // This ensures peer-tag keys and span kinds are initialised before the caller
+            // makes requests that produce stats.  Times out after 5 seconds.
+            uint32_t timeout_ms = 5000;
+            if (params_count == 1) {
+                timeout_ms = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            uint32_t waited = 0;
+            while (!ddog_is_agent_info_ready() && waited < timeout_ms) {
+                usleep(10000); // 10ms
+                waited += 10;
+            }
+            RETVAL_BOOL(ddog_is_agent_info_ready());
         }
     }
 }
