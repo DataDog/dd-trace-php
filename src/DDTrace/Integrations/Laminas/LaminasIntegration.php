@@ -618,8 +618,6 @@ class LaminasIntegration extends Integration
             }
         );
 
-        // Track login by hooking the storage write operation
-        // This captures the full user object after it's stored
         hook_method(
             'Laminas\Authentication\Storage\Session',
             'write',
@@ -629,19 +627,15 @@ class LaminasIntegration extends Integration
                     return;
                 }
 
-                // The first argument to write() is the identity
                 $identity = isset($args[0]) ? $args[0] : null;
                 if (!$identity) {
                     return;
                 }
 
-                // Skip if identity is just a string (initial write from authenticate())
-                // We only want to track when the full user object is written by the controller
                 if (is_string($identity)) {
                     return;
                 }
 
-                // Only track if this looks like a user object (has id property)
                 $userId = self::getUserId($identity);
                 if (!$userId) {
                     return;
@@ -658,7 +652,6 @@ class LaminasIntegration extends Integration
             }
         );
 
-        // Authentication tracking - Login failure
         install_hook(
             'Laminas\Authentication\AuthenticationService::authenticate',
             null,
@@ -671,21 +664,17 @@ class LaminasIntegration extends Integration
 
                 $code = $result->getCode();
 
-                // Only track failures
                 if ($code === \Laminas\Authentication\Result::SUCCESS) {
                     return;
                 }
 
-                // Login failure
                 if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
 
-                // Get the adapter from the hook arguments
                 $adapter = isset($hook->args[0]) ? $hook->args[0] : null;
                 $userLogin = null;
 
-                // Try to get the login from the adapter if it has a getIdentity method
                 if ($adapter && method_exists($adapter, 'getIdentity')) {
                     $userLogin = $adapter->getIdentity();
                 }
@@ -701,22 +690,23 @@ class LaminasIntegration extends Integration
             }
         );
 
-        // Track authenticated user on each request
         hook_method(
             'Laminas\Authentication\AuthenticationService',
-            'hasIdentity',
+            'getIdentity',
             null,
-            static function ($This, $scope, $args, $hasIdentity) {
-                if (!$hasIdentity || !function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+            static function ($This, $scope, $args, $identity) {
+                if ($identity === null || $identity === false) {
                     return;
                 }
-
-                $identity = $This->getIdentity();
-                if (!$identity) {
+                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
                     return;
                 }
 
                 $userId = self::getUserId($identity);
+                if ($userId === '') {
+                    return;
+                }
+
                 \datadog\appsec\track_authenticated_user_event_automated($userId);
             }
         );
@@ -724,12 +714,6 @@ class LaminasIntegration extends Integration
         return Integration::LOADED;
     }
 
-    /**
-     * Extract user ID from identity object
-     *
-     * @param mixed $identity
-     * @return string
-     */
     private static function getUserId($identity)
     {
         if (is_string($identity) || is_int($identity)) {
@@ -752,7 +736,6 @@ class LaminasIntegration extends Integration
         }
 
         if (is_object($identity)) {
-            // Try common property names
             if (isset($identity->id)) {
                 return (string)$identity->id;
             }
@@ -763,7 +746,6 @@ class LaminasIntegration extends Integration
                 return (string)$identity->userId;
             }
 
-            // Try common getter methods
             if (method_exists($identity, 'getId')) {
                 return (string)$identity->getId();
             }
@@ -777,7 +759,6 @@ class LaminasIntegration extends Integration
                 return $identity->getEmail();
             }
 
-            // ArrayAccess support
             if ($identity instanceof \ArrayAccess) {
                 if (isset($identity['id'])) {
                     return (string)$identity['id'];
@@ -797,12 +778,6 @@ class LaminasIntegration extends Integration
         return '';
     }
 
-    /**
-     * Extract user login (username/email) from identity object
-     *
-     * @param mixed $identity
-     * @return string|null
-     */
     private static function getUserLogin($identity)
     {
         if (is_string($identity)) {
@@ -819,7 +794,6 @@ class LaminasIntegration extends Integration
         }
 
         if (is_object($identity)) {
-            // Try properties
             if (isset($identity->email)) {
                 return $identity->email;
             }
@@ -827,7 +801,6 @@ class LaminasIntegration extends Integration
                 return $identity->username;
             }
 
-            // Try getters
             if (method_exists($identity, 'getEmail')) {
                 return $identity->getEmail();
             }
@@ -835,7 +808,6 @@ class LaminasIntegration extends Integration
                 return $identity->getUsername();
             }
 
-            // ArrayAccess support
             if ($identity instanceof \ArrayAccess) {
                 if (isset($identity['email'])) {
                     return $identity['email'];
@@ -849,12 +821,6 @@ class LaminasIntegration extends Integration
         return null;
     }
 
-    /**
-     * Extract user metadata from identity object
-     *
-     * @param mixed $identity
-     * @return array
-     */
     private static function getUserMetadata($identity)
     {
         $metadata = [];
@@ -870,7 +836,6 @@ class LaminasIntegration extends Integration
         }
 
         if (is_object($identity)) {
-            // Try properties
             if (isset($identity->name)) {
                 $metadata['name'] = $identity->name;
             }
@@ -878,7 +843,6 @@ class LaminasIntegration extends Integration
                 $metadata['email'] = $identity->email;
             }
 
-            // Try getters
             if (method_exists($identity, 'getName')) {
                 $metadata['name'] = $identity->getName();
             }
@@ -886,7 +850,6 @@ class LaminasIntegration extends Integration
                 $metadata['email'] = $identity->getEmail();
             }
 
-            // ArrayAccess support
             if ($identity instanceof \ArrayAccess) {
                 if (isset($identity['name']) && !isset($metadata['name'])) {
                     $metadata['name'] = $identity['name'];
@@ -900,19 +863,6 @@ class LaminasIntegration extends Integration
         return $metadata;
     }
 
-    /**
-     * Developer-defined route path for {@see Tag::HTTP_ROUTE}. Laminas requests do not carry this;
-     * MVC resolves on {@see \Laminas\Router\Http\TreeRouteStack} so {@code $this} is often the stack,
-     * not {@see \Laminas\Router\Http\Segment}.
-     *
-     * Must be public (not private): the {@code match()} hook closure runs with ddtrace caller scope
-     * {@see \Laminas\Router\Http\TreeRouteStack}, so private methods are not callable from there.
-     *
-     * @internal
-     * @param object          $matchedRoute $this from {@see \Laminas\Router\RouteInterface::match()}
-     * @param RouteMatch|null $routeMatch   return value of {@code match()} (needed for the route stack)
-     * @return string|null
-     */
     public static function httpRouteTemplateFromMatchedRoute($matchedRoute, $routeMatch = null)
     {
         if (is_object($matchedRoute)) {
@@ -922,10 +872,7 @@ class LaminasIntegration extends Integration
                     return $routeSpec;
                 }
             }
-
-            // Segment (and similar leaf routes) expose getRoute() with no args as the path template.
-            // RouteStackInterface (TreeRouteStack, Part, …) inherits SimpleRouteStack::getRoute($name), which
-            // requires the route name — calling it with no arguments throws ArgumentCountError.
+            
             if (
                 method_exists($matchedRoute, 'getRoute')
                 && !($matchedRoute instanceof \Laminas\Router\RouteStackInterface)
@@ -944,9 +891,6 @@ class LaminasIntegration extends Integration
             return (string) $rp->getValue($matchedRoute);
         }
 
-        // Segment keeps the developer route string only as parsed parts (protected); there is no public
-        // getRoute() template accessor on older Laminas (e.g. 3.3). Without this, endpoint collection skips
-        // every Segment route (e.g. /dynamic-path[/:param01]).
         if ($matchedRoute instanceof \Laminas\Router\Http\Segment) {
             $rp = new \ReflectionProperty($matchedRoute, 'parts');
             $rp->setAccessible(true);
@@ -978,13 +922,7 @@ class LaminasIntegration extends Integration
 
         return null;
     }
-
-    /**
-     * Rebuilds the route string from {@see \Laminas\Router\Http\Segment} parsed parts (inverse of parseRouteDefinition).
-     *
-     * @internal
-     * @param array<int, array> $parts
-     */
+    
     private static function laminasSegmentPartsToRouteTemplate(array $parts): string
     {
         $buf = '';
@@ -1015,14 +953,6 @@ class LaminasIntegration extends Integration
         return $buf;
     }
 
-    /**
-     * Registers every route from the application router for endpoint telemetry in one shot (same idea as Laravel:
-     * {@code getRoutes()} then a single loop of {@see \DDTrace\add_endpoint()}). Laminas nests routes in
-     * {@see \Laminas\Router\Http\Part} trees, so we first flatten to a list, then submit—still one hook invocation,
-     * still synchronous, before {@see \DDTrace\are_endpoints_collected()} flips for the service/env.
-     *
-     * @param \Laminas\Router\RouteStackInterface $rootRouter From {@see MvcEvent::getRouter()}
-     */
     public static function registerLaminasRouteEndpoints($rootRouter): void
     {
         if (\DDTrace\are_endpoints_collected()) {
@@ -1037,11 +967,6 @@ class LaminasIntegration extends Integration
         }
     }
 
-    /**
-     * Builds the full endpoint list (path template + method) from the route stack tree—no telemetry I/O yet.
-     *
-     * @return list<array{path: string, method: string, resourceName: string}>
-     */
     private static function collectLaminasRouteEndpointRows($rootRouter, $currentStack, string $namePrefix): array
     {
         $rows = [];
@@ -1050,11 +975,6 @@ class LaminasIntegration extends Integration
         return self::dedupeLaminasEndpointRows($rows);
     }
 
-    /**
-     * @param list<array{path: string, method: string, resourceName: string}> $rows
-     *
-     * @return list<array{path: string, method: string, resourceName: string}>
-     */
     private static function dedupeLaminasEndpointRows(array $rows): array
     {
         $seen = [];
@@ -1071,9 +991,6 @@ class LaminasIntegration extends Integration
         return $out;
     }
 
-    /**
-     * @param list<array{path: string, method: string, resourceName: string}> $rows
-     */
     private static function walkRouteStackCollectEndpointRows(
         $rootRouter,
         $currentStack,
@@ -1097,10 +1014,6 @@ class LaminasIntegration extends Integration
         }
     }
 
-    /**
-     * @internal
-     * @param \Laminas\Router\Http\TreeRouteStack $stack
-     */
     public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
     {
         $segments = \explode('/', $matchedName, 2);
@@ -1136,11 +1049,6 @@ class LaminasIntegration extends Integration
         return self::httpRouteTemplateFromMatchedRoute($route, null);
     }
 
-    /**
-     * Path template for the non-child segment of a {@see \Laminas\Router\Http\Part} route.
-     *
-     * @internal
-     */
     public static function partRouteBaseTemplate(\Laminas\Router\Http\Part $part): ?string
     {
         $rp = new \ReflectionProperty($part, 'route');

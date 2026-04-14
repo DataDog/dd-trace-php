@@ -67,51 +67,10 @@ class LoginController extends AbstractActionController
         }
     }
 
-    public function signupAction()
-    {
-        $email = $this->params()->fromQuery('email');
-        $name = $this->params()->fromQuery('name');
-        $password = $this->params()->fromQuery('password', 'password');
-
-        if (!$email || !$name || !$password) {
-            $response = $this->getResponse();
-            $response->setStatusCode(400);
-            $response->setContent('Email, name, and password are required');
-            return $response;
-        }
-
-        // Insert new user
-        $connection = $this->dbAdapter->getDriver()->getConnection();
-        $statement = $this->dbAdapter->query(
-            "INSERT INTO users (name, email, password) VALUES (?, ?, MD5(?))"
-        );
-        $statement->execute([$name, $email, $password]);
-
-        $userId = $this->dbAdapter->getDriver()->getLastGeneratedValue();
-
-        // Track signup event manually since we're not using an event system
-        if (function_exists('\datadog\appsec\track_user_signup_event_automated')) {
-            \datadog\appsec\track_user_signup_event_automated($email, (string)$userId, []);
-        }
-
-        // Auto-login after signup
-        $userData = (object)[
-            'id' => $userId,
-            'name' => $name,
-            'email' => $email
-        ];
-        $this->authService->getStorage()->write($userData);
-
-        $response = $this->getResponse();
-        $response->setStatusCode(200);
-        $response->setContent('Signup successful');
-        return $response;
-    }
-
     public function behindAuthAction()
     {
-        // Check if user is authenticated
-        if (!$this->authService->hasIdentity()) {
+        $identity = $this->authService->getIdentity();
+        if ($identity === null) {
             $response = $this->getResponse();
             $response->setStatusCode(401);
             $response->setContent('Unauthorized');

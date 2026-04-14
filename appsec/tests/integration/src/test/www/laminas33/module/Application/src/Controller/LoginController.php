@@ -69,4 +69,20 @@ class LoginController extends AbstractActionController
         $response->setContent('Invalid credentials');
         return $response;
     }
+
+    public function behindAuthAction()
+    {
+        $identity = $this->authService->getIdentity();
+        if ($identity === null) {
+            $response = $this->getResponse();
+            $response->setStatusCode(401);
+            $response->setContent('Unauthorized');
+            return $response;
+        }
+
+        $response = $this->getResponse();
+        $response->setStatusCode(200);
+        $response->setContent('Authenticated page');
+        return $response;
+    }
 }

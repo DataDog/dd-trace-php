@@ -15,11 +15,13 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 
 import java.io.InputStream
+import java.net.http.HttpHeaders
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 import static com.datadog.appsec.php.integration.TestParams.getPhpVersion
 import static com.datadog.appsec.php.integration.TestParams.getVariant
+import static java.net.http.HttpResponse.BodyHandlers.ofInputStream
 import static java.net.http.HttpResponse.BodyHandlers.ofString
 
 @Testcontainers
@@ -78,9 +80,10 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 4
+        assert endpoints.size() == 5
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
+        assert endpoints.find { it.path == '/behind-auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind-auth' } != null
         assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
         assert endpoints.find {
             it.path == '/dynamic-path[/:param01]' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path[/:param01]'
@@ -129,6 +132,35 @@ class Laminas33Tests {
 
     @Test
     @Order(6)
+    void 'Authenticated user automated event after session login'() {
+        HttpRequest loginReq = container.buildReq('/authenticate?email=ciuser@example.com').GET().build()
+        HttpResponse<InputStream> loginResp = container.httpClient.send(loginReq, ofInputStream())
+        assert loginResp.statusCode() == 200
+        loginResp.body().close()
+
+        String cookieHeader = loginResp.headers().allValues(HttpHeaders.SET_COOKIE)
+                .collect { full -> full.split(';', 2)[0] }
+                .join('; ')
+        assert cookieHeader, 'login response should include session cookie'
+
+        container.nextCapturedTrace()
+
+        HttpRequest behindReq = container.buildReq('/behind-auth')
+                .header('Cookie', cookieHeader)
+                .GET()
+                .build()
+        Trace trace = container.traceFromRequest(behindReq, ofInputStream()) { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'usr.id' == '1'
+        assert span.meta.'_dd.appsec.usr.id' == '1'
+        assert span.meta.'_dd.appsec.user.collection_mode' == 'identification'
+    }
+
+    @Test
+    @Order(7)
     void 'path params trigger WAF block and laminas http route template'() {
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
         def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->

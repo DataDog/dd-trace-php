@@ -33,6 +33,16 @@ return [
                     ],
                 ],
             ],
+            'behind_auth' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/behind-auth',
+                    'defaults' => [
+                        'controller' => Controller\LoginController::class,
+                        'action' => 'behindAuth',
+                    ],
+                ],
+            ],
             'register' => [
                 'type' => Literal::class,
                 'options' => [
