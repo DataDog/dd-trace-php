@@ -10,6 +10,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 
 ### Fixed
 - Improve Symfony http.route resolution performance #3779 (thank you @B-Galati for the report!)
+- Wrap PDO::__construct for signal handling #3786
 
 ### Internal
 - Fix spawn\_worker trampoline issues DataDog/libdatadog#1844
