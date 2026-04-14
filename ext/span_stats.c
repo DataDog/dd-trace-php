@@ -161,6 +161,9 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
     pre->has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT &&
                          instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
 
+    zval *error_ignored_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("error.ignored")) : NULL;
+    pre->ignore_error = error_ignored_zv && zend_is_true(error_ignored_zv);
+
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
     pre->has_top_level = ddtrace_span_is_entrypoint_root(span);
@@ -172,8 +175,7 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
 }
 
 bool dd_compute_span_is_error(const ddtrace_span_precomputed *pre) {
-    zval *error_ignored_zv = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("error.ignored")) : NULL;
-    if (error_ignored_zv && zend_is_true(error_ignored_zv)) {
+    if (pre->ignore_error) {
         return false;
     }
     if (pre->meta && (zend_hash_str_find(pre->meta, ZEND_STRL("error.message")) != NULL ||
@@ -243,9 +245,6 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_status_str_zv))
         : DDOG_CHARSLICE_C("");
 
-    zval *http_status_f64_zv = metrics ? zend_hash_str_find(metrics, ZEND_STRL("http.status_code")) : NULL;
-    double http_status_f64 = http_status_f64_zv ? zval_get_double(http_status_f64_zv) : NAN;
-
     zval *http_method_zv = meta ? zend_hash_str_find(meta, ZEND_STRL("http.method")) : NULL;
     ddog_CharSlice http_method_slice = http_method_zv && Z_TYPE_P(http_method_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(http_method_zv))
@@ -306,14 +305,13 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
         .has_top_level       = pre->has_top_level,
         .is_partial_snapshot = pre->is_partial_snapshot,
 
-        .span_kind            = span_kind_slice,
-        .http_status_code_str = http_status_str_slice,
-        .http_status_code_f64 = http_status_f64,
-        .http_method          = http_method_slice,
-        .http_endpoint        = http_endpoint_slice,
-        .http_route           = http_route_slice,
-        .origin               = origin_slice,
-        .service_source       = service_source_slice,
+        .span_kind        = span_kind_slice,
+        .http_status_code = http_status_str_slice,
+        .http_method      = http_method_slice,
+        .http_endpoint    = http_endpoint_slice,
+        .http_route       = http_route_slice,
+        .origin           = origin_slice,
+        .service_source   = service_source_slice,
 
         .grpc_meta    = {grpc_meta[0], grpc_meta[1], grpc_meta[2], grpc_meta[3]},
         .grpc_metrics = {grpc_metrics[0], grpc_metrics[1], grpc_metrics[2], grpc_metrics[3]},
@@ -363,7 +361,7 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
         }
     } else if (!pre->span_kind || !zend_string_equals_literal(pre->span_kind, "server")) {
         // internal or no span.kind: use _dd.base_service only if it marks a service override
-        static const ddog_CharSlice BASE_SERVICE_KEY = DDOG_CHARSLICE_C("_dd.base_service");
+        static const ddog_CharSlice BASE_SERVICE_KEY = DDOG_CHARSLICE_C_BARE("_dd.base_service");
         zval *base_svc_zv = zend_hash_str_find(pre->meta, ZEND_STRL("_dd.base_service"));
         if (base_svc_zv && Z_TYPE_P(base_svc_zv) == IS_STRING) {
             peer_tags[0].key   = BASE_SERVICE_KEY;

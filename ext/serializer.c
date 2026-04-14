@@ -1173,7 +1173,7 @@ static bool dd_is_http_error(int status) {
     return false;
 }
 
-static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, struct iter *headers, bool ignore_error) {
+static void dd_set_http_error(zend_array *meta, int status, bool ignore_error) {
     if (status) {
         zend_string *status_str = zend_long_to_str((long)status);
         zval status_zv;
@@ -1188,6 +1188,10 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
             }
         }
     }
+}
+
+static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, struct iter *headers, bool ignore_error) {
+    dd_set_http_error(meta, status, ignore_error);
 
     for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
         dd_add_header_to_meta(meta, "response", lowerheader, headerval);
@@ -1196,19 +1200,7 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
     }
 }
 
-static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanBytes *span, int status, struct iter *headers, bool ignore_error) {
-    if (status) {
-        zend_string *status_str = zend_long_to_str((long)status);
-        ddog_add_str_span_meta_zstr(span, "http.status_code", status_str);
-        zend_string_release(status_str);
-
-        if (!ignore_error && dd_is_http_error(status)) {
-            if (!ddog_has_span_meta_str(span, "error.type")) {
-                ddog_add_str_span_meta_str(span, "error.type", "HttpError");
-            }
-        }
-    }
-
+static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanBytes *span, struct iter *headers) {
     for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
         dd_add_header_to_rust_span(span, "response", lowerheader, headerval);
         zend_string_release(lowerheader);
@@ -1334,6 +1326,29 @@ void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, 
 }
 
 ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace) {
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+
+    // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions < 1.21.0
+    zval *http_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.status_code"));
+    if (http_status_code) {
+        zval status_code_as_string;
+        ddtrace_convert_to_string(&status_code_as_string, http_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_code_as_string);
+        zend_hash_str_del(metrics, ZEND_STRL("http.status_code"));
+    }
+
+    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions >= 1.21.0
+    zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
+    if (http_response_status_code) {
+        zval status_code_as_string;
+        ddtrace_convert_to_string(&status_code_as_string, http_response_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_code_as_string);
+        zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
+    }
+
     ddtrace_span_precomputed pre;
     ddtrace_precompute_span(span, &pre);
 
@@ -1351,6 +1366,14 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
 
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;
+
+    if (ddtrace_span_is_entrypoint_root(span) || is_inferred_span) {
+        int status = SG(sapi_headers).http_response_code;
+        if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
+            status = pre.has_exception ? 500 : 200;
+        }
+        dd_set_http_error(meta, status, pre.ignore_error);
+    }
 
     ddtrace_span_data *inferred_span = NULL;
     if (is_root_span) {
@@ -1543,33 +1566,6 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     ddog_set_span_start(rust_span, span->start);
     ddog_set_span_duration(rust_span, span->duration);
 
-    zend_array *meta = ddtrace_property_array(&span->property_meta);
-    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
-
-    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
-    // OTel HTTP semantic conventions >= 1.21.0
-    zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
-    if (http_response_status_code) {
-        zval status_code_as_string;
-        ddtrace_convert_to_string(&status_code_as_string, http_response_status_code);
-        ddog_add_str_span_meta_zstr(rust_span, "http.status_code", Z_STR_P(&status_code_as_string));
-        zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
-        zval_ptr_dtor(&status_code_as_string);
-    }
-
-    // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
-    // OTel HTTP semantic conventions < 1.21.0
-    zval *http_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.status_code"));
-    if (http_status_code) {
-        if (!ddog_has_span_meta_str(rust_span, "http.status_code")) {
-            zval status_code_as_string;
-            ddtrace_convert_to_string(&status_code_as_string, http_status_code);
-            ddog_add_str_span_meta_zstr(rust_span, "http.status_code", Z_STR_P(&status_code_as_string));
-            zval_ptr_dtor(&status_code_as_string);
-        }
-        zend_hash_str_del(metrics, ZEND_STRL("http.status_code"));
-    }
-
     if (is_first_span) {
         zend_string *process_tags = ddtrace_process_tags_get_serialized();
         if (ZSTR_LEN(process_tags)) {
@@ -1630,17 +1626,11 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         }
     }
 
-    bool ignore_error = false;
-
     if (meta) {
         zend_string *meta_str_key;
         zval *orig_val;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(meta, meta_str_key, orig_val) {
             if (meta_str_key) {
-                if (zend_string_equals_literal_ci(meta_str_key, "error.ignored")) {
-                    ignore_error = zend_is_true(orig_val);
-                    continue;
-                }
                 if (!ddog_has_span_meta_zstr(rust_span, meta_str_key)) {
                     dd_serialize_array_meta_recursively(rust_span, meta_str_key, orig_val);
                 }
@@ -1658,8 +1648,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
 
     zval *exception_zv = &span->property_exception;
-    bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-    if (has_exception && !ignore_error) {
+    if (pre.has_exception && !pre.ignore_error) {
         enum dd_exception exception_type = DD_EXCEPTION_THROWN;
         if (is_root_span) {
             exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
@@ -1732,12 +1721,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
 
     if (ddtrace_span_is_entrypoint_root(span) || is_inferred_span) {
-        int status = SG(sapi_headers).http_response_code;
-        if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
-            status = has_exception ? 500 : 200;
-        }
         struct iter *headers = dd_iterate_sapi_headers();
-        dd_set_entrypoint_root_rust_span_props_end(rust_span, status, headers, ignore_error);
+        dd_set_entrypoint_root_rust_span_props_end(rust_span, headers);
         efree(headers);
     }
 
@@ -1872,6 +1857,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         }
     }
     ZEND_HASH_FOREACH_END();
+
+    ddog_del_span_meta_str(rust_span, "error.ignored");
 
     ddtrace_free_span_precomputed(&pre);
     return rust_span;

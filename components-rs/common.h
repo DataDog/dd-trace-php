@@ -707,8 +707,7 @@ typedef struct ddog_PhpSpanStats {
   bool has_top_level;
   bool is_partial_snapshot;
   ddog_CharSlice span_kind;
-  ddog_CharSlice http_status_code_str;
-  double http_status_code_f64;
+  ddog_CharSlice http_status_code;
   ddog_CharSlice http_method;
   ddog_CharSlice http_endpoint;
   ddog_CharSlice http_route;

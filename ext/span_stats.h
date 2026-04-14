@@ -39,8 +39,8 @@ typedef struct {
     bool env_deprecated;
     bool version_deprecated;
 
-    /* True when span->property_exception holds a Throwable; used by dd_compute_span_is_error() */
-    bool has_exception;
+    bool has_exception; /* when span->property_exception holds a Throwable */
+    bool ignore_error;
 
     /* Stats-specific fields — precomputed to avoid repeated lookups across two call sites. */
     bool has_top_level;       /* ddtrace_span_is_entrypoint_root() */

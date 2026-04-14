@@ -55,8 +55,7 @@ pub struct PhpSpanStats<'a> {
     pub is_partial_snapshot: bool,
 
     pub span_kind: CharSlice<'a>,
-    pub http_status_code_str: CharSlice<'a>,
-    pub http_status_code_f64: f64,
+    pub http_status_code: CharSlice<'a>,
     pub http_method: CharSlice<'a>,
     pub http_endpoint: CharSlice<'a>,
     pub http_route: CharSlice<'a>,
@@ -86,11 +85,9 @@ fn char_slice_str(s: CharSlice) -> &str {
 /// Prefer string meta, fall back to metrics f64, default 0.
 #[inline]
 fn extract_http_status_code(span: &PhpSpanStats<'_>) -> u32 {
-    let s = char_slice_str(span.http_status_code_str);
+    let s = char_slice_str(span.http_status_code);
     if !s.is_empty() {
         s.parse::<u32>().unwrap_or(0)
-    } else if !span.http_status_code_f64.is_nan() {
-        span.http_status_code_f64 as u32
     } else {
         0
     }
