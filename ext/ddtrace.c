@@ -3132,6 +3132,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
             uint32_t waited = 0;
             while (!ddog_is_agent_info_ready() && waited < timeout_ms) {
+                // Actively read the SHM so we pick up the update the sidecar wrote.
+                if (DDTRACE_G(agent_info_reader)) {
+                    ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
+                }
                 usleep(10000); // 10ms
                 waited += 10;
             }

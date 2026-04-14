@@ -21,6 +21,10 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
+// Block until the sidecar has received the agent's /info response so that
+// ddog_is_agent_info_ready() returns true before stats are computed.
+dd_trace_internal_fn('await_agent_info');
+
 $root = \DDTrace\start_trace_span();
 $root->name = "web.request";
 $root->resource = "GET /test";

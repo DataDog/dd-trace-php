@@ -75,6 +75,7 @@ Array
     [runtime-id] => %s
     [http.url] => https://localhost:8888/foo
     [http.method] => GET
+    [span.kind] => server
     [http.useragent] => my user agent
 )
 rinit
@@ -102,6 +103,7 @@ Array
     [meta_1] => value_1
     [meta_2] => value_2
     [runtime-id] => %s
+    [span.kind] => server
 )
 metrics:
 Array
