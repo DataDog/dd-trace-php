@@ -406,11 +406,12 @@ def buildTracerCmakeTask = { String version, String variant, altBaseTag = null -
     )
 }
 
-def buildTracerSsiTask = { String version, String variant ->
+def buildTracerSsiTask = { String version, String variant, altBaseTag = null ->
     def isDebug = variant.contains('debug')
     def cargoProfile = isDebug ? 'debug' : 'tracer-release'
     buildRunInDockerTask(
             baseName: 'buildTracerSsi',
+            baseTag: altBaseTag ?: 'php',
             version: version,
             variant: variant,
             needsTracer: false,
@@ -504,9 +505,10 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
 }
 
 // TODO: loader is actually php independent?
-def buildLoaderTask = { String version, String variant ->
+def buildLoaderTask = { String version, String variant, altBaseTag = null ->
     buildRunInDockerTask(
             baseName: 'buildLoader',
+            baseTag: altBaseTag ?: 'php',
             version: version,
             variant: variant,
             needsTracer: false,
@@ -753,26 +755,26 @@ if (project.hasProperty('testClass')) {
     }
 }
 
-['release', 'debug'].each { variant ->
-    buildTracerSsiTask('8.3', variant)
-    buildTracerSsiCmakeTask('8.3', variant)
-    buildLoaderTask('8.3', variant)
-
-    tasks.register("test8.3-${variant}-ssi", Test) {
+def buildTestSsiTask = { String version, String variant ->
+    def isMusl = variant.contains('musl')
+    tasks.register("test${version}-${variant}-ssi", Test) {
         group = 'Verification'
-        description = "Run tests for PHP 8.3 ${variant} in SSI mode"
+        description = "Run tests for PHP ${version} ${variant} in SSI mode"
 
         it.outputs.upToDateWhen { false }
 
         it.useJUnitPlatform {
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
+            if (isMusl) {
+                includeTags('musl')
+            }
         }
 
         it.testClassesDirs = sourceSets.test.output.classesDirs
         it.classpath = sourceSets.test.runtimeClasspath
 
-        it.systemProperty 'PHP_VERSION', '8.3'
+        it.systemProperty 'PHP_VERSION', version
         it.systemProperty 'VARIANT', variant
         it.systemProperty 'SSI', 'true'
 
@@ -790,16 +792,29 @@ if (project.hasProperty('testClass')) {
         if (!project.hasProperty('floatingImageTags')) {
             it.systemProperty 'TAG_MAPPINGS', "$rootDir/gradle/tag_mappings.gradle"
         }
-        if (project.hasProperty('useCmake')) {
+        if (!isMusl && project.hasProperty('useCmake')) {
             it.systemProperty 'USE_CMAKE', 'true'
         }
 
-        dependsOn project.hasProperty('useCmake') ? "buildTracerSsiCmake-8.3-${variant}" : "buildTracerSsi-8.3-${variant}"
-        dependsOn "buildLoader-8.3-${variant}"
-        dependsOn "buildAppsec-8.3-${variant}"
+        dependsOn(!isMusl && project.hasProperty('useCmake')
+                ? "buildTracerSsiCmake-${version}-${variant}"
+                : "buildTracerSsi-${version}-${variant}")
+        dependsOn "buildLoader-${version}-${variant}"
+        dependsOn "buildAppsec-${version}-${variant}"
         dependsOn downloadComposer
     }
 }
+
+['release', 'debug'].each { variant ->
+    buildTracerSsiTask('8.3', variant)
+    buildTracerSsiCmakeTask('8.3', variant)
+    buildLoaderTask('8.3', variant)
+    buildTestSsiTask('8.3', variant)
+}
+
+buildTracerSsiTask('8.5', 'release-musl', 'nginx-fpm-php')
+buildLoaderTask('8.5', 'release-musl', 'nginx-fpm-php')
+buildTestSsiTask('8.5', 'release-musl')
 
 task loadCaches(type: Exec) {
     description = "Load the docker caches"

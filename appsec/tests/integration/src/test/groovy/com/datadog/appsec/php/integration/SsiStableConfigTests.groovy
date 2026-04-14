@@ -5,6 +5,7 @@ import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
 import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.junit.jupiter.Container
@@ -16,6 +17,7 @@ import static org.testcontainers.containers.Container.ExecResult
 
 @Testcontainers
 @Slf4j
+@Tag("musl")
 @EnabledIf('isSsi')
 class SsiStableConfigTests {
     static boolean isSsi() {
@@ -27,7 +29,7 @@ class SsiStableConfigTests {
     public static final AppSecContainer CONTAINER =
             new AppSecContainer(
                     workVolume: this.name,
-                    baseTag: 'apache2-mod-php',
+                    baseTag: variant.contains('musl') ? 'nginx-fpm-php' : 'apache2-mod-php',
                     phpVersion: phpVersion,
                     phpVariant: variant,
                     www: 'base',

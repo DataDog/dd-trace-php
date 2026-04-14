@@ -44,6 +44,7 @@
 //   ld.so before our entry point runs, so they are already absolute VAs.
 //   We call them directly without adding the load base again.
 
+#include <dlfcn.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -153,12 +154,39 @@ static void ssi_main(int argc, char **argv)
 
     if (!fn) _exit(2);
 
+    // argv[2..argc-2] are dependency paths (e.g. libddappsec-helper.so);
+    // argv[argc-1] is the symbol name, already consumed above.
+    // dlopen them with RTLD_GLOBAL so dlsym(RTLD_DEFAULT, ...) finds their
+    // symbols, and build a NULL-terminated dependency_paths array for
+    // init_crashtracker (which needs them to spawn the crash receiver with the
+    // same libraries loaded).
+    int n_deps = argc - 3;
+    char *dep_paths[n_deps + 1];
+
+#ifdef __GLIBC__
+    // appsec needs librt for shm_open but doesn't declare the dependency for
+    // musl compatibility; pre-load it globally so the symbol is available.
+    dlopen("librt.so.1", RTLD_LAZY | RTLD_GLOBAL);
+#endif
+
+    for (int i = 0; i < n_deps; i++) {
+        dep_paths[i] = argv[2 + i];
+        if (!dlopen(dep_paths[i], RTLD_LAZY | RTLD_GLOBAL)) {
+            const char *err = dlerror();
+            if (err) {
+                write(2, err, strlen(err));
+                write(2, "\n", 1);
+            }
+        }
+    }
+    dep_paths[n_deps] = NULL;
+
     // Run our own .init_array before entering Rust code.  ld.so skips it
     // for the main executable, expecting __libc_start_main to handle it,
     // but we never call __libc_start_main.
     run_own_init_array(argc, argv, envp);
 
-    struct trampoline_data td = { argc, argv, NULL };
+    struct trampoline_data td = { argc, argv, n_deps > 0 ? dep_paths : NULL };
     fn(&td);
     _exit(0);
 }
