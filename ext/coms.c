@@ -1005,6 +1005,11 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
                 smart_str_free_ex(&response, true);
             }
 
+            // Abort retries early when shutdown is pending to avoid delaying process exit
+            if (atomic_load(&writer->shutdown_when_idle)) {
+                break;
+            }
+
             continue;
         } else {
             if (get_global_DD_TRACE_DEBUG_CURL_OUTPUT()) {
@@ -1488,9 +1493,32 @@ bool ddtrace_coms_flush_shutdown_writer_synchronous(void) {
     pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
 
     if (should_join && !_dd_has_pid_changed()) {
-        // when timeout was not reached and we haven't forked (without restarting thread)
-        // this ensures situation when join is safe from being deadlocked
-        pthread_join(writer->thread->self, NULL);
+        // After pthread_cancel (if timeout was reached), verify the thread has actually
+        // stopped before calling pthread_join. pthread_cancel may fail to take effect if
+        // the thread is blocked in a non-cancellable operation (e.g. certain curl states
+        // or platform-specific pthread_cancel limitations). An unbounded pthread_join in
+        // that case causes the CLI/cron process to hang indefinitely (see #2629).
+        if (atomic_load(&writer->running) || atomic_load(&writer->starting_up)) {
+            // Thread hasn't stopped yet; wait a bounded grace period for the cleanup
+            // handler to signal that the thread is terminating.
+            pthread_mutex_lock(&writer->thread->writer_shutdown_signal_mutex);
+            if (atomic_load(&writer->running) || atomic_load(&writer->starting_up)) {
+                struct timespec grace_deadline = _dd_deadline_in_ms(get_global_DD_TRACE_SHUTDOWN_TIMEOUT());
+                pthread_cond_timedwait(&writer->thread->writer_shutdown_signal_condition,
+                                      &writer->thread->writer_shutdown_signal_mutex, &grace_deadline);
+            }
+            pthread_mutex_unlock(&writer->thread->writer_shutdown_signal_mutex);
+        }
+
+        if (!atomic_load(&writer->running) && !atomic_load(&writer->starting_up)) {
+            // Thread has stopped; pthread_join will return immediately.
+            pthread_join(writer->thread->self, NULL);
+        } else {
+            // Thread failed to respond to cancellation within the grace period.
+            // Detach the thread so that its resources are cleaned up automatically
+            // when it eventually terminates, instead of hanging here forever.
+            pthread_detach(writer->thread->self);
+        }
         free(writer->thread);
         writer->thread = NULL;
         return true;
