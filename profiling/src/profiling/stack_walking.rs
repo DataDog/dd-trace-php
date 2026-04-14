@@ -227,10 +227,10 @@ fn intern_function_index(shm: &ShmRegion, func: &zend_function) -> FunctionIndex
     // Intern the (name, file) function pair.
     match shm.intern_function(name_idx, file_idx) {
         Ok(idx) => idx,
-        Err(InternError::StrTooLong) => return FUNCTION_SUSPICIOUSLY_LONG,
-        Err(InternError::OutOfMemory) => return FUNCTION_OOM,
+        Err(InternError::StrTooLong) => FUNCTION_SUSPICIOUSLY_LONG,
+        Err(InternError::OutOfMemory) => FUNCTION_OOM,
         Err(InternError::WouldBlock) => {
-            return if func.is_internal() {
+            if func.is_internal() {
                 FUNCTION_UNKNOWN_INTERNAL
             } else {
                 FUNCTION_UNKNOWN_USER
