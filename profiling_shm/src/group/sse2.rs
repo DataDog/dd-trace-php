@@ -68,27 +68,19 @@ mod tests {
 
     #[test]
     fn match_empty_all_zero() {
-        if !is_x86_feature_detected!("sse2") {
-            return;
-        }
+        // SSE2 is guaranteed on x86_64 (baseline feature); no runtime check needed.
         let g = unsafe { make_group([0x00; 16]) };
         assert_eq!(g.match_empty().0, 0xFFFF);
     }
 
     #[test]
     fn match_empty_none() {
-        if !is_x86_feature_detected!("sse2") {
-            return;
-        }
         let g = unsafe { make_group([0x80; 16]) };
         assert_eq!(g.match_empty().0, 0x0000);
     }
 
     #[test]
     fn match_byte_fingerprint() {
-        if !is_x86_feature_detected!("sse2") {
-            return;
-        }
         let fp = 0xA3u8;
         let mut bytes = [0x00u8; 16];
         bytes[3] = fp;
