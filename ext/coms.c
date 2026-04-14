@@ -972,10 +972,6 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
     int retries = MAX(get_global_DD_TRACE_AGENT_RETRIES(), 0) + 1;
     CURLcode res = CURLE_UNSUPPORTED_PROTOCOL; // Set a default value to avoid compiler warning
     for (int retry = 0; retry < retries; retry++) {
-        // Abort retries early when shutdown is pending to avoid delaying process exit
-        if (atomic_load(&writer->shutdown_when_idle)) {
-            break;
-        }
         _dd_curl_set_headers(writer, kData->total_groups);
         curl_easy_setopt(writer->curl, CURLOPT_READDATA, read_data);
         ddtrace_curl_set_hostname(writer->curl);
@@ -1007,6 +1003,11 @@ static void _dd_curl_send_stack(struct _writer_loop_data_t *writer, ddtrace_coms
 
             if (response.s) {
                 smart_str_free_ex(&response, true);
+            }
+
+            // Abort retries early when shutdown is pending to avoid delaying process exit
+            if (atomic_load(&writer->shutdown_when_idle)) {
+                break;
             }
 
             continue;
