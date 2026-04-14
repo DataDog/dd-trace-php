@@ -100,6 +100,7 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     x(time_nanosleep) \
 
 #define BLOCKMETH(x) \
+    x(PDO, __construct) \
     x(PDO, connect) \
     x(mysqli, __construct) \
     x(mysqli, real_connect)
