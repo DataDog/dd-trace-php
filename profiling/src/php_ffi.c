@@ -726,11 +726,6 @@ bool ddog_php_jit_enabled() {
     // JIT was introduced in PHP 8.0
     return false;
 #else
-    // No OPcache -> no JIT
-    if (!opcache_handle) {
-        return false;
-    }
-
     // Check if we can safely use zend_jit_status() based on PHP version
     bool can_use_zend_jit_status = false; // Upstream PR has not yet been merged
         // Most likely those will be the versions that will have the fix:
@@ -739,7 +734,8 @@ bool ddog_php_jit_enabled() {
         // (PHP_VERSION_ID >= 80324 && PHP_VERSION_ID < 80400) || // PHP 8.3.24+
         // (PHP_VERSION_ID >= 80411 && PHP_VERSION_ID < 80500);   // PHP 8.4.11+
 
-    if (can_use_zend_jit_status) {
+    // The zend_jit_status() path requires a valid opcache dlopen handle.
+    if (can_use_zend_jit_status && opcache_handle) {
         // Safe to use zend_jit_status() on these versions
         void (*zend_jit_status)(zval *ret) = DL_FETCH_SYMBOL(opcache_handle, "zend_jit_status");
         if (zend_jit_status == NULL) {
