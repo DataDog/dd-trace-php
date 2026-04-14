@@ -80,11 +80,10 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 5
+        assert endpoints.size() == 4
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
         assert endpoints.find { it.path == '/behind-auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind-auth' } != null
-        assert endpoints.find { it.path == '/register' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /register' } != null
         assert endpoints.find {
             it.path == '/dynamic-path[/:param01]' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path[/:param01]'
         } != null
@@ -138,7 +137,7 @@ class Laminas33Tests {
         assert loginResp.statusCode() == 200
         loginResp.body().close()
 
-        String cookieHeader = loginResp.headers().allValues(HttpHeaders.SET_COOKIE)
+        String cookieHeader = loginResp.headers().allValues('Set-Cookie')
                 .collect { full -> full.split(';', 2)[0] }
                 .join('; ')
         assert cookieHeader, 'login response should include session cookie'

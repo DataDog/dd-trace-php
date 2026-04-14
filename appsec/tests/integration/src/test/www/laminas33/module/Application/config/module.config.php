@@ -43,16 +43,6 @@ return [
                     ],
                 ],
             ],
-            'register' => [
-                'type' => Literal::class,
-                'options' => [
-                    'route' => '/register',
-                    'defaults' => [
-                        'controller' => Controller\LoginController::class,
-                        'action' => 'signup',
-                    ],
-                ],
-            ],
             'dynamic_path' => [
                 'type' => Segment::class,
                 'options' => [
