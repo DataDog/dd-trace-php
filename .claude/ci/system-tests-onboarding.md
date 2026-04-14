@@ -43,7 +43,7 @@ The shared template expands each scenario group into jobs that:
 | `docker-ssi` | Docker-based SSI (no VM, uses Docker-in-Docker) |
 
 Runner: `docker-in-docker:amd64` (all scenario groups)
-Image: `docker:24.0.4-gbi-focal`
+Image: `docker:29.4.0-noble`
 
 ### CI secrets
 

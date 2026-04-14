@@ -19,9 +19,9 @@ Docker-in-Docker runners because they spin up containers internally.
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `framework test: [{suite}]` | `docker:24.0.4-gbi-focal` | Spins up a framework-specific Docker Compose stack and runs the framework's own test suite with ddtrace installed |
-| `installer tests` | `docker:24.0.4-gbi-focal` | Runs `make -C dockerfiles/verify_packages test_installer`; verifies `datadog-setup.php` installer works on both amd64 and arm64 packages |
-| `randomized tests: [amd64, {no-asan,asan}, {1..5}]` | `docker:24.0.4-gbi-focal` | Generates random PHP scenarios and runs them with ddtrace for 1m30s each; checks for crashes and unexpected behavior |
+| `framework test: [{suite}]` | `docker:29.4.0-noble` | Spins up a framework-specific Docker Compose stack and runs the framework's own test suite with ddtrace installed |
+| `installer tests` | `docker:29.4.0-noble` | Runs `make -C dockerfiles/verify_packages test_installer`; verifies `datadog-setup.php` installer works on both amd64 and arm64 packages |
+| `randomized tests: [amd64, {no-asan,asan}, {1..5}]` | `docker:29.4.0-noble` | Generates random PHP scenarios and runs them with ddtrace for 1m30s each; checks for crashes and unexpected behavior |
 
 Runner: `docker-in-docker:amd64`
 Matrix (`framework test`): `{flow, flow_no_ddtrace, mongodb-driver, mongodb-driver_no_ddtrace, phpredis3, phpredis3_no_ddtrace, phpredis4, phpredis4_no_ddtrace, phpredis5, phpredis5_no_ddtrace, wordpress, wordpress_no_ddtrace}`
