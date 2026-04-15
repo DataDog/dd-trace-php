@@ -618,40 +618,6 @@ class LaminasIntegration extends Integration
             }
         );
 
-        hook_method(
-            'Laminas\Authentication\Storage\Session',
-            'write',
-            null,
-            static function ($This, $scope, $args, $returnValue) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
-                    return;
-                }
-
-                $identity = isset($args[0]) ? $args[0] : null;
-                if (!$identity) {
-                    return;
-                }
-
-                if (is_string($identity)) {
-                    return;
-                }
-
-                $userId = self::getUserId($identity);
-                if (!$userId) {
-                    return;
-                }
-
-                $userLogin = self::getUserLogin($identity);
-                $metadata = self::getUserMetadata($identity);
-
-                \datadog\appsec\track_user_login_success_event_automated(
-                    $userLogin,
-                    $userId,
-                    $metadata
-                );
-            }
-        );
-
         install_hook(
             'Laminas\Authentication\AuthenticationService::authenticate',
             null,
@@ -662,9 +628,8 @@ class LaminasIntegration extends Integration
                     return;
                 }
 
-                $code = $result->getCode();
-
-                if ($code === \Laminas\Authentication\Result::SUCCESS) {
+                if ($result->isValid()) {
+                    self::trackUserLoginSuccess($result, $hook->args[0] ?? null);
                     return;
                 }
 
@@ -672,7 +637,8 @@ class LaminasIntegration extends Integration
                     return;
                 }
 
-                $adapter = isset($hook->args[0]) ? $hook->args[0] : null;
+                $code = $result->getCode();
+                $adapter = $hook->args[0] ?? null;
                 $userLogin = null;
 
                 if ($adapter && method_exists($adapter, 'getIdentity')) {
@@ -712,6 +678,41 @@ class LaminasIntegration extends Integration
         );
 
         return Integration::LOADED;
+    }
+
+    private static function trackUserLoginSuccess(
+        \Laminas\Authentication\Result $result,
+        $adapter
+    ) {
+        if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+            return;
+        }
+
+        $identity = $result->getIdentity();
+        if ($adapter !== null && method_exists($adapter, 'getResultRowObject')) {
+            $row = $adapter->getResultRowObject();
+            if (is_object($row)) {
+                $identity = $row;
+            }
+        }
+
+        if ($identity === null || $identity === false || $identity === '') {
+            return;
+        }
+
+        $userId = self::getUserId($identity);
+        if ($userId === '') {
+            return;
+        }
+
+        $userLogin = self::getUserLogin($identity);
+        $metadata = self::getUserMetadata($identity);
+
+        \datadog\appsec\track_user_login_success_event_automated(
+            $userLogin,
+            $userId,
+            $metadata
+        );
     }
 
     private static function getUserId($identity)
