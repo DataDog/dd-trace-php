@@ -85,13 +85,6 @@ void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
 
-/**
- * Returns true once the sidecar has received and applied the agent /info response.
- * Used by `dd_trace_internal_fn('await_agent_info')` to block until the concentrator
- * peer-tag keys and span kinds are initialised.
- */
-bool ddog_is_agent_info_ready(void);
-
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -182,6 +175,13 @@ bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t l
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint64_t hash,
                                      uint32_t granularity_seconds);
+
+/**
+ * Returns true once the agent /info has been received and applied.
+ * Used by the PHP extension to skip stats computation until the concentrator
+ * has been properly initialised with peer-tag keys and span kinds.
+ */
+bool ddog_is_agent_info_ready(void);
 
 /**
  * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke

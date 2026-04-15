@@ -104,9 +104,9 @@
     ],
     "DD_APPSEC_HELPER_RUST_REDIRECTION": [
       {
-        "implementation": "B",
+        "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "false"
       }
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
@@ -343,6 +343,13 @@
     "DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES": [
       {
         "implementation": "A",
+        "type": "array",
+        "default": ""
+      }
+    ],
+    "DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS": [
+      {
+        "implementation": "C",
         "type": "array",
         "default": ""
       }

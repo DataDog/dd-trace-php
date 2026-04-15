@@ -10,9 +10,9 @@
 #include <stdio.h>
 #include "common.h"
 
-void drop_log_probe_capture_expressions(struct ddog_LogProbe);
+void ddog_drop_log_probe_capture_expressions(struct ddog_LogProbe);
 
-void drop_span_decoration_probe(struct ddog_SpanDecorationProbe);
+void ddog_drop_span_decoration_probe(struct ddog_SpanDecorationProbe);
 
 struct ddog_CaptureConfiguration ddog_capture_defaults(void);
 

@@ -128,9 +128,9 @@ static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute
 static void dd_probe_dtor(void *data) {
     dd_probe_def *def = data;
     if (def->probe.probe.tag == DDOG_PROBE_TYPE_SPAN_DECORATION) {
-        drop_span_decoration_probe(def->probe.probe.span_decoration);
+        ddog_drop_span_decoration_probe(def->probe.probe.span_decoration);
     } else if (def->probe.probe.tag == DDOG_PROBE_TYPE_LOG) {
-        drop_log_probe_capture_expressions(def->probe.probe.log);
+        ddog_drop_log_probe_capture_expressions(def->probe.probe.log);
     }
     if (def->file) {
         zend_string_release(def->file);
@@ -1268,7 +1268,7 @@ static ddog_VoidCollection dd_eval_try_enumerate(void *ctx, const void *zvp) {
                 zai_sandbox sandbox;
                 zai_sandbox_open(&sandbox);
 
-                // Collect key-value pairs into two parallel zval arrays on the eval arena. Hard-limited for perf reasons.
+                // Collect key-value pairs into two parallel zval arrays on the eval arena. Hard-limited to at *least* 1024 for perf reasons.
                 zend_long max_items = MAX(1024, eval_ctx->config->max_collection_size);
                 zend_long idx = 0;
                 ddog_VoidCollection collection = dd_alloc_kv_collection(max_items);
