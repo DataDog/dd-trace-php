@@ -271,9 +271,9 @@ static ddog_PhpSpanStats ddtrace_build_span_stats_core(
         ? dd_zend_string_to_CharSlice(Z_STR_P(service_source_zv))
         : DDOG_CHARSLICE_C("");
 
-    ddog_CharSlice grpc_meta[4];
-    double         grpc_metrics[4];
-    for (int i = 0; i < 4; i++) {
+    ddog_CharSlice grpc_meta[ddog_PHP_GRPC_KEY_COUNT];
+    double         grpc_metrics[ddog_PHP_GRPC_KEY_COUNT];
+    for (int i = 0; i < ddog_PHP_GRPC_KEY_COUNT; i++) {
         grpc_meta[i]    = DDOG_CHARSLICE_C("");
         grpc_metrics[i] = NAN;
         if (meta) {
