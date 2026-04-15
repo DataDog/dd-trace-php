@@ -393,6 +393,12 @@ extract_c_supported_configurations() {
 #else
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT false
 #endif
+#undef DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT
+#if PHP_VERSION_ID >= 80500
+#define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
+#else
+#define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "false"
+#endif
 // Do not expand CALIASES() directly, otherwise parameter counting in macros is broken.
 #define ALTCALIASES(...) ,##__VA_ARGS__
 #define ALT

@@ -588,12 +588,20 @@ typedef struct ddog_CaptureConfiguration {
   uint32_t max_field_count;
 } ddog_CaptureConfiguration;
 
+typedef struct ddog_CaptureExpression {
+  ddog_CharSlice name;
+  const struct ddog_ProbeValue *expr;
+  const struct ddog_CaptureConfiguration *capture;
+} ddog_CaptureExpression;
+
 typedef struct ddog_LogProbe {
   const struct ddog_DslString *segments;
   const struct ddog_ProbeCondition *when;
   const struct ddog_CaptureConfiguration *capture;
   bool capture_snapshot;
   uint32_t sampling_snapshots_per_second;
+  const struct ddog_CaptureExpression *capture_expressions;
+  uintptr_t capture_expressions_num;
 } ddog_LogProbe;
 
 typedef struct ddog_SpanProbeTag {

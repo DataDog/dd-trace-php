@@ -85,13 +85,6 @@ void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
 
-/**
- * Returns true once the sidecar has received and applied the agent /info response.
- * Used by `dd_trace_internal_fn('await_agent_info')` to block until the concentrator
- * peer-tag keys and span kinds are initialised.
- */
-bool ddog_is_agent_info_ready(void);
-
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -108,7 +101,8 @@ void ddog_init_remote_config(bool live_debugging_enabled,
                              bool appsec_activation,
                              bool appsec_config);
 
-struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint);
+struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
+                                                             bool di_enabled);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
@@ -134,6 +128,14 @@ bool ddog_remote_config_alter_dynamic_config(struct ddog_RemoteConfigState *remo
 
 void ddog_setup_remote_config(ddog_DynamicConfigUpdate update_config,
                               const struct ddog_LiveDebuggerSetup *setup);
+
+/**
+ * Enable or disable dynamic instrumentation.
+ * When disabling: all installed probe hooks are removed (but kept in `active` for reinstallation).
+ * When enabling: all probes in `active` that have no installed hook are (re-)installed.
+ */
+void ddog_set_dynamic_instrumentation_enabled(struct ddog_RemoteConfigState *remote_config,
+                                              bool enabled);
 
 void ddog_rshutdown_remote_config(struct ddog_RemoteConfigState *remote_config);
 
@@ -173,6 +175,13 @@ bool ddog_shm_limiter_inc(const struct ddog_MaybeShmLimiter *limiter, uint32_t l
 bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint64_t hash,
                                      uint32_t granularity_seconds);
+
+/**
+ * Returns true once the agent /info has been received and applied.
+ * Used by the PHP extension to skip stats computation until the concentrator
+ * has been properly initialised with peer-tag keys and span kinds.
+ */
+bool ddog_is_agent_info_ready(void);
 
 /**
  * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke

@@ -1,6 +1,7 @@
 #include "live_debugger.h"
 #include "ddtrace.h"
 #include "exception_serialize.h"
+#include <exceptions/exceptions.h>
 #include "zai_string/string.h"
 #include "span.h"
 #include "hook/uhook.h"
@@ -127,7 +128,9 @@ static bool dd_probe_file_mismatch(dd_probe_def *def, zend_execute_data *execute
 static void dd_probe_dtor(void *data) {
     dd_probe_def *def = data;
     if (def->probe.probe.tag == DDOG_PROBE_TYPE_SPAN_DECORATION) {
-        drop_span_decoration_probe(def->probe.probe.span_decoration);
+        ddog_drop_span_decoration_probe(def->probe.probe.span_decoration);
+    } else if (def->probe.probe.tag == DDOG_PROBE_TYPE_LOG) {
+        ddog_drop_log_probe_capture_expressions(def->probe.probe.log);
     }
     if (def->file) {
         zend_string_release(def->file);
@@ -541,6 +544,61 @@ static void dd_probe_capture_stack(ddog_DebuggerPayload *payload, zend_execute_d
     }
 }
 
+static void dd_log_probe_add_capture_fields(ddog_DebuggerCapture *capture, dd_log_probe_def *def, zend_execute_data *execute_data, zval *retval) {
+    struct eval_ctx ctx = {
+        .frame = execute_data,
+        .arena = NULL,
+        .retval = retval,
+    };
+
+    uintptr_t num = def->parent.probe.probe.log.capture_expressions_num;
+    const ddog_CaptureExpression *exprs = def->parent.probe.probe.log.capture_expressions;
+    for (uintptr_t i = 0; i < num; i++) {
+        ctx.config = exprs[i].capture;
+        ddog_ValueEvaluationResult result = ddog_evaluate_value(exprs[i].expr, &ctx);
+
+        if (result.tag == DDOG_VALUE_EVALUATION_RESULT_ERROR) {
+            ddog_evaluation_error_drop(result.error);
+            continue;
+        }
+
+        ddog_IntermediateValue iv = ddog_evaluated_value_get(result.success);
+        ddog_CaptureValue capture_value = {0};
+        switch (iv.tag) {
+            case DDOG_INTERMEDIATE_VALUE_REFERENCED:
+                ddtrace_create_capture_value((zval *)iv.referenced, &capture_value, exprs[i].capture, exprs[i].capture->max_reference_depth);
+                break;
+            case DDOG_INTERMEDIATE_VALUE_STRING: {
+                capture_value.type = DDOG_CHARSLICE_C("string");
+                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, iv.string.len);
+                memcpy(buf, iv.string.ptr, iv.string.len);
+                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = iv.string.len };
+                break;
+            }
+            case DDOG_INTERMEDIATE_VALUE_NUMBER: {
+                capture_value.type = DDOG_CHARSLICE_C("double");
+                char *buf = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 32);
+                int len = snprintf(buf, 32, "%g", iv.number);
+                capture_value.value = (ddog_CharSlice){ .ptr = buf, .len = len };
+                break;
+            }
+            case DDOG_INTERMEDIATE_VALUE_BOOL:
+                capture_value.type = DDOG_CHARSLICE_C("bool");
+                capture_value.value = iv.bool_ ? DDOG_CHARSLICE_C("true") : DDOG_CHARSLICE_C("false");
+                break;
+            case DDOG_INTERMEDIATE_VALUE_NULL:
+            default:
+                capture_value.type = DDOG_CHARSLICE_C("null");
+                capture_value.is_null = true;
+                break;
+        }
+        ddog_evaluated_value_drop(result.success);
+        ddog_snapshot_add_capture_fields(capture, exprs[i].name, capture_value);
+    }
+
+    clean_ctx(&ctx);
+}
+
 static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_data, zval *retval, void *auxiliary, void *dynamic) {
     dd_log_probe_dyn *dyn = dynamic;
     dd_log_probe_def *def = auxiliary;
@@ -574,18 +632,63 @@ static void dd_log_probe_end(zend_ulong invocation, zend_execute_data *execute_d
     ddog_CharSlice result_msg = dd_zend_string_to_CharSlice(result);
     dd_log_probe_ensure_payload(dyn, def, &result_msg);
 
-    if (def->parent.probe.probe.log.capture_snapshot) {
-        bool already_snapshotted = dyn->capture_arena.arena;
-        DDTRACE_G(debugger_capture_arena) = already_snapshotted ? dyn->capture_arena : (dd_capture_arena){.arena = zend_arena_create(65536), .ephemerals = NULL};
-        ddog_DebuggerCapture *capture = ddog_snapshot_exit(dyn->payload);
-        if (!already_snapshotted) {
-            dd_probe_capture_stack(dyn->payload, execute_data);
+    bool capture_snapshot = def->parent.probe.probe.log.capture_snapshot;
+    bool capture_fields = def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_EXIT && def->parent.probe.probe.log.capture_expressions_num > 0;
+
+    bool already_snapshotted = dyn->capture_arena.arena;
+    if (already_snapshotted) {
+        DDTRACE_G(debugger_capture_arena) = dyn->capture_arena;
+    }
+    if (capture_snapshot || capture_fields) {
+        if (!DDTRACE_G(debugger_capture_arena).arena) {
+            DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){.arena = zend_arena_create(65536), .ephemerals = NULL};
         }
-        dd_log_probe_capture_snapshot(capture, def, execute_data);
-        const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
-        struct ddog_CaptureValue capture_value = {0};
-        ddtrace_create_capture_value(retval, &capture_value, capture_config, capture_config->max_reference_depth);
-        ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("@return"), capture_value);
+        ddog_DebuggerCapture *capture = ddog_snapshot_exit(dyn->payload);
+        if (capture_snapshot) {
+            if (!already_snapshotted) {
+                dd_probe_capture_stack(dyn->payload, execute_data);
+            }
+            dd_log_probe_capture_snapshot(capture, def, execute_data);
+            const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
+            ddog_CaptureValue capture_value = {0};
+            ddtrace_create_capture_value(retval, &capture_value, capture_config, capture_config->max_reference_depth);
+            ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("@return"), capture_value);
+
+            // If an exception was thrown during the probed function, include it as throwable.
+            zend_object *ex = EG(exception);
+            if (ex) {
+                zend_string *ex_msg = zai_exception_message(ex);
+                ddog_snapshot_set_throwable(capture,
+                    (ddog_CharSlice){ .ptr = ZSTR_VAL(ex->ce->name), .len = ZSTR_LEN(ex->ce->name) },
+                    dd_zend_string_to_CharSlice(ex_msg));
+
+                zval *ex_trace = zai_exception_read_property(ex, ZSTR_KNOWN(ZEND_STR_TRACE));
+                if (ex_trace && Z_TYPE_P(ex_trace) == IS_ARRAY) {
+                    zval *frame;
+                    ZEND_HASH_FOREACH_VAL(Z_ARR_P(ex_trace), frame) {
+                        if (Z_TYPE_P(frame) != IS_ARRAY) {
+                            continue;
+                        }
+                        ddog_CharSlice file = DDOG_CHARSLICE_C(""), func = DDOG_CHARSLICE_C("");
+                        zend_long line = 0;
+                        zval *zv;
+                        if ((zv = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_FILE))) && Z_TYPE_P(zv) == IS_STRING) {
+                            file = dd_zend_string_to_CharSlice(Z_STR_P(zv));
+                        }
+                        if ((zv = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_FUNCTION))) && Z_TYPE_P(zv) == IS_STRING) {
+                            func = dd_zend_string_to_CharSlice(Z_STR_P(zv));
+                        }
+                        if ((zv = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_LINE))) && Z_TYPE_P(zv) == IS_LONG) {
+                            line = Z_LVAL_P(zv);
+                        }
+                        ddog_snapshot_throwable_add_frame(capture, file, func, line);
+                    } ZEND_HASH_FOREACH_END();
+                }
+            }
+        }
+        if (capture_fields) {
+            dd_log_probe_add_capture_fields(capture, def, execute_data, retval);
+        }
     }
     ddtrace_sidecar_send_debugger_datum(dyn->payload);
     if (DDTRACE_G(debugger_capture_arena).arena) {
@@ -613,11 +716,18 @@ static bool dd_log_probe_begin(zend_ulong invocation, zend_execute_data *execute
 
     if (!dyn->rejected && def->parent.probe.evaluate_at == DDOG_EVALUATE_AT_ENTRY) {
         dd_log_probe_ensure_payload(dyn, def, NULL);
-        if (def->parent.probe.probe.log.capture_snapshot) {
-            ddog_DebuggerCapture *capture = ddog_snapshot_entry(dyn->payload);
+        bool capture_snapshot = def->parent.probe.probe.log.capture_snapshot;
+        bool capture_fields = def->parent.probe.probe.log.capture_expressions_num > 0;
+        if (capture_snapshot || capture_fields) {
             DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){.arena = zend_arena_create(65536), .ephemerals = NULL};
-            dd_probe_capture_stack(dyn->payload, execute_data);
-            dd_log_probe_capture_snapshot(capture, def, execute_data);
+            ddog_DebuggerCapture *capture = ddog_snapshot_entry(dyn->payload);
+            if (capture_snapshot) {
+                dd_probe_capture_stack(dyn->payload, execute_data);
+                dd_log_probe_capture_snapshot(capture, def, execute_data);
+            }
+            if (capture_fields) {
+                dd_log_probe_add_capture_fields(capture, def, execute_data, &retval);
+            }
             dyn->capture_arena = DDTRACE_G(debugger_capture_arena);
             DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){0};
         }
@@ -757,13 +867,6 @@ static void dd_free_void_collection(struct ddog_VoidCollection collection) {
     efree((void *)collection.elements);
 }
 
-static ddog_VoidCollection dd_alloc_void_collection(uint32_t elements) {
-    return (ddog_VoidCollection){
-        .free = dd_free_void_collection,
-        .count = elements,
-        .elements = emalloc(sizeof(void *)),
-    };
-}
 
 static void dd_intermediate_to_zval(struct ddog_IntermediateValue val, zval *zv) {
     switch (val.tag) {
@@ -1130,8 +1233,17 @@ static uintptr_t dd_eval_length(void *ctx, const void *zvp) {
     }
 }
 
+/* Allocate storage for N key-value pairs (2*N raw pointers: [k0,v0,k1,v1,...]) */
+static ddog_VoidCollection dd_alloc_kv_collection(uint32_t pairs) {
+    return (ddog_VoidCollection){
+        .free = dd_free_void_collection,
+        .count = (intptr_t)pairs,
+        .elements = pairs > 0 ? emalloc(pairs * 2 * sizeof(void *)) : NULL,
+    };
+}
+
 static ddog_VoidCollection dd_eval_try_enumerate(void *ctx, const void *zvp) {
-    UNUSED(ctx);
+    struct eval_ctx *eval_ctx = ctx;
     const zval *zv = zvp;
     HashTable *values;
     retry:
@@ -1150,6 +1262,58 @@ static ddog_VoidCollection dd_eval_try_enumerate(void *ctx, const void *zvp) {
                 collection.count = (intptr_t)ddog_EVALUATOR_RESULT_REDACTED;
                 return collection;
             }
+            // For Traversable objects implemented in C (e.g. SplFixedArray, ArrayObject),
+            // Exclude generators and user-defined Iterator/IteratorAggregate implementations (arbitrary side effects).
+            if (Z_OBJCE_P(zv)->get_iterator && Z_OBJCE_P(zv)->type != ZEND_USER_CLASS && Z_OBJCE_P(zv) != zend_ce_generator) {
+                zai_sandbox sandbox;
+                zai_sandbox_open(&sandbox);
+
+                // Collect key-value pairs into two parallel zval arrays on the eval arena. Hard-limited to at *least* 1024 for perf reasons.
+                zend_long max_items = MAX(1024, eval_ctx->config->max_collection_size);
+                zend_long idx = 0;
+                ddog_VoidCollection collection = dd_alloc_kv_collection(max_items);
+
+                zend_object_iterator *iter = NULL;
+                zend_try {
+                    iter = Z_OBJCE_P(zv)->get_iterator(Z_OBJCE_P(zv), (zval *)zv, 0);
+                    if (iter && !EG(exception)) {
+                        if (iter->funcs->rewind) {
+                            iter->funcs->rewind(iter);
+                        }
+                        while (!EG(exception) && idx < max_items && iter->funcs->valid(iter) == SUCCESS) {
+                            zval key_zv, *data = iter->funcs->get_current_data(iter);
+
+                            if (iter->funcs->get_current_key) {
+                                ZVAL_UNDEF(&key_zv);
+                                iter->funcs->get_current_key(iter, &key_zv);
+                            } else {
+                                ZVAL_LONG(&key_zv, idx);
+                            }
+
+                            if (data && !Z_ISUNDEF_P(data)) {
+                                ((zval **)collection.elements)[idx * 2] = dd_persist_eval_arena(eval_ctx, &key_zv);
+                                Z_TRY_ADDREF_P(data);
+                                ((zval **)collection.elements)[idx * 2 + 1] = dd_persist_eval_arena(eval_ctx, data);
+                                ++idx;
+                            } else {
+                                zval_ptr_dtor(&key_zv);
+                            }
+
+                            iter->funcs->move_forward(iter);
+                        }
+                    }
+                } zend_catch {
+                    zai_sandbox_bailout(&sandbox);
+                } zend_end_try();
+
+                if (iter) {
+                    zend_iterator_dtor(iter);
+                }
+                zai_sandbox_close(&sandbox);
+
+                collection.count = idx;
+                return collection;
+            }
             values = Z_OBJPROP_P(zv);
             break;
 
@@ -1159,11 +1323,24 @@ static ddog_VoidCollection dd_eval_try_enumerate(void *ctx, const void *zvp) {
             return collection;
     }
 
+    // IS_ARRAY and IS_OBJECT (property table): return interleaved [key, val, key, val, ...]
     zval *val;
+    zend_string *str_key;
+    zend_long num_key;
+    int count = zend_hash_num_elements(values);
+    ddog_VoidCollection collection = dd_alloc_kv_collection(count);
     int idx = 0;
-    ddog_VoidCollection collection = dd_alloc_void_collection(zend_hash_num_elements(values));
-    ZEND_HASH_FOREACH_VAL_IND(values, val) {
-        ((zval **)collection.elements)[idx++] = val;
+    ZEND_HASH_FOREACH_KEY_VAL_IND(values, num_key, str_key, val) {
+        zval key_zv;
+        if (str_key) {
+            ZVAL_STR(&key_zv, str_key);
+        } else {
+            ZVAL_LONG(&key_zv, num_key);
+        }
+        zval *key = dd_persist_eval_arena(eval_ctx, &key_zv);
+        ((zval **)collection.elements)[idx * 2] = key;
+        ((zval **)collection.elements)[idx * 2 + 1] = val;
+        ++idx;
     } ZEND_HASH_FOREACH_END();
     collection.count = idx;
     return collection;
@@ -1460,16 +1637,25 @@ void ddtrace_live_debugger_minit(void) {
     ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES(), value) {
         ddog_snapshot_add_redacted_type(dd_zend_string_to_CharSlice(value));
     } ZEND_HASH_FOREACH_END();
+    ZEND_HASH_FOREACH_STR_KEY(get_global_DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS(), value) {
+        ddog_snapshot_add_excluded_name(dd_zend_string_to_CharSlice(value));
+    } ZEND_HASH_FOREACH_END();
 }
 
 bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
+    bool enabled = Z_TYPE_P(new_value) == IS_TRUE;
     if (DDTRACE_G(remote_config_state) && !ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C("datadog.dynamic_instrumentation.enabled"), zend_string_copy(new_str))) {
         return false;
     }
 
+    // Apply/unapply probe hooks based on the new DI enabled state.
+    if (DDTRACE_G(remote_config_state)) {
+        ddog_set_dynamic_instrumentation_enabled(DDTRACE_G(remote_config_state), enabled);
+    }
+
     if (DDTRACE_G(request_initialized) && ddtrace_sidecar) {
-        ddog_sidecar_set_request_config(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), Z_TYPE_P(new_value) == IS_TRUE ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED);
+        ddog_sidecar_set_request_config(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), enabled ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED);
     }
     return true;
 }

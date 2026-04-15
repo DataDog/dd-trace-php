@@ -113,6 +113,7 @@ pub struct LiveDebuggerState {
     pub config_id: String,
     pub allow_dfa: Option<Regex>,
     pub deny_dfa: Option<Regex>,
+    pub di_enabled: bool,
 }
 
 #[no_mangle]
@@ -177,6 +178,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
 #[no_mangle]
 pub unsafe extern "C" fn ddog_init_remote_config_state(
     endpoint: &Endpoint,
+    di_enabled: bool,
 ) -> Box<RemoteConfigState> {
     Box::new(RemoteConfigState {
         manager: RemoteConfigManager::new(ConfigInvariants {
@@ -184,7 +186,10 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             tracer_version: include_str!("../VERSION").trim().into(),
             endpoint: endpoint.clone(),
         }),
-        live_debugger: LiveDebuggerState::default(),
+        live_debugger: LiveDebuggerState {
+            di_enabled,
+            ..Default::default()
+        },
         dynamic_config: Default::default(),
     })
 }
@@ -414,13 +419,17 @@ fn apply_config(
         match debugger {
             LiveDebuggingData::Probe(probe) => {
                 debug!("Applying live debugger probe {probe:?}");
-                let hook_id = (callbacks.set_probe)(probe.into(), limiter);
-                if hook_id >= 0 {
-                    remote_config
-                        .live_debugger
-                        .spans_map
-                        .insert(probe.id.clone(), hook_id);
+                if remote_config.live_debugger.di_enabled {
+                    let hook_id = (callbacks.set_probe)(probe.into(), limiter);
+                    if hook_id >= 0 {
+                        remote_config
+                            .live_debugger
+                            .spans_map
+                            .insert(probe.id.clone(), hook_id);
+                    }
                 }
+                // If di_enabled is false, probe is stored in `active` but hook is not installed.
+                // It will be installed when di_enabled transitions to true.
             }
             LiveDebuggingData::ServiceConfiguration(config) => {
                 debug!("Applying live debugger service config {config:?}");
@@ -586,6 +595,42 @@ pub unsafe extern "C" fn ddog_setup_remote_config(
     ddog_register_expr_evaluator(setup.evaluator);
     DYNAMIC_CONFIG_UPDATE = Some(update_config);
     LIVE_DEBUGGER_CALLBACKS = Some(setup.callbacks.clone());
+}
+
+/// Enable or disable dynamic instrumentation.
+/// When disabling: all installed probe hooks are removed (but kept in `active` for reinstallation).
+/// When enabling: all probes in `active` that have no installed hook are (re-)installed.
+#[no_mangle]
+pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
+    remote_config: &mut RemoteConfigState,
+    enabled: bool,
+) {
+    if remote_config.live_debugger.di_enabled == enabled {
+        return;
+    }
+    remote_config.live_debugger.di_enabled = enabled;
+
+    if let Some(callbacks) = unsafe { &LIVE_DEBUGGER_CALLBACKS } {
+        if !enabled {
+            // Remove all installed probe hooks; keep `active` intact for reinstallation.
+            for (_, hook_id) in remote_config.live_debugger.spans_map.drain() {
+                (callbacks.remove_probe)(hook_id);
+            }
+        } else {
+            // Reinstall all probes currently stored in `active`.
+            for (probe_id, boxed) in remote_config.live_debugger.active.iter() {
+                if let (LiveDebuggingData::Probe(probe), limiter) = &**boxed {
+                    let hook_id = (callbacks.set_probe)(probe.into(), limiter);
+                    if hook_id >= 0 {
+                        remote_config
+                            .live_debugger
+                            .spans_map
+                            .insert(probe_id.clone(), hook_id);
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[no_mangle]

@@ -264,6 +264,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(BOOL, DD_APM_TRACING_ENABLED, "true")                                                               \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
+    CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_ITEMS, "64")                                                              \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
     CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                            \

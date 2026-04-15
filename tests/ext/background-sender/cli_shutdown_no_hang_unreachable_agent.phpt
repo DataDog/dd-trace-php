@@ -11,6 +11,7 @@ This test verifies that the process exits cleanly within a reasonable time even
 when the agent is completely unreachable.
 --SKIPIF--
 <?php if (strncasecmp(PHP_OS, "WIN", 3) == 0) die('skip: There is no background sender on Windows'); ?>
+<?php if (getenv('SKIP_ASAN') || getenv('USE_ZEND_ALLOC') === '0') die("skip: can intentionally leak memory depending on timing"); ?>
 --ENV--
 DD_TRACE_CLI_ENABLED=1
 DD_AGENT_HOST=192.0.2.1
