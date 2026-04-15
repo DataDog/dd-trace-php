@@ -107,6 +107,8 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     (int)(get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS() * 1000),
                                     // for historical reasons in seconds
                                     get_global_DD_TELEMETRY_HEARTBEAT_INTERVAL() * 1000,
+                                    // extended heartbeat interval, also in seconds
+                                    (uint64_t)get_global_DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL() * 1000,
                                     get_global_DD_TRACE_BUFFER_SIZE(),
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
