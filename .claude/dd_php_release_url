@@ -1,0 +1,74 @@
+#!/bin/bash
+
+set -eo pipefail
+
+# Function to get DataDog PHP extension download URL
+# Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>
+# Example: dd_php_release_url "1.13.0" "8.4" "x86_64" "gnu"
+dd_php_release_url() {
+    local ext_version="$1"
+    local php_version="$2"
+    local arch="$3"
+    local libc_type="$4"
+
+    # Validate inputs
+    if [[ -z "$ext_version" || -z "$php_version" || -z "$arch" || -z "$libc_type" ]]; then
+        echo "Error: Missing required parameters" >&2
+        echo "Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>" >&2
+        echo "Example: dd_php_release_url '1.13.0' '8.4' 'x86_64' 'gnu'" >&2
+        return 1
+    fi
+
+    # Map PHP versions to API numbers
+    local api_version
+    case "$php_version" in
+        8.5) api_version="20250925" ;;
+        8.4) api_version="20240924" ;;
+        8.3) api_version="20230831" ;;
+        8.2) api_version="20220829" ;;
+        8.1) api_version="20210902" ;;
+        8.0) api_version="20200930" ;;
+        7.4) api_version="20190902" ;;
+        7.3) api_version="20180731" ;;
+        7.2) api_version="20170718" ;;
+        7.1) api_version="20160303" ;;
+        7.0) api_version="20151012" ;;
+        *)
+            echo "Error: Unsupported PHP version: $php_version" >&2
+            echo "Supported versions: 7.0, 7.1, 7.2, 7.3, 7.4, 8.0, 8.1, 8.2, 8.3, 8.4, 8.5" >&2
+            return 1
+            ;;
+    esac
+
+    # Validate arch
+    if [[ "$arch" != "x86_64" && "$arch" != "arm64" && "$arch" != "aarch64" ]]; then
+        echo "Error: Invalid architecture: $arch (must be x86_64, arm64, or aarch64)" >&2
+        return 1
+    fi
+
+    # Normalize aarch64 to arm64
+    [[ "$arch" == "aarch64" ]] && arch="arm64"
+
+    # Validate libc type
+    if [[ "$libc_type" != "gnu" && "$libc_type" != "musl" ]]; then
+        echo "Error: Invalid libc type: $libc_type (must be gnu or musl)" >&2
+        return 1
+    fi
+
+    # Construct the URL
+    local url="https://github.com/DataDog/dd-trace-php/releases/download/${ext_version}/dd-library-php-${ext_version}-${arch}-linux-${libc_type}-${api_version}.tar.gz"
+
+    echo "$url"
+}
+
+main() {
+  set -x
+  local readonly tmpdir=$(mktemp -d /tmp/crash_binaries.XXXXXXXXXX)
+  local readonly url=$(dd_php_release_url "$@")
+  curl -sLf -o -  "$url" | tar -C "$tmpdir" -xzf -
+  echo "$tmpdir"
+}
+
+main "$@"
+
+
