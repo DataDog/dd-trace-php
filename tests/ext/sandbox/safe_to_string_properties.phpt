@@ -117,7 +117,7 @@ NULL
 
 bool(false)
 string(5) "false"
-'resource' dropped
+string(5) "false"
 string(5) "false"
 string(5) "false"
 

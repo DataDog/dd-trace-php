@@ -53,6 +53,45 @@ const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 
 void ddog_free_normalized_tag_value(const char *ptr);
 
+/**
+ * Read all agent /info data in one SHM read and apply env, container-hash and concentrator
+ * config atomically.
+ *
+ * Fills `env_out` with the agent's `config.default_env` (zero-length slice if absent).
+ * Fills `container_hash_out` with `container_tags_hash` (zero-length slice if absent).
+ * Both slices borrow from the reader's cached info — valid until the next `reader.read()`.
+ *
+ * Concentrator config (peer tags, span kinds, trace filters) is applied only when the
+ * SHM has changed since the last read (`changed == true`).  Calling this once at RINIT
+ * ensures the config is always applied before the first span is processed, so the
+ * per-span `ddog_apply_agent_info_concentrator_config` can safely rely on `changed` alone.
+ *
+ * # Safety
+ * `reader` must be a valid pointer to an `AgentInfoReader`.
+ */
+void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
+                           ddog_CharSlice *env_out,
+                           ddog_CharSlice *container_hash_out);
+
+/**
+ * Apply concentrator config changes from the agent /info SHM.
+ *
+ * Cheap no-op when the SHM has not changed (`changed == false`).  Only applies when
+ * new data has arrived mid-request — `ddog_apply_agent_info` at RINIT guarantees the
+ * initial configuration is already in place, so `changed` alone is sufficient here.
+ *
+ * # Safety
+ * `reader` must be a valid pointer to an `AgentInfoReader`.
+ */
+void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
+
+/**
+ * Returns true once the sidecar has received and applied the agent /info response.
+ * Used by `dd_trace_internal_fn('await_agent_info')` to block until the concentrator
+ * peer-tag keys and span kinds are initialised.
+ */
+bool ddog_is_agent_info_ready(void);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -135,6 +174,95 @@ bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
                                      uint64_t hash,
                                      uint32_t granularity_seconds);
 
+/**
+ * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke
+ * `callback` with a shared reference to it while holding the global read lock.
+ *
+ * The callback is **always** invoked — even before the sidecar has created the backing SHM.
+ * When the SHM is not yet available a *virtual* concentrator is used: peer-tag keys and
+ * span-kinds come from `DESIRED_CONFIG` so eligibility and peer-tag extraction still work
+ * correctly.  The C callback should call `ddog_span_concentrator_has_shm` to decide whether to
+ * write to the SHM (real concentrator) or store the stats for the IPC path (virtual).
+ *
+ * A virtual concentrator is always considered stale so it will be transparently upgraded to a
+ * real one on the next call once the sidecar has created the SHM.
+ *
+ * Returns `true` after the callback returns, `false` only on an internal locking error.
+ *
+ * # Safety
+ * `env`, `version`, and `service` must be valid `CharSlice`s.  `callback` must be a valid
+ * function pointer. `userdata` is forwarded to `callback` as-is.
+ */
+bool ddog_span_concentrator_with(ddog_CharSlice env,
+                                 ddog_CharSlice version,
+                                 ddog_CharSlice service,
+                                 void (*callback)(const struct ddog_SpanConcentrator*, void*),
+                                 void *userdata);
+
+/**
+ * Returns `true` when the concentrator is backed by a real SHM and
+ * `ddog_span_concentrator_add_php_span` will actually persist data.
+ * Returns `false` for virtual concentrators (SHM not yet available) — the C callback should
+ * store the stats for the IPC fallback path in that case.
+ */
+bool ddog_span_concentrator_has_shm(const struct ddog_SpanConcentrator *c);
+
+/**
+ * Return a pointer to the concentrator's peer-tag-key array and write the count to `*out_count`.
+ *
+ * The returned pointer is valid for the lifetime of the guard passed to this call.
+ * May return null when there are no peer tag keys.
+ */
+const ddog_CharSlice *ddog_span_concentrator_peer_tag_keys(const struct ddog_SpanConcentrator *c,
+                                                           uintptr_t *out_count);
+
+/**
+ * Add a PHP span to the concentrator for stats computation.
+ *
+ * Fast eligibility pre-check: returns true if a span with these attributes would be accepted
+ * by `ddog_span_concentrator_add_php_span`.
+ *
+ * Call this before constructing the full `PhpSpanStats`.  If it returns false, skip the span
+ * entirely.  If it returns true, fill the remaining fields and call `add_php_span`.
+ */
+bool ddog_span_concentrator_is_eligible(const struct ddog_SpanConcentrator *c,
+                                        bool has_top_level,
+                                        bool is_measured,
+                                        ddog_CharSlice span_kind,
+                                        bool is_partial_snapshot);
+
+/**
+ * Write a PHP span to the concentrator's backing SHM.
+ *
+ * Only valid when `ddog_span_concentrator_has_shm` returns `true`.  For virtual concentrators
+ * (no SHM) the caller should use the IPC path instead.
+ *
+ * All `CharSlice` fields in `span` (and in the `peer_tags` array it points to) must remain valid
+ * for the duration of this call.
+ *
+ * # Safety
+ * `span` must point to a valid `PhpSpanStats`.  The concentrator must have a backing SHM
+ * (`ddog_span_concentrator_has_shm` returns `true`).
+ */
+void ddog_span_concentrator_add_php_span(const struct ddog_SpanConcentrator *c,
+                                         const struct ddog_PhpSpanStats *span);
+
+/**
+ * IPC fallback: send a PHP span directly to the sidecar's SHM concentrator for (env, version).
+ *
+ * Called when the SHM is not yet available.  The sidecar processes IPC messages sequentially,
+ * and `set_universal_service_tags` is always sent before this message, so the concentrator
+ * is guaranteed to exist when the sidecar handles this call.  The sidecar resolves the service
+ * dimension from the session's `DD_SERVICE` config.
+ *
+ * # Safety
+ * All pointers must be valid.
+ */
+void ddog_sidecar_add_php_span_to_concentrator(struct ddog_SidecarTransport **transport,
+                                               ddog_CharSlice env,
+                                               ddog_CharSlice version,
+                                               const struct ddog_PhpSpanStats *span);
+
 bool ddtrace_detect_composer_installed_json(struct ddog_SidecarTransport **transport,
                                             const struct ddog_InstanceId *instance_id,
                                             const ddog_QueueId *queue_id,
@@ -206,6 +334,25 @@ ddog_MaybeError ddog_sidecar_telemetry_filter_flush(struct ddog_SidecarTransport
 bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
                                                     ddog_CharSlice service,
                                                     ddog_CharSlice env);
+
+/**
+ * Check whether the trace rooted at `resource` / `root_span` passes all configured trace
+ * filters (filter_tags, filter_tags_regex, ignore_resources from agent /info).
+ *
+ * Returns `true` to include in the pipeline, `false` to drop the entire trace (no sending,
+ * no stats).  Filters are evaluated against the root span — the decision applies uniformly
+ * to all spans of the trace.
+ *
+ * * **Common case**: `filter_tags` and literal-key `filter_tags_regex` entries — one O(1)
+ *   `lookup_fn` call per filter entry.
+ * * **Rare case**: `filter_tags_regex` entries with regex key patterns — `iter_fn` is invoked
+ *   to scan all meta entries for those filters.  Pass `NULL` when not needed.
+ * * **Fast path**: returns `true` immediately when no filters are configured.
+ */
+bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
+                                   const void *root_span,
+                                   ddog_RootTagLookupFn lookup_fn,
+                                   ddog_RootMetaIterFn iter_fn);
 
 void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),

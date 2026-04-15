@@ -19,7 +19,7 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(6) {
+array(7) {
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
@@ -32,4 +32,6 @@ array(6) {
   string(25) "http://localhost:8888/foo"
   ["runtime-id"]=>
   string(36) "%s"
+  ["span.kind"]=>
+  string(6) "server"
 }

@@ -267,7 +267,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
     if (is_trace_root || zval_get_long(&span->property_propagated_sampling_priority) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         // when we sample, we need to fetch the env first
-        ddtrace_check_agent_info_env();
+        ddtrace_apply_agent_info();
 
         double default_sample_rate = get_DD_TRACE_SAMPLE_RATE();
         sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;

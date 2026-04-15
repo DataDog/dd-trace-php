@@ -2,6 +2,11 @@
 #include <ctype.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#ifndef _WIN32
+#include <stdatomic.h>
+#else
+#include <components/atomic_win32_polyfill.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include "process_tags.h"
@@ -33,8 +38,8 @@ typedef struct {
     size_t count;
     size_t capacity;
     zend_string *serialized;
-    zend_string *base_hash;
-    zend_string *container_tags_hash;
+    _Atomic(zend_string *) base_hash;
+    _Atomic(zend_string *) container_tags_hash;
     ddog_Vec_Tag vec;
 } process_tags_t;
 
@@ -204,18 +209,14 @@ static void recompute_base_hash(void) {
         return;
     }
 
-    if (process_tags.base_hash) {
-        zend_string_release(process_tags.base_hash);
-        process_tags.base_hash = NULL;
-    }
-
     uint64_t hash_value;
-    if (process_tags.container_tags_hash) {
-        size_t total_len = ZSTR_LEN(process_tags.serialized) + ZSTR_LEN(process_tags.container_tags_hash);
+    zend_string *cth = atomic_load(&process_tags.container_tags_hash);
+    if (cth) {
+        size_t total_len = ZSTR_LEN(process_tags.serialized) + ZSTR_LEN(cth);
         unsigned char *combined = emalloc(total_len);
 
         memcpy(combined, ZSTR_VAL(process_tags.serialized), ZSTR_LEN(process_tags.serialized));
-        memcpy(combined + ZSTR_LEN(process_tags.serialized), ZSTR_VAL(process_tags.container_tags_hash), ZSTR_LEN(process_tags.container_tags_hash));
+        memcpy(combined + ZSTR_LEN(process_tags.serialized), ZSTR_VAL(cth), ZSTR_LEN(cth));
 
         hash_value = dd_fnv1a_64(combined, total_len);
         efree(combined);
@@ -227,7 +228,11 @@ static void recompute_base_hash(void) {
     smart_str_alloc(&hash_buf, 21, 1);
     smart_str_append_printf(&hash_buf, "%" PRIu64, hash_value);
     smart_str_0(&hash_buf);
-    process_tags.base_hash = hash_buf.s;
+
+    zend_string *old_hash = atomic_exchange(&process_tags.base_hash, hash_buf.s);
+    if (old_hash) {
+        zend_string_release(old_hash);
+    }
 }
 
 static void serialize_process_tags(void) {
@@ -285,10 +290,11 @@ void ddtrace_process_tags_set_container_tags_hash(zend_string *container_tags_ha
         return;
     }
 
-    if (process_tags.container_tags_hash) {
-        zend_string_release(process_tags.container_tags_hash);
+    zend_string *new_hash = zend_string_copy(container_tags_hash);
+    zend_string *old_hash = atomic_exchange(&process_tags.container_tags_hash, new_hash);
+    if (old_hash) {
+        zend_string_release(old_hash);
     }
-    process_tags.container_tags_hash = zend_string_copy(container_tags_hash);
 
     recompute_base_hash();
 }

@@ -46,6 +46,7 @@ final class HttpHeadersNotConfiguredTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost/',
                     'http.status_code' => 200,
+                    'span.kind' => 'server',
                 ]),
             ]
         );

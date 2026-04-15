@@ -49,6 +49,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'span.kind' => 'server',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -61,6 +62,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
+                        'span.kind' => 'server',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -73,6 +75,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.method' => 'GET',
                         'http.url' => 'http://localhost/error?key=value&<redacted>',
                         'http.status_code' => '500',
+                        'span.kind' => 'server',
                     ])->setError(),
                 ],
             ]

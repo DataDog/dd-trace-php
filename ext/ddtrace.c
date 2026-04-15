@@ -1671,9 +1671,6 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
-    // Check for the env first, before the first RC
-    ddtrace_check_agent_info_env();
-
     // Do after env check, so that RC data is not updated before RC init
     DDTRACE_G(request_initialized) = true;
 
@@ -1720,7 +1717,8 @@ static void dd_initialize_request(void) {
 
     ddtrace_agent_info_rinit();
 
-    ddtrace_get_container_tags_hash();
+    // Single combined read: applies env, container-hash, and concentrator config.
+    ddtrace_apply_agent_info();
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
@@ -3124,6 +3122,24 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_logf(DDOG_LOG_WARN, false, "bar");
             ddog_logf(DDOG_LOG_ERROR, false, "Boum");
             RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("await_agent_info")) {
+            // Block until the sidecar has received and applied the agent /info response.
+            // This ensures peer-tag keys and span kinds are initialised before the caller
+            // makes requests that produce stats.  Times out after 5 seconds.
+            uint32_t timeout_ms = 5000;
+            if (params_count == 1) {
+                timeout_ms = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            uint32_t waited = 0;
+            while (!ddog_is_agent_info_ready() && waited < timeout_ms) {
+                // Actively read the SHM so we pick up the update the sidecar wrote.
+                if (DDTRACE_G(agent_info_reader)) {
+                    ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
+                }
+                usleep(10000); // 10ms
+                waited += 10;
+            }
+            RETVAL_BOOL(ddog_is_agent_info_ready());
         }
     }
 }

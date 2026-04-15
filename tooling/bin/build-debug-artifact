@@ -164,7 +164,7 @@ if [[ "$libc" == "musl" ]]; then
     HOME_DIR="/app"
 else
     DOCKER_SHELL="bash"
-    HOME_DIR="/home/builduser/app"
+    HOME_DIR="/home/circleci/app"
 fi
 
 # ─── Generate PHP bridge files ───────────────────────────────────────────────
@@ -227,11 +227,11 @@ _preamble() {  # $1 = shell commands to run as the host user
             "echo 'builduser:x:${HOST_UID}:${HOST_GID}::/tmp:/bin/bash' >> /etc/passwd" \
             "echo 'buildgroup:x:${HOST_GID}:builduser' >> /etc/group" \
             "switch-php ${_switch_php_variant}" \
-            "chown -R ${HOST_UID}:${HOST_GID} ${HOME_DIR}/tmp /output /rust/cargo 2>/dev/null || true" \
+            "chown -R ${HOST_UID}:${HOST_GID} ${HOME_DIR}/tmp /output 2>/dev/null || true" \
             'chown '"${HOST_UID}:${HOST_GID}"' "$(php-config --extension-dir)" "$(php -r '"'"'echo PHP_CONFIG_FILE_SCAN_DIR;'"'"')" 2>/dev/null || true' \
             "cat > /tmp/build.sh <<'BUILDEOF'" \
             "set -e" \
-            "export CARGO_HOME=/rust/cargo" \
+            "export CARGO_HOME=${HOME_DIR}/tmp/cargo_home" \
             "cd ${HOME_DIR}" \
             "$1" \
             "BUILDEOF" \
@@ -298,7 +298,7 @@ _common_volumes=(
     --platform "$DOCKER_PLATFORM"
     -v "${REPO_ROOT}:${HOME_DIR}"
     -v "${CACHE_VOLUME}:${HOME_DIR}/tmp"
-    -v "ddtrace-cargo-registry-$libc:/rust/cargo/registry"
+    -v "ddtrace-cargo-registry-$libc:${HOME_DIR}/tmp/cargo_home/registry"
     -v "${TMP_OUT}:/output"
 )
 
