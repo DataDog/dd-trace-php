@@ -275,6 +275,17 @@ class LaminasIntegration extends Integration
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
 
+                if (
+                    $this instanceof \Laminas\Router\Http\TreeRouteStack
+                    && $routeName !== null
+                    && $routeName !== ''
+                ) {
+                    $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
+                    if ($httpRoute !== null && $httpRoute !== '') {
+                        $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                    }
+                }
+
                 // Push path params to appsec
                 if (function_exists('\datadog\appsec\push_addresses')) {
                     $params = $routeMatch->getParams();
