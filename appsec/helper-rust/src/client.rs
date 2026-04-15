@@ -912,13 +912,16 @@ async fn send_command_resp(
     cmd: protocol::CommandResponse<'_>,
 ) -> anyhow::Result<()> {
     debug!("Sending command: {:?}", cmd);
-    match framed.send(cmd).await {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("Error sending command: {}", err);
-            Err(err)?
+    framed.send(cmd).await.map_err(|err| {
+        if matches!(
+            err.kind(),
+            io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+        ) {
+            ForcefulDisconnect(err).into()
+        } else {
+            anyhow::Error::from(err)
         }
-    }
+    })
 }
 
 async fn check_peer_uid_unix(stream: &UnixStream) -> anyhow::Result<()> {

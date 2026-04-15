@@ -924,8 +924,6 @@ buildRunInDockerTask(
                 export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
                 RUST_TARGET=$(uname -m)-unknown-linux-musl
 
-                git config --global --add safe.directory '*'
-
                 cd /project/appsec/helper-rust
 
                 # Build using nightly toolchain with unstable features
