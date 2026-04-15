@@ -158,7 +158,8 @@ void ddtrace_telemetry_finalize() {
 #if ZTS
             ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
-            if (!zend_string_equals_literal(ini->name, "datadog.trace.enabled")) { // datadog.trace.enabled is meaningless: always off at rshutdown
+            if (cfg->names[0].len != sizeof("DD_TRACE_ENABLED") - 1
+                || memcmp(cfg->names[0].ptr, "DD_TRACE_ENABLED", sizeof("DD_TRACE_ENABLED") - 1) != 0) { // DD_TRACE_ENABLED is meaningless: always off at rshutdown
                 ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
                 switch (cfg->name_index) {
                     case ZAI_CONFIG_ORIGIN_DEFAULT:
@@ -176,9 +177,7 @@ void ddtrace_telemetry_finalize() {
                     && !zend_string_equals_cstr(ini->value, cfg->default_encoded_value.ptr, cfg->default_encoded_value.len)) {
                     origin = cfg->name_index >= ZAI_CONFIG_ORIGIN_MODIFIED ? DDOG_CONFIGURATION_ORIGIN_ENV_VAR : DDOG_CONFIGURATION_ORIGIN_CODE;
                 }
-                ddog_CharSlice name = dd_zend_string_to_CharSlice(ini->name);
-                name.len -= strlen("datadog.");
-                name.ptr += strlen("datadog.");
+                ddog_CharSlice name = (ddog_CharSlice){.ptr = cfg->names[0].ptr, .len = cfg->names[0].len};
                 ddog_CharSlice config_id = (ddog_CharSlice) {.len = cfg->config_id.len, .ptr = cfg->config_id.ptr};
                 ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, name, dd_zend_string_to_CharSlice(ini->value), origin, config_id);
             }
