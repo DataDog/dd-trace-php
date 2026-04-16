@@ -59,7 +59,7 @@ stages:
 
 .docker_push_job:
   stage: docker-build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -101,7 +101,7 @@ stages:
 
 .appsec_integration_tests:
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with java pre-installed?
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with java pre-installed?
   tags: [ "docker-in-docker:amd64" ]
   variables:
     KUBERNETES_CPU_REQUEST: 8
@@ -194,7 +194,7 @@ stages:
 
 "helper-rust build and test":
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   interruptible: true
   rules:
@@ -229,7 +229,7 @@ stages:
 
 "helper-rust code coverage":
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   interruptible: true
   rules:
@@ -295,7 +295,7 @@ stages:
 
 "helper-rust integration coverage":
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   interruptible: true
   rules:

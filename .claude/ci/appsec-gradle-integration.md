@@ -8,7 +8,7 @@ file.
 
 | CI Job | Image | What it does |
 |--------|-------|-------------|
-| `appsec integration tests: [{target}]` | `docker:24.0.4-gbi-focal` | Gradle integration tests with C++ helper (release/zts variants) |
+| `appsec integration tests: [{target}]` | `docker:29.4.0-noble` | Gradle integration tests with C++ helper (release/zts variants) |
 | `appsec integration tests (helper-rust): [{target}]` | same | Same tests with Rust helper (`-PuseHelperRust`); includes `debug` variant |
 | `appsec integration tests (ssi): [{target}]` | same | SSI mode (PHP 8.3 only) |
 | `helper-rust build and test` | same | `cargo fmt --check` + build + unit tests |
