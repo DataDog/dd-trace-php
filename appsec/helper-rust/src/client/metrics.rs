@@ -122,14 +122,17 @@ impl WafMetrics {
 
         let entry = self.rasp_per_rule.entry(rule_type.to_string()).or_default();
         entry.evals += 1;
-
         if run_output.has_events() {
             entry.matches += 1;
+        }
+        if run_output.timeout() {
+            entry.timeouts += 1;
         }
         if run_output.is_blocking() {
             self.request_blocked = true;
         }
     }
+
 }
 trait RunOutputExt {
     fn has_events(&self) -> bool;
