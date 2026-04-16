@@ -176,17 +176,31 @@ impl ConfigDirectory {
 
     pub fn runtime_id(&self) -> anyhow::Result<&str> {
         self.data.iter().position(|&b| b == b'\n').map_or_else(
-            || Err(anyhow::anyhow!("No LF in remote config")),
+            || {
+                Err(anyhow::anyhow!(
+                    "No LF in remote config; data (base64-encoded): {}",
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&self.data)
+                ))
+            },
             |pos| {
-                std::str::from_utf8(&self.data[..pos])
-                    .context("Invalid UTF-8 in runtime_id of remote config")
+                std::str::from_utf8(&self.data[..pos]).with_context(|| {
+                    format!(
+                        "Invalid UTF-8 in runtime_id of remote config; data (base64-encoded): {}",
+                        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&self.data[..pos])
+                    )
+                })
             },
         )
     }
 
     pub fn iter(&self) -> anyhow::Result<impl Iterator<Item = anyhow::Result<Config<'_>>> + '_> {
         self.data.iter().position(|&b| b == b'\n').map_or_else(
-            || Err(anyhow::anyhow!("No LF in remote config")),
+            || {
+                Err(anyhow::anyhow!(
+                    "No LF in remote config; data (base64-encoded): {}",
+                    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&self.data)
+                ))
+            },
             |pos| {
                 Ok(ConfigIter {
                     data: &self.data[pos + 1..],
@@ -546,27 +560,19 @@ mod tests {
         Ok(())
     }
 
-    fn shm_create_and_write_config_dir(
+    /// Payload is written as the sidecar does: body bytes + trailing NUL; `size` counts that whole
+    /// slice. The reader exposes `body[..len-1]` to `ConfigDirectory` (NUL excluded).
+    fn shm_create_config_dir_with_raw_payload(
         name: &str,
-        runtime_id: &str,
-        lines: &[String],
-    ) -> anyhow::Result<usize> {
+        body_without_trailing_nul: &[u8],
+    ) -> anyhow::Result<()> {
         let header_size = std::mem::size_of::<ConfigDirHeaderInMem>();
-        let mut payload = Vec::new();
-        payload.extend_from_slice(runtime_id.as_bytes());
-        payload.push(b'\n');
-        for l in lines {
-            payload.extend_from_slice(l.as_bytes());
-            payload.push(b'\n');
-        }
-        // Add trailing null byte like the sidecar does
+        let mut payload = body_without_trailing_nul.to_vec();
         payload.push(0);
-        // Size is payload only (sidecar convention: does not include header)
         let payload_size = payload.len();
 
         let c_name = CString::new(name.as_bytes()).unwrap();
         unsafe {
-            // Best-effort cleanup in case it already exists
             libc::shm_unlink(c_name.as_ptr());
         }
         let fd = unsafe {
@@ -583,7 +589,6 @@ mod tests {
             );
         }
         let fd = unsafe { OwnedFd::from_raw_fd(fd) };
-        // Build contiguous buffer: header + payload
         let header = ConfigDirHeaderInMem {
             seq: AtomicU64::new(2),
             size: AtomicUsize::new(payload_size),
@@ -594,14 +599,52 @@ mod tests {
                 header_size,
             )
         };
-        let total_size = header_size + payload_size;
-        let mut buf = Vec::with_capacity(total_size);
+        let mut buf = Vec::with_capacity(header_size + payload_size);
         buf.extend_from_slice(header_bytes);
         buf.extend_from_slice(&payload);
+        unsafe { shm_write_via_mmap(fd.as_fd(), &buf) }
+    }
 
-        let result = unsafe { shm_write_via_mmap(fd.as_fd(), &buf) };
-        result?;
+    fn shm_create_and_write_config_dir(
+        name: &str,
+        runtime_id: &str,
+        lines: &[String],
+    ) -> anyhow::Result<usize> {
+        let mut body = Vec::new();
+        body.extend_from_slice(runtime_id.as_bytes());
+        body.push(b'\n');
+        for l in lines {
+            body.extend_from_slice(l.as_bytes());
+            body.push(b'\n');
+        }
+        let payload_size = body.len() + 1;
+        shm_create_config_dir_with_raw_payload(name, &body)?;
         Ok(payload_size)
+    }
+
+    #[test]
+    fn config_directory_iter_errors_when_payload_has_no_lf() -> anyhow::Result<()> {
+        let outer = "/helper_rust_cfg_no_lf_iter";
+        shm_create_config_dir_with_raw_payload(outer, b"corrupt_or_partial_rc_index")?;
+
+        let mut poller = ConfigPoller::new(Path::new(OsStr::from_bytes(outer.as_bytes())));
+        let cfg_dir = poller
+            .poll()?
+            .context("expected config snapshot when seq advanced")?;
+
+        let err = match cfg_dir.iter() {
+            Ok(_) => panic!("iter() must fail when the directory payload has no newline"),
+            Err(e) => e,
+        };
+        assert!(
+            err.to_string().contains("No LF in remote config"),
+            "unexpected error: {err:#}"
+        );
+
+        unsafe {
+            let _ = libc::shm_unlink(CString::new(outer.as_bytes()).unwrap().as_ptr());
+        }
+        Ok(())
     }
 
     #[test]

@@ -1,6 +1,7 @@
 use anyhow::Context;
 use arc_swap::ArcSwap;
 use std::{
+    backtrace::{Backtrace, BacktraceStatus},
     collections::{HashMap, HashSet},
     hash::Hash,
     path::PathBuf,
@@ -560,7 +561,7 @@ impl Service {
         error: anyhow::Error,
     ) {
         let message = format!(
-            "Failed to apply config {} in service with config {:?}: {}",
+            "Failed to apply config {} in service with config {:?}: {:#}",
             rc_path, self.fixed_config, error
         );
 
@@ -573,11 +574,16 @@ impl Service {
                 .add("appsec_config_key", rc_path)
                 .add("rc_config_id", &parsed_key.config_id);
 
+            let backtrace = match error.backtrace().status() {
+                BacktraceStatus::Captured => error.backtrace().to_string(),
+                _ => Backtrace::force_capture().to_string(),
+            };
+
             logs_submitter.submit_log(TelemetryLog {
                 level: telemetry::LogLevel::Error,
                 identifier,
                 message,
-                stack_trace: Some(error.backtrace().to_string()),
+                stack_trace: Some(backtrace),
                 tags: Some(tags),
                 is_sensitive: false,
             });
@@ -591,7 +597,7 @@ impl Service {
 
     fn log_general_rc_error(&self, error: anyhow::Error) {
         let message = format!(
-            "Failed to apply config for service with config {:?}: {}",
+            "Failed to apply config for service with config {:?}: {:#}",
             self.fixed_config, error
         );
         warning!("{}", message);
