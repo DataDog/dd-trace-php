@@ -128,6 +128,8 @@ class PDOIntegration extends Integration
 
             PDOIntegration::injectDBIntegration($instance, $hook, true);
             PDOIntegration::handleRasp($instance, $span);
+
+            $span->resource = PDOIntegration::useQuestionMarkPlaceholders($span->resource);
         }, static function (HookData $hook) {
             $pdo = $hook->returned;
             ObjectKVStore::propagate($hook->instance, $pdo, PDOIntegration::CONNECTION_TAGS_KEY);
@@ -170,6 +172,8 @@ class PDOIntegration extends Integration
                 PDOIntegration::setCommonSpanInfo($instance, $span);
                 PDOIntegration::addTraceAnalyticsIfEnabled($span);
                 PDOIntegration::detectError($instance, $span);
+
+                $span->resource = PDOIntegration::useQuestionMarkPlaceholders($span->resource);
             }
         );
 
@@ -351,5 +355,11 @@ REGEX;
             'server.db.system' => $storedConnectionInfo[Tag::DB_SYSTEM],
         );
         \datadog\appsec\push_addresses($addresses, "sqli");
+    }
+
+    public static function useQuestionMarkPlaceholders($query)
+    {
+        // Regex according to rules from pdo_sql_parser.re
+        return \preg_replace('((?:/\*([^*]++|\*++[^/])*\*/(*COMMIT)|--.*(*SKIP)(*F)|"(?:""|[^"]++)*"(*COMMIT)|\'(?:\'\'|[^\']++)*\'(*COMMIT)|[^/:\'"-]++|.)*?\K:[a-zA-Z0-9_]+)s', "?", $query);
     }
 }
