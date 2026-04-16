@@ -4,5 +4,5 @@ OUTFILE=/tmp/datadog-junit-upload.txt
 if [[ $? -ne 0 ]]; then
   cat $OUTFILE
 else
-  grep -E '(^\* |Warning:|Error:|ReferenceError:|=== )' $OUTFILE || true
+  grep -E '^\* ' $OUTFILE
 fi
