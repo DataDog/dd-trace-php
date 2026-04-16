@@ -215,8 +215,8 @@ echo "Current directory: $(pwd)"
 echo "Running command: ${datadog_ci_cmd} junit upload --service \"${DD_SERVICE}\" --max-concurrency 20 --verbose --tags git.repository_url:https://github.com/DataDog/dd-trace-php ${tags_args} ${xpath_tags_args} ${files_array[*]}"
 
 if ! ${datadog_ci_cmd} junit upload --service "${DD_SERVICE}" --max-concurrency 20 --verbose --tags "git.repository_url:https://github.com/DataDog/dd-trace-php" ${tags_args} ${xpath_tags_args} "${files_array[@]}"; then
-  echo "Warning: Failed to upload JUnit files" >&2
-  exit 0
+  echo "Error: Failed to upload JUnit files" >&2
+  exit 1
 fi
 
 echo "=== JUnit upload completed ==="
