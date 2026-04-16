@@ -275,7 +275,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
     CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")                                       \
-    CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
+    CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "true")                                                  \
     DD_INTEGRATIONS
 
 #ifndef _WIN32
