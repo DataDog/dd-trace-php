@@ -3,6 +3,13 @@ include:
     file: 'images/templates/gitlab/check-slo-breaches.template.yml'
   - project: 'DataDog/benchmarking-platform-tools'
     file: 'images/templates/gitlab/notify-slo-breaches.template.yml'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-laravel-realworld-parallel.yml'
+    ref: 'main'
+
+stages:
+  - php-laravel-realworld-parallel
+  - php-laravel-realworld-parallel-slo
 
 variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
@@ -258,21 +265,3 @@ notify-slo-breaches:
   rules: *pre-release-performance-quality-gates-rules
   variables:
     CHANNEL: "guild-dd-php"
-
-apm-sdk-benchmarks:
-  stage: benchmarks
-  when: manual
-  allow_failure: true
-  # No `needs:` here — unlike dd-trace-py which uploads per-pipeline wheels to
-  # S3 (keyed by CI_PIPELINE_ID), dd-trace-php publishes to S3 keyed by VERSION
-  # string only. The apm-sdks-benchmarks fetch script downloads the latest
-  # GitHub release instead of a specific pipeline build.
-  trigger:
-    project: DataDog/apm-reliability/apm-sdks-benchmarks
-    branch: main
-  variables:
-    # PARENT_PIPELINE_ID (not CI_PIPELINE_ID): benchmarks.yml runs as a child
-    # pipeline, so CI_PIPELINE_ID here is the child pipeline ID. PARENT_PIPELINE_ID
-    # is explicitly forwarded from the parent pipeline in .gitlab-ci.yml and
-    # identifies the main dd-trace-php pipeline that triggered this run.
-    TARGET_REF: $PARENT_PIPELINE_ID
