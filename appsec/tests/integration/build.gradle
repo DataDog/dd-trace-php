@@ -671,6 +671,10 @@ def runMainTask = { String phpVersion, String variant ->
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
 
+            if (!project.hasProperty('slowTests')) {
+                excludeTags('slow')
+            }
+
             if (isMusl) {
                 includeTags('musl')
             }
@@ -770,6 +774,10 @@ if (project.hasProperty('testClass')) {
         it.useJUnitPlatform {
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
+
+            if (!project.hasProperty('slowTests')) {
+                excludeTags('slow')
+            }
         }
 
         it.testClassesDirs = sourceSets.test.output.classesDirs

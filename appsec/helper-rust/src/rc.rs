@@ -240,13 +240,26 @@ impl<'a> Iterator for ConfigIter<'a> {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
+pub struct RcPath(String);
+impl RcPath {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+impl AsRef<str> for RcPath {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Config<'a> {
     shm_path: &'a Path,
-    rc_path: String,
+    rc_path: RcPath,
 }
 impl<'a> Config<'a> {
-    pub fn rc_path(&self) -> &str {
+    pub fn rc_path(&self) -> &RcPath {
         &self.rc_path
     }
 
@@ -281,7 +294,7 @@ impl<'a> Config<'a> {
 
         Ok(Config {
             shm_path: Path::new(OsStr::from_bytes(shm_path)),
-            rc_path,
+            rc_path: RcPath(rc_path),
         })
     }
 
@@ -333,9 +346,9 @@ pub struct ParsedConfigKey {
 }
 
 impl ParsedConfigKey {
-    pub fn from_rc_path(rc_path: &str) -> Option<Self> {
+    pub fn from_rc_path(rc_path: &RcPath) -> Option<Self> {
         // Format: (datadog/<org_id> | employee)/<PRODUCT>/<config_id>/<name>
-        let parts: Vec<&str> = rc_path.split('/').collect();
+        let parts: Vec<&str> = rc_path.as_str().split('/').collect();
 
         if parts.len() >= 4 && parts[0] == "datadog" {
             // datadog/<org_id>/<PRODUCT>/<config_id>/...
