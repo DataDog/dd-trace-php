@@ -409,21 +409,21 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_sidecar_submit_root_span_data_direct(&ddtrace_sidecar, NULL, new_str, get_DD_ENV(), get_DD_VERSION());
+        ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_sidecar_submit_root_span_data_direct(&ddtrace_sidecar, NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
+        ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_sidecar_submit_root_span_data_direct(&ddtrace_sidecar, NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
+        ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
     return true;
 }
@@ -696,6 +696,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     zend_hash_destroy(&ddtrace_globals->git_metadata);
+
+    // Drop the per-thread sidecar transport (thread-lifetime, one per thread).
+    ddtrace_sidecar_gshutdown();
 
     tsrm_mutex_free(ddtrace_globals->sidecar_universal_service_tags_mutex);
 
@@ -1594,8 +1597,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_coms_mshutdown_proxy_env();
     } else /* ! part of the if outside the ifdef */
 #endif
-    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && ddtrace_sidecar) {
-        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DDTRACE_G(sidecar)) {
+        ddog_sidecar_flush_traces(&DDTRACE_G(sidecar));
     }
 
     ddtrace_log_mshutdown();
@@ -2809,7 +2812,7 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
 PHP_FUNCTION(DDTrace_are_endpoints_collected) {
     UNUSED(execute_data);
 
-    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
         RETURN_TRUE; // Skip overhead if unnecessary
     }
 
@@ -2865,7 +2868,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
         RETURN_FALSE;
     }
 
-    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
         RETURN_FALSE;
     }
 
@@ -2890,7 +2893,7 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
     UNUSED(execute_data);
     UNUSED(return_value);
 
-    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id) || !DDTRACE_G(telemetry_buffer)) {
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id) || !DDTRACE_G(telemetry_buffer)) {
         return;
     }
 
@@ -2902,7 +2905,7 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
     ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
 
     ddtrace_ffi_try("Failed flushing endpoint telemetry buffer",
-        ddog_sidecar_telemetry_filter_flush(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_name, env_name));
+        ddog_sidecar_telemetry_filter_flush(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_name, env_name));
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
@@ -3004,7 +3007,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
-            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
+            ddtrace_detect_composer_installed_json(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
             RETVAL_TRUE;
         } else if (params_count == 2 && FUNCTION_NAME_MATCHES("mark_integration_loaded")) {
             zval *name = ZVAL_VARARG_PARAM(params, 0);
@@ -3032,24 +3035,24 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 RETVAL_TRUE;
             }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
-            if (!ddtrace_sidecar) {
+            if (!DDTRACE_G(sidecar)) {
                 RETURN_FALSE;
             }
-            ddog_CharSlice slice = ddog_sidecar_dump(&ddtrace_sidecar);
+            ddog_CharSlice slice = ddog_sidecar_dump(&DDTRACE_G(sidecar));
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
         } else if (FUNCTION_NAME_MATCHES("stats_sidecar")) {
-            if (!ddtrace_sidecar) {
+            if (!DDTRACE_G(sidecar)) {
                 RETURN_FALSE;
             }
-            ddog_CharSlice slice = ddog_sidecar_stats(&ddtrace_sidecar);
+            ddog_CharSlice slice = ddog_sidecar_stats(&DDTRACE_G(sidecar));
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
         } else if (FUNCTION_NAME_MATCHES("break_sidecar_connection")) {
-            if (!ddtrace_sidecar) {
+            if (!DDTRACE_G(sidecar)) {
                 RETURN_FALSE;
             }
-            ddog_sidecar_send_garbage(&ddtrace_sidecar);
+            ddog_sidecar_send_garbage(&DDTRACE_G(sidecar));
             ddtrace_generate_runtime_id();
             ddtrace_force_new_instance_id();
             RETURN_TRUE;
@@ -3079,8 +3082,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 }
             } else
 #endif
-            if (ddtrace_sidecar) {
-                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
+            if (DDTRACE_G(sidecar)) {
+                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&DDTRACE_G(sidecar)));
             }
             RETVAL_TRUE;
 #ifndef _WIN32
@@ -3214,8 +3217,8 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
         }
     } else
 #endif
-    if (ddtrace_sidecar) {
-        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
+    if (DDTRACE_G(sidecar)) {
+        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&DDTRACE_G(sidecar)));
     }
     RETURN_NULL();
 }

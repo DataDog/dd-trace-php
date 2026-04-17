@@ -19,8 +19,6 @@ extern ddog_VecRemoteConfigCapabilities DDTRACE_REMOTE_CONFIG_CAPABILITIES;
 
 extern const uint8_t *DDOG_PHP_FUNCTION;
 
-extern struct ddog_SidecarTransport *ddtrace_sidecar;
-
 /**
  * # Safety
  * Must be called from a single-threaded context, such as MINIT.
