@@ -216,12 +216,12 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     }
 
     if (!zai_config_is_initialized()) {
-        zval_dtor(&new_zv);
+        zval_ptr_dtor_nogc(&new_zv);
         return SUCCESS;
     }
 
     if (memoized->ini_change && !memoized->ini_change(zai_config_get_value(id), &new_zv, new_value)) {
-        zval_dtor(&new_zv);
+        zval_ptr_dtor_nogc(&new_zv);
         return FAILURE;
     }
 
@@ -251,7 +251,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
     }
 
     zai_config_replace_runtime_config(id, &new_zv);
-    zval_dtor(&new_zv);
+    zval_ptr_dtor_nogc(&new_zv);
     return SUCCESS;
 }
 
