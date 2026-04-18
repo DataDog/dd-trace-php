@@ -36,5 +36,4 @@
 | symfony/framework-bundle    | 2.3.42                 | 7.3.4                  |
 | symfony/messenger           | 4.4.49                 | 7.3.3                  |
 | wordpress                   | 4.8.10                 | 6.1.1                  |
-| yiisoft/yii2                | 2.0.49                 | 2.0.53                 |
 | zendframework/zf1           | 1.12.20                | 1.12.20                |
