@@ -1,6 +1,6 @@
 | Library                     | Min. Supported Version | Max. Supported Version |
 |-----------------------------|------------------------|------------------------|
-| cakephp/cakephp             | 3.10.5                 | 5.2.8                  |
+| cakephp/cakephp             | 3.10.5                 | 4.6.3                  |
 | drupal/drupal               | 8.9.21                 | 10.1.3                 |
 | elasticsearch/elasticsearch | 1.2.2                  | 9.1.0                  |
 | ext-PDO                     | 7.0.33                 | 8.5.4                  |
@@ -15,12 +15,10 @@
 | ext-swoole                  | 5.1.6                  | 6.0.0                  |
 | google/cloud-spanner        | 1.105.0                | 1.105.0                |
 | guzzlehttp/guzzle           | 5.3.4                  | 7.10.0                 |
-| laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.6.0                  | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |
-| laravel/framework           | 4.2.22                 | 12.44.0                |
-| laravel/lumen-framework     | 5.2.9                  | 10.0.4                 |
-| laravel/octane              | 2.13.3                 | 2.13.3                 |
+| laravel/framework           | 4.2.22                 | 9.52.21                |
+| laravel/lumen-framework     | 5.2.9                  | 9.1.6                  |
 | magento/magento2            | 2.3.7                  | 2.4.6                  |
 | mongodb/mongodb             | 1.8.0                  | 2.1.1                  |
 | monolog/monolog             | 1.27.1                 | 3.9.0                  |
