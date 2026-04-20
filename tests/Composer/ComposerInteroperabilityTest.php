@@ -38,12 +38,15 @@ class ComposerInteroperabilityTest extends BaseTestCase
             __DIR__ . "/app/index.php",
             [
                 'DD_TRACE_GENERATE_ROOT_SPAN' => 'false',
+                'DD_TRACE_SOURCES_PATH' => 'do_not_exists',
+                'DD_AUTOLOAD_NO_COMPILE' => 'false',
             ],
             [
                 'datadog.trace.sources_path' => 'do_not_exists',
             ]
         );
 
+        // Will fallback to installed sources, which does not include DDTrace, only api/, thus doing a Noop
         $this->assertEmpty($traces);
     }
 

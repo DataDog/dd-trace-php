@@ -516,3 +516,34 @@ bool zai_config_is_modified(zai_config_id entry_id) {
 
     return ini->modified;
 }
+
+void zai_config_change_default_ini(zai_config_id entry_id, zai_str str) {
+    zai_config_memoized_entry *memoized = &zai_config_memoized_entries[entry_id];
+    zend_ini_entry *entry = memoized->ini_entries[0];
+    zend_string_release(entry->value);
+    entry->value = zend_string_init(str.ptr, str.len, 1);
+    if (entry->modified) {
+        entry->modified = false;
+        zend_string_release(entry->orig_value);
+    }
+#if ZTS
+    zend_ini_entry *runtime_entry = zend_hash_find_ptr(EG(ini_directives), entry->name);
+    if (runtime_entry != entry) {
+        zend_string_release(runtime_entry->value);
+        runtime_entry->value = zend_string_copy(entry->value);
+        if (runtime_entry->modified) {
+            runtime_entry->modified = false;
+            zend_string_release(runtime_entry->orig_value);
+        }
+    }
+#endif
+    memoized->default_encoded_value = str;
+    memoized->name_index = ZAI_CONFIG_ORIGIN_DEFAULT;
+
+    zval decoded;
+    ZVAL_UNDEF(&decoded);
+    if (zai_config_decode_value(str, memoized->type, memoized->parser, &decoded, 1)) {
+        zai_json_dtor_pzval(&memoized->decoded_value);
+        ZVAL_COPY_VALUE(&memoized->decoded_value, &decoded);
+    }
+}

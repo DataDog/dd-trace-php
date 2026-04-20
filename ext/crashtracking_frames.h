@@ -1,6 +1,6 @@
-#ifndef DD_CRASHTRACKING_FRAMES_H
-#define DD_CRASHTRACKING_FRAMES_H
+#ifndef DATADOG_CRASHTRACKING_FRAMES_H
+#define DATADOG_CRASHTRACKING_FRAMES_H
 
-void ddtrace_register_crashtracking_frames_collection(void);
+void datadog_register_crashtracking_frames_collection(void);
 
-#endif // DD_CRASHTRACKING_FRAMES_H
+#endif // DATADOG_CRASHTRACKING_FRAMES_H

@@ -12,7 +12,7 @@
 #include "process_tags.h"
 #include "configuration.h"
 #include "Zend/zend_smart_str.h"
-#include "components-rs/ddtrace.h"
+#include <components-rs/datadog.h>
 #include "SAPI.h"
 
 #ifndef PATH_MAX
@@ -207,7 +207,7 @@ static int cmp_process_tag_by_key(const void *tag1, const void* tag2) {
 }
 
 static void recompute_base_hash(void) {
-    if (!ddtrace_process_tags_enabled() || !process_tags.serialized) {
+    if (!datadog_process_tags_enabled() || !process_tags.serialized) {
         return;
     }
 
@@ -238,7 +238,7 @@ static void recompute_base_hash(void) {
 }
 
 static void serialize_process_tags(void) {
-    if (!ddtrace_process_tags_enabled() || !process_tags.count) {
+    if (!datadog_process_tags_enabled() || !process_tags.count) {
         return;
     }
 
@@ -290,8 +290,8 @@ static void init_process_tags(void) {
     serialize_process_tags();
 }
 
-void ddtrace_process_tags_set_container_tags_hash(zend_string *container_tags_hash) {
-    if (!container_tags_hash || !ddtrace_process_tags_enabled()) {
+void datadog_process_tags_set_container_tags_hash(zend_string *container_tags_hash) {
+    if (!container_tags_hash || !datadog_process_tags_enabled()) {
         return;
     }
 
@@ -304,12 +304,12 @@ void ddtrace_process_tags_set_container_tags_hash(zend_string *container_tags_ha
     recompute_base_hash();
 }
 
-zend_string *ddtrace_process_tags_get_serialized(void) {
-    return (ddtrace_process_tags_enabled() && process_tags.serialized) ? process_tags.serialized : ZSTR_EMPTY_ALLOC();
+zend_string *datadog_process_tags_get_serialized(void) {
+    return (datadog_process_tags_enabled() && process_tags.serialized) ? process_tags.serialized : ZSTR_EMPTY_ALLOC();
 }
 
-const ddog_Vec_Tag *ddtrace_process_tags_get_vec(void) {
-    if (ddtrace_process_tags_enabled() && process_tags.vec.ptr) {
+const ddog_Vec_Tag *datadog_process_tags_get_vec(void) {
+    if (datadog_process_tags_enabled() && process_tags.vec.ptr) {
         return &process_tags.vec;
     }
 
@@ -320,22 +320,22 @@ const ddog_Vec_Tag *ddtrace_process_tags_get_vec(void) {
     return &empty_vec;
 }
 
-zend_string *ddtrace_process_tags_get_base_hash(void) {
-    return (ddtrace_process_tags_enabled() && process_tags.base_hash) ? process_tags.base_hash : NULL;
+zend_string *datadog_process_tags_get_base_hash(void) {
+    return (datadog_process_tags_enabled() && process_tags.base_hash) ? process_tags.base_hash : NULL;
 }
 
-bool ddtrace_process_tags_enabled(void){
+bool datadog_process_tags_enabled(void){
     return zai_config_is_initialized() ? get_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED() : get_global_DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED();
 }
 
-void ddtrace_process_tags_first_rinit(void) {
+void datadog_process_tags_first_rinit(void) {
     init_process_tags();
 }
 
-void ddtrace_process_tags_reload(void) {
+void datadog_process_tags_reload(void) {
     clear_process_tags();
     init_process_tags();
 }
-void ddtrace_process_tags_mshutdown(void) {
+void datadog_process_tags_mshutdown(void) {
     clear_process_tags();
 }

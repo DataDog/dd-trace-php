@@ -17,9 +17,9 @@
 #include "string_helpers.h"
 #include <Zend/zend_extensions.h>
 
-void (*nullable ddtrace_metric_register_buffer)(
+void (*nullable datadog_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
-bool (*nullable ddtrace_metric_add_point)(
+bool (*nullable datadog_metric_add_point)(
     zend_string *nonnull name, double value, zend_string *nonnull tags);
 
 static int (*_orig_ddtrace_shutdown)(SHUTDOWN_FUNC_ARGS);
@@ -32,7 +32,7 @@ static zend_string *_meta_propname;
 static zend_string *_metrics_propname;
 static zend_string *_meta_struct_propname;
 static THREAD_LOCAL_ON_ZTS bool _suppress_ddtrace_rshutdown;
-static uint8_t *_ddtrace_runtime_id;
+static uint8_t *_datadog_runtime_id;
 static THREAD_LOCAL_ON_ZTS bool _asm_event_emitted;
 
 static void _setup_testing_telemetry_functions(void);
@@ -40,8 +40,8 @@ static zend_module_entry *_find_ddtrace_module(void);
 static int _ddtrace_rshutdown_testing(SHUTDOWN_FUNC_ARGS);
 static void _register_testing_objects(void);
 
-static const uint8_t *(*nullable _ddtrace_get_formatted_session_id)(void);
-static uint64_t (*nullable _ddtrace_get_sidecar_queue_id)(void);
+static const uint8_t *(*nullable _datadog_get_formatted_session_id)(void);
+static uint64_t (*nullable _datadog_get_sidecar_queue_id)(void);
 static zend_object *(*nullable _ddtrace_get_root_span)(void);
 static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
 static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
@@ -57,14 +57,14 @@ static bool (*nullable _ddtrace_user_req_add_listeners)(
 
 static zend_string *(*_ddtrace_ip_extraction_find)(zval *server);
 
-static struct telemetry_rc_info (*_ddtrace_get_telemetry_rc_info)(void);
+static struct telemetry_rc_info (*_datadog_get_telemetry_rc_info)(void);
 static void *(*nullable _ddtrace_emit_asm_event)(void);
 static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 
-static void _test_ddtrace_metric_register_buffer(
+static void _test_datadog_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
-static bool _test_ddtrace_metric_add_point(
+static bool _test_datadog_metric_add_point(
     zend_string *nonnull name, double value, zend_string *nonnull tags);
 
 static void dd_trace_load_symbols(zend_module_entry *module)
@@ -75,7 +75,7 @@ static void dd_trace_load_symbols(zend_module_entry *module)
     /* Use the global symbol table. This works for both:
      * - monolithic builds: ddtrace.so is loaded RTLD_GLOBAL, so its symbols
      *   (including Rust ones linked statically) are visible via RTLD_DEFAULT.
-     * - SSI builds: libddtrace_php.so is pre-loaded RTLD_GLOBAL by the loader
+     * - SSI builds: libdatadog_php.so is pre-loaded RTLD_GLOBAL by the loader
      *   before ddtrace.so is registered, so its symbols are also visible. */
 #define ASSIGN_DLSYM(var, export)                                              \
     do {                                                                       \
@@ -89,10 +89,10 @@ static void dd_trace_load_symbols(zend_module_entry *module)
     ASSIGN_DLSYM(_ddtrace_close_all_spans_and_flush,
         "ddtrace_close_all_spans_and_flush");
     ASSIGN_DLSYM(_ddtrace_get_root_span, "ddtrace_get_root_span");
-    ASSIGN_DLSYM(_ddtrace_runtime_id, "ddtrace_runtime_id");
+    ASSIGN_DLSYM(_datadog_runtime_id, "datadog_runtime_id");
     ASSIGN_DLSYM(
-        _ddtrace_get_formatted_session_id, "ddtrace_get_formatted_session_id");
-    ASSIGN_DLSYM(_ddtrace_get_sidecar_queue_id, "ddtrace_get_sidecar_queue_id");
+        _datadog_get_formatted_session_id, "datadog_get_formatted_session_id");
+    ASSIGN_DLSYM(_datadog_get_sidecar_queue_id, "datadog_get_sidecar_queue_id");
     ASSIGN_DLSYM(_ddtrace_set_priority_sampling_on_span_zobj,
         "ddtrace_set_priority_sampling_on_span_zobj");
     ASSIGN_DLSYM(_ddtrace_get_priority_sampling_on_span_zobj,
@@ -103,10 +103,10 @@ static void dd_trace_load_symbols(zend_module_entry *module)
         _ddtrace_user_req_add_listeners, "ddtrace_user_req_add_listeners");
     ASSIGN_DLSYM(_ddtrace_ip_extraction_find, "ddtrace_ip_extraction_find");
     ASSIGN_DLSYM(
-        _ddtrace_get_telemetry_rc_info, "ddtrace_get_telemetry_rc_info");
+        _datadog_get_telemetry_rc_info, "datadog_get_telemetry_rc_info");
     ASSIGN_DLSYM(
-        ddtrace_metric_register_buffer, "ddtrace_metric_register_buffer");
-    ASSIGN_DLSYM(ddtrace_metric_add_point, "ddtrace_metric_add_point");
+        datadog_metric_register_buffer, "datadog_metric_register_buffer");
+    ASSIGN_DLSYM(datadog_metric_add_point, "datadog_metric_add_point");
     ASSIGN_DLSYM(_ddtrace_emit_asm_event, "ddtrace_emit_asm_event");
     ASSIGN_DLSYM(
         _ddtrace_guess_endpoint_from_url, "ddtrace_guess_endpoint_from_url");
@@ -150,11 +150,11 @@ void dd_trace_rinit(void) { _asm_event_emitted = false; }
 
 static void _setup_testing_telemetry_functions(void)
 {
-    if (ddtrace_metric_register_buffer == NULL) {
-        ddtrace_metric_register_buffer = _test_ddtrace_metric_register_buffer;
+    if (datadog_metric_register_buffer == NULL) {
+        datadog_metric_register_buffer = _test_datadog_metric_register_buffer;
     }
-    if (ddtrace_metric_add_point == NULL) {
-        ddtrace_metric_add_point = _test_ddtrace_metric_add_point;
+    if (datadog_metric_add_point == NULL) {
+        datadog_metric_add_point = _test_datadog_metric_add_point;
     }
 }
 
@@ -323,7 +323,7 @@ zval *nullable dd_trace_span_get_meta_struct(zend_object *nonnull zobj)
 // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 {
-    if (_ddtrace_runtime_id == NULL) {
+    if (_datadog_runtime_id == NULL) {
         return NULL;
     }
 
@@ -331,13 +331,13 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 
     size_t length = sprintf(ZSTR_VAL(encoded_id),
         "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-        _ddtrace_runtime_id[0], _ddtrace_runtime_id[1], _ddtrace_runtime_id[2],
-        _ddtrace_runtime_id[3], _ddtrace_runtime_id[4], _ddtrace_runtime_id[5],
-        _ddtrace_runtime_id[6], _ddtrace_runtime_id[7], _ddtrace_runtime_id[8],
-        _ddtrace_runtime_id[9], _ddtrace_runtime_id[10],
-        _ddtrace_runtime_id[11], _ddtrace_runtime_id[12],
-        _ddtrace_runtime_id[13], _ddtrace_runtime_id[14],
-        _ddtrace_runtime_id[15]);
+        _datadog_runtime_id[0], _datadog_runtime_id[1], _datadog_runtime_id[2],
+        _datadog_runtime_id[3], _datadog_runtime_id[4], _datadog_runtime_id[5],
+        _datadog_runtime_id[6], _datadog_runtime_id[7], _datadog_runtime_id[8],
+        _datadog_runtime_id[9], _datadog_runtime_id[10],
+        _datadog_runtime_id[11], _datadog_runtime_id[12],
+        _datadog_runtime_id[13], _datadog_runtime_id[14],
+        _datadog_runtime_id[15]);
 
     if (length != 36) {
         zend_string_free(encoded_id);
@@ -350,18 +350,18 @@ zend_string *nullable dd_trace_get_formatted_runtime_id(bool persistent)
 
 const uint8_t *nullable dd_trace_get_formatted_session_id(void)
 {
-    if (_ddtrace_get_formatted_session_id == NULL) {
+    if (_datadog_get_formatted_session_id == NULL) {
         return NULL;
     }
-    return _ddtrace_get_formatted_session_id();
+    return _datadog_get_formatted_session_id();
 }
 
 uint64_t dd_trace_get_sidecar_queue_id(void)
 {
-    if (_ddtrace_get_sidecar_queue_id == NULL) {
+    if (_datadog_get_sidecar_queue_id == NULL) {
         return 0;
     }
-    return _ddtrace_get_sidecar_queue_id();
+    return _datadog_get_sidecar_queue_id();
 }
 
 void dd_trace_set_priority_sampling_on_span_zobj(zend_object *nonnull root_span,
@@ -413,10 +413,10 @@ zend_string *nullable dd_ip_extraction_find(zval *nonnull server)
 
 struct telemetry_rc_info dd_trace_get_telemetry_rc_info(void)
 {
-    if (!_ddtrace_get_telemetry_rc_info) {
+    if (!_datadog_get_telemetry_rc_info) {
         return (struct telemetry_rc_info){0};
     }
-    __auto_type tel_rc_info = _ddtrace_get_telemetry_rc_info();
+    __auto_type tel_rc_info = _datadog_get_telemetry_rc_info();
 
     mlog(dd_log_trace,
         "Remote config path: %s, service name: %.*s, env name: %.*s",
@@ -601,19 +601,19 @@ static const zend_function_entry functions[] = {
 
 static void _register_testing_objects(void) { dd_phpobj_reg_funcs(functions); }
 
-static void _test_ddtrace_metric_register_buffer(
+static void _test_datadog_metric_register_buffer(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns)
 {
     php_error_docref(NULL, E_NOTICE,
-        "Would call ddtrace_metric_register_buffer with name=%.*s "
+        "Would call datadog_metric_register_buffer with name=%.*s "
         "type=%d ns=%d",
         (int)ZSTR_LEN(name), ZSTR_VAL(name), type, ns);
 }
-static bool _test_ddtrace_metric_add_point(
+static bool _test_datadog_metric_add_point(
     zend_string *nonnull name, double value, zend_string *nonnull tags)
 {
     php_error_docref(NULL, E_NOTICE,
-        "Would call to ddtrace_metric_add_point with name=%.*s value=%f "
+        "Would call to datadog_metric_add_point with name=%.*s value=%f "
         "tags=%.*s",
         (int)ZSTR_LEN(name), ZSTR_VAL(name), value, (int)ZSTR_LEN(tags),
         ZSTR_VAL(tags));
