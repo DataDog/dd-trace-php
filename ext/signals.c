@@ -363,7 +363,7 @@ static int dd_call_prev_handler(bool flush) {
     }
 
     if (flush) {
-        ddog_sidecar_flush_traces(&ddtrace_sidecar_for_signal);
+        ddog_sidecar_flush(&ddtrace_sidecar_for_signal, (ddog_SidecarFlushOptions){.traces_and_stats = true});
     }
 
     if (prev_handler == SIG_DFL) {

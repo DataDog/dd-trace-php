@@ -104,7 +104,8 @@ ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
-ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);
+ddog_MaybeError ddog_sidecar_flush(struct ddog_SidecarTransport **transport,
+                                   struct ddog_SidecarFlushOptions options);
 
 struct ddog_InstanceId *ddog_sidecar_instanceId_build(ddog_CharSlice session_id,
                                                       ddog_CharSlice runtime_id);
