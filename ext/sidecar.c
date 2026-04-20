@@ -776,11 +776,6 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
     bool changed = true;
     if (DDTRACE_G(remote_config_state)) {
         changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags), process_tags);
-        if (!changed && root) {
-            // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
-            // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
-            ddog_process_remote_configs(DDTRACE_G(remote_config_state));
-        }
     }
 
     // Force resend on reconnect
@@ -812,6 +807,12 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
     if ((changed || !root) && DDTRACE_G(telemetry_buffer)) {
         ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
             ddog_sidecar_telemetry_filter_flush(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
+    }
+
+    if (!changed && DDTRACE_G(remote_config_state)) {
+        // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
+        // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
+        ddog_process_remote_configs(DDTRACE_G(remote_config_state));
     }
 }
 
