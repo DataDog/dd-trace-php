@@ -300,6 +300,11 @@ mod detail {
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
     ) -> Result<Backtrace, CollectStackSampleError> {
+        #[cfg(feature = "stack_walking_tests")]
+        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        #[cfg(not(feature = "stack_walking_tests"))]
+        use crate::bindings::zend_generator_check_placeholder_frame;
+
         let max_depth = 512;
         let mut samples = Vec::new();
         let mut execute_data_ptr = top_execute_data;
@@ -312,9 +317,8 @@ mod detail {
             // frame the same way zend_fetch_debug_backtrace and the observer
             // API do.
             if execute_data.func.is_null() {
-                execute_data_ptr = unsafe {
-                    crate::bindings::zend_generator_check_placeholder_frame(execute_data_ptr)
-                };
+                execute_data_ptr =
+                    unsafe { zend_generator_check_placeholder_frame(execute_data_ptr) };
             }
             let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
                 break;
@@ -497,6 +501,11 @@ mod detail {
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Backtrace, CollectStackSampleError> {
+        #[cfg(feature = "stack_walking_tests")]
+        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        #[cfg(not(feature = "stack_walking_tests"))]
+        use crate::bindings::zend_generator_check_placeholder_frame;
+
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -506,9 +515,8 @@ mod detail {
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
             if execute_data.func.is_null() {
-                execute_data_ptr = unsafe {
-                    crate::bindings::zend_generator_check_placeholder_frame(execute_data_ptr)
-                };
+                execute_data_ptr =
+                    unsafe { zend_generator_check_placeholder_frame(execute_data_ptr) };
             }
             let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
                 break;
