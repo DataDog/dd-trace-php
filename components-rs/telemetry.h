@@ -123,6 +123,15 @@ ddog_MaybeError ddog_telemetry_builder_with_str_host_kernel_version(struct ddog_
 ddog_MaybeError ddog_telemetry_builder_with_str_runtime_id(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
                                                            ddog_CharSlice param);
 
+ddog_MaybeError ddog_telemetry_builder_with_str_session_id(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
+                                                           ddog_CharSlice param);
+
+ddog_MaybeError ddog_telemetry_builder_with_str_parent_session_id(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
+                                                                  ddog_CharSlice param);
+
+ddog_MaybeError ddog_telemetry_builder_with_str_root_session_id(struct ddog_TelemetryWorkerBuilder *telemetry_builder,
+                                                                ddog_CharSlice param);
+
 /**
  *      Sets a property from it's string value.
  *
@@ -149,6 +158,12 @@ ddog_MaybeError ddog_telemetry_builder_with_str_runtime_id(struct ddog_Telemetry
  *     * host.kernel_version
  *
  *     * runtime_id
+ *
+ *     * session_id
+ *
+ *     * parent_session_id
+ *
+ *     * root_session_id
  *
  *
  */
@@ -182,6 +197,12 @@ ddog_MaybeError ddog_telemetry_builder_with_property_str(struct ddog_TelemetryWo
  *     * host.kernel_version
  *
  *     * runtime_id
+ *
+ *     * session_id
+ *
+ *     * parent_session_id
+ *
+ *     * root_session_id
  *
  *
  */
