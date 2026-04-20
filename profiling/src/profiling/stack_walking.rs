@@ -307,18 +307,6 @@ mod detail {
         samples.try_reserve(max_depth >> 3)?;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            // Nested generators leave a placeholder frame (func == NULL,
-            // This == generator object) on the stack. Resolve it to the real
-            // frame the same way zend_fetch_debug_backtrace and the observer
-            // API do.
-            if execute_data.func.is_null() {
-                execute_data_ptr = unsafe {
-                    crate::bindings::zend_generator_check_placeholder_frame(execute_data_ptr)
-                };
-            }
-            let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
-                break;
-            };
             // allowed because it's only used on the frameless path
             #[allow(unused_variables)]
             if let Some(func) = unsafe { execute_data.func.as_ref() } {
@@ -505,14 +493,6 @@ mod detail {
         let mut execute_data_ptr = top_execute_data;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
-            if execute_data.func.is_null() {
-                execute_data_ptr = unsafe {
-                    crate::bindings::zend_generator_check_placeholder_frame(execute_data_ptr)
-                };
-            }
-            let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
-                break;
-            };
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;
