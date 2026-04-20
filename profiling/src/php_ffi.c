@@ -15,20 +15,7 @@
 #include <dlfcn.h> // for dlsym
 #endif
 
-static bool _is_cli_sapi = false;
-static bool _startup_opcache_file_cache_enabled = false;
 static int _op_array_reserved_slot = -1;
-static zend_string *_opcache_enable_key = NULL;
-static zend_string *_opcache_enable_cli_key = NULL;
-static zend_string *_opcache_file_cache_key = NULL;
-#if CFG_TEST
-static int _opcache_enabled_override = -1;
-static int _opcache_file_cache_enabled_override = -1;
-#endif
-
-static void opcache_ini_keys(void);
-static zend_string *active_ini_get(zend_string *key);
-static bool ddog_php_prof_ini_file_cache_enabled(zend_string *value);
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
@@ -157,8 +144,6 @@ static post_startup_cb_result ddog_php_prof_post_startup_cb(void) {
 
 
 void datadog_php_profiling_startup(zend_extension *extension) {
-    _is_cli_sapi = strcmp(sapi_module.name, "cli") == 0;
-
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
     datadog_php_profiling_get_process_tags_serialized = noop_get_process_tags_serialized;
 
@@ -178,9 +163,6 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     }
 
     ddog_php_opcache_init_handle();
-    opcache_ini_keys();
-    _startup_opcache_file_cache_enabled =
-        ddog_php_prof_ini_file_cache_enabled(active_ini_get(_opcache_file_cache_key));
 
 #if CFG_POST_STARTUP_CB // defined by build.rs
     _is_post_startup = false;
@@ -516,14 +498,6 @@ void ddog_php_test_free_fake_zend_execute_data(zend_execute_data *execute_data) 
     free(execute_data);
 }
 
-void ddog_php_test_set_opcache_enabled(int enabled) {
-    _opcache_enabled_override = enabled;
-}
-
-void ddog_php_test_set_opcache_file_cache_enabled(int enabled) {
-    _opcache_file_cache_enabled_override = enabled;
-}
-
 // Stub for zend_flf_functions (PHP 8.4+ frameless calls) to allow tests to link
 // without the real PHP runtime. The test doesn't exercise frameless code paths.
 __attribute__((weak)) zend_function **zend_flf_functions;
@@ -546,63 +520,7 @@ void ddog_php_opcache_init_handle() {
     }
 }
 
-static zend_string *create_persistent_interned_string(const char *str, size_t len) {
-#if PHP_VERSION_ID < 70200
-    return zend_new_interned_string(zend_string_init(str, len, 1));
-#else
-    return zend_string_init_interned(str, len, 1);
-#endif
-}
-
-static void opcache_ini_keys(void) {
-    if (!_opcache_enable_key) {
-        _opcache_enable_key =
-            create_persistent_interned_string(ZEND_STRL("opcache.enable"));
-    }
-    if (!_opcache_enable_cli_key) {
-        _opcache_enable_cli_key =
-            create_persistent_interned_string(ZEND_STRL("opcache.enable_cli"));
-    }
-    if (!_opcache_file_cache_key) {
-        _opcache_file_cache_key =
-            create_persistent_interned_string(ZEND_STRL("opcache.file_cache"));
-    }
-}
-
-void ddog_php_prof_shutdown_opcache_ini_keys(void) {
-    if (_opcache_enable_key) {
-        zend_string_release(_opcache_enable_key);
-        _opcache_enable_key = NULL;
-    }
-    if (_opcache_enable_cli_key) {
-        zend_string_release(_opcache_enable_cli_key);
-        _opcache_enable_cli_key = NULL;
-    }
-    if (_opcache_file_cache_key) {
-        zend_string_release(_opcache_file_cache_key);
-        _opcache_file_cache_key = NULL;
-    }
-}
-
-static zend_string *active_ini_get(zend_string *key) {
-    if (!key) {
-        return NULL;
-    }
-
-#if CFG_TEST
-    (void)key;
-    return NULL;
-#elif PHP_VERSION_ID >= 70300
-    return zend_ini_get_value(key);
-#else
-    zend_ini_entry *ini_entry = zend_hash_find_ptr(EG(ini_directives), key);
-    if (!ini_entry) {
-        return NULL;
-    }
-    return ini_entry->value ? ini_entry->value : ZSTR_EMPTY_ALLOC();
-#endif
-}
-
+#if PHP_VERSION_ID >= 80000
 /** ASCII uppercase differs from lowercase by bit 0b0010_0000. */
 static const unsigned char ASCII_CASE_MASK = 0x20u;
 
@@ -645,67 +563,15 @@ static bool ini_parse_bool(zend_string *value) {
 
     return atoi(str) != 0;
 }
-
-static bool ddog_php_prof_ini_file_cache_enabled(zend_string *value) {
-    return value != NULL && ZSTR_LEN(value) > 0;
-}
-
-bool ddog_php_prof_opcache_file_cache_enabled(void) {
-#if CFG_TEST
-    if (_opcache_file_cache_enabled_override >= 0) {
-        return _opcache_file_cache_enabled_override != 0;
-    }
-#endif
-    return _startup_opcache_file_cache_enabled;
-}
-
-void ddog_php_prof_refresh_request_opcache_policy(void) {
-    bool opcache_enabled;
-    bool file_cache_enabled;
-
-#if CFG_TEST
-    if (_opcache_enabled_override >= 0 || _opcache_file_cache_enabled_override >= 0) {
-        opcache_enabled = _opcache_enabled_override < 0 || _opcache_enabled_override != 0;
-        file_cache_enabled =
-            _opcache_file_cache_enabled_override >= 0 && _opcache_file_cache_enabled_override != 0;
-        ddog_php_prof_set_cached_request_opcache_policy(
-            opcache_enabled,
-            file_cache_enabled);
-        return;
-    }
 #endif
 
-    // OPcache may null out its dlopen handle after startup, so use the
-    // registered zend extension list rather than the cached handle here.
-    opcache_enabled = zend_get_extension("Zend OPcache") != NULL;
-    file_cache_enabled = false;
+#if CFG_ZEND_ADD_SYSTEM_ENTROPY
+#include <Zend/zend_system_id.h>
 
-    if (opcache_enabled) {
-        zend_string *value = active_ini_get(_opcache_enable_key);
-        if (value && !ini_parse_bool(value)) {
-            opcache_enabled = false;
-        }
-
-        if (UNEXPECTED(_is_cli_sapi)) {
-            bool cli_initialized = false;
-            bool cli_enabled = false;
-            ddog_php_prof_get_cached_cli_opcache_enable_state(&cli_initialized, &cli_enabled);
-            if (!cli_initialized) {
-                value = active_ini_get(_opcache_enable_cli_key);
-                cli_enabled = ini_parse_bool(value);
-                ddog_php_prof_set_cached_cli_opcache_enable_state(true, cli_enabled);
-            }
-            opcache_enabled = opcache_enabled && cli_enabled;
-        }
-
-        value = active_ini_get(_opcache_file_cache_key);
-        file_cache_enabled = ddog_php_prof_ini_file_cache_enabled(value);
-    }
-
-    ddog_php_prof_set_cached_request_opcache_policy(
-        opcache_enabled,
-        file_cache_enabled);
+void ddog_php_prof_add_system_entropy(const unsigned char *data, size_t len) {
+    zend_add_system_entropy("datadog-profiling", "startup", data, len);
 }
+#endif
 
 // Detects if JIT is enabled by checking OPcache settings.
 //

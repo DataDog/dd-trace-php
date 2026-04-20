@@ -200,38 +200,13 @@ zend_result ddog_php_prof_op_array_reserved_slot_init(zend_extension *extension)
  */
 int ddog_php_prof_op_array_reserved_slot(void);
 
+#if CFG_ZEND_ADD_SYSTEM_ENTROPY // defined by build.rs
 /**
- * Returns true when OPcache file cache is enabled in any mode for this process.
- * The result is computed during startup from system INI state.
+ * Thin forwarder to `zend_add_system_entropy()`. Must be called during
+ * zend_extension startup, before `zend_finalize_system_id()`.
  */
-bool ddog_php_prof_opcache_file_cache_enabled(void);
-
-/**
- * Refreshes the cached request-local OPcache policy booleans from active INI
- * state. Call from RINIT after request configuration has been activated.
- */
-void ddog_php_prof_refresh_request_opcache_policy(void);
-
-/**
- * Releases the cached OPcache INI key strings created during startup.
- * Call from zend extension shutdown.
- */
-void ddog_php_prof_shutdown_opcache_ini_keys(void);
-
-/**
- * Updates the current thread's cached request-local OPcache policy state.
- * Implemented in Rust against profiling module globals.
- */
-void ddog_php_prof_set_cached_request_opcache_policy(
-    bool opcache_enabled,
-    bool opcache_file_cache_enabled);
-
-/**
- * Reads or updates the cached CLI `opcache.enable_cli` state for the current
- * thread. Implemented in Rust against profiling module globals.
- */
-void ddog_php_prof_get_cached_cli_opcache_enable_state(bool *initialized, bool *enabled);
-void ddog_php_prof_set_cached_cli_opcache_enable_state(bool initialized, bool enabled);
+void ddog_php_prof_add_system_entropy(const unsigned char *data, size_t len);
+#endif
 
 /**
  * Store a FunctionIndex in func->common.reserved[slot].

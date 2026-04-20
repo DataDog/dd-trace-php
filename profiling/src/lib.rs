@@ -375,7 +375,13 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         shutdown: Some(shutdown),
         activate: Some(activate),
         // SAFETY: these are valid C function pointers from php_ffi.c.
+        // The OPcache persist hook populates reserved[] slots with
+        // FunctionIndexes. Gated to PHP 8.0+ because without
+        // zend_add_system_entropy, file_cache could resurrect stale slot
+        // contents.
+        #[cfg(zend_add_system_entropy)]
         op_array_persist_calc: unsafe { zend::ddog_php_prof_get_persist_calc_fn() },
+        #[cfg(zend_add_system_entropy)]
         op_array_persist: unsafe { zend::ddog_php_prof_get_persist_fn() },
         ..Default::default()
     };
@@ -564,50 +570,28 @@ extern "C" fn activate() {
 }
 
 /// Intern a zend_function into the profiling SHM and store the FunctionIndex
-/// in func->common.reserved[slot]. Called from C (ddog_php_prof_intern_all_functions).
+/// in func->common.reserved[slot]. Called from C (ddog_php_prof_intern_all_functions
+/// and the op_array_persist hook). No-op on PHP 7 where the SHM feature is not
+/// available.
 ///
 /// # Safety
 /// `func` must be a valid pointer to a zend_function for the duration of the call.
 #[no_mangle]
 pub unsafe extern "C" fn ddog_php_prof_intern_and_store(func: *mut bindings::zend_function) {
+    #[cfg(zend_add_system_entropy)]
     if let Some(shm) = SHM.get() {
         if let Some(func) = unsafe { func.as_ref() } {
             profiling::stack_walking::intern_function(shm, func);
         }
     }
+    #[cfg(not(zend_add_system_entropy))]
+    let _ = func;
 }
 
 /// The mut here is *only* for resetting this back to uninitialized each minit.
 static mut ZAI_CONFIG_ONCE: Once = Once::new();
 /// The mut here is *only* for resetting this back to uninitialized each minit.
 static mut RINIT_ONCE: Once = Once::new();
-
-fn request_opcache_policy_snapshot() -> Option<(bool, bool)> {
-    unsafe {
-        module_globals::request_opcache_policy_initialized().then_some((
-            module_globals::request_opcache_enabled(),
-            module_globals::request_opcache_file_cache_enabled(),
-        ))
-    }
-}
-
-fn request_opcache_policy_change_message(
-    previous: (bool, bool),
-    current: (bool, bool),
-) -> Option<&'static str> {
-    if previous == current {
-        return None;
-    }
-
-    let (opcache_enabled, file_cache_enabled) = current;
-    Some(if file_cache_enabled {
-        "OPcache file cache is now enabled for profiling. The profiler will avoid storing user function indexes in OPcache reserved slots and will recover them through request-local runtime cache lookups instead."
-    } else if opcache_enabled {
-        "OPcache is enabled for profiling without file cache. Newly persisted user functions can be cached in OPcache reserved slots."
-    } else {
-        "OPcache is disabled for this request. User function indexes will be recovered through request-local runtime cache lookups."
-    })
-}
 
 #[cfg(feature = "tracing")]
 thread_local! {
@@ -636,18 +620,6 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     });
 
     unsafe { bindings::zai_config_rinit() };
-    let previous_opcache_policy = log::log_enabled!(log::Level::Info)
-        .then(request_opcache_policy_snapshot)
-        .flatten();
-    unsafe { bindings::ddog_php_prof_refresh_request_opcache_policy() };
-    if let Some(previous) = previous_opcache_policy {
-        if let Some(message) = request_opcache_policy_change_message(
-            previous,
-            request_opcache_policy_snapshot().expect("request policy initialized after refresh"),
-        ) {
-            info!("{message}");
-        }
-    }
 
     // Needs to come after config::first_rinit, because that's what sets the
     // values to the ones in the configuration.
@@ -1085,19 +1057,36 @@ extern "C" fn startup(extension: *mut ZendExtension) -> ZendResult {
 
     // SAFETY: called during startup hook with correct params.
     unsafe { zend::datadog_php_profiling_startup(extension) };
-    trace!("Startup OPcache file-cache snapshot: enabled={}.", unsafe {
-        zend::ddog_php_prof_opcache_file_cache_enabled()
-    });
+
+    // Contribute 24 bytes of entropy to zend_system_id before the engine
+    // finalizes it. This invalidates any opcache file_cache entries produced
+    // without our profiler loaded, so their cached reserved[] slots cannot
+    // collide with ours. Gated to PHP 8.0+ (zend_add_system_entropy API).
+    #[cfg(zend_add_system_entropy)]
+    {
+        use rand::RngCore;
+        let mut entropy = [0u8; 24];
+        rand::thread_rng().fill_bytes(&mut entropy);
+        // SAFETY: pointer+len valid for the duration of the call; the engine
+        // copies the bytes internally.
+        unsafe {
+            bindings::ddog_php_prof_add_system_entropy(entropy.as_ptr(), entropy.len());
+        }
+    }
 
     // Create the shared-memory region and pre-intern all strings/functions.
     // This must happen before fork() so children inherit the mapping.
+    // The reserved[]-slot interning path is gated to PHP 8.0+ (system_id
+    // entropy unavailable before then, so opcache file_cache could
+    // resurrect stale slot contents).
     // SAFETY: called in startup hook, single-threaded at this point.
     match unsafe { ShmRegion::create() } {
         Ok(region) => {
             SHM.set(region).ok(); // ok() because Apache may call startup twice
-                                  // Intern all already-registered PHP functions and internal methods
-                                  // so their reserved[] slots are populated before any requests.
-                                  // SAFETY: calling in startup hook with engine initialized.
+            #[cfg(zend_add_system_entropy)]
+            // Intern all already-registered PHP functions and internal methods
+            // so their reserved[] slots are populated before any requests.
+            // SAFETY: calling in startup hook with engine initialized.
             unsafe { zend::ddog_php_prof_intern_all_functions() };
         }
         Err(()) => {
@@ -1143,7 +1132,6 @@ extern "C" fn shutdown(extension: *mut ZendExtension) {
     // anyway. If the join with the uploader times out, there could become a
     // data race condition.
     unsafe { config::shutdown() };
-    unsafe { bindings::ddog_php_prof_shutdown_opcache_ini_keys() };
 
     // SAFETY: zai_config_mshutdown should be safe to call in shutdown instead
     // of mshutdown.

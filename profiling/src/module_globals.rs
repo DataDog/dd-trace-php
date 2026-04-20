@@ -18,11 +18,6 @@ pub struct ProfilerGlobals {
     /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
     /// are called re-entrantly during `rinit()`/`rshutdown()`.
     pub zend_mm_state: Cell<ZendMMState>,
-    pub opcache_policy_initialized: Cell<bool>,
-    pub opcache_enabled: Cell<bool>,
-    pub opcache_file_cache_enabled: Cell<bool>,
-    pub cli_opcache_enable_initialized: Cell<bool>,
-    pub cli_opcache_enable: Cell<bool>,
     /// Per-worker string intern arena. Valid only between GINIT and GSHUTDOWN.
     /// Only present when runtime cache slots are available (PHP ≥ 8.0).
     #[cfg(php_run_time_cache)]
@@ -100,82 +95,6 @@ pub unsafe fn get_string_cache() -> &'static RefCell<StringSet> {
     &(*get_profiler_globals()).string_cache
 }
 
-/// # Safety
-/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
-#[inline]
-pub unsafe fn request_opcache_policy_initialized() -> bool {
-    (*get_profiler_globals()).opcache_policy_initialized.get()
-}
-
-/// # Safety
-/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
-#[inline]
-pub unsafe fn request_opcache_enabled() -> bool {
-    (*get_profiler_globals()).opcache_enabled.get()
-}
-
-/// # Safety
-/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
-#[inline]
-pub unsafe fn request_opcache_file_cache_enabled() -> bool {
-    (*get_profiler_globals()).opcache_file_cache_enabled.get()
-}
-
-/// # Safety
-/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
-#[inline]
-pub unsafe fn cached_cli_opcache_enable_state() -> (bool, bool) {
-    let globals = &*get_profiler_globals();
-    (
-        globals.cli_opcache_enable_initialized.get(),
-        globals.cli_opcache_enable.get(),
-    )
-}
-
-/// # Safety
-/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_php_prof_set_cached_request_opcache_policy(
-    opcache_enabled: bool,
-    opcache_file_cache_enabled: bool,
-) {
-    let globals = &*get_profiler_globals();
-    globals.opcache_policy_initialized.set(true);
-    globals.opcache_enabled.set(opcache_enabled);
-    globals
-        .opcache_file_cache_enabled
-        .set(opcache_file_cache_enabled);
-}
-
-/// # Safety
-/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
-/// `initialized` and `enabled` must be valid pointers or null.
-#[export_name = "ddog_php_prof_get_cached_cli_opcache_enable_state"]
-pub unsafe extern "C" fn get_cached_cli_opcache_enable_state_ffi(
-    initialized: *mut bool,
-    enabled: *mut bool,
-) {
-    let (cached, value) = cached_cli_opcache_enable_state();
-    if let Some(initialized) = initialized.as_mut() {
-        *initialized = cached;
-    }
-    if let Some(enabled) = enabled.as_mut() {
-        *enabled = value;
-    }
-}
-
-/// # Safety
-/// Must be called between GINIT and GSHUTDOWN on the owning worker thread.
-#[no_mangle]
-pub unsafe extern "C" fn ddog_php_prof_set_cached_cli_opcache_enable_state(
-    initialized: bool,
-    enabled: bool,
-) {
-    let globals = &*get_profiler_globals();
-    globals.cli_opcache_enable_initialized.set(initialized);
-    globals.cli_opcache_enable.set(enabled);
-}
-
 /// Initializes the module globals. Called by PHP during thread initialization (GINIT).
 ///
 /// # Safety
@@ -191,11 +110,6 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
         _globals_ptr.cast::<ProfilerGlobals>(),
         ProfilerGlobals {
             zend_mm_state: Cell::new(ZendMMState::new()),
-            opcache_policy_initialized: Cell::new(false),
-            opcache_enabled: Cell::new(false),
-            opcache_file_cache_enabled: Cell::new(false),
-            cli_opcache_enable_initialized: Cell::new(false),
-            cli_opcache_enable: Cell::new(false),
             #[cfg(php_run_time_cache)]
             string_cache: RefCell::new(StringSet::new()),
         },

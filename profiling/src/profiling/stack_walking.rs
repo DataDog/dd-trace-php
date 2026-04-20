@@ -17,9 +17,9 @@ use crate::bindings::{
 };
 
 use crate::bindings as zend;
+#[cfg(php_run_time_cache)]
 use crate::module_globals;
 use core::ffi::c_void;
-use log::trace;
 use std::borrow::Cow;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -32,8 +32,6 @@ use std::ptr::NonNull;
 
 #[cfg(php_run_time_cache)]
 use crate::bindings::ddog_php_prof_function_run_time_cache;
-
-static FILE_CACHE_SKIP_LOG_COUNT: AtomicU64 = AtomicU64::new(0);
 
 /// Represents the PHP -> libdatadog intermediate representation of a function.
 /// The order of preference is:
@@ -112,25 +110,6 @@ fn store_function_index_if_zero(func: &zend_function, idx: FunctionIndex) {
     let _ = slot.compare_exchange(0, idx.0 as u64, Ordering::Relaxed, Ordering::Relaxed);
 }
 
-#[inline]
-fn debug_function_name(func: &zend_function) -> String {
-    String::from_utf8_lossy(func.name().unwrap_or(b"<toplevel>")).into_owned()
-}
-
-#[inline]
-fn should_store_in_reserved_slot(func: &zend_function) -> bool {
-    if func.is_internal() {
-        return true;
-    }
-
-    unsafe {
-        if module_globals::request_opcache_policy_initialized() {
-            !module_globals::request_opcache_file_cache_enabled()
-        } else {
-            !zend::ddog_php_prof_opcache_file_cache_enabled()
-        }
-    }
-}
 
 /// Per-request (per-worker) string cache backed by `ProfilerGlobals::string_cache`.
 /// Slot 0 = function name ThinStr, Slot 1 = file path ThinStr.
@@ -240,24 +219,10 @@ fn intern_function_index(shm: &ShmRegion, func: &zend_function) -> FunctionIndex
 }
 
 /// Intern a zend_function into the SHM and store the FunctionIndex in
-/// func->common.reserved[slot] when policy allows it.
+/// func->common.reserved[slot].
 pub fn intern_function(shm: &ShmRegion, func: &zend_function) -> FunctionIndex {
-    let should_store = should_store_in_reserved_slot(func);
-    if !func.is_internal() && !should_store {
-        let count = FILE_CACHE_SKIP_LOG_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-        if count <= 20 {
-            trace!(
-                "Skipping FunctionIndex interning/store for user function {} because opcache file cache is enabled.",
-                debug_function_name(func)
-            );
-        }
-        return FUNCTION_UNKNOWN_USER;
-    }
-
     let fn_idx = intern_function_index(shm, func);
-    if should_store {
-        store_function_index_if_zero(func, fn_idx);
-    }
+    store_function_index_if_zero(func, fn_idx);
     fn_idx
 }
 
