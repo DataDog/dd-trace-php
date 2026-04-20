@@ -365,13 +365,6 @@ extern "C" {
         func: &zend_function,
     ) -> Option<&mut [usize; 2]>;
 
-    /// mock for testing; passthrough stub for zend_generator_check_placeholder_frame
-    /// so `cargo test` builds don't need PHP's Zend symbols at link time.
-    #[cfg(feature = "stack_walking_tests")]
-    pub fn ddog_test_zend_generator_check_placeholder_frame(
-        ptr: *mut zend_execute_data,
-    ) -> *mut zend_execute_data;
-
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.
     pub fn ddog_php_prof_php_version_id() -> u32;
