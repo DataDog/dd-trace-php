@@ -1,9 +1,9 @@
-set(_LLVM17_FORMAT /opt/homebrew/opt/llvm@17/bin/clang-format)
-if(EXISTS ${_LLVM17_FORMAT})
-    set(CLANG_FORMAT ${_LLVM17_FORMAT})
-    message(STATUS "Using Homebrew LLVM 17 clang-format: ${CLANG_FORMAT}")
+set(_LLVM19_FORMAT /opt/homebrew/opt/llvm@19/bin/clang-format)
+if(EXISTS ${_LLVM19_FORMAT})
+    set(CLANG_FORMAT ${_LLVM19_FORMAT})
+    message(STATUS "Using Homebrew LLVM 19 clang-format: ${CLANG_FORMAT}")
 else()
-    find_program(_CF_VERSIONED clang-format-17)
+    find_program(_CF_VERSIONED clang-format-19)
     if(NOT _CF_VERSIONED STREQUAL _CF_VERSIONED-NOTFOUND)
         set(CLANG_FORMAT ${_CF_VERSIONED})
     else()
@@ -14,7 +14,7 @@ else()
                 OUTPUT_VARIABLE _CF_VERSION
                 OUTPUT_STRIP_TRAILING_WHITESPACE
                 ERROR_QUIET)
-            if(_CF_VERSION MATCHES " 17\\.")
+            if(_CF_VERSION MATCHES " 19\\.")
                 set(CLANG_FORMAT ${_CF_UNVERSIONED})
             endif()
         endif()
@@ -22,7 +22,7 @@ else()
     if(NOT CLANG_FORMAT)
         set(CLANG_FORMAT ${CMAKE_CURRENT_LIST_DIR}/clang-tools/clang-format)
         if(NOT EXISTS ${CLANG_FORMAT})
-            message(STATUS "Cannot find clang-format version 17, either set CLANG_FORMAT or make it discoverable")
+            message(STATUS "Cannot find clang-format version 19, either set CLANG_FORMAT or make it discoverable")
             return()
         endif()
         message(STATUS "Using Docker-based clang-format wrapper: ${CLANG_FORMAT}")
@@ -61,3 +61,12 @@ add_custom_target(format_fix_chg
     COMMAND bash -c "git status --porcelain=1 :/appsec/ | grep -E '\.(c|h|cpp|hpp)$$' | awk '{ print \"${CMAKE_SOURCE_DIR}/../\" $NF }' | xargs '${CLANG_FORMAT}' --dry-run"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     VERBATIM)
+
+if(DD_APPSEC_BUILD_HELPER)
+    add_custom_command(TARGET format POST_BUILD
+        COMMAND cargo fmt --check
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
+    add_custom_command(TARGET format_fix POST_BUILD
+        COMMAND cargo fmt
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
+endif()

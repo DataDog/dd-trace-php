@@ -48,10 +48,12 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "foo",
         "type": "web",
         "meta": {
+            "_dd.p.ksr": "0.3",
             "http.method": "GET",
             "http.status_code": "200",
             "http.url": "http:\/\/localhost:8888\/foo",
-            "runtime-id": "%s"
+            "runtime-id": "%s",
+            "span.kind": "server"
         },
         "metrics": {
             "php.compilation.total_time_ms": %f,
@@ -71,6 +73,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "type": "web",
         "meta": {
             "_dd.p.dm": "-3",
+            "_dd.p.ksr": "0.3",
             "_dd.p.tid": "%s",
             "component": "aws-apigateway",
             "http.method": "GET",

@@ -1,0 +1,33 @@
+{
+  "version": "2.2",
+  "metadata": {
+    "rules_version": "0.0.1"
+  },
+  "rules": [
+    {
+      "id": "test-001",
+      "name": "Test rule",
+      "tags": {
+        "type": "test",
+        "category": "test"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "http.client_ip"
+              }
+            ],
+            "data": "blocked_ips"
+          },
+          "operator": "ip_match"
+        }
+      ],
+      "transformers": [],
+      "on_match": [
+        "block"
+      ]
+    }
+  ]
+}

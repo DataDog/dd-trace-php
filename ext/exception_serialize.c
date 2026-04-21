@@ -91,7 +91,7 @@ static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureVa
     if (!value->not_captured_reason.len) {
         value->value = (ddog_CharSlice) {.ptr = ZSTR_VAL(str), .len = ZSTR_LEN(str)};
         if (value->value.len > config->max_length) {
-            char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 20);
+            char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 20);
             int len = sprintf(integer, "%" PRIuPTR, value->value.len);
             value->size = (ddog_CharSlice) {.ptr = integer, .len = len};
             value->value.len = config->max_length;
@@ -103,7 +103,7 @@ static void ddtrace_capture_string_value(zend_string *str, struct ddog_CaptureVa
 static void ddtrace_capture_long_value(zend_long num, struct ddog_CaptureValue *value) {
     value->type = DDOG_CHARSLICE_C("int");
     if (!value->not_captured_reason.len) {
-        char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 20);
+        char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 20);
         int len = sprintf(integer, ZEND_LONG_FMT, num);
         value->value = (ddog_CharSlice) {.ptr = integer, .len = len};
     }
@@ -133,7 +133,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
         case IS_DOUBLE: {
             value->type = DDOG_CHARSLICE_C("float");
             if (!value->not_captured_reason.len) {
-                char *num = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 20);
+                char *num = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 20);
                 php_gcvt(Z_DVAL_P(zv), (int) EG(precision), '.', 'E', num);
                 value->value = (ddog_CharSlice) {.ptr = num, .len = strlen(num)};
             }
@@ -239,7 +239,7 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
                 } else if (ZSTR_VAL(key)[1] == '*') { // skip \0*\0
                     fieldname = (ddog_CharSlice) {.ptr = ZSTR_VAL(key) + 3, .len = ZSTR_LEN(key) - 3};
                 } else {
-                    char *name = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), ZSTR_LEN(key));
+                    char *name = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, ZSTR_LEN(key));
                     int classname_len = strlen(ZSTR_VAL(key) + 1);
                     memcpy(name, ZSTR_VAL(key) + 1, classname_len);
                     name[classname_len++] = ':';
@@ -254,12 +254,14 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
             } ZEND_HASH_FOREACH_END();
             if (ce->type == ZEND_INTERNAL_CLASS) {
 #if PHP_VERSION_ID < 70400
-                if (is_temp) {
-                    zend_hash_next_index_insert_ptr(&DDTRACE_G(debugger_capture_ephemerals), ht);
-                }
-#else
-                zend_hash_next_index_insert_ptr(&DDTRACE_G(debugger_capture_ephemerals), ht);
+                if (is_temp)
 #endif
+                {
+                    dd_refcounted_linked *node = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, sizeof(dd_refcounted_linked));
+                    node->value = (zend_refcounted *)ht;
+                    node->next = DDTRACE_G(debugger_capture_arena).ephemerals;
+                    DDTRACE_G(debugger_capture_arena).ephemerals = node;
+                }
             }
             break;
         }
@@ -281,10 +283,10 @@ void ddtrace_create_capture_value(zval *zv, struct ddog_CaptureValue *value, con
 #define hash_len 16
 
 static ddog_DebuggerCapture *dd_create_frame_and_collect_locals(char *exception_id, char *exception_hash, int frame_num, ddog_CharSlice class_slice, ddog_CharSlice func_slice, zval *locals, zend_string *service_name, const ddog_CaptureConfiguration *capture_config, uint64_t time, ddog_SpanBytes *span) {
-    char *snapshot_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
+    char *snapshot_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])snapshot_id);
 
-    char *msg = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 40);
+    char *msg = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 40);
     int len = sprintf(msg, "_dd.debug.error.%d.snapshot_id", frame_num);
     ddog_add_span_meta(span, (ddog_CharSlice){.ptr = msg, .len = len}, (ddog_CharSlice){.ptr = snapshot_id, .len = uuid_len});
 
@@ -355,7 +357,7 @@ static zend_ulong ddtrace_compute_exception_hash(zend_object *exception) {
     return hash;
 }
 
-static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_string *service_name, uint64_t time, ddog_SpanBytes *span) {
+static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_object *throwable, zend_string *service_name, uint64_t time, ddog_SpanBytes *span) {
     if (!ddtrace_exception_debugging_is_active()) {
         return;
     }
@@ -368,36 +370,36 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
     zend_string *key_locals = zend_string_init(ZEND_STRL("locals"), 0);
     zval *locals = zai_exception_read_property(exception, key_locals);
 
-    bool has_arena = DDTRACE_G(debugger_capture_arena);
+    bool has_arena = DDTRACE_G(debugger_capture_arena).arena;
     if (!has_arena) {
-        DDTRACE_G(debugger_capture_arena) = zend_arena_create(65536);
+        DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){.arena = zend_arena_create(65536), .ephemerals = NULL};
     }
 
     const ddog_CaptureConfiguration capture_config = ddog_capture_defaults();
 
-    char *exception_hash = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), hash_len);
+    char *exception_hash = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, hash_len);
     zend_ulong exception_long_hash = ddtrace_compute_exception_hash(exception);
     php_hash_bin2hex(exception_hash, (unsigned char *)&exception_long_hash, sizeof(exception_long_hash));
 
     ddog_add_str_span_meta_str(span, "error.debug_info_captured", "true");
     ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_hash", (ddog_CharSlice){.ptr = exception_hash, .len = hash_len});
 
-    if (!ddog_exception_hash_limiter_inc(ddtrace_sidecar, (uint64_t)exception_long_hash, get_DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS())) {
+    if (!ddog_exception_hash_limiter_inc(DDTRACE_G(sidecar), (uint64_t)exception_long_hash, get_DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS())) {
         LOG(TRACE, "Skipping exception replay capture due to hash %.*s already recently hit", hash_len, exception_hash);
         goto cleanup;
     }
 
-    char *exception_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), uuid_len);
+    char *exception_id = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, uuid_len);
     ddog_snapshot_format_new_uuid((uint8_t(*)[uuid_len])exception_id);
 
-    ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_capture_id", (ddog_CharSlice){.ptr = exception_id, .len = uuid_len});
+    ddog_add_str_span_meta_CharSlice(span, "_dd.debug.error.exception_id", (ddog_CharSlice){.ptr = exception_id, .len = uuid_len});
 
     memset(&DDTRACE_G(exception_debugger_buffer), 0, sizeof(DDTRACE_G(exception_debugger_buffer)));
 
     zval *frame;
     int frame_num = 0;
     ZEND_HASH_FOREACH_NUM_KEY_VAL(Z_ARR_P(trace), frame_num, frame) {
-        if (get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() >= 0 && get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() < frame_num) {
+        if (get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() >= 0 && get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() <= frame_num) {
             break;
         }
 
@@ -421,6 +423,10 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         }
 
         ddog_DebuggerCapture *capture = dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num, class_slice, func_slice, locals, service_name, &capture_config, time, span);
+        zend_string *ex_msg = zai_exception_message(throwable);
+        ddog_snapshot_set_throwable(capture,
+            (ddog_CharSlice){ .ptr = ZSTR_VAL(throwable->ce->name), .len = ZSTR_LEN(throwable->ce->name) },
+            dd_zend_string_to_CharSlice(ex_msg));
         locals = zend_hash_find(Z_ARR_P(frame), key_locals);
 
         zend_string *key;
@@ -429,7 +435,7 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
         if (args && Z_TYPE_P(args) == IS_ARRAY) {
             zend_long idx;
             ZEND_HASH_FOREACH_KEY_VAL(Z_ARR_P(args), idx, key, val) {
-                struct ddog_CaptureValue capture_value = {0};
+                ddog_CaptureValue capture_value = {0};
                 ddtrace_create_capture_value(val, &capture_value, &capture_config, capture_config.max_reference_depth);
                 ddog_CharSlice arg_name;
                 if (key) {
@@ -439,11 +445,11 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
                         zend_string *name = func->op_array.arg_info[idx].name;
                         arg_name = (ddog_CharSlice) {.ptr = ZSTR_VAL(name), .len = ZSTR_LEN(name)};
                     } else {
-                        const char *name = func->internal_function.arg_info[idx].name;
+                        const char *name = (const char*) func->internal_function.arg_info[idx].name;
                         arg_name = (ddog_CharSlice) {.ptr = name, .len = strlen(name)};
                     }
                 } else {
-                    char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena), 23);
+                    char *integer = zend_arena_alloc(&DDTRACE_G(debugger_capture_arena).arena, 23);
                     int len = sprintf(integer, "arg" ZEND_LONG_FMT, idx);
                     arg_name = (ddog_CharSlice){ .ptr = integer, .len = len };
                 }
@@ -453,15 +459,19 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
 
         zval *obj = zend_hash_find(Z_ARR_P(frame), ZSTR_KNOWN(ZEND_STR_OBJECT));
         if (obj) {
-            struct ddog_CaptureValue capture_value = {0};
+            ddog_CaptureValue capture_value = {0};
             ddtrace_create_capture_value(obj, &capture_value, &capture_config, capture_config.max_reference_depth);
             ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, DDOG_CHARSLICE_C("this"), capture_value);
         }
     } ZEND_HASH_FOREACH_END();
 
-    if (get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() < 0 || get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() > frame_num) {
+    if (get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() < 0 || get_DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES() > frame_num + 1) {
         if (locals && Z_TYPE_P(locals) == IS_ARRAY) {
-            dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num + 1, DDOG_CHARSLICE_C(""), DDOG_CHARSLICE_C(""), locals, service_name, &capture_config, time, span);
+            ddog_DebuggerCapture *last_capture = dd_create_frame_and_collect_locals(exception_id, exception_hash, frame_num + 1, DDOG_CHARSLICE_C(""), DDOG_CHARSLICE_C(""), locals, service_name, &capture_config, time, span);
+            zend_string *last_ex_msg = zai_exception_message(throwable);
+            ddog_snapshot_set_throwable(last_capture,
+                (ddog_CharSlice){ .ptr = ZSTR_VAL(throwable->ce->name), .len = ZSTR_LEN(throwable->ce->name) },
+                dd_zend_string_to_CharSlice(last_ex_msg));
         }
     }
 
@@ -470,8 +480,9 @@ static void ddtrace_collect_exception_debug_data(zend_object *exception, zend_st
 
 cleanup:
     if (!has_arena) {
-        zend_arena_destroy(DDTRACE_G(debugger_capture_arena));
-        DDTRACE_G(debugger_capture_arena) = NULL;
+        dd_free_capture_ephemerals(DDTRACE_G(debugger_capture_arena).ephemerals);
+        zend_arena_destroy(DDTRACE_G(debugger_capture_arena).arena);
+        DDTRACE_G(debugger_capture_arena) = (dd_capture_arena){0};
     }
 
     zend_string_release(key_locals);
@@ -505,8 +516,9 @@ void ddtrace_exception_to_meta(zend_object *exception, zend_string *service_name
         previous = zai_exception_read_property(exception, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     }
 
-    // exception is now the innermost exception, i.e. what we need
-    ddtrace_collect_exception_debug_data(exception, service_name, time / 1000000, span);
+    // Capture frames from the innermost (root cause) exception so the stack trace reflects
+    // where the error originated. Use the outermost exception for the throwable type/message so it matches the span error and the exception replay filter.
+    ddtrace_collect_exception_debug_data(exception, exception_root, service_name, time / 1000000, span);
 
     previous = zai_exception_read_property(exception_root, ZSTR_KNOWN(ZEND_STR_PREVIOUS));
     while (Z_TYPE_P(previous) == IS_OBJECT && !Z_IS_RECURSIVE_P(previous) &&

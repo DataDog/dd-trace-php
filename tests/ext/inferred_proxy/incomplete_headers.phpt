@@ -44,7 +44,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "aws-server",
         "type": "web",
         "meta": {
-            "_dd.code_origin.frames.0.file": "%s\/incomplete_headers.php",
+            "_dd.code_origin.frames.0.file": "%sincomplete_headers.php",
             "_dd.code_origin.frames.0.line": "1",
             "_dd.code_origin.type": "entry",
             "_dd.p.dm": "-0",
@@ -54,6 +54,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "http.status_code": "200",
             "http.url": "http:\/\/localhost:8888\/foo",
             "runtime-id": "%s",
+            "span.kind": "server",
             "version": "1.0"
         },
         "metrics": {

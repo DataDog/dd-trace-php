@@ -10,7 +10,9 @@
 #include <stdio.h>
 #include "common.h"
 
-void drop_span_decoration_probe(struct ddog_SpanDecorationProbe);
+void ddog_drop_log_probe_capture_expressions(struct ddog_LogProbe);
+
+void ddog_drop_span_decoration_probe(struct ddog_SpanDecorationProbe);
 
 struct ddog_CaptureConfiguration ddog_capture_defaults(void);
 
@@ -54,6 +56,12 @@ ddog_DebuggerCapture *ddog_create_exception_snapshot(struct ddog_Vec_DebuggerPay
                                                      ddog_CharSlice method_name,
                                                      uint64_t timestamp);
 
+/**
+ * Returns a mutable pointer to the last DebuggerPayload in the Vec.
+ * Used to push stack frames to exception replay snapshots after creation.
+ */
+struct ddog_DebuggerPayload *ddog_vec_last_debugger_payload(struct ddog_Vec_DebuggerPayload *buffer);
+
 struct ddog_DebuggerPayload *ddog_create_log_probe_snapshot(const struct ddog_Probe *probe,
                                                             const ddog_CharSlice *message,
                                                             ddog_CharSlice service,
@@ -73,9 +81,24 @@ bool ddog_snapshot_redacted_name(ddog_CharSlice name);
 
 void ddog_snapshot_add_redacted_name(ddog_CharSlice name);
 
+void ddog_snapshot_add_excluded_name(ddog_CharSlice name);
+
 bool ddog_snapshot_redacted_type(ddog_CharSlice name);
 
 void ddog_snapshot_add_redacted_type(ddog_CharSlice name);
+
+void ddog_snapshot_set_throwable(ddog_DebuggerCapture *capture,
+                                 ddog_CharSlice throwable_type,
+                                 ddog_CharSlice message);
+
+void ddog_snapshot_throwable_add_frame(ddog_DebuggerCapture *capture,
+                                       ddog_CharSlice file,
+                                       ddog_CharSlice function,
+                                       int64_t line);
+
+void ddog_snapshot_add_capture_fields(ddog_DebuggerCapture *capture,
+                                      ddog_CharSlice name,
+                                      struct ddog_CaptureValue value);
 
 void ddog_snapshot_add_field(ddog_DebuggerCapture *capture,
                              enum ddog_FieldType type,

@@ -80,7 +80,7 @@ TEST(BrokerTest, SendClientInit)
     packer.pack_array(1);            // Array of messages
     packer.pack_array(2);            // First message
     pack_str(packer, "client_init"); // Type
-    packer.pack_array(5);
+    packer.pack_array(6);
     pack_str(packer, "ok");
     pack_str(packer, dds::php_ddappsec_version);
     packer.pack_array(2);
@@ -88,6 +88,7 @@ TEST(BrokerTest, SendClientInit)
     pack_str(packer, "two");
     packer.pack_map(0);
     packer.pack_map(0);
+    pack_str(packer, "cpp"); // helper_runtime
     const auto &expected_data = ss.str();
 
     network::header_t h;
@@ -100,6 +101,7 @@ TEST(BrokerTest, SendClientInit)
     auto response = std::make_shared<network::client_init::response>();
     response->status = "ok";
     response->errors = {"one", "two"};
+    response->helper_runtime = "cpp";
 
     std::vector<std::shared_ptr<network::base_response>> messages;
     messages.push_back(response);

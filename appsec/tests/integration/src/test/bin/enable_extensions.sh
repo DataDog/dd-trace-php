@@ -7,7 +7,42 @@
   echo max_execution_time=1800
 } >> /etc/php/php.ini
 
-if [[ -f /project/tmp/build_extension/modules/ddtrace.so ]]; then
+HELPER_PATH=/appsec/libddappsec-helper.so
+if [[ -n $USE_HELPER_RUST ]]; then
+  echo "Using Rust helper" >&2
+  HELPER_PATH=/helper-rust/libddappsec-helper.so
+elif [[ -f /helper-rust/libddappsec-helper.so ]]; then
+  # Copy Rust helper for the redirection mechanism
+  # (DD_APPSEC_HELPER_RUST_REDIRECTION defaults to true on PHP >= 8.5)
+  ln -sf /helper-rust/libddappsec-helper.so \
+    "$(dirname "$HELPER_PATH")/libddappsec-helper-rust.so"
+fi
+
+if [[ -n $USE_SSI ]]; then
+  echo "Enabling SSI loader" >&2
+  # SSI initialization is slower per worker (loading libddtrace_php.so).
+  # Raise MaxRequestWorkers so health-check retries don't exhaust the pool.
+  if [[ -f /etc/apache2/mods-enabled/mpm_prefork.conf ]]; then
+    sed -i 's/MaxRequestWorkers[[:space:]]\+[0-9]\+/MaxRequestWorkers 16/' \
+        /etc/apache2/mods-enabled/mpm_prefork.conf
+  fi
+  PHP_API=$(php -r 'echo PHP_EXTENSION_DIR;' | sed 's/.*-//')
+  EXT_SUFFIX=$(php -r 'echo ZEND_DEBUG_BUILD ? "-debug" : "";')
+  PKG=/tmp/dd-package
+  mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API" "$PKG/appsec/ext/$PHP_API" "$PKG/appsec/lib"
+  ln -s /tracer-ssi/libddtrace_php.so "$PKG/loader/libddtrace_php.so"
+  ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
+  ln -s /appsec/ddappsec.so "$PKG/appsec/ext/$PHP_API/ddappsec${EXT_SUFFIX}.so"
+  ln -s /appsec/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper.so"
+  ln -s /project/src "$PKG/trace/src"
+  HELPER_PATH=/tmp/dd-package/appsec/lib/libddappsec-helper.so
+  {
+    echo "zend_extension=/loader-ssi/dd_library_loader.so"
+    echo datadog.trace.generate_root_span=true
+    echo datadog.trace.log_level=debug
+  } >> /etc/php/php.ini
+  ENABLE_APPSEC=true
+elif [[ -f /project/tmp/build_extension/modules/ddtrace.so ]]; then
   echo "Enabling ddtrace" >&2
   {
     echo extension=/project/tmp/build_extension/modules/ddtrace.so
@@ -15,20 +50,24 @@ if [[ -f /project/tmp/build_extension/modules/ddtrace.so ]]; then
     echo datadog.trace.generate_root_span=true
     echo datadog.trace.log_level=debug
   } >> /etc/php/php.ini
+  if [[ -f /appsec/ddappsec.so && -d /project ]]; then
+    echo extension=/appsec/ddappsec.so >> /etc/php/php.ini
+    ENABLE_APPSEC=true
+  fi
 fi
 
-if [[ -f /appsec/ddappsec.so && -d /project ]]; then
+if [[ $ENABLE_APPSEC == true ]]; then
   echo "Enabling ddappsec" >&2
   {
-    echo extension=/appsec/ddappsec.so
     echo datadog.appsec.enabled=true
-    echo datadog.appsec.helper_path=/appsec/libddappsec-helper.so
+    echo datadog.appsec.helper_path=$HELPER_PATH
     echo datadog.appsec.helper_log_file=/tmp/logs/helper.log
     echo datadog.appsec.helper_log_level=debug
     echo datadog.appsec.rules=/etc/recommended.json
     echo datadog.appsec.log_file=/tmp/logs/appsec.log
     echo datadog.appsec.log_level=debug
     echo datadog.appsec.rasp_enabled=1
+    echo datadog.appsec.testing_invalid_command=1
   } >> /etc/php/php.ini
 fi
 

@@ -117,6 +117,31 @@ class Symfony62Tests {
 
     @Test
     @Order(8)
+    void 'http route for locale route'() {
+        HttpRequest req = container.buildReq('/caminho-dinamico/someValue').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
+
+        Span span = trace.first()
+        assert span.meta."http.route" == '/caminho-dinamico/{param01}'
+    }
+
+    @Test
+    @Order(9)
+    void 'http route for utf8 route'() {
+        HttpRequest req = container.buildReq('/café/espresso').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."http.route" == '/café/{item}'
+    }
+
+    @Test
+    @Order(10)
     void 'symfony http route disabled'() {
         try {
             def res = CONTAINER.execInContainer(
@@ -125,14 +150,17 @@ class Symfony62Tests {
                    service apache2 restart''')
             assert res.exitCode == 0
 
+            // path params are always pushed to AppSec regardless of DD_TRACE_SYMFONY_HTTP_ROUTE,
+            // so the WAF still blocks based on the path param key 'param01'
             HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
             def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
-                assert re.statusCode() == 200
-                assert re.body().contains('Hi someValue!')
+                assert re.statusCode() == 403
             }
 
             Span span = trace.first()
-            assert span.meta."http.route" != '/dynamic-path/{param01}'
+            assert span.meta."http.route" == null
+            assert span.meta."symfony.route.name" != null
+            assert span.resource == 'app_home_dynamic'
         } finally {
             def res = CONTAINER.execInContainer(
                     'bash', '-c',

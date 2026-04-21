@@ -3,11 +3,14 @@
 #![feature(linkage)]
 #![allow(static_mut_refs)] // remove with move to Rust 2024 edition
 
+pub mod agent_info;
 pub mod log;
 pub mod remote_config;
 pub mod ffe;
 pub mod sidecar;
+pub mod stats;
 pub mod telemetry;
+pub mod trace_filter;
 pub mod bytes;
 
 use libdd_common::entity_id::{get_container_id, set_cgroup_file};
@@ -102,6 +105,28 @@ pub unsafe extern "C" fn ddtrace_parse_agent_url(
         })
 }
 
+#[no_mangle]
+#[cfg(unix)]
+pub unsafe extern "C" fn ddtrace_endpoint_as_crashtracker_config(
+    endpoint: &Endpoint,
+    callback: unsafe extern "C" fn(EndpointConfig<'_>, *mut std::ffi::c_void),
+    userdata: *mut std::ffi::c_void,
+) {
+    let url_str = endpoint.url.to_string();
+    unsafe {
+        callback(
+            EndpointConfig {
+                url: CharSlice::from(url_str.as_str()),
+                api_key: CharSlice::from(endpoint.api_key.as_deref().unwrap_or("")),
+                test_token: CharSlice::from(endpoint.test_token.as_deref().unwrap_or("")),
+                timeout: endpoint.timeout_ms,
+                use_system_resolver: endpoint.use_system_resolver,
+            },
+            userdata,
+        );
+    }
+}
+
 // Hack: Without this, the PECL build of the tracer does not contain the ddog_library_* functions
 // It works well without in the "normal" build
 #[no_mangle]
@@ -135,6 +160,24 @@ pub unsafe extern "C" fn posix_spawn_file_actions_addchdir_np(
 }
 
 const MAX_TAG_VALUE_LENGTH: usize = 100;
+const DD_FNV_PRIME: u64 = 1_099_511_628_211;
+const DD_FNV_OFFSET_BASIS: u64 = 14_695_981_039_346_656_037;
+
+#[no_mangle]
+pub unsafe extern "C" fn dd_fnv1a_64(data: *const u8, len: usize) -> u64 {
+    if data.is_null() || len == 0 {
+        return DD_FNV_OFFSET_BASIS;
+    }
+
+    let bytes = std::slice::from_raw_parts(data, len);
+    let mut hash = DD_FNV_OFFSET_BASIS;
+    for byte in bytes {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(DD_FNV_PRIME);
+    }
+
+    hash
+}
 
 #[no_mangle]
 pub extern "C" fn ddog_normalize_process_tag_value(

@@ -2,7 +2,7 @@
   {
     "name": "laravel.request",
     "service": "laravel_test_app",
-    "resource": "App\\Http\\Controllers\\CommonSpecsController@dynamicRoute unnamed_route",
+    "resource": "App\\Http\\Controllers\\CommonSpecsController@dynamicRoute dynamic_route/{param01}/static/{param02?}",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 619982517647425679,

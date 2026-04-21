@@ -31,8 +31,8 @@ namespace mock {
 class listener : public dds::subscriber::listener {
 public:
     MOCK_METHOD1(submit_metrics, void(telemetry::telemetry_submitter &));
-    MOCK_METHOD3(
-        call, void(dds::parameter_view &, dds::event &, const std::string &));
+    MOCK_METHOD3(call, void(dds::parameter_view &, dds::event &,
+                           const dds::network::request_exec_options &));
     MOCK_METHOD2(
         get_meta_and_metrics, void(std::map<std::string, std::string> &,
                                   std::map<std::string_view, double> &));
@@ -55,7 +55,7 @@ TEST(EngineTest, NoSubscriptors)
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_FALSE(res);
 }
 
@@ -67,9 +67,9 @@ TEST(EngineTest, SingleSubscriptor)
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([]() {
         auto listener = std::make_unique<mock::listener>();
         EXPECT_CALL(*listener, call(_, _, _))
-            .WillRepeatedly(
-                Invoke([](dds::parameter_view &data, dds::event &event_,
-                           std::string rasp) -> void {
+            .WillRepeatedly(Invoke(
+                [](dds::parameter_view &data, dds::event &event_,
+                    const dds::network::request_exec_options &options) -> void {
                     event_.actions.push_back({dds::action_type::block, {}});
                 }));
         return listener;
@@ -81,13 +81,13 @@ TEST(EngineTest, SingleSubscriptor)
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
@@ -100,24 +100,26 @@ TEST(EngineTest, MultipleSubscriptors)
 
     auto blocker = std::make_unique<mock::listener>();
     EXPECT_CALL(*blocker, call(_, _, _))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   std::string rasp) -> void {
-            std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
-            if (subs.find(data[0].parameterName) != subs.end()) {
-                event_.triggers.push_back("some event");
-                event_.actions.push_back({dds::action_type::block, {}});
-            }
-        }));
+        .WillRepeatedly(Invoke(
+            [](dds::parameter_view &data, dds::event &event_,
+                const dds::network::request_exec_options &options) -> void {
+                std::unordered_set<std::string_view> subs{"a", "b", "e", "f"};
+                if (subs.find(data[0].parameterName) != subs.end()) {
+                    event_.triggers.push_back("some event");
+                    event_.actions.push_back({dds::action_type::block, {}});
+                }
+            }));
 
     auto recorder = std::make_unique<mock::listener>();
     EXPECT_CALL(*recorder, call(_, _, _))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   std::string rasp) -> void {
-            std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
-            if (subs.find(data[0].parameterName) != subs.end()) {
-                event_.triggers.push_back("some event");
-            }
-        }));
+        .WillRepeatedly(Invoke(
+            [](dds::parameter_view &data, dds::event &event_,
+                const dds::network::request_exec_options &options) -> void {
+                std::unordered_set<std::string_view> subs{"c", "d", "e", "g"};
+                if (subs.find(data[0].parameterName) != subs.end()) {
+                    event_.triggers.push_back("some event");
+                }
+            }));
 
     std::unique_ptr<mock::listener> ignorer =
         std::unique_ptr<mock::listener>(new mock::listener());
@@ -149,63 +151,63 @@ TEST(EngineTest, MultipleSubscriptors)
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("c", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("d", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("e", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("f", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("g", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 
     p = parameter::map();
     p.add("h", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_FALSE(res);
 
     p = parameter::map();
     p.add("a", parameter::string("value"sv));
     p.add("c", parameter::string("value"sv));
     p.add("h", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("c", parameter::string("value"sv));
     p.add("h", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
 }
@@ -221,9 +223,9 @@ TEST(EngineTest, StatefulSubscriptor)
         auto listener = std::make_unique<mock::listener>();
         EXPECT_CALL(*listener, call(_, _, _))
             .Times(3)
-            .WillRepeatedly(
-                Invoke([&attempt](dds::parameter_view &data, dds::event &event_,
-                           std::string rasp) -> void {
+            .WillRepeatedly(Invoke(
+                [&attempt](dds::parameter_view &data, dds::event &event_,
+                    const dds::network::request_exec_options &options) -> void {
                     if (attempt == 2 || attempt == 5) {
                         event_.actions.push_back({dds::action_type::block, {}});
                     }
@@ -238,17 +240,17 @@ TEST(EngineTest, StatefulSubscriptor)
 
     parameter p = parameter::map();
     p.add("sub1", parameter::string("value"sv));
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_FALSE(res);
 
     p = parameter::map();
     p.add("sub2", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_FALSE(res);
 
     p = parameter::map();
     p.add("final", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
@@ -256,17 +258,17 @@ TEST(EngineTest, StatefulSubscriptor)
 
     p = parameter::map();
     p.add("final", parameter::string("value"sv));
-    res = ctx2.publish(std::move(p));
+    res = ctx2.publish(std::move(p), {});
     EXPECT_FALSE(res);
 
     p = parameter::map();
     p.add("sub1", parameter::string("value"sv));
-    res = ctx2.publish(std::move(p));
+    res = ctx2.publish(std::move(p), {});
     EXPECT_FALSE(res);
 
     p = parameter::map();
     p.add("sub2", parameter::string("value"sv));
-    res = ctx2.publish(std::move(p));
+    res = ctx2.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 }
@@ -278,7 +280,8 @@ TEST(EngineTest, WafDefaultActions)
     auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _, _))
         .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   std::string rasp) -> void {
+                                   const dds::network::request_exec_options
+                                       &options) -> void {
             event_.actions.push_back({dds::action_type::redirect, {}});
             event_.actions.push_back({dds::action_type::block, {}});
             event_.actions.push_back({dds::action_type::stack_trace, {}});
@@ -296,7 +299,7 @@ TEST(EngineTest, WafDefaultActions)
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(4, res->actions.size());
     EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
@@ -306,7 +309,7 @@ TEST(EngineTest, WafDefaultActions)
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(4, res->actions.size());
     EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
@@ -321,11 +324,12 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
 
     auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _, _))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   std::string rasp) -> void {
-            event_.actions.push_back({dds::action_type::invalid, {}});
-            event_.actions.push_back({dds::action_type::block, {}});
-        }));
+        .WillRepeatedly(Invoke(
+            [](dds::parameter_view &data, dds::event &event_,
+                const dds::network::request_exec_options &options) -> void {
+                event_.actions.push_back({dds::action_type::invalid, {}});
+                event_.actions.push_back({dds::action_type::block, {}});
+            }));
 
     auto sub = std::make_unique<mock::subscriber>();
     EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
@@ -338,14 +342,14 @@ TEST(EngineTest, InvalidActionsAreDiscarded)
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(1, res->actions.size());
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
 
     p = parameter::map();
     p.add("b", parameter::string("value"sv));
-    res = ctx.publish(std::move(p));
+    res = ctx.publish(std::move(p), {});
     EXPECT_TRUE(res);
     EXPECT_EQ(1, res->actions.size());
     EXPECT_EQ(res->actions[0].type, dds::action_type::block);
@@ -378,7 +382,7 @@ TEST(EngineTest, WafSubscriptorBasic)
     p.add("arg1", parameter::string("string 1"sv));
     p.add("arg2", parameter::string("string 3"sv));
 
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     Mock::VerifyAndClearExpectations(&msubmitter);
     EXPECT_TRUE(res);
     EXPECT_EQ(res->actions[0].type, dds::action_type::record);
@@ -402,7 +406,7 @@ TEST(EngineTest, WafSubscriptorInvalidParam)
 
     auto p = parameter::array();
 
-    EXPECT_THROW(ctx.publish(std::move(p)), invalid_object);
+    EXPECT_THROW(ctx.publish(std::move(p), {}), invalid_object);
 }
 
 TEST(EngineTest, WafSubscriptorTimeout)
@@ -418,7 +422,7 @@ TEST(EngineTest, WafSubscriptorTimeout)
     p.add("arg1", parameter::string("string 1"sv));
     p.add("arg2", parameter::string("string 3"sv));
 
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_FALSE(res);
 }
 
@@ -469,7 +473,7 @@ TEST(EngineTest, MockSubscriptorsUpdateRuleData)
     auto p = parameter::map();
     p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_FALSE(res);
 }
 
@@ -514,7 +518,7 @@ TEST(EngineTest, MockSubscriptorsInvalidRuleData)
     auto p = parameter::map();
     p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-    auto res = ctx.publish(std::move(p));
+    auto res = ctx.publish(std::move(p), {});
     EXPECT_FALSE(res);
 }
 
@@ -531,7 +535,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -559,7 +563,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->triggers.size(), 1);
@@ -589,7 +593,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleData)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 }
@@ -607,7 +611,7 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -634,7 +638,7 @@ TEST(EngineTest, WafSubscriptorInvalidRuleData)
         auto p = parameter::map();
         p.add("http.client_ip", parameter::string("192.168.1.1"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 }
@@ -652,7 +656,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
         auto p = parameter::map();
         p.add("server.request.query", parameter::string("/some-url"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -669,7 +673,7 @@ TEST(EngineTest, WafSubscriptorUpdateRules)
         auto p = parameter::map();
         p.add("server.request.query", parameter::string("/some-url"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
         EXPECT_EQ(res->triggers.size(), 1);
@@ -690,7 +694,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 
@@ -709,7 +713,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -726,7 +730,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverride)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 }
@@ -745,7 +749,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -767,7 +771,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::redirect);
     }
@@ -787,7 +791,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -798,7 +802,7 @@ TEST(EngineTest, WafSubscriptorUpdateRuleOverrideAndActions)
         auto p = parameter::map();
         p.add("arg4", parameter::string("string 4"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
         EXPECT_EQ(res->force_keep, true);
@@ -818,7 +822,7 @@ TEST(EngineTest, TestKeep)
         auto p = parameter::map();
         p.add("arg12", parameter::string("string 12"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
     {
@@ -827,7 +831,7 @@ TEST(EngineTest, TestKeep)
         auto p = parameter::map();
         p.add("arg5", parameter::string("string 5"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
     {
@@ -836,7 +840,7 @@ TEST(EngineTest, TestKeep)
         auto p = parameter::map();
         p.add("arg4", parameter::string("string 4"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
         EXPECT_EQ(res->force_keep, true);
@@ -857,7 +861,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -877,7 +881,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -894,7 +898,7 @@ TEST(EngineTest, WafSubscriptorExclusions)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
     }
 }
@@ -911,7 +915,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         auto p = parameter::map();
         p.add("arg3", parameter::string("custom rule"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -923,7 +927,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -943,7 +947,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         auto p = parameter::map();
         p.add("arg3", parameter::string("custom rule"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::block);
     }
@@ -956,7 +960,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -974,7 +978,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         auto p = parameter::map();
         p.add("arg3", parameter::string("custom rule"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         EXPECT_FALSE(res);
     }
 
@@ -986,7 +990,7 @@ TEST(EngineTest, WafSubscriptorCustomRules)
         p.add("arg1", parameter::string("string 1"sv));
         p.add("arg2", parameter::string("string 3"sv));
 
-        auto res = ctx.publish(std::move(p));
+        auto res = ctx.publish(std::move(p), {});
         ASSERT_TRUE(res);
         EXPECT_EQ(res->actions[0].type, dds::action_type::record);
     }
@@ -1002,11 +1006,12 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
     EXPECT_CALL(*sub, get_listener()).WillRepeatedly(Invoke([&]() {
         auto listener = std::make_unique<mock::listener>();
         EXPECT_CALL(*listener, call(_, _, _))
-            .WillOnce(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                 std::string rasp) -> void {
-                event_.actions.push_back({dds::action_type::redirect, {}});
-                event_.keep = false;
-            }));
+            .WillOnce(Invoke(
+                [](dds::parameter_view &data, dds::event &event_,
+                    const dds::network::request_exec_options &options) -> void {
+                    event_.actions.push_back({dds::action_type::redirect, {}});
+                    event_.keep = false;
+                }));
         return listener;
     }));
 
@@ -1014,10 +1019,10 @@ TEST(EngineTest, RateLimiterDoNotForceKeep)
 
     parameter p = parameter::map();
     p.add("a", parameter::string("value"sv));
-    auto res = e->get_context().publish(std::move(p));
+    auto res = e->get_context().publish(std::move(p), {});
     parameter p2 = parameter::map();
     p2.add("a", parameter::string("value"sv));
-    res = e->get_context().publish(std::move(p2));
+    res = e->get_context().publish(std::move(p2), {});
     EXPECT_FALSE(res->force_keep);
 }
 

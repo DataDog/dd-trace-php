@@ -79,6 +79,7 @@ define('REQUEST_RC_CONFIGS_FILE', getenv('REQUEST_RC_CONFIGS_FILE') ?: ("$temp_l
 define('REQUEST_RC_REQUESTS_FILE', getenv('REQUEST_RC_REQUESTS_FILE') ?: ("$temp_location/rc_requests.json"));
 define('REQUEST_METRICS_FILE', getenv('REQUEST_METRICS_FILE') ?: ("$temp_location/metrics.json"));
 define('REQUEST_METRICS_LOG_FILE', getenv('REQUEST_METRICS_LOG_FILE') ?: ("$temp_location/metrics-log.txt"));
+define('REQUEST_STATS_FILE', getenv('REQUEST_STATS_FILE') ?: ("$temp_location/stats.json"));
 define('REQUEST_AGENT_INFO_FILE', getenv('REQUEST_AGENT_INFO_FILE') ?: ("$temp_location/agent-info.txt"));
 
 function logRequest($message, $data = '')
@@ -125,6 +126,16 @@ switch ($uri) {
         unlink(REQUEST_METRICS_LOG_FILE);
         logRequest('Returned last metrics and deleted metrics log', $request);
         break;
+    case '/replay-stats':
+        if (!file_exists(REQUEST_STATS_FILE)) {
+            logRequest('Cannot replay stats; stats log does not exist');
+            break;
+        }
+        $request = file_get_contents(REQUEST_STATS_FILE);
+        echo $request;
+        unlink(REQUEST_STATS_FILE);
+        logRequest('Returned stats and deleted stats log', $request);
+        break;
     case '/replay-rc-requests':
         if (!file_exists(REQUEST_RC_REQUESTS_FILE)) {
             logRequest('Cannot replay RC requests; RC requests log does not exist');
@@ -150,6 +161,9 @@ switch ($uri) {
         if (file_exists(REQUEST_METRICS_FILE)) {
             unlink(REQUEST_METRICS_FILE);
             unlink(REQUEST_METRICS_LOG_FILE);
+        }
+        if (file_exists(REQUEST_STATS_FILE)) {
+            unlink(REQUEST_STATS_FILE);
         }
         if (file_exists(REQUEST_NEXT_RESPONSE_FILE)) {
             unlink(REQUEST_NEXT_RESPONSE_FILE);
@@ -250,6 +264,38 @@ switch ($uri) {
         logRequest('Requested /info endpoint, returning ' . $file);
         header("datadog-agent-state: " . sha1($file));
         echo $file;
+        break;
+    case '/v0.6/stats':
+        $raw = file_get_contents('php://input');
+        $unpacker = new BufferUnpacker($raw, UnpackOptions::BIGINT_AS_STR);
+        $decoded = $unpacker->unpack();
+        // OkSummary and ErrorSummary are binary DDSketch protobuf bytes; hex-encode them so
+        // json_encode does not fail on non-UTF-8 data.
+        $hexEncodeBinaryStats = function (&$arr) use (&$hexEncodeBinaryStats) {
+            if (!is_array($arr)) return;
+            foreach ($arr as $key => &$value) {
+                if (($key === 'OkSummary' || $key === 'ErrorSummary') && is_string($value)) {
+                    $value = bin2hex($value);
+                } elseif (is_array($value)) {
+                    $hexEncodeBinaryStats($value);
+                }
+            }
+        };
+        $hexEncodeBinaryStats($decoded);
+        $body = json_encode($decoded);
+        $newStatsRequest = [
+            'uri' => $_SERVER['REQUEST_URI'],
+            'headers' => getallheaders(),
+            'body' => $body,
+        ];
+        if (file_exists(REQUEST_STATS_FILE)) {
+            $statsStack = json_decode(file_get_contents(REQUEST_STATS_FILE), true);
+        } else {
+            $statsStack = [];
+        }
+        $statsStack[] = $newStatsRequest;
+        file_put_contents(REQUEST_STATS_FILE, json_encode($statsStack));
+        logRequest('Logged stats request', $body);
         break;
     default:
         $headers = getallheaders();

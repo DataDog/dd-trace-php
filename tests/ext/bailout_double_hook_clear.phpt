@@ -1,5 +1,9 @@
 --TEST--
 Bailout during hook END should not cause double-clear of span (internal function)
+--SKIPIF--
+<?php
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip valgrind: bailout path bypasses normal cleanup, causing expected leaks');
+?>
 --FILE--
 <?php
 

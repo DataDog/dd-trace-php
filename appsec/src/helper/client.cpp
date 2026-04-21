@@ -202,6 +202,8 @@ bool client::handle_command(const network::client_init::request &command)
         collect_metrics(*response, *service_, context_, sc_settings_);
     }
 
+    response->helper_runtime = "cpp";
+
     try {
         if (!broker_->send(response)) {
             has_errors = true;
@@ -232,14 +234,14 @@ template <typename T> bool client::service_guard()
 
 template <typename T>
 std::shared_ptr<typename T::response> client::publish(
-    typename T::request &command, const std::string &rasp_rule)
+    typename T::request &command, const network::request_exec_options &options)
 {
     SPDLOG_DEBUG("received command {}", T::name);
 
     auto response = std::make_shared<typename T::response>();
     try {
         // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
-        auto res = context_->publish(std::move(command.data), rasp_rule);
+        auto res = context_->publish(std::move(command.data), options);
         if (res) {
             bool event_action = false;
             bool stack_trace = false;
@@ -321,7 +323,7 @@ bool client::handle_command(network::request_init::request &command)
     // During request init we initialize the engine context
     context_.emplace(*service_->get_engine());
 
-    auto response = publish<network::request_init>(command);
+    auto response = publish<network::request_init>(command, {});
     if (response) {
         response->settings["auto_user_instrum"] = to_string_view(
             service_->get_service_config()->get_auto_user_intrum_mode());
@@ -340,7 +342,7 @@ bool client::handle_command(network::request_exec::request &command)
         context_.emplace(*service_->get_engine());
     }
 
-    auto response = publish<network::request_exec>(command, command.rasp_rule);
+    auto response = publish<network::request_exec>(command, command.options);
     return send_message<network::request_exec>(response);
 }
 
@@ -467,7 +469,7 @@ bool client::handle_command(network::request_shutdown::request &command)
         command.data.add("waf.context.processor", std::move(context_processor));
     }
 
-    auto response = publish<network::request_shutdown>(command);
+    auto response = publish<network::request_shutdown>(command, {});
     if (!response) {
         return false;
     }

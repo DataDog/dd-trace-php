@@ -20,7 +20,7 @@ typedef uint16_t zai_config_id;
 
 #define ZAI_CONFIG_ENTRIES_COUNT_MAX 300
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
-#define ZAI_CONFIG_NAME_BUFSIZ 60
+#define ZAI_CONFIG_NAME_BUFSIZ 72
 
 #define ZAI_CONFIG_ENTRY(_id, _name, _type, default, ...)                          \
     {                                                                              \
@@ -109,6 +109,9 @@ extern zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_
 zval *zai_config_get_value(zai_config_id id);
 
 bool zai_config_get_id_by_name(zai_str name, zai_config_id *id);
+
+// Returns NULL if not set; persistent allocation, must not be freed.
+const char *zai_config_sys_env_cached(zai_config_id id, uint8_t name_index);
 
 // Adds name to name<->id mapping. Id may be present multiple times.
 void zai_config_register_config_id(zai_config_name *name, zai_config_id id);

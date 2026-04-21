@@ -839,6 +839,12 @@ namespace DDTrace {
      * @param string $method The method of the endpoint
      */
     function add_endpoint(string $path, string $operation_name, string $resource_name, string $method): bool {}
+
+    /**
+     * Flush all buffered endpoints to the sidecar immediately.
+     * Call this once after batching all add_endpoint() calls.
+     */
+    function flush_endpoints(): void {}
 }
 
 namespace DDTrace\System {
@@ -849,6 +855,16 @@ namespace DDTrace\System {
      * @return string|null The container id, or 'null' if no id was found
      */
     function container_id(): string|null {}
+
+    /**
+     * Get the process tags base hash
+     *
+     * Returns the FNV-1a 64-bit hash of serialized process tags combined with container tags hash.
+     * This hash is used for Database Monitoring to correlate queries with application processes.
+     *
+     * @return string|null The base hash as a binary string (8 bytes), or 'null' if process tags are disabled or not computed
+     */
+    function process_tags_base_hash(): string|null {}
 }
 
 namespace DDTrace\Config {

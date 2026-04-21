@@ -91,7 +91,7 @@ ${PHP_SRC_DIR}/configure \
     --with-config-file-path=${INSTALL_DIR} \
     --with-config-file-scan-dir=${INSTALL_DIR}/conf.d
 
-make -j "$((`nproc`+1))" || true
+make -s -j "$((`nproc`+1))" || true
 
 if ! [[ -f ext/phar/phar.phar ]] && [[ ${INSTALL_VERSION} == *asan* ]]; then
   # Cross-compilation with asan and qemu will fail with a segfault instead. Handle this.
@@ -99,7 +99,7 @@ if ! [[ -f ext/phar/phar.phar ]] && [[ ${INSTALL_VERSION} == *asan* ]]; then
   mkdir -p ext/phar/
   touch ext/phar/phar.phar
   # ensure compilation finishes, then back up php
-  make || true;
+  make -s || true;
   exit;
 fi
 
@@ -109,7 +109,7 @@ if [[ ${INSTALL_VERSION} != *asan* ]]; then
   # In two steps, because: You've configured multiple SAPIs to be built. You can build only one SAPI module plus CGI, CLI and FPM binaries at the same time.
   sed -i 's/--enable-embed/--with-apxs2=\/usr\/bin\/apxs2/' config.nice
   ./config.nice
-  make -j "$((`nproc`+1))"
+  make -s -j "$((`nproc`+1))"
   cp .libs/libphp*.so ${INSTALL_DIR}/lib/apache2handler-libphp.so
 fi
 

@@ -8,7 +8,7 @@ PHP_ZTS=$(php -r 'echo PHP_ZTS;')
 EXTENSION_DIR=$(php-config --extension-dir)
 
 # This make `pecl install` use all available cores
-export MAKEFLAGS="-j $(nproc)"
+export MAKEFLAGS="-s -j $(nproc)"
 
 XDEBUG_VERSIONS=(-3.1.2)
 if [[ $PHP_VERSION_ID -le 70 ]]; then
@@ -64,6 +64,8 @@ elif [[ $PHP_VERSION_ID -le 74 ]]; then
   SQLSRV_VERSION=-5.8.0
 elif [[ $PHP_VERSION_ID -le 80 ]]; then
   SQLSRV_VERSION=-5.11.0
+elif [[ $PHP_VERSION_ID -le 82 ]]; then
+  SQLSRV_VERSION=-5.12.0
 fi
 
 HOST_ARCH=$(if [[ $(file $(readlink -f $(which php))) == *aarch64* ]]; then echo "aarch64"; else echo "x86_64"; fi)
@@ -195,7 +197,7 @@ else
 
   # ext-grpc is needed for google spanner
   if [[ $PHP_VERSION_ID -ge 80 && $PHP_VERSION_ID -lt 85 ]]; then
-    pecl install grpc;
+    pecl install grpc-1.78.0;
     # avoid installing it by default, it seems to stall some testsuites.
   fi
 

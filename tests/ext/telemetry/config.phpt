@@ -21,6 +21,7 @@ DD_AGENT_HOST=
 DD_AUTOLOAD_NO_COMPILE=
 DD_TRACE_GIT_METADATA_ENABLED=0
 DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1
+DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
 --INI--
 datadog.trace.agent_url="file://{PWD}/config-telemetry.out"
 --FILE--
@@ -37,7 +38,7 @@ dd_trace_serialize_closed_spans();
 dd_trace_internal_fn("finalize_telemetry");
 
 for ($i = 0; $i < 300; ++$i) {
-    usleep(100000);
+    ("us" . "leep")(100000);
     if (file_exists(__DIR__ . '/config-telemetry.out')) {
         foreach (file(__DIR__ . '/config-telemetry.out') as $l) {
             if ($l) {
@@ -47,7 +48,7 @@ for ($i = 0; $i < 300; ++$i) {
                     if ($json["request_type"] == "app-client-configuration-change") {
                         $cfg = $json["payload"]["configuration"];
                         print_r(array_values(array_filter($cfg, function ($c) {
-                            return $c["origin"] == "env_var" && $c["name"] != "trace.sources_path" && $c["name"] != "trace.sidecar_trace_sender";
+                            return $c["origin"] == "env_var" && $c["name"] != "DD_TRACE_SOURCES_PATH" && $c["name"] != "DD_TRACE_SIDECAR_TRACE_SENDER";
                         })));
                         var_dump(count(array_filter($cfg, function ($c) {
                             return $c["origin"] == "default";
@@ -62,6 +63,9 @@ for ($i = 0; $i < 300; ++$i) {
         }
     }
 }
+if ($i == 300) {
+    var_dump(file(__DIR__ . '/config-telemetry.out'));
+}
 
 ?>
 --EXPECTF--
@@ -70,7 +74,7 @@ Array
 (
     [0] => Array
         (
-            [name] => trace.agent_url
+            [name] => DD_TRACE_AGENT_URL
             [value] => file://%s/config-telemetry.out
             [origin] => env_var
             [config_id] => 
@@ -79,7 +83,7 @@ Array
 
     [1] => Array
         (
-            [name] => instrumentation_telemetry_enabled
+            [name] => DD_INSTRUMENTATION_TELEMETRY_ENABLED
             [value] => 1
             [origin] => env_var
             [config_id] => 
@@ -88,7 +92,7 @@ Array
 
     [2] => Array
         (
-            [name] => trace.ignore_agent_sampling_rates
+            [name] => DD_TRACE_IGNORE_AGENT_SAMPLING_RATES
             [value] => 1
             [origin] => env_var
             [config_id] => 
@@ -97,7 +101,7 @@ Array
 
     [3] => Array
         (
-            [name] => trace.generate_root_span
+            [name] => DD_TRACE_GENERATE_ROOT_SPAN
             [value] => 0
             [origin] => env_var
             [config_id] => 
@@ -106,7 +110,7 @@ Array
 
     [4] => Array
         (
-            [name] => trace.git_metadata_enabled
+            [name] => DD_TRACE_GIT_METADATA_ENABLED
             [value] => 0
             [origin] => env_var
             [config_id] => 
@@ -114,6 +118,15 @@ Array
         )
 
     [5] => Array
+        (
+            [name] => DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+            [value] => 0
+            [origin] => env_var
+            [config_id] => 
+            [seq_id] => 
+        )
+
+    [6] => Array
         (
             [name] => ssi_forced_injection_enabled
             [value] => False

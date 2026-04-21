@@ -57,7 +57,7 @@ appsec-trigger:
     strategy: depend
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/libddwaf-rust appsec/third_party/msgpack-c
 
 profiler-trigger:
   stage: tests
@@ -90,8 +90,9 @@ package-trigger:
         job: "generate-templates"
       - local: .gitlab/benchmarks.yml
     strategy: depend
+    forward:
+      pipeline_variables: true
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
-    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/msgpack-c
+    GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/libddwaf-rust appsec/third_party/msgpack-c
     NIGHTLY_BUILD: $NIGHTLY_BUILD
-    RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH

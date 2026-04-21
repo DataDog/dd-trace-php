@@ -410,21 +410,21 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_sidecar_submit_root_span_data_direct(&ddtrace_sidecar, NULL, new_str, get_DD_ENV(), get_DD_VERSION());
+        ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_sidecar_submit_root_span_data_direct(&ddtrace_sidecar, NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
+        ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
     dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
-        ddtrace_sidecar_submit_root_span_data_direct(&ddtrace_sidecar, NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
+        ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
     return true;
 }
@@ -455,10 +455,7 @@ static void dd_activate_once(void) {
         }
 
         // if we're to enable appsec, we need to enable sidecar
-        bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(&appsec_activation, &appsec_config);
-        if (!enable_sidecar) {
-            enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
-        }
+        bool enable_sidecar = ddtrace_sidecar_should_enable(&appsec_activation, &appsec_config);
 
         if (enable_sidecar)
 #endif
@@ -700,6 +697,9 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     }
 
     zend_hash_destroy(&ddtrace_globals->git_metadata);
+
+    // Drop the per-thread sidecar transport (thread-lifetime, one per thread).
+    ddtrace_sidecar_gshutdown();
 
     tsrm_mutex_free(ddtrace_globals->sidecar_universal_service_tags_mutex);
 
@@ -1520,17 +1520,18 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     ddtrace_limiter_create();
     ddtrace_standalone_limiter_create();
 
+    ddtrace_log_minit();
+
 #ifndef _WIN32
     /* Snapshot proxy-related env vars once at startup to avoid getenv()
      * from the background writer thread inside libcurl. */
     ddtrace_coms_minit_proxy_env();
-
-    ddtrace_log_minit();
-
     ddtrace_dogstatsd_client_minit();
 #endif
+
     ddshared_minit();
     ddtrace_autoload_minit();
+    ddtrace_sidecar_minit();
 
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
@@ -1597,8 +1598,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_coms_mshutdown_proxy_env();
     } else /* ! part of the if outside the ifdef */
 #endif
-    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && ddtrace_sidecar) {
-        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+    if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DDTRACE_G(sidecar)) {
+        ddog_sidecar_flush_traces(&DDTRACE_G(sidecar));
     }
 
     ddtrace_log_mshutdown();
@@ -1616,7 +1617,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
 
     ddtrace_sidecar_shutdown();
 
-    ddtrace_live_debugger_mshutdown();
     ddtrace_process_tags_mshutdown();
 
 #if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
@@ -1675,14 +1675,11 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(tracestate_unknown_dd_keys), 8, unused, ZVAL_PTR_DTOR, 0);
     zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
-    // Check for the env first, before the first RC
-    ddtrace_check_agent_info_env();
-
     // Do after env check, so that RC data is not updated before RC init
     DDTRACE_G(request_initialized) = true;
 
     if (!DDTRACE_G(remote_config_state) && ddtrace_endpoint) {
-        DDTRACE_G(remote_config_state) = ddog_init_remote_config_state(ddtrace_endpoint);
+        DDTRACE_G(remote_config_state) = ddog_init_remote_config_state(ddtrace_endpoint, get_DD_DYNAMIC_INSTRUMENTATION_ENABLED());
     }
 
     // We need to init RC for the sidecar to write to it immediately
@@ -1723,6 +1720,9 @@ static void dd_initialize_request(void) {
 #endif
 
     ddtrace_agent_info_rinit();
+
+    // Single combined read: applies env, container-hash, and concentrator config.
+    ddtrace_apply_agent_info();
 
     // Reset compile time after request init hook has compiled
     ddtrace_compile_time_reset();
@@ -2587,6 +2587,17 @@ PHP_FUNCTION(DDTrace_System_container_id) {
     }
 }
 
+PHP_FUNCTION(DDTrace_System_process_tags_base_hash) {
+    UNUSED(execute_data);
+
+    zend_string *base_hash = ddtrace_process_tags_get_base_hash();
+    if (base_hash) {
+        RETVAL_STRINGL(ZSTR_VAL(base_hash), ZSTR_LEN(base_hash));
+    } else {
+        RETURN_NULL();
+    }
+}
+
 PHP_FUNCTION(DDTrace_Testing_trigger_error) {
     ddtrace_string message;
     ddtrace_zpplong_t error_type;
@@ -2662,6 +2673,8 @@ void dd_internal_handle_fork(void) {
         ddtrace_coms_clean_background_sender_after_fork();
     }
 #endif
+
+    ddtrace_sidecar_handle_fork();
     if (DDTRACE_G(agent_config_reader)) {
         ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
         DDTRACE_G(agent_config_reader) = NULL;
@@ -2676,7 +2689,6 @@ void dd_internal_handle_fork(void) {
     }
     ddtrace_seed_prng();
     ddtrace_generate_runtime_id();
-    ddtrace_reset_sidecar();
     if (!get_DD_TRACE_FORKED_PROCESS()) {
         ddtrace_disable_tracing_in_current_request();
     }
@@ -2801,6 +2813,10 @@ PHP_FUNCTION(DDTrace_dogstatsd_set) {
 PHP_FUNCTION(DDTrace_are_endpoints_collected) {
     UNUSED(execute_data);
 
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        RETURN_TRUE; // Skip overhead if unnecessary
+    }
+
     if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
         RETURN_FALSE;
     }
@@ -2853,7 +2869,7 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
         RETURN_FALSE;
     }
 
-    if (!ddtrace_sidecar || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
         RETURN_FALSE;
     }
 
@@ -2862,10 +2878,6 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
     ddog_CharSlice operation_name_slice = dd_zend_string_to_CharSlice(operation_name);
     ddog_CharSlice resource_name_slice = dd_zend_string_to_CharSlice(resource_name);
 
-    ddog_MaybeError result = ddog_sidecar_telemetry_addEndpoint(
-        &ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), method_enum, path_slice, operation_name_slice,
-        resource_name_slice);
-
     LOG_LINE(DEBUG,
              "Adding endpoint: %.*s (%zu) - operation_name: %.*s (%zu) - resource_name: %.*s (%zu) - method: %.*s (%zu)",
              (int)path_slice.len, (char *)path_slice.ptr, path_slice.len,
@@ -2873,14 +2885,28 @@ PHP_FUNCTION(DDTrace_add_endpoint) {
              (int)resource_name_slice.len, (char *)resource_name_slice.ptr, resource_name_slice.len,
              (int)method->len, ZSTR_VAL(method), (size_t)method->len);
 
-    if (result.tag == DDOG_OPTION_ERROR_SOME_ERROR) {
-        ddog_CharSlice message = ddog_Error_message(&result.some);
-        LOG_LINE(ERROR, "Error submitting  endpoint to sidecar: %.*s", (int)message.len, (char *)message.ptr);
-        ZVAL_FALSE(return_value);
-    } else {
-        ZVAL_TRUE(return_value);
+    ddog_sidecar_telemetry_addEndpoint_buffer(ddtrace_telemetry_buffer(), method_enum, path_slice, operation_name_slice, resource_name_slice);
+
+    RETURN_TRUE;
+}
+
+PHP_FUNCTION(DDTrace_flush_endpoints) {
+    UNUSED(execute_data);
+    UNUSED(return_value);
+
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id) || !DDTRACE_G(telemetry_buffer)) {
+        return;
     }
-    ddog_MaybeError_drop(result);
+
+    if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
+        return;
+    }
+
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+
+    ddtrace_ffi_try("Failed flushing endpoint telemetry buffer",
+        ddog_sidecar_telemetry_filter_flush(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_name, env_name));
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
@@ -2982,7 +3008,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("detect_composer_installed_json")) {
             ddog_CharSlice path = dd_zend_string_to_CharSlice(Z_STR_P(ZVAL_VARARG_PARAM(params, 0)));
-            ddtrace_detect_composer_installed_json(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
+            ddtrace_detect_composer_installed_json(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), path);
             RETVAL_TRUE;
         } else if (params_count == 2 && FUNCTION_NAME_MATCHES("mark_integration_loaded")) {
             zval *name = ZVAL_VARARG_PARAM(params, 0);
@@ -3109,27 +3135,41 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 RETVAL_NULL();
             }
         } else if (FUNCTION_NAME_MATCHES("dump_sidecar")) {
-            if (!ddtrace_sidecar) {
+            if (!DDTRACE_G(sidecar)) {
                 RETURN_FALSE;
             }
-            ddog_CharSlice slice = ddog_sidecar_dump(&ddtrace_sidecar);
+            ddog_CharSlice slice = ddog_sidecar_dump(&DDTRACE_G(sidecar));
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
         } else if (FUNCTION_NAME_MATCHES("stats_sidecar")) {
-            if (!ddtrace_sidecar) {
+            if (!DDTRACE_G(sidecar)) {
                 RETURN_FALSE;
             }
-            ddog_CharSlice slice = ddog_sidecar_stats(&ddtrace_sidecar);
+            ddog_CharSlice slice = ddog_sidecar_stats(&DDTRACE_G(sidecar));
             RETVAL_STRINGL(slice.ptr, slice.len);
             free((void *) slice.ptr);
         } else if (FUNCTION_NAME_MATCHES("break_sidecar_connection")) {
-            if (!ddtrace_sidecar) {
+            if (!DDTRACE_G(sidecar)) {
                 RETURN_FALSE;
             }
-            ddog_sidecar_send_garbage(&ddtrace_sidecar);
+            ddog_sidecar_send_garbage(&DDTRACE_G(sidecar));
             ddtrace_generate_runtime_id();
             ddtrace_force_new_instance_id();
             RETURN_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("reload_process_tags")) {
+            if (ddtrace_process_tags_enabled()) {
+                ddtrace_process_tags_reload();
+                ddtrace_sidecar_update_process_tags();
+            }
+            RETVAL_TRUE;
+        } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {
+            zval *container_tags_hash = ZVAL_VARARG_PARAM(params, 0);
+            if (Z_TYPE_P(container_tags_hash) == IS_STRING) {
+                ddtrace_process_tags_set_container_tags_hash(Z_STR_P(container_tags_hash));
+                RETVAL_TRUE;
+            } else {
+                RETVAL_FALSE;
+            }
         } else if (FUNCTION_NAME_MATCHES("synchronous_flush")) {
             uint32_t timeout = 100;
             if (params_count == 1) {
@@ -3142,8 +3182,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 }
             } else
 #endif
-            if (ddtrace_sidecar) {
-                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
+            if (DDTRACE_G(sidecar)) {
+                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&DDTRACE_G(sidecar)));
             }
             RETVAL_TRUE;
 #ifndef _WIN32
@@ -3185,6 +3225,24 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             ddog_logf(DDOG_LOG_WARN, false, "bar");
             ddog_logf(DDOG_LOG_ERROR, false, "Boum");
             RETVAL_TRUE;
+        } else if (FUNCTION_NAME_MATCHES("await_agent_info")) {
+            // Block until the sidecar has received and applied the agent /info response.
+            // This ensures peer-tag keys and span kinds are initialised before the caller
+            // makes requests that produce stats.  Times out after 5 seconds.
+            uint32_t timeout_ms = 5000;
+            if (params_count == 1) {
+                timeout_ms = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            uint32_t waited = 0;
+            while (!ddog_is_agent_info_ready() && waited < timeout_ms) {
+                // Actively read the SHM so we pick up the update the sidecar wrote.
+                if (DDTRACE_G(agent_info_reader)) {
+                    ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
+                }
+                usleep(10000); // 10ms
+                waited += 10;
+            }
+            RETVAL_BOOL(ddog_is_agent_info_ready());
         }
     }
 }
@@ -3259,8 +3317,8 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
         }
     } else
 #endif
-    if (ddtrace_sidecar) {
-        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&ddtrace_sidecar));
+    if (DDTRACE_G(sidecar)) {
+        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&DDTRACE_G(sidecar)));
     }
     RETURN_NULL();
 }

@@ -1,2 +1,3 @@
+com.datadog.appsec.php.test.ClearTelemetryExtension
 com.datadog.appsec.php.test.NotifyTestLifecycle
 com.datadog.appsec.php.test.StopContainerExtension

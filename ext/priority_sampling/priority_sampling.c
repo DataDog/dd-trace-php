@@ -1,6 +1,7 @@
 #include "../compat_string.h"
 #include "priority_sampling.h"
 
+#include <math.h>
 #include <vendor/mt19937/mt19937-64.h>
 
 #include <uri_normalization/uri_normalization.h>
@@ -16,8 +17,8 @@
 #include "agent_info.h"
 
 /* Sampling constants */
-const uint64_t KNUTH_FACTOR = 1111111111111111111ULL;
-const uint64_t MAX_TRACE_ID = ~0ULL;  // 2^64-1 - This represents the maximum value of a Trace ID
+static const uint64_t KNUTH_FACTOR = 1111111111111111111ULL;
+static const uint64_t MAX_TRACE_ID = ~0ULL;  // 2^64-1 - This represents the maximum value of a Trace ID
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -60,6 +61,37 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
     } else {
         zend_hash_str_del(meta, "_dd.p.dm", sizeof("_dd.p.dm") - 1);
     }
+}
+
+static void dd_update_knuth_sampling_rate_tag(ddtrace_root_span_data *root_span, double sample_rate) {
+    zend_array *meta = ddtrace_property_array(&root_span->property_meta);
+
+    char buf[32];
+#if PHP_VERSION_ID < 80100
+    int is_negative;
+#else
+    bool is_negative;
+#endif
+    size_t len;
+    php_conv_fp('F', sample_rate, false, 6, '.', &is_negative, buf, &len); // F for fixed point vs scientific notation
+
+    while (len > 1 && buf[len - 1] == '0') {
+        --len;
+    }
+    if (len > 1 && buf[len - 1] == '.') {
+        --len;
+    }
+
+    // Skip update if already set to the same value
+    zval *existing = zend_hash_str_find(meta, ZEND_STRL("_dd.p.ksr"));
+    if (existing && Z_TYPE_P(existing) == IS_STRING && zend_string_equals_cstr(Z_STR_P(existing), buf, len) == 0) {
+        return;
+    }
+
+    zval ksr;
+    ZVAL_STRINGL(&ksr, buf, len);
+    zend_hash_str_update(meta, ZEND_STRL("_dd.p.ksr"), &ksr);
+    zend_hash_str_add_empty_element(ddtrace_property_array(&root_span->property_propagated_tags), ZEND_STRL("_dd.p.ksr"));
 }
 
 static bool dd_check_sampling_rule(zend_array *rule, ddtrace_span_data *span) {
@@ -236,7 +268,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
     if (is_trace_root || zval_get_long(&span->property_propagated_sampling_priority) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         // when we sample, we need to fetch the env first
-        ddtrace_check_agent_info_env();
+        ddtrace_apply_agent_info();
 
         double default_sample_rate = get_DD_TRACE_SAMPLE_RATE();
         sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;
@@ -293,6 +325,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
             ZVAL_LONG(&priority_zv, PRIORITY_SAMPLING_AUTO_REJECT);
             ddtrace_assign_variable(&span->property_sampling_priority, &priority_zv);
         }
+        zend_hash_str_del(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.p.ksr"));
         return;
     } else {
         sample_rate = result.sampling_rate;
@@ -318,8 +351,10 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
         if (mechanism == DD_MECHANISM_MANUAL) {
             zend_hash_str_del(metrics, ZEND_STRL("_dd.rule_psr"));
+            zend_hash_str_del(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.p.ksr"));
         } else {
             zend_hash_str_update(metrics, ZEND_STRL("_dd.rule_psr"), &sample_rate_zv);
+            dd_update_knuth_sampling_rate_tag(span, sample_rate);
         }
 
         zend_hash_str_del(metrics, ZEND_STRL("_dd.agent_psr"));
@@ -329,6 +364,11 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
         priority = sampling && !limited ? PRIORITY_SAMPLING_AUTO_KEEP : PRIORITY_SAMPLING_AUTO_REJECT;
 
         zend_hash_str_update(metrics, ZEND_STRL("_dd.agent_psr"), &sample_rate_zv);
+        if (mechanism == DD_MECHANISM_AGENT_RATE) {
+            dd_update_knuth_sampling_rate_tag(span, sample_rate);
+        } else {
+            zend_hash_str_del(ddtrace_property_array(&span->property_meta), ZEND_STRL("_dd.p.ksr"));
+        }
     }
 
     if (limited) {

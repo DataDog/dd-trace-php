@@ -12,4 +12,4 @@ DD_CRASHTRACKING_ENABLED=0
 
 ?>
 --EXPECTF--
-[ddtrace] [error] Invalid DD_TRACE_AGENT_URL: /invalid. A proper agent URL must be unix:///path/to/agent.sock or http://hostname:port/.
+[ddtrace] [error] [%d] Invalid DD_TRACE_AGENT_URL: /invalid. A proper agent URL must be unix:///path/to/agent.sock or http://hostname:port/.

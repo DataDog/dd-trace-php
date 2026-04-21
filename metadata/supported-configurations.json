@@ -102,6 +102,13 @@
         "default": "/tmp"
       }
     ],
+    "DD_APPSEC_HELPER_RUST_REDIRECTION": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [
       {
         "implementation": "C",
@@ -214,6 +221,13 @@
         "default": "false"
       }
     ],
+    "DD_APPSEC_TESTING_INVALID_COMMAND": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_APPSEC_TESTING_RAW_BODY": [
       {
         "implementation": "A",
@@ -268,6 +282,13 @@
         "implementation": "A",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_DBM_INJECT_SQL_BASEHASH": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_DBM_PROPAGATION_MODE": [
@@ -326,6 +347,13 @@
         "default": ""
       }
     ],
+    "DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS": [
+      {
+        "implementation": "C",
+        "type": "array",
+        "default": ""
+      }
+    ],
     "DD_ENV": [
       {
         "implementation": "A",
@@ -363,9 +391,9 @@
     ],
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "boolean",
-        "default": "false"
+        "default": "true"
       }
     ],
     "DD_GIT_COMMIT_SHA": [
@@ -621,6 +649,13 @@
         "implementation": "A",
         "type": "map",
         "default": ""
+      }
+    ],
+    "DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "86400"
       }
     ],
     "DD_TELEMETRY_HEARTBEAT_INTERVAL": [
@@ -2174,6 +2209,27 @@
         "default": "5000"
       }
     ],
+    "DD_TRACE_SIDECAR_BACKPRESSURE_BYTES": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "4194304"
+      }
+    ],
+    "DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "100"
+      }
+    ],
+    "DD_TRACE_SIDECAR_CONNECTION_MODE": [
+      {
+        "implementation": "A",
+        "type": "string",
+        "default": "auto"
+      }
+    ],
     "DD_TRACE_SIDECAR_TRACE_SENDER": [
       {
         "implementation": "A",
@@ -2252,6 +2308,40 @@
     "DD_TRACE_STARTUP_LOGS": [
       {
         "implementation": "C",
+        "type": "boolean",
+        "default": "true"
+      }
+    ],
+    "DD_TRACE_STATS_COMPUTATION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
+    "DD_TRACE_STRIPE_ANALYTICS_ENABLED": [
+      {
+        "implementation": "B",
+        "type": "boolean",
+        "default": "false",
+        "aliases": [
+          "DD_STRIPE_ANALYTICS_ENABLED"
+        ]
+      }
+    ],
+    "DD_TRACE_STRIPE_ANALYTICS_SAMPLE_RATE": [
+      {
+        "implementation": "B",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": [
+          "DD_STRIPE_ANALYTICS_SAMPLE_RATE"
+        ]
+      }
+    ],
+    "DD_TRACE_STRIPE_ENABLED": [
+      {
+        "implementation": "A",
         "type": "boolean",
         "default": "true"
       }

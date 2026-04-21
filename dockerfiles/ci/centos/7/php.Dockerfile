@@ -46,8 +46,8 @@ RUN bash -c 'set -eux; \
     && make install \
     && cp .libs/libphp*.so ${PHP_INSTALL_DIR_ZTS}/lib/apache2handler-libphp.so \
     && mkdir -p ${PHP_INSTALL_DIR_ZTS}/conf.d' \
-    && [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || ${PHP_INSTALL_DIR_ZTS}/bin/pecl install parallel || true \
-    && [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || echo "extension=parallel" >> ${PHP_INSTALL_DIR_ZTS}/conf.d/parallel.ini || true
+    && ( [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || CFLAGS="${CFLAGS} -std=gnu99" ${PHP_INSTALL_DIR_ZTS}/bin/pecl install parallel ) \
+    && ( [ $(expr substr ${PHP_VERSION} 1 1) = 7 ] || echo "extension=parallel" >> ${PHP_INSTALL_DIR_ZTS}/conf.d/parallel.ini )
 
 FROM base AS php-debug
 RUN bash -c 'set -eux; \

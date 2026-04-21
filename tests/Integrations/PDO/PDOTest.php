@@ -415,11 +415,11 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOStatementOk()
     {
-        $query = "SELECT * FROM tests WHERE id = ?";
+        $query = "SELECT * FROM tests WHERE id = :param";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
             $stmt = $pdo->prepare($query);
-            $stmt->execute([1]);
+            $stmt->execute(["param" => 1]);
             $results = $stmt->fetchAll();
             $this->assertEquals('Tom', $results[0]['name']);
             $stmt->closeCursor();
