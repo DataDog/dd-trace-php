@@ -393,7 +393,7 @@ Covers: `compile extension: debug/release/zts/...` (tracer pipeline),
 ### Group E — Docker-in-Docker Gradle integration tests (appsec)
 
 Runner: `docker-in-docker:amd64`
-Image: `docker:24.0.4-gbi-focal`
+Image: `docker:29.4.0-noble`
 Script: installs Java → Gradle → Gradle spins up Docker containers (PHP + helper + test-agent)
 
 → **[appsec-gradle-integration.md](appsec-gradle-integration.md)**
@@ -409,7 +409,7 @@ Covers: `appsec integration tests [test7.0..test8.5-*]`,
 ### Group F — System tests
 
 Runner: `docker-in-docker:amd64`
-Image: `docker:24.0.4-gbi-focal`
+Image: `docker:29.4.0-noble`
 Python-based `datadog/system-tests` framework; lives in `../../../system-tests/`
 
 → **[system-tests.md](system-tests.md)**
@@ -429,7 +429,7 @@ credentials; Vagrant path available but limited.
 ### Group G — Docker-in-Docker package verification
 
 Runner: `docker-in-docker:amd64`
-Image: `docker:24.0.4-gbi-focal`
+Image: `docker:29.4.0-noble`
 Distinct from system tests; uses a different test harness.
 
 → **[package-dind-verification.md](package-dind-verification.md)**

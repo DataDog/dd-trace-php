@@ -876,7 +876,7 @@ async fn recv_command(
                     Ok(msg)
                 }
                 Some(Err(err)) => {
-                    if is_incomplete_stream_error(&err) {
+                    if is_forceful_disconnect_error(&err) {
                         Err(ForcefulDisconnect(err).into())
                     } else {
                         // Protocol error: invalid header marker, bad msgpack, unknown command
@@ -901,10 +901,20 @@ async fn recv_command(
     }
 }
 
-fn is_incomplete_stream_error(err: &io::Error) -> bool {
-    // tokio_util's FramedRead returns this specific error when EOF is reached
-    // with bytes still in the decode buffer
-    err.kind() == io::ErrorKind::Other && err.to_string().contains("bytes remaining on stream")
+fn is_forceful_disconnect_error(err: &io::Error) -> bool {
+    // tokio_util's FramedRead returns this when EOF is reached mid-message.
+    if err.kind() == io::ErrorKind::Other && err.to_string().contains("bytes remaining on stream") {
+        return true;
+    }
+    matches!(
+        err.kind(),
+        // Linux sends ECONNRESET to the peer when a Unix socket is closed while its receive
+        // buffer is non-empty (unix_release_sock). This is a connectivity issue, not a protocol
+        // error: the client crashed or was killed after we sent our response.
+        io::ErrorKind::ConnectionReset |
+        // EPIPE on a recv is unusual but handle it symmetrically with send_command_resp.
+        io::ErrorKind::BrokenPipe
+    )
 }
 
 async fn send_command_resp(
@@ -912,13 +922,16 @@ async fn send_command_resp(
     cmd: protocol::CommandResponse<'_>,
 ) -> anyhow::Result<()> {
     debug!("Sending command: {:?}", cmd);
-    match framed.send(cmd).await {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("Error sending command: {}", err);
-            Err(err)?
+    framed.send(cmd).await.map_err(|err| {
+        if matches!(
+            err.kind(),
+            io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+        ) {
+            ForcefulDisconnect(err).into()
+        } else {
+            anyhow::Error::from(err)
         }
-    }
+    })
 }
 
 async fn check_peer_uid_unix(stream: &UnixStream) -> anyhow::Result<()> {

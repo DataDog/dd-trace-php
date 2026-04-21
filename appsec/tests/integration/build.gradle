@@ -388,7 +388,6 @@ def buildTracerCmakeTask = { String version, String variant, altBaseTag = null -
             command: [
                     '-e', '-c',
                     """
-                    git config --global --add safe.directory '*'
                     cd /project/tmp
                     mkdir -p build_extension/modules
                     test -f CMakeCache.txt || \\
@@ -485,7 +484,6 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
             command: [
                     '-e', '-c',
                     """
-                    git config --global --add safe.directory '*'
                     cd /tracer-ssi
                     test -f CMakeCache.txt || \\
                         cmake -DCMAKE_BUILD_TYPE=${buildType} \\
@@ -567,7 +565,6 @@ def buildAppSecTask = { String version, String variant, altBaseTag = null ->
             command: [
                     '-e', '-c',
                     """
-                    git config --global --add safe.directory '*'
                     cd /appsec
                     test -f CMakeCache.txt || \\
                         cmake -DCMAKE_BUILD_TYPE=$buildType \\
@@ -862,8 +859,6 @@ buildRunInDockerTask(
         command: [
                 '-e', '-c',
                 """
-                git config --global --add safe.directory '*'
-
                 mkdir -p /tmp/libddwaf-build
                 cd /tmp/libddwaf-build
                 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo \\
@@ -893,7 +888,6 @@ def helperRustInputs = [
 ]
 
 def helperRustEnvSetup = '''
-git config --global --add safe.directory '*'
 export PATH="/root/.cargo/bin:$PATH"
 export RUSTUP_HOME=/root/.rustup
 export CARGO_HOME=/root/.cargo
@@ -923,8 +917,6 @@ buildRunInDockerTask(
                 '''
                 export CARGO_TARGET_DIR=/helper-rust-build/cargo-target
                 RUST_TARGET=$(uname -m)-unknown-linux-musl
-
-                git config --global --add safe.directory '*'
 
                 cd /project/appsec/helper-rust
 

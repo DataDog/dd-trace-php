@@ -787,7 +787,7 @@ endforeach;
 
 .randomized_tests:
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with make, php and git pre-installed
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with make, php and git pre-installed
   variables:
     KUBERNETES_CPU_REQUEST: 7
     KUBERNETES_MEMORY_REQUEST: 30Gi
@@ -861,7 +861,7 @@ endforeach;
 
 "installer tests":
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
@@ -909,7 +909,7 @@ endforeach;
 
 "framework test":
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   variables:
     KUBERNETES_CPU_REQUEST: 2

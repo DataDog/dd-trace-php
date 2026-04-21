@@ -16,7 +16,7 @@ CentOS:
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:
@@ -45,7 +45,7 @@ Alpine:
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:
@@ -74,7 +74,7 @@ Bookworm:
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:
@@ -105,7 +105,7 @@ Buster:
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:

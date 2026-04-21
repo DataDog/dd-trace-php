@@ -149,6 +149,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_reference *curl_multi_injecting_spans;
 
     char *cgroup_file;
+    ddog_SidecarTransport *sidecar;
     ddog_QueueId sidecar_queue_id;
     MUTEX_T sidecar_universal_service_tags_mutex;
     ddog_AgentRemoteConfigReader *agent_config_reader;
@@ -166,6 +167,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     bool request_initialized;
     HashTable telemetry_spans_created_per_integration;
     ddog_SidecarActionsBuffer *telemetry_buffer;
+    ddog_SidecarActionsBuffer *metrics_buffer;
 
     bool asm_event_emitted;
 

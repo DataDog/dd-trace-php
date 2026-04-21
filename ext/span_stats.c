@@ -397,7 +397,7 @@ void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_sp
     ddtrace_concentrator_cb_data data = { .span = span, .pre = pre, .needs_ipc = false };
     ddog_span_concentrator_with(env_slice, version_slice, service_slice, ddtrace_span_concentrator_feed_cb, &data);
 
-    if (data.needs_ipc && ddtrace_sidecar) {
-        ddog_sidecar_add_php_span_to_concentrator(&ddtrace_sidecar, env_slice, version_slice, &data.ipc_stats);
+    if (data.needs_ipc && DDTRACE_G(sidecar)) {
+        ddog_sidecar_add_php_span_to_concentrator(&DDTRACE_G(sidecar), env_slice, version_slice, &data.ipc_stats);
     }
 }
