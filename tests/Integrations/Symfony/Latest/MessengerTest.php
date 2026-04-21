@@ -110,7 +110,7 @@ class MessengerTest extends WebFrameworkTestCase
             self::getConsoleScript(),
             [],
             ['ddtrace.disable' => 'true'],
-            ['messenger:consume', 'async', '--limit=1'],
+            ['messenger:consume', 'async', '--limit=1', '--no-reset'],
             true,
             true,
             true

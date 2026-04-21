@@ -432,7 +432,7 @@ class SymfonyIntegration extends Integration
 
                 // Try with locale suffix (Symfony i18n routing convention)
                 if ($path === null) {
-                    $locale = $request->get('_locale');
+                    $locale = $request->attributes->get('_locale');
                     if ($locale !== null) {
                         $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
                     }
@@ -471,7 +471,7 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
-                $route_name = $request->get('_route');
+                $route_name = $request->attributes->get('_route');
                 if ($route_name !== null) {
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $rootSpan->resource = $route_name;
@@ -480,7 +480,7 @@ class SymfonyIntegration extends Integration
                     $handle_http_route($route_name, $request, $rootSpan);
                 }
 
-                $parameters = $request->get('_route_params');
+                $parameters = $request->attributes->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
                     function_exists('datadog\appsec\push_addresses')) {
