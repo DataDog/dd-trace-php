@@ -1032,7 +1032,7 @@ TEST_WEB_82 := \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_62 \
-	test_web_symfony_latest \
+	test_web_symfony_73 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1096,7 +1096,7 @@ TEST_WEB_83 := \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_62 \
-	test_web_symfony_latest \
+	test_web_symfony_73 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1144,6 +1144,7 @@ TEST_WEB_84 := \
 	test_web_lumen_100 \
 	test_web_nette_latest \
 	test_web_slim_312 \
+	test_web_symfony_73 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -1187,6 +1188,7 @@ TEST_WEB_85 := \
 	test_web_codeigniter_31 \
 	test_web_lumen_100 \
 	test_web_slim_312 \
+	test_web_symfony_73 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -1558,6 +1560,9 @@ test_web_symfony_52: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Version_6_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
+test_web_symfony_73: global_test_run_dependencies tests/Frameworks/Symfony/Version_7_3/composer.lock-php$(PHP_MAJOR_MINOR)
+	php tests/Frameworks/Symfony/Version_7_3/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests_debug,--testsuite=symfony-73-test)
 test_web_symfony_latest: global_test_run_dependencies tests/Frameworks/Symfony/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Latest/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-latest-test)
