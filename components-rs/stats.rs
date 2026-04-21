@@ -79,7 +79,7 @@ pub struct PhpSpanStats<'a> {
 }
 
 #[inline]
-fn char_slice_str(s: CharSlice) -> &str {
+fn char_slice_str(s: CharSlice<'_>) -> &str {
     s.try_to_utf8().unwrap_or("")
 }
 
@@ -232,12 +232,33 @@ static SPAN_CONCENTRATORS: LazyLock<RwLock<HashMap<String, SpanConcentrator>>> =
 /// i.e. the sidecar has received and applied the agent's /info response.
 static AGENT_INFO_RECEIVED: AtomicBool = AtomicBool::new(false);
 
+/// Set to true once agent info confirms `client_drop_p0s` is true and the
+/// reported agent version is >= 7.65.0.  Cached so the per-span hot-path is a
+/// single atomic load.
+static STATS_COMPUTATION_READY: AtomicBool = AtomicBool::new(false);
+
+fn agent_version_ge(version: Option<&str>, req_major: u32, req_minor: u32, req_patch: u32) -> bool {
+    let Some(v) = version else { return false; };
+    let v = v.split('-').next().unwrap_or(v); // strip agent version suffixes
+    let mut parts = v.split('.').filter_map(|p| p.parse::<u32>().ok());
+    let (Some(major), Some(minor), Some(patch)) = (parts.next(), parts.next(), parts.next()) else { return false; };
+    (major, minor, patch) >= (req_major, req_minor, req_patch)
+}
+
 /// Returns true once the agent /info has been received and applied.
 /// Used by the PHP extension to skip stats computation until the concentrator
 /// has been properly initialised with peer-tag keys and span kinds.
 #[no_mangle]
 pub extern "C" fn ddog_is_agent_info_ready() -> bool {
     AGENT_INFO_RECEIVED.load(Ordering::Acquire)
+}
+
+/// Returns true when the agent supports client-side stats computation:
+/// agent info has been received, `client_drop_p0s` is true, and the reported
+/// agent version is >= 7.65.0.
+#[no_mangle]
+pub extern "C" fn ddog_agent_has_stats_computation() -> bool {
+    STATS_COMPUTATION_READY.load(Ordering::Acquire)
 }
 
 /// Desired concentrator configuration sourced from the agent's /info endpoint.
@@ -253,6 +274,7 @@ static DESIRED_CONFIG: LazyLock<RwLock<DesiredConfig>> = LazyLock::new(|| RwLock
 
 /// Apply updated concentrator config (peer-tag keys, span kinds, trace filters) to
 /// `DESIRED_CONFIG` and propagate peer-tag / span-kind changes to all open concentrators.
+/// Also updates the `STATS_COMPUTATION_READY` flag based on `client_drop_p0s` and `version`.
 pub(crate) fn apply_concentrator_config(
     peer_tag_keys: Vec<String>,
     span_kinds: Vec<String>,
@@ -261,12 +283,16 @@ pub(crate) fn apply_concentrator_config(
     regex_require: Vec<String>,
     regex_reject: Vec<String>,
     ignore_resources: Vec<String>,
+    client_drop_p0s: bool,
+    version: Option<&str>,
 ) {
     let compiled = trace_filter::compile_trace_filter(
         &tags_require, &tags_reject, &regex_require, &regex_reject, &ignore_resources,
     );
     trace_filter::set_trace_filter(compiled);
     AGENT_INFO_RECEIVED.store(true, Ordering::Release);
+    let ready = client_drop_p0s && agent_version_ge(version, 7, 65, 0);
+    STATS_COMPUTATION_READY.store(ready, Ordering::Release);
     {
         let mut dc = DESIRED_CONFIG.write().unwrap();
         dc.peer_tag_keys = peer_tag_keys.clone();

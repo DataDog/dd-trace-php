@@ -1371,6 +1371,7 @@ dependencies = [
  "http-body-util",
  "httpmock",
  "libc 0.2.177",
+ "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
  "libdd-common-ffi",
@@ -2724,6 +2725,7 @@ version = "0.1.0"
 dependencies = [
  "bytes",
  "http",
+ "http-body-util",
  "libdd-capabilities",
  "libdd-common",
 ]
@@ -2736,6 +2738,7 @@ dependencies = [
  "bytes",
  "cc",
  "const_format",
+ "criterion",
  "futures",
  "futures-core",
  "futures-util",
@@ -2749,7 +2752,6 @@ dependencies = [
  "hyper-util",
  "indexmap 2.12.1",
  "libc 0.2.177",
- "libdd-capabilities",
  "maplit",
  "mime",
  "multer",
@@ -3004,7 +3006,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-profiling-protobuf"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "bolero",
  "libdd-profiling-protobuf",
