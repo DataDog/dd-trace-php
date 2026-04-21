@@ -845,6 +845,104 @@ namespace DDTrace {
      * Call this once after batching all add_endpoint() calls.
      */
     function flush_endpoints(): void {}
+
+    /**
+     * Evaluate a feature flag using the stored UFC configuration.
+     *
+     * @param string $flagKey The flag key to evaluate.
+     * @param int $expectedType The expected flag type (0=string, 1=int, 2=float, 3=bool, 4=object).
+     * @param string|null $targetingKey The targeting key for evaluation context.
+     * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
+     * @return array|null Associative array with keys: value_json, variant, allocation_key, reason, error_code, do_log. Null only if evaluation engine is unavailable.
+     *
+     * @internal Used by the OpenFeature DataDog Provider.
+     */
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?array {}
+
+    /**
+     * Check if FFE (Feature Flag Evaluation) configuration is loaded.
+     *
+     * @return bool True if a flag configuration has been received via Remote Config.
+     *
+     * @internal Used by the OpenFeature DataDog Provider.
+     */
+    function ffe_has_config(): bool {}
+
+    /**
+     * Check if FFE configuration has changed since last check.
+     * Resets the changed flag after reading (compare-and-swap semantics).
+     *
+     * @return bool True if configuration changed since last call.
+     *
+     * @internal Used by the OpenFeature DataDog Provider.
+     */
+    function ffe_config_changed(): bool {}
+
+    /**
+     * Load a UFC JSON configuration string into the FFE engine.
+     * Used for testing without Remote Config.
+     *
+     * @param string $json UFC JSON configuration string.
+     * @return bool True if the configuration was parsed and loaded successfully.
+     *
+     * @internal Used by the OpenFeature DataDog Provider and tests.
+     */
+    function ffe_load_config(string $json): bool {}
+
+    /**
+     * Enqueue an exposure event for dedup and batched delivery via sidecar.
+     *
+     * @param string $eventJson JSON-encoded exposure event (single event, not batch).
+     * @param string $flagKey The flag key (for dedup cache key).
+     * @param string $allocationKey The allocation key (for dedup cache key).
+     * @param string|null $targetingKey The targeting key (for dedup cache key).
+     * @param string $variantKey The variant key (for dedup cache value).
+     * @return bool True if enqueued (not a duplicate), false if deduplicated or buffer full.
+     *
+     * @internal Used by the exposure writer. Not part of the public API.
+     */
+    function ffe_send_exposure(
+        string $eventJson,
+        string $flagKey,
+        string $allocationKey,
+        ?string $targetingKey,
+        string $variantKey
+    ): bool {}
+
+    /**
+     * Flush batched exposure events as a JSON payload string.
+     *
+     * Returns the batch payload including service context and all buffered events,
+     * or null if nothing to flush. Clears the batch buffer.
+     *
+     * In production, the sidecar calls the Rust function directly. This PHP
+     * wrapper is provided for testing and debugging.
+     *
+     * @return string|null JSON batch payload or null if empty.
+     *
+     * @internal Used for testing. Not part of the public API.
+     */
+    function ffe_flush_exposures(): ?string {}
+
+    /**
+     * Set the service context for exposure batch payloads.
+     *
+     * Called once during provider initialization with DD_SERVICE, DD_ENV, DD_VERSION.
+     *
+     * @param string $service The DD_SERVICE value.
+     * @param string $env The DD_ENV value.
+     * @param string $version The DD_VERSION value.
+     *
+     * @internal Used by the exposure writer. Not part of the public API.
+     */
+    function ffe_set_service_context(string $service, string $env, string $version): void {}
+
+    /**
+     * Reset exposure dedup cache, batch buffer, and service context.
+     *
+     * @internal Used for testing only.
+     */
+    function ffe_reset_exposure_state(): void {}
 }
 
 namespace DDTrace\System {

@@ -2,8 +2,11 @@ use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
+use libdd_common_ffi::CharSlice;
+use lru::LruCache;
 use std::collections::HashMap;
 use std::ffi::{c_char, CStr, CString};
+use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
 /// Holds both the FFE configuration and a "changed" flag atomically behind a
@@ -326,5 +329,260 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
             .unwrap_or_else(|| f.to_string()),
         AssignmentValue::Boolean(b) => b.to_string(),
         AssignmentValue::Json { raw, .. } => raw.get().to_string(),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ExposureState -- exposure dedup cache and batch buffer (persists across PHP requests)
+// ---------------------------------------------------------------------------
+
+struct ServiceContext {
+    service: String,
+    env: String,
+    version: String,
+}
+
+struct ExposureState {
+    /// LRU dedup cache: key = "flag_key\0allocation_key\0targeting_key", value = variant_key.
+    /// Capacity: 65536 entries (EXPO-02). Uses null byte separator to avoid collision
+    /// with key content that might contain ':' characters.
+    dedup_cache: LruCache<String, String>,
+    /// Buffered exposure event JSON strings, capped at 1000 (matches Ruby/Python).
+    batch_buffer: Vec<String>,
+    /// Service context set once at init (DD_SERVICE, DD_ENV, DD_VERSION).
+    service_context: Option<ServiceContext>,
+}
+
+lazy_static::lazy_static! {
+    static ref EXPOSURE_STATE: Mutex<ExposureState> = Mutex::new(ExposureState {
+        dedup_cache: LruCache::new(NonZeroUsize::new(65536).unwrap()),
+        batch_buffer: Vec::new(),
+        service_context: None,
+    });
+}
+
+/// Maximum number of events in the batch buffer before new events are dropped.
+const EXPOSURE_BATCH_LIMIT: usize = 1000;
+
+// ---------------------------------------------------------------------------
+// Exposure pipeline -- extern "C" functions
+// ---------------------------------------------------------------------------
+
+/// Set the service context (DD_SERVICE, DD_ENV, DD_VERSION) for exposure payloads.
+/// Called once during provider initialization. Values are stored and reused for all
+/// subsequent batch payloads.
+///
+/// # Safety
+/// All parameters must be valid null-terminated C strings or null.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_set_service_context(
+    service: *const c_char,
+    env: *const c_char,
+    version: *const c_char,
+) {
+    let svc = if service.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(service).to_str().unwrap_or("").to_owned()
+    };
+    let env_str = if env.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(env).to_str().unwrap_or("").to_owned()
+    };
+    let ver = if version.is_null() {
+        String::new()
+    } else {
+        CStr::from_ptr(version).to_str().unwrap_or("").to_owned()
+    };
+
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        state.service_context = Some(ServiceContext {
+            service: svc,
+            env: env_str,
+            version: ver,
+        });
+    }
+}
+
+/// Enqueue an exposure event for dedup and batched delivery.
+///
+/// Dedup key: "flag_key\0allocation_key\0targeting_key" (per D-04).
+/// If the same composite key with the same variant is already in the cache, the event
+/// is deduplicated (returns false). If the variant changed for the same key, the new
+/// exposure is sent (cache updated, returns true).
+///
+/// Batch buffer is capped at EXPOSURE_BATCH_LIMIT (1000). If full, new events are
+/// silently dropped (per D-11) and the function returns false.
+///
+/// # Safety
+/// - `event_json` must be a valid null-terminated C string.
+/// - `flag_key`, `allocation_key`, `variant_key` must be valid null-terminated C strings.
+/// - `targeting_key` may be null.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_enqueue_exposure(
+    event_json: *const c_char,
+    flag_key: *const c_char,
+    allocation_key: *const c_char,
+    targeting_key: *const c_char,
+    variant_key: *const c_char,
+) -> bool {
+    if event_json.is_null() || flag_key.is_null() || variant_key.is_null() {
+        return false;
+    }
+
+    let event_str = match CStr::from_ptr(event_json).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => return false,
+    };
+    let flag_str = match CStr::from_ptr(flag_key).to_str() {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let alloc_str = if allocation_key.is_null() {
+        ""
+    } else {
+        match CStr::from_ptr(allocation_key).to_str() {
+            Ok(s) => s,
+            Err(_) => return false,
+        }
+    };
+    let target_str = if targeting_key.is_null() {
+        ""
+    } else {
+        match CStr::from_ptr(targeting_key).to_str() {
+            Ok(s) => s,
+            Err(_) => return false,
+        }
+    };
+    let variant_str = match CStr::from_ptr(variant_key).to_str() {
+        Ok(s) => s.to_owned(),
+        Err(_) => return false,
+    };
+
+    // Build dedup key using null byte separator (avoids collision with ':' in key content)
+    let dedup_key = format!("{}\0{}\0{}", flag_str, alloc_str, target_str);
+
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        // Dedup check: same key + same variant = duplicate, skip
+        if let Some(cached_variant) = state.dedup_cache.get(&dedup_key) {
+            if *cached_variant == variant_str {
+                return false; // duplicate, not enqueued
+            }
+        }
+
+        // Cache this exposure (updates LRU position if key exists with different variant)
+        state.dedup_cache.put(dedup_key, variant_str);
+
+        // Buffer the event JSON (drop if buffer full per D-11)
+        if state.batch_buffer.len() < EXPOSURE_BATCH_LIMIT {
+            state.batch_buffer.push(event_str);
+            true
+        } else {
+            false // buffer full, event dropped
+        }
+    } else {
+        false
+    }
+}
+
+/// Flush all buffered exposure events as a batched JSON payload.
+///
+/// Returns a JSON string containing the batch payload with service context and all
+/// buffered events. The batch buffer is cleared after flushing.
+///
+/// In production, the sidecar's periodic flush loop calls this function and sends the
+/// result to the agent EVP proxy.
+///
+/// Returns `CharSlice::default()` (null ptr, zero len) if:
+/// - The batch buffer is empty (nothing to flush)
+/// - The mutex is poisoned
+///
+/// # Memory
+/// The returned CharSlice points to a heap-allocated string that must be freed
+/// with `ddog_ffe_free_flush_result()`.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_flush_exposures() -> CharSlice<'static> {
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        if state.batch_buffer.is_empty() {
+            return CharSlice::default();
+        }
+
+        let events: Vec<String> = state.batch_buffer.drain(..).collect();
+
+        // Build batched payload matching Ruby/Python format
+        let context_json = match &state.service_context {
+            Some(ctx) => format!(
+                r#"{{"service":"{}","env":"{}","version":"{}"}}"#,
+                escape_json_string(&ctx.service),
+                escape_json_string(&ctx.env),
+                escape_json_string(&ctx.version),
+            ),
+            None => r#"{"service":"","env":"","version":""}"#.to_owned(),
+        };
+
+        // Events are already JSON strings from PHP side, join as array elements
+        let events_json = events.join(",");
+        let payload = format!(
+            r#"{{"context":{},"exposures":[{}]}}"#,
+            context_json, events_json
+        );
+
+        // Leak the string so the CharSlice is valid after return.
+        // Caller must free via ddog_ffe_free_flush_result().
+        let leaked = payload.into_boxed_str();
+        let ptr = leaked.as_ptr();
+        let len = leaked.len();
+        std::mem::forget(leaked);
+
+        CharSlice::from_raw_parts(ptr as *const c_char, len)
+    } else {
+        CharSlice::default()
+    }
+}
+
+/// Free a flush result previously returned by `ddog_ffe_flush_exposures`.
+///
+/// # Safety
+/// `slice` must be a CharSlice previously returned by `ddog_ffe_flush_exposures`,
+/// or a default (null) CharSlice.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_free_flush_result(slice: CharSlice<'static>) {
+    let ptr = slice.as_bytes().as_ptr() as *mut u8;
+    let len = slice.len();
+    if !ptr.is_null() && len > 0 {
+        // Reconstruct the boxed str from the leaked pointer
+        let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len) as *mut [u8]);
+    }
+}
+
+/// Simple JSON string escaping for service context values.
+/// Escapes backslash, double quote, and control characters.
+fn escape_json_string(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '\\' => result.push_str("\\\\"),
+            '"' => result.push_str("\\\""),
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            c if c.is_control() => {
+                result.push_str(&format!("\\u{:04x}", c as u32));
+            }
+            c => result.push(c),
+        }
+    }
+    result
+}
+
+/// Reset exposure state for testing. Clears the dedup cache, batch buffer,
+/// and service context.
+#[no_mangle]
+pub extern "C" fn ddog_ffe_reset_exposure_state() {
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        state.dedup_cache.clear();
+        state.batch_buffer.clear();
+        state.service_context = None;
     }
 }

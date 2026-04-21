@@ -451,4 +451,33 @@ void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
 
+/* ---------------------------------------------------------------------------
+ * Exposure pipeline (FFE) -- sidecar-persisted LRU dedup + batch buffer
+ * --------------------------------------------------------------------------- */
+
+/* Set service context (DD_SERVICE/DD_ENV/DD_VERSION) for exposure batch payloads.
+ * Called once at provider initialization. Any parameter may be null. */
+void ddog_ffe_set_service_context(const char *service,
+                                  const char *env,
+                                  const char *version);
+
+/* Enqueue an exposure event. Returns false if deduplicated (same composite key
+ * with same variant already in LRU cache) or if batch buffer is at capacity.
+ * targeting_key may be null; all other params must be valid null-terminated strings. */
+bool ddog_ffe_enqueue_exposure(const char *event_json,
+                               const char *flag_key,
+                               const char *allocation_key,
+                               const char *targeting_key,
+                               const char *variant_key);
+
+/* Flush the batch buffer as a JSON payload. Caller must free returned CharSlice
+ * via ddog_ffe_free_flush_result. Returns null CharSlice if buffer is empty. */
+ddog_CharSlice ddog_ffe_flush_exposures(void);
+
+/* Free a CharSlice previously returned by ddog_ffe_flush_exposures. */
+void ddog_ffe_free_flush_result(ddog_CharSlice slice);
+
+/* Reset exposure state (dedup cache + batch buffer + service context). For testing. */
+void ddog_ffe_reset_exposure_state(void);
+
 #endif  /* DDTRACE_PHP_H */
