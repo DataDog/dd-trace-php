@@ -137,7 +137,7 @@
             <directory>./Unit/</directory>
         </testsuite>
         <testsuite name="featureflags">
-            <directory>./FeatureFlags/</directory>
+            <directory>./OpenFeature/</directory>
         </testsuite>
     </testsuites>
 
