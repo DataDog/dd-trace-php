@@ -383,6 +383,11 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 }
 
 #if CFG_STACK_WALKING_TESTS
+zend_execute_data *ddog_test_zend_generator_check_placeholder_frame(zend_execute_data *ptr) {
+    // Tests do not construct real generator placeholder frames; pass through.
+    return ptr;
+}
+
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_RUN_TIME_CACHE
     if (_ignore_run_time_cache) return NULL;
