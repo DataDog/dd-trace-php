@@ -2919,9 +2919,9 @@ PHP_FUNCTION(DDTrace_ffe_has_config) {
     RETVAL_BOOL(ddog_ffe_has_config());
 }
 
-PHP_FUNCTION(DDTrace_ffe_config_changed) {
+PHP_FUNCTION(DDTrace_ffe_config_version) {
     ZEND_PARSE_PARAMETERS_NONE();
-    RETVAL_BOOL(ddog_ffe_config_changed());
+    RETVAL_LONG((zend_long)ddog_ffe_config_version());
 }
 
 PHP_FUNCTION(DDTrace_ffe_load_config) {
@@ -3195,8 +3195,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             }
         } else if (FUNCTION_NAME_MATCHES("ffe_has_config")) {
             RETVAL_BOOL(ddog_ffe_has_config());
-        } else if (FUNCTION_NAME_MATCHES("ffe_config_changed")) {
-            RETVAL_BOOL(ddog_ffe_config_changed());
+        } else if (FUNCTION_NAME_MATCHES("ffe_config_version")) {
+            RETVAL_LONG((zend_long)ddog_ffe_config_version());
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("ffe_load_config")) {
             zval *json_zv = ZVAL_VARARG_PARAM(params, 0);
             if (Z_TYPE_P(json_zv) == IS_STRING) {

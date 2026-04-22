@@ -9,22 +9,32 @@ use std::ffi::{c_char, CStr, CString};
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
-/// Holds both the FFE configuration and a "changed" flag atomically behind a
-/// single Mutex. This avoids the race where another thread could observe
-/// `config` updated but `changed` still false (or vice-versa).
+/// Holds both the FFE configuration and a monotonic version counter atomically
+/// behind a single Mutex. This avoids the race where another thread could
+/// observe `config` updated but `version` still stale (or vice-versa).
 ///
 /// A `RwLock` would be more appropriate here (many readers via `ddog_ffe_evaluate`,
-/// rare writer via `store_config`), but PHP is single-threaded per process so
-/// contention is not a practical concern. Keeping a Mutex for simplicity.
+/// rare writer via `store_config`), but on NTS PHP builds — the v1 target — each
+/// PHP process is single-threaded, so contention is not a practical concern.
+///
+/// The `version` field is a monotonically-increasing counter bumped on every
+/// `store_config` / `clear_config` call. Consumers compare against their last
+/// observed value instead of consuming a `changed` flag, so multiple independent
+/// subscribers can detect transitions without racing each other.
+///
+/// NOTE: On ZTS builds (out of scope for FFE v1 — see PROJECT.md) per-thread
+/// Remote Config receivers carry their own (service, env, version) target tuples
+/// and would each expect their own FFE state. ZTS support requires moving this
+/// state into `DDTRACE_G()` thread-local globals (tracked as a follow-up phase).
 struct FfeState {
     config: Option<Configuration>,
-    changed: bool,
+    version: u64,
 }
 
 lazy_static::lazy_static! {
     static ref FFE_STATE: Mutex<FfeState> = Mutex::new(FfeState {
         config: None,
-        changed: false,
+        version: 0,
     });
 }
 
@@ -32,7 +42,7 @@ lazy_static::lazy_static! {
 pub fn store_config(config: Configuration) {
     if let Ok(mut state) = FFE_STATE.lock() {
         state.config = Some(config);
-        state.changed = true;
+        state.version = state.version.wrapping_add(1);
     }
 }
 
@@ -40,7 +50,7 @@ pub fn store_config(config: Configuration) {
 pub fn clear_config() {
     if let Ok(mut state) = FFE_STATE.lock() {
         state.config = None;
-        state.changed = true;
+        state.version = state.version.wrapping_add(1);
     }
 }
 
@@ -70,17 +80,18 @@ pub extern "C" fn ddog_ffe_has_config() -> bool {
     FFE_STATE.lock().map(|s| s.config.is_some()).unwrap_or(false)
 }
 
-/// Check if FFE config has changed since last check.
-/// Resets the changed flag after reading.
+/// Return the current FFE config version counter.
+///
+/// Bumped on every `store_config` / `clear_config`. Consumers track their last
+/// observed value and detect changes by comparing. Multiple independent
+/// subscribers can detect transitions without racing (unlike a drain-on-read
+/// `changed` flag where only the first reader sees the transition).
+///
+/// Wraps on overflow; in practice the counter is a `u64` and will not wrap
+/// within a reasonable process lifetime.
 #[no_mangle]
-pub extern "C" fn ddog_ffe_config_changed() -> bool {
-    if let Ok(mut state) = FFE_STATE.lock() {
-        let was_changed = state.changed;
-        state.changed = false;
-        was_changed
-    } else {
-        false
-    }
+pub extern "C" fn ddog_ffe_config_version() -> u64 {
+    FFE_STATE.lock().map(|s| s.version).unwrap_or(0)
 }
 
 // Reason codes returned to PHP via ddog_ffe_result_reason().

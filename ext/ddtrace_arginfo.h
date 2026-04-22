@@ -186,7 +186,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_has_config, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_DDTrace_ffe_config_changed arginfo_DDTrace_ffe_has_config
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_config_version, 0, 0, IS_LONG, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_load_config, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, json, IS_STRING, 0)
@@ -432,7 +433,7 @@ ZEND_FUNCTION(DDTrace_add_endpoint);
 ZEND_FUNCTION(DDTrace_flush_endpoints);
 ZEND_FUNCTION(DDTrace_ffe_evaluate);
 ZEND_FUNCTION(DDTrace_ffe_has_config);
-ZEND_FUNCTION(DDTrace_ffe_config_changed);
+ZEND_FUNCTION(DDTrace_ffe_config_version);
 ZEND_FUNCTION(DDTrace_ffe_load_config);
 ZEND_FUNCTION(DDTrace_ffe_send_exposure);
 ZEND_FUNCTION(DDTrace_ffe_flush_exposures);
@@ -535,7 +536,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "flush_endpoints"), zif_DDTrace_flush_endpoints, arginfo_DDTrace_flush_endpoints, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_evaluate"), zif_DDTrace_ffe_evaluate, arginfo_DDTrace_ffe_evaluate, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_has_config"), zif_DDTrace_ffe_has_config, arginfo_DDTrace_ffe_has_config, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_config_changed"), zif_DDTrace_ffe_config_changed, arginfo_DDTrace_ffe_config_changed, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_config_version"), zif_DDTrace_ffe_config_version, arginfo_DDTrace_ffe_config_version, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_load_config"), zif_DDTrace_ffe_load_config, arginfo_DDTrace_ffe_load_config, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_send_exposure"), zif_DDTrace_ffe_send_exposure, arginfo_DDTrace_ffe_send_exposure, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_flush_exposures"), zif_DDTrace_ffe_flush_exposures, arginfo_DDTrace_ffe_flush_exposures, 0, NULL, NULL)

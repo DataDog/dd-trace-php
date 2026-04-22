@@ -12,11 +12,12 @@ use Closure;
  * Encapsulates the readiness state machine for the Datadog OpenFeature provider.
  * Readiness is derived from the FFE bridge config signals:
  *   - DDTrace\ffe_has_config() for simple "can evaluate now" checks
- *   - DDTrace\ffe_config_changed() for first-ready transition detection (single consumer)
+ *   - DDTrace\ffe_config_version() for first-ready transition detection
  *
- * This class is the single owner of readiness state. No other code should call
- * ffe_config_changed() directly -- it uses compare-and-swap semantics that reset
- * on read, so multiple consumers would race and lose transitions.
+ * The version counter is monotonically-increasing and bumped on every config
+ * update. Consumers track their last observed value and compare — unlike a
+ * drain-on-read "changed" flag, multiple independent subscribers can detect
+ * transitions without racing each other.
  *
  * Supports:
  *   - Blocking init: waits until config arrives or timeout expires
@@ -54,26 +55,35 @@ final class ProviderLifecycle
     private Closure $hasConfigCallable;
 
     /**
-     * Bridge callable for checking if config has changed since last call.
-     * fn(): bool  (compare-and-swap: resets on read)
+     * Bridge callable returning the current FFE config version counter.
+     * fn(): int
      *
-     * @var Closure(): bool
+     * @var Closure(): int
      */
-    private Closure $configChangedCallable;
+    private Closure $configVersionCallable;
+
+    /**
+     * Last observed FFE config version. A value greater than this indicates
+     * the config has changed since the last check.
+     */
+    private int $lastSeenVersion = 0;
 
     /**
      * @param Closure|null $hasConfigCallable Override for DDTrace\ffe_has_config() (testing)
-     * @param Closure|null $configChangedCallable Override for DDTrace\ffe_config_changed() (testing)
+     * @param Closure|null $configVersionCallable Override for DDTrace\ffe_config_version() (testing)
      * @param Closure|null $onReady Callback fired exactly once on first ready transition
      */
     public function __construct(
         ?Closure $hasConfigCallable = null,
-        ?Closure $configChangedCallable = null,
+        ?Closure $configVersionCallable = null,
         ?Closure $onReady = null,
     ) {
         $this->hasConfigCallable = $hasConfigCallable ?? self::defaultHasConfig();
-        $this->configChangedCallable = $configChangedCallable ?? self::defaultConfigChanged();
+        $this->configVersionCallable = $configVersionCallable ?? self::defaultConfigVersion();
         $this->onReady = $onReady;
+        // Initialize last-seen to current version so a config loaded before
+        // construction is not mistakenly observed as a "change".
+        $this->lastSeenVersion = ($this->configVersionCallable)();
 
         // Check initial state -- if config is already loaded (e.g., preloaded),
         // mark as ready immediately.
@@ -145,15 +155,17 @@ final class ProviderLifecycle
     /**
      * Check for config changes and update readiness state.
      *
-     * This is the ONLY place that should consume ffe_config_changed().
-     * The compare-and-swap semantics mean each call resets the changed flag,
-     * so only one consumer should ever call it.
+     * Compares the current version against the last seen version. Multiple
+     * independent subscribers can call this without racing — each instance
+     * tracks its own `lastSeenVersion`.
      *
      * @return bool True if config changed since last check.
      */
     public function checkForConfigChange(): bool
     {
-        $changed = ($this->configChangedCallable)();
+        $currentVersion = ($this->configVersionCallable)();
+        $changed = $currentVersion !== $this->lastSeenVersion;
+        $this->lastSeenVersion = $currentVersion;
 
         if ($changed && !$this->ready) {
             $this->transitionToReady();
@@ -197,9 +209,9 @@ final class ProviderLifecycle
 
         $this->ready = true;
 
-        // Drain the config_changed flag so it doesn't fire a spurious
-        // change notification later when someone calls checkForConfigChange().
-        ($this->configChangedCallable)();
+        // Sync last-seen version so a subsequent checkForConfigChange() does
+        // not interpret the transition itself as another change.
+        $this->lastSeenVersion = ($this->configVersionCallable)();
 
         $this->fireReadyEvent();
     }
@@ -236,17 +248,17 @@ final class ProviderLifecycle
     }
 
     /**
-     * Default bridge callable for DDTrace\ffe_config_changed().
+     * Default bridge callable for DDTrace\ffe_config_version().
      *
-     * @return Closure(): bool
+     * @return Closure(): int
      */
-    private static function defaultConfigChanged(): Closure
+    private static function defaultConfigVersion(): Closure
     {
-        return static function (): bool {
-            if (!function_exists('DDTrace\ffe_config_changed')) {
-                return false;
+        return static function (): int {
+            if (!function_exists('DDTrace\ffe_config_version')) {
+                return 0;
             }
-            return \DDTrace\ffe_config_changed();
+            return \DDTrace\ffe_config_version();
         };
     }
 }

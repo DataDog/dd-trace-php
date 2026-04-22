@@ -869,14 +869,18 @@ namespace DDTrace {
     function ffe_has_config(): bool {}
 
     /**
-     * Check if FFE configuration has changed since last check.
-     * Resets the changed flag after reading (compare-and-swap semantics).
+     * Return the current FFE configuration version counter.
      *
-     * @return bool True if configuration changed since last call.
+     * Incremented on every Remote Config update (config stored or cleared).
+     * Consumers track their last observed value and detect changes by
+     * comparing; unlike a drain-on-read flag, multiple independent
+     * subscribers can observe transitions without racing each other.
+     *
+     * @return int Monotonically-increasing version counter.
      *
      * @internal Used by the OpenFeature DataDog Provider.
      */
-    function ffe_config_changed(): bool {}
+    function ffe_config_version(): int {}
 
     /**
      * Load a UFC JSON configuration string into the FFE engine.

@@ -716,7 +716,7 @@ class DataDogProviderTest extends TestCase
         // exercise the bridge path, not the not-ready short-circuit.
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $noopWriter = new ExposureWriter(
@@ -800,7 +800,7 @@ class DataDogProviderTest extends TestCase
 
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $provider = new DataDogProvider(
@@ -827,7 +827,7 @@ class DataDogProviderTest extends TestCase
 
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $result = $this->makeSuccessResult('true');
@@ -856,7 +856,7 @@ class DataDogProviderTest extends TestCase
 
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $provider = new DataDogProvider(
@@ -882,7 +882,7 @@ class DataDogProviderTest extends TestCase
 
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => false,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $provider = new DataDogProvider(
@@ -1009,7 +1009,7 @@ class DataDogProviderTest extends TestCase
     ): DataDogProvider {
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => $lifecycleReady,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $noopWriter = new ExposureWriter(

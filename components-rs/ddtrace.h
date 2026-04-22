@@ -95,10 +95,14 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
-void ddog_init_remote_config(bool live_debugging_enabled,
-                             bool appsec_activation,
-                             bool appsec_config,
-                             bool ffe_enabled);
+struct DdogRemoteConfigFlags {
+    bool live_debugging_enabled;
+    bool appsec_activation;
+    bool appsec_config;
+    bool ffe_enabled;
+};
+
+void ddog_init_remote_config(struct DdogRemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
                                                              bool di_enabled);
@@ -111,7 +115,7 @@ bool ddog_ffe_load_config(const char *json);
 
 bool ddog_ffe_has_config(void);
 
-bool ddog_ffe_config_changed(void);
+uint64_t ddog_ffe_config_version(void);
 
 struct FfeResult;
 

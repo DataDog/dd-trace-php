@@ -29,7 +29,7 @@ class ProviderLifecycleTest extends TestCase
     {
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => false,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $this->assertFalse($lifecycle->isReady());
@@ -39,7 +39,7 @@ class ProviderLifecycleTest extends TestCase
     {
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $this->assertTrue($lifecycle->isReady());
@@ -50,7 +50,7 @@ class ProviderLifecycleTest extends TestCase
         $hasConfig = false;
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: function () use (&$hasConfig): bool { return $hasConfig; },
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $this->assertFalse($lifecycle->isReady());
@@ -65,7 +65,7 @@ class ProviderLifecycleTest extends TestCase
         $hasConfig = true;
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: function () use (&$hasConfig): bool { return $hasConfig; },
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $this->assertTrue($lifecycle->isReady());
@@ -83,7 +83,7 @@ class ProviderLifecycleTest extends TestCase
     {
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $result = $lifecycle->waitUntilReady(1.0);
@@ -101,7 +101,7 @@ class ProviderLifecycleTest extends TestCase
                 // Config arrives on 3rd check
                 return $callCount >= 3;
             },
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $result = $lifecycle->waitUntilReady(2.0, 1_000); // 1ms poll interval
@@ -114,7 +114,7 @@ class ProviderLifecycleTest extends TestCase
     {
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => false,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $start = microtime(true);
@@ -131,7 +131,7 @@ class ProviderLifecycleTest extends TestCase
     {
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => false,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         $start = microtime(true);
@@ -151,7 +151,7 @@ class ProviderLifecycleTest extends TestCase
         $readyCount = 0;
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
             onReady: function () use (&$readyCount): void { $readyCount++; },
         );
 
@@ -170,7 +170,7 @@ class ProviderLifecycleTest extends TestCase
         $readyCount = 0;
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => false,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
             onReady: function () use (&$readyCount): void { $readyCount++; },
         );
 
@@ -185,7 +185,7 @@ class ProviderLifecycleTest extends TestCase
         $readyCount = 0;
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: function () use (&$hasConfig): bool { return $hasConfig; },
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
             onReady: function () use (&$readyCount): void { $readyCount++; },
         );
 
@@ -201,26 +201,26 @@ class ProviderLifecycleTest extends TestCase
     public function testProviderReadyFiredOnlyOnceEvenWithConfigChanges(): void
     {
         $readyCount = 0;
-        $configChanged = true;
+        $version = 1;
 
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: function () use (&$configChanged): bool {
-                // First call returns true (consumed by constructor drain),
-                // subsequent calls also return true to simulate repeated changes
-                return $configChanged;
+            configVersionCallable: function () use (&$version): int {
+                return $version;
             },
             onReady: function () use (&$readyCount): void { $readyCount++; },
         );
 
-        // Should have fired once at construction
+        // Should have fired once at construction (has_config=true → transitionToReady)
         $this->assertSame(1, $readyCount);
 
-        // Simulate subsequent config changes
+        // Simulate subsequent RC updates bumping the version counter.
+        $version = 2;
         $lifecycle->checkForConfigChange();
+        $version = 3;
         $lifecycle->checkForConfigChange();
 
-        // Still only 1
+        // Still only 1 — ready is sticky, PROVIDER_READY fires exactly once.
         $this->assertSame(1, $readyCount);
     }
 
@@ -228,7 +228,7 @@ class ProviderLifecycleTest extends TestCase
     {
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: fn () => false,
+            configVersionCallable: fn (): int => 0,
         );
 
         // Provider is already ready, register callback late
@@ -244,18 +244,16 @@ class ProviderLifecycleTest extends TestCase
 
     public function testCheckForConfigChangeReturnsTrueWhenChanged(): void
     {
-        $changed = true;
+        $version = 1;
         $lifecycle = new ProviderLifecycle(
             hasConfigCallable: fn () => true,
-            configChangedCallable: function () use (&$changed): bool {
-                $result = $changed;
-                $changed = false; // Compare-and-swap simulation
-                return $result;
+            configVersionCallable: function () use (&$version): int {
+                return $version;
             },
         );
 
-        // Constructor drains the first change, so set it again
-        $changed = true;
+        // Constructor syncs last-seen to 1; bump to simulate an RC update.
+        $version = 2;
         $this->assertTrue($lifecycle->checkForConfigChange());
         $this->assertFalse($lifecycle->checkForConfigChange());
     }
@@ -276,7 +274,7 @@ class ProviderLifecycleTest extends TestCase
             },
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: fn () => false,
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
         );
 
@@ -303,7 +301,7 @@ class ProviderLifecycleTest extends TestCase
             },
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: fn () => true,
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
         );
 
@@ -322,7 +320,7 @@ class ProviderLifecycleTest extends TestCase
             bridgeCallable: fn () => $this->makeSuccessResult('42'),
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: function () use (&$hasConfig): bool { return $hasConfig; },
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
         );
 
@@ -347,7 +345,7 @@ class ProviderLifecycleTest extends TestCase
             bridgeCallable: fn () => $this->makeSuccessResult('"should-not-reach"'),
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: fn () => false,
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
         );
 
@@ -386,7 +384,7 @@ class ProviderLifecycleTest extends TestCase
         $provider = new DataDogProvider(
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: fn () => true,
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
         );
 
@@ -400,7 +398,7 @@ class ProviderLifecycleTest extends TestCase
         $provider = new DataDogProvider(
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: fn () => false,
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
         );
 
@@ -593,7 +591,7 @@ class ProviderLifecycleTest extends TestCase
             bridgeCallable: fn () => $this->makeSuccessResult('"hello"'),
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: fn () => false,
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
         );
 
@@ -683,7 +681,7 @@ class ProviderLifecycleTest extends TestCase
             bridgeCallable: $bridge,
             lifecycle: new ProviderLifecycle(
                 hasConfigCallable: fn () => true,
-                configChangedCallable: fn () => false,
+                configVersionCallable: fn (): int => 0,
             ),
             envReader: fn (string $name): ?string => $envVars[$name] ?? null,
         );
