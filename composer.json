@@ -46,6 +46,7 @@
     },
     "autoload": {
         "psr-4": {
+            "DDTrace\\OpenFeature\\": "./src/DDTrace/OpenFeature/",
             "DDTrace\\": "./src/api/"
         }
     },
