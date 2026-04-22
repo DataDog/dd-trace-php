@@ -1453,6 +1453,7 @@ dependencies = [
  "bincode",
  "cbindgen 0.27.0",
  "const-str",
+ "datadog-ffe",
  "datadog-ipc",
  "datadog-live-debugger",
  "datadog-live-debugger-ffi",
@@ -1475,6 +1476,7 @@ dependencies = [
  "libdd-trace-stats",
  "libdd-trace-utils",
  "log",
+ "lru",
  "paste",
  "regex",
  "regex-automata",
@@ -3233,6 +3235,15 @@ checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
 dependencies = [
  "serde",
  "value-bag",
+]
+
+[[package]]
+name = "lru"
+version = "0.12.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
+dependencies = [
+ "hashbrown 0.15.2",
 ]
 
 [[package]]
