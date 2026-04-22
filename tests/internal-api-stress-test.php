@@ -200,7 +200,13 @@ function runOneIteration()
             && !strpos($f->name, "Testing")
             && $f->name != "dd_trace_disable_in_request"
             && (PHP_VERSION_ID >= 70100 || $f->name != 'DDTrace\curl_multi_exec_get_request_spans')
-            && $f->name != "DDTrace\Internal\handle_fork";
+            && $f->name != "DDTrace\Internal\handle_fork"
+            // PHP < 8.1 ReflectionFunction::getNumberOfRequiredParameters() is unused here, so
+            // the fuzzer enumerates param permutations from $i=0. For functions with many
+            // required args this is exponential and blows PHP's memory limit before the
+            // ArgumentCountError-based pruning kicks in. Skip the 5-required-arg FFE exposure
+            // sender on old PHP.
+            && (PHP_VERSION_ID >= 80100 || $f->name != 'DDTrace\ffe_send_exposure');
     });
 
     $props = array_filter(
