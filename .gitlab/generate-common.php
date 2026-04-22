@@ -111,6 +111,9 @@ default:
       - api_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
+      - script_failure
+    exit_codes:
+      - 75  # EX_TEMPFAIL: transient infrastructure unavailability (service startup timeout, download failure, etc.)
 
 .all_targets: &all_minor_major_targets
 <?php
