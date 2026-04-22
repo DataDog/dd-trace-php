@@ -39,8 +39,7 @@ include __DIR__ . '/../includes/request_replayer.inc';
 $rr = new RequestReplayer();
 
 // Block until the sidecar has received the agent's /info response before stats are computed
-;
-var_dump(dd_trace_internal_fn('await_agent_info'));
+dd_trace_internal_fn('await_agent_info');
 
 $root = \DDTrace\start_trace_span();
 $root->name = "web.request";
