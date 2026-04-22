@@ -57,6 +57,8 @@ pub unsafe extern "C" fn ddog_apply_agent_info(
                 info.filter_tags_regex.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
                 info.filter_tags_regex.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
                 info.ignore_resources.as_deref().unwrap_or(&[]).to_owned(),
+                info.client_drop_p0s.unwrap_or(false),
+                info.version.as_deref(),
             );
         }
     }
@@ -87,6 +89,8 @@ pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(
             info.filter_tags_regex.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
             info.filter_tags_regex.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
             info.ignore_resources.as_deref().unwrap_or(&[]).to_owned(),
+            info.client_drop_p0s.unwrap_or(false),
+            info.version.as_deref(),
         );
     }
 }

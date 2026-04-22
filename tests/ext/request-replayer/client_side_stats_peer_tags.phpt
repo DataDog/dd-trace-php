@@ -14,7 +14,7 @@ $ctx = stream_context_create([
             'Content-Type: application/json',
             'X-Datadog-Test-Session-Token: client_side_stats_peer_tags',
         ],
-        'content' => '{"peer_tags":["db.hostname"]}',
+        'content' => json_encode(['version' => '7.65.0', 'client_drop_p0s' => true, 'peer_tags' => ['db.hostname']]),
     ]
 ]);
 file_get_contents('http://request-replayer/set-agent-info', false, $ctx);

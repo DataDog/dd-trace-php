@@ -24,6 +24,8 @@ $ctx = stream_context_create([
             'X-Datadog-Test-Session-Token: client_side_stats_trace_filters',
         ],
         'content' => json_encode([
+            'version' => '7.65.0',
+            'client_drop_p0s' => true,
             'filter_tags' => [
                 'require' => ['filter_required:yes'],
                 'reject'  => ['filter_reject:yes'],

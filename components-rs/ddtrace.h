@@ -182,6 +182,13 @@ bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
 bool ddog_is_agent_info_ready(void);
 
 /**
+ * Returns true when the agent supports client-side stats computation:
+ * agent info has been received, `client_drop_p0s` is true, and the reported
+ * agent version is >= 7.65.0.
+ */
+bool ddog_agent_has_stats_computation(void);
+
+/**
  * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke
  * `callback` with a shared reference to it while holding the global read lock.
  *
