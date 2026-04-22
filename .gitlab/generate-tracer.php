@@ -386,6 +386,24 @@ foreach ($all_minor_major_targets as $major_minor):
     - make test_unit PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
 
+<?php if (version_compare($major_minor, "8.0", ">=")): ?>
+"Feature flags tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_featureflags PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
+<?php endif; ?>
+
 "API unit tests: [<?= $major_minor ?>]":
   extends: .debug_test
   needs:
