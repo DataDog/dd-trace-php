@@ -108,6 +108,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_bool api_is_loaded;
     zend_bool otel_is_loaded;
     zend_bool legacy_tracer_is_loaded;
+    zend_bool openfeature_is_loaded;
 
     uint32_t traces_group_id;
     zend_array *additional_global_tags;
