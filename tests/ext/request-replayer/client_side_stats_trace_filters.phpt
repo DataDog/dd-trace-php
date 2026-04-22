@@ -60,15 +60,8 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
-// Flush a dummy trace so the sidecar polls /info and picks up the filter config that was
-// written to the request-replayer in SKIPIF.  By the time waitForDataAndReplay() returns
-// the sidecar has had at least one poll cycle.
-$dummy = \DDTrace\start_trace_span();
-$dummy->name  = 'dummy';
-$dummy->service = 'dummy-service';
-\DDTrace\close_span();
-dd_trace_internal_fn('synchronous_flush');
-$rr->waitForDataAndReplay();
+// Block until the sidecar has received the agent's /info response before stats are computed
+dd_trace_internal_fn('await_agent_info');
 
 // Each test case is a separate root span (= separate trace), because trace filters are
 // evaluated per trace (root span properties / tags).
