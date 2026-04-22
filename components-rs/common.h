@@ -1174,6 +1174,11 @@ typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
 
+typedef struct ddog_SidecarFlushOptions {
+  bool traces_and_stats;
+  bool telemetry;
+} ddog_SidecarFlushOptions;
+
 typedef struct ddog_TracerHeaderTags {
   ddog_CharSlice lang;
   ddog_CharSlice lang_version;

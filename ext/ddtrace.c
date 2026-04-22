@@ -1598,7 +1598,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddtrace) {
     } else /* ! part of the if outside the ifdef */
 #endif
     if (get_global_DD_TRACE_FORCE_FLUSH_ON_SHUTDOWN() && DDTRACE_G(sidecar)) {
-        ddog_sidecar_flush_traces(&DDTRACE_G(sidecar));
+        ddog_sidecar_flush(&DDTRACE_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true, .telemetry = true});
     }
 
     ddtrace_log_mshutdown();
@@ -3083,7 +3083,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else
 #endif
             if (DDTRACE_G(sidecar)) {
-                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&DDTRACE_G(sidecar)));
+                ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DDTRACE_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
             }
             RETVAL_TRUE;
 #ifndef _WIN32
@@ -3218,7 +3218,7 @@ PHP_FUNCTION(dd_trace_synchronous_flush) {
     } else
 #endif
     if (DDTRACE_G(sidecar)) {
-        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush_traces(&DDTRACE_G(sidecar)));
+        ddtrace_ffi_try("Failed synchronously flushing traces", ddog_sidecar_flush(&DDTRACE_G(sidecar), (ddog_SidecarFlushOptions){.traces_and_stats = true}));
     }
     RETURN_NULL();
 }
