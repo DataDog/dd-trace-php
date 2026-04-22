@@ -111,6 +111,8 @@ default:
       - api_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
+    exit_codes:
+      - 75
 
 .all_targets: &all_minor_major_targets
 <?php
