@@ -535,7 +535,9 @@ pub extern "C" fn ddog_ffe_flush_exposures() -> CharSlice<'static> {
         let len = leaked.len();
         std::mem::forget(leaked);
 
-        CharSlice::from_raw_parts(ptr as *const c_char, len)
+        // Safety: `ptr` points to a leaked Box<str> of `len` bytes. The allocation
+        // outlives this return. Caller must free via ddog_ffe_free_flush_result().
+        unsafe { CharSlice::from_raw_parts(ptr as *const c_char, len) }
     } else {
         CharSlice::default()
     }
@@ -548,8 +550,10 @@ pub extern "C" fn ddog_ffe_flush_exposures() -> CharSlice<'static> {
 /// or a default (null) CharSlice.
 #[no_mangle]
 pub unsafe extern "C" fn ddog_ffe_free_flush_result(slice: CharSlice<'static>) {
-    let ptr = slice.as_bytes().as_ptr() as *mut u8;
-    let len = slice.len();
+    use libdd_common_ffi::slice::AsBytes;
+    let bytes = slice.as_bytes();
+    let len = bytes.len();
+    let ptr = bytes.as_ptr() as *mut u8;
     if !ptr.is_null() && len > 0 {
         // Reconstruct the boxed str from the leaked pointer
         let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len) as *mut [u8]);
