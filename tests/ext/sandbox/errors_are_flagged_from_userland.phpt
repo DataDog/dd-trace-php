@@ -6,6 +6,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 function testErrorFromUserland()
@@ -20,7 +21,7 @@ DDTrace\trace_function('testErrorFromUserland', function (SpanData $span) {
 
 testErrorFromUserland();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 testErrorFromUserland()

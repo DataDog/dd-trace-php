@@ -9,6 +9,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 $s1 = \DDTrace\start_trace_span();
 $s1->name = "s1";
@@ -19,7 +20,7 @@ $s2->name = "s2";
 $s2->service = "no dd_service";
 \DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

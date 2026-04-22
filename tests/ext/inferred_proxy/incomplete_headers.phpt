@@ -22,6 +22,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foo=bar
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 $parent = \DDTrace\start_span(0.120);
 $span = \DDTrace\start_span(0.130);
@@ -30,7 +31,7 @@ $span->name = "child";
 \DDTrace\close_span();
 \DDTrace\close_span();
 
-echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
+echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [

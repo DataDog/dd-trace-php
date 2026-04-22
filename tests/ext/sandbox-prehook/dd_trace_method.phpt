@@ -7,6 +7,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 use DDTrace\SpanData;
 
 class Test
@@ -76,8 +77,8 @@ var_dump($ret);
 
 echo "---\n";
 
-var_dump(dd_trace_serialize_closed_spans());
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 Test::testFoo()
