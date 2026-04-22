@@ -396,6 +396,8 @@ foreach ($all_minor_major_targets as $major_minor):
           - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
             ARCH: "amd64"
       artifacts: true
+    - job: "Prepare code"
+      artifacts: true
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
