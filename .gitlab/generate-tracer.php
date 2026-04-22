@@ -737,6 +737,29 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
 
 <?php endforeach; ?>
 
+# Validates exit_codes: [75] retry behaviour — remove after branch is merged
+"test-retry-exit-75":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  needs: []
+  script:
+    - exit 75
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "leiyks/infra-failure-retry"
+
+"test-no-retry-exit-1":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/php:8.2-cli
+  needs: []
+  script:
+    - exit 1
+  allow_failure: true
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "leiyks/infra-failure-retry"
+
 "aggregate tested versions":
   stage: "aggregate versions"
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
