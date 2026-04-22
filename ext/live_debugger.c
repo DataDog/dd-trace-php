@@ -1591,7 +1591,19 @@ static bool dd_eval_instanceof(void *ctx, const void *zvp, const ddog_CharSlice 
     {
         name = zend_zval_type_name(zv);
     }
-    return zend_binary_strcasecmp(name, strlen(name), class->ptr, class->len) == 0;
+    if (zend_binary_strcasecmp(name, strlen(name), class->ptr, class->len) == 0) {
+        return true;
+    }
+    // PHP 7.x returns "integer"/"double"; normalize aliases for DSL compatibility
+    if (Z_TYPE_P(zv) == IS_LONG) {
+        return zend_binary_strcasecmp(ZEND_STRL("int"), class->ptr, class->len) == 0
+            || zend_binary_strcasecmp(ZEND_STRL("integer"), class->ptr, class->len) == 0;
+    }
+    if (Z_TYPE_P(zv) == IS_DOUBLE) {
+        return zend_binary_strcasecmp(ZEND_STRL("float"), class->ptr, class->len) == 0
+            || zend_binary_strcasecmp(ZEND_STRL("double"), class->ptr, class->len) == 0;
+    }
+    return false;
 }
 
 const ddog_Evaluator dd_evaluator = {
