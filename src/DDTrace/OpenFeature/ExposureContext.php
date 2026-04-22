@@ -40,13 +40,13 @@ final class ExposureContext
      * @param string|null $targetingKey The evaluation context targeting key
      */
     public function __construct(
-        public readonly ?string $service,
-        public readonly ?string $env,
-        public readonly ?string $version,
-        public readonly string $flagKey,
-        public readonly ?string $allocationKey,
-        public readonly ?string $variant,
-        public readonly ?string $targetingKey,
+        public ?string $service,
+        public ?string $env,
+        public ?string $version,
+        public string $flagKey,
+        public ?string $allocationKey,
+        public ?string $variant,
+        public ?string $targetingKey,
     ) {
     }
 
