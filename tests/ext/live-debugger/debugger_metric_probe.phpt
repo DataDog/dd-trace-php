@@ -34,6 +34,11 @@ $span = await_probe_installation(function() {
     return \DDTrace\start_span(); // submit span data
 });
 
+// Give the sidecar a moment to fully wire the probe before invoking foo().
+// await_probe_installation() detects the hook install but the sidecar may still be
+// finalising the DogStatsD endpoint binding on first use.
+usleep(100000); // 100 ms
+
 foo();
 
 $server->dump(1);

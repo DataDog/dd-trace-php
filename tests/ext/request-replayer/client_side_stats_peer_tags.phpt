@@ -39,16 +39,10 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
-// Flush a dummy trace and wait for the sidecar to process it.  The sidecar polls the agent
-// /info endpoint on the same interval, so by the time we return here it will have written
-// the peer_tags from the agent info (set in SKIPIF) to the shared-memory segment that
-// ddog_apply_agent_info_concentrator_config reads.
-$dummy = \DDTrace\start_trace_span();
-$dummy->name = "dummy";
-$dummy->service = "dummy-service";
-\DDTrace\close_span();
-dd_trace_internal_fn('synchronous_flush');
-$rr->waitForDataAndReplay();
+// Block until the sidecar has received and applied the agent /info response (which carries
+// peer_tags set in SKIPIF). This ensures ddog_apply_agent_info_concentrator_config() will
+// pick up the peer_tags from the SHM segment before the concentrator processes our span.
+dd_trace_internal_fn('await_agent_info');
 
 // Now create the span whose stats we want to inspect. When this span is fed to the
 // concentrator, ddog_apply_agent_info_concentrator_config() is called first, picks up

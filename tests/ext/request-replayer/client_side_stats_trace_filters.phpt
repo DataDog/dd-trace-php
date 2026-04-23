@@ -8,7 +8,8 @@ if (PHP_VERSION_ID >= 80100) {
     echo "nocache\n";
 }
 // Configure the request-replayer to return these filter rules from the /info endpoint.
-// The sidecar will pick them up on its next poll cycle (triggered by the dummy flush below).
+// The sidecar will pick them up on its next poll cycle; await_agent_info() in --FILE--
+// blocks until the sidecar has applied the config before any test spans are flushed.
 //
 // Filters configured:
 //   filter_tags.require:        filter_required:yes
@@ -60,15 +61,10 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
-// Flush a dummy trace so the sidecar polls /info and picks up the filter config that was
-// written to the request-replayer in SKIPIF.  By the time waitForDataAndReplay() returns
-// the sidecar has had at least one poll cycle.
-$dummy = \DDTrace\start_trace_span();
-$dummy->name  = 'dummy';
-$dummy->service = 'dummy-service';
-\DDTrace\close_span();
-dd_trace_internal_fn('synchronous_flush');
-$rr->waitForDataAndReplay();
+// Block until the sidecar has received and applied the agent /info response (which carries
+// the filter_tags / filter_tags_regex / ignore_resources config set in SKIPIF). This
+// guarantees the filter rules are in place before any test spans are flushed.
+dd_trace_internal_fn('await_agent_info');
 
 // Each test case is a separate root span (= separate trace), because trace filters are
 // evaluated per trace (root span properties / tags).
@@ -123,11 +119,9 @@ makeSpan('op.blocked.regex_require', 'GET /other4', [
 
 dd_trace_internal_fn('synchronous_flush');
 
-// Capture ALL trace requests from the second flush before consuming them.
-// The first flush's data was already consumed by waitForDataAndReplay() above, so only
-// second-flush requests remain.  Poll until at least one trace request arrives, then
-// collect everything that arrived in that batch.
-$secondFlushTraces = [];
+// Capture ALL trace requests from this flush before consuming them.
+// Poll until at least one trace request arrives, then collect everything in that batch.
+$flushTraces = [];
 for ($i = 0; $i < 1000; $i++) {
     usleep(50000);  // 50 ms  (same interval as RequestReplayer::flushInterval)
     $reqs = $rr->replayAllRequests() ?? [];
@@ -135,14 +129,14 @@ for ($i = 0; $i < 1000; $i++) {
         return strpos($r['uri'] ?? '', 'traces') !== false;
     }));
     if (!empty($traces)) {
-        $secondFlushTraces = $traces;
+        $flushTraces = $traces;
         break;
     }
 }
 
 // Extract span names from every trace request in this flush.
 $namesInTraces = [];
-foreach ($secondFlushTraces as $req) {
+foreach ($flushTraces as $req) {
     $body = json_decode($req['body'] ?? '', true);
     if (!is_array($body)) continue;
     if (isset($body['chunks'])) {
@@ -170,9 +164,8 @@ foreach (array_keys($namesInTraces) as $n) {
 }
 
 // Wait for a stats payload that contains our service.
-// Stats from the second flush arrive a few seconds after waitForDataAndReplay() returns;
-// use a matcher so we wait for the right payload rather than returning the first one
-// (which contains the dummy span from the first flush).
+// Use a matcher to wait for the right payload rather than returning the first one
+// (SKIPIF may have generated earlier requests under this token).
 $statsRequest = $rr->waitForStats(function ($request) {
     $payload = json_decode($request['body'], true);
     foreach ($payload['Stats'] ?? [] as $bucket) {

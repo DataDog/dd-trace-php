@@ -36,12 +36,10 @@ $rr = new RequestReplayer();
 
 $span = \DDTrace\start_span();
 
-// make sure sidecar keeps up with us
-$start = microtime(true);
-\DDTrace\start_trace_span();
-\DDTrace\close_span();
-$rr->waitForDataAndReplay();
-usleep(floor(microtime(true) - $start) * 100000);
+// Block until the sidecar has received and applied the agent /info response (which carries
+// default_env set in SKIPIF). This ensures $span->env reflects the agent-provided env
+// before we read it.
+dd_trace_internal_fn('await_agent_info');
 
 \DDTrace\close_span();
 var_dump($span->env);
