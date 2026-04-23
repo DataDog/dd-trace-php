@@ -41,8 +41,7 @@ mod metrics;
 pub mod protocol;
 
 /// Smart pointer that tracks worker count for a service.
-/// Increments on creation/clone, decrements on drop.
-#[derive(Clone)]
+/// Increments on creation, decrements on drop.
 struct TrackedService {
     service: Arc<Service>,
 }
