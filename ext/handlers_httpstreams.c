@@ -116,6 +116,7 @@ static php_stream *dd_stream_opener(
     }
 
     if (span) {
+        dd_trace_stop_span_time(span);
         ddtrace_clear_execute_data_span((zend_ulong)-2, true);
     }
 
