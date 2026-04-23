@@ -1,6 +1,9 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::{client::log::warning, error_once, telemetry::{self, TelemetryMetricSubmitter, TelemetryMetricsGenerator, TelemetryTags}};
+use crate::{
+    error_once,
+    telemetry::{self, TelemetryMetricSubmitter, TelemetryMetricsGenerator, TelemetryTags},
+};
 
 #[derive(Debug, Default)]
 pub struct WorkerCountState {

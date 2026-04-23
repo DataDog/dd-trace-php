@@ -132,7 +132,6 @@ impl WafMetrics {
             self.request_blocked = true;
         }
     }
-
 }
 trait RunOutputExt {
     fn has_events(&self) -> bool;

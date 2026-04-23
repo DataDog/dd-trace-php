@@ -294,7 +294,9 @@ mod tests {
                 .replace("arachni_rule", "inhcara_rule"),
         )
         .unwrap();
-        upd_waf.add_or_update_config("2nd rule", &ruleset2, None);
+        upd_waf
+            .add_or_update_config("2nd rule", &ruleset2, None)
+            .unwrap();
 
         assert_eq!(upd_waf.config_paths_count(Some("2nd rule")), 1);
         let paths = upd_waf.config_paths(Some("2nd rule"));

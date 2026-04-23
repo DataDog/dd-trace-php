@@ -703,7 +703,7 @@ mod tests {
 
         assert_eq!(got.len(), 2);
         // Order should match insertion
-        assert_eq!(got[0].0, rc1_path);
+        assert_eq!(got[0].0.as_str(), rc1_path);
         #[cfg(target_os = "macos")]
         {
             // On macOS, fstat() returns padded size (16KB min), so compare only the actual content
@@ -713,7 +713,7 @@ mod tests {
         {
             assert_eq!(got[0].1, inner1_content);
         }
-        assert_eq!(got[1].0, rc2_path);
+        assert_eq!(got[1].0.as_str(), rc2_path);
         #[cfg(target_os = "macos")]
         {
             assert_eq!(&got[1].1[..inner2_content.len()], inner2_content);
