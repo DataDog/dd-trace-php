@@ -15,6 +15,7 @@
 #include "ddshared.h"
 #include "standalone_limiter.h"
 #include <main/SAPI.h>
+#include <components-rs/ddtrace.h>
 #include <components-rs/sidecar.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -57,7 +58,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                     .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                     .lang_version = php_version_rt,
                     .client_computed_top_level = get_DD_TRACE_STATS_COMPUTATION_ENABLED(),
-                    .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED() || get_DD_TRACE_STATS_COMPUTATION_ENABLED(),
+                    .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED() || (get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()),
                 },
                 .transport = DDTRACE_G(sidecar),
                 .instance_id = ddtrace_sidecar_instance_id,
