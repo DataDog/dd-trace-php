@@ -11,7 +11,8 @@ function do_retry() {
     ! "$@"
   do
     if ! ((--RETRIES)); then
-      return 1
+      echo "Infrastructure command failed after 3 attempts, signaling retry (exit 75): $*" >&2
+      exit 75
     fi
     echo "Retry attempt $ATTEMPT failed, waiting 5 seconds before retry $((ATTEMPT + 1))..."
     sleep 5
