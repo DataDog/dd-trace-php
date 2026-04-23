@@ -95,14 +95,7 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
-struct DdogRemoteConfigFlags {
-    bool live_debugging_enabled;
-    bool appsec_activation;
-    bool appsec_config;
-    bool ffe_enabled;
-};
-
-void ddog_init_remote_config(struct DdogRemoteConfigFlags flags);
+void ddog_init_remote_config(struct ddog_DdogRemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
                                                              bool di_enabled);
@@ -110,37 +103,6 @@ struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_E
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
 bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
-
-bool ddog_ffe_load_config(const char *json);
-
-bool ddog_ffe_has_config(void);
-
-uint64_t ddog_ffe_config_version(void);
-
-struct FfeResult;
-
-struct FfeAttribute {
-    const char *key;
-    int32_t value_type;       /* 0=string, 1=number, 2=bool */
-    const char *string_value;
-    double number_value;
-    bool bool_value;
-};
-
-struct FfeResult *ddog_ffe_evaluate(
-    const char *flag_key,
-    int32_t expected_type,
-    const char *targeting_key,
-    const struct FfeAttribute *attributes,
-    size_t attributes_count);
-
-const char *ddog_ffe_result_value(const struct FfeResult *r);
-const char *ddog_ffe_result_variant(const struct FfeResult *r);
-const char *ddog_ffe_result_allocation_key(const struct FfeResult *r);
-int32_t ddog_ffe_result_reason(const struct FfeResult *r);
-int32_t ddog_ffe_result_error_code(const struct FfeResult *r);
-bool ddog_ffe_result_do_log(const struct FfeResult *r);
-void ddog_ffe_free_result(struct FfeResult *r);
 
 bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
                                    ddog_CharSlice typename_);
@@ -185,6 +147,129 @@ ddog_MaybeError ddog_send_debugger_diagnostics(const struct ddog_RemoteConfigSta
                                                ddog_QueueId queue_id,
                                                const struct ddog_Probe *probe,
                                                uint64_t timestamp);
+
+/**
+ * Load a UFC JSON config string directly into the FFE engine.
+ * Used by tests to load config without Remote Config.
+ */
+bool ddog_ffe_load_config(const char *json);
+
+/**
+ * Check if FFE configuration is loaded.
+ */
+bool ddog_ffe_has_config(void);
+
+/**
+ * Return the current FFE config version counter.
+ *
+ * Bumped on every `store_config` / `clear_config`. Consumers track their last
+ * observed value and detect changes by comparing. Multiple independent
+ * subscribers can detect transitions without racing (unlike a drain-on-read
+ * `changed` flag where only the first reader sees the transition).
+ *
+ * Wraps on overflow; in practice the counter is a `u64` and will not wrap
+ * within a reasonable process lifetime.
+ */
+uint64_t ddog_ffe_config_version(void);
+
+/**
+ * Evaluate a feature flag using the stored Configuration.
+ *
+ * Accepts structured attributes from C instead of a JSON blob.
+ * `targeting_key` may be null (no targeting key).
+ * `attributes` / `attributes_count` describe an array of `FfeAttribute`.
+ * Returns null if no config is loaded.
+ */
+struct ddog_FfeResult *ddog_ffe_evaluate(const char *flag_key,
+                                         int32_t expected_type,
+                                         const char *targeting_key,
+                                         const struct ddog_FfeAttribute *attributes,
+                                         uintptr_t attributes_count);
+
+const char *ddog_ffe_result_value(const struct ddog_FfeResult *r);
+
+const char *ddog_ffe_result_variant(const struct ddog_FfeResult *r);
+
+const char *ddog_ffe_result_allocation_key(const struct ddog_FfeResult *r);
+
+int32_t ddog_ffe_result_reason(const struct ddog_FfeResult *r);
+
+int32_t ddog_ffe_result_error_code(const struct ddog_FfeResult *r);
+
+bool ddog_ffe_result_do_log(const struct ddog_FfeResult *r);
+
+void ddog_ffe_free_result(struct ddog_FfeResult *r);
+
+/**
+ * Set the service context (DD_SERVICE, DD_ENV, DD_VERSION) for exposure payloads.
+ * Called once during provider initialization. Values are stored and reused for all
+ * subsequent batch payloads.
+ *
+ * # Safety
+ * All parameters must be valid null-terminated C strings or null.
+ */
+void ddog_ffe_set_service_context(const char *service, const char *env, const char *version);
+
+/**
+ * Enqueue an exposure event for dedup and batched delivery.
+ *
+ * Dedup key   = (flag_key, targeting_key).
+ * Dedup value = (allocation_key, variant_key).
+ *
+ * Returns `true` (event enqueued) when the (flag, targeting) pair is unseen,
+ * or when its cached (allocation, variant) differs from the incoming value.
+ * Returns `false` when both allocation and variant are unchanged from the
+ * last cached value — duplicate, skipped.
+ *
+ * Semantics match dd-trace-go `openfeature/exposure.go`.
+ *
+ * Batch buffer is capped at EXPOSURE_BATCH_LIMIT (1000). If full, new events
+ * are silently dropped (per D-11) and the function returns false.
+ *
+ * # Safety
+ * - `event_json` must be a valid null-terminated C string.
+ * - `flag_key`, `allocation_key`, `variant_key` must be valid null-terminated C strings.
+ * - `targeting_key` may be null.
+ */
+bool ddog_ffe_enqueue_exposure(const char *event_json,
+                               const char *flag_key,
+                               const char *allocation_key,
+                               const char *targeting_key,
+                               const char *variant_key);
+
+/**
+ * Flush all buffered exposure events as a batched JSON payload.
+ *
+ * Returns a JSON string containing the batch payload with service context and all
+ * buffered events. The batch buffer is cleared after flushing.
+ *
+ * In production, the sidecar's periodic flush loop calls this function and sends the
+ * result to the agent EVP proxy.
+ *
+ * Returns `CharSlice::default()` (null ptr, zero len) if:
+ * - The batch buffer is empty (nothing to flush)
+ * - The mutex is poisoned
+ *
+ * # Memory
+ * The returned CharSlice points to a heap-allocated string that must be freed
+ * with `ddog_ffe_free_flush_result()`.
+ */
+ddog_CharSlice ddog_ffe_flush_exposures(void);
+
+/**
+ * Free a flush result previously returned by `ddog_ffe_flush_exposures`.
+ *
+ * # Safety
+ * `slice` must be a CharSlice previously returned by `ddog_ffe_flush_exposures`,
+ * or a default (null) CharSlice.
+ */
+void ddog_ffe_free_flush_result(ddog_CharSlice slice);
+
+/**
+ * Reset exposure state for testing. Clears the dedup cache, batch buffer,
+ * and service context.
+ */
+void ddog_ffe_reset_exposure_state(void);
 
 void ddog_sidecar_enable_appsec(ddog_CharSlice shared_lib_path,
                                 ddog_CharSlice socket_file_path,
@@ -454,34 +539,5 @@ void ddog_add_span_meta_struct_zstr(ddog_SpanBytes *ptr,
 void ddog_add_zstr_span_meta_struct_CharSlice(ddog_SpanBytes *ptr,
                                               struct _zend_string *key,
                                               ddog_CharSlice val);
-
-/* ---------------------------------------------------------------------------
- * Exposure pipeline (FFE) -- sidecar-persisted LRU dedup + batch buffer
- * --------------------------------------------------------------------------- */
-
-/* Set service context (DD_SERVICE/DD_ENV/DD_VERSION) for exposure batch payloads.
- * Called once at provider initialization. Any parameter may be null. */
-void ddog_ffe_set_service_context(const char *service,
-                                  const char *env,
-                                  const char *version);
-
-/* Enqueue an exposure event. Returns false if deduplicated (same composite key
- * with same variant already in LRU cache) or if batch buffer is at capacity.
- * targeting_key may be null; all other params must be valid null-terminated strings. */
-bool ddog_ffe_enqueue_exposure(const char *event_json,
-                               const char *flag_key,
-                               const char *allocation_key,
-                               const char *targeting_key,
-                               const char *variant_key);
-
-/* Flush the batch buffer as a JSON payload. Caller must free returned CharSlice
- * via ddog_ffe_free_flush_result. Returns null CharSlice if buffer is empty. */
-ddog_CharSlice ddog_ffe_flush_exposures(void);
-
-/* Free a CharSlice previously returned by ddog_ffe_flush_exposures. */
-void ddog_ffe_free_flush_result(ddog_CharSlice slice);
-
-/* Reset exposure state (dedup cache + batch buffer + service context). For testing. */
-void ddog_ffe_reset_exposure_state(void);
 
 #endif  /* DDTRACE_PHP_H */

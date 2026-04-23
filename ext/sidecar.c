@@ -388,7 +388,7 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
 
-    ddog_init_remote_config((struct DdogRemoteConfigFlags){
+    ddog_init_remote_config((struct ddog_DdogRemoteConfigFlags){
         .live_debugging_enabled = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
         .appsec_activation = appsec_activation,
         .appsec_config = appsec_config,
@@ -446,6 +446,14 @@ void ddtrace_sidecar_handle_fork(void) {
     }
 
     ddtrace_force_new_instance_id();
+
+    // Reset FFE exposure state in the child: both the dedup cache and the batch
+    // buffer were copied-on-write from the parent and the parent will flush
+    // them at its own RSHUTDOWN. Without this reset the child would re-send
+    // everything the parent already buffered. Accepted cost: child loses its
+    // dedup history, so the first evaluation per (flag, subject) pair after
+    // fork re-emits -- bounded duplication, caught by server-side dedup.
+    ddog_ffe_reset_exposure_state();
 
     // After fork only one thread (the one that called fork) survives, so we only
     // need to drop and reconnect the current thread's transport.
@@ -532,7 +540,14 @@ void ddtrace_sidecar_finalize(bool clear_id) {
     }
 }
 
+static void dd_flush_ffe_exposures(void);
+
 void ddtrace_sidecar_shutdown(void) {
+    // Drain any FFE exposures buffered since the last RSHUTDOWN before we
+    // tear down the sidecar transport. After MSHUTDOWN returns the transport
+    // is dropped and enqueued events would be lost.
+    dd_flush_ffe_exposures();
+
     ddtrace_sidecar_for_signal = NULL;
 
     // In thread mode, drop the main thread's connection before shutting down the
@@ -875,7 +890,24 @@ void ddtrace_sidecar_rinit(void) {
     ddtrace_sidecar_submit_root_span_data_direct_defaults(&DDTRACE_G(sidecar), NULL);
 }
 
+static void dd_flush_ffe_exposures(void) {
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id) {
+        return;
+    }
+    ddog_CharSlice payload = ddog_ffe_flush_exposures();
+    if (payload.ptr == NULL || payload.len == 0) {
+        return;
+    }
+    ddtrace_ffi_try("Failed forwarding FFE exposures to sidecar",
+                    ddog_sidecar_send_ffe_exposures(&DDTRACE_G(sidecar),
+                                                    ddtrace_sidecar_instance_id,
+                                                    &DDTRACE_G(sidecar_queue_id),
+                                                    payload));
+    ddog_ffe_free_flush_result(payload);
+}
+
 void ddtrace_sidecar_rshutdown(void) {
+    dd_flush_ffe_exposures();
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
 }
 

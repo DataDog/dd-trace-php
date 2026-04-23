@@ -77,7 +77,10 @@ pub extern "C" fn ddog_ffe_load_config(json: *const c_char) -> bool {
 /// Check if FFE configuration is loaded.
 #[no_mangle]
 pub extern "C" fn ddog_ffe_has_config() -> bool {
-    FFE_STATE.lock().map(|s| s.config.is_some()).unwrap_or(false)
+    FFE_STATE
+        .lock()
+        .map(|s| s.config.is_some())
+        .unwrap_or(false)
 }
 
 /// Return the current FFE config version counter.
@@ -249,7 +252,9 @@ pub extern "C" fn ddog_ffe_evaluate(
                 EvaluationError::TypeMismatch { .. } => (ERROR_TYPE_MISMATCH, REASON_ERROR),
                 EvaluationError::ConfigurationParseError => (ERROR_CONFIG_PARSE, REASON_ERROR),
                 EvaluationError::ConfigurationMissing => (ERROR_CONFIG_MISSING, REASON_ERROR),
-                EvaluationError::FlagUnrecognizedOrDisabled => (ERROR_FLAG_UNRECOGNIZED, REASON_DEFAULT),
+                EvaluationError::FlagUnrecognizedOrDisabled => {
+                    (ERROR_FLAG_UNRECOGNIZED, REASON_DEFAULT)
+                }
                 EvaluationError::FlagDisabled => (ERROR_NONE, REASON_DISABLED),
                 EvaluationError::DefaultAllocationNull => (ERROR_NONE, REASON_DEFAULT),
                 _ => (ERROR_GENERAL, REASON_ERROR),
@@ -354,10 +359,14 @@ struct ServiceContext {
 }
 
 struct ExposureState {
-    /// LRU dedup cache: key = "flag_key\0allocation_key\0targeting_key", value = variant_key.
-    /// Capacity: 65536 entries (EXPO-02). Uses null byte separator to avoid collision
-    /// with key content that might contain ':' characters.
-    dedup_cache: LruCache<String, String>,
+    /// LRU dedup cache.
+    /// Key   = (flag_key, targeting_key).
+    /// Value = (allocation_key, variant_key).
+    ///
+    /// A new exposure is emitted when (flag, targeting) is unseen, or when its
+    /// (allocation, variant) value differs from what was last cached. Matches
+    /// dd-trace-go `openfeature/exposure.go` semantics. Capacity 65536 (EXPO-02).
+    dedup_cache: LruCache<(String, String), (String, String)>,
     /// Buffered exposure event JSON strings, capped at 1000 (matches Ruby/Python).
     batch_buffer: Vec<String>,
     /// Service context set once at init (DD_SERVICE, DD_ENV, DD_VERSION).
@@ -418,13 +427,18 @@ pub unsafe extern "C" fn ddog_ffe_set_service_context(
 
 /// Enqueue an exposure event for dedup and batched delivery.
 ///
-/// Dedup key: "flag_key\0allocation_key\0targeting_key" (per D-04).
-/// If the same composite key with the same variant is already in the cache, the event
-/// is deduplicated (returns false). If the variant changed for the same key, the new
-/// exposure is sent (cache updated, returns true).
+/// Dedup key   = (flag_key, targeting_key).
+/// Dedup value = (allocation_key, variant_key).
 ///
-/// Batch buffer is capped at EXPOSURE_BATCH_LIMIT (1000). If full, new events are
-/// silently dropped (per D-11) and the function returns false.
+/// Returns `true` (event enqueued) when the (flag, targeting) pair is unseen,
+/// or when its cached (allocation, variant) differs from the incoming value.
+/// Returns `false` when both allocation and variant are unchanged from the
+/// last cached value — duplicate, skipped.
+///
+/// Semantics match dd-trace-go `openfeature/exposure.go`.
+///
+/// Batch buffer is capped at EXPOSURE_BATCH_LIMIT (1000). If full, new events
+/// are silently dropped (per D-11) and the function returns false.
 ///
 /// # Safety
 /// - `event_json` must be a valid null-terminated C string.
@@ -447,22 +461,22 @@ pub unsafe extern "C" fn ddog_ffe_enqueue_exposure(
         Err(_) => return false,
     };
     let flag_str = match CStr::from_ptr(flag_key).to_str() {
-        Ok(s) => s,
+        Ok(s) => s.to_owned(),
         Err(_) => return false,
     };
     let alloc_str = if allocation_key.is_null() {
-        ""
+        String::new()
     } else {
         match CStr::from_ptr(allocation_key).to_str() {
-            Ok(s) => s,
+            Ok(s) => s.to_owned(),
             Err(_) => return false,
         }
     };
     let target_str = if targeting_key.is_null() {
-        ""
+        String::new()
     } else {
         match CStr::from_ptr(targeting_key).to_str() {
-            Ok(s) => s,
+            Ok(s) => s.to_owned(),
             Err(_) => return false,
         }
     };
@@ -471,21 +485,21 @@ pub unsafe extern "C" fn ddog_ffe_enqueue_exposure(
         Err(_) => return false,
     };
 
-    // Build dedup key using null byte separator (avoids collision with ':' in key content)
-    let dedup_key = format!("{}\0{}\0{}", flag_str, alloc_str, target_str);
+    let dedup_key = (flag_str, target_str);
+    let dedup_value = (alloc_str, variant_str);
 
     if let Ok(mut state) = EXPOSURE_STATE.lock() {
-        // Dedup check: same key + same variant = duplicate, skip
-        if let Some(cached_variant) = state.dedup_cache.get(&dedup_key) {
-            if *cached_variant == variant_str {
+        // Dedup check: same (flag, targeting) with same (allocation, variant) = duplicate.
+        if let Some(cached) = state.dedup_cache.get(&dedup_key) {
+            if *cached == dedup_value {
                 return false; // duplicate, not enqueued
             }
         }
 
-        // Cache this exposure (updates LRU position if key exists with different variant)
-        state.dedup_cache.put(dedup_key, variant_str);
+        // Insert or update entry. `put` updates LRU position and replaces value.
+        state.dedup_cache.put(dedup_key, dedup_value);
 
-        // Buffer the event JSON (drop if buffer full per D-11)
+        // Buffer the event JSON (drop if buffer full per D-11).
         if state.batch_buffer.len() < EXPOSURE_BATCH_LIMIT {
             state.batch_buffer.push(event_str);
             true
@@ -502,8 +516,12 @@ pub unsafe extern "C" fn ddog_ffe_enqueue_exposure(
 /// Returns a JSON string containing the batch payload with service context and all
 /// buffered events. The batch buffer is cleared after flushing.
 ///
-/// In production, the sidecar's periodic flush loop calls this function and sends the
-/// result to the agent EVP proxy.
+/// In production this is called from the PHP extension's RSHUTDOWN and
+/// MSHUTDOWN hooks (see `ext/sidecar.c::dd_flush_ffe_exposures`). The returned
+/// payload is forwarded to the sidecar via `ddog_sidecar_send_ffe_exposures`,
+/// which POSTs it asynchronously to the agent's EVP proxy at
+/// `/evp_proxy/v2/api/v2/exposures` (header
+/// `X-Datadog-EVP-Subdomain: event-platform-intake`).
 ///
 /// Returns `CharSlice::default()` (null ptr, zero len) if:
 /// - The batch buffer is empty (nothing to flush)
@@ -599,5 +617,137 @@ pub extern "C" fn ddog_ffe_reset_exposure_state() {
         state.dedup_cache.clear();
         state.batch_buffer.clear();
         state.service_context = None;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+    use std::sync::Mutex;
+
+    /// Serialises tests that mutate the global `EXPOSURE_STATE`. Each test
+    /// resets state on entry while holding this guard so concurrent cargo-test
+    /// threads don't observe each other's buffers.
+    static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn c(s: &str) -> CString {
+        CString::new(s).unwrap()
+    }
+
+    fn enqueue(flag: &str, alloc: &str, targeting: Option<&str>, variant: &str) -> bool {
+        let event = c(r#"{"_":"event"}"#);
+        let flag = c(flag);
+        let alloc = c(alloc);
+        let variant = c(variant);
+        let targeting_c = targeting.map(c);
+        let targeting_ptr = targeting_c
+            .as_ref()
+            .map(|s| s.as_ptr())
+            .unwrap_or(std::ptr::null());
+        unsafe {
+            ddog_ffe_enqueue_exposure(
+                event.as_ptr(),
+                flag.as_ptr(),
+                alloc.as_ptr(),
+                targeting_ptr,
+                variant.as_ptr(),
+            )
+        }
+    }
+
+    /// V1 — Dedup key = (flag, targeting), value = (allocation, variant).
+    /// Duplicate iff BOTH allocation AND variant unchanged.
+    #[test]
+    fn dedup_key_matches_go_semantics() {
+        let _g = TEST_LOCK.lock().unwrap();
+        ddog_ffe_reset_exposure_state();
+
+        // First emit: always enqueue.
+        assert!(enqueue("flag-a", "alloc-1", Some("user-x"), "on"));
+
+        // Same (flag, targeting, allocation, variant): duplicate.
+        assert!(!enqueue("flag-a", "alloc-1", Some("user-x"), "on"));
+
+        // Same (flag, targeting), variant changed: re-emit.
+        assert!(enqueue("flag-a", "alloc-1", Some("user-x"), "off"));
+
+        // Same (flag, targeting), allocation changed, variant same: re-emit.
+        assert!(enqueue("flag-a", "alloc-2", Some("user-x"), "off"));
+
+        // Different targeting: separate cache entry, emit.
+        assert!(enqueue("flag-a", "alloc-2", Some("user-y"), "off"));
+
+        // Different flag: separate cache entry, emit.
+        assert!(enqueue("flag-b", "alloc-2", Some("user-x"), "off"));
+
+        // Repeat of the last insert: duplicate.
+        assert!(!enqueue("flag-b", "alloc-2", Some("user-x"), "off"));
+
+        // Null targeting key normalises to empty string; same triple = duplicate.
+        assert!(enqueue("flag-c", "alloc-0", None, "on"));
+        assert!(!enqueue("flag-c", "alloc-0", None, "on"));
+    }
+
+    /// V2 — Batch payload schema matches dd-trace-go shape.
+    #[test]
+    fn flush_schema_matches_go() {
+        let _g = TEST_LOCK.lock().unwrap();
+        ddog_ffe_reset_exposure_state();
+
+        let svc = c("svc");
+        let env = c("prod");
+        let ver = c("1.2.3");
+        unsafe {
+            ddog_ffe_set_service_context(svc.as_ptr(), env.as_ptr(), ver.as_ptr());
+        }
+
+        // Event JSON is opaque to the flusher — it embeds as-is into the array.
+        let event = c(
+            r#"{"timestamp":1,"flag":{"key":"f"},"allocation":{"key":"a"},"variant":{"key":"v"},"subject":{"id":"u","attributes":{}}}"#,
+        );
+        let flag = c("f");
+        let alloc = c("a");
+        let target = c("u");
+        let variant = c("v");
+        let enq = unsafe {
+            ddog_ffe_enqueue_exposure(
+                event.as_ptr(),
+                flag.as_ptr(),
+                alloc.as_ptr(),
+                target.as_ptr(),
+                variant.as_ptr(),
+            )
+        };
+        assert!(enq);
+
+        let slice = ddog_ffe_flush_exposures();
+        assert!(!slice.is_empty(), "flush should yield payload");
+
+        let bytes = unsafe { std::slice::from_raw_parts(slice.as_ptr() as *const u8, slice.len()) };
+        let payload = std::str::from_utf8(bytes).unwrap().to_owned();
+        unsafe {
+            ddog_ffe_free_flush_result(slice);
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(&payload).unwrap();
+        let ctx = &parsed["context"];
+        assert_eq!(ctx["service"], "svc");
+        assert_eq!(ctx["env"], "prod");
+        assert_eq!(ctx["version"], "1.2.3");
+
+        let exposures = parsed["exposures"].as_array().unwrap();
+        assert_eq!(exposures.len(), 1);
+        let ev = &exposures[0];
+        assert!(ev["timestamp"].is_number());
+        assert_eq!(ev["flag"]["key"], "f");
+        assert_eq!(ev["allocation"]["key"], "a");
+        assert_eq!(ev["variant"]["key"], "v");
+        assert_eq!(ev["subject"]["id"], "u");
+        assert!(ev["subject"]["attributes"].is_object());
+
+        // Second flush with empty buffer returns default (empty) CharSlice.
+        let slice2 = ddog_ffe_flush_exposures();
+        assert!(slice2.is_empty(), "empty buffer should produce empty slice");
     }
 }

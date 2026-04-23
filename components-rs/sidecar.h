@@ -295,6 +295,24 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
                                                  ddog_QueueId queue_id,
                                                  struct ddog_DebuggerPayload *payload);
 
+/**
+ * Forward a single FFE (Feature Flag Evaluation) exposure batch payload to
+ * the sidecar. The sidecar asynchronously POSTs it to the agent EVP proxy
+ * at `/evp_proxy/v2/api/v2/exposures`.
+ *
+ * The payload is produced by `ddog_ffe_flush_exposures()` in `components-rs`.
+ * A null or zero-length slice is a no-op (the PHP side indicates "nothing to
+ * flush" by returning such a slice).
+ *
+ * # Safety
+ * `payload` must be a valid UTF-8 `CharSlice` (as returned by
+ * `ddog_ffe_flush_exposures`) or a default (null, 0) slice.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_exposures(struct ddog_SidecarTransport **transport,
+                                                const struct ddog_InstanceId *instance_id,
+                                                const ddog_QueueId *queue_id,
+                                                ddog_CharSlice payload);
+
 ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
                                                        const struct ddog_InstanceId *instance_id,
                                                        ddog_QueueId queue_id,

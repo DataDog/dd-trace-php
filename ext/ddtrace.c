@@ -2951,7 +2951,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ZEND_PARSE_PARAMETERS_END();
 
     int32_t type_id = (int32_t)type_id_zl;
-    struct FfeAttribute *c_attrs = NULL;
+    struct ddog_FfeAttribute *c_attrs = NULL;
     size_t attrs_count = 0;
     const char *tk = (targeting_key_len > 0) ? targeting_key : NULL;
 
@@ -2961,7 +2961,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         size_t idx = 0;
         zend_string *key;
         zval *val;
-        c_attrs = ecalloc(attrs_count, sizeof(struct FfeAttribute));
+        c_attrs = ecalloc(attrs_count, sizeof(struct ddog_FfeAttribute));
         ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, val) {
             if (!key || idx >= attrs_count) { continue; }
             c_attrs[idx].key = ZSTR_VAL(key);
@@ -2994,7 +2994,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
-    struct FfeResult *result = ddog_ffe_evaluate(flag_key, type_id, tk, c_attrs, attrs_count);
+    struct ddog_FfeResult *result = ddog_ffe_evaluate(flag_key, type_id, tk, c_attrs, attrs_count);
     if (c_attrs) { efree(c_attrs); }
 
     if (result) {
@@ -3212,9 +3212,9 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 /* Declare all variables at top of block for C89/MSVC compatibility */
                 int32_t type_id;
                 const char *targeting_key = NULL;
-                struct FfeAttribute *c_attrs = NULL;
+                struct ddog_FfeAttribute *c_attrs = NULL;
                 size_t attrs_count = 0;
-                struct FfeResult *result;
+                struct ddog_FfeResult *result;
                 type_id = (int32_t)zval_get_long(type_zv);
                 if (Z_TYPE_P(targeting_key_zv) == IS_STRING && Z_STRLEN_P(targeting_key_zv) > 0) {
                     targeting_key = Z_STRVAL_P(targeting_key_zv);
@@ -3226,7 +3226,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                         size_t idx = 0;
                         zend_string *key;
                         zval *val;
-                        c_attrs = ecalloc(attrs_count, sizeof(struct FfeAttribute));
+                        c_attrs = ecalloc(attrs_count, sizeof(struct ddog_FfeAttribute));
                         ZEND_HASH_FOREACH_STR_KEY_VAL(ht, key, val) {
                             if (!key || idx >= attrs_count) { continue; }
                             c_attrs[idx].key = ZSTR_VAL(key);
