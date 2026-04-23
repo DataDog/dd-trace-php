@@ -257,7 +257,7 @@ static bool zai_config_decode_json(zai_str value, zval *decoded_value, bool pers
         if (persistent) {
             zval_internal_ptr_dtor(decoded_value);
         } else {
-            zval_dtor(decoded_value);
+            zval_ptr_dtor_nogc(decoded_value);
         }
         ZVAL_NULL(decoded_value);
         return false;

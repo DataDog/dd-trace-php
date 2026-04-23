@@ -70,7 +70,7 @@ ZEND_FUNCTION(ddtrace_kafka_produce) {
     zval function_name;
     ZVAL_STRING(&function_name, "producev");
     call_user_function(NULL, getThis(), &function_name, return_value, 6 + opaque_param, args);
-    zval_dtor(&function_name);
+    zval_ptr_dtor_nogc(&function_name);
 
     zend_string_release(Z_STR(args[2]));
     zend_string_release(Z_STR(args[3]));

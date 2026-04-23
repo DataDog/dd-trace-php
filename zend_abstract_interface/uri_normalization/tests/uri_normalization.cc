@@ -25,8 +25,8 @@ extern "C" {
                                                       \
     zend_string_release(path_str);                    \
     zend_string_release(res);                         \
-    zval_dtor(&mapping);                              \
-    zval_dtor(&fragment_regex);                       \
+    zval_ptr_dtor_nogc(&mapping);                              \
+    zval_ptr_dtor_nogc(&fragment_regex);                       \
 }
 
 #define TEST_URI_NORMALIZATION(description, path, output, ...) \
@@ -117,7 +117,7 @@ TEST_URI_NORMALIZATION("pattern mapping & fragment regexes: working with full UR
                                                       \
     if (regex) { zend_string_release(regex); }        \
     zend_string_release(res);                         \
-    zval_dtor(&whitelist);                            \
+    zval_ptr_dtor_nogc(&whitelist);                            \
 }
 
 #define TEST_QUERY_STRING(description, query_string, output, ...) \

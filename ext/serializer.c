@@ -1225,10 +1225,10 @@ static bool should_track_error(zend_object *exception, ddtrace_span_data *span) 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     // Check if error should be ignored or tracking is disabled
-    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zend_is_true(zv)) {
         return false;
     }
-    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zval_is_true(zv)) {
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zend_is_true(zv)) {
         return false;
     }
     return true;
