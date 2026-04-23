@@ -1007,8 +1007,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apk add --no-cache ca-certificates # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
-    - apk add curl ${INSTALL_PACKAGES:-}
+    - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+    - apk add curl ${INSTALL_PACKAGES:-} || exit 75
 
 "verify centos":
   extends: .verify_job
@@ -1050,8 +1050,8 @@ endforeach;
         echo "yum update failed (attempt $i/3), retrying in 5 seconds..."
         sleep 5
         if [ $i -eq 3 ]; then
-          echo "yum update failed after 3 attempts, exiting"
-          exit 1
+          echo "yum update failed after 3 attempts, signaling retry (exit 75)"
+          exit 75
         fi
       done
 
@@ -1075,8 +1075,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apt update
-    - apt-get install -y curl
+    - apt-get update || exit 75
+    - apt-get install -y curl || exit 75
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
@@ -1131,7 +1131,23 @@ endforeach;
     mkdir build
     move packages build
   script:
-    - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
+    - |
+      $maxAttempts = 3
+      for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          try {
+              Set-ExecutionPolicy Bypass -Scope Process -Force
+              [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+              Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+              break
+          } catch {
+              Write-Host "Chocolatey install attempt $attempt/$maxAttempts failed: $_"
+              if ($attempt -eq $maxAttempts) {
+                  Write-Host "Infrastructure failure: Chocolatey download failed after $maxAttempts attempts, signaling retry (exit 75)"
+                  exit 75
+              }
+              Start-Sleep -Seconds 15
+          }
+      }
     - .\dockerfiles\verify_packages\verify_windows.ps1
 
 "pecl tests":
