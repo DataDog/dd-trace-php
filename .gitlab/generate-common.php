@@ -111,6 +111,7 @@ default:
       - api_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
+      - script_failure
     exit_codes:
       - 75
 
