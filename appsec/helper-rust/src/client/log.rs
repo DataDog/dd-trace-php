@@ -182,6 +182,47 @@ macro_rules! error {
 }
 pub(crate) use error;
 
+#[macro_export]
+macro_rules! error_once {
+    ($fmt:literal $(, $($arg:expr),* $(,)?)?) => {{
+        static __ERROR_ONCE: ::std::sync::atomic::AtomicBool =
+            ::std::sync::atomic::AtomicBool::new(false);
+        if ::log::log_enabled!(::log::Level::Error)
+            && !__ERROR_ONCE.swap(true, ::std::sync::atomic::Ordering::Relaxed)
+        {
+            #[allow(unused_imports)]
+            use $crate::client::log::TryGetBacktrace;
+            let mut __msg = ::std::format!($fmt $(, $($arg),*)?);
+            __msg.push_str(" (this error will only be logged once)");
+
+            let mut __found = false;
+            $(
+                if !__found {
+                    if let Some(bt) = (&$arg).try_get_backtrace() {
+                        $crate::client::log::log_error_with_backtrace_at(
+                            file!(),
+                            line!(),
+                            module_path!(),
+                            &__msg,
+                            Some(bt),
+                        );
+                        __found = true;
+                    }
+                }
+            )*
+            if !__found {
+                $crate::client::log::log_error_with_backtrace_at(
+                    file!(),
+                    line!(),
+                    module_path!(),
+                    &__msg,
+                    None,
+                );
+            }
+        }
+    }};
+}
+
 pub async fn with_scoped_client_id<F>(client_id: u64, fut: F)
 where
     F: Future,

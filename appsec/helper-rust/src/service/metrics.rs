@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use crate::telemetry::{self, TelemetryMetricSubmitter, TelemetryMetricsGenerator, TelemetryTags};
+use crate::{client::log::warning, error_once, telemetry::{self, TelemetryMetricSubmitter, TelemetryMetricsGenerator, TelemetryTags}};
 
 #[derive(Debug, Default)]
 pub struct WorkerCountState {
@@ -27,8 +27,12 @@ impl WorkerCountState {
         let _ = self
             .state
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |s| {
-                let count = (s & Self::COUNT_MASK).wrapping_sub(1);
-                Some(count | Self::DIRTY_BIT)
+                let count = s & Self::COUNT_MASK;
+                if count == 0 {
+                    error_once!("Attempted to decrement worker count below 0");
+                    return None;
+                }
+                Some((count - 1) | Self::DIRTY_BIT)
             });
     }
 
