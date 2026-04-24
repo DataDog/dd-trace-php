@@ -190,6 +190,7 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
   timeout: 60m
   interruptible: true
+<?php retry_on_infra_failure() ?>
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false
@@ -518,6 +519,8 @@ foreach ($all_minor_major_targets as $major_minor):
       - api_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
+    exit_codes:
+      - 75
   script:
     - make install_all
     - export XFAIL_LIST="dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list"

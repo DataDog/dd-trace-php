@@ -100,6 +100,7 @@ stages:
   stage: test
   image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7"
   interruptible: true
+<?php retry_on_infra_failure() ?>
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false

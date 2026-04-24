@@ -55,6 +55,7 @@ wait_for_single_service() {
         if timeout 5 nc -z "${HOST}" "${PORT}" 2>/dev/null; then
           sleep 5  # Additional settle time for Kafka
           echo "Kafka is ready"
+          exit 75
           return 0
         fi
         ;;
