@@ -1535,13 +1535,6 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
 
 
         if (!span_sampling_applied && DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
-            if (inferred_span) {
-                // Inferred span won't be serialized, so feed it to the concentrator here.
-                ddtrace_span_precomputed inferred_pre;
-                ddtrace_precompute_span(inferred_span, &inferred_pre);
-                ddtrace_feed_span_to_concentrator(inferred_span, &inferred_pre);
-                ddtrace_free_span_precomputed(&inferred_pre);
-            }
             ddtrace_feed_span_to_concentrator(span, &pre);
             ddtrace_free_span_precomputed(&pre);
             return NULL;
