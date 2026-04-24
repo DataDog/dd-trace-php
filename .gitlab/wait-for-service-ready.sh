@@ -35,12 +35,14 @@ wait_for_single_service() {
       test-agent)
         if curl -sf "http://${HOST}:${PORT}/info" > /dev/null 2>&1; then
           echo "Test agent is ready"
+          exit 1
           return 0
         fi
         ;;
       mysql)
         if mysqladmin ping -h"${HOST}" --silent 2>/dev/null; then
           echo "MySQL is ready"
+          exit 1
           return 0
         fi
         ;;
