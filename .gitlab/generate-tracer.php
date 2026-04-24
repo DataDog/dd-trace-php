@@ -662,14 +662,6 @@ foreach ($services as $part => $service) {
     CI_DEBUG_SERVICES: "true"
   retry:
     max: 2
-    when:
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
     exit_codes:
       - 75
 <?php endif; ?>
