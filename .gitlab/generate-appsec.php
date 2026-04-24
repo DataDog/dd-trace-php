@@ -43,7 +43,6 @@ stages:
 .appsec_test:
   tags: [ "arch:${ARCH}" ]
   interruptible: true
-<?php retry_on_infra_failure() ?>
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false
