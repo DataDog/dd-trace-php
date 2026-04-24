@@ -111,6 +111,8 @@ function retry_on_infra_failure() {
       - api_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
+    exit_codes:
+      - 75
 <?php
 }
 

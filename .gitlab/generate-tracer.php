@@ -692,10 +692,7 @@ foreach ($services as $part => $service) {
 <?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
-  retry:
-    max: 2
-    exit_codes:
-      - 75
+<?php retry_on_infra_failure() ?>
 <?php endif; ?>
 <?php if (str_contains($target, "sqlsrv")): ?>
     WAIT_FOR: sqlsrv-integration:1433
