@@ -103,8 +103,8 @@ function retry_on_infra_failure() {
 ?>
   retry:
     max: 2
-    exit_codes:
-      - 75
+    when:
+      - always
 <?php
 }
 
