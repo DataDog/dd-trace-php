@@ -263,6 +263,7 @@ static void dd_span_probe_end(zend_ulong invocation, zend_execute_data *execute_
     UNUSED(execute_data, retval, auxiliary);
 
     if (dyn->span) {
+        dd_trace_stop_span_time(dyn->span);
         ddtrace_clear_execute_data_span(invocation, true);
     }
 }
