@@ -63,7 +63,6 @@ stages:
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
   needs: []
-<?php retry_on_infra_failure() ?>
 
 "retry-test: script exit 75":
   extends: .retry-test-base
