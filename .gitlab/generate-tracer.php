@@ -58,85 +58,32 @@ stages:
 #variables:
 #  CI_DEBUG_SERVICES: "true"
 
-"retry-test: script exit 75":
+.retry-test-base:
   stage: test
   tags: [ "arch:amd64" ]
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
   needs: []
-  retry:
-    max: 2
-    when:
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
-    exit_codes:
-      - 75
+<?php retry_on_infra_failure() ?>
+
+"retry-test: script exit 75":
+  extends: .retry-test-base
   script:
     - exit 75
 
 "retry-test: script exit 1":
-  stage: test
-  tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
-  needs: []
-  retry:
-    max: 2
-    when:
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
-    exit_codes:
-      - 75
+  extends: .retry-test-base
   script:
     - exit 1
 
 "retry-test: before_script exit 75":
-  stage: test
-  tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
-  needs: []
-  retry:
-    max: 2
-    when:
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
-    exit_codes:
-      - 75
+  extends: .retry-test-base
   before_script:
     - exit 75
   script:
     - echo "should not reach here"
 
 "retry-test: before_script exit 1":
-  stage: test
-  tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
-  needs: []
-  retry:
-    max: 2
-    when:
-      - unknown_failure
-      - data_integrity_failure
-      - runner_system_failure
-      - scheduler_failure
-      - api_failure
-      - stuck_or_timeout_failure
-      - job_execution_timeout
-    exit_codes:
-      - 75
+  extends: .retry-test-base
   before_script:
     - exit 1
   script:
