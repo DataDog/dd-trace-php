@@ -240,8 +240,9 @@ foreach ($asan_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "<?= $arch ?>"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
+    FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+    FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   script:
-    - exit 1
     - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
@@ -367,7 +368,6 @@ foreach ($all_minor_major_targets as $major_minor):
     ARCH: "amd64"
   timeout: 120m
   script:
-    - exit 75
     - make test_extension_ci
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
@@ -608,6 +608,8 @@ foreach ($services as $part => $service) {
 <?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
+    FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+    FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
 <?php endif; ?>
 <?php if (str_contains($target, "sqlsrv")): ?>
     WAIT_FOR: sqlsrv-integration:1433

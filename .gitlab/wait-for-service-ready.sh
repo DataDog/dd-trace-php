@@ -35,12 +35,14 @@ wait_for_single_service() {
       test-agent)
         if curl -sf "http://${HOST}:${PORT}/info" > /dev/null 2>&1; then
           echo "Test agent is ready"
+          exit 1
           return 0
         fi
         ;;
       mysql)
         if mysqladmin ping -h"${HOST}" --silent 2>/dev/null; then
           echo "MySQL is ready"
+          exit 1
           return 0
         fi
         ;;
@@ -55,6 +57,7 @@ wait_for_single_service() {
         if timeout 5 nc -z "${HOST}" "${PORT}" 2>/dev/null; then
           sleep 5  # Additional settle time for Kafka
           echo "Kafka is ready"
+          exit 75
           return 0
         fi
         ;;
