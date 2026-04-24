@@ -518,6 +518,7 @@ endforeach;
 
 .cli_integration_test:
   extends: .base_test
+<?php retry_on_script_and_infra_failure() ?>
   variables:
     DD_TRACE_TEST_SAPI: cli-server
     COMPOSER_PROCESS_TIMEOUT: 0

@@ -104,7 +104,29 @@ function retry_on_infra_failure() {
   retry:
     max: 2
     when:
-      - always
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
+<?php
+}
+
+function retry_on_script_and_infra_failure() {
+?>
+  retry:
+    max: 2
+    when:
+      - script_failure
+      - unknown_failure
+      - data_integrity_failure
+      - runner_system_failure
+      - scheduler_failure
+      - api_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
 <?php
 }
 
