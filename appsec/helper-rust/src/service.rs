@@ -1,7 +1,6 @@
 use anyhow::Context;
 use arc_swap::ArcSwap;
 use std::{
-    backtrace::{Backtrace, BacktraceStatus},
     collections::{HashMap, HashSet},
     hash::Hash,
     path::PathBuf,
@@ -586,16 +585,11 @@ impl Service {
                 .add("appsec_config_key", rc_path)
                 .add("rc_config_id", &parsed_key.config_id);
 
-            let backtrace = match error.backtrace().status() {
-                BacktraceStatus::Captured => error.backtrace().to_string(),
-                _ => Backtrace::force_capture().to_string(),
-            };
-
             logs_submitter.submit_log(TelemetryLog {
                 level: telemetry::LogLevel::Error,
                 identifier,
                 message,
-                stack_trace: Some(backtrace),
+                stack_trace: None,
                 tags: Some(tags),
                 is_sensitive: false,
             });
@@ -617,7 +611,7 @@ impl Service {
             level: telemetry::LogLevel::Error,
             identifier: "rc::client::exception".to_string(),
             message,
-            stack_trace: Some(error.backtrace().to_string()),
+            stack_trace: None,
             tags: None,
             is_sensitive: false,
         });
