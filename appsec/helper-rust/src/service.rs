@@ -671,14 +671,17 @@ impl ServiceFixedConfig {
             None
         };
 
-        if maybe_new_rem_cfg_path != self.rem_cfg_settings.shmem_path()
-            || args.telemetry_settings != self.telemetry_settings
-        {
+        // config_sync sends paths even if RC is disabled. We reject those
+        // if we got enabled=false in client_init.
+        let rem_cfg_path_changed = self.rem_cfg_settings.can_be_enabled()
+            && maybe_new_rem_cfg_path != self.rem_cfg_settings.shmem_path();
+
+        if rem_cfg_path_changed || args.telemetry_settings != self.telemetry_settings {
             let mut new_cfg = self.clone();
-            new_cfg.rem_cfg_settings = protocol::RemoteConfigSettings::new(
-                !new_rem_cfg_path.as_os_str().is_empty(),
-                new_rem_cfg_path,
-            );
+            if rem_cfg_path_changed {
+                new_cfg.rem_cfg_settings =
+                    protocol::RemoteConfigSettings::new(true, new_rem_cfg_path);
+            }
             new_cfg.telemetry_settings = args.telemetry_settings;
             Some(new_cfg)
         } else {
@@ -807,7 +810,7 @@ mod tests {
             },
             protocol::RemoteConfigSettings::new(false, PathBuf::from(format!("/tmp/test_{}", id))),
             protocol::TelemetrySettings {
-                service_name: "test".to_string(),
+                service_name: format!("test_{}", id),
                 env_name: "test".to_string(),
             },
         )
@@ -906,5 +909,47 @@ mod tests {
         assert_eq!(manager.service_count(), 2);
         drop(s2);
         drop(s1_new);
+    }
+
+    #[test]
+    fn config_sync_does_not_enable_rc_when_client_init_disabled_it() {
+        // Simulates DD_REMOTE_CONFIG_ENABLED=0 in client_init: the path is
+        // non-empty but enabled=false. A later config_sync carrying the same
+        // (non-empty) path must NOT produce a new ServiceFixedConfig, because
+        // doing so would flip RC to enabled and trigger a WAF reload per
+        // PHP-FPM worker.
+        let telemetry = protocol::TelemetrySettings {
+            service_name: "svc".to_string(),
+            env_name: "env".to_string(),
+        };
+        let cfg = ServiceFixedConfig::new(
+            true,
+            protocol::WafSettings {
+                rules_file: Some(TEST_RULES_FILE.to_string()),
+                waf_timeout_us: Some(10000),
+                trace_rate_limit: 100,
+                obfuscator_key_regex: None,
+                obfuscator_value_regex: None,
+                schema_extraction: protocol::SchemaExtraction {
+                    enabled: false,
+                    sampling_period: 1.0,
+                },
+            },
+            // RC disabled by client_init, but the PHP side still has a path.
+            protocol::RemoteConfigSettings::new(false, PathBuf::from("/ddrc-test")),
+            telemetry.clone(),
+        );
+
+        let result = cfg.new_from_config_sync(protocol::ConfigSyncArgs {
+            rem_cfg_path: "/ddrc-test".to_string(),
+            telemetry_settings: telemetry,
+        });
+
+        assert!(
+            result.is_none(),
+            "config_sync with the same path must not create a new config when \
+             client_init disabled RC, but got: {:?}",
+            result
+        );
     }
 }
