@@ -58,36 +58,6 @@ stages:
 #variables:
 #  CI_DEBUG_SERVICES: "true"
 
-.retry-test-base:
-  stage: test
-  tags: [ "arch:amd64" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
-  needs: []
-
-"retry-test: script exit 75":
-  extends: .retry-test-base
-  script:
-    - exit 75
-
-"retry-test: script exit 1":
-  extends: .retry-test-base
-  script:
-    - exit 1
-
-"retry-test: before_script exit 75":
-  extends: .retry-test-base
-  before_script:
-    - exit 75
-  script:
-    - echo "should not reach here"
-
-"retry-test: before_script exit 1":
-  extends: .retry-test-base
-  before_script:
-    - exit 1
-  script:
-    - echo "should not reach here"
-
 <?php function agent_httpbin_service() { ?>
     - !reference [.services, test-agent]
     - !reference [.services, request-replayer]
@@ -220,7 +190,6 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
   timeout: 60m
   interruptible: true
-<?php retry_on_infra_failure() ?>
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       interruptible: false
@@ -272,6 +241,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     ARCH: "<?= $arch ?>"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
   script:
+    - exit 1
     - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
@@ -397,6 +367,7 @@ foreach ($all_minor_major_targets as $major_minor):
     ARCH: "amd64"
   timeout: 120m
   script:
+    - exit 75
     - make test_extension_ci
 <?php after_script("tmp/build_extension", has_test_agent: true); ?>
 
@@ -548,7 +519,6 @@ endforeach;
 
 .cli_integration_test:
   extends: .base_test
-<?php retry_on_script_and_infra_failure() ?>
   variables:
     DD_TRACE_TEST_SAPI: cli-server
     COMPOSER_PROCESS_TIMEOUT: 0
@@ -638,7 +608,6 @@ foreach ($services as $part => $service) {
 <?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
-<?php retry_on_infra_failure() ?>
 <?php endif; ?>
 <?php if (str_contains($target, "sqlsrv")): ?>
     WAIT_FOR: sqlsrv-integration:1433
