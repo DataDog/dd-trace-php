@@ -148,6 +148,8 @@ TSRM_TLS void *TSRMLS_CACHE = NULL;
 #endif
 #endif
 
+static int dd_main_pid;
+
 int ddtrace_disable = 0; // 0 = enabled, 1 = disabled via INI, 2 = disabled, but MINIT was fully executed
 static ZEND_INI_MH(dd_OnUpdateDisabled) {
     UNUSED(entry, mh_arg1, mh_arg2, mh_arg3, stage);
@@ -430,7 +432,9 @@ bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
 
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
-    ddtrace_generate_runtime_id();
+    if (dd_main_pid != getpid()) { // equal to session id if not a fork
+        ddtrace_generate_runtime_id();
+    }
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
@@ -1465,6 +1469,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (ddtrace_module_zv) {
         ddtrace_module = Z_PTR_P(ddtrace_module_zv);
     }
+
+    dd_main_pid = getpid();
+    ddtrace_generate_session_id();
 
     // Make sure it's available for appsec, before any early returns
     dd_ip_extraction_startup();

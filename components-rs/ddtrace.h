@@ -11,6 +11,10 @@ struct _zend_string;
 
 extern ddog_Uuid ddtrace_runtime_id;
 
+extern ddog_Uuid ddtrace_session_id;
+
+extern uint8_t ddtrace_formatted_session_id[36];
+
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 extern ddog_VecRemoteConfigProduct DDTRACE_REMOTE_CONFIG_PRODUCTS;
@@ -24,6 +28,12 @@ extern const uint8_t *DDOG_PHP_FUNCTION;
  * Must be called from a single-threaded context, such as MINIT.
  */
 void ddtrace_generate_runtime_id(void);
+
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT.
+ */
+void ddtrace_generate_session_id(void);
 
 void ddtrace_format_runtime_id(uint8_t (*buf)[36]);
 
