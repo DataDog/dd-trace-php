@@ -58,6 +58,58 @@ stages:
 #variables:
 #  CI_DEBUG_SERVICES: "true"
 
+"retry-test: script exit 75":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
+  needs: []
+  retry:
+    max: 2
+    exit_codes:
+      - 75
+  script:
+    - exit 75
+
+"retry-test: script exit 1":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
+  needs: []
+  retry:
+    max: 2
+    exit_codes:
+      - 75
+  script:
+    - exit 1
+
+"retry-test: before_script exit 75":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
+  needs: []
+  retry:
+    max: 2
+    exit_codes:
+      - 75
+  before_script:
+    - exit 75
+  script:
+    - echo "should not reach here"
+
+"retry-test: before_script exit 1":
+  stage: test
+  tags: [ "arch:amd64" ]
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.3_bookworm-7
+  needs: []
+  retry:
+    max: 2
+    exit_codes:
+      - 75
+  before_script:
+    - exit 1
+  script:
+    - echo "should not reach here"
+
 <?php function agent_httpbin_service() { ?>
     - !reference [.services, test-agent]
     - !reference [.services, request-replayer]
