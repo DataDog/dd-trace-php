@@ -1,18 +1,27 @@
 use crate::allocation;
-use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr;
 
-#[cfg(php_zend_mm_set_custom_handlers_ex)]
+#[cfg(not(php_zts))]
+use core::cell::Cell;
+#[cfg(all(not(php_zts), php_zend_mm_set_custom_handlers_ex))]
 use crate::allocation::allocation_ge84::ZendMMState;
-#[cfg(not(php_zend_mm_set_custom_handlers_ex))]
+#[cfg(all(not(php_zts), not(php_zend_mm_set_custom_handlers_ex)))]
 use crate::allocation::allocation_le83::ZendMMState;
 
 #[repr(C)]
 pub struct ProfilerGlobals {
-    /// Wrapped in `Cell` to prevent torn reads/writes when allocation hooks
-    /// are called re-entrantly during `rinit()`/`rshutdown()`.
+    /// In ZTS builds, ZendMMState is stored in Rust's thread_local! (see
+    /// allocation/mod.rs) instead of here, to avoid TSRM pointer arithmetic
+    /// races under FrankenPHP's thread lifecycle. This field is only used
+    /// in NTS builds.
+    #[cfg(not(php_zts))]
     pub zend_mm_state: Cell<ZendMMState>,
+
+    /// Padding to keep the struct non-zero-sized for ZTS builds so TSRM
+    /// still allocates a slot (needed for ginit/gshutdown callbacks).
+    #[cfg(php_zts)]
+    _padding: u8,
 }
 
 /// We need TSRM to call into GINIT and GSHUTDOWN to observe spawning and
@@ -85,13 +94,8 @@ pub unsafe extern "C" fn ginit(_globals_ptr: *mut c_void) {
     #[cfg(php_zts)]
     crate::timeline::timeline_ginit();
 
-    // Initialize ZendMMState in PHP globals for ZTS builds. For NTS builds,
-    // this was already done in its const initializer.
-    #[cfg(php_zts)]
-    {
-        let globals = _globals_ptr.cast::<ProfilerGlobals>();
-        (*globals).zend_mm_state = Cell::new(ZendMMState::new());
-    }
+    // ZendMMState is initialized via Rust's thread_local! const initializer
+    // for ZTS builds, so no TSRM-based init needed here.
 
     // SAFETY: this is called in thread ginit as expected, and no other places.
     allocation::ginit();

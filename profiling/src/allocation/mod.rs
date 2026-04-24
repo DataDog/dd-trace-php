@@ -4,7 +4,6 @@ pub use profiling_stats::*;
 
 use crate::bindings::{self as zend};
 use crate::config::SystemSettings;
-use crate::module_globals;
 use crate::profiling::Profiler;
 use crate::{RefCellExt, REQUEST_LOCALS};
 use core::cell::Cell;
@@ -28,20 +27,65 @@ use crate::allocation::allocation_ge84::ZendMMState;
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 use crate::allocation::allocation_le83::ZendMMState;
 
-/// Gets a pointer to the Cell<ZendMMState> from PHP globals.
+// ZTS: Use Rust's thread_local! for ZendMMState storage instead of PHP's TSRM
+// module globals. PHP's TSRM slot access via tsrmg_bulk() involves triple-pointer
+// dereference through tsrm_get_ls_cache(), which can return stale or wrong data
+// when FrankenPHP's thread lifecycle (ts_free_thread + pthread_create +
+// ts_resource) races with concurrent allocation hooks on other threads.
+// Rust's thread_local! uses the platform's native TLS (__thread on Linux),
+// which is always correct per-OS-thread without the indirection.
+// See: https://github.com/DataDog/dd-trace-php/issues/3729
+#[cfg(php_zts)]
+thread_local! {
+    static ZEND_MM_STATE: Cell<ZendMMState> = const { Cell::new(ZendMMState::new()) };
+}
+
+// NTS: Simple static, no threading concerns.
+#[cfg(not(php_zts))]
+static mut ZEND_MM_STATE: Cell<ZendMMState> = Cell::new(ZendMMState::new());
+
+/// Gets a pointer to the Cell<ZendMMState> for the current thread.
 ///
 /// # Safety
 ///
-/// Must uphold safety conditions of [`module_globals::get_profiler_globals`].
+/// For ZTS: safe to call from any thread — uses Rust's thread_local storage.
+/// For NTS: caller must ensure single-threaded access.
+#[cfg(not(php_zts))]
 #[inline]
 pub(crate) unsafe fn get_zend_mm_state() -> *mut Cell<ZendMMState> {
-    let globals = module_globals::get_profiler_globals();
-    ptr::addr_of_mut!((*globals).zend_mm_state)
+    ptr::addr_of_mut!(ZEND_MM_STATE)
 }
 
-/// Macros for accessing ZendMMState from PHP globals.
-/// These are shared between PHP 8.3- and 8.4+ implementations.
-/// They are exported at the crate root and can be used in submodules.
+/// Macros for accessing ZendMMState.
+/// ZTS builds use Rust's thread_local!, NTS builds use a static.
+
+// --- ZTS macros: access via thread_local! ---
+#[cfg(php_zts)]
+#[macro_export]
+macro_rules! tls_zend_mm_state_copy {
+    () => {
+        $crate::allocation::ZEND_MM_STATE.get()
+    };
+}
+
+#[cfg(php_zts)]
+#[macro_export]
+macro_rules! tls_zend_mm_state_get {
+    ($x:ident) => {
+        $crate::allocation::ZEND_MM_STATE.get().$x
+    };
+}
+
+#[cfg(php_zts)]
+#[macro_export]
+macro_rules! tls_zend_mm_state_set {
+    ($x:expr) => {
+        $crate::allocation::ZEND_MM_STATE.set($x)
+    };
+}
+
+// --- NTS macros: access via static ---
+#[cfg(not(php_zts))]
 #[macro_export]
 macro_rules! tls_zend_mm_state_copy {
     () => {
@@ -49,6 +93,7 @@ macro_rules! tls_zend_mm_state_copy {
     };
 }
 
+#[cfg(not(php_zts))]
 #[macro_export]
 macro_rules! tls_zend_mm_state_get {
     ($x:ident) => {
@@ -56,6 +101,7 @@ macro_rules! tls_zend_mm_state_get {
     };
 }
 
+#[cfg(not(php_zts))]
 #[macro_export]
 macro_rules! tls_zend_mm_state_set {
     ($x:expr) => {{
