@@ -56,6 +56,7 @@ foreach ($profiler_minor_major_targets as $version) {
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/profiler-tests"
 
     - '# NTS'
+    - '# switch-php is not available on alpine images; the image already ships the target PHP version'
     - if [ ! -f /sbin/apk ]; then switch-php "${PHP_MAJOR_MINOR}"; fi
     - cargo build --profile profiler-release --all-features
     - (cd ../; TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/profiler-tests/nts-results.xml" php profiling/tests/run-tests.php -d "extension=/mnt/ramdisk/cargo/profiler-release/libdatadog_php_profiling.so" --show-diff -g "FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP" "profiling/tests/phpt")
