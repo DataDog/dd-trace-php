@@ -89,6 +89,8 @@ stages:
   - release
 
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
   # One pipeline injection package size ratchet
