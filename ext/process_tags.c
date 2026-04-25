@@ -55,6 +55,10 @@ static void clear_process_tags(void) {
     }
 
     if (process_tags.serialized) {
+        // Counterpart to the IS_STR_INTERNED flag set in serialize_process_tags:
+        // zend_string_release no-ops on interned strings, so clear the flag
+        // first to actually free the underlying persistent allocation.
+        GC_DEL_FLAGS(process_tags.serialized, IS_STR_INTERNED);
         zend_string_release(process_tags.serialized);
     }
 
@@ -255,6 +259,11 @@ static void serialize_process_tags(void) {
     if (buf.s) {
         smart_str_0(&buf);
         process_tags.serialized = zend_string_init(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s), 1);
+        // Process-wide shared string. Mark interned (= GC_IMMUTABLE) so the
+        // refcount helpers in convert_to_bytes treat it as immutable and
+        // skip the non-atomic ++/-- that would otherwise race across ZTS
+        // threads and corrupt the refcount.
+        GC_ADD_FLAGS(process_tags.serialized, IS_STR_INTERNED);
     }
 
     smart_str_free(&buf);

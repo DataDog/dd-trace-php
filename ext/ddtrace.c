@@ -1415,6 +1415,25 @@ void ddtrace_init_known_strings(void) {
 }
 #endif
 
+// Refcount helpers wired into Rust via ddog_init_span_func. They no-op on
+// interned (= GC_IMMUTABLE) zend_strings so process-wide shared strings
+// don't get racing non-atomic ++/-- on their refcount when fed into
+// convert_to_bytes from multiple ZTS threads concurrently. Naming mirrors
+// Zend's GC_TRY_ADDREF / GC_TRY_DELREF convention. Note we call the full
+// zend_string_release (not GC_TRY_DELREF) on the non-interned path so the
+// underlying allocation is freed when the refcount hits zero.
+static void dd_zend_string_try_addref(zend_string *s) {
+    if (!ZSTR_IS_INTERNED(s)) {
+        zend_string_addref(s);
+    }
+}
+
+static void dd_zend_string_try_release(zend_string *s) {
+    if (!ZSTR_IS_INTERNED(s)) {
+        zend_string_release(s);
+    }
+}
+
 static PHP_MINIT_FUNCTION(ddtrace) {
     UNUSED(type);
     zval *php_version = zend_get_constant_str(ZEND_STRL("PHP_VERSION"));
@@ -1425,7 +1444,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
         return FAILURE;
     }
 
-    ddog_init_span_func((void *)zend_string_release, (void *)zend_string_addref, ddtrace_zend_string_init);
+    ddog_init_span_func((void *)dd_zend_string_try_release, (void *)dd_zend_string_try_addref, ddtrace_zend_string_init);
 
     ddtrace_active_sapi = datadog_php_sapi_from_name(datadog_php_string_view_from_cstr(sapi_module.name));
 
