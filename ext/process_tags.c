@@ -259,10 +259,12 @@ static void serialize_process_tags(void) {
     if (buf.s) {
         smart_str_0(&buf);
         process_tags.serialized = zend_string_init(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s), 1);
-        // Process-wide shared string. Mark interned (= GC_IMMUTABLE) so the
-        // refcount helpers in convert_to_bytes treat it as immutable and
+        // Process-wide shared string: pre-compute h (interned strings are
+        // expected to have it set; callers may read ZSTR_H() raw) then mark
+        // interned (= GC_IMMUTABLE) so the convert_to_bytes refcount helpers
         // skip the non-atomic ++/-- that would otherwise race across ZTS
-        // threads and corrupt the refcount.
+        // threads.
+        zend_string_hash_val(process_tags.serialized);
         GC_ADD_FLAGS(process_tags.serialized, IS_STR_INTERNED);
     }
 
