@@ -399,12 +399,25 @@ void zai_config_ini_rinit(void) {
                 for (uint8_t n = 0; n < memoized->names_count; ++n) {
                     zend_ini_entry *source = memoized->ini_entries[n],
                                    *ini = zend_hash_find_ptr(EG(ini_directives), source->name);
+                    // Each ZTS thread holds an independent zend_string_dup
+                    // of the master INI value (matching PHP's own thread
+                    // setup in zend_copy_ini_directives). Sharing the
+                    // master via zend_string_copy would refcount-share a
+                    // process-wide string, and PHP's refcount ops are not
+                    // atomic — concurrent threads running this rinit would
+                    // race on ++/-- and eventually corrupt the heap. Dup
+                    // per thread keeps the refcount private and always 1.
                     if (ini->modified) {
                         if (ini->orig_value == ini->value) {
-                            ini->value = source->value;
+                            // ini->value and ini->orig_value alias the same
+                            // allocation (single owning ref). Repoint
+                            // ini->value to its own dup *before* we release
+                            // orig_value below; otherwise the release would
+                            // free the alloc and leave ini->value dangling.
+                            ini->value = zend_string_dup(source->value, 1);
                         }
                         zend_string_release(ini->orig_value);
-                        ini->orig_value = zend_string_copy(source->value);
+                        ini->orig_value = zend_string_dup(source->value, 1);
 
                         if (!applied_update) {
                             if (ZaiConfigOnUpdateIni(ini, ini->value, NULL, NULL, NULL, PHP_INI_STAGE_RUNTIME) == SUCCESS) {
@@ -419,7 +432,7 @@ void zai_config_ini_rinit(void) {
                         }
                     } else {
                         zend_string_release(ini->value);
-                        ini->value = zend_string_copy(source->value);
+                        ini->value = zend_string_dup(source->value, 1);
                     }
                 }
             }
