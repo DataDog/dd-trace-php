@@ -182,17 +182,22 @@ curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" \
 ### Checking CI (Gitlab)
 
 Use `.claude/ci/check-ci` to follow a pipeline until all jobs complete.
+When invoked with `--commit` (or defaulting to HEAD), it monitors both the GitLab
+pipeline **and** any GitHub Actions workflows for the same commit. GitHub monitoring
+requires `ddtool auth github login --org DataDog` to be configured; if the token is
+unavailable, a warning is printed and only GitLab is monitored.
 
 Results are written to `/tmp/gitlab_<pipeline_id>/`:
 - `success.txt` — `<job_id>\t<job_name>` per line
-- `failure.txt` — same format for failed jobs
-- `fail_logs/<job_id>.log` — full job trace for each failure
+- `failure.txt` — same format for failed jobs (GitLab and GitHub; GitHub entries are prefixed `[GH]`)
+- `fail_logs/<job_id>.log` — full job trace for each GitLab failure
+- `gh_fail_logs/gh_<job_id>.log` — log for each GitHub Actions job failure
 
 Exit codes: 0 = all passed, 1 = failures or threshold reached.
 
 #### Invocation pattern
 
-Available options: `--commit <ref>` OR `--pipeline <id>`,
+Available options: `--commit <ref>` OR `--pipeline <id>` (GitLab only, skips GitHub),
 `--discovery-timeout <s>` (default 60), `--poll-interval <s>` (default 60),
 `--max-failures <n>` (default 50), `--timeout <s>` (default 7200 = 2 h),
 `--list-jobs` (see below).
@@ -200,8 +205,9 @@ Available options: `--commit <ref>` OR `--pipeline <id>`,
 ##### `--list-jobs`
 
 Prints all jobs grouped by pipeline with their status, then exits
-immediately — does not monitor or download logs. Useful for a quick
-snapshot of what ran and what failed:
+immediately — does not monitor or download logs. Shows both GitLab pipelines
+and GitHub Actions workflow runs. Useful for a quick snapshot of what ran and
+what failed:
 
 ```bash
 .claude/ci/check-ci --commit HEAD --list-jobs
@@ -213,6 +219,11 @@ Output format:
 Pipeline 105413994 (status: failed):
   failed    test_extension_ci: [7.2]
   success   compile extension: debug [8.3]
+  ...
+
+GitHub Actions run 12345678 'Profiling ASAN Tests' (status: completed, conclusion: failure):
+  failure   prof-asan (8.5, ubuntu-8-core-latest)
+  success   prof-asan (8.3, ubuntu-8-core-latest)
   ...
 ```
 
