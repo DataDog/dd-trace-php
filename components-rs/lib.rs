@@ -16,7 +16,7 @@ use libdd_common::entity_id::{get_container_id, set_cgroup_file};
 use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use std::borrow::Cow;
-use std::ffi::c_char;
+use std::ffi::{c_char, OsStr};
 use std::ptr::null_mut;
 use uuid::Uuid;
 
@@ -40,8 +40,16 @@ pub static mut ddtrace_session_id: Uuid = Uuid::nil();
 #[allow(non_upper_case_globals)]
 pub static mut ddtrace_formatted_session_id: [u8; 36] = [0u8; 36];
 
+#[no_mangle]
+#[allow(non_upper_case_globals)]
+pub static mut ddtrace_formatted_root_session_id: [u8; 36] = [0u8; 36];
+
+#[no_mangle]
+#[allow(non_upper_case_globals)]
+pub static mut ddtrace_formatted_parent_session_id: [u8; 36] = [0u8; 36];
+
 /// # Safety
-/// Must be called from a single-threaded context, such as MINIT.
+/// Must be called from a single-threaded context, such as MINIT or first rinit.
 #[no_mangle]
 pub unsafe extern "C" fn ddtrace_generate_runtime_id() {
     ddtrace_runtime_id = Uuid::new_v4();
@@ -54,6 +62,22 @@ pub unsafe extern "C" fn ddtrace_generate_session_id() {
     ddtrace_session_id = Uuid::new_v4();
     ddtrace_runtime_id = ddtrace_session_id;
     ddtrace_session_id.as_hyphenated().encode_lower(&mut ddtrace_formatted_session_id);
+
+    unsafe fn set(name: &str, value: &mut [u8; 36], force: bool) {
+        if let Ok(str) = std::env::var(name) {
+            let bytes = str.as_bytes();
+            if bytes.len() == 36 {
+                value.copy_from_slice(bytes);
+                if !force {
+                    return;
+                }
+            }
+        }
+        std::env::set_var(name, OsStr::from_encoded_bytes_unchecked(&ddtrace_formatted_session_id));
+    }
+
+    set("_DD_PARENT_PHP_SESSION_ID", &mut ddtrace_formatted_parent_session_id, true);
+    set("_DD_ROOT_PHP_SESSION_ID", &mut ddtrace_formatted_root_session_id, false);
 }
 
 #[no_mangle]
