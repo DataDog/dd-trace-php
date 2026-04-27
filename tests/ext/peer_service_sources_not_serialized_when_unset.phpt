@@ -4,6 +4,7 @@ Value of internal span's peerServiceSource is not added to the serialized versio
 DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function test($a) {
     return 'METHOD ' . $a;
@@ -15,7 +16,7 @@ DDTrace\trace_function("test", function($s, $a, $retval) {
 
 test("arg");
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

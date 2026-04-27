@@ -4,6 +4,7 @@ Serialization of a span with multiple span links
 DD_TRACE_DEBUG_PRNG_SEED=42
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function foo() {}
 function bar() {}
@@ -42,7 +43,7 @@ var_dump(json_encode($firstLink));
 var_dump($firstLink->jsonSerialize());
 var_dump(json_encode($secondLink));
 var_dump($secondLink->jsonSerialize());
-var_dump(dd_trace_serialize_closed_spans()[0]);
+var_dump(dd_clean_spans()[0]);
 
 ?>
 --EXPECTF--

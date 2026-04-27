@@ -8,6 +8,7 @@ if (PHP_VERSION_ID < 80400) {
 ?>
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 const MY_STRING = 'string from const';
@@ -56,7 +57,7 @@ $allTheTypes[0][1] = &$allTheTypes[0];
 
 call_user_func_array('meta_to_string', $allTheTypes);
 
-list($span) = dd_trace_serialize_closed_spans();
+list($span) = dd_clean_spans();
 unset($span['meta']['process_id']);
 $last = -1;
 foreach ($span['meta'] as $key => $value) {

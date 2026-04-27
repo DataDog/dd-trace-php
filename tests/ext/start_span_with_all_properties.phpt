@@ -6,6 +6,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 $original_span = DDTrace\active_span();
 
@@ -42,7 +43,7 @@ $span = DDTrace\start_span();
 DDTrace\close_span($span->getStartTime() / 1000000000 + 2.0000002); // nobody likes the limits of double precision
 var_dump(round($span->getDuration(), -3));
 
-$serialized = dd_trace_serialize_closed_spans();
+$serialized = dd_clean_spans();
 $serialized[0]["duration"] += 500; // fix flakiness
 var_dump($serialized);
 
