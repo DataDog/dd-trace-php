@@ -6,7 +6,7 @@ use libddwaf::{
     Builder, Config, Handle,
 };
 
-use crate::client::log::warning;
+use crate::error_once;
 
 /// A WAF instance that can be shared (through clone()) and updated by any thread.
 ///
@@ -104,7 +104,7 @@ impl UpdateableWafInstance {
             guard.initial_ruleset_added = false;
             let res = guard.builder.remove_config(Self::INITIAL_RULESET);
             if !res {
-                warning!("Failed to remove initial ruleset: probably not present, but we it should have been");
+                error_once!("Failed to remove initial ruleset: probably not present, but we it should have been");
             }
         }
 
@@ -112,6 +112,16 @@ impl UpdateableWafInstance {
             .builder
             .add_or_update_config(path, ruleset, diagnostics);
         if !res {
+            if !guard.initial_ruleset_added && !Self::has_asm_dd_configs(&mut guard.builder) {
+                guard.initial_ruleset_added = true;
+                if !guard.builder.add_or_update_config(
+                    Self::INITIAL_RULESET,
+                    &self.inner.initial_ruleset,
+                    None,
+                ) {
+                    error_once!("Failed to restore initial ruleset after failed config addition");
+                }
+            }
             anyhow::bail!("Failed to add/update config {path}");
         }
         Ok(())
@@ -294,7 +304,9 @@ mod tests {
                 .replace("arachni_rule", "inhcara_rule"),
         )
         .unwrap();
-        upd_waf.add_or_update_config("2nd rule", &ruleset2, None);
+        upd_waf
+            .add_or_update_config("2nd rule", &ruleset2, None)
+            .unwrap();
 
         assert_eq!(upd_waf.config_paths_count(Some("2nd rule")), 1);
         let paths = upd_waf.config_paths(Some("2nd rule"));

@@ -27,7 +27,6 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 ddog_Endpoint *ddtrace_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
-static uint8_t dd_sidecar_formatted_session_id[36];
 
 // Best-effort pointer for the signal handler (SIGTERM/SIGINT). Set to the first
 // per-thread connection; never cleared until MSHUTDOWN. Not atomic: concurrent
@@ -51,7 +50,6 @@ static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
 
 // Set the globals that stay unchanged in case of fork
 static void ddtrace_set_non_resettable_sidecar_globals(void) {
-    ddtrace_format_runtime_id(&dd_sidecar_formatted_session_id);
     ddtrace_endpoint = ddtrace_sidecar_agent_endpoint();
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
@@ -68,7 +66,7 @@ static void ddtrace_set_resettable_sidecar_globals(void) {
     uint8_t formatted_run_time_id[36];
     ddtrace_format_runtime_id(&formatted_run_time_id);
     ddog_CharSlice runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_run_time_id, .len = sizeof(formatted_run_time_id)};
-    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
+    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
 }
 
@@ -80,10 +78,10 @@ static void dd_free_endpoints(void) {
 }
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
-    if (memcmp(dd_sidecar_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
+    if (memcmp(ddtrace_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
         return NULL;
     }
-    return dd_sidecar_formatted_session_id;
+    return ddtrace_formatted_session_id;
 }
 
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void) {
@@ -103,7 +101,7 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
 }
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
-    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
+    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};
     const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
     ddog_sidecar_session_set_config(transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
@@ -912,7 +910,7 @@ ddog_crasht_Metadata ddtrace_setup_crashtracking_metadata(ddog_Vec_Tag *tags) {
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("library_version"), DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("language"), DDOG_CHARSLICE_C("php"));
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime"), DDOG_CHARSLICE_C("php"));
-    ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime-id"), (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)});
+    ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime-id"), (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)});
 
     const char *runtime_version = zend_get_module_version("Reflection");
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime_version"), (ddog_CharSlice) {.ptr = (char *) runtime_version, .len = strlen(runtime_version)});

@@ -32,11 +32,28 @@ pub use libdd_telemetry_ffi::*;
 #[allow(non_upper_case_globals)]
 pub static mut ddtrace_runtime_id: Uuid = Uuid::nil();
 
+#[no_mangle]
+#[allow(non_upper_case_globals)]
+pub static mut ddtrace_session_id: Uuid = Uuid::nil();
+
+#[no_mangle]
+#[allow(non_upper_case_globals)]
+pub static mut ddtrace_formatted_session_id: [u8; 36] = [0u8; 36];
+
 /// # Safety
 /// Must be called from a single-threaded context, such as MINIT.
 #[no_mangle]
 pub unsafe extern "C" fn ddtrace_generate_runtime_id() {
     ddtrace_runtime_id = Uuid::new_v4();
+}
+
+/// # Safety
+/// Must be called from a single-threaded context, such as MINIT.
+#[no_mangle]
+pub unsafe extern "C" fn ddtrace_generate_session_id() {
+    ddtrace_session_id = Uuid::new_v4();
+    ddtrace_runtime_id = ddtrace_session_id;
+    ddtrace_session_id.as_hyphenated().encode_lower(&mut ddtrace_formatted_session_id);
 }
 
 #[no_mangle]

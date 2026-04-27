@@ -11,6 +11,7 @@ if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: The pecl run-tests path is n
 ?>
 --FILE--
 <?php
+include __DIR__ . '/../../../sandbox/dd_dumper.inc';
 
 require __DIR__ . '/../../../includes/git_functions.inc';
 
@@ -26,14 +27,14 @@ function makeRequest() {
     \DDTrace\close_span();
     \DDTrace\close_span();
 
-    $closedSpans = dd_trace_serialize_closed_spans();
+    $closedSpans = dd_clean_spans();
     $rootMeta = $closedSpans[0]['meta'];
     var_dump($rootMeta);
 
     \DDTrace\start_span();
     \DDTrace\close_span();
 
-    $closedRoot = dd_trace_serialize_closed_spans();
+    $closedRoot = dd_clean_spans();
     $rootMeta2 = $closedRoot[0]['meta'];
     var_dump($rootMeta2);
 }

@@ -347,64 +347,47 @@ impl Service {
     ) -> anyhow::Result<()> {
         debug!("Applying config for runtime id {}", cfg_dir.runtime_id()?);
 
+        let new_configs = cfg_dir
+            .iter()
+            .map_err(|e| {
+                let any_error = e.context("Failed to start iteration over configs");
+                self.log_general_rc_error(&any_error);
+                any_error
+            })?
+            .map(|res_cfg| {
+                res_cfg
+                    .map_err(|e| {
+                        let any_error = e.context("Failure during config iteration");
+                        self.log_general_rc_error(&any_error);
+                        any_error
+                    })
+                    .map(|cfg| cfg.rc_path().clone())
+            })
+            .collect::<Result<HashSet<_>, anyhow::Error>>()?;
+
         let mut new_snapshot = (**self.config_snapshot.load()).clone();
-        let mut new_configs = HashSet::new();
         let mut waf_changed = false;
         let mut all_diagnostics = Vec::new();
         let mut rules_version: Option<String> = None;
 
-        let maybe_cfg_iter = cfg_dir.iter();
-        match maybe_cfg_iter {
-            Ok(cfg_iter) => {
-                for maybe_cfg in cfg_iter {
-                    // Handle each new/updated config
-                    let cfg = maybe_cfg?;
-                    let rc_path = cfg.rc_path();
-                    new_configs.insert(rc_path.to_string());
-
-                    let result = self.apply_config_file(
-                        &cfg,
-                        rc_path,
-                        state,
-                        &mut all_diagnostics,
-                        &mut rules_version,
-                        &mut new_snapshot,
-                        &mut waf_changed,
-                    );
-                    if let Err(e) = result {
-                        self.log_product_rc_error(rc_path, &self.logs_collector, e);
-                    }
-                }
-            }
-            Err(e) => {
-                self.log_general_rc_error(e.context("Failed to iterate over configs"));
-            }
-        }
-
-        for maybe_cfg in cfg_dir.iter()? {
-            let cfg = maybe_cfg?;
-            let rc_path = cfg.rc_path();
-            new_configs.insert(rc_path.to_string());
-        }
-
         // Handle removal of configs
         for old_path in state.last_configs.difference(&new_configs) {
-            if old_path.contains("/ASM_FEATURES/") {
+            if old_path.as_str().contains("/ASM_FEATURES/") {
                 state.asm_feature_config_manager.remove(old_path);
             } else {
-                let res = self.waf.remove_config(old_path);
+                let res = self.waf.remove_config(old_path.as_str());
                 match res {
                     Ok(true) => {
-                        debug!("Removed WAF config: {}", old_path);
+                        debug!("Removed WAF config: {:?}", old_path);
                         waf_changed = true;
                     }
                     Ok(false) => {
-                        warning!("No WAF config found to remove: {}", old_path);
+                        warning!("No WAF config found to remove: {:?}", old_path);
                     }
                     Err(e) => {
-                        self.log_general_rc_error(e.context(format!(
+                        self.log_general_rc_error(&e.context(format!(
                             concat!(
-                                "Failed to remove WAF config {}; ",
+                                "Failed to remove WAF config {:?}; ",
                                 "this should happen only when reading the default config"
                             ),
                             old_path
@@ -413,6 +396,28 @@ impl Service {
                 }
             }
         }
+
+        // cfg_dir iteration worked above, so it will presumably work here too
+        let cfg_iter = cfg_dir.iter()?;
+        for maybe_cfg in cfg_iter {
+            // Handle each config in the new config directory
+            let cfg = maybe_cfg?;
+            let rc_path = cfg.rc_path();
+
+            let result = self.apply_config_file(
+                &cfg,
+                rc_path,
+                state,
+                &mut all_diagnostics,
+                &mut rules_version,
+                &mut new_snapshot,
+                &mut waf_changed,
+            );
+            if let Err(e) = result {
+                self.log_product_rc_error(rc_path, &self.logs_collector, e);
+            }
+        }
+
         state.last_configs = new_configs;
 
         // Telemetry waf.config_errors metrics and telemetry logs - always process
@@ -444,7 +449,7 @@ impl Service {
                 }
                 Err(e) => {
                     self.log_general_rc_error(
-                        e.context("Failed to rebuild WAF after config update"),
+                        &e.context("Failed to rebuild WAF after config update"),
                     );
                     false
                 }
@@ -495,10 +500,10 @@ impl Service {
     fn apply_config_file(
         &self,
         cfg: &rc::Config,
-        rc_path: &str,
+        rc_path: &rc::RcPath,
         state: &mut RcUpdateState,
         all_diagnostics: &mut Vec<(
-            String,
+            rc::RcPath,
             libddwaf::object::WafOwnedDefaultAllocator<libddwaf::object::WafMap>,
         )>,
         rules_version: &mut Option<String>,
@@ -506,8 +511,13 @@ impl Service {
         waf_changed: &mut bool,
     ) -> anyhow::Result<()> {
         let product = cfg.product();
+        if state.last_configs.contains(rc_path) {
+            debug!("Config already applied on previous update: {:?}", rc_path);
+            return Ok(());
+        }
+
         debug!(
-            "Processing config: rc_path={}, product={}",
+            "Processing config: rc_path={:?}, product={}",
             rc_path,
             product.name()
         );
@@ -517,7 +527,7 @@ impl Service {
                 let data = unsafe { shmem.as_slice() };
                 state
                     .asm_feature_config_manager
-                    .add(rc_path.to_string(), data)?;
+                    .add(rc_path.as_str().to_string(), data)?;
                 Ok(())
             }
             "ASM_DD" | "ASM" | "ASM_DATA" => {
@@ -525,17 +535,19 @@ impl Service {
                 let data = unsafe { shmem.as_slice() };
 
                 let ruleset = waf_ruleset::WafRuleset::from_slice(data)
-                    .with_context(|| format!("Failed to parse WAF config for {}", rc_path))?;
+                    .with_context(|| format!("Failed to parse WAF config for {:?}", rc_path))?;
 
                 let waf_obj: libddwaf::object::WafObject = ruleset.into();
                 let mut diagnostics = Default::default();
 
-                let upd_result =
-                    self.waf
-                        .add_or_update_config(rc_path, &waf_obj, Some(&mut diagnostics));
+                let upd_result = self.waf.add_or_update_config(
+                    rc_path.as_str(),
+                    &waf_obj,
+                    Some(&mut diagnostics),
+                );
 
                 if upd_result.is_ok() {
-                    debug!("Added/updated WAF config: {}", rc_path);
+                    debug!("Added/updated WAF config: {:?}", rc_path);
                     if product.name() == "ASM_DD" {
                         *rules_version = waf_diag::extract_ruleset_version(&diagnostics);
                         *new_snapshot = new_snapshot.with_new_rules_version(rules_version.clone());
@@ -543,7 +555,7 @@ impl Service {
                     *waf_changed = true;
                 }
 
-                all_diagnostics.push((rc_path.to_string(), diagnostics));
+                all_diagnostics.push((rc_path.clone(), diagnostics));
                 upd_result
             }
             _ => {
@@ -555,12 +567,12 @@ impl Service {
 
     fn log_product_rc_error(
         &self,
-        rc_path: &str,
+        rc_path: &rc::RcPath,
         logs_submitter: &TelemetryLogsCollector,
         error: anyhow::Error,
     ) {
         let message = format!(
-            "Failed to apply config {} in service with config {:?}: {}",
+            "Failed to apply config {:?} in service with config {:?}: {:#}",
             rc_path, self.fixed_config, error
         );
 
@@ -577,21 +589,21 @@ impl Service {
                 level: telemetry::LogLevel::Error,
                 identifier,
                 message,
-                stack_trace: Some(error.backtrace().to_string()),
+                stack_trace: None,
                 tags: Some(tags),
                 is_sensitive: false,
             });
         } else {
             error!(
-                "Can't parse RC path: {}; no submission of telemetry log",
+                "Can't parse RC path: {:?}; no submission of telemetry log",
                 rc_path
             );
         }
     }
 
-    fn log_general_rc_error(&self, error: anyhow::Error) {
+    fn log_general_rc_error(&self, error: &anyhow::Error) {
         let message = format!(
-            "Failed to apply config for service with config {:?}: {}",
+            "Failed to apply config for service with config {:?}: {:#}",
             self.fixed_config, error
         );
         warning!("{}", message);
@@ -599,7 +611,7 @@ impl Service {
             level: telemetry::LogLevel::Error,
             identifier: "rc::client::exception".to_string(),
             message,
-            stack_trace: Some(error.backtrace().to_string()),
+            stack_trace: None,
             tags: None,
             is_sensitive: false,
         });
@@ -659,14 +671,17 @@ impl ServiceFixedConfig {
             None
         };
 
-        if maybe_new_rem_cfg_path != self.rem_cfg_settings.shmem_path()
-            || args.telemetry_settings != self.telemetry_settings
-        {
+        // config_sync sends paths even if RC is disabled. We reject those
+        // if we got enabled=false in client_init.
+        let rem_cfg_path_changed = self.rem_cfg_settings.can_be_enabled()
+            && maybe_new_rem_cfg_path != self.rem_cfg_settings.shmem_path();
+
+        if rem_cfg_path_changed || args.telemetry_settings != self.telemetry_settings {
             let mut new_cfg = self.clone();
-            new_cfg.rem_cfg_settings = protocol::RemoteConfigSettings::new(
-                !new_rem_cfg_path.as_os_str().is_empty(),
-                new_rem_cfg_path,
-            );
+            if rem_cfg_path_changed {
+                new_cfg.rem_cfg_settings =
+                    protocol::RemoteConfigSettings::new(true, new_rem_cfg_path);
+            }
             new_cfg.telemetry_settings = args.telemetry_settings;
             Some(new_cfg)
         } else {
@@ -749,7 +764,7 @@ impl ServiceManagerInner {
 
 struct RcUpdateState {
     poller: Option<rc::ConfigPoller>,
-    last_configs: HashSet<String>,
+    last_configs: HashSet<rc::RcPath>,
     asm_feature_config_manager: AsmFeatureConfigManager,
     pending_telemetry_metrics: TelemetryMetricsCollector,
     pending_init_diagnostics_legacy: Option<InitDiagnosticsLegacy>,
@@ -795,7 +810,7 @@ mod tests {
             },
             protocol::RemoteConfigSettings::new(false, PathBuf::from(format!("/tmp/test_{}", id))),
             protocol::TelemetrySettings {
-                service_name: "test".to_string(),
+                service_name: format!("test_{}", id),
                 env_name: "test".to_string(),
             },
         )
@@ -894,5 +909,47 @@ mod tests {
         assert_eq!(manager.service_count(), 2);
         drop(s2);
         drop(s1_new);
+    }
+
+    #[test]
+    fn config_sync_does_not_enable_rc_when_client_init_disabled_it() {
+        // Simulates DD_REMOTE_CONFIG_ENABLED=0 in client_init: the path is
+        // non-empty but enabled=false. A later config_sync carrying the same
+        // (non-empty) path must NOT produce a new ServiceFixedConfig, because
+        // doing so would flip RC to enabled and trigger a WAF reload per
+        // PHP-FPM worker.
+        let telemetry = protocol::TelemetrySettings {
+            service_name: "svc".to_string(),
+            env_name: "env".to_string(),
+        };
+        let cfg = ServiceFixedConfig::new(
+            true,
+            protocol::WafSettings {
+                rules_file: Some(TEST_RULES_FILE.to_string()),
+                waf_timeout_us: Some(10000),
+                trace_rate_limit: 100,
+                obfuscator_key_regex: None,
+                obfuscator_value_regex: None,
+                schema_extraction: protocol::SchemaExtraction {
+                    enabled: false,
+                    sampling_period: 1.0,
+                },
+            },
+            // RC disabled by client_init, but the PHP side still has a path.
+            protocol::RemoteConfigSettings::new(false, PathBuf::from("/ddrc-test")),
+            telemetry.clone(),
+        );
+
+        let result = cfg.new_from_config_sync(protocol::ConfigSyncArgs {
+            rem_cfg_path: "/ddrc-test".to_string(),
+            telemetry_settings: telemetry,
+        });
+
+        assert!(
+            result.is_none(),
+            "config_sync with the same path must not create a new config when \
+             client_init disabled RC, but got: {:?}",
+            result
+        );
     }
 }

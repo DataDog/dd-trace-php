@@ -148,6 +148,8 @@ TSRM_TLS void *TSRMLS_CACHE = NULL;
 #endif
 #endif
 
+static int dd_main_pid;
+
 int ddtrace_disable = 0; // 0 = enabled, 1 = disabled via INI, 2 = disabled, but MINIT was fully executed
 static ZEND_INI_MH(dd_OnUpdateDisabled) {
     UNUSED(entry, mh_arg1, mh_arg2, mh_arg3, stage);
@@ -430,7 +432,9 @@ bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new
 
 static void dd_activate_once(void) {
     ddtrace_config_first_rinit();
-    ddtrace_generate_runtime_id();
+    if (dd_main_pid != getpid()) { // equal to session id if not a fork
+        ddtrace_generate_runtime_id();
+    }
 
     // must run before the first zai_hook_activate as ddtrace_telemetry_setup installs a global hook
     if (!ddtrace_disable) {
@@ -1465,6 +1469,9 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     if (ddtrace_module_zv) {
         ddtrace_module = Z_PTR_P(ddtrace_module_zv);
     }
+
+    dd_main_pid = getpid();
+    ddtrace_generate_session_id();
 
     // Make sure it's available for appsec, before any early returns
     dd_ip_extraction_startup();
@@ -3136,13 +3143,56 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             uint32_t waited = 0;
             while (!ddog_is_agent_info_ready() && waited < timeout_ms) {
                 // Actively read the SHM so we pick up the update the sidecar wrote.
-                if (DDTRACE_G(agent_info_reader)) {
-                    ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
-                }
+                ddtrace_apply_agent_info();
                 usleep(10000); // 10ms
                 waited += 10;
             }
             RETVAL_BOOL(ddog_is_agent_info_ready());
+        } else if (FUNCTION_NAME_MATCHES("get_loaded_remote_configs")) {
+            // Returns a PHP array mapping loaded RC config IDs to their content summary.
+            // e.g. ["datadog/2/LIVE_DEBUGGING/logProbe_log.../config" => ["type"=>"probe","id"=>"log..."]]
+            if (DDTRACE_G(remote_config_state)) {
+                char *rc_json = ddog_remote_config_get_loaded_configs(DDTRACE_G(remote_config_state));
+                if (zai_json_decode_assoc_safe(return_value, rc_json, strlen(rc_json), 128, false) != SUCCESS) {
+                    array_init(return_value);
+                }
+                ddog_remote_config_loaded_configs_free(rc_json);
+            } else {
+                array_init(return_value);
+            }
+            return;
+        } else if (FUNCTION_NAME_MATCHES("get_agent_info")) {
+            // Returns a PHP array decoded from the agent /info JSON payload.
+            if (DDTRACE_G(agent_info_reader)) {
+                char *info_json = ddog_agent_info_as_json(DDTRACE_G(agent_info_reader));
+                if (info_json) {
+                    if (zai_json_decode_assoc_safe(return_value, info_json, strlen(info_json), 128, false) != SUCCESS) {
+                        array_init(return_value);
+                    }
+                    ddog_agent_info_json_free(info_json);
+                } else {
+                    array_init(return_value);
+                }
+            } else {
+                array_init(return_value);
+            }
+            return;
+        } else if (FUNCTION_NAME_MATCHES("get_agent_sampling_config")) {
+            // Returns a PHP array decoded from the agent sampling/remote-config JSON payload.
+            if (DDTRACE_G(agent_config_reader)) {
+                ddog_CharSlice agent_rc_data = {0};
+                ddog_agent_remote_config_read(DDTRACE_G(agent_config_reader), &agent_rc_data);
+                if (agent_rc_data.len > 0) {
+                    if (zai_json_decode_assoc_safe(return_value, agent_rc_data.ptr, (int)agent_rc_data.len, 128, false) != SUCCESS) {
+                        array_init(return_value);
+                    }
+                } else {
+                    array_init(return_value);
+                }
+            } else {
+                array_init(return_value);
+            }
+            return;
         }
     }
 }

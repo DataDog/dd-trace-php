@@ -27,6 +27,8 @@ $ecrLoginSnippet = <<<'EOT'
 EOT;
 ?>
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   CI_REGISTRY_USER:
     value: ""
     description: "Your docker hub username"

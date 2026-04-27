@@ -140,7 +140,7 @@ stages:
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
-    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED 0"
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
 
     # Run extension tests
     docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
@@ -615,7 +615,7 @@ foreach ($services as $part => $service) {
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
-<?php if (str_contains($target, "kafk")): ?>
+<?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
 <?php endif; ?>

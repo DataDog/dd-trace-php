@@ -11,6 +11,10 @@ struct _zend_string;
 
 extern ddog_Uuid ddtrace_runtime_id;
 
+extern ddog_Uuid ddtrace_session_id;
+
+extern uint8_t ddtrace_formatted_session_id[36];
+
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 extern ddog_VecRemoteConfigProduct DDTRACE_REMOTE_CONFIG_PRODUCTS;
@@ -24,6 +28,12 @@ extern const uint8_t *DDOG_PHP_FUNCTION;
  * Must be called from a single-threaded context, such as MINIT.
  */
 void ddtrace_generate_runtime_id(void);
+
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT.
+ */
+void ddtrace_generate_session_id(void);
 
 void ddtrace_format_runtime_id(uint8_t (*buf)[36]);
 
@@ -83,6 +93,9 @@ void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
 
+char *ddog_agent_info_as_json(struct ddog_AgentInfoReader *reader);
+void ddog_agent_info_json_free(char *ptr);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
@@ -103,6 +116,9 @@ struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_E
                                                              bool di_enabled);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
+
+char *ddog_remote_config_get_loaded_configs(const struct ddog_RemoteConfigState *remote_config);
+void ddog_remote_config_loaded_configs_free(char *ptr);
 
 bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
 
