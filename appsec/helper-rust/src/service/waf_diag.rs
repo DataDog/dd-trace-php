@@ -1,6 +1,6 @@
 use crate::{
     client::log::{debug, warning},
-    rc::ParsedConfigKey,
+    rc,
     telemetry::{
         LogLevel, TelemetryLog, TelemetryLogsCollector, TelemetryMetricSubmitter, TelemetryTags,
         WAF_CONFIG_ERRORS,
@@ -22,7 +22,7 @@ const DIAGNOSTIC_KEYS: &[&str] = &[
 ];
 
 pub fn report_diagnostics_errors(
-    rc_path: &str,
+    rc_path: &rc::RcPath,
     diagnostics: &libddwaf::object::WafOwnedDefaultAllocator<libddwaf::object::WafMap>,
     rules_version: &str,
     metric_submitter: &mut impl TelemetryMetricSubmitter,
@@ -30,18 +30,18 @@ pub fn report_diagnostics_errors(
 ) {
     use libddwaf::object::WafObjectType;
 
-    let maybe_parsed_key = ParsedConfigKey::from_rc_path(rc_path);
+    let maybe_parsed_key = rc::ParsedConfigKey::from_rc_path(rc_path);
     let parsed_key = match maybe_parsed_key {
         Some(parsed_key) => {
             debug!(
-                "Processing diagnostics for {}: {} keys",
-                rc_path,
+                "Processing diagnostics for {:?}: {} keys",
+                rc_path.as_str(),
                 diagnostics.len()
             );
             parsed_key
         }
         None => {
-            warning!("Failed to parse config key for {}", rc_path,);
+            warning!("Failed to parse config key for {:?}", rc_path);
             return;
         }
     };
@@ -53,7 +53,7 @@ pub fn report_diagnostics_errors(
         let value = keyed.value();
         if value.object_type() != WafObjectType::Map {
             warning!(
-                "Diagnostic key {} for {} is not a map, skipping",
+                "Diagnostic key {} for {:?} is not a map, skipping",
                 config_key,
                 rc_path
             );
@@ -67,7 +67,7 @@ pub fn report_diagnostics_errors(
         }
 
         debug!(
-            "Diagnostic {} for {} has {} entries",
+            "Diagnostic {} for {:?} has {} entries",
             config_key,
             rc_path,
             map.len()
@@ -245,7 +245,7 @@ pub fn extract_init_diagnostics_legacy(
 
 fn submit_diagnostic_log(
     log_submitter: &TelemetryLogsCollector,
-    parsed_key: &ParsedConfigKey,
+    parsed_key: &rc::ParsedConfigKey,
     config_key: &str,
     suffix: &str,
     level: LogLevel,
