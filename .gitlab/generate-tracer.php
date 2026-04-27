@@ -615,7 +615,7 @@ foreach ($services as $part => $service) {
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
-<?php if (str_contains($target, "kafk")): ?>
+<?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
 <?php endif; ?>
