@@ -517,7 +517,9 @@ function install($options)
     }
 
     // Preparing clean tmp folder to extract files
-    $tmpDir = sys_get_temp_dir() . '/dd-install';
+    do {
+        $tmpDir = sys_get_temp_dir() . '/dd-install-' . bin2hex(random_bytes(8));
+    } while (file_exists($tmpDir));
     $tmpArchiveRoot = $tmpDir . '/dd-library-php';
     $tmpArchiveTraceRoot = $tmpDir . '/dd-library-php/trace';
     $tmpArchiveAppsecRoot = $tmpDir . '/dd-library-php/appsec';
@@ -525,18 +527,12 @@ function install($options)
     $tmpArchiveAppsecEtc = "{$tmpArchiveAppsecRoot}/etc";
     $tmpArchiveProfilingRoot = $tmpDir . '/dd-library-php/profiling';
     $tmpSrcDir = $tmpArchiveTraceRoot . '/src';
-    if (!file_exists($tmpDir)) {
-        execute_or_exit("Cannot create directory '$tmpDir'. Try setting a different temporary directory by setting the sys_temp_dir INI variable. E.g. php -d sys_temp_dir=" . (IS_WINDOWS ? 'C:\path\to\temp\dir' : "/path/to/temp/dir") . (isset($_SERVER["argv"][0]) ? " {$_SERVER["argv"][0]}" : ""), "mkdir " . (IS_WINDOWS ? "" : "-p ") . escapeshellarg($tmpDir));
-    }
+
+    execute_or_exit("Cannot create directory '$tmpDir'. Try setting a different temporary directory by setting the sys_temp_dir INI variable. This directory must exist. E.g. php -d sys_temp_dir=" . (IS_WINDOWS ? 'C:\path\to\temp\dir' : "/path/to/temp/dir") . (isset($_SERVER["argv"][0]) ? " {$_SERVER["argv"][0]}" : ""), "mkdir " . (IS_WINDOWS ? "" : "-m 700 ") . escapeshellarg($tmpDir));
+
     register_shutdown_function(function () use ($tmpDir) {
-        execute_or_exit("Cannot remove temporary directory '$tmpDir'", (IS_WINDOWS ? "rd /s /q " : "rm -rf ") . escapeshellarg($tmpDir));
+        execute_or_exit("Cannot remove temporary directory '$tmpDir'. You might have to remove it yourself.", (IS_WINDOWS ? "rd /s /q " : "rm -rf ") . escapeshellarg($tmpDir));
     });
-    if (!IS_WINDOWS) {
-        execute_or_exit(
-            "Cannot clean '$tmpDir'",
-            "rm -rf " . escapeshellarg($tmpDir) . "/* "
-        );
-    }
 
     // Retrieve and extract the archive to a tmp location
     if (isset($options[OPT_FILE])) {
