@@ -483,6 +483,45 @@ fn remove_config(remote_config: &mut RemoteConfigState, debugger: &LiveDebugging
     }
 }
 
+/// Returns all loaded remote config entries as a JSON object:
+///   { "config_id": "content_summary", ... }
+/// For live debugger entries the value is the probe ID (or "service_config").
+/// For dynamic config entries the value is "apm_tracing".
+/// The returned pointer must be freed with `ddog_remote_config_loaded_configs_free`.
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_get_loaded_configs(remote_config: &RemoteConfigState) -> *mut c_char {
+    let mut entries: Vec<(String, String)> = Vec::new();
+
+    for (config_id, boxed) in &remote_config.live_debugger.active {
+        let value = match &boxed.0 {
+            LiveDebuggingData::Probe(p) => format!(r#"{{"type":"probe","id":"{}"}}"#, p.id),
+            LiveDebuggingData::ServiceConfiguration(sc) => format!(r#"{{"type":"service_config","id":"{}"}}"#, sc.id),
+        };
+        entries.push((config_id.clone(), value));
+    }
+
+    for config_id in remote_config.dynamic_config.active_configs.keys() {
+        entries.push((config_id.clone(), r#"{"type":"apm_tracing"}"#.to_string()));
+    }
+
+    entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+    let json_pairs: Vec<String> = entries
+        .into_iter()
+        .map(|(k, v)| format!(r#"{}:{}"#, serde_json::to_string(&k).unwrap_or_default(), v))
+        .collect();
+    let json = format!("{{{}}}", json_pairs.join(","));
+
+    std::ffi::CString::new(json).unwrap_or_default().into_raw()
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_loaded_configs_free(ptr: *mut c_char) {
+    if !ptr.is_null() {
+        drop(unsafe { std::ffi::CString::from_raw(ptr) });
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn ddog_type_can_be_instrumented(
     remote_config: &RemoteConfigState,
