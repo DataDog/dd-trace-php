@@ -7,7 +7,6 @@ DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_GIT_METADATA_ENABLED=0
 --SKIPIF--
 <?php
-include __DIR__ . '/../../../sandbox/dd_dumper.inc';
 if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: The pecl run-tests path is not in a git repository");
 ?>
 --FILE--
