@@ -205,11 +205,11 @@ static PHP_MINIT_FUNCTION(ddappsec)
 
     dd_phpobj_startup(module_number);
 
+    dd_log_startup_before_cfg();
+
     if (!dd_config_minit(module_number)) {
         return FAILURE;
     }
-
-    dd_log_startup();
 
 #ifdef TESTING
     _register_testing_objects();
