@@ -78,7 +78,7 @@ static void dd_free_endpoints(void) {
 }
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
-    if (memcmp(ddtrace_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
+    if (ddtrace_is_empty_session_id(ddtrace_formatted_session_id)) {
         return NULL;
     }
     return ddtrace_formatted_session_id;
@@ -102,6 +102,8 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};
+    ddog_CharSlice root_session_id = ddtrace_is_empty_session_id(ddtrace_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_root_session_id, .len = sizeof(ddtrace_formatted_root_session_id)};
+    ddog_CharSlice parent_session_id = ddtrace_is_empty_session_id(ddtrace_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_parent_session_id, .len = sizeof(ddtrace_formatted_parent_session_id)};
     const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
     ddog_sidecar_session_set_config(transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
@@ -126,7 +128,9 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     is_fork,
                                     process_tags,
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
-                                    dd_zend_string_to_CharSlice(get_global_DD_SERVICE())
+                                    dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
+                                    root_session_id,
+                                    parent_session_id
                                 );
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {

@@ -15,6 +15,10 @@ extern ddog_Uuid ddtrace_session_id;
 
 extern uint8_t ddtrace_formatted_session_id[36];
 
+extern uint8_t ddtrace_formatted_root_session_id[36];
+
+extern uint8_t ddtrace_formatted_parent_session_id[36];
+
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 extern ddog_VecRemoteConfigProduct DDTRACE_REMOTE_CONFIG_PRODUCTS;
@@ -25,7 +29,7 @@ extern const uint8_t *DDOG_PHP_FUNCTION;
 
 /**
  * # Safety
- * Must be called from a single-threaded context, such as MINIT.
+ * Must be called from a single-threaded context, such as MINIT or first rinit.
  */
 void ddtrace_generate_runtime_id(void);
 
@@ -82,6 +86,15 @@ void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
                            ddog_CharSlice *container_hash_out);
 
 /**
+ * Serialize the current cached agent info as a JSON string.
+ * Returns NULL if no info has been read yet.
+ * The returned pointer must be freed with `ddog_agent_info_json_free`.
+ */
+char *ddog_agent_info_as_json(struct ddog_AgentInfoReader *reader);
+
+void ddog_agent_info_json_free(char *ptr);
+
+/**
  * Apply concentrator config changes from the agent /info SHM.
  *
  * Cheap no-op when the SHM has not changed (`changed == false`).  Only applies when
@@ -92,9 +105,6 @@ void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
  * `reader` must be a valid pointer to an `AgentInfoReader`.
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
-
-char *ddog_agent_info_as_json(struct ddog_AgentInfoReader *reader);
-void ddog_agent_info_json_free(char *ptr);
 
 bool ddog_shall_log(enum ddog_Log category);
 
@@ -117,10 +127,18 @@ struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_E
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
-char *ddog_remote_config_get_loaded_configs(const struct ddog_RemoteConfigState *remote_config);
-void ddog_remote_config_loaded_configs_free(char *ptr);
-
 bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+
+/**
+ * Returns all loaded remote config entries as a JSON object:
+ *   { "config_id": "content_summary", ... }
+ * For live debugger entries the value is the probe ID (or "service_config").
+ * For dynamic config entries the value is "apm_tracing".
+ * The returned pointer must be freed with `ddog_remote_config_loaded_configs_free`.
+ */
+char *ddog_remote_config_get_loaded_configs(const struct ddog_RemoteConfigState *remote_config);
+
+void ddog_remote_config_loaded_configs_free(char *ptr);
 
 bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
                                    ddog_CharSlice typename_);

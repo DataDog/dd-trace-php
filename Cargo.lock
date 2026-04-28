@@ -1468,6 +1468,7 @@ dependencies = [
  "libdd-common",
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
+ "libdd-data-pipeline",
  "libdd-library-config-ffi",
  "libdd-telemetry",
  "libdd-telemetry-ffi",
@@ -2711,7 +2712,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2721,7 +2722,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities-impl"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "bytes",
  "http",
@@ -2732,7 +2733,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "3.0.2"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "bytes",

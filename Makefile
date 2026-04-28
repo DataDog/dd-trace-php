@@ -580,6 +580,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -624,6 +625,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -679,6 +681,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -742,6 +745,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -806,6 +810,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -877,6 +882,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
 	test_integrations_predis_2 \
@@ -931,6 +937,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -992,6 +999,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1060,6 +1068,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1122,6 +1131,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1170,6 +1180,7 @@ TEST_INTEGRATIONS_85 := \
 	test_opentelemetry_1 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1373,6 +1384,8 @@ test_integrations_deferred_loading: global_test_run_dependencies tests/Integrati
 	$(call run_tests_debug,tests/Integrations/DeferredLoading)
 test_integrations_filesystem: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Filesystem)
+test_integrations_exec: global_test_run_dependencies
+	$(call run_tests_debug,tests/Integrations/Exec)
 test_integrations_curl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Curl)
 test_integrations_elasticsearch1: global_test_run_dependencies tests/Integrations/Elasticsearch/V1/composer.lock-php$(PHP_MAJOR_MINOR)
