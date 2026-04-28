@@ -154,6 +154,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     MUTEX_T sidecar_universal_service_tags_mutex;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
+    bool remote_config_writing; // true while RC WRITE mode INI update is in progress
     ddog_AgentInfoReader *agent_info_reader;
     dd_capture_arena debugger_capture_arena;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
