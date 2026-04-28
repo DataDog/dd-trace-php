@@ -1668,7 +1668,8 @@ void ddtrace_live_debugger_minit(void) {
 bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
     bool enabled = Z_TYPE_P(new_value) == IS_TRUE;
-    if (DDTRACE_G(remote_config_state) && !ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C("datadog.dynamic_instrumentation.enabled"), zend_string_copy(new_str))) {
+    // When RC writes, bypass the check for ddog_remote_config_alter_dynamic_config
+    if (DDTRACE_G(remote_config_state) && !DDTRACE_G(remote_config_writing) && !ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C("datadog.dynamic_instrumentation.enabled"), zend_string_copy(new_str))) {
         return false;
     }
 
