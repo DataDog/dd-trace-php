@@ -39,8 +39,30 @@ file. Do all extractions in parallel where possible.
 
 From the mapped files, determine:
 - **Products loaded**: look for `ddtrace.so`, `ddappsec.so`, `datadog-profiling.so`
+- **SSI mode**: check for `libddtrace_php.so` and `dd_library_loader.so` — if present, the process is running the SSI (Single-Step Instrumentation) package. See [SSI architecture](#ssi-architecture) below.
 - **OS/arch**: architecture (x86_64 or aarch64)
 - **libc**: GNU (`ld-linux-x86-64.so`) or musl (`ld-musl-x86-64.so`)
+
+### SSI architecture
+
+When the Datadog SSI package is installed, the process loads **four** binaries instead of one monolithic `ddtrace.so`:
+
+| Binary | Typical text size | Role |
+|--------|------------------|------|
+| `dd_library_loader.so` | ~28 KiB | Zend extension (loaded via `zend_extension=`); bootstraps everything else |
+| `libddtrace_php.so` | ~10 MiB | Shared library with sidecar, crashtracker, and Rust components; loaded by the loader with `RTLD_GLOBAL` |
+| `ddtrace.so` (SSI standalone) | ~750 KiB | PHP extension with most tracer logic; much smaller than monolithic ddtrace.so |
+| `ddappsec.so` | ~630 KiB | AppSec extension; same binary for SSI and non-SSI |
+
+(Sizes vary across versions, but should be of those orders of magnitude)
+
+Loading order (the loader is a Zend extension and fires before any `extension=` module):
+1. `dd_library_loader.so` MINIT fires
+2. Loader calls `dlopen(libddtrace_php.so, RTLD_NOW|RTLD_GLOBAL)`
+3. Loader calls `zend_register_internal_module` for the SSI `ddtrace.so`
+4. PHP processes `extension=` directives; any `extension=ddtrace.so` pointing elsewhere is rejected as duplicate
+
+If a non-SSI `ddtrace.so` (e.g. a vendor-bundled extension) is also listed in `extension=`, PHP rejects it as a duplicate after the loader already registered the SSI one — and vice versa (if the non-SSI extension loads first, the SSI loader detects the name already in `module_registry` and unregisters its own injected copy instead; see `loader/dd_library_loader.c`).
 
 ### Tag reference
 
@@ -117,10 +139,16 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
 ### Datadog binaries
 
 1. Download the release binaries:
-   ```
-   .claude/dd_php_release_url '<version>' '<php_minor>' '<arch>' '<gnu|musl>'
-   ```
-   This prints a temp directory with the extracted package.
+   - **SSI** (`libddtrace_php.so` in maps): fetches from ECR public, no credentials needed:
+     ```
+     .claude/dd_php_release_url --ssi '<version>' '<arch>'
+     ```
+   - **Monolithic**: fetches from GitHub releases:
+     ```
+     .claude/dd_php_release_url '<version>' '<php_minor>' '<arch>' '<gnu|musl>'
+     ```
+   Both print a temp directory with the extracted package. Use the version
+   exactly as it appears in `metadata.library_version`.
 
 2. Verify the binary matches the crash by comparing:
    - Size of first mapped region (from `/proc/self/maps`) vs. `p_memsz` of the
@@ -134,7 +162,25 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
      0x10000). In schema 1.6+ events, `module_base_address` in each frame is
      the load bias and can be used directly instead of computing it.
 
-3. Disassemble around the crashing instruction pointer:
+3. Disassemble around the crashing instruction pointer.
+
+   SSI binaries from ECR are stripped but retain exported public symbols —
+   pass the binary directly to GDB:
+   ```
+   gdb -batch -ex 'add-symbol-file <binary> -o <base_addr>' \
+       -ex 'disassemble <ip_addr>-32,<ip_addr>+32'
+   ```
+
+   For full symbols (line numbers, inlined functions), try the S3 tarball —
+   it includes co-located `.debug` files but requires a manual CI job to have
+   been triggered. Check with:
+   ```
+   curl -sI https://dd-trace-php-builds.s3.amazonaws.com/<version>/dd-library-php-ssi-<version>-<arch>-linux.tar.gz
+   ```
+   If available, `.debug` files sit next to each `.so` in the tarball. Pass
+   to GDB with `add-symbol-file <binary>.debug -o <base_addr>`.
+
+   For monolithic builds (non-SSI), the binary is unstripped; pass it directly:
    ```
    gdb -batch -ex 'add-symbol-file <binary> -o <base_addr>' \
        -ex 'disassemble <ip_addr>-32,<ip_addr>+32'
