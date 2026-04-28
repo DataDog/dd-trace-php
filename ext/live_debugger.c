@@ -165,11 +165,6 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
     def->scope = NULL;
     def->removed = false;
 
-    if (!DDTRACE_G(sidecar)) {
-        def_dtor(def);
-        return -1;
-    }
-
     // Deduplicate: the RC state machine retries pending (RECEIVED-but-not-INSTALLED) probes on
     // every ddog_process_remote_configs() call. Skip re-installation if already in active_rc_hooks.
     {
