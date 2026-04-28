@@ -494,7 +494,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         } else {
             // Mount helper-rust volume so enable_extensions.sh can copy the binary
             // for the redirection mechanism (DD_APPSEC_HELPER_RUST_REDIRECTION
-            // defaults to true on PHP 8.5+)
+            // defaults to true on PHP 8.4+)
             addVolumeMount('php-helper-rust', '/helper-rust')
         }
 
