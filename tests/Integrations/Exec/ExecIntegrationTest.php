@@ -399,8 +399,10 @@ class ExecIntegrationTest extends IntegrationTestCase
 
             try {
                 $res = self::doShell($sf, $opts);
-            } catch (\PHPUnit\Framework\Error\Warning | \ValueError $w) {
+            } catch (\PHPUnit\Framework\Error\Warning $v) {
                 // ignore warning
+                $res = false;
+            } catch (\ValueError $v) {
                 $res = false;
             }
             $this->assertEquals('', $res);
@@ -423,8 +425,10 @@ class ExecIntegrationTest extends IntegrationTestCase
 
             try {
                 $res = self::doShell($sf, $opts);
-            } catch (\PHPUnit\Framework\Error\Warning | \ValueError $w) {
+            } catch (\PHPUnit\Framework\Error\Warning $v) {
                 // ignore warning
+                $res = false;
+            } catch (\ValueError $v) {
                 $res = false;
             }
             $this->assertEquals('', $res);
@@ -461,8 +465,10 @@ class ExecIntegrationTest extends IntegrationTestCase
 
             try {
                 $res = self::doShell($sf, $opts);
-            } catch (\PHPUnit\Framework\Error\Warning | \ArgumentCountError $w) {
+            } catch (\PHPUnit\Framework\Error\Warning $v) {
                 // ignore warning
+                $res = false;
+            } catch (\ArgumentCountError $v) {
                 $res = false;
             }
             $this->assertEquals('', $res);
@@ -607,7 +613,7 @@ class ExecIntegrationTest extends IntegrationTestCase
         fclose($pipes[1]);
         proc_close($h);
 
-        [$childParent, $childRoot] = explode("\n", $output, 2);
+        list($childParent, $childRoot) = explode("\n", $output, 2);
         $this->assertSame($expectedParent, $childParent);
         $this->assertSame($expectedRoot, $childRoot);
     }
@@ -625,7 +631,7 @@ class ExecIntegrationTest extends IntegrationTestCase
         // without ddtrace overwriting _DD_PARENT_PHP_SESSION_ID with the child's own UUID.
         $output = (string)shell_exec('printf "%s\n%s" "$_DD_PARENT_PHP_SESSION_ID" "$_DD_ROOT_PHP_SESSION_ID"');
 
-        [$childParent, $childRoot] = explode("\n", $output, 2);
+        list($childParent, $childRoot) = explode("\n", $output, 2);
         $this->assertSame($expectedParent, $childParent);
         $this->assertSame($expectedRoot, $childRoot);
     }
