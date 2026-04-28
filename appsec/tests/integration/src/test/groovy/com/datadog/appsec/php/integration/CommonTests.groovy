@@ -875,22 +875,22 @@ trait CommonTests {
             assert resp.statusCode() == 200
             def content = resp.body().text
 
-            if (TestParams.phpVersionAtLeast('8.5')) {
+            if (TestParams.phpVersionAtLeast('8.4')) {
                 assert content.contains('Yes (Rust)') :
-                    "PHP >= 8.5 should use Rust helper by default"
+                    "PHP >= 8.4 should use Rust helper by default"
             } else {
                 assert content.contains('Yes (C++)') :
-                    "PHP < 8.5 should use C++ helper by default"
+                    "PHP < 8.4 should use C++ helper by default"
             }
         }
 
         Span span = trace.first()
-        if (TestParams.phpVersionAtLeast('8.5')) {
+        if (TestParams.phpVersionAtLeast('8.4')) {
             assert span.meta."_dd.appsec.helper_runtime" == 'rust' :
-                "PHP >= 8.5 should report helper_runtime=rust in span"
+                "PHP >= 8.4 should report helper_runtime=rust in span"
         } else {
             assert span.meta."_dd.appsec.helper_runtime" == null :
-                "PHP < 8.5 should not set helper_runtime span tag"
+                "PHP < 8.4 should not set helper_runtime span tag"
         }
     }
 }
