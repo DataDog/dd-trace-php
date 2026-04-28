@@ -168,6 +168,11 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
     def->scope = NULL;
     def->removed = false;
 
+    if (!DDTRACE_G(sidecar)) {
+        def_dtor(def);
+        return -1;
+    }
+
     const ddog_ProbeTarget *target = &probe->target;
     if (target->type_name.len) {
         if (!ddog_type_can_be_instrumented(DDTRACE_G(remote_config_state), target->type_name)) {
@@ -208,20 +213,14 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
         def->probe.status_msg = DDOG_CHARSLICE_C("Method does not exist on the given class");
         def->probe.status_exception = DDOG_CHARSLICE_C("METHOD_NOT_FOUND");
 error: ;
-        ddog_SidecarTransport *sidecar = DDTRACE_G(sidecar) ? DDTRACE_G(sidecar) : ddtrace_sidecar_for_signal;
-        if (sidecar) {
-            ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
-        }
+        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
         def_dtor(def);
         return -1;
     }
 
     if (def->probe.status != DDOG_PROBE_STATUS_INSTALLED) {
         def->probe.status = DDOG_PROBE_STATUS_RECEIVED;
-        ddog_SidecarTransport *sidecar = DDTRACE_G(sidecar) ? DDTRACE_G(sidecar) : ddtrace_sidecar_for_signal;
-        if (sidecar) {
-            ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
-        }
+        ddog_send_debugger_diagnostics(DDTRACE_G(remote_config_state), &DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), &def->probe, ddtrace_nanoseconds_realtime() / 1000000);
     }
 
     zend_hash_index_add_new_ptr(&DDTRACE_G(active_rc_hooks), id, def);
