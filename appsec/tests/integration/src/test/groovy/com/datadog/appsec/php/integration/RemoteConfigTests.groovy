@@ -292,7 +292,7 @@ class RemoteConfigTests {
         applyRemoteConfig(INITIAL_TARGET, [
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': null /* keep */,
                 'datadog/2/ASM/custom_user_cfg_1/config': null /* keep */,
-                'datadog/2/ASM/custom_user_cfg_3/config': [
+                'datadog/2/ASM/custom_user_cfg_2/config': [
                         actions: [[
                                            id: 'block_custom',
                                            type: 'block_request',

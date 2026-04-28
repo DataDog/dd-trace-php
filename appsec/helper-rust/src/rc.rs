@@ -263,6 +263,10 @@ impl<'a> Config<'a> {
         &self.rc_path
     }
 
+    pub fn shm_path(&self) -> &Path {
+        self.shm_path
+    }
+
     fn from_line(line: &'a [u8]) -> anyhow::Result<Self> {
         // Find the first ':'
         let pos = line
