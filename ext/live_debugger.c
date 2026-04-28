@@ -170,6 +170,22 @@ static int64_t dd_init_live_debugger_probe(const ddog_Probe *probe, dd_probe_def
         return -1;
     }
 
+    // Deduplicate: the RC state machine retries pending (RECEIVED-but-not-INSTALLED) probes on
+    // every ddog_process_remote_configs() call. Skip re-installation if already in active_rc_hooks.
+    {
+        zend_ulong existing_id;
+        zend_string *key_str;
+        dd_probe_def *existing;
+        ZEND_HASH_FOREACH_KEY_PTR(&DDTRACE_G(active_rc_hooks), existing_id, key_str, existing) {
+            (void)key_str;
+            if (ZSTR_LEN(existing->probe_id) == probe->id.len
+                    && memcmp(ZSTR_VAL(existing->probe_id), probe->id.ptr, probe->id.len) == 0) {
+                def_dtor(def);
+                return (int64_t)existing_id;
+            }
+        } ZEND_HASH_FOREACH_END();
+    }
+
     const ddog_ProbeTarget *target = &probe->target;
     if (target->type_name.len) {
         if (!ddog_type_can_be_instrumented(DDTRACE_G(remote_config_state), target->type_name)) {
