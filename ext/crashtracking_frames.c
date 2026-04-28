@@ -93,7 +93,7 @@ static void dd_frames_callback(void (*emit_frame)(const ddog_crasht_RuntimeStack
 
             const zend_op *opline = call->opline;
             if (!zai_is_mapped(opline, sizeof(zend_op))) {
-                frame.column = -1;
+                frame.column = 0;
                 EMIT(&frame);
                 call = call->prev_execute_data;
                 continue;
@@ -105,7 +105,7 @@ static void dd_frames_callback(void (*emit_frame)(const ddog_crasht_RuntimeStack
                     if (zai_is_mapped(op, sizeof(zend_op))) {
                         frame.line = op->lineno;
                     } else {
-                        frame.column = -2;
+                        frame.column = 0;
                     }
                 } else {
                     frame.line = func->op_array.line_end;
