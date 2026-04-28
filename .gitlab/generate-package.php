@@ -1295,6 +1295,29 @@ endforeach;
   script:
     - ./run.sh $TESTSUITE
 
+"System Tests: [php-fpm-8.5, default]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.5 php
+  script:
+    - ./run.sh
+
+"System Tests: [php-fpm-8.5]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.5 php
+  parallel:
+    matrix:
+      - TESTSUITE:
+        - APPSEC_API_SECURITY
+        - APPSEC_API_SECURITY_RC
+        - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_RUNTIME_ACTIVATION
+        - INTEGRATIONS
+        - CROSSED_TRACING_LIBRARIES
+  script:
+    - ./run.sh $TESTSUITE
+
 "System Tests: [tracer-release]":
   extends: .system_tests
   timeout: 4h

@@ -414,8 +414,9 @@ Python-based `datadog/system-tests` framework; lives in `../../../system-tests/`
 
 → **[system-tests.md](system-tests.md)**
 Covers: `System Tests: [default]`, `System Tests: [parametric]`,
-`System Tests: [APPSEC_API_SECURITY*]`, `System Tests: [INTEGRATIONS]`,
-`System Tests: [CROSSED_TRACING_LIBRARIES]`
+`System Tests: [APPSEC_API_SECURITY*]`, `System Tests: [APPSEC_RUNTIME_ACTIVATION]`,
+`System Tests: [INTEGRATIONS]`, `System Tests: [CROSSED_TRACING_LIBRARIES]`,
+`System Tests: [php-fpm-8.5, default]`, `System Tests: [php-fpm-8.5]` (matrix)
 
 → **[system-tests-onboarding.md](system-tests-onboarding.md)**
 Covers: `configure_system_tests` and onboarding/SSI scenario groups
