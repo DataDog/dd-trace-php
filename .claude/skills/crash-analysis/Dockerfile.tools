@@ -1,0 +1,10 @@
+FROM ubuntu:26.04
+RUN apt-get update -q && apt-get install -qy --no-install-recommends \
+    gdb \
+    binutils \
+    python3 \
+    curl \
+    ca-certificates \
+ && curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR=/usr/local/bin sh \
+ && rm -rf /var/lib/apt/lists/*
+COPY .gdbinit /root/.gdbinit

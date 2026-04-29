@@ -21,7 +21,7 @@ inline). If no path is given, ask for it. Save pasted JSON to a temporary file.
 ## Phase 1 — Triage (extract all key facts before any analysis)
 
 Extract and print a summary table with these fields. Use `jq` against the event
-file. Do all extractions in parallel where possible.
+file.
 
 | Field | Command |
 |-------|---------|
@@ -37,11 +37,37 @@ file. Do all extractions in parallel where possible.
 > and read register values directly from `.ucontext` (or `.experimental.ucontext`
 > in older events).
 
-From the mapped files, determine:
+From the mapped files, determine, one by one:
+
+- **Process under analysis**: we expect the crashing process to be one of two:
+  1) process with PHP SAPI (could be `php`, `php-fpm`, `httpd`/`apache2`,
+  `frankenphp`) or 2) sidecar.
+
+  Processes with PHP are identified by the first loaded module (e.g. fpm,
+  apache), by the fact PHP extensions are loaded (including ddtrace) or by the
+  presence of a PHP stack in `.experimental.runtime_stack`.
+
+  The sidecar process typically appears as `/memfd:spawn_worker_trampoline
+  (deleted)` (though not necessarily). If AppSec is loaded, you will also find
+  `libddappsec-helper.so` / `libddappsec-helper-rust.so` loaded
 - **Products loaded**: look for `ddtrace.so`, `ddappsec.so`, `datadog-profiling.so`
 - **SSI mode**: check for `libddtrace_php.so` and `dd_library_loader.so` — if present, the process is running the SSI (Single-Step Instrumentation) package. See [SSI architecture](#ssi-architecture) below.
 - **OS/arch**: architecture (x86_64 or aarch64)
 - **libc**: GNU (`ld-linux-x86-64.so`) or musl (`ld-musl-x86-64.so`)
+- **ZTS or NTS**: if it's a PHP process (not sidecar) check the extension
+  directory path in the maps — `no-debug-zts-XXXXXXXX` means ZTS,
+  `no-debug-non-zts-XXXXXXXX` means NTS. Ondřej Surý packages (Debian/Ubuntu)
+  use `/usr/lib/php/<api_version>/` with no ZTS/NTS marker — these are always
+  NTS because the PPA does not publish ZTS builds. If unclear from the maps,
+  infer from the SAPI: `php-fpm` is NTS, `frankenphp` is ZTS, Apache
+  (`httpd`/`apache2`) could be either. When ambiguous, download both ZTS and
+  NTS binaries and check which one's symbol addresses match the crash IPs.
+
+  If the process is sidecar, ZTS/NTS mode cannot be easily inferred. For the
+  purposes of identifying the binary, there are two possibilities: 1) SSI: the
+  distinction is irrelevant because sidecar lives in `libddtrace_php.so`. 2)
+  unified ddtrace.so: sidecar is embedded in ddtrace.so, so there may be a need
+  to download both versions and try in turn.
 
 ### SSI architecture
 
@@ -108,6 +134,15 @@ are like `PHP-8.1.33`.
 > upstream PHP. If discrepancies appear, use `apt-get source` inside an
 > appropriate Docker container to obtain the exact source.
 
+**If the native stacktrace is null or empty**, the crashtracker could not unwind
+the stack (often because the stack itself was corrupted). In this case:
+1. Check whether RIP falls in any mapped region using
+   `.claude/find_map_region.py <rip> <event.json>`. If it does not, the
+   instruction pointer was corrupted — a bad return address or function pointer.
+2. Scan the other registers (RAX, RBX, RCX, RDX, RSI, RDI, R8–R15) for
+   addresses that *do* fall inside Datadog binary regions; these may point to
+   the data or code the process was operating on just before the crash.
+
 Map each native stacktrace frame to source code:
 1. Use `.claude/find_map_region.py <address> <event.json>` to identify which
    binary each instruction pointer belongs to. In schema 1.6+ events, frames
@@ -138,17 +173,40 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
 
 ### Datadog binaries
 
-1. Download the release binaries:
-   - **SSI** (`libddtrace_php.so` in maps): fetches from ECR public, no credentials needed:
-     ```
-     .claude/dd_php_release_url --ssi '<version>' '<arch>'
-     ```
-   - **Monolithic**: fetches from GitHub releases:
-     ```
-     .claude/dd_php_release_url '<version>' '<php_minor>' '<arch>' '<gnu|musl>'
-     ```
-   Both print a temp directory with the extracted package. Use the version
-   exactly as it appears in `metadata.library_version`.
+1. Download the release binaries.
+
+   **Standard install** (fetches from GitHub releases):
+   ```
+   .claude/dd_php_release_url '<version>' '<php_minor>' '<arch>' '<gnu|musl>' '<zts|nts>'
+   ```
+   Binaries are at:
+   - `<tmpdir>/dd-library-php/trace/ext/<api_version>/ddtrace[-zts].so`
+   - `<tmpdir>/dd-library-php/profiling/ext/<api_version>/datadog-profiling[-zts].so`
+   - `<tmpdir>/dd-library-php/appsec/ext/<api_version>/ddappsec[-zts].so`
+   - `<tmpdir>/dd-library-php/appsec/lib/libddappsec-helper.so`
+   - `<tmpdir>/dd-library-php/appsec/lib/libddappsec-helper-rust.so`
+
+   The `-zts` suffix is present when `zts` was passed as the last argument.
+   If ZTS/NTS is ambiguous, run twice and compare symbol addresses against the
+   crash IPs to identify which build matches.
+
+   **SSI install** (`libddtrace_php.so` in maps) — fetches from
+   `install.datadoghq.com`, no credentials needed:
+   ```
+   .claude/dd_php_release_url --ssi '<version>' '<arch>'
+   ```
+   One image contains both gnu/musl and NTS/ZTS for all PHP versions. Binaries
+   are at:
+   - `<tmpdir>/linux-<gnu|musl>/trace/ext/<api_version>/ddtrace[-zts].so`
+   - `<tmpdir>/linux-<gnu|musl>/profiling/ext/<api_version>/datadog-profiling[-zts].so`
+   - `<tmpdir>/linux-<gnu|musl>/appsec/ext/<api_version>/ddappsec[-zts].so`
+   - `<tmpdir>/appsec/lib/libddappsec-helper.so`
+   - `<tmpdir>/appsec/lib/libddappsec-helper-rust.so`
+
+   Use the libc, PHP API version (e.g. PHP 8.3 → `20230831`), and ZTS/NTS from
+   Phase 1 to select the right path.
+
+   Use the version exactly as it appears in `metadata.library_version`.
 
 2. Verify the binary matches the crash by comparing:
    - Size of first mapped region (from `/proc/self/maps`) vs. `p_memsz` of the
@@ -164,25 +222,43 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
 
 3. Disassemble around the crashing instruction pointer.
 
-   SSI binaries from ECR are stripped but retain exported public symbols —
-   pass the binary directly to GDB:
+   > **GDB architecture must be set explicitly.** Without an inferior, GDB
+   > defaults to `i386` (32-bit), which truncates 64-bit addresses in both
+   > display and address operations. Always set the architecture first:
+   > `set architecture i386:x86-64` (or `aarch64`). Without this, `add-symbol-file
+   > -o` silently truncates the bias and disassembly targets the wrong address.
+
+   The GDB pattern for disassembly without an inferior is: load the binary
+   with `file` (provides memory access from ELF sections) **and** with
+   `add-symbol-file -o <base_addr>` (attaches biased symbol names). Together
+   they allow disassembling at actual crash IPs with correct symbol annotations:
    ```
-   gdb -batch -ex 'add-symbol-file <binary> -o <base_addr>' \
+   gdb -batch -ex 'set architecture i386:x86-64' \
+       -ex 'file <binary>' \
+       -ex 'add-symbol-file <binary> -o <base_addr>' \
        -ex 'disassemble <ip_addr>-32,<ip_addr>+32'
    ```
 
-   For full symbols (line numbers, inlined functions), try the S3 tarball —
-   it includes co-located `.debug` files but requires a manual CI job to have
-   been triggered. Check with:
+   SSI binaries from `install.datadoghq.com` are stripped — `file` gives memory
+   access and `add-symbol-file -o` resolves exported symbols. For full symbols
+   (line numbers, inlined functions), try the S3 tarball — it includes co-located
+   `.debug` files but requires a manual CI job to have been triggered. Check with:
    ```
    curl -sI https://dd-trace-php-builds.s3.amazonaws.com/<version>/dd-library-php-ssi-<version>-<arch>-linux.tar.gz
    ```
-   If available, `.debug` files sit next to each `.so` in the tarball. Pass
-   to GDB with `add-symbol-file <binary>.debug -o <base_addr>`.
-
-   For monolithic builds (non-SSI), the binary is unstripped; pass it directly:
+   If available, use the `.debug` file for `add-symbol-file` instead of the `.so`:
    ```
-   gdb -batch -ex 'add-symbol-file <binary> -o <base_addr>' \
+   gdb -batch -ex 'set architecture i386:x86-64' \
+       -ex 'file <binary>' \
+       -ex 'add-symbol-file <binary>.debug -o <base_addr>' \
+       -ex 'disassemble <ip_addr>-32,<ip_addr>+32'
+   ```
+
+   For monolithic builds (non-SSI), the binary is unstripped; the same pattern applies:
+   ```
+   gdb -batch -ex 'set architecture i386:x86-64' \
+       -ex 'file <binary>' \
+       -ex 'add-symbol-file <binary> -o <base_addr>' \
        -ex 'disassemble <ip_addr>-32,<ip_addr>+32'
    ```
    On macOS, run gdb/readelf/objdump inside a Docker container with
@@ -205,8 +281,9 @@ If source code alone is insufficient to understand PHP frames:
    rounded outward to page boundaries, so mapped size ≥ `p_memsz`), note the
    base address.
 
-4. Disassemble PHP frames using `gdb` with `add-symbol-file` at the computed
-   base address.
+4. Disassemble PHP frames using the same GDB pattern: `set architecture
+   i386:x86-64` (or `aarch64`), then `file <binary>` for memory access, then
+   `add-symbol-file <binary> -o <base_addr>` for biased symbol names.
 
 ## Phase 4 — Root cause
 
@@ -243,5 +320,14 @@ Present findings as:
   the crashing path) before deciding the crash is unrelated. If it still seems
   unrelated, ask the user whether to continue before doing deep analysis.
 - Use `git worktree` (not `git checkout`) to inspect version-specific source.
-- On macOS, use Docker with `--platform=linux/amd64` for ELF tools.
+- On macOS, use Docker with `--platform=linux/amd64` for ELF tools. A
+  pre-built image with all required tools (`gdb`, `binutils`, `python3`, `uv`)
+  is defined in `.claude/skills/crash-analysis/Dockerfile.tools`. Build it once
+  with:
+  ```
+  docker build --platform=linux/amd64 -t dd-trace-php-crash-tools \
+    .claude/skills/crash-analysis/ \
+    -f .claude/skills/crash-analysis/Dockerfile.tools
+  ```
+  Then use `docker run --rm --platform=linux/amd64 -v <tmpdir>:/bins dd-trace-php-crash-tools <cmd>`.
 - Parallelize extractions and lookups wherever possible.

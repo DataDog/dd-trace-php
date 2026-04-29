@@ -3,19 +3,26 @@
 set -eo pipefail
 
 # Function to get DataDog PHP extension download URL (monolithic per-PHP-API build)
-# Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>
-# Example: dd_php_release_url "1.13.0" "8.4" "x86_64" "gnu"
+# Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type> <zts|nts>
+# Example: dd_php_release_url "1.13.0" "8.4" "x86_64" "gnu" nts
 dd_php_release_url() {
     local ext_version="$1"
     local php_version="$2"
     local arch="$3"
     local libc_type="$4"
+    local thread_safety="$5"
 
     # Validate inputs
-    if [[ -z "$ext_version" || -z "$php_version" || -z "$arch" || -z "$libc_type" ]]; then
+    if [[ -z "$ext_version" || -z "$php_version" || -z "$arch" || -z "$libc_type" || -z "$thread_safety" ]]; then
         echo "Error: Missing required parameters" >&2
-        echo "Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type>" >&2
-        echo "Example: dd_php_release_url '1.13.0' '8.4' 'x86_64' 'gnu'" >&2
+        echo "Usage: dd_php_release_url <extension_version> <php_version> <arch> <libc_type> <zts|nts>" >&2
+        echo "Example: dd_php_release_url '1.13.0' '8.4' 'x86_64' 'gnu' nts" >&2
+        return 1
+    fi
+
+    # Validate thread safety
+    if [[ "$thread_safety" != "zts" && "$thread_safety" != "nts" ]]; then
+        echo "Error: Invalid thread safety: $thread_safety (must be zts or nts)" >&2
         return 1
     fi
 
@@ -55,15 +62,19 @@ dd_php_release_url() {
         return 1
     fi
 
+    # ZTS builds have a -zts suffix; NTS builds have no suffix
+    local zts_suffix=""
+    [[ "$thread_safety" == "zts" ]] && zts_suffix="-zts"
+
     # Construct the URL
-    local url="https://github.com/DataDog/dd-trace-php/releases/download/${ext_version}/dd-library-php-${ext_version}-${arch}-linux-${libc_type}-${api_version}.tar.gz"
+    local url="https://github.com/DataDog/dd-trace-php/releases/download/${ext_version}/dd-library-php-${ext_version}-${arch}-linux-${libc_type}-${api_version}${zts_suffix}.tar.gz"
 
     echo "$url"
 }
 
-# Download the SSI PHP package from ECR public (public.ecr.aws/datadog/apm-library-php-package).
-# Tagged releases use the OCI tag "<version>-1" (e.g. 1.18.0 -> tag 1.18.0-1).
-# The layer is a zstd-compressed tar containing linux-gnu/ and linux-musl/ trees.
+# Download the SSI PHP package from install.datadoghq.com (public OCI registry, no auth needed).
+# OCI tags use the format "<version>-N" (e.g. 1.18.0-1); the latest revision is resolved
+# automatically. The layer is a zstd-compressed tar with linux-gnu/ and linux-musl/ trees.
 #
 # Usage: dd_php_ssi_download <extension_version> <arch> <destdir>
 # arch: x86_64 or aarch64
@@ -78,60 +89,51 @@ dd_php_ssi_download() {
         return 1
     fi
 
-    # Normalize aarch64/arm64
-    [[ "$arch" == "arm64" ]] && arch="aarch64"
-    if [[ "$arch" != "x86_64" && "$arch" != "aarch64" ]]; then
-        echo "Error: Invalid architecture: $arch (must be x86_64 or aarch64)" >&2
+    # OCI registry uses amd64/arm64 platform names
+    local oci_arch
+    case "$arch" in
+        x86_64|amd64)   oci_arch="amd64" ;;
+        aarch64|arm64)  oci_arch="arm64" ;;
+        *)
+            echo "Error: Invalid architecture: $arch (must be x86_64 or aarch64)" >&2
+            return 1
+            ;;
+    esac
+
+    local base_url="https://install.datadoghq.com/v2/apm-library-php-package"
+
+    # OCI tags are "VERSION-N"; find the latest revision for this version
+    local tag
+    tag=$(curl -sf "${base_url}/tags/list" | jq -r \
+        --arg v "$ext_version" \
+        '[.tags[] | select(startswith($v + "-"))] | sort | last // empty')
+    if [[ -z "$tag" ]]; then
+        echo "Error: No OCI tag found for version $ext_version" >&2
+        echo "Available tags: $(curl -sf "${base_url}/tags/list" | jq -r '.tags[]' | tr '\n' ' ')" >&2
         return 1
     fi
-    local oci_arch
-    [[ "$arch" == "x86_64" ]] && oci_arch="amd64" || oci_arch="arm64"
 
-    local registry="public.ecr.aws"
-    local repo="datadog/apm-library-php-package"
-    local tag="${ext_version}-1"
+    echo "Fetching SSI package ${ext_version} (${arch}) from install.datadoghq.com tag ${tag}..." >&2
 
-    echo "Fetching SSI package ${ext_version} (${arch}) from ECR public tag ${tag}..." >&2
-
-    # Get anonymous pull token
-    local token
-    token=$(curl -sf "https://${registry}/token/?service=${registry}&scope=repository:${repo}:pull" \
-        | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")
-
-    local auth_header="Authorization: Bearer ${token}"
-    local base_url="https://${registry}/v2/${repo}"
-
-    # Fetch index manifest to get the platform-specific child manifest digest
+    # Resolve the image index to the per-arch manifest digest
     local platform_digest
     platform_digest=$(curl -sf \
-        -H "$auth_header" \
         -H "Accept: application/vnd.oci.image.index.v1+json" \
         "${base_url}/manifests/${tag}" \
-        | python3 -c "
-import json, sys
-idx = json.load(sys.stdin)
-for m in idx.get('manifests', []):
-    if m.get('platform', {}).get('architecture') == '${oci_arch}':
-        print(m['digest'])
-        break
-")
+        | jq -r --arg arch "$oci_arch" \
+            '.manifests[] | select(.platform.architecture == $arch) | .digest')
 
     if [[ -z "$platform_digest" ]]; then
         echo "Error: could not find ${oci_arch} manifest in index for tag ${tag}" >&2
         return 1
     fi
 
-    # Fetch platform manifest to get the layer digest
+    # Get the layer blob digest from the per-arch manifest
     local layer_digest
     layer_digest=$(curl -sf \
-        -H "$auth_header" \
         -H "Accept: application/vnd.oci.image.manifest.v1+json" \
         "${base_url}/manifests/${platform_digest}" \
-        | python3 -c "
-import json, sys
-m = json.load(sys.stdin)
-print(m['layers'][0]['digest'])
-")
+        | jq -r '.layers[0].digest')
 
     if [[ -z "$layer_digest" ]]; then
         echo "Error: could not find layer digest in manifest" >&2
@@ -139,13 +141,7 @@ print(m['layers'][0]['digest'])
     fi
 
     echo "Downloading layer ${layer_digest}..." >&2
-    local layer_file="${destdir}/_layer.tar.zst"
-    curl -sfL \
-        -H "$auth_header" \
-        -o "$layer_file" \
-        "${base_url}/blobs/${layer_digest}"
-    zstd -d "$layer_file" --stdout | tar -C "$destdir" -x
-    rm "$layer_file"
+    curl -sfL "${base_url}/blobs/${layer_digest}" | zstd -d | tar -x -C "$destdir"
 }
 
 main() {
