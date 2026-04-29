@@ -287,6 +287,9 @@ class TelemetryTests {
         series.each {
             assert 'event_rules_version:1.1.1' in it.tags
             assert 'scope:item' in it.tags
+            if (System.getProperty('USE_HELPER_RUST') != null) {
+                assert 'action:update' in it.tags
+            }
         }
 
         def rulesOverride = series.find {
@@ -916,5 +919,71 @@ class TelemetryTests {
         assert wafReqRateLimited.points[0][1] >= 1.0
         assert 'rule_triggered:true' in wafReqRateLimited.tags
         assert 'rate_limited:true' in wafReqRateLimited.tags
+    }
+
+    @Test
+    @Order(21)
+    void 'waf config errors emitted with action init for bad init rules'() {
+        CONTAINER.execInContainer('bash', '-c',
+                'printf \'%s\' \'{"version":"2.2","metadata":{"rules_version":"9.9.9"},"rules":[{"id":"t1","name":"G","tags":{"type":"test","category":"test"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]},{"id":"bad-rule"}]}\' > /tmp/bad_rules.json'
+        )
+
+        def res = CONTAINER.execInContainer('bash', '-c',
+                '''kill -9 `pgrep php-fpm`;
+                   export DD_APPSEC_ENABLED=1;
+                   export DD_APPSEC_RULES=/tmp/bad_rules.json;
+                   export DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
+                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
+        assert res.exitCode == 0
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        boolean useRust = System.getProperty('USE_HELPER_RUST') != null
+        TelemetryHelpers.Metric configError = null
+        TelemetryHelpers.Log bundledDiagLog = null
+
+        // drainTelemetry is destructive: collect metrics and logs in a single loop
+        def deadline = System.currentTimeSeconds() + 30
+        def lastHttpReq = System.currentTimeSeconds() - 6
+        while (System.currentTimeSeconds() < deadline) {
+            if (System.currentTimeSeconds() - lastHttpReq > 5) {
+                lastHttpReq = System.currentTimeSeconds()
+                CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+                    assert resp.statusCode() == 200
+                }
+            }
+            def telData = CONTAINER.drainTelemetry(500)
+
+            configError = configError ?:
+                TelemetryHelpers.filterMessages(telData, TelemetryHelpers.GenerateMetrics)
+                    .collectMany { it.series }
+                    .find { it.name == 'waf.config_errors' && 'event_rules_version:9.9.9' in it.tags }
+
+            if (useRust) {
+                bundledDiagLog = bundledDiagLog ?:
+                    TelemetryHelpers.filterMessages(telData, TelemetryHelpers.Logs)
+                        .collectMany { it.logs }
+                        .find { it.tags?.contains('log_type:rc::bundled_rules::diagnostic') &&
+                                it.tags?.contains('appsec_config_key:rules') }
+                if (configError != null && bundledDiagLog != null) break
+            } else {
+                if (configError != null) break
+            }
+        }
+
+        assert configError != null
+        assert configError.namespace == 'appsec'
+        assert 'event_rules_version:9.9.9' in configError.tags
+        assert 'config_key:rules' in configError.tags
+        if (useRust) {
+            assert 'action:init' in configError.tags
+
+            assert bundledDiagLog != null : 'Expected diagnostic log for bundled rules init errors'
+            assert bundledDiagLog.level == 'ERROR'
+            assert bundledDiagLog.tags?.contains('rc_config_id:bundled_rules')
+            assert bundledDiagLog.message == "{\"missing key 'conditions'\":[\"bad-rule\"]}"
+        }
     }
 }
