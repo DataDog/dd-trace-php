@@ -177,6 +177,8 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         tags.add("rule_triggered", bool_tag(self.had_triggers));
         // block_failure is not tracked: the PHP layer is assumed to always succeed at blocking.
         // Therefore request_blocked == "WAF requested a block" == "block succeeded".
+        // request_excluded is not tracked: libddwaf applies exclusion filters internally and
+        // does not expose whether a request was excluded in RunOutput.
         tags.add("request_blocked", bool_tag(self.request_blocked));
         tags.add("waf_error", bool_tag(self.waf_hit_error));
         tags.add("waf_timeout", bool_tag(self.waf_hit_timeout));
