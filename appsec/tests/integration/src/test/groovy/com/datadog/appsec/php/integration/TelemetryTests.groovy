@@ -819,5 +819,102 @@ class TelemetryTests {
         assert 'waf_timeout:false' in wafReq.tags
         assert 'input_truncated:false' in wafReq.tags
         assert 'waf_error:false' in wafReq.tags
+        assert 'rate_limited:false' in wafReq.tags
+    }
+
+    /**
+     * RFC-1012: appsec.waf.requests must include the rate_limited boolean tag.
+     * The rate limiter must only be consulted when the WAF triggered (waf_keep=true),
+     * matching C++ semantics: `event.keep && limiter_.allow()`. Clean requests must
+     * not consume a limiter slot.
+     *
+     * This test verifies:
+     * 1. Clean requests do not consume the limiter slot.
+     * 2. The first attack request gets rate_limited:false (slot was preserved).
+     * 3. The second attack request gets rate_limited:true (slot now exhausted).
+     *
+     * Only applies to the Rust helper. Ordered last because it restarts php-fpm
+     * with a different rate limit configuration.
+     */
+    @Test
+    @Order(20)
+    void 'waf requests rate_limited tag is emitted'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'rate_limited tag is only implemented on the Rust helper')
+
+        // Restart php-fpm with a rate limit of 1 trace/sec.
+        org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
+                'bash', '-c',
+                '''kill -9 `pgrep php-fpm`;
+                   export DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
+                   export DD_APPSEC_TRACE_RATE_LIMIT=1;
+                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
+        assert res.exitCode == 0
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // First request: starts helper. May or may not be covered by appsec depending on RC timing.
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // Several clean requests: these must NOT consume the rate-limiter slot.
+        // With correct behavior (matching C++), the limiter is only consulted when
+        // the WAF triggered, so clean requests leave the slot untouched.
+        for (int i = 0; i < 3; i++) {
+            CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+        }
+
+        // Send a burst of attack requests. With rate_limit=1, all requests within the
+        // same second share a single slot: the first gets rate_limited:false and the
+        // rest get rate_limited:true. Sending several increases the chance that at
+        // least two land within the same second even under CI timing variance.
+        HttpRequest attackReq = CONTAINER.buildReq('/hello.php')
+                .header('User-Agent', 'Arachni/v1').GET().build()
+        for (int i = 0; i < 5; i++) {
+            CONTAINER.traceFromRequest(attackReq, ofString()) { HttpResponse<String> resp ->
+                assert resp.body().size() > 0
+            }
+        }
+
+        TelemetryHelpers.Metric wafReqRateLimited
+        TelemetryHelpers.Metric wafReqNotRateLimited
+
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            // Both must be attack requests (rule_triggered:true) to verify the limiter
+            // only fires for WAF-triggered requests, not clean ones.
+            wafReqRateLimited = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'rate_limited:true' in it.tags
+            }
+            wafReqNotRateLimited = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'rate_limited:false' in it.tags
+            }
+            wafReqRateLimited != null && wafReqNotRateLimited != null
+        }
+
+        assert wafReqNotRateLimited != null :
+        assert wafReqNotRateLimited.namespace == 'appsec'
+        assert wafReqNotRateLimited.type == 'count'
+        assert 'rule_triggered:true' in wafReqNotRateLimited.tags
+        assert 'rate_limited:false' in wafReqNotRateLimited.tags
+
+        assert wafReqRateLimited != null :
+        assert wafReqRateLimited.namespace == 'appsec'
+        assert wafReqRateLimited.type == 'count'
+        assert wafReqRateLimited.points[0][1] >= 1.0
+        assert 'rule_triggered:true' in wafReqRateLimited.tags
+        assert 'rate_limited:true' in wafReqRateLimited.tags
     }
 }

@@ -64,6 +64,11 @@ pub struct WafMetrics {
 
     /// Whether the input was truncated by the extension
     input_truncated: bool,
+
+    /// Whether the trace was rate-limited by the appsec event rate limiter
+    /// (i.e. the limiter prevented force-keeping a trace that would otherwise
+    /// have been force-kept).
+    rate_limited: bool,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -87,11 +92,16 @@ impl WafMetrics {
             had_triggers: false,
             request_blocked: false,
             input_truncated: false,
+            rate_limited: false,
         }
     }
 
     pub fn set_input_truncated(&mut self, input_truncated: bool) {
         self.input_truncated = input_truncated;
+    }
+
+    pub fn set_rate_limited(&mut self, rate_limited: bool) {
+        self.rate_limited = rate_limited;
     }
 
     pub fn record_non_rasp_error_eval(&mut self) {
@@ -165,10 +175,13 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
             self.rules_version.as_deref().unwrap_or("unknown"),
         );
         tags.add("rule_triggered", bool_tag(self.had_triggers));
+        // block_failure is not tracked: the PHP layer is assumed to always succeed at blocking.
+        // Therefore request_blocked == "WAF requested a block" == "block succeeded".
         tags.add("request_blocked", bool_tag(self.request_blocked));
         tags.add("waf_error", bool_tag(self.waf_hit_error));
         tags.add("waf_timeout", bool_tag(self.waf_hit_timeout));
         tags.add("input_truncated", bool_tag(self.input_truncated));
+        tags.add("rate_limited", bool_tag(self.rate_limited));
         submitter.submit_metric(telemetry::WAF_REQUESTS, 1.0, tags);
 
         // Rasp rule metrics

@@ -696,17 +696,19 @@ impl ReqContext {
     }
 
     fn should_force_keep(&mut self, service: &Service, waf_keep: bool) -> bool {
-        // cache limiter result (called once per request)
-        let limiter_allows = match self.limiter_result {
+        // The limiter slot is only consumed when the WAF triggered; clean requests
+        // must not burn a slot even if this function is called multiple times.
+        if !waf_keep {
+            return false;
+        }
+        match self.limiter_result {
             Some(result) => result,
             None => {
                 let result = service.should_force_keep();
                 self.limiter_result = Some(result);
                 result
             }
-        };
-
-        limiter_allows && waf_keep
+        }
     }
 
     fn settings(&self) -> HashMap<&'static str, String> {
@@ -718,6 +720,8 @@ impl ReqContext {
 
     pub fn take_waf_metrics(&mut self, input_truncated: bool) -> metrics::WafMetrics {
         self.waf_metrics.set_input_truncated(input_truncated);
+        self.waf_metrics
+            .set_rate_limited(matches!(self.limiter_result, Some(false)));
         std::mem::take(&mut self.waf_metrics)
     }
 }
