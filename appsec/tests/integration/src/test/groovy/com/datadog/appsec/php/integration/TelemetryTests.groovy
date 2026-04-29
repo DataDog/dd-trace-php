@@ -904,13 +904,13 @@ class TelemetryTests {
             wafReqRateLimited != null && wafReqNotRateLimited != null
         }
 
-        assert wafReqNotRateLimited != null :
+        assert wafReqNotRateLimited != null
         assert wafReqNotRateLimited.namespace == 'appsec'
         assert wafReqNotRateLimited.type == 'count'
         assert 'rule_triggered:true' in wafReqNotRateLimited.tags
         assert 'rate_limited:false' in wafReqNotRateLimited.tags
 
-        assert wafReqRateLimited != null :
+        assert wafReqRateLimited != null
         assert wafReqRateLimited.namespace == 'appsec'
         assert wafReqRateLimited.type == 'count'
         assert wafReqRateLimited.points[0][1] >= 1.0
