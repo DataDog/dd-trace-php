@@ -157,23 +157,18 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         submitter: &mut dyn telemetry::TelemetryMetricSubmitter,
     ) {
         // waf.requests metrics
+        // RFC-1012: all boolean tags must be emitted regardless of value.
         let mut tags = telemetry::TelemetryTags::new();
         tags.add("waf_version", crate::service::Service::waf_version());
-        if let Some(ref rules_ver) = self.rules_version {
-            tags.add("event_rules_version", rules_ver);
-        }
-        if self.had_triggers {
-            tags.add("rule_triggered", "true");
-        }
-        if self.request_blocked {
-            tags.add("request_blocked", "true");
-        }
-        if self.waf_hit_timeout {
-            tags.add("waf_timeout", "true");
-        }
-        if self.input_truncated {
-            tags.add("input_truncated", "true");
-        }
+        tags.add(
+            "event_rules_version",
+            self.rules_version.as_deref().unwrap_or("unknown"),
+        );
+        tags.add("rule_triggered", bool_tag(self.had_triggers));
+        tags.add("request_blocked", bool_tag(self.request_blocked));
+        tags.add("waf_error", bool_tag(self.waf_hit_error));
+        tags.add("waf_timeout", bool_tag(self.waf_hit_timeout));
+        tags.add("input_truncated", bool_tag(self.input_truncated));
         submitter.submit_metric(telemetry::WAF_REQUESTS, 1.0, tags);
 
         // Rasp rule metrics
@@ -222,6 +217,10 @@ impl telemetry::SpanMetricsGenerator for WafMetrics {
             submitter.submit_metric(telemetry::RAST_TIMEOUTS, self.rasp_timeouts as f64);
         }
     }
+}
+
+fn bool_tag(value: bool) -> &'static str {
+    if value { "true" } else { "false" }
 }
 
 trait DurationExt {

@@ -121,10 +121,17 @@ class TelemetryTests {
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
-            // Rust helper has +1 tag (helper_runtime), C++ doesn't
             def useRust = System.getProperty('USE_HELPER_RUST') != null
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
-            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 4 : 3) }
+            if (useRust) {
+                // RFC-1012: all boolean tags must be emitted unconditionally, so distinguish
+                // requests by tag value rather than tag count.
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:false' in it.tags }
+                wafReq2 = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:true' in it.tags }
+            } else {
+                // C++ helper: still uses tag-count-based detection (not yet RFC-1012 compliant)
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
+                wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
+            }
             connSuccess = allSeries.find { it.name == 'helper.connection_success' }
             workerCount = allSeries.find { it.name == 'helper.service_worker_count' }
 
@@ -144,6 +151,14 @@ class TelemetryTests {
         assert wafReq1.tags.find { it.startsWith('event_rules_version:') } != null
         assert wafReq1.tags.find { it.startsWith('waf_version:') } != null
         assert wafReq1.type == 'count'
+        // RFC-1012: boolean tags must be present even when false (Rust helper only)
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'rule_triggered:false' in wafReq1.tags
+            assert 'request_blocked:false' in wafReq1.tags
+            assert 'waf_timeout:false' in wafReq1.tags
+            assert 'input_truncated:false' in wafReq1.tags
+            assert 'waf_error:false' in wafReq1.tags
+        }
 
         assert wafReq2 != null
         assert 'rule_triggered:true' in wafReq2.tags
@@ -459,7 +474,12 @@ class TelemetryTests {
         def useRust = System.getProperty('USE_HELPER_RUST') != null
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
+            if (useRust) {
+                // RFC-1012: boolean tags always emitted; use tag value, not tag count
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:false' in it.tags }
+            } else {
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
+            }
             lfiEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:lfi' in it.tags}
             lfiMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:lfi' in it.tags}
             lfiTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
@@ -748,5 +768,56 @@ class TelemetryTests {
                exceptionLog.message?.contains('JSON') ||
                exceptionLog.message?.contains('Failed to apply config') :
                 "Expected error message about parse/JSON failure, got: ${exceptionLog.message}"
+    }
+
+    /**
+     * RFC-1012: all boolean tags on appsec.waf.requests must be emitted unconditionally,
+     * including when the value is false. This verifies a clean (non-attack, non-timeout,
+     * non-truncated) request still carries all boolean tags.
+     *
+     * This test only applies to the Rust helper, which implements RFC-1012.
+     */
+    @Test
+    @Order(9)
+    void 'waf requests boolean tags are emitted unconditionally'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'RFC-1012 boolean tag compliance is only enforced on the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // Start helper
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // Clean request: no attack, no truncation — all boolean tags must still be present
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        TelemetryHelpers.Metric wafReq
+
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafReq = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:false' in it.tags }
+            wafReq != null
+        }
+
+        assert wafReq != null : 'waf.requests metric with rule_triggered:false not found — ' +
+                'boolean tags must be emitted even when false (RFC-1012)'
+        assert wafReq.namespace == 'appsec'
+        assert wafReq.type == 'count'
+        assert wafReq.tags.find { it.startsWith('waf_version:') } != null
+        assert wafReq.tags.find { it.startsWith('event_rules_version:') } != null
+        assert 'rule_triggered:false' in wafReq.tags
+        assert 'request_blocked:false' in wafReq.tags
+        assert 'waf_timeout:false' in wafReq.tags
+        assert 'input_truncated:false' in wafReq.tags
+        assert 'waf_error:false' in wafReq.tags
     }
 }
