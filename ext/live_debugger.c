@@ -868,6 +868,7 @@ static void dd_remove_live_debugger_probe(int64_t id) {
                 def->scope ? (zai_str)ZAI_STR_FROM_ZSTR(def->scope) : (zai_str)ZAI_STR_EMPTY,
                 def->function ? (zai_str)ZAI_STR_FROM_ZSTR(def->function) : (zai_str)ZAI_STR_EMPTY,
                 id);
+        zend_hash_index_del(&DDTRACE_G(active_rc_hooks), (zend_ulong)id);
         if (scope) {
             zend_string_release(scope);
         }
