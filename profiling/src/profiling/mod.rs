@@ -455,6 +455,10 @@ impl TimeCollector {
         // check if we have the `alloc-size` and `alloc-samples` sample types
         let (alloc_samples_offset, alloc_size_offset) =
             (get_offset("alloc-samples"), get_offset("alloc-size"));
+        let (heap_live_samples_offset, heap_live_size_offset) = (
+            get_offset("heap-live-samples"),
+            get_offset("heap-live-size"),
+        );
 
         // check if we have the IO sample types
         #[cfg(all(
@@ -524,6 +528,23 @@ impl TimeCollector {
                 Ok(_id) => {}
                 Err(err) => {
                     warn!("Failed to add upscaling rule for allocation samples, allocation samples reported will be wrong: {err}")
+                }
+            }
+        }
+
+        if let (Some(heap_live_size_offset), Some(heap_live_samples_offset)) =
+            (heap_live_size_offset, heap_live_samples_offset)
+        {
+            let upscaling_info = UpscalingInfo::Poisson {
+                sum_value_offset: heap_live_size_offset,
+                count_value_offset: heap_live_samples_offset,
+                sampling_distance: ALLOCATION_PROFILING_INTERVAL.load(Ordering::Relaxed),
+            };
+            let values_offset = [heap_live_size_offset, heap_live_samples_offset];
+            match profile.add_upscaling_rule(&values_offset, "", "", upscaling_info) {
+                Ok(_id) => {}
+                Err(err) => {
+                    warn!("Failed to add upscaling rule for heap-live samples, heap-live samples reported will be wrong: {err}")
                 }
             }
         }
@@ -1278,6 +1299,26 @@ impl Profiler {
                 "Untracked freed allocation at {:#x} ({} bytes)",
                 ptr as usize,
                 sample.allocation_size
+            );
+        }
+        // If not tracked, nothing to do (wasn't sampled)
+    }
+
+    /// Called when a tracked allocation is reallocated in place. Keeps heap-live samples current
+    /// without changing the original allocation stack attached to the tracked pointer.
+    pub fn update_allocation_size(&self, ptr: *mut std::ffi::c_void, len: i64) {
+        if !self.is_heap_live_enabled() {
+            return;
+        }
+
+        if let Some(mut sample) = self.live_heap_tracker.get_mut(&(ptr as usize)) {
+            let previous_size = sample.allocation_size;
+            sample.allocation_size = len;
+            trace!(
+                "Updated tracked allocation at {:#x} from {} to {} bytes",
+                ptr as usize,
+                previous_size,
+                len
             );
         }
         // If not tracked, nothing to do (wasn't sampled)

@@ -1,4 +1,7 @@
-use crate::allocation::{allocation_profiling_stats_should_collect, collect_allocation, free_allocation};
+use crate::allocation::{
+    allocation_profiling_stats_should_collect, collect_allocation, free_allocation,
+    update_allocation_size,
+};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
@@ -367,8 +370,12 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
-    // If pointer changed, treat as free(old) + alloc(new)
-    if !ptr::eq(ptr, prev_ptr) {
+    if ptr::eq(ptr, prev_ptr) {
+        if !ptr.is_null() {
+            update_allocation_size(ptr, len);
+        }
+    } else {
+        // If pointer changed, treat as free(old) + alloc(new)
         // Untrack the old allocation if it was tracked
         if !prev_ptr.is_null() {
             free_allocation(prev_ptr);
