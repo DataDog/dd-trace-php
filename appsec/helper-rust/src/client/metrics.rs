@@ -62,7 +62,10 @@ pub struct WafMetrics {
     /// Whether the request was blocked
     request_blocked: bool,
 
-    /// Whether the input was truncated by the extension
+    /// Whether the input was truncated by the extension.
+    /// Used as a tag on waf.requests. The separate appsec.waf.input_truncated
+    /// metric was deprecated by RFC-1089, as was appsec.waf.truncated_value_size.
+    /// Neither is implemented.
     input_truncated: bool,
 
     /// Whether the trace was rate-limited by the appsec event rate limiter
