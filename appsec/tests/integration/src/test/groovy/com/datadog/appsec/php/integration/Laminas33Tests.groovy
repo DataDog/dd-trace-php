@@ -72,6 +72,7 @@ class Laminas33Tests {
         }
 
         assert trace.traceId != null
+        assert trace.first().meta.'http.route' == '/'
 
         List<TelemetryHelpers.Endpoint> endpoints
 
@@ -80,7 +81,7 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 4
+        assert endpoints.size() == 6
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
         assert endpoints.find { it.path == '/behind-auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind-auth' } != null
@@ -112,6 +113,7 @@ class Laminas33Tests {
         assert span.meta.'_dd.appsec.events.users.login.failure.auto.mode' == 'identification'
         assert span.meta.'appsec.events.users.login.failure.usr.exists' == 'false'
         assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta.'http.route' == '/authenticate'
     }
 
     @Test
@@ -127,6 +129,7 @@ class Laminas33Tests {
         assert span.meta.'_dd.appsec.events.users.login.success.auto.mode' == 'identification'
         assert span.meta.'appsec.events.users.login.success.track' == 'true'
         assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta.'http.route' == '/authenticate'
     }
 
     @Test
@@ -156,6 +159,7 @@ class Laminas33Tests {
         assert span.meta.'usr.id' == '1'
         assert span.meta.'_dd.appsec.usr.id' == '1'
         assert span.meta.'_dd.appsec.user.collection_mode' == 'identification'
+        assert span.meta.'http.route' == '/behind-auth'
     }
 
     @Test
@@ -172,5 +176,22 @@ class Laminas33Tests {
         assert span.metrics.'_dd.appsec.waf.duration' > 0.0d
         assert span.meta.'_dd.appsec.event_rules.version' != ''
         assert span.meta.'appsec.blocked' == 'true'
+        assert span.meta.'http.route' == '/dynamic-path[/:param01]'
+    }
+
+    @Test
+    @Order(8)
+    void 'nested Part and Chain routes produce correct http route'() {
+        HttpRequest nestedReq = container.buildReq('/resource/42/99').GET().build()
+        Trace nestedTrace = container.traceFromRequest(nestedReq, ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert nestedTrace.first().meta.'http.route' == '/resource/:resourceId/:subId'
+
+        HttpRequest chainReq = container.buildReq('/chain/abc').GET().build()
+        Trace chainTrace = container.traceFromRequest(chainReq, ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert chainTrace.first().meta.'http.route' == '/chain/:chainId'
     }
 }

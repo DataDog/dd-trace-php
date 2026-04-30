@@ -56,6 +56,60 @@ return [
                     ],
                 ],
             ],
+            'nested_resource' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/resource',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+                'may_terminate' => true,
+                'child_routes' => [
+                    'item' => [
+                        'type' => Segment::class,
+                        'options' => [
+                            'route' => '/:resourceId',
+                            'defaults' => [
+                                'controller' => DynamicPathController::class,
+                                'action' => 'index',
+                            ],
+                        ],
+                        'may_terminate' => true,
+                        'child_routes' => [
+                            'sub' => [
+                                'type' => Segment::class,
+                                'options' => [
+                                    'route' => '/:subId',
+                                    'defaults' => [
+                                        'controller' => DynamicPathController::class,
+                                        'action' => 'index',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'chained_resource' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/chain',
+                ],
+                'chain_routes' => [
+                    [
+                        'type' => Segment::class,
+                        'options' => [
+                            'route' => '/:chainId',
+                            'defaults' => [
+                                'controller' => DynamicPathController::class,
+                                'action' => 'index',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
         ],
     ],
     'controllers' => [

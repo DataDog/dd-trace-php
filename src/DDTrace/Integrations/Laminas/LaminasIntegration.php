@@ -289,10 +289,8 @@ class LaminasIntegration extends Integration
                 // Push path params to appsec
                 if (function_exists('\datadog\appsec\push_addresses')) {
                     $params = $routeMatch->getParams();
-                    // Filter out the framework-specific params (controller, action)
-                    $pathParams = array_diff_key($params, array_flip(['controller', 'action']));
-                    if (count($pathParams) > 0) {
-                        \datadog\appsec\push_addresses(["server.request.path_params" => $pathParams]);
+                    if (count($params) > 0) {
+                        \datadog\appsec\push_addresses(["server.request.path_params" => $params]);
                     }
                 }
             }
@@ -909,6 +907,18 @@ class LaminasIntegration extends Integration
             $parts = $rp->getValue($matchedRoute);
 
             return \is_array($parts) ? self::laminasSegmentPartsToRouteTemplate($parts) : null;
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Chain) {
+            $buf = '';
+            foreach ($matchedRoute->getRoutes() as $chainedRoute) {
+                $part = self::httpRouteTemplateFromMatchedRoute($chainedRoute, null);
+                if ($part === null) {
+                    return null;
+                }
+                $buf .= $part;
+            }
+            return $buf !== '' ? $buf : null;
         }
 
         if (
