@@ -36,7 +36,7 @@
 #include "network.h"
 #include "php_compat.h"
 #include "php_objects.h"
-#include "rasp.h"
+#include "duration_acc.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
@@ -221,7 +221,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_user_tracking_startup();
     dd_request_abort_startup();
     dd_tags_startup();
-    dd_rasp_startup();
+    dd_duration_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
@@ -240,7 +240,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
-    dd_rasp_shutdown();
+    dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
     dd_user_tracking_shutdown();
@@ -563,8 +563,6 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
 
 static PHP_FUNCTION(datadog_appsec_push_addresses)
 {
-    struct timespec start;
-    UNUSED(clock_gettime(CLOCK_MONOTONIC_RAW, &start));
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
         mlog(dd_log_debug, "Trying to access to push_addresses "
@@ -596,19 +594,14 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
 
     struct req_exec_opts opts = {.rasp_rule = rasp_rule};
     struct block_params block_params = {0};
+    struct timespec start = dd_monotime_start();
     dd_result res =
         dd_request_exec(conn, Z_ARRVAL_P(addresses), &opts, &block_params);
 
     if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0) {
-        struct timespec end;
-        UNUSED(clock_gettime(CLOCK_MONOTONIC_RAW, &end));
-        double elapsed_us =
-            (((double)(end.tv_sec - start.tv_sec) *
-                 // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                 (int64_t)1000000) +
-                // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                ((double)(end.tv_nsec - start.tv_nsec) / 1000.0));
-        dd_rasp_account_duration_us(elapsed_us);
+        dd_duration_rasp_ext_account(&start);
+    } else {
+        dd_duration_waf_ext_account(&start);
     }
 
     dd_req_lifecycle_abort(REQUEST_STAGE_MID_REQUEST, res, &block_params);

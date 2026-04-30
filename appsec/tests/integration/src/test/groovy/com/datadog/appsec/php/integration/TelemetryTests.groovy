@@ -662,6 +662,75 @@ class TelemetryTests {
     }
 
     /**
+     * Verifies that _dd.appsec.waf.duration and _dd.appsec.waf.duration_ext are emitted as
+     * span metrics (ms) and that appsec.waf.duration / appsec.waf.duration_ext are emitted
+     * as DDSketch distributions (µs). Cross-checks consistency: each span metric value
+     * (ms × 1000 → µs) must fall inside a populated bin of the corresponding distribution.
+     *
+     * This test only applies to the Rust helper (distributions not implemented elsewhere).
+     */
+    @Test
+    @Order(7)
+    void 'waf duration span metrics and distributions are consistent'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'appsec.waf.duration distributions are only implemented on the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // This span's WAF duration metrics will be cross-checked against the distributions.
+        def trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        TelemetryHelpers.DistributionMetric wafDuration
+        TelemetryHelpers.DistributionMetric wafDurationExt
+
+        TelemetryHelpers.waitForDistributions(CONTAINER, 30) { List<TelemetryHelpers.GenerateDistributions> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafDuration = wafDuration ?: allSeries.find { it.name == 'waf.duration' }
+            wafDurationExt = wafDurationExt ?: allSeries.find { it.name == 'waf.duration_ext' }
+            wafDuration != null && wafDurationExt != null
+        }
+
+        assert wafDuration != null : 'waf.duration distribution metric not found'
+        assert wafDuration.namespace == 'appsec'
+        assert wafDuration.tags.find { it.startsWith('waf_version:') } != null
+        assert wafDuration.tags.find { it.startsWith('event_rules_version:') } != null
+        assert wafDuration.count >= 1.0
+
+        assert wafDurationExt != null : 'waf.duration_ext distribution metric not found'
+        assert wafDurationExt.namespace == 'appsec'
+        assert wafDurationExt.tags.find { it.startsWith('waf_version:') } != null
+        assert wafDurationExt.tags.find { it.startsWith('event_rules_version:') } != null
+        assert wafDurationExt.count >= 1.0
+
+        def span = trace[0]
+        def durationMs = span.metrics.'_dd.appsec.waf.duration'
+        assert durationMs != null && durationMs > 0.0d :
+            '_dd.appsec.waf.duration span metric must be > 0'
+        def durationExtMs = span.metrics.'_dd.appsec.waf.duration_ext'
+        assert durationExtMs != null && durationExtMs > 0.0d :
+            '_dd.appsec.waf.duration_ext span metric must be > 0'
+
+        // Distributions are in µs; span metrics are in ms.
+        assert wafDuration.countForBinContaining(durationMs * 1000.0) != null :
+            "span metric value ${durationMs} ms (${durationMs * 1000.0} µs) not found in any " +
+            "waf.duration distribution bin; distribution: ${wafDuration}"
+        assert wafDurationExt.countForBinContaining(durationExtMs * 1000.0) != null :
+            "span metric value ${durationExtMs} ms (${durationExtMs * 1000.0} µs) not found in any " +
+            "waf.duration_ext distribution bin; distribution: ${wafDurationExt}"
+    }
+
+    /**
      * This test verifies that helper-rust errors are properly sent to telemetry
      * with backtraces. It sends an invalid message to the helper which triggers
      * an error with backtrace.
@@ -669,7 +738,7 @@ class TelemetryTests {
      * This test only runs when USE_HELPER_RUST is set (Rust helper implementation).
      */
     @Test
-    @Order(7)
+    @Order(8)
     void 'helper error telemetry includes backtrace'() {
         Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
 
@@ -823,6 +892,79 @@ class TelemetryTests {
         assert 'input_truncated:false' in wafReq.tags
         assert 'waf_error:false' in wafReq.tags
         assert 'rate_limited:false' in wafReq.tags
+    }
+
+    /**
+     * Verifies that _dd.appsec.rasp.duration (ms) and _dd.appsec.rasp.duration_ext (µs) are
+     * emitted as span metrics and that appsec.rasp.duration / appsec.rasp.duration_ext are
+     * emitted as DDSketch distributions (both µs). Cross-checks consistency:
+     *  - rasp.duration: span metric ms × 1000 → µs must fall inside a populated bin
+     *  - rasp.duration_ext: span metric µs falls directly inside a populated bin (no conversion)
+     *
+     * This test only applies to the Rust helper (distributions not implemented elsewhere).
+     */
+    @Test
+    @Order(11)
+    void 'rasp duration span metrics and distributions are consistent'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'appsec.rasp.duration distributions are only implemented on the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // This span's RASP duration metrics will be cross-checked against the distributions.
+        def trace = CONTAINER.traceFromRequest(
+                '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') {
+            HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
+        }
+
+        TelemetryHelpers.DistributionMetric raspDuration
+        TelemetryHelpers.DistributionMetric raspDurationExt
+
+        TelemetryHelpers.waitForDistributions(CONTAINER, 30) { List<TelemetryHelpers.GenerateDistributions> messages ->
+            def allSeries = messages.collectMany { it.series }
+            raspDuration = raspDuration ?: allSeries.find { it.name == 'rasp.duration' }
+            raspDurationExt = raspDurationExt ?: allSeries.find { it.name == 'rasp.duration_ext' }
+            raspDuration != null && raspDurationExt != null
+        }
+
+        assert raspDuration != null : 'rasp.duration distribution metric not found'
+        assert raspDuration.namespace == 'appsec'
+        assert raspDuration.tags.find { it.startsWith('waf_version:') } != null
+        assert raspDuration.tags.find { it.startsWith('event_rules_version:') } != null
+        assert raspDuration.count >= 1.0
+
+        assert raspDurationExt != null : 'rasp.duration_ext distribution metric not found'
+        assert raspDurationExt.namespace == 'appsec'
+        assert raspDurationExt.tags.find { it.startsWith('waf_version:') } != null
+        assert raspDurationExt.tags.find { it.startsWith('event_rules_version:') } != null
+        assert raspDurationExt.count >= 1.0
+
+        def span = trace[0]
+        def raspDurationMs = span.metrics.'_dd.appsec.rasp.duration'
+        assert raspDurationMs != null && raspDurationMs > 0.0d :
+            '_dd.appsec.rasp.duration span metric must be > 0'
+        def raspDurationExtUs = span.metrics.'_dd.appsec.rasp.duration_ext'
+        assert raspDurationExtUs != null && raspDurationExtUs > 0.0d :
+            '_dd.appsec.rasp.duration_ext span metric must be > 0'
+
+        // rasp.duration distribution is in µs; the span metric is in ms.
+        assert raspDuration.countForBinContaining(raspDurationMs * 1000.0) != null :
+            "span metric value ${raspDurationMs} ms (${raspDurationMs * 1000.0} µs) not found in any " +
+            "rasp.duration distribution bin; distribution: ${raspDuration}"
+
+        // Both the span metric and the rasp.duration_ext distribution are in µs.
+        assert raspDurationExt.countForBinContaining(raspDurationExtUs) != null :
+            "span metric value ${raspDurationExtUs} µs not found in any rasp.duration_ext " +
+            "distribution bin; distribution: ${raspDurationExt}"
     }
 
     /**

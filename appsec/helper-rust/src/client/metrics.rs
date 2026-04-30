@@ -56,6 +56,13 @@ pub struct WafMetrics {
     /// Per-rule-type RASP metrics for telemetry
     rasp_per_rule: HashMap<String, RaspRuleMetrics>,
 
+    /// Full round-trip time for non-RASP WAF calls, as measured by the extension
+    /// (from before serialization to after receiving the response), in microseconds.
+    waf_duration_ext_us: f64,
+
+    /// Full round-trip time for RASP WAF calls, as measured by the extension, in microseconds.
+    rasp_duration_ext_us: f64,
+
     /// Whether the WAF triggered any rules
     had_triggers: bool,
 
@@ -92,11 +99,21 @@ impl WafMetrics {
             rasp_rule_evals: 0,
             rasp_timeouts: 0,
             rasp_per_rule: HashMap::new(),
+            waf_duration_ext_us: 0.0,
+            rasp_duration_ext_us: 0.0,
             had_triggers: false,
             request_blocked: false,
             input_truncated: false,
             rate_limited: false,
         }
+    }
+
+    pub fn set_waf_duration_ext_us(&mut self, us: f64) {
+        self.waf_duration_ext_us = us;
+    }
+
+    pub fn set_rasp_duration_ext_us(&mut self, us: f64) {
+        self.rasp_duration_ext_us = us;
     }
 
     pub fn set_input_truncated(&mut self, input_truncated: bool) {
@@ -189,6 +206,66 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         tags.add("rate_limited", bool_tag(self.rate_limited));
         submitter.submit_metric(telemetry::WAF_REQUESTS, 1.0, tags);
 
+        // waf.duration distribution: one observation per request, value in microseconds
+        if !self.waf_duration.is_zero() {
+            let mut dur_tags = telemetry::TelemetryTags::new();
+            dur_tags.add("waf_version", crate::service::Service::waf_version());
+            dur_tags.add(
+                "event_rules_version",
+                self.rules_version.as_deref().unwrap_or("unknown"),
+            );
+            submitter.submit_metric(
+                telemetry::WAF_DURATION_DIST,
+                self.waf_duration.as_micros() as f64,
+                dur_tags,
+            );
+        }
+
+        // waf.duration_ext distribution: full round-trip time measured by extension, in microseconds
+        if self.waf_duration_ext_us > 0.0 {
+            let mut ext_tags = telemetry::TelemetryTags::new();
+            ext_tags.add("waf_version", crate::service::Service::waf_version());
+            ext_tags.add(
+                "event_rules_version",
+                self.rules_version.as_deref().unwrap_or("unknown"),
+            );
+            submitter.submit_metric(
+                telemetry::WAF_DURATION_EXT_DIST,
+                self.waf_duration_ext_us,
+                ext_tags,
+            );
+        }
+
+        // rasp.duration distribution: cumulative internal libddwaf runtime per request, in microseconds
+        if !self.rasp_duration.is_zero() {
+            let mut dur_tags = telemetry::TelemetryTags::new();
+            dur_tags.add("waf_version", crate::service::Service::waf_version());
+            dur_tags.add(
+                "event_rules_version",
+                self.rules_version.as_deref().unwrap_or("unknown"),
+            );
+            submitter.submit_metric(
+                telemetry::RASP_DURATION_DIST,
+                self.rasp_duration.as_micros() as f64,
+                dur_tags,
+            );
+        }
+
+        // rasp.duration_ext distribution: full round-trip time measured by extension, in microseconds
+        if self.rasp_duration_ext_us > 0.0 {
+            let mut rasp_ext_tags = telemetry::TelemetryTags::new();
+            rasp_ext_tags.add("waf_version", crate::service::Service::waf_version());
+            rasp_ext_tags.add(
+                "event_rules_version",
+                self.rules_version.as_deref().unwrap_or("unknown"),
+            );
+            submitter.submit_metric(
+                telemetry::RASP_DURATION_EXT_DIST,
+                self.rasp_duration_ext_us,
+                rasp_ext_tags,
+            );
+        }
+
         // Rasp rule metrics
         for (rule_type, metrics) in &self.rasp_per_rule {
             let mut tags = telemetry::TelemetryTags::new();
@@ -221,6 +298,12 @@ impl telemetry::SpanMetricsGenerator for WafMetrics {
     fn generate_span_metrics(&'_ self, submitter: &mut dyn telemetry::SpanMetricsSubmitter) {
         if !self.waf_duration.is_zero() {
             submitter.submit_metric(telemetry::WAF_DURATION, self.waf_duration.duration_ms_f64());
+        }
+        if self.waf_duration_ext_us > 0.0 {
+            submitter.submit_metric(
+                telemetry::WAF_DURATION_EXT,
+                self.waf_duration_ext_us / 1000.0,
+            );
         }
         if !self.rasp_duration.is_zero() {
             submitter.submit_metric(

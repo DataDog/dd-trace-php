@@ -467,6 +467,8 @@ async fn do_request_loop_iter(
                     .run_waf(data, &protocol::RequestExecOptions::regular())
                     .map_err(FatalRequestError)?;
 
+                req_ctx.record_shutdown_context(req.input_truncated, req.waf_duration_ext_us, req.rasp_duration_ext_us);
+
                 // span metrics / meta
                 let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
                 req_ctx.generate_span_metrics(&mut span_submitter);
@@ -486,7 +488,7 @@ async fn do_request_loop_iter(
                     });
                 send_command_resp(framed, resp).await?;
 
-                submit_context_telemetry_metrics(client, &mut req_ctx, req.input_truncated);
+                submit_context_telemetry_metrics(client, &mut req_ctx);
                 submit_service_telemetry(client, service);
 
                 break;
@@ -524,11 +526,7 @@ fn submit_service_telemetry(client: &Client, service: &Service) {
     }
 }
 
-fn submit_context_telemetry_metrics(
-    client: &Client,
-    req_ctx: &mut ReqContext,
-    input_truncated: bool,
-) {
+fn submit_context_telemetry_metrics(client: &Client, req_ctx: &mut ReqContext) {
     let Some(ref sidecar_settings) = client.sidecar_settings else {
         warn!("Cannot submit context telemetry metrics: sidecar_settings not set");
         return;
@@ -542,7 +540,7 @@ fn submit_context_telemetry_metrics(
         &client.metrics_last_registered,
     );
 
-    let waf_metrics = req_ctx.take_waf_metrics(input_truncated);
+    let waf_metrics = req_ctx.take_waf_metrics();
     waf_metrics.generate_telemetry_metrics(&mut *tel_metric_submitter);
 }
 
@@ -718,10 +716,15 @@ impl ReqContext {
         )])
     }
 
-    pub fn take_waf_metrics(&mut self, input_truncated: bool) -> metrics::WafMetrics {
+    pub fn record_shutdown_context(&mut self, input_truncated: bool, waf_duration_ext_us: f64, rasp_duration_ext_us: f64) {
         self.waf_metrics.set_input_truncated(input_truncated);
         self.waf_metrics
             .set_rate_limited(matches!(self.limiter_result, Some(false)));
+        self.waf_metrics.set_waf_duration_ext_us(waf_duration_ext_us);
+        self.waf_metrics.set_rasp_duration_ext_us(rasp_duration_ext_us);
+    }
+
+    pub fn take_waf_metrics(&mut self) -> metrics::WafMetrics {
         std::mem::take(&mut self.waf_metrics)
     }
 }

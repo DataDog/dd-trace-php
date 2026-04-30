@@ -218,6 +218,8 @@ pub struct RequestShutdownArgs {
     #[allow(dead_code)]
     pub queue_id: u64, // TODO: unused, update protocol
     pub input_truncated: bool,
+    pub waf_duration_ext_us: f64,
+    pub rasp_duration_ext_us: f64,
 }
 
 #[derive(Debug, Serialize_tuple)]

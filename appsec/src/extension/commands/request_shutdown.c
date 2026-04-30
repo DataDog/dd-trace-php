@@ -13,6 +13,7 @@
 #include "../msgpack_helpers.h"
 #include "../php_compat.h"
 #include "../string_helpers.h"
+#include "../duration_acc.h"
 #include <SAPI.h>
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
@@ -29,7 +30,7 @@ static const dd_command_spec _spec = {
     .name = "request_shutdown",
     .name_len = sizeof("request_shutdown") - 1,
     .num_args =
-        4, // a map, api sec sampling key, sidecar queue id, and input_truncated
+        6, // a map, api sec sampling key, sidecar queue id, input_truncated, waf_duration_ext_us, rasp_duration_ext_us
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,
@@ -104,6 +105,12 @@ static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx)
 
     // 4.
     mpack_write_bool(w, dd_msgpack_helpers_is_data_truncated());
+
+    // 5.
+    mpack_write_double(w, dd_duration_waf_ext_get_us());
+
+    // 6.
+    mpack_write_double(w, dd_duration_rasp_ext_get_us());
 
     return dd_success;
 }
