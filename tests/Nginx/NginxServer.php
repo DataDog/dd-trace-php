@@ -103,6 +103,8 @@ final class NginxServer
             $socket = @fsockopen($this->serverHost, $this->hostPort);
             if ($socket !== false) {
                 fclose($socket);
+                // Give nginx and PHP-FPM a bit more time to stabilize after port opens
+                usleep(500000);
                 return true;
             }
             usleep(50000);

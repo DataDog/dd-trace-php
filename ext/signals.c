@@ -242,6 +242,20 @@ opcache_disabled:
 #endif
 }
 
+typedef struct {
+    ddog_crasht_Config config;
+    ddog_crasht_Metadata metadata;
+} dd_crasht_init_args;
+
+static void dd_crasht_do_init(ddog_crasht_EndpointConfig endpoint_config, void *userdata) {
+    dd_crasht_init_args *args = (dd_crasht_init_args *)userdata;
+    args->config.endpoint = endpoint_config;
+    dd_crashtracker_check_result(
+            ddog_crasht_init_without_receiver(args->config, args->metadata),
+            "Cannot initialize CrashTracker"
+    );
+}
+
 static void dd_init_crashtracker() {
     ddog_CharSlice socket_path = ddog_sidecar_get_crashtracker_unix_socket_path();
     if (socket_path.len > sizeof(crashtracker_socket_path) - 1) {
@@ -256,35 +270,27 @@ static void dd_init_crashtracker() {
     free((void *) socket_path.ptr);
     socket_path.ptr = crashtracker_socket_path;
 
-    ddog_Endpoint *agent_endpoint = ddtrace_sidecar_agent_endpoint();
-    if (!agent_endpoint) {
+    if (!ddtrace_endpoint) {
         return;
     }
-
-    ddog_crasht_Config config = {
-        .endpoint = agent_endpoint,
-        .timeout_ms = 5000,
-        .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-        .optional_unix_socket_filename = socket_path,
-        .additional_files = {0},
-    };
 
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
     dd_crasht_add_opcache_inis(&tags);
 
-    const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
+    dd_crasht_init_args args = {
+        .config = {
+            .timeout_ms = 5000,
+            .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+            .optional_unix_socket_filename = socket_path,
+            .additional_files = {0},
+        },
+        .metadata = ddtrace_setup_crashtracking_metadata(&tags),
+    };
 
-    dd_crashtracker_check_result(
-            ddog_crasht_init_without_receiver(
-                    config,
-                    metadata
-            ),
-            "Cannot initialize CrashTracker"
-    );
+    ddtrace_endpoint_as_crashtracker_config(ddtrace_endpoint, dd_crasht_do_init, &args);
 
     ddtrace_register_crashtracking_frames_collection();
 
-    ddog_endpoint_drop(agent_endpoint);
     ddog_Vec_Tag_drop(tags);
 }
 
@@ -357,7 +363,7 @@ static int dd_call_prev_handler(bool flush) {
     }
 
     if (flush) {
-        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+        ddog_sidecar_flush(&ddtrace_sidecar_for_signal, (ddog_SidecarFlushOptions){.traces_and_stats = true});
     }
 
     if (prev_handler == SIG_DFL) {
@@ -375,6 +381,20 @@ static int dd_call_prev_handler(bool flush) {
 }
 
 static int dd_sigterm_cleanup_thread(void *arg) {
+    // Block all signals to prevent delivery to this thread
+    sigset_t set;
+    sigfillset(&set);
+    sigprocmask(SIG_BLOCK, &set, NULL);
+
+    // Make the Go runtime believe, we are actually running on a signal stack
+    stack_t altstack;
+    altstack.ss_sp = dd_signal_async_stack;
+    if (altstack.ss_sp) {
+        altstack.ss_size = dd_signal_async_stack_size;
+        altstack.ss_flags = 0;
+        sigaltstack(&altstack, NULL);
+    }
+
     return dd_call_prev_handler(true);
 }
 
@@ -383,7 +403,7 @@ static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
     memcpy(&dd_signal_data.si, si, sizeof(*si));
     dd_signal_data.uc = uc;
 
-    if (ddtrace_sidecar) {
+    if (ddtrace_sidecar_for_signal) {
         // Spawn a thread using clone() to perform sidecar cleanup asynchronously to avoid async unsafeness in the signal handler
         void *stack_top = dd_signal_async_stack + dd_signal_async_stack_size;
         int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;

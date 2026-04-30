@@ -49,7 +49,7 @@ reset_request_replayer();
 ?>
 --EXPECTF--
 Warning: mysqli::__construct(): php_network_getaddresses: getaddrinfo %s
-%Aarray(6) {
+%Aarray(4) {
   ["service"]=>
   string(47) "exception-replay_non_regression_2989_mysqli.php"
   ["ddsource"]=>
@@ -66,16 +66,16 @@ Warning: mysqli::__construct(): php_network_getaddresses: getaddrinfo %s
       string(36) "%s"
       ["timestamp"]=>
       int(%d)
-      ["exceptionCaptureId"]=>
+      ["exceptionId"]=>
       string(36) "%s"
       ["exceptionHash"]=>
       string(16) "%s"
       ["frameIndex"]=>
-      int(0)
+      string(1) "0"
       ["captures"]=>
       array(1) {
         ["return"]=>
-        array(1) {
+        array(2) {
           ["arguments"]=>
           array(4) {
             ["hos%s"]=>
@@ -106,6 +106,13 @@ Warning: mysqli::__construct(): php_network_getaddresses: getaddrinfo %s
               string(3) "foo"
             }
           }
+          ["throwable"]=>
+          array(2) {
+            ["message"]=>
+            string(%d) "%A"
+            ["type"]=>
+            string(%d) "%s"
+          }
         }
       }
       ["probe"]=>
@@ -122,8 +129,4 @@ Warning: mysqli::__construct(): php_network_getaddresses: getaddrinfo %s
       }
     }
   }
-  ["message"]=>
-  NULL
-  ["process_tags"]=>
-  NULL
 }

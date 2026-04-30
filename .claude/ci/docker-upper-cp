@@ -1,0 +1,34 @@
+#!/bin/bash
+# Copy files from a dockerh overlayfs volume to the host.
+# Usage: docker-upper-cp <volume-name> <path-in-upper> <host-dest>
+#
+# Example:
+#   docker-upper-cp dd-ci-st-compile-8.2-nts \
+#     tmp/build_extension/modules/ddtrace.so \
+#     extensions_x86_64/ddtrace-20220829.so
+
+set -euo pipefail
+
+if [[ $# -ne 3 ]]; then
+    echo "Usage: docker-upper-cp <volume-name> <path-in-upper> <host-dest>" >&2
+    exit 1
+fi
+
+vol="$1"
+src="$2"
+dest="$3"
+
+# Detect whether src is a directory or file in the volume
+src_type=$(docker run --rm -v "${vol}:/v:ro" alpine \
+    sh -c "test -d \"/v/upper/$src\" && echo dir || echo file")
+
+if [[ "$src_type" == "dir" ]]; then
+    mkdir -p "$dest"
+    strip=$(echo "$src" | awk -F/ '{print NF}')
+    docker run --rm -v "${vol}:/v:ro" alpine \
+        tar -cf - -C /v/upper "$src" | tar -xf - --strip-components="$strip" -C "$dest"
+else
+    mkdir -p "$(dirname "$dest")"
+    docker run --rm -v "${vol}:/v:ro" alpine \
+        cat "/v/upper/$src" > "$dest"
+fi

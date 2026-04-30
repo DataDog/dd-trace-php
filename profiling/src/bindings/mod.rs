@@ -344,6 +344,10 @@ extern "C" {
     /// until mshutdown.
     pub(crate) fn ddog_php_prof_get_memoized_config(config_id: ConfigId) -> *mut zval;
 
+    /// Returns true if the config value was explicitly set by the user (not
+    /// just the compiled-in default), false otherwise.
+    pub(crate) fn ddog_php_prof_config_is_set_by_user(config_id: ConfigId) -> bool;
+
     /// Registers the run_time_cache slot with the engine. Must be done in
     /// module init or extension startup.
     pub fn ddog_php_prof_function_run_time_cache_init(module_name: *const c_char);
@@ -360,6 +364,13 @@ extern "C" {
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
     ) -> Option<&mut [usize; 2]>;
+
+    /// mock for testing; passthrough stub for zend_generator_check_placeholder_frame
+    /// so `cargo test` builds don't need PHP's Zend symbols at link time.
+    #[cfg(feature = "stack_walking_tests")]
+    pub fn ddog_test_zend_generator_check_placeholder_frame(
+        ptr: *mut zend_execute_data,
+    ) -> *mut zend_execute_data;
 
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.

@@ -13,8 +13,13 @@ endif()
 
 set(LIBDATADOG_DIR "${CMAKE_SOURCE_DIR}/../libdatadog")
 set(LIBDATADOG_STAMP_FILE "${CMAKE_BINARY_DIR}/libdatadog.stamp")
+
 add_custom_target(libdatadog_stamp
-    COMMAND ${CMAKE_COMMAND} -E touch ${LIBDATADOG_STAMP_FILE} #XXX: use a script to find modifications
+    COMMAND ${CMAKE_COMMAND}
+        "-DCOMPONENTS_RS=${CMAKE_SOURCE_DIR}/../components-rs"
+        "-DLIBDATADOG=${LIBDATADOG_DIR}"
+        "-DSTAMP_FILE=${LIBDATADOG_STAMP_FILE}"
+        -P "${CMAKE_CURRENT_LIST_DIR}/update_rust_stamp.cmake"
     BYPRODUCT ${LIBDATADOG_STAMP_FILE}
 )
 
@@ -69,6 +74,12 @@ else()
 endif()
 set_property(TARGET components_rs PROPERTY IMPORTED_LOCATION ${CARGO_BUILD_LOCATION}/libddtrace_php.a)
 add_dependencies(components_rs components_rs_proj)
+
+if(DD_APPSEC_SSI)
+    add_library(ddtrace_php INTERFACE IMPORTED GLOBAL)
+    set_target_properties(ddtrace_php PROPERTIES IMPORTED_LIBNAME ddtrace_php)
+    add_dependencies(ddtrace_php components_rs_proj)
+endif()
 
 
 execute_process(
@@ -138,7 +149,17 @@ elseif(APPLE)
 else()
     message(FATAL_ERROR "Only Linux and Apple supported")
 endif()
-target_link_libraries(ddtrace PRIVATE PhpConfig components_rs ${CURL_LIBRARIES} PCRE2::pcre2)
+if(DD_APPSEC_SSI)
+    target_link_directories(ddtrace PRIVATE ${CARGO_BUILD_LOCATION})
+    target_link_libraries(ddtrace PRIVATE PhpConfig ddtrace_php ${CURL_LIBRARIES} PCRE2::pcre2)
+    if(APPLE)
+        set_target_properties(ddtrace PROPERTIES BUILD_RPATH "@loader_path")
+    else()
+        set_target_properties(ddtrace PROPERTIES BUILD_RPATH "\$ORIGIN" INSTALL_RPATH "\$ORIGIN")
+    endif()
+else()
+    target_link_libraries(ddtrace PRIVATE PhpConfig components_rs ${CURL_LIBRARIES} PCRE2::pcre2)
+endif()
 if(CURL_DEFINITIONS)
     target_compile_definitions(ddtrace PRIVATE ${CURL_DEFINITIONS})
 endif()

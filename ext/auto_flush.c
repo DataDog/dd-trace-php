@@ -15,6 +15,7 @@
 #include "ddshared.h"
 #include "standalone_limiter.h"
 #include <main/SAPI.h>
+#include <components-rs/ddtrace.h>
 #include <components-rs/sidecar.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
@@ -47,7 +48,7 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
     char *url = ddtrace_agent_url();
 
     if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
-        if (ddtrace_sidecar) {
+        if (DDTRACE_G(sidecar)) {
             ddog_SenderParameters parameters = {
                 .tracer_headers_tags = {
                     .container_id = ddtrace_get_container_id(),
@@ -56,10 +57,10 @@ ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles
                     .lang_vendor = DDOG_CHARSLICE_C_BARE(""),
                     .tracer_version = DDOG_CHARSLICE_C_BARE(PHP_DDTRACE_VERSION),
                     .lang_version = php_version_rt,
-                    .client_computed_top_level = false,
-                    .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED(),
+                    .client_computed_top_level = get_DD_TRACE_STATS_COMPUTATION_ENABLED(),
+                    .client_computed_stats = !get_global_DD_APM_TRACING_ENABLED() || (get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()),
                 },
-                .transport = ddtrace_sidecar,
+                .transport = DDTRACE_G(sidecar),
                 .instance_id = ddtrace_sidecar_instance_id,
                 .limit = limit,
                 .n_requests = get_global_DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS(),
@@ -141,7 +142,7 @@ char *ddtrace_agent_url(void) {
         return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
     }
 
-    if (ZSTR_LEN(hostname) > 0) {
+    if (ZSTR_LEN(hostname) > 0 && zai_config_memoized_entries[DDTRACE_CONFIG_DD_AGENT_HOST].name_index != ZAI_CONFIG_ORIGIN_DEFAULT) {
         bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
 
         int64_t port = get_global_DD_TRACE_AGENT_PORT();

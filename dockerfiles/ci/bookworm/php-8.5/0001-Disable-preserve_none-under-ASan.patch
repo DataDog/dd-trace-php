@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Levi Morrison <levi.morrison@datadoghq.com>
+Date: Mon, 07 Apr 2026 00:00:00 +0000
+Subject: [PATCH] Disable preserve_none under ASan
+
+preserve_none combined with -fsanitize=address crashes clang 19+ on
+x86-64. Disable it when ASan is active, following the same fix applied
+in llvm-project (commit 996157c).
+
+See: https://github.com/llvm/llvm-project/issues/95928
+---
+ Zend/zend_portability.h | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/Zend/zend_portability.h b/Zend/zend_portability.h
+index 6546ebfb5b7..3b657f7b9d9 100644
+--- a/Zend/zend_portability.h
++++ b/Zend/zend_portability.h
+@@ -333,7 +333,12 @@ char *alloca();
+ #endif
+ 
+ #ifdef HAVE_PRESERVE_NONE
+-# define ZEND_PRESERVE_NONE __attribute__((preserve_none))
++# if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
++/* preserve_none + ASan crashes clang 19+ on x86-64, see llvm/llvm-project#95928 */
++#  define ZEND_PRESERVE_NONE
++# else
++#  define ZEND_PRESERVE_NONE __attribute__((preserve_none))
++# endif
+ #endif
+ 
+ 

@@ -1,7 +1,32 @@
-find_program(CLANG_FORMAT clang-format)
-if(CLANG_FORMAT STREQUAL CLANG_FORMAT-NOTFOUND)
-    message(STATUS "Cannot find clang-format, either set CLANG_FORMAT or make it discoverable")
-    return()
+set(_LLVM19_FORMAT /opt/homebrew/opt/llvm@19/bin/clang-format)
+if(EXISTS ${_LLVM19_FORMAT})
+    set(CLANG_FORMAT ${_LLVM19_FORMAT})
+    message(STATUS "Using Homebrew LLVM 19 clang-format: ${CLANG_FORMAT}")
+else()
+    find_program(_CF_VERSIONED clang-format-19)
+    if(NOT _CF_VERSIONED STREQUAL _CF_VERSIONED-NOTFOUND)
+        set(CLANG_FORMAT ${_CF_VERSIONED})
+    else()
+        find_program(_CF_UNVERSIONED clang-format)
+        if(NOT _CF_UNVERSIONED STREQUAL _CF_UNVERSIONED-NOTFOUND)
+            execute_process(
+                COMMAND ${_CF_UNVERSIONED} --version
+                OUTPUT_VARIABLE _CF_VERSION
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET)
+            if(_CF_VERSION MATCHES " 19\\.")
+                set(CLANG_FORMAT ${_CF_UNVERSIONED})
+            endif()
+        endif()
+    endif()
+    if(NOT CLANG_FORMAT)
+        set(CLANG_FORMAT ${CMAKE_CURRENT_LIST_DIR}/clang-tools/clang-format)
+        if(NOT EXISTS ${CLANG_FORMAT})
+            message(STATUS "Cannot find clang-format version 19, either set CLANG_FORMAT or make it discoverable")
+            return()
+        endif()
+        message(STATUS "Using Docker-based clang-format wrapper: ${CLANG_FORMAT}")
+    endif()
 endif()
 
 set(FILE_LIST "")
@@ -36,3 +61,12 @@ add_custom_target(format_fix_chg
     COMMAND bash -c "git status --porcelain=1 :/appsec/ | grep -E '\.(c|h|cpp|hpp)$$' | awk '{ print \"${CMAKE_SOURCE_DIR}/../\" $NF }' | xargs '${CLANG_FORMAT}' --dry-run"
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     VERBATIM)
+
+if(DD_APPSEC_BUILD_HELPER)
+    add_custom_command(TARGET format POST_BUILD
+        COMMAND cargo fmt --check
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
+    add_custom_command(TARGET format_fix POST_BUILD
+        COMMAND cargo fmt
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/helper-rust)
+endif()

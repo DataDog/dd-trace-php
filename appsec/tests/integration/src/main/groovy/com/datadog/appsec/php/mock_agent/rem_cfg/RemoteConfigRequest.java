@@ -218,6 +218,12 @@ public class RemoteConfigRequest {
             @JsonProperty("app_version")
             public String serviceVersion;
 
+            @JsonProperty("process_tags")
+            public List<String> processTags;
+
+            @JsonProperty("container_tags")
+            public List<String> containerTags;
+
             @Override
             public String toString() {
                 return new StringJoiner(", ", TracerInfo.class.getSimpleName() + "[", "]")
@@ -229,6 +235,8 @@ public class RemoteConfigRequest {
                         .add("extraServices=" + extraServices)
                         .add("serviceEnv='" + serviceEnv + "'")
                         .add("serviceVersion='" + serviceVersion + "'")
+                        .add("processTags=" + processTags)
+                        .add("container_tags=" + containerTags)
                         .toString();
             }
         }

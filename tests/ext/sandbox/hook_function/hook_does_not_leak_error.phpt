@@ -29,8 +29,8 @@ foo();
 ?>
 --EXPECTF--
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
 int(200)
 foo
-[ddtrace] [warning] Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
-[ddtrace] [info] Flushing trace of size %s
+[ddtrace] [warning] [%d] Error raised in ddtrace's closure defined at %s:%d for foo(): Fatal in %s on line %d
+[ddtrace] [info] [%d] Flushing trace of size %s

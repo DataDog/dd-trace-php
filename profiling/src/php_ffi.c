@@ -28,12 +28,24 @@ static void locate_ddtrace_get_profiling_context(const zend_extension *extension
     }
 }
 
+static void locate_ddtrace_process_tags_get_serialized(const zend_extension *extension) {
+    zend_string *(*get_process_tags)(void) =
+        DL_FETCH_SYMBOL(extension->handle, "ddtrace_process_tags_get_serialized");
+    if (EXPECTED(get_process_tags)) {
+        datadog_php_profiling_get_process_tags_serialized = get_process_tags;
+    }
+}
+
 static bool is_ddtrace_extension(const zend_extension *ext) {
     return ext && ext->name && strcmp(ext->name, "ddtrace") == 0;
 }
 
 static ddtrace_profiling_context noop_get_profiling_context(void) {
     return (ddtrace_profiling_context){0, 0};
+}
+
+static zend_string *noop_get_process_tags_serialized(void) {
+    return NULL;
 }
 
 #if PHP_VERSION_ID >= 80300
@@ -140,6 +152,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 #endif
 
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
+    datadog_php_profiling_get_process_tags_serialized = noop_get_process_tags_serialized;
 
     /* Due to the optional dependency on ddtrace, the profiling module will be
      * loaded after ddtrace if it's present, so ddtrace should always be found
@@ -151,6 +164,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
             locate_ddtrace_runtime_id(maybe_ddtrace);
+            locate_ddtrace_process_tags_get_serialized(maybe_ddtrace);
             break;
         }
     }
@@ -171,6 +185,9 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
 
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
     noop_get_profiling_context;
+
+zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void) =
+    noop_get_process_tags_serialized;
 
 void datadog_php_profiling_install_internal_function_handler(
     datadog_php_profiling_internal_function_handler handler) {
@@ -366,6 +383,11 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 }
 
 #if CFG_STACK_WALKING_TESTS
+zend_execute_data *ddog_test_zend_generator_check_placeholder_frame(zend_execute_data *ptr) {
+    // Tests do not construct real generator placeholder frames; pass through.
+    return ptr;
+}
+
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_RUN_TIME_CACHE
     if (_ignore_run_time_cache) return NULL;
@@ -739,6 +761,10 @@ const zend_function_entry* ddog_php_prof_functions = functions;
 
 zval *ddog_php_prof_get_memoized_config(uint16_t config_id) {
     return &zai_config_memoized_entries[config_id].decoded_value;
+}
+
+bool ddog_php_prof_config_is_set_by_user(uint16_t config_id) {
+    return zai_config_memoized_entries[config_id].name_index != ZAI_CONFIG_ORIGIN_DEFAULT;
 }
 
 #if defined(__aarch64__) && defined(CFG_TEST)

@@ -2384,6 +2384,17 @@ function get_ini_settings($sourcesDir, $appsecHelperPath, $appsecRulesPath)
             ],
         ],
         [
+            'name' => 'datadog.appsec.helper_rust_redirection',
+            'default' => 'false',
+            'commented' => true,
+            'description' => [
+                'Whether to use the new implementation of the AppSec helper.',
+                'This is trying by looking for a file named libddappsec-helper-rust.so',
+                'next to the value specified in datadog.appsec.helper_runtime_path.',
+                'Defaults to  true on PHP 8.5.',
+            ],
+        ],
+        [
             'name' => 'datadog.appsec.helper_log_file',
             'default' => '/dev/null',
             'commented' => true,

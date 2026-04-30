@@ -9,13 +9,17 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
 char *ddtrace_dogstatsd_url(void) {
     zend_string *url = get_DD_DOGSTATSD_URL();
-    if (ZSTR_LEN(url) > 0) {
+    if (ZSTR_LEN(url) > 0 && zai_config_memoized_entries[DDTRACE_CONFIG_DD_DOGSTATSD_URL].name_index != ZAI_CONFIG_ORIGIN_DEFAULT) {
         return zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url) + 1);
     }
 
     zend_string *hostname = get_DD_DOGSTATSD_HOST();
-    if (ZSTR_LEN(hostname) == 0) {
-        hostname = get_global_DD_AGENT_HOST();
+    if (ZSTR_LEN(hostname) == 0 || zai_config_memoized_entries[DDTRACE_CONFIG_DD_DOGSTATSD_HOST].name_index == ZAI_CONFIG_ORIGIN_DEFAULT) {
+        if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_AGENT_HOST].name_index == ZAI_CONFIG_ORIGIN_DEFAULT) {
+            hostname = ZSTR_EMPTY_ALLOC();
+        } else {
+            hostname = get_global_DD_AGENT_HOST();
+        }
     }
 
     if (ZSTR_LEN(hostname) > 7 && strncmp(ZSTR_VAL(hostname), "unix://", 7) == 0) {
@@ -25,7 +29,7 @@ char *ddtrace_dogstatsd_url(void) {
     if (ZSTR_LEN(hostname) > 0) {
         bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
 
-        int port = atoi(ZSTR_VAL(get_DD_DOGSTATSD_PORT()));
+        int port = get_DD_DOGSTATSD_PORT();
         if (port <= 0 || port > 65535) {
             port = 8125;
         }
@@ -39,7 +43,7 @@ char *ddtrace_dogstatsd_url(void) {
     }
 
     int64_t port = get_global_DD_TRACE_AGENT_PORT();
-    if (port <= 0 || port > 65535) {
+    if (port <= 0 || port > 65535 || zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_AGENT_PORT].name_index == ZAI_CONFIG_ORIGIN_DEFAULT) {
         port = 8125;
     }
     char *formatted_url;

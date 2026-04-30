@@ -9,6 +9,7 @@
 #include "ddappsec.h"
 #include "php_compat.h" // NOLINT (must come before entity_body_arginfo.h)
 #include "entity_body_arginfo.h"
+#include "json_truncated_parser.h"
 #include "logging.h"
 #include "php_objects.h"
 #include "string_helpers.h"
@@ -175,23 +176,13 @@ zval dd_entity_body_convert(
 
 static zval _convert_json(char *nonnull entity, size_t entity_len)
 {
-    zval zv;
-    ZVAL_NULL(&zv);
-    if (!_json_decode_ex) {
-        return zv;
-    }
-
 #define MAX_DEPTH 30
-    _json_decode_ex(
-        &zv, entity, entity_len, PHP_JSON_OBJECT_AS_ARRAY, MAX_DEPTH);
-    if (Z_TYPE(zv) == IS_NULL) {
-        mlog(dd_log_info, "Failed to parse JSON response body");
-        if (dd_log_level() >= dd_log_trace && entity_len < INT_MAX) {
-            mlog(dd_log_trace, "Contents were: %.*s", (int)entity_len, entity);
-        }
-        zval_ptr_dtor(&zv);
+    zval res = dd_parse_json_truncated(entity, entity_len, MAX_DEPTH);
+    if (Z_TYPE(res) == IS_UNDEF) {
+        // Failed to parse JSON
+        ZVAL_NULL(&res);
     }
-    return zv;
+    return res;
 }
 
 static bool _assume_utf8(const char *ct, size_t ct_len)
@@ -235,18 +226,7 @@ static zval _convert_xml(const char *nonnull entity, size_t entity_len,
     return dd_parse_xml_truncated(entity, entity_len, MAX_XML_DEPTH);
 }
 
-PHP_FUNCTION(datadog_appsec_testing_convert_json)
-{
-    zend_string *entity;
-    ZEND_PARSE_PARAMETERS_START(1, 1) // NOLINT
-    Z_PARAM_STR(entity)
-    ZEND_PARSE_PARAMETERS_END();
-
-    zval result = _convert_json(ZSTR_VAL(entity), ZSTR_LEN(entity));
-    RETURN_ZVAL(&result, 0, 0);
-}
-
-PHP_FUNCTION(datadog_appsec_testing_convert_xml)
+PHP_FUNCTION(datadog_appsec_convert_xml)
 {
     zend_string *entity;
     zend_string *content_type;
@@ -258,5 +238,25 @@ PHP_FUNCTION(datadog_appsec_testing_convert_xml)
     zval result = _convert_xml(ZSTR_VAL(entity), ZSTR_LEN(entity),
         ZSTR_VAL(content_type), ZSTR_LEN(content_type));
 
+    RETURN_ZVAL(&result, 0, 0);
+}
+
+PHP_FUNCTION(datadog_appsec_convert_json)
+{
+    zend_string *entity;
+#define MAX_DEPTH_DEFAULT 30
+    zend_long max_depth = MAX_DEPTH_DEFAULT;
+    ZEND_PARSE_PARAMETERS_START(1, 2) // NOLINT
+    Z_PARAM_STR(entity)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(max_depth)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zval result = dd_parse_json_truncated(
+        ZSTR_VAL(entity), ZSTR_LEN(entity), (int)max_depth);
+    if (Z_TYPE(result) == IS_UNDEF) {
+        // Failed to parse JSON
+        RETURN_NULL();
+    }
     RETURN_ZVAL(&result, 0, 0);
 }

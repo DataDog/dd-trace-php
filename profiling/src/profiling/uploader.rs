@@ -26,6 +26,7 @@ pub struct Uploader {
     output_pprof: Option<Cow<'static, str>>,
     endpoint: AgentEndpoint,
     start_time: String,
+    process_tags: Option<String>,
 }
 
 impl Uploader {
@@ -35,6 +36,7 @@ impl Uploader {
         output_pprof: Option<Cow<'static, str>>,
         endpoint: AgentEndpoint,
         start_time: DateTime<Utc>,
+        process_tags: Option<String>,
     ) -> Self {
         Self {
             fork_barrier,
@@ -42,6 +44,7 @@ impl Uploader {
             output_pprof,
             endpoint,
             start_time: start_time.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+            process_tags,
         }
     }
 
@@ -129,7 +132,7 @@ impl Uploader {
             &[],
             Self::create_internal_metadata(),
             self.create_profiler_info(),
-            None,
+            self.process_tags.as_deref(),
             None,
         )?;
         Ok(status.as_u16())

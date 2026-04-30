@@ -18,7 +18,10 @@ use crate::bindings::ddog_php_prof_get_active_fiber;
 use crate::bindings::ddog_php_prof_get_active_fiber_test as ddog_php_prof_get_active_fiber;
 
 use crate::allocation::ALLOCATION_PROFILING_INTERVAL;
-use crate::bindings::{datadog_php_profiling_get_profiling_context, zend_execute_data};
+use crate::bindings::{
+    datadog_php_profiling_get_process_tags_serialized, datadog_php_profiling_get_profiling_context,
+    zai_str_from_zstr, zend_execute_data,
+};
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
 use crate::{Clocks, CLOCKS, TAGS};
@@ -28,11 +31,11 @@ use core::{ptr, str};
 use cpu_time::ThreadTime;
 use crossbeam_channel::{Receiver, Sender, TrySendError};
 use dashmap::DashMap;
+use libdd_common::tag::Tag;
 use libdd_profiling::api::{
     Function, Label as ApiLabel, Location, Period, Sample, SampleType as ApiSampleType,
     UpscalingInfo, ValueType as ApiValueType,
 };
-use libdd_common::tag::Tag;
 use libdd_profiling::internal::Profile as InternalProfile;
 use log::{debug, info, trace, warn};
 use std::borrow::Cow;
@@ -44,7 +47,10 @@ use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-#[cfg(all(target_os = "linux", feature = "io_profiling"))]
+#[cfg(all(
+    any(target_os = "linux", target_os = "macos"),
+    feature = "io_profiling"
+))]
 use crate::io::{
     FILE_READ_SIZE_PROFILING_INTERVAL, FILE_READ_TIME_PROFILING_INTERVAL,
     FILE_WRITE_SIZE_PROFILING_INTERVAL, FILE_WRITE_TIME_PROFILING_INTERVAL,
@@ -451,7 +457,10 @@ impl TimeCollector {
             (get_offset("alloc-samples"), get_offset("alloc-size"));
 
         // check if we have the IO sample types
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            feature = "io_profiling"
+        ))]
         let (
             socket_read_time_offset,
             socket_read_time_samples_offset,
@@ -519,7 +528,10 @@ impl TimeCollector {
             }
         }
 
-        #[cfg(all(target_os = "linux", feature = "io_profiling"))]
+        #[cfg(all(
+            any(target_os = "linux", target_os = "macos"),
+            feature = "io_profiling"
+        ))]
         {
             let add_io_upscaling_rule =
                 |profile: &mut InternalProfile,
@@ -842,12 +854,24 @@ impl Profiler {
             live_heap_tracker: live_heap_tracker.clone(),
         };
 
+        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
+        // we're getting the process tags of a PHP thread
+        let process_tags: Option<String> = unsafe {
+            let raw_ptr = datadog_php_profiling_get_process_tags_serialized.unwrap_unchecked()();
+            zai_str_from_zstr(raw_ptr.as_mut())
+                .into_utf8()
+                .ok()
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_owned())
+        };
+
         let uploader = Uploader::new(
             fork_barrier.clone(),
             upload_receiver,
             system_settings.output_pprof.clone(),
             system_settings.uri.clone(),
             Utc::now(),
+            process_tags,
         );
 
         let sample_types_filter = SampleTypeFilter::new(system_settings);
@@ -935,7 +959,9 @@ impl Profiler {
 
     /// Untrack an allocation. Returns the sample if it was tracked.
     pub fn untrack_allocation(&self, ptr: usize) -> Option<LiveHeapSample> {
-        self.live_heap_tracker.remove(&ptr).map(|(_, sample)| sample)
+        self.live_heap_tracker
+            .remove(&ptr)
+            .map(|(_, sample)| sample)
     }
 
     /// Clear all tracked allocations (used after fork in child process)
@@ -1596,7 +1622,10 @@ impl Profiler {
         }
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_socket_read_time(&self, ed: *mut zend_execute_data, socket_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_time = socket_io_read_time;
@@ -1604,7 +1633,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_socket_write_time(&self, ed: *mut zend_execute_data, socket_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_time = socket_io_write_time;
@@ -1612,7 +1644,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_file_read_time(&self, ed: *mut zend_execute_data, file_io_read_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_time = file_io_read_time;
@@ -1620,7 +1655,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_file_write_time(&self, ed: *mut zend_execute_data, file_io_write_time: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_time = file_io_write_time;
@@ -1628,7 +1666,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_socket_read_size(&self, ed: *mut zend_execute_data, socket_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_read_size = socket_io_read_size;
@@ -1636,7 +1677,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_socket_write_size(&self, ed: *mut zend_execute_data, socket_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.socket_write_size = socket_io_write_size;
@@ -1644,7 +1688,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_file_read_size(&self, ed: *mut zend_execute_data, file_io_read_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_read_size = file_io_read_size;
@@ -1652,7 +1699,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_file_write_size(&self, ed: *mut zend_execute_data, file_io_write_size: i64) {
         self.collect_io(ed, |vals| {
             vals.file_write_size = file_io_write_size;
@@ -1660,7 +1710,10 @@ impl Profiler {
         })
     }
 
-    #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+    #[cfg(all(
+        feature = "io_profiling",
+        any(target_os = "linux", target_os = "macos")
+    ))]
     pub fn collect_io<F>(&self, execute_data: *mut zend_execute_data, set_value: F)
     where
         F: FnOnce(&mut SampleValues),

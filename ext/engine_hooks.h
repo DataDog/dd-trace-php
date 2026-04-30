@@ -42,7 +42,10 @@ typedef struct ddtrace_error_handling ddtrace_error_handling;
 
 struct ddtrace_sandbox_backup {
     ddtrace_error_handling eh;
-    zend_object *exception, *prev_exception;
+    zend_object *exception;
+#if PHP_VERSION_ID < 80600
+    zend_object *prev_exception;
+#endif
 };
 typedef struct ddtrace_sandbox_backup ddtrace_sandbox_backup;
 
@@ -70,12 +73,19 @@ inline void ddtrace_maybe_clear_exception(void) {
 }
 
 inline ddtrace_sandbox_backup ddtrace_sandbox_begin(void) {
-    ddtrace_sandbox_backup backup = {.exception = NULL, .prev_exception = NULL};
+    ddtrace_sandbox_backup backup = {
+        .exception = NULL,
+#if PHP_VERSION_ID < 80600
+        .prev_exception = NULL,
+#endif
+    };
     if (EG(exception)) {
         backup.exception = EG(exception);
-        backup.prev_exception = EG(prev_exception);
         EG(exception) = NULL;
+#if PHP_VERSION_ID < 80600
+        backup.prev_exception = EG(prev_exception);
         EG(prev_exception) = NULL;
+#endif
     }
     ddtrace_backup_error_handling(&backup.eh, EH_THROW);
     return backup;
@@ -87,7 +97,9 @@ inline void ddtrace_sandbox_end(ddtrace_sandbox_backup *backup) {
 
     if (backup->exception) {
         EG(exception) = backup->exception;
+#if PHP_VERSION_ID < 80600
         EG(prev_exception) = backup->prev_exception;
+#endif
         zend_throw_exception_internal(NULL);
     }
 }

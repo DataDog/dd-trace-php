@@ -30,6 +30,12 @@ enum ddtrace_sampling_rules_format {
     DD_TRACE_SAMPLING_RULES_FORMAT_GLOB
 };
 
+enum ddtrace_sidecar_connection_mode {
+    DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO = 0,       // Default: try subprocess, fallback to thread
+    DD_TRACE_SIDECAR_CONNECTION_MODE_SUBPROCESS = 1, // Force subprocess only
+    DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD = 2,     // Force thread only
+};
+
 /* From the curl docs on CONNECT_TIMEOUT_MS:
  *     If libcurl is built to use the standard system name resolver, that
  *     portion of the transfer will still use full-second resolution for
@@ -51,7 +57,7 @@ enum ddtrace_sampling_rules_format {
 #define DD_TRACE_AGENT_FLUSH_INTERVAL_VAL 1001
 
 #define DD_INTEGRATION_ANALYTICS_ENABLED_DEFAULT false
-#define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1
+#define DD_INTEGRATION_ANALYTICS_SAMPLE_RATE_DEFAULT 1.0
 
 #if PHP_VERSION_ID >= 80300 || defined(_WIN32)
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT true
@@ -100,12 +106,12 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_TRACE_SOURCES_PATH, DD_DEFAULT_SOURCES_PATH, .ini_change = zai_config_system_ini_change) \
     CONFIG(BOOL, DD_AUTOLOAD_NO_COMPILE, "false", .ini_change = zai_config_system_ini_change)                  \
     CONFIG(STRING, DD_TRACE_AGENT_URL, "", .ini_change = zai_config_system_ini_change)                         \
-    CONFIG(STRING, DD_AGENT_HOST, "", .ini_change = zai_config_system_ini_change)                              \
-    CONFIG(STRING, DD_DOGSTATSD_URL, "")                                                                       \
-    CONFIG(STRING, DD_DOGSTATSD_HOST, "")                                                                      \
+    CONFIG(STRING, DD_AGENT_HOST, "localhost", .ini_change = zai_config_system_ini_change)                     \
+    CONFIG(STRING, DD_DOGSTATSD_URL, "http://localhost:8125")                                                  \
+    CONFIG(STRING, DD_DOGSTATSD_HOST, "localhost")                                                             \
     CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change)                                 \
     CONFIG(BOOL, DD_DISTRIBUTED_TRACING, "true")                                                               \
-    CONFIG(STRING, DD_DOGSTATSD_PORT, "8125")                                                                  \
+    CONFIG(INT, DD_DOGSTATSD_PORT, "8125")                                                                     \
     CONFIG(STRING, DD_ENV, "", .ini_change = ddtrace_alter_dd_env,                                             \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_env)                                   \
     CONFIG(BOOL, DD_AUTOFINISH_SPANS, "false")                                                                 \
@@ -114,10 +120,10 @@ enum ddtrace_sampling_rules_format {
     CONFIG(STRING, DD_SERVICE, "", .ini_change = ddtrace_alter_dd_service,                                     \
            .env_config_fallback = ddtrace_conf_otel_service_name)                                              \
     CONFIG(MAP, DD_SERVICE_MAPPING, "")                                                                        \
-    CONFIG(CUSTOM(MAP), DD_TAGS, "",                                                                                   \
+    CONFIG(CUSTOM(MAP), DD_TAGS, "",                                                                           \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_tags,                                  \
-           .parser = dd_parse_tags)                                                                             \
-    CONFIG(INT, DD_TRACE_AGENT_PORT, "0", .ini_change = zai_config_system_ini_change)                          \
+           .parser = dd_parse_tags)                                                                            \
+    CONFIG(INT, DD_TRACE_AGENT_PORT, "8126", .ini_change = zai_config_system_ini_change)                       \
     CONFIG(BOOL, DD_TRACE_ANALYTICS_ENABLED, "false")                                                          \
     CONFIG(BOOL, DD_TRACE_APPEND_TRACE_IDS_TO_LOGS, "false")                                                   \
     CONFIG(BOOL, DD_TRACE_AUTO_FLUSH_ENABLED, "false") /* true in CLI */                                       \
@@ -177,7 +183,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE_INJECT, "datadog,tracecontext,baggage")                   \
     CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE, "datadog,tracecontext,baggage",                          \
            .env_config_fallback = ddtrace_conf_otel_propagators)                                               \
-    CONFIG(SET, DD_TRACE_BAGGAGE_TAG_KEYS, "user.id,session.id,account.id")                          \
+    CONFIG(SET, DD_TRACE_BAGGAGE_TAG_KEYS, "user.id, session.id, account.id")                                  \
     CONFIG(BOOL, DD_TRACE_IGNORE_AGENT_SAMPLING_RATES, "false", .ini_change = zai_config_system_ini_change)    \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                        \
     CONFIG(INT, DD_TRACE_AGENT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_TIMEOUT_VAL),                             \
@@ -190,7 +196,7 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
     CONFIG(INT, DD_TRACE_SPANS_LIMIT, "1000")                                                                  \
     CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED, "true")                                          \
-    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "true")                                            \
+    CONFIG(BOOL, DD_TRACE_128_BIT_TRACEID_LOGGING_ENABLED, "true")                                             \
     CONFIG(INT, DD_TRACE_BGS_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_CONNECT_TIMEOUT_VAL),                 \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_BGS_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_BGS_TIMEOUT_VAL),                                 \
@@ -198,6 +204,8 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, DD_CFG_EXPSTR(DD_TRACE_AGENT_FLUSH_INTERVAL_VAL),               \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TELEMETRY_HEARTBEAT_INTERVAL, "60", .ini_change = zai_config_system_ini_change)             \
+    CONFIG(INT, DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL, "86400",                                            \
+           .ini_change = zai_config_system_ini_change)                                                        \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "0")                                                    \
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
@@ -222,9 +230,13 @@ enum ddtrace_sampling_rules_format {
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_INITIAL_SIZE, "131072", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
+    CONFIG(INT, DD_TRACE_SIDECAR_BACKPRESSURE_BYTES, "4194304", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(INT, DD_TRACE_SIDECAR_BACKPRESSURE_QUEUE, "100", .ini_change = zai_config_system_ini_change)        \
     CONFIG(STRING, DD_TRACE_AGENT_TEST_SESSION_TOKEN, "", .ini_change = ddtrace_alter_test_session_token)      \
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
+    CONFIG(BOOL, DD_DBM_INJECT_SQL_BASEHASH, "false")                                                          \
+    CONFIG(CUSTOM(INT), DD_TRACE_SIDECAR_CONNECTION_MODE, "auto", .parser = dd_parse_sidecar_connection_mode) \
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                     \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "true")                                                         \
     CONFIG(BOOL, DD_INTEGRATION_METRICS_ENABLED, "true",                                                       \
@@ -248,22 +260,24 @@ enum ddtrace_sampling_rules_format {
     CONFIG(BOOL, DD_TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING, "true")                                         \
     CONFIG(BOOL, DD_TRACE_WEBSOCKET_MESSAGES_SEPARATE_TRACES, "true")                                          \
     CONFIG(BOOL, DD_INJECT_FORCE, "false", .ini_change = zai_config_system_ini_change)                         \
-    CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5", .ini_change = zai_config_system_ini_change)    \
-    CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)          \
+    CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5.0", .ini_change = zai_config_system_ini_change)  \
+    CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_DYNAMIC_INSTRUMENTATION_ENABLED, "false", .ini_change = ddtrace_alter_dynamic_instrumentation_config) \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(BOOL, DD_APM_TRACING_ENABLED, "true")                                                               \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
+    CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_ITEMS, "64")                                                              \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
     CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                            \
-    CONFIG(SET, DD_TRACE_HTTP_CLIENT_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
+    CONFIG(SET, DD_TRACE_HTTP_CLIENT_ERROR_STATUSES, "400-499", .ini_change = zai_config_system_ini_change)    \
     CONFIG(SET, DD_TRACE_HTTP_SERVER_ERROR_STATUSES, "500-599", .ini_change = zai_config_system_ini_change)    \
     CONFIG(BOOL, DD_CODE_ORIGIN_FOR_SPANS_ENABLED, "true", .ini_change = ddtrace_alter_DD_CODE_ORIGIN_FOR_SPANS_ENABLED) \
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
-    CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")                                      \
+    CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")                                       \
+    CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

@@ -1,11 +1,10 @@
 use crate::log::Log;
-use datadog_sidecar::service::telemetry::path_for_telemetry;
+use datadog_sidecar::service::telemetry::{path_for_telemetry, TelemetryCachedClientShmData};
 
 use hashbrown::{Equivalent, HashMap};
-use std::collections::HashSet;
 use std::ffi::CString;
 use std::path::PathBuf;
-use std::time::{Duration, Instant, SystemTime};
+use std::time::Duration;
 
 use datadog_ipc::platform::NamedShmHandle;
 use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
@@ -126,6 +125,24 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_addDependency_buffer(
     buffer.buffer.push(SidecarAction::Telemetry(action));
 }
 
+/// Enqueues an endpoint into a telemetry actions buffer (to be sent via ddog_sidecar_telemetry_buffer_flush).
+#[no_mangle]
+pub unsafe extern "C" fn ddog_sidecar_telemetry_addEndpoint_buffer(
+    buffer: &mut SidecarActionsBuffer,
+    method: data::Method,
+    path: CharSlice,
+    operation_name: CharSlice,
+    resource_name: CharSlice,
+) {
+    let action = TelemetryActions::AddEndpoint(data::Endpoint {
+        method: Some(method),
+        path: Some(path.to_utf8_lossy().into_owned()),
+        operation_name: operation_name.to_utf8_lossy().into_owned(),
+        resource_name: resource_name.to_utf8_lossy().into_owned(),
+    });
+    buffer.buffer.push(SidecarAction::Telemetry(action));
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn ddog_sidecar_telemetry_enqueueConfig_buffer(
     buffer: &mut SidecarActionsBuffer,
@@ -168,21 +185,23 @@ pub extern "C-unwind" fn ddog_sidecar_telemetry_buffer_flush(
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric_buffer(
-    buffer: &mut SidecarActionsBuffer,
+pub unsafe extern "C" fn ddog_sidecar_telemetry_register_metric(
+    transport: &mut Box<SidecarTransport>,
     metric_name: CharSlice,
     metric_type: MetricType,
     namespace: MetricNamespace,
-) {
-    buffer
-        .buffer
-        .push(SidecarAction::RegisterTelemetryMetric(MetricContext {
+) -> MaybeError {
+    try_c!(blocking::register_telemetry_metric(
+        transport,
+        MetricContext {
             name: metric_name.to_utf8_lossy().into_owned(),
             namespace,
             metric_type,
             tags: Vec::default(),
             common: true,
-        }));
+        },
+    ));
+    MaybeError::None
 }
 
 #[no_mangle]
@@ -235,15 +254,12 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_add_integration_log_buffer(
 }
 
 pub struct ShmCache {
-    pub config_sent: bool,
-    pub integrations: HashSet<String>,
-    pub composer_paths: HashSet<PathBuf>,
-    pub last_endpoints_push: SystemTime,
+    pub shared: TelemetryCachedClientShmData,
     pub reader: OneWayShmReader<NamedShmHandle, CString>,
 }
 
 #[derive(Hash, Eq, PartialEq)]
-struct ShmCacheKey(String, String);
+pub struct ShmCacheKey(String, String);
 
 impl Equivalent<ShmCacheKey> for (&str, &str) {
     fn equivalent(&self, key: &ShmCacheKey) -> bool {
@@ -267,7 +283,7 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_config_sent(
     service: CharSlice,
     env: CharSlice,
 ) -> bool {
-    ddog_sidecar_telemetry_cache_get_or_update(cache, service, env).config_sent
+    ddog_sidecar_telemetry_cache_get_or_update(cache, service, env).shared.config_sent
 }
 
 unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
@@ -285,21 +301,13 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
                 if changed {
                     buf = newbuf;
                 } else {
-                    cache.config_sent = false;
-                    cache.integrations.clear();
-                    cache.composer_paths.clear();
-                    cache.last_endpoints_push = SystemTime::UNIX_EPOCH;
+                    cache.shared = TelemetryCachedClientShmData::default();
                     return;
                 }
             }
 
-            if let Ok((config_sent, integrations, composer_paths, last_endpoints_push)) =
-                bincode::deserialize::<(bool, HashSet<String>, HashSet<PathBuf>, SystemTime)>(buf)
-            {
-                cache.config_sent = config_sent;
-                cache.integrations = integrations;
-                cache.composer_paths = composer_paths;
-                cache.last_endpoints_push = last_endpoints_push;
+            if let Ok(shared) = bincode::deserialize::<TelemetryCachedClientShmData>(buf) {
+                cache.shared = shared;
             }
         }
     }
@@ -317,10 +325,7 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     let reader = OneWayShmReader::<NamedShmHandle, _>::new(open_named_shm(&shm_path).ok(), shm_path);
     let cached_entry = cache.entry(ShmCacheKey(service_str.into(), env_str.into())).insert(ShmCache {
         reader,
-        config_sent: false,
-        integrations: HashSet::new(),
-        composer_paths: HashSet::new(),
-        last_endpoints_push: SystemTime::UNIX_EPOCH,
+        shared: TelemetryCachedClientShmData::default(),
     }).into_mut();
 
     refresh_cache(cached_entry);
@@ -345,10 +350,10 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_filter_flush(
         .into_iter()
         .filter(|action| match action {
             SidecarAction::Telemetry(TelemetryActions::AddIntegration(integration)) => {
-                !cache_entry.integrations.contains(&integration.name)
+                !cache_entry.shared.integrations.contains(integration)
             }
             SidecarAction::PhpComposerTelemetryFile(path) => {
-                !cache_entry.composer_paths.contains(path)
+                !cache_entry.shared.composer_paths.contains(path)
             }
             _ => true,
         })
@@ -372,6 +377,5 @@ pub unsafe extern "C" fn ddog_sidecar_telemetry_are_endpoints_collected(
     env: CharSlice,
 ) -> bool {
     let cache_entry = ddog_sidecar_telemetry_cache_get_or_update(cache, service, env);
-    let result = cache_entry.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)); // 30 minutes
-    result
+    cache_entry.shared.last_endpoints_push.elapsed().map_or(false, |d| d < Duration::from_secs(1800)) // 30 minutes
 }

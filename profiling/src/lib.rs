@@ -7,7 +7,6 @@ pub mod module_globals;
 pub mod profiling;
 mod pthread;
 mod sapi;
-mod thin_str;
 mod wall_time;
 
 #[cfg(php_run_time_cache)]
@@ -16,7 +15,10 @@ mod string_set;
 #[macro_use]
 mod allocation;
 
-#[cfg(all(feature = "io_profiling", target_os = "linux"))]
+#[cfg(all(
+    feature = "io_profiling",
+    any(target_os = "linux", target_os = "macos")
+))]
 mod io;
 
 mod exception;
@@ -308,8 +310,10 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         let _connector = libdd_common::connector::Connector::default();
     }
 
-    // Initialize the lazy lock holding the env var for new origin detection.
+    // Initialize the lazy locks holding the env vars for new origin detection,
+    // Azure App Services, and so on.
     _ = std::sync::LazyLock::force(&libdd_common::entity_id::DD_EXTERNAL_ENV);
+    _ = std::sync::LazyLock::force(&libdd_common::azure_app_services::AAS_METADATA);
 
     // Use a hybrid extension hack to load as a module but have the
     // zend_extension hooks available:
@@ -674,7 +678,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
 
         exception::exception_profiling_first_rinit();
 
-        #[cfg(all(feature = "io_profiling", target_os = "linux"))]
+        #[cfg(all(
+            feature = "io_profiling",
+            any(target_os = "linux", target_os = "macos")
+        ))]
         io::io_prof_first_rinit();
 
         allocation::first_rinit(system_settings);

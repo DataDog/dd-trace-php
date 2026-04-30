@@ -53,7 +53,7 @@ echo 'Done.' . PHP_EOL;
 
 ?>
 --EXPECTF--
-[ddtrace] [error] The to be propagated tag '_dd.p.very=looooooooooooooooong' is too long and exceeds the maximum limit of 25 characters and is thus dropped.
+[ddtrace] [error] [%d] The to be propagated tag '_dd.p.very=looooooooooooooooong' is too long and exceeds the maximum limit of 25 characters and is thus dropped.
 b3: %s-%s-1
 traceparent: 00-%s-%s
 tracestate: dd=p:%s;o:phpt-test
@@ -68,4 +68,4 @@ bool(true)
 bool(true)
 string(15) "inject_max_size"
 Done.
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

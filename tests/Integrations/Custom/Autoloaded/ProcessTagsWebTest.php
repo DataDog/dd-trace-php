@@ -37,8 +37,8 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
         $rootSpan = $traces[0][0];
 
         // Verify _dd.tags.process exists
-        $this->assertArrayHasKey('_dd.process_tags', $rootSpan['meta']);
-        $processTags = $rootSpan['meta']['_dd.process_tags'];
+        $this->assertArrayHasKey('_dd.tags.process', $rootSpan['meta']);
+        $processTags = $rootSpan['meta']['_dd.tags.process'];
 
         // Parse the process tags
         $tags = [];

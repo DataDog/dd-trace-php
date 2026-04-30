@@ -21,7 +21,7 @@ stages:
       - IMAGE:
         - "datadog/dd-trace-ci:centos-7"
         - "datadog/dd-trace-ci:php-compile-extension-alpine"
-        - "datadog/dd-trace-ci:bookworm-6"
+        - "datadog/dd-trace-ci:bookworm-7"
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
@@ -45,7 +45,7 @@ stages:
 "C components UBSAN":
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-7"
   needs: []
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
@@ -69,7 +69,7 @@ stages:
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *no_asan_minor_major_targets
@@ -98,7 +98,7 @@ stages:
 .tea_test:
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7"
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -116,6 +116,34 @@ stages:
       - artifacts
     when: "always"
 
+"Configuration Consistency":
+  tags: [ "arch:amd64" ]
+  stage: test
+  needs: []
+  variables:
+    PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7"
+  script:
+    - |
+      if ! command -v cc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
+        sudo apt-get update
+        sudo apt-get install -y build-essential
+      fi
+    - |
+      GENERATED_CONFIG_INPUTS="$(bash tooling/generate-supported-configurations.sh --print-input-files | tr '\n' ' ')"
+      BASELINE_CONFIG="$(mktemp)"
+      trap 'rm -f "$BASELINE_CONFIG"' EXIT
+      cp metadata/supported-configurations.json "$BASELINE_CONFIG"
+
+      bash tooling/generate-supported-configurations.sh
+
+      if ! cmp -s "$BASELINE_CONFIG" metadata/supported-configurations.json; then
+        echo "ERROR: @metadata/supported-configurations.json got out of sync with implemented configurations. Please run tooling/generate-supported-configurations.sh locally."
+        echo "Generator inputs: $GENERATED_CONFIG_INPUTS"
+        diff -u "$BASELINE_CONFIG" metadata/supported-configurations.json || true
+        exit 1
+      fi
+
 <?php
 foreach ($all_minor_major_targets as $major_minor):
     foreach ($switch_php_versions as $switch_php_version):
@@ -129,6 +157,9 @@ foreach ($all_minor_major_targets as $major_minor):
   extends: .tea_test
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+<?php if ($switch_php_version == "debug-zts-asan"): ?>
+    ASAN_OPTIONS: "detect_stack_use_after_return=0"
+<?php endif; ?>
   needs:
     - job: "Build & Test Tea"
       parallel:

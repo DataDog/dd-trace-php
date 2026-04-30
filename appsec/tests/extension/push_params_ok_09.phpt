@@ -32,8 +32,6 @@ array(2) {
   [1]=>
   array(2) {
     [0]=>
-    string(4) "ssrf"
-    [1]=>
     array(1) {
       ["server.request.path_params"]=>
       array(2) {
@@ -42,6 +40,11 @@ array(2) {
         ["more"]=>
         string(10) "parameters"
       }
+    }
+    [1]=>
+    array(1) {
+      ["rasp_rule"]=>
+      string(4) "ssrf"
     }
   }
 }

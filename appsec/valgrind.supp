@@ -239,3 +239,27 @@
    fun:zend_wrong_parameter_class_error
    fun:zend_wrong_parameter_error
 }
+{
+   <re2_1>
+   Memcheck:Cond
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   ...
+}
+{
+   <re2_2>
+   Memcheck:Cond
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   ...
+}
+{
+   <re2_3>
+   Memcheck:Value8
+   fun:_ZNK3re211SparseArrayIiE9has_indexEi
+   ...
+}
+{
+   <re2_4>
+   Memcheck:Value8
+   fun:_ZNK3re210SparseSetTIvE8containsEi
+   ...
+}

@@ -13,6 +13,7 @@ include __DIR__ . '/includes/skipif_no_dev_env.inc';
 DD_TRACE_LOG_LEVEL=0
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
+DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=1
 --INI--
 datadog.trace.agent_test_session_token=tests/ext/crashtracker_segfault.phpt
 --FILE--
@@ -43,12 +44,14 @@ $rr->waitForRequest(function ($request) {
             continue;
         }
 
+        echo $json["application"]["process_tags"], PHP_EOL;
+
         foreach ($json["payload"]["logs"] as $payload) {
             $payload["message"] = json_decode($payload["message"], true);
             if (!isset($payload["message"]["metadata"])) {
                 break;
             }
-            if (($payload["message"]["kind"] ?? "") == "Crash ping") {
+            if (($payload["is_crash"] ?? false) !== true) {
                 continue;
             }
 
@@ -63,9 +66,16 @@ $rr->waitForRequest(function ($request) {
 });
 ?>
 --EXPECTF--
+%Aentrypoint.name:standard_input_code,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli
 %A{
     "message": {
 %A
+        "error": {
+%A
+            "source_type": "Crashtracking",
+%A
+        },
+        "experimental": {
             "runtime_stack": {
                 "format": "Datadog Runtime Callback 1.0",
                 "frames": [
@@ -90,10 +100,8 @@ $rr->waitForRequest(function ($request) {
                     }
                 ]
             }
-%A
-        "files": {
-%A
         },
+%A
         "incomplete": false,
         "metadata": {
             "library_name": "dd-trace-php",
@@ -106,12 +114,14 @@ $rr->waitForRequest(function ($request) {
         "os_info": {
 %A
         },
+%A
         "timestamp": "%s",
+%A
         "uuid": "%s"
     },
     "level": "ERROR",
     "count": 1,
-    "stack_trace": %s,
+    "stack_trace": null,
     "tags": "%ssi_signo_human_readable:SIGSEGV%S",
     "is_sensitive": true,
     "is_crash": true

@@ -33,8 +33,10 @@ workflow:
     interruptible: true
   - if: $CI_COMMIT_REF_NAME == "master"
     when: manual
+    allow_failure: true
     interruptible: false
   - when: manual
+    allow_failure: true
     interruptible: true
 
 .benchmarks-appsec-rules: &benchmarks-appsec-rules
@@ -54,8 +56,10 @@ workflow:
     interruptible: true
   - if: $CI_COMMIT_REF_NAME == "master"
     when: manual
+    allow_failure: true
     interruptible: false
   - when: manual
+    allow_failure: true
     interruptible: true
 
 .benchmarks-tracer-rules: &benchmarks-tracer-rules
@@ -67,8 +71,10 @@ workflow:
     interruptible: true
   - if: $CI_COMMIT_REF_NAME == "master"
     when: manual
+    allow_failure: true
     interruptible: false
   - when: manual
+    allow_failure: true
     interruptible: true
 
 .on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible: &on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
@@ -79,6 +85,7 @@ workflow:
 .macrobenchmarks-rules: &macrobenchmarks-rules
   - <<: *on-master-or-nightly-benchmarks-or-release-always-and-not-interruptible
   - when: manual
+    allow_failure: true
     interruptible: true
 
 .pre-release-performance-quality-gates-rules: &pre-release-performance-quality-gates-rules

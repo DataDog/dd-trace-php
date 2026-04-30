@@ -1,0 +1,122 @@
+# Standalone service definitions for local CI reproduction.
+# Mirrors the relevant services from the root docker-compose.yml but without
+# host port bindings, so multiple instances (different PHP versions, parallel
+# runs) can coexist on the same host.
+#
+# NOTE: Volume paths in this file are relative to this file's location (.claude/ci/).
+# ../../tests/snapshots → repo root tests/snapshots/
+#
+# Usage (substitute your cache/project name):
+#   docker compose -p tracer-web-83 -f .claude/ci/docker-compose.services.yml \
+#     up -d test-agent request-replayer httpbin-integration mysql-integration
+#
+# Cleanup:
+#   docker compose -p tracer-web-83 -f .claude/ci/docker-compose.services.yml down
+
+services:
+  test-agent:
+    # CI uses v1.22.1 — pin to that version to avoid dev build behavioural differences.
+    # Find the current CI version in tracer-web-tests.md or .gitlab/generate-common.php.
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.22.1
+    volumes:
+      - ../../tests/snapshots:/snapshots
+    environment:
+      - LOG_LEVEL=DEBUG
+      - TRACE_LANGUAGE=php
+      - DD_TRACE_AGENT_URL=http://request-replayer:80
+      - PORT=9126
+      - DD_SUPPRESS_TRACE_PARSE_ERRORS=true
+      - DD_POOL_TRACE_CHECK_FAILURES=true
+      - DD_DISABLE_ERROR_RESPONSES=true
+      - SNAPSHOTS_DIR=/snapshots
+      - SNAPSHOT_CI=0
+      - SNAPSHOT_REMOVED_ATTRS=start,duration,metrics.php.compilation.total_time_ms,metrics.php.memory.peak_usage_bytes,metrics.php.memory.peak_real_usage_bytes,metrics.process_id
+      - ENABLED_CHECKS=trace_stall,trace_peer_service,trace_dd_service
+      - SNAPSHOT_REGEX_PLACEHOLDERS=path:/home/circleci/app|/project/dd-trace-php,httpbin:(?<=//)httpbin-integration:8080
+
+  request-replayer:
+    image: datadog/dd-trace-ci:php-request-replayer-2.0
+
+  httpbin-integration:
+    image: kong/httpbin:0.2.2
+    # CI runs httpbin via gunicorn on port 8080. Without this, the default port
+    # is 80, which causes cli-server curl spans to record `:80` explicitly while
+    # HTTPBIN_INTEGRATION strips it, producing 10 mismatched assertions.
+    command: ["pipenv", "run", "gunicorn", "-b", "0.0.0.0:8080", "httpbin:app", "-k", "gevent"]
+
+  mysql-integration:
+    image: datadog/dd-trace-ci:php-mysql-dev-5.6
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_PASSWORD=test
+      - MYSQL_USER=test
+      - MYSQL_DATABASE=test
+
+  redis-integration:
+    image: datadog/dd-trace-ci:php-redis-5.0
+
+  rabbitmq-integration:
+    image: rabbitmq:3.9.20-alpine
+
+  memcached-integration:
+    image: memcached:1.5-alpine
+
+  elasticsearch7-integration:
+    image: elasticsearch:7.17.23
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    cap_add:
+      - IPC_LOCK
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+  # elasticsearch1 tests use this (PHP 7.0-7.2 only)
+  elasticsearch2-integration:
+    image: elasticsearch:2
+    platform: linux/amd64
+
+  mongodb-integration:
+    image: mongo:4.2.24
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=test
+      - MONGO_INITDB_ROOT_PASSWORD=test
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.8.0
+    environment:
+      - ZOOKEEPER_CLIENT_PORT=2181
+      - ZOOKEEPER_TICK_TIME=2000
+      - ALLOW_ANONYMOUS_LOGIN=yes
+      - ZOOKEEPER_ADMIN_ENABLE_SERVER=false
+      - KAFKA_OPTS=-Dzookeeper.4lw.commands.whitelist=srvr,ruok
+
+  kafka-integration:
+    image: confluentinc/cp-kafka:7.8.0
+    depends_on:
+      - zookeeper
+    environment:
+      - KAFKA_BROKER_ID=111
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-integration:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS=120000
+      - KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS=120000
+
+  sqlsrv-integration:
+    image: mcr.microsoft.com/mssql/server:2019-CU15-ubuntu-20.04
+    platform: linux/amd64
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Password12!
+      - MSSQL_PID=Developer
+
+  googlespanner-integration:
+    image: gcr.io/cloud-spanner-emulator/emulator:1.5.25

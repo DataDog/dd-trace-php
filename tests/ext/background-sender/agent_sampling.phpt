@@ -1,7 +1,10 @@
 --TEST--
 The background sender informs about changes to the agent sample rate
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AGENT_HOST=request-replayer
@@ -53,10 +56,10 @@ echo "Specific sampling: {$get_sampling()}\n";
 
 ?>
 --EXPECTF--
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Initial sampling: 1
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Generic sampling: 0
-[ddtrace] [info] Flushing trace of size 1 to send-queue for http://request-replayer:80
+[ddtrace] [info] [%d] Flushing trace of size 1 to send-queue for http://request-replayer:80
 Specific sampling: 1
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

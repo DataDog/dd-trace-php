@@ -48,13 +48,13 @@ $build_platforms = [
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-6",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-7",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-6",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-7",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -89,13 +89,34 @@ stages:
   - release
 
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
+
+  # One pipeline injection package size ratchet
+  OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
 
 include:
   - local: .gitlab/one-pipeline.locked.yml
   - local: .gitlab/benchmarks.yml
 
 # One pipeline job overrides
+validate_supported_configurations_v2_local_file:
+  needs: []
+  extends: .validate_supported_configurations_v2_local_file
+  variables:
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    BACKFILLED: "true"
+
+update_central_configurations_version_range_v2:
+  extends: .update_central_configurations_version_range_v2
+  variables:
+    LOCAL_REPO_NAME: "dd-trace-php"
+    LOCAL_JSON_PATH: "metadata/supported-configurations.json"
+    LANGUAGE_NAME: "php"
+    MULTIPLE_RELEASE_LINES: "false"
+
 configure_system_tests:
   variables:
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,lib-injection,lib-injection-profiling,docker-ssi"
@@ -280,9 +301,27 @@ if ($suffix == "-alpine") {
     paths:
       - "appsec_*"
 
+"compile appsec helper rust":
+  stage: appsec
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-appsec-php-ci:nginx-fpm-php-8.5-release-musl"
+  tags: [ "arch:$ARCH" ]
+  needs: [ "prepare code" ]
+  parallel:
+    matrix:
+      - ARCH: ["amd64", "arm64" ]
+  variables:
+    MAKE_JOBS: 12
+    KUBERNETES_CPU_REQUEST: 12
+    KUBERNETES_MEMORY_REQUEST: 8Gi
+    KUBERNETES_MEMORY_LIMIT: 12Gi
+  script: .gitlab/build-appsec-helper-rust.sh
+  artifacts:
+    paths:
+      - "appsec_*"
+
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-7"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -332,7 +371,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-7"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -491,28 +530,7 @@ foreach ($windows_build_platforms as $platform) {
     GIT_STRATEGY: none
     CONTAINER_NAME: ${CI_JOB_NAME_SLUG}-${CI_JOB_ID}
   script: |
-    # Aggressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
-    Write-Host "Cleanup complete."
-
-    # Make sure we actually fail if a command fails
-    $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
-
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
-    git config --global core.longpaths true
-    git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
-    git checkout $env:CI_COMMIT_SHA
-
-    # Initialize submodules
-    Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
-    Write-Host "Git setup complete."
+<?php windows_git_setup() ?>
 
     mkdir extensions_x86_64
     mkdir extensions_x86_64_debugsymbols
@@ -613,8 +631,15 @@ foreach ($build_platforms as $platform) {
 }
 ?>
 
-    # Compile appsec helper
+    # Compile appsec helper (C++)
     - job: "compile appsec helper"
+      parallel:
+        matrix:
+          - ARCH: "<?= $platform['arch'] ?>"
+      artifacts: true
+
+    # Compile appsec helper (Rust)
+    - job: "compile appsec helper rust"
       parallel:
         matrix:
           - ARCH: "<?= $platform['arch'] ?>"
@@ -690,6 +715,11 @@ foreach ($asan_build_platforms as $platform) {
         matrix:
           - ARCH: "<?= $arch ?>"
       artifacts: true
+    - job: "compile appsec helper rust"
+      parallel:
+        matrix:
+          - ARCH: "<?= $arch ?>"
+      artifacts: true
     - job: "compile loader: [linux-gnu, <?= $arch ?>]"
       artifacts: true
     - job: "compile loader: [linux-musl, <?= $arch ?>]"
@@ -759,7 +789,7 @@ endforeach;
 
 .randomized_tests:
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with make, php and git pre-installed
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with make, php and git pre-installed
   variables:
     KUBERNETES_CPU_REQUEST: 7
     KUBERNETES_MEMORY_REQUEST: 30Gi
@@ -833,7 +863,7 @@ endforeach;
 
 "installer tests":
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
@@ -881,7 +911,7 @@ endforeach;
 
 "framework test":
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   variables:
     KUBERNETES_CPU_REQUEST: 2
@@ -979,8 +1009,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apk add --no-cache ca-certificates # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
-    - apk add curl ${INSTALL_PACKAGES:-}
+    - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+    - apk add curl ${INSTALL_PACKAGES:-} || exit 75
 
 "verify centos":
   extends: .verify_job
@@ -1022,8 +1052,8 @@ endforeach;
         echo "yum update failed (attempt $i/3), retrying in 5 seconds..."
         sleep 5
         if [ $i -eq 3 ]; then
-          echo "yum update failed after 3 attempts, exiting"
-          exit 1
+          echo "yum update failed after 3 attempts, signaling retry (exit 75)"
+          exit 75
         fi
       done
 
@@ -1047,8 +1077,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apt update
-    - apt-get install -y curl
+    - apt-get update || exit 75
+    - apt-get install -y curl || exit 75
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
@@ -1092,26 +1122,39 @@ endforeach;
   stage: verify
   tags: [ "windows-v2:2019"]
   variables:
-    GIT_CONFIG_COUNT: 2
-    GIT_CONFIG_KEY_0: core.longpaths
-    GIT_CONFIG_VALUE_0: true
-    GIT_CONFIG_KEY_1: core.symlinks
-    GIT_CONFIG_VALUE_1: true
+    GIT_STRATEGY: none
   needs:
     - job: "package extension windows"
       artifacts: true
     - job: datadog-setup.php
       artifacts: true
-  before_script:
-    - mkdir build
-    - move packages build
+  before_script: |
+<?php windows_git_setup_with_packages() ?>
+    mkdir build
+    move packages build
   script:
-    - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
+    - |
+      $maxAttempts = 3
+      for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          try {
+              Set-ExecutionPolicy Bypass -Scope Process -Force
+              [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+              Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+              break
+          } catch {
+              Write-Host "Chocolatey install attempt $attempt/$maxAttempts failed: $_"
+              if ($attempt -eq $maxAttempts) {
+                  Write-Host "Infrastructure failure: Chocolatey download failed after $maxAttempts attempts, signaling retry (exit 75)"
+                  exit 75
+              }
+              Start-Sleep -Seconds 15
+          }
+      }
     - .\dockerfiles\verify_packages\verify_windows.ps1
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-7"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1214,6 +1257,7 @@ endforeach;
       # Install Python dependencies
       pip install -U pip virtualenv
 <?php dockerhub_login() ?>
+    - /tmp/vault kv get --format=json "kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key" 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['data']['key'])" > /tmp/.dd-api-key 2>/dev/null || true
     - git clone https://github.com/DataDog/system-tests.git
     - mv packages/{datadog-setup.php,dd-library-php-*x86_64-linux-gnu.tar.gz} system-tests/binaries
     - cd system-tests
@@ -1223,10 +1267,13 @@ endforeach;
       when: always
       paths:
         - .cache/
+  after_script:
+    - DATADOG_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || true
+    - mkdir -p artifacts && for f in system-tests/logs*/reportJunit.xml; do dir=$(basename $(dirname "$f")); cp "$f" "artifacts/reportJunit_${dir}.xml" 2>/dev/null || true; done
+    - DATADOG_API_KEY=${DATADOG_API_KEY:-} DD_SERVICE=system-tests DD_JUNIT_XPATH_TAGS="test.codeowners=/testcase/properties/property[@name='test.codeowners']" .gitlab/silent-upload-junit-to-datadog.sh
   artifacts:
     paths:
-      - "system-tests/logs_parametric/"
-      - "system-tests/logs/"
+      - "system-tests/logs*/"
     when: "always"
 
 "System Tests: [default]":
@@ -1247,6 +1294,22 @@ endforeach;
   script:
     - ./run.sh $TESTSUITE
 
+"System Tests: [tracer-release]":
+  extends: .system_tests
+  timeout: 4h
+  rules:
+    - if: $CI_COMMIT_REF_NAME == "master"
+      when: on_success
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: on_success
+    - when: manual
+      allow_failure: true
+  script:
+    - DD_API_KEY=$(cat /tmp/.dd-api-key 2>/dev/null) || { echo "Failed to fetch DD_API_KEY"; exit 1; }
+    - export DD_API_KEY
+    - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
+    - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
+
 "System Tests: [parametric]":
   extends: .system_tests
   variables:
@@ -1262,7 +1325,7 @@ endforeach;
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-6
+    CONTAINER_SUFFIX: bookworm-7
   needs:
     - job: "package loader: [<?= $arch ?>]"
       artifacts: true
@@ -1364,6 +1427,7 @@ endforeach;
     - if: $CI_COMMIT_REF_NAME == "master" && $CI_PIPELINE_SOURCE != "schedule"
       when: on_success
     - when: manual
+      allow_failure: true
   needs:
     - job: "prepare code"
       artifacts: true
@@ -1396,7 +1460,11 @@ foreach ($arch_targets as $arch) {
     VERSION="$(<VERSION)"
     [[ -z "${VERSION}" ]] && echo "VERSION file is empty or not present" && exit 1
     cd packages/ && aws s3 cp --recursive . "s3://dd-trace-php-builds/${VERSION}/"
-    aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
+    if [ "${CI_COMMIT_REF_NAME}" = "${CI_DEFAULT_BRANCH}" ]; then
+      aws s3 cp datadog-setup.php "s3://dd-trace-php-builds/latest/"
+    else
+      echo "Skipping latest upload for non-default branch: ${CI_COMMIT_REF_NAME} (default: ${CI_DEFAULT_BRANCH})"
+    fi
     echo "https://s3.us-east-1.amazonaws.com/dd-trace-php-builds/$(echo $VERSION | sed 's/+/%2B/')/datadog-setup.php"
   artifacts:
     paths:
@@ -1405,9 +1473,9 @@ foreach ($arch_targets as $arch) {
 "bundle for reliability env":
   stage: shared-pipeline
   image: registry.ddbuild.io/ci/libdatadog-build/ci_docker_base:67145216
-  tags: [ "runner:main", "size:large" ]
+  tags: [ "arch:amd64" ]
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $NIGHTLY
+    - if: $NIGHTLY_BUILD
       when: on_success
     - if: $CI_COMMIT_REF_NAME =~ /^ddtrace-/
       when: on_success
@@ -1436,6 +1504,7 @@ foreach ($arch_targets as $arch) {
 
 deploy_to_reliability_env:
   stage: shared-pipeline
+  allow_failure: true
   needs:
     - job: "bundle for reliability env"
   rules:

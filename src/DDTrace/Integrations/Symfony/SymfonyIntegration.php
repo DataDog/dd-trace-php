@@ -12,7 +12,6 @@ use DDTrace\Util\Normalizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Contracts\Cache\ItemInterface;
 
 class SymfonyIntegration extends Integration
 {
@@ -426,85 +425,69 @@ class SymfonyIntegration extends Integration
                 if (self::$kernel === null) {
                     return;
                 }
+
                 /** @var ContainerInterface $container */
                 $container = self::$kernel->getContainer();
-                try {
-                    $cache = $container->get('cache.app');
-                } catch (\Exception $e) {
-                    return;
+                $path = EndpointCatalog::pathForRoute($route_name, $container);
+
+                // Try with locale suffix (Symfony i18n routing convention)
+                if ($path === null) {
+                    $locale = $request->attributes->get('_locale');
+                    if ($locale !== null) {
+                        $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
+                    }
                 }
 
-                /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
-                $router = $container->get('router');
-                if (!\method_exists($cache, 'getItem')) {
-                    return;
-                }
-                $itemName = "_datadog.route.path.$route_name";
-                $locale = $request->get('_locale');
-                if ($locale !== null) {
-                    $itemName .= ".$locale";
-                }
-                $item = $cache->getItem($itemName);
-                if ($item->isHit()) {
-                    $route = $item->get();
-                } else {
-                    $routeCollection = $router->getRouteCollection();
-                    $route = $routeCollection->get($route_name);
-                    if ($route == null && $locale !== null) {
-                        $route = $routeCollection->get($route_name . '.' . $locale);
-                    }
-                    $item->set($route);
-                    $item->expiresAfter(3600);
-                    $cache->save($item);
-                }
-                if (isset($route)) {
-                    $rootSpan->meta[Tag::HTTP_ROUTE] = $route->getPath();
+                if ($path !== null) {
+                    $rootSpan->meta[Tag::HTTP_ROUTE] = $path;
                 }
             };
-
-            \DDTrace\trace_method(
-                'Symfony\Component\HttpKernel\HttpKernel',
-                'handle',
-                static function(SpanData $span, $args, $response) use ($handle_http_route) {
-                    /** @var Request $request */
-                    list($request) = $args;
-
-                    $span->name = 'symfony.kernel.handle';
-                    $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
-                    $span->type = Type::WEB_SERVLET;
-                    $span->meta[Tag::COMPONENT] = self::NAME;
-
-                    $rootSpan = \DDTrace\root_span();
-                    $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
-                    $rootSpan->meta[Tag::COMPONENT] = self::$frameworkPrefix;
-                    $rootSpan->meta[Tag::SPAN_KIND] = 'server';
-                    self::addTraceAnalyticsIfEnabled($rootSpan);
-
-                    if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
-                        $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
-                    }
-                    if (isset($response)) {
-                        $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
-                    }
-
-                    $route_name = $request->get('_route');
-                    if ($route_name !== null) {
-                        if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                            $rootSpan->resource = $route_name;
-                        }
-                        $rootSpan->meta['symfony.route.name'] = $route_name;
-                        $handle_http_route($route_name, $request, $rootSpan);
-                    }
-
-                    $parameters = $request->get('_route_params');
-                    if (!empty($parameters) &&
-                        is_array($parameters) &&
-                        function_exists('datadog\appsec\push_addresses')) {
-                        \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
-                    }
-                }
-            );
+        } else {
+            $handle_http_route = static function() { /* noop */ };
         }
+
+        \DDTrace\trace_method(
+            'Symfony\Component\HttpKernel\HttpKernel',
+            'handle',
+            static function(SpanData $span, $args, $response) use ($handle_http_route) {
+                /** @var Request $request */
+                list($request) = $args;
+
+                $span->name = 'symfony.kernel.handle';
+                $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                $span->type = Type::WEB_SERVLET;
+                $span->meta[Tag::COMPONENT] = self::NAME;
+
+                $rootSpan = \DDTrace\root_span();
+                $rootSpan->meta[Tag::HTTP_METHOD] = $request->getMethod();
+                $rootSpan->meta[Tag::COMPONENT] = self::$frameworkPrefix;
+                $rootSpan->meta[Tag::SPAN_KIND] = 'server';
+                self::addTraceAnalyticsIfEnabled($rootSpan);
+
+                if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
+                    $rootSpan->meta[Tag::HTTP_URL] = Normalizer::urlSanitize($request->getUri());
+                }
+                if (isset($response)) {
+                    $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
+                }
+
+                $route_name = $request->attributes->get('_route');
+                if ($route_name !== null) {
+                    if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
+                        $rootSpan->resource = $route_name;
+                    }
+                    $rootSpan->meta['symfony.route.name'] = $route_name;
+                    $handle_http_route($route_name, $request, $rootSpan);
+                }
+
+                $parameters = $request->attributes->get('_route_params');
+                if (!empty($parameters) &&
+                    is_array($parameters) &&
+                    function_exists('datadog\appsec\push_addresses')) {
+                    \datadog\appsec\push_addresses(["server.request.path_params" => $parameters]);
+                }
+            }
+        );
 
         /*
          * EventDispatcher v4.3 introduced an arg hack that mutates the arguments.
@@ -512,9 +495,10 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
+        $endpoints_collected = false;
         $eventDispatcherTracer = [
             'recurse' => true,
-            'prehook' => static function(SpanData $span, $args) use (&$injectedActionInfo) {
+            'prehook' => static function(SpanData $span, $args) use (&$injectedActionInfo, &$endpoints_collected) {
                 if (\DDTrace\root_span() === $span) {
                     return false; // e.g., lone symfony.console.terminate
                 }
@@ -589,17 +573,21 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                if (self::$kernel !== null
+                // This hook may be called multiple times, so we need to make sure we only collect endpoints once
+                if (!$endpoints_collected
+                    && self::$kernel !== null
                     && \defined(\get_class(self::$kernel) . '::VERSION')
                     && \strpos(self::$kernel::VERSION, '4.') !== 0
-                    && self::$frameworkPrefix === SymfonyIntegration::NAME
-                    && !\DDTrace\are_endpoints_collected())
-                {
-                    /** @var ContainerInterface $container */
-                    $container = self::$kernel->getContainer();
-                    $endpoints = EndpointCatalog::generate($container);
-                    foreach ($endpoints as $endpoint) {
-                        \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
+                    && self::$frameworkPrefix === SymfonyIntegration::NAME) {
+                    $endpoints_collected = true;
+                    if (!\DDTrace\are_endpoints_collected()) {
+                        /** @var ContainerInterface $container */
+                        $container = self::$kernel->getContainer();
+                        $endpoints = EndpointCatalog::generate($container);
+                        foreach ($endpoints as $endpoint) {
+                            \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
+                        }
+                        \DDTrace\flush_endpoints();
                     }
                 }
             }

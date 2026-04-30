@@ -23,7 +23,7 @@ function after_script($execute_dir = ".", $has_test_agent = false) {
     - .gitlab/check_test_agent.sh
 <?php endif; ?>
     - .gitlab/collect_artifacts.sh "<?= $execute_dir ?>"
-    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:src/"
 <?php
 }
 
@@ -67,7 +67,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -122,28 +122,7 @@ stages:
     GIT_STRATEGY: none
     IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
-    # Agressive Git cleanup
-    Write-Host "Performing aggressive workspace cleanup with cmd.exe..."
-    cmd /c "if exist .git rmdir /s /q .git" 2>$null
-    cmd /c "for /d %d in (*) do @rmdir /s /q ""%d""" 2>$null
-    cmd /c "del /f /s /q *" 2>$null
-    Write-Host "Cleanup complete."
-
-    # Make sure we actually fail if a command fails
-    $ErrorActionPreference = 'Stop'
-    $PSNativeCommandUseErrorActionPreference = $true
-
-    # Manual git clone with proper config
-    Write-Host "Cloning repository..."
-    git config --global core.longpaths true
-    git config --global core.symlinks true
-    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
-    git checkout $env:CI_COMMIT_SHA
-
-    # Initialize submodules
-    Write-Host "Initializing submodules..."
-    git submodule update --init --recursive
-    Write-Host "Git setup complete."
+<?php windows_git_setup() ?>
 
     mkdir dumps
 
@@ -165,13 +144,13 @@ stages:
 
     # Run extension tests
     docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
-
-    # Try to stop the container, don't care if we fail
-    try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
   after_script:
     - |
         docker exec ${CONTAINER_NAME} cmd.exe /s /c xcopy /y /c /s /e C:\ProgramData\Microsoft\Windows\WER\ReportQueue .\app\dumps\
         exit 0
+    - |
+        # Try to stop the container, don't care if we fail
+        try { docker stop -t 5 ${CONTAINER_NAME} } catch { }
     - 'powershell -NoProfile -Command "try { docker logs request-replayer } catch {}"'
     - 'powershell -NoProfile -Command "try { docker logs httpbin-integration } catch {}"'
     - 'powershell -NoProfile -Command "try { docker stop -t 15 request-replayer } catch {}"'
@@ -208,7 +187,7 @@ stages:
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
   timeout: 60m
   interruptible: true
   rules:
@@ -332,6 +311,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
+    ASAN_OPTIONS: "abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_stack_use_after_return=0"
   script:
     - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c_observer
@@ -436,7 +416,6 @@ foreach ($all_minor_major_targets as $major_minor):
   variables:
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
-    TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
 <?php if (version_compare($major_minor, "7.4", ">=")): ?>
     KUBERNETES_CPU_REQUEST: 8
     MAX_TEST_PARALLELISM: 16
@@ -506,6 +485,23 @@ foreach ($all_minor_major_targets as $major_minor):
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TESTS: "1"
+    WAIT_FOR: test-agent:9126
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_REQUEST: 7Gi
+    KUBERNETES_MEMORY_LIMIT: 7Gi
+<?php else: ?>
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_CPU_LIMIT: 1
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+<?php endif; ?>
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
@@ -581,6 +577,9 @@ foreach ($jobs as $type => $type_jobs):
     foreach ($type_jobs as $target => $versions):
         foreach ($versions as $major_minor):
             $sapis = $type == "web" && version_compare($major_minor, "7.2", ">=") ? ["cli-server", "cgi-fcgi", "apache2handler"] : [""];
+            if ($target == "test_web_custom" && in_array("cli-server", $sapis)) {
+                $sapis[] = "fpm-fcgi";
+            }
             foreach ($sapis as $sapi):
 ?>
 "<?= $target ?>: [<?= $major_minor, $sapi ? ", $sapi" : "" ?>]":
@@ -616,7 +615,7 @@ foreach ($services as $part => $service) {
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
-<?php if (str_contains($target, "kafk")): ?>
+<?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
 <?php endif; ?>
@@ -767,3 +766,4 @@ foreach ($xdebug_test_matrix as [$major_minor, $xdebug]):
     - if: $CI_COMMIT_REF_NAME == "master"
       when: always
     - when: manual
+      allow_failure: true

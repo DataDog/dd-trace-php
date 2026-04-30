@@ -7,6 +7,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function test() { }
 
@@ -17,16 +18,16 @@ DDTrace\trace_function("test", function($s) {
 
 test();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 // has no effect
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
-[ddtrace] [warning] Found unfinished span while automatically closing spans with name 'my precious span'
+[ddtrace] [warning] [%d] Found unfinished span while automatically closing spans with name 'my precious span'
 array(1) {
   [0]=>
   array(10) {
@@ -72,7 +73,7 @@ array(1) {
     }
   }
 }
-[ddtrace] [error] There is no user-span on the top of the stack. Cannot close.
+[ddtrace] [error] [%d] There is no user-span on the top of the stack. Cannot close.
 array(0) {
 }
-[ddtrace] [info] No finished traces to be sent to the agent
+[ddtrace] [info] [%d] No finished traces to be sent to the agent

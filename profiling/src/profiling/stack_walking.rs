@@ -16,10 +16,13 @@ use crate::bindings::{
 const COW_PHP_OPEN_TAG: Cow<str> = Cow::Borrowed("<?php");
 const COW_TRUNCATED: Cow<str> = Cow::Borrowed("[truncated]");
 
-/// The profiler is not meant to handle such large strings--if a file or
-/// function name exceeds this size, it will fail in some manner, or be
-/// replaced by a shorter string, etc.
-const STR_LEN_LIMIT: usize = u16::MAX as usize;
+/// The profiler is not meant to handle such large strings. If a file or
+/// function name exceeds this size, it will be represented by a short string,
+/// see [`COW_LARGE_STRING`].
+///
+/// This max is calculated such that when varint encoded for protobuf that it
+/// fits into 1 or 2 bytes, never 3 or more.
+const MAX_STR_LEN: usize = 0b00111111_11111111; // (1 << 14) - 1, or 16,383
 const COW_LARGE_STRING: Cow<str> = Cow::Borrowed("[suspiciously large string]");
 
 #[derive(Clone, Default, Debug)]
@@ -78,7 +81,7 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
     let len = module_len + class_name_len + method_name.len();
 
     // Rather than fail, we use a short string to represent a long string.
-    if len >= STR_LEN_LIMIT {
+    if len > MAX_STR_LEN {
         return Some(COW_LARGE_STRING);
     }
 
@@ -97,10 +100,18 @@ pub fn extract_function_name(func: &zend_function) -> Option<Cow<'static, str>> 
 
     buffer.extend_from_slice(method_name);
 
-    // When replacing the string to make it valid utf-8, it may get a bit
-    // longer, but this usually doesn't happen. This limit is a soft-limit
-    // at the moment anyway, so this is okay.
-    let string = String::from_utf8_lossy(buffer.as_slice()).into_owned();
+    // All or nearly all functions should be valid UTF8, so we're going to
+    // pessimize the error case to avoid having to make copies on the happy
+    // case.
+    let string = if core::str::from_utf8(&buffer).is_ok() {
+        // SAFETY: we just validate it's valid UTF-8.
+        unsafe { String::from_utf8_unchecked(buffer) }
+    } else {
+        // When replacing the string to make it valid utf-8, it may get a bit
+        // longer, but this usually doesn't happen. This limit is a soft-limit
+        // at the moment anyway, so this is okay.
+        String::from_utf8_lossy(&buffer).into_owned()
+    };
     Some(Cow::Owned(string))
 }
 
@@ -143,7 +154,7 @@ unsafe fn extract_file_and_line(
         Some(func) if !func.is_internal() => {
             // Safety: zai_str_from_zstr will return a valid ZaiStr.
             let bytes = zai_str_from_zstr(func.op_array.filename.as_mut()).as_bytes();
-            let file = if bytes.len() < STR_LEN_LIMIT {
+            let file = if bytes.len() <= MAX_STR_LEN {
                 Cow::Owned(String::from_utf8_lossy(bytes).into_owned())
             } else {
                 COW_LARGE_STRING
@@ -162,11 +173,11 @@ unsafe fn extract_file_and_line(
 mod detail {
     use super::*;
     use crate::string_set::StringSet;
-    use crate::thin_str::ThinStr;
     use crate::{RefCellExt, RefCellExtError};
+    use libdd_profiling::profiles::collections::ThinStr;
     use log::{debug, trace};
     use std::cell::RefCell;
-    use std::ptr::NonNull;
+    use std::ffi::c_void;
 
     struct StringCache<'a> {
         /// Refers to a function's run time cache reserved by this extension.
@@ -188,23 +199,21 @@ mod detail {
             debug_assert!(slot < self.cache_slots.len());
             let cached = unsafe { self.cache_slots.get_unchecked_mut(slot) };
 
-            let ptr = *cached as *mut u8;
-            match NonNull::new(ptr) {
+            let ptr = *cached as *mut c_void;
+            match std::ptr::NonNull::new(ptr) {
                 Some(non_null) => {
-                    // SAFETY: transmuting ThinStr from its repr.
-                    let thin_str: ThinStr = unsafe { core::mem::transmute(non_null) };
-                    // SAFETY: the string set is only reset between requests,
-                    // so this ThinStr points into the same string set that
-                    // created it.
+                    // SAFETY: the raw pointer was produced by ThinStr::into_raw
+                    // and the string set (which owns the backing memory) is
+                    // still alive because it is only reset between requests.
+                    let thin_str: ThinStr = unsafe { ThinStr::from_raw(non_null) };
                     let str = unsafe { self.string_set.get_thin_str(thin_str) };
                     Some(str.to_string())
                 }
                 None => {
                     let string = f()?;
                     let thin_str = self.string_set.insert(&string);
-                    // SAFETY: transmuting ThinStr into its repr.
-                    let non_null: NonNull<u8> = unsafe { core::mem::transmute(thin_str) };
-                    *cached = non_null.as_ptr() as usize;
+                    let raw = thin_str.into_raw();
+                    *cached = raw.as_ptr() as usize;
                     Some(string)
                 }
             }
@@ -291,6 +300,11 @@ mod detail {
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
     ) -> Result<Backtrace, CollectStackSampleError> {
+        #[cfg(feature = "stack_walking_tests")]
+        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        #[cfg(not(feature = "stack_walking_tests"))]
+        use crate::bindings::zend_generator_check_placeholder_frame;
+
         let max_depth = 512;
         let mut samples = Vec::new();
         let mut execute_data_ptr = top_execute_data;
@@ -298,6 +312,17 @@ mod detail {
         samples.try_reserve(max_depth >> 3)?;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+            // Nested generators leave a placeholder frame (func == NULL,
+            // This == generator object) on the stack. Resolve it to the real
+            // frame the same way zend_fetch_debug_backtrace and the observer
+            // API do.
+            if execute_data.func.is_null() {
+                execute_data_ptr =
+                    unsafe { zend_generator_check_placeholder_frame(execute_data_ptr) };
+            }
+            let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
+                break;
+            };
             // allowed because it's only used on the frameless path
             #[allow(unused_variables)]
             if let Some(func) = unsafe { execute_data.func.as_ref() } {
@@ -476,6 +501,11 @@ mod detail {
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Backtrace, CollectStackSampleError> {
+        #[cfg(feature = "stack_walking_tests")]
+        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        #[cfg(not(feature = "stack_walking_tests"))]
+        use crate::bindings::zend_generator_check_placeholder_frame;
+
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -484,6 +514,13 @@ mod detail {
         let mut execute_data_ptr = top_execute_data;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+            if execute_data.func.is_null() {
+                execute_data_ptr =
+                    unsafe { zend_generator_check_placeholder_frame(execute_data_ptr) };
+            }
+            let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
+                break;
+            };
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;
@@ -583,27 +620,14 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_function_name_at_limit_minus_one() {
+    fn test_extract_function_name_at_limit() {
         unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT - 1);
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(MAX_STR_LEN);
             assert!(!func.is_null());
 
             let name = extract_function_name(&*func).expect("should extract name");
-            assert_eq!(name.len(), STR_LEN_LIMIT - 1);
+            assert_eq!(name.len(), MAX_STR_LEN);
             assert_ne!(name, COW_LARGE_STRING);
-
-            ddog_php_test_free_fake_zend_function(func);
-        }
-    }
-
-    #[test]
-    fn test_extract_function_name_at_limit() {
-        unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT);
-            assert!(!func.is_null());
-
-            let name = extract_function_name(&*func).expect("should return large string marker");
-            assert_eq!(name, COW_LARGE_STRING);
 
             ddog_php_test_free_fake_zend_function(func);
         }
@@ -612,7 +636,7 @@ mod tests {
     #[test]
     fn test_extract_function_name_over_limit() {
         unsafe {
-            let func = ddog_php_test_create_fake_zend_function_with_name_len(STR_LEN_LIMIT + 1000);
+            let func = ddog_php_test_create_fake_zend_function_with_name_len(MAX_STR_LEN + 1);
             assert!(!func.is_null());
 
             let name = extract_function_name(&*func).expect("should return large string marker");

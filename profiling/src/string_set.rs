@@ -1,10 +1,23 @@
-use crate::thin_str::ThinStr;
 use core::hash;
 use core::ops::Deref;
-use libdd_alloc::{ChainAllocator, VirtualAllocator};
+use libdd_alloc::{AllocError, Allocator, ChainAllocator, VirtualAllocator};
+use libdd_profiling::profiles::collections::ThinStr;
 
 type Hasher = hash::BuildHasherDefault<rustc_hash::FxHasher>;
 type HashSet<K> = std::collections::HashSet<K, Hasher>;
+
+/// Allocates and constructs a [`ThinStr`] in one step.
+///
+/// This combines [`ThinStr::try_allocate_for`] and [`ThinStr::try_from_str_in`]
+/// for convenience. The returned [`ThinStr`] borrows from the allocation made
+/// by `alloc`, so the allocator must outlive the returned reference.
+fn try_new_thin_str_in<'a, A: Allocator>(s: &str, alloc: &'a A) -> Result<ThinStr<'a>, AllocError> {
+    let obj = ThinStr::try_allocate_for(s, alloc)?;
+    // SAFETY: `obj` was just allocated by us, no other references exist,
+    // so we can safely create a `&mut [MaybeUninit<u8>]` from it.
+    let uninit = unsafe { &mut *obj.as_ptr() };
+    ThinStr::try_from_str_in(s, uninit)
+}
 
 /// Holds unique strings and provides [StringId]s that correspond to the order
 /// that the strings were inserted.
@@ -77,7 +90,7 @@ impl StringSet {
                 // No match. Make a new string in the arena, and fudge its
                 // lifetime to appease the borrow checker.
                 let new_str = {
-                    let s = ThinStr::try_from_str_in(str, &self.arena)
+                    let s = try_new_thin_str_in(str, &self.arena)
                         .expect("allocation for StringSet::insert to succeed");
 
                     // SAFETY: all references to this value get re-narrowed to

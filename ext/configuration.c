@@ -96,6 +96,21 @@ static bool dd_parse_sampling_rules_format(zai_str value, zval *decoded_value, b
     return true;
 }
 
+static bool dd_parse_sidecar_connection_mode(zai_str value, zval *decoded_value, bool persistent) {
+    UNUSED(persistent);
+    if (zai_str_eq_ci_cstr(value, "auto")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO);
+    } else if (zai_str_eq_ci_cstr(value, "subprocess")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_SIDECAR_CONNECTION_MODE_SUBPROCESS);
+    } else if (zai_str_eq_ci_cstr(value, "thread")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
 static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     ZVAL_ARR(decoded_value, pemalloc(sizeof(HashTable), persistent));
     zend_hash_init(Z_ARR_P(decoded_value), 8, NULL, persistent ? ZVAL_INTERNAL_PTR_DTOR : ZVAL_PTR_DTOR, persistent);

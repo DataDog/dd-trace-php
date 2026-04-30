@@ -46,6 +46,7 @@ if test "$PHP_DDTRACE" != "no"; then
 
   AC_CHECK_HEADERS([linux/securebits.h])
   AC_CHECK_HEADERS([linux/capability.h])
+  AC_CHECK_HEADERS([valgrind/valgrind.h])
 
   dnl
   m4_ifndef([_LT_CHECK_OBJDIR], AC_LIBTOOL_OBJDIR, _LT_CHECK_OBJDIR)
@@ -211,6 +212,8 @@ if test "$PHP_DDTRACE" != "no"; then
     ext/sidecar.c \
     ext/signals.c \
     ext/span.c \
+    ext/span_stats.c \
+    ext/trace_filter.c \
     ext/startup_logging.c \
     ext/telemetry.c \
     ext/threads.c \
@@ -373,7 +376,7 @@ EOT
 
     cat <<EOT >> Makefile.fragments
 $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
-	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO=\$(DDTRACE_CARGO) $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
 EOT
   fi
 

@@ -5,6 +5,7 @@
 #include <sys/wait.h>
 #endif
 
+#include <components/log/log.h>
 #include <ext/standard/file.h>
 #include <ext/standard/proc_open.h>
 
@@ -298,7 +299,11 @@ void ddtrace_exec_handlers_rinit() {
     // OTOH ddtrace_exec_handlers_rshutdown is not called when ddtrace is
     // disabled because it needs to be called earlier on upon the real rshutodown
 
-    if (tracked_streams) {
+    if (PG(during_request_startup)) {
+        if (tracked_streams) {
+            LOG(WARN, "tracked_streams is non-NULL during request startup");
+        }
+    } else {
         dd_exec_destroy_tracked_streams();
     }
 
@@ -307,21 +312,33 @@ void ddtrace_exec_handlers_rinit() {
 
 void ddtrace_exec_handlers_rshutdown() {
     if (tracked_streams) {
-        zend_ulong h;
-        zend_string *key;
-        zval *val;
-        ZEND_HASH_REVERSE_FOREACH_KEY_VAL(tracked_streams, h, key, val) {
-            (void)h;
-            (void)val;
-            php_stream *stream;
-            memcpy(&stream, ZSTR_VAL(key), sizeof stream);
-            // manually close the tracked stream on rshutdown in case they
-            // lived till the end of the request so we can finish the span
-            zend_list_close(stream->res);
-        }
-        ZEND_HASH_FOREACH_END();
+        // generally, a bailout during rshutdown would prevent the rest of the
+        // shutdown from that extension from running.
+        // Here, we're force-closing streams (the keys of tracked_streams) and
+        // potentially destroying spans (the values of tracked_streams).
+        // There is at least one avenue for an error to escape: when executing
+        // onClose callbacks on spans, if there has already been a PHP timeout,
+        // the zai sandbox will let the error escape.
+        zend_try {
+            zend_ulong h;
+            zend_string *key;
+            zval *val;
+            ZEND_HASH_REVERSE_FOREACH_KEY_VAL(tracked_streams, h, key, val) {
+                (void)h;
+                (void)val;
+                php_stream *stream;
+                memcpy(&stream, ZSTR_VAL(key), sizeof stream);
+                // manually close the tracked stream on rshutdown in case they
+                // lived till the end of the request so we can finish the span
+                zend_list_close(stream->res);
+            }
+            ZEND_HASH_FOREACH_END();
 
-        dd_exec_destroy_tracked_streams();
+            dd_exec_destroy_tracked_streams();
+        } zend_catch {
+            LOG(WARN, "Bailout during tracked_streams destruction");
+            tracked_streams = NULL;
+        } zend_end_try();
     }
 
     {

@@ -35,7 +35,7 @@ if(DD_APPSEC_BUILD_HELPER)
     file(GLOB_RECURSE MSGPACK_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/msgpack-c/src/*.c)
     add_library(msgpack_c STATIC ${MSGPACK_C_SOURCES})
     set_target_properties(msgpack_c PROPERTIES POSITION_INDEPENDENT_CODE 1)
-    target_include_directories(msgpack_c PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/msgpack-c/include/)
+    target_include_directories(msgpack_c SYSTEM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/msgpack-c/include/)
     target_compile_definitions(msgpack_c INTERFACE MSGPACK_CXX17=ON)
 
     file(GLOB_RECURSE CPPBASE64_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/cpp-base64/base64.cpp)

@@ -2,6 +2,7 @@
 Nested exceptions are recorded (GH2498)
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 $nestedException = new \RuntimeException('Some kind of message');
 $nestedException = new \LogicException('An error message', 456, $nestedException);
@@ -11,7 +12,7 @@ $span = \DDTrace\start_span();
 $span->exception = $nestedException;
 \DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

@@ -535,8 +535,9 @@ trait TracerTestTrait
     public function retrieveDumpedTraceData($until = null, $throw = false)
     {
         return array_values(array_filter($this->retrieveDumpedData($until, $throw), function ($request) {
-            // Filter telemetry requests
-            return strpos($request["uri"] ?? "", "/telemetry/") !== 0;
+            // Only return actual trace requests, filtering out telemetry, remote config, etc.
+            $uri = $request["uri"] ?? "";
+            return strpos($uri, "/v0.4/traces") === 0 || strpos($uri, "/v0.7/traces") === 0;
         }));
     }
 
@@ -566,7 +567,9 @@ trait TracerTestTrait
 
     function untilSpan(SpanAssertion $assertion) {
         return function ($request) use ($assertion) {
-            if (strpos($request["uri"] ?? "", "/telemetry/") === 0 || !isset($request['body'])) {
+            $uri = $request["uri"] ?? "";
+            $isTrace = strpos($uri, "/v0.4/traces") === 0 || strpos($uri, "/v0.7/traces") === 0;
+            if (!$isTrace || !isset($request['body'])) {
                 return false;
             }
             $traces = $this->parseRawDumpedTraces(json_decode($request['body'], true));

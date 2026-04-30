@@ -122,7 +122,13 @@ class LaravelIntegration extends Integration
                 $routeName = self::normalizeRouteName($route->getName());
 
                 if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
-                    $rootSpan->resource = $route->getActionName() . ' ' . $routeName;
+                    if ($routeName !== self::UNNAMED_ROUTE) {
+                        $rootSpan->resource = $route->getActionName() . ' ' . $routeName;
+                    } elseif (method_exists($route, 'uri')) {
+                        $rootSpan->resource = $route->getActionName() . ' ' . $route->uri();
+                    } else {
+                        $rootSpan->resource = $route->getActionName() . ' ' . self::UNNAMED_ROUTE;
+                    }
                 }
 
                 $rootSpan->meta['laravel.route.name'] = $routeName;
@@ -152,6 +158,7 @@ class LaravelIntegration extends Integration
                         $resourceName = $method . ' ' . $path;
                         \DDTrace\add_endpoint($path, 'http.request', $resourceName, $method);
                     }
+                    \DDTrace\flush_endpoints();
                 }
             }
         );

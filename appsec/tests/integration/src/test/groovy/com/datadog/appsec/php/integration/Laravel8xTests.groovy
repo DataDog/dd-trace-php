@@ -47,7 +47,7 @@ class Laravel8xTests {
     }
 
     @Test
-    @Order(2)
+    @Order(4)
     void 'Login failure automated event'() {
         Trace trace = container.traceFromRequest('/authenticate?email=nonExisiting@email.com') {
             HttpResponse<InputStream> resp ->
@@ -62,7 +62,7 @@ class Laravel8xTests {
     }
 
     @Test
-    @Order(3)
+    @Order(5)
     void 'Login success automated event'() {
         //The user ciuser@example.com is already on the DB
         def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com') {
@@ -79,7 +79,7 @@ class Laravel8xTests {
     }
 
     @Test
-    @Order(4)
+    @Order(6)
     void 'Sign up automated event'() {
         def trace = container.traceFromRequest(
                 '/register?email=test-user-new@email.coms&name=somename&password=somepassword'
@@ -95,7 +95,7 @@ class Laravel8xTests {
     }
 
     @Test
-    @Order(5)
+    @Order(7)
     void 'test path params'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()
@@ -115,6 +115,26 @@ class Laravel8xTests {
 
     @Test
     @Order(1)
+    void 'Endpoints are not collected before the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: false')
+        }
+    }
+
+    @Test
+    @Order(3)
+    void 'Endpoints are collected after the first request to framework'() {
+        HttpRequest req = container.buildReq('/outside_of_framework.php').GET().build()
+        container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+            assert re.body().contains('are_endpoints_collected: true')
+        }
+    }
+
+    @Test
+    @Order(2)
     void 'Endpoints are sent'() {
         def trace = container.traceFromRequest('/') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200

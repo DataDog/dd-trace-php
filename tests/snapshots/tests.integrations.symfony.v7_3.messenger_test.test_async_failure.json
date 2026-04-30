@@ -1,0 +1,480 @@
+[[
+  {
+    "name": "symfony.request",
+    "service": "symfony_messenger_test",
+    "resource": "lucky_fail",
+    "trace_id": 0,
+    "span_id": 1,
+    "parent_id": 192397746656456552,
+    "type": "web",
+    "meta": {
+      "_dd.p.dm": "-0",
+      "_dd.p.tid": "69e7be5f00000000",
+      "component": "symfony",
+      "http.method": "GET",
+      "http.route": "/lucky/fail",
+      "http.status_code": "200",
+      "http.url": "http://localhost/lucky/fail",
+      "runtime-id": "20ef259c-a7ba-47ab-8ea5-bff0fefacb1d",
+      "span.kind": "server",
+      "symfony.route.action": "App\\Controller\\LuckyController@fail",
+      "symfony.route.name": "lucky_fail"
+    },
+    "metrics": {
+      "_sampling_priority_v1": 1.0
+    }
+  },
+     {
+       "name": "symfony.httpkernel.kernel.handle",
+       "service": "symfony_messenger_test",
+       "resource": "App\\Kernel",
+       "trace_id": 0,
+       "span_id": 2,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony",
+         "span.kind": "server"
+       }
+     },
+        {
+          "name": "symfony.httpkernel.kernel.boot",
+          "service": "symfony_messenger_test",
+          "resource": "App\\Kernel",
+          "trace_id": 0,
+          "span_id": 4,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+        {
+          "name": "symfony.kernel.handle",
+          "service": "symfony_messenger_test",
+          "resource": "symfony.kernel.handle",
+          "trace_id": 0,
+          "span_id": 5,
+          "parent_id": 2,
+          "type": "web",
+          "meta": {
+            "component": "symfony"
+          }
+        },
+           {
+             "name": "symfony.kernel.request",
+             "service": "symfony_messenger_test",
+             "resource": "symfony.kernel.request",
+             "trace_id": 0,
+             "span_id": 6,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.kernel.controller",
+             "service": "symfony_messenger_test",
+             "resource": "symfony.kernel.controller",
+             "trace_id": 0,
+             "span_id": 7,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.kernel.controller_arguments",
+             "service": "symfony_messenger_test",
+             "resource": "symfony.kernel.controller_arguments",
+             "trace_id": 0,
+             "span_id": 8,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.controller",
+             "service": "symfony_messenger_test",
+             "resource": "App\\Controller\\LuckyController::fail",
+             "trace_id": 0,
+             "span_id": 9,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+              {
+                "name": "symfony.messenger.dispatch",
+                "service": "symfony_messenger_test",
+                "resource": "App\\Message\\LuckyNumberNotification -> async",
+                "trace_id": 0,
+                "span_id": 12,
+                "parent_id": 9,
+                "type": "queue",
+                "meta": {
+                  "_dd.code_origin.frames.1.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                  "_dd.code_origin.frames.1.line": "25",
+                  "_dd.code_origin.frames.1.method": "fail",
+                  "_dd.code_origin.frames.1.type": "App\\Controller\\LuckyController",
+                  "_dd.code_origin.frames.7.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                  "_dd.code_origin.frames.7.line": "5",
+                  "_dd.code_origin.type": "exit",
+                  "component": "symfonymessenger",
+                  "messaging.destination": "async",
+                  "messaging.destination_kind": "queue",
+                  "messaging.message_id": "5",
+                  "messaging.symfony.bus": "messenger.bus.default",
+                  "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                  "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
+                  "messaging.system": "symfony"
+                },
+                "metrics": {
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 2.0,
+                  "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
+                }
+              },
+                 {
+                   "name": "symfony.messenger.middleware",
+                   "service": "symfony_messenger_test",
+                   "resource": "Symfony\\Component\\Messenger\\Middleware\\TraceableMiddleware",
+                   "trace_id": 0,
+                   "span_id": 13,
+                   "parent_id": 12,
+                   "type": "queue",
+                   "meta": {
+                     "_dd.code_origin.frames.2.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                     "_dd.code_origin.frames.2.line": "25",
+                     "_dd.code_origin.frames.2.method": "fail",
+                     "_dd.code_origin.frames.2.type": "App\\Controller\\LuckyController",
+                     "_dd.code_origin.frames.8.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                     "_dd.code_origin.frames.8.line": "5",
+                     "_dd.code_origin.type": "exit",
+                     "component": "symfonymessenger",
+                     "messaging.destination_kind": "queue",
+                     "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                     "messaging.system": "symfony"
+                   }
+                 },
+                    {
+                      "name": "symfony.messenger.middleware",
+                      "service": "symfony_messenger_test",
+                      "resource": "Symfony\\Component\\Messenger\\Middleware\\AddBusNameStampMiddleware",
+                      "trace_id": 0,
+                      "span_id": 14,
+                      "parent_id": 13,
+                      "type": "queue",
+                      "meta": {
+                        "_dd.code_origin.frames.3.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                        "_dd.code_origin.frames.3.line": "25",
+                        "_dd.code_origin.frames.3.method": "fail",
+                        "_dd.code_origin.frames.3.type": "App\\Controller\\LuckyController",
+                        "_dd.code_origin.frames.9.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                        "_dd.code_origin.frames.9.line": "5",
+                        "_dd.code_origin.type": "exit",
+                        "component": "symfonymessenger",
+                        "messaging.destination_kind": "queue",
+                        "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                        "messaging.system": "symfony"
+                      }
+                    },
+                       {
+                         "name": "symfony.messenger.middleware",
+                         "service": "symfony_messenger_test",
+                         "resource": "Symfony\\Component\\Messenger\\Middleware\\RejectRedeliveredMessageMiddleware",
+                         "trace_id": 0,
+                         "span_id": 15,
+                         "parent_id": 14,
+                         "type": "queue",
+                         "meta": {
+                           "_dd.code_origin.frames.10.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                           "_dd.code_origin.frames.10.line": "5",
+                           "_dd.code_origin.frames.4.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                           "_dd.code_origin.frames.4.line": "25",
+                           "_dd.code_origin.frames.4.method": "fail",
+                           "_dd.code_origin.frames.4.type": "App\\Controller\\LuckyController",
+                           "_dd.code_origin.type": "exit",
+                           "component": "symfonymessenger",
+                           "messaging.destination_kind": "queue",
+                           "messaging.symfony.bus": "messenger.bus.default",
+                           "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                           "messaging.system": "symfony"
+                         }
+                       },
+                          {
+                            "name": "symfony.messenger.middleware",
+                            "service": "symfony_messenger_test",
+                            "resource": "Symfony\\Component\\Messenger\\Middleware\\DispatchAfterCurrentBusMiddleware",
+                            "trace_id": 0,
+                            "span_id": 16,
+                            "parent_id": 15,
+                            "type": "queue",
+                            "meta": {
+                              "_dd.code_origin.frames.11.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                              "_dd.code_origin.frames.11.line": "5",
+                              "_dd.code_origin.frames.5.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                              "_dd.code_origin.frames.5.line": "25",
+                              "_dd.code_origin.frames.5.method": "fail",
+                              "_dd.code_origin.frames.5.type": "App\\Controller\\LuckyController",
+                              "_dd.code_origin.type": "exit",
+                              "component": "symfonymessenger",
+                              "messaging.destination_kind": "queue",
+                              "messaging.symfony.bus": "messenger.bus.default",
+                              "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                              "messaging.system": "symfony"
+                            }
+                          },
+                             {
+                               "name": "symfony.messenger.middleware",
+                               "service": "symfony_messenger_test",
+                               "resource": "Symfony\\Component\\Messenger\\Middleware\\FailedMessageProcessingMiddleware",
+                               "trace_id": 0,
+                               "span_id": 17,
+                               "parent_id": 16,
+                               "type": "queue",
+                               "meta": {
+                                 "_dd.code_origin.frames.12.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                                 "_dd.code_origin.frames.12.line": "5",
+                                 "_dd.code_origin.frames.6.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                                 "_dd.code_origin.frames.6.line": "25",
+                                 "_dd.code_origin.frames.6.method": "fail",
+                                 "_dd.code_origin.frames.6.type": "App\\Controller\\LuckyController",
+                                 "_dd.code_origin.type": "exit",
+                                 "component": "symfonymessenger",
+                                 "messaging.destination_kind": "queue",
+                                 "messaging.symfony.bus": "messenger.bus.default",
+                                 "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                                 "messaging.system": "symfony"
+                               }
+                             },
+                                {
+                                  "name": "symfony.messenger.middleware",
+                                  "service": "symfony_messenger_test",
+                                  "resource": "Symfony\\Component\\Messenger\\Middleware\\SendMessageMiddleware",
+                                  "trace_id": 0,
+                                  "span_id": 18,
+                                  "parent_id": 17,
+                                  "type": "queue",
+                                  "meta": {
+                                    "_dd.code_origin.frames.13.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                                    "_dd.code_origin.frames.13.line": "5",
+                                    "_dd.code_origin.frames.7.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                                    "_dd.code_origin.frames.7.line": "25",
+                                    "_dd.code_origin.frames.7.method": "fail",
+                                    "_dd.code_origin.frames.7.type": "App\\Controller\\LuckyController",
+                                    "_dd.code_origin.type": "exit",
+                                    "component": "symfonymessenger",
+                                    "messaging.destination_kind": "queue",
+                                    "messaging.symfony.bus": "messenger.bus.default",
+                                    "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                                    "messaging.system": "symfony"
+                                  }
+                                },
+                                   {
+                                     "name": "symfony.Symfony\\Component\\Messenger\\Event\\SendMessageToTransportsEvent",
+                                     "service": "symfony_messenger_test",
+                                     "resource": "symfony.Symfony\\Component\\Messenger\\Event\\SendMessageToTransportsEvent",
+                                     "trace_id": 0,
+                                     "span_id": 19,
+                                     "parent_id": 18,
+                                     "type": "web",
+                                     "meta": {
+                                       "component": "symfony"
+                                     }
+                                   },
+                                   {
+                                     "name": "symfony.messenger.send",
+                                     "service": "symfony_messenger_test",
+                                     "resource": "App\\Message\\LuckyNumberNotification -> async",
+                                     "trace_id": 0,
+                                     "span_id": 20,
+                                     "parent_id": 18,
+                                     "type": "queue",
+                                     "meta": {
+                                       "_dd.code_origin.frames.14.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                                       "_dd.code_origin.frames.14.line": "5",
+                                       "_dd.code_origin.frames.8.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                                       "_dd.code_origin.frames.8.line": "25",
+                                       "_dd.code_origin.frames.8.method": "fail",
+                                       "_dd.code_origin.frames.8.type": "App\\Controller\\LuckyController",
+                                       "_dd.code_origin.type": "entry",
+                                       "component": "symfonymessenger",
+                                       "messaging.destination": "async",
+                                       "messaging.destination_kind": "queue",
+                                       "messaging.message_id": "5",
+                                       "messaging.operation": "send",
+                                       "messaging.symfony.bus": "messenger.bus.default",
+                                       "messaging.symfony.message": "App\\Message\\LuckyNumberNotification",
+                                       "messaging.symfony.sender": "Symfony\\Component\\Messenger\\Bridge\\Doctrine\\Transport\\DoctrineTransport",
+                                       "messaging.system": "symfony",
+                                       "span.kind": "producer"
+                                     },
+                                     "metrics": {
+                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\BusNameStamp": 1.0,
+                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SentStamp": 1.0,
+                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\SerializerStamp": 2.0,
+                                       "messaging.symfony.stamps.Symfony\\Component\\Messenger\\Stamp\\TransportMessageIdStamp": 1.0
+                                     }
+                                   },
+                                      {
+                                        "name": "PDO.__construct",
+                                        "service": "pdo",
+                                        "resource": "PDO.__construct",
+                                        "trace_id": 0,
+                                        "span_id": 21,
+                                        "parent_id": 20,
+                                        "type": "sql",
+                                        "meta": {
+                                          "_dd.base_service": "symfony_messenger_test",
+                                          "_dd.code_origin.frames.22.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                                          "_dd.code_origin.frames.22.line": "25",
+                                          "_dd.code_origin.frames.22.method": "fail",
+                                          "_dd.code_origin.frames.22.type": "App\\Controller\\LuckyController",
+                                          "_dd.code_origin.frames.28.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                                          "_dd.code_origin.frames.28.line": "5",
+                                          "_dd.code_origin.type": "exit",
+                                          "component": "pdo",
+                                          "db.charset": "utf8mb4",
+                                          "db.engine": "mysql",
+                                          "db.name": "symfony73",
+                                          "db.system": "mysql",
+                                          "db.type": "mysql",
+                                          "db.user": "test",
+                                          "out.host": "mysql-integration",
+                                          "out.port": "3306",
+                                          "span.kind": "client"
+                                        }
+                                      },
+                                      {
+                                        "name": "PDO.prepare",
+                                        "service": "pdo",
+                                        "resource": "INSERT INTO messenger_messages (body, headers, queue_name, created_at, available_at) VALUES(?, ?, ?, ?, ?)",
+                                        "trace_id": 0,
+                                        "span_id": 22,
+                                        "parent_id": 20,
+                                        "type": "sql",
+                                        "meta": {
+                                          "_dd.base_service": "symfony_messenger_test",
+                                          "_dd.code_origin.frames.18.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                                          "_dd.code_origin.frames.18.line": "25",
+                                          "_dd.code_origin.frames.18.method": "fail",
+                                          "_dd.code_origin.frames.18.type": "App\\Controller\\LuckyController",
+                                          "_dd.code_origin.frames.24.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                                          "_dd.code_origin.frames.24.line": "5",
+                                          "_dd.code_origin.type": "exit",
+                                          "component": "pdo",
+                                          "db.charset": "utf8mb4",
+                                          "db.engine": "mysql",
+                                          "db.name": "symfony73",
+                                          "db.system": "mysql",
+                                          "db.type": "mysql",
+                                          "db.user": "test",
+                                          "out.host": "mysql-integration",
+                                          "out.port": "3306",
+                                          "span.kind": "client"
+                                        }
+                                      },
+                                      {
+                                        "name": "PDOStatement.execute",
+                                        "service": "pdo",
+                                        "resource": "INSERT INTO messenger_messages (body, headers, queue_name, created_at, available_at) VALUES(?, ?, ?, ?, ?)",
+                                        "trace_id": 0,
+                                        "span_id": 23,
+                                        "parent_id": 20,
+                                        "type": "sql",
+                                        "meta": {
+                                          "_dd.base_service": "symfony_messenger_test",
+                                          "_dd.code_origin.frames.18.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                                          "_dd.code_origin.frames.18.line": "25",
+                                          "_dd.code_origin.frames.18.method": "fail",
+                                          "_dd.code_origin.frames.18.type": "App\\Controller\\LuckyController",
+                                          "_dd.code_origin.frames.24.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                                          "_dd.code_origin.frames.24.line": "5",
+                                          "_dd.code_origin.type": "exit",
+                                          "component": "pdo",
+                                          "db.charset": "utf8mb4",
+                                          "db.engine": "mysql",
+                                          "db.name": "symfony73",
+                                          "db.system": "mysql",
+                                          "db.type": "mysql",
+                                          "db.user": "test",
+                                          "out.host": "mysql-integration",
+                                          "out.port": "3306",
+                                          "span.kind": "client"
+                                        },
+                                        "metrics": {
+                                          "db.row_count": 1.0
+                                        }
+                                      },
+                                      {
+                                        "name": "PDO.commit",
+                                        "service": "pdo",
+                                        "resource": "PDO.commit",
+                                        "trace_id": 0,
+                                        "span_id": 24,
+                                        "parent_id": 20,
+                                        "type": "sql",
+                                        "meta": {
+                                          "_dd.base_service": "symfony_messenger_test",
+                                          "_dd.code_origin.frames.19.file": "{path}/tests/Frameworks/Symfony/Version_7_3/src/Controller/LuckyController.php",
+                                          "_dd.code_origin.frames.19.line": "25",
+                                          "_dd.code_origin.frames.19.method": "fail",
+                                          "_dd.code_origin.frames.19.type": "App\\Controller\\LuckyController",
+                                          "_dd.code_origin.frames.25.file": "{path}/tests/Frameworks/Symfony/Version_7_3/public/index.php",
+                                          "_dd.code_origin.frames.25.line": "5",
+                                          "_dd.code_origin.type": "exit",
+                                          "component": "pdo",
+                                          "db.charset": "utf8mb4",
+                                          "db.engine": "mysql",
+                                          "db.name": "symfony73",
+                                          "db.system": "mysql",
+                                          "db.type": "mysql",
+                                          "db.user": "test",
+                                          "out.host": "mysql-integration",
+                                          "out.port": "3306",
+                                          "span.kind": "client"
+                                        }
+                                      },
+           {
+             "name": "symfony.kernel.response",
+             "service": "symfony_messenger_test",
+             "resource": "symfony.kernel.response",
+             "trace_id": 0,
+             "span_id": 10,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+           {
+             "name": "symfony.kernel.finish_request",
+             "service": "symfony_messenger_test",
+             "resource": "symfony.kernel.finish_request",
+             "trace_id": 0,
+             "span_id": 11,
+             "parent_id": 5,
+             "type": "web",
+             "meta": {
+               "component": "symfony"
+             }
+           },
+     {
+       "name": "symfony.kernel.terminate",
+       "service": "symfony_messenger_test",
+       "resource": "symfony.kernel.terminate",
+       "trace_id": 0,
+       "span_id": 3,
+       "parent_id": 1,
+       "type": "web",
+       "meta": {
+         "component": "symfony"
+       }
+     }]]

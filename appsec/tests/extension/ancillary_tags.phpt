@@ -126,4 +126,8 @@ Array
     [http.request.headers.x-cloud-trace-context] => cloudtracecontext
     [http.request.headers.x-sigsci-requestid] => sigscirequestid
     [http.request.headers.x-sigsci-tags] => sigscitags
+    [http.response.headers.content-encoding] => foobar
+    [http.response.headers.content-language] => pt_PT
+    [http.response.headers.content-length] => 42
+    [http.response.headers.content-type] => application/json
 )

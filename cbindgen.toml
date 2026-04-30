@@ -23,6 +23,7 @@ rename_types = "PascalCase"
 "PushTagResult" = "ddog_Vec_Tag_PushResult"
 "ZendString" = "_zend_string"
 "FILE" = "FILE"
+"EndpointConfig" = "ddog_crasht_EndpointConfig"
 
 [enum]
 prefix_with_name = true

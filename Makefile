@@ -48,7 +48,7 @@ RUN_TESTS_CMD := DD_SERVICE= DD_ENV= REPORT_EXIT_STATUS=1 TEST_PHP_SRCDIR=$(PROJ
 
 C_FILES = $(shell find components components-rs ext src/dogstatsd zend_abstract_interface -name '*.c' -o -name '*.h' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_FILES = $(shell find tests/ext -name '*.php*' -o -name '*.inc' -o -name '*.json' -o -name '*.yaml' -o -name 'CONFLICTS' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
-RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
+RUST_FILES = $(BUILD_DIR)/Cargo.toml $(BUILD_DIR)/Cargo.lock $(shell find components-rs -name '*.c' -o -name '*.rs' -o -name 'Cargo.toml' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' ) $(shell find libdatadog/{build-common,datadog-ffe,datadog-ipc,datadog-ipc-macros,datadog-live-debugger,datadog-live-debugger-ffi,datadog-remote-config,datadog-sidecar,datadog-sidecar-ffi,datadog-sidecar-macros,libdd-alloc,libdd-capabilities,libdd-capabilities-impl,libdd-common,libdd-common-ffi,libdd-crashtracker,libdd-crashtracker-ffi,libdd-data-pipeline,libdd-ddsketch,libdd-dogstatsd-client,libdd-library-config,libdd-library-config-ffi,libdd-log,libdd-shared-runtime,libdd-telemetry,libdd-telemetry-ffi,libdd-tinybytes,libdd-trace-*,spawn_worker,tools/{cc_utils,sidecar_mockgen},libdd-trace-*,Cargo.toml} \( -type l -o -type f \) \( -path "*/src*" -o -path "*/examples*" -o -path "*Cargo.toml" -o -path "*/build.rs" -o -path "*/tests/dataservice.rs" -o -path "*/tests/service_functional.rs" \) -not -path "*/datadog-ipc/build.rs" -not -path "*/datadog-sidecar-ffi/build.rs")
 ALL_OBJECT_FILES = $(C_FILES) $(RUST_FILES) $(BUILD_DIR)/Makefile
 TEST_OPCACHE_FILES = $(shell find tests/opcache -name '*.php*' -o -name '.gitkeep' | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
 TEST_STUB_FILES = $(shell find tests/ext -type d -name 'stubs' -exec find '{}' -type f \; | awk '{ printf "$(BUILD_DIR)/%s\n", $$1 }' )
@@ -113,7 +113,14 @@ $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
 
-$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure
+# ensure list of rust files is up to date
+$(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
+	$(Q) printf '%s\n' $(RUST_FILES) | sort > $(BUILD_DIR)/.rust_files_list.tmp
+	$(Q) cmp -s $(BUILD_DIR)/.rust_files_list $(BUILD_DIR)/.rust_files_list.tmp 2>/dev/null \
+		&& rm -f $(BUILD_DIR)/.rust_files_list.tmp \
+		|| mv $(BUILD_DIR)/.rust_files_list.tmp $(BUILD_DIR)/.rust_files_list
+
+$(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure $(BUILD_DIR)/.rust_files_list
 	$(Q) (cd $(BUILD_DIR); $(if $(ASAN),CFLAGS="${CFLAGS} -DZEND_TRACK_ARENA_ALLOC") ./configure --$(if $(RUST_DEBUG_BUILD),enable,disable)-ddtrace-rust-debug $(if $(ASAN), --enable-ddtrace-sanitize) $(EXTRA_CONFIGURE_OPTIONS))
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
@@ -204,7 +211,7 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	$(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e 'LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
+	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
 build_tea: TEA_BUILD_TESTS=ON
@@ -451,7 +458,7 @@ generate_cbindgen: cbindgen_binary # Regenerate components-rs/ddtrace.h componen
 
 cbindgen_binary:
 	if ! command -v cbindgen &> /dev/null; then \
-		cargo install cbindgen; \
+		cargo install cbindgen --version 0.29.0 --locked; \
 	fi
 
 EXT_DIR:=/opt/datadog-php
@@ -500,7 +507,9 @@ $(PACKAGES_BUILD_DIR)/datadog-setup.php: $(PACKAGES_BUILD_DIR)
 		$(PACKAGES_BUILD_DIR)
 
 build_pecl_package:
-	echo $(subst $(BUILD_DIR)/,,$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock) | tooling/bin/pecl-build
+	$(file >.pecl-files,$(subst $(BUILD_DIR)/,,$(C_FILES) $(RUST_FILES) $(TEST_FILES) $(TEST_STUB_FILES) $(M4_FILES) Cargo.lock))
+	tooling/bin/pecl-build < .pecl-files
+	@rm -f .pecl-files
 
 dbgsym.tar.gz: $(PACKAGES_BUILD_DIR)
 	$(if $(DDTRACE_MAKE_PACKAGES_ASAN), , tar -zcf $(PACKAGES_BUILD_DIR)/dd-library-php-$(VERSION)_windows_debugsymbols.tar.gz ./extensions_x86_64_debugsymbols --owner=0 --group=0)
@@ -539,7 +548,7 @@ cores:
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
-ENV_OVERRIDE := $(shell ([ -n "${DD_TRACE_DOCKER_DEBUG}" ] && [ -z "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ]) || ([ -n "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ] && [ "${DD_TRACE_AUTOLOAD_NO_COMPILE}" != "0" ]) && [ -z "${DD_TRACE_SOURCES_PATH}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE)
+ENV_OVERRIDE := $(shell ([ -n "${DD_TRACE_DOCKER_DEBUG}" ] && [ -z "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ]) || ([ -n "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ] && [ "${DD_TRACE_AUTOLOAD_NO_COMPILE}" != "0" ]) && [ -z "${DD_TRACE_SOURCES_PATH}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE) DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
@@ -549,7 +558,7 @@ COMPOSER = $(if $(ASAN), ASAN_OPTIONS=detect_leaks=0) COMPOSER_MEMORY_LIMIT=-1 c
 DDPROF_IDENTIFIER ?=
 PHPUNIT_OPTS ?=
 PHPUNIT_JUNIT ?=
-PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) $(if $(PHPUNIT_JUNIT),--log-junit $(PHPUNIT_JUNIT)) --config=$(TESTS_ROOT)/phpunit.xml
+PHPUNIT = $(TESTS_ROOT)/vendor/bin/phpunit $(PHPUNIT_OPTS) $(if $(PHPUNIT_JUNIT),--log-junit $(PHPUNIT_JUNIT) --dont-report-useless-tests) --config=$(TESTS_ROOT)/phpunit.xml
 PHPUNIT_COVERAGE ?=
 PHPBENCH_OPTS ?=
 PHPBENCH_CONFIG ?= $(TESTS_ROOT)/phpbench.json
@@ -576,7 +585,8 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
 	test_integrations_ratchet \
-	test_integrations_sqlsrv
+	test_integrations_sqlsrv \
+	test_integrations_stripe_latest
 
 TEST_WEB_70 := \
 	test_metrics \
@@ -620,6 +630,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_predis_1 \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_71 := \
@@ -676,6 +687,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_72 := \
@@ -738,6 +750,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_73 := \
@@ -802,6 +815,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_ratchet \
 	test_integrations_roadrunner \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_opentracing_10
 
 TEST_WEB_74 := \
@@ -869,6 +883,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_integrations_swoole_5 \
 	test_opentracing_10
 
@@ -925,6 +940,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_predis_latest \
 	test_integrations_ratchet \
 	test_integrations_sqlsrv \
+	test_integrations_stripe_latest \
 	test_integrations_swoole_5 \
 	test_opentracing_10
 
@@ -970,6 +986,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
@@ -1015,7 +1032,7 @@ TEST_WEB_82 := \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_62 \
-	test_web_symfony_latest \
+	test_web_symfony_73 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1037,6 +1054,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_opentelemetry_beta \
 	test_integrations_googlespanner_latest \
@@ -1078,7 +1096,7 @@ TEST_WEB_83 := \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_62 \
-	test_web_symfony_latest \
+	test_web_symfony_73 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1099,6 +1117,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
@@ -1125,6 +1144,7 @@ TEST_WEB_84 := \
 	test_web_lumen_100 \
 	test_web_nette_latest \
 	test_web_slim_312 \
+	test_web_symfony_73 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -1146,6 +1166,7 @@ TEST_INTEGRATIONS_85 := \
 	test_integrations_monolog_latest \
 	test_integrations_mysqli \
 	test_integrations_openai_latest \
+	test_integrations_stripe_latest \
 	test_opentelemetry_1 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
@@ -1167,6 +1188,7 @@ TEST_WEB_85 := \
 	test_web_codeigniter_31 \
 	test_web_lumen_100 \
 	test_web_slim_312 \
+	test_web_symfony_73 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -1393,6 +1415,8 @@ test_integrations_openai_latest: global_test_run_dependencies tests/Integrations
 	$(eval TELEMETRY_ENABLED=1)
 	$(call run_tests_debug,tests/Integrations/OpenAI/Latest)
  	$(eval TELEMETRY_ENABLED=0)
+test_integrations_stripe_latest: global_test_run_dependencies tests/Integrations/Stripe/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(call run_tests_debug,tests/Integrations/Stripe/Latest)
 test_integrations_pcntl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/PCNTL)
 test_integrations_pdo: global_test_run_dependencies
@@ -1521,7 +1545,7 @@ test_web_symfony_42: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 	php tests/Frameworks/Symfony/Version_4_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,tests/Integrations/Symfony/V4_2)
 test_web_symfony_44: global_test_run_dependencies tests/Frameworks/Symfony/Version_4_4/composer.lock-php$(PHP_MAJOR_MINOR)
-	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --no-warmup --env=prod
+	php tests/Frameworks/Symfony/Version_4_4/bin/console cache:clear --env=prod
 	$(call run_tests_debug,--testsuite=symfony-44-test)
 test_web_symfony_50: global_test_run_dependencies
 	$(COMPOSER) --working-dir=tests/Frameworks/Symfony/Version_5_0 install # EOL; install from lock
@@ -1536,6 +1560,9 @@ test_web_symfony_52: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Version_6_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
+test_web_symfony_73: global_test_run_dependencies tests/Frameworks/Symfony/Version_7_3/composer.lock-php$(PHP_MAJOR_MINOR)
+	php tests/Frameworks/Symfony/Version_7_3/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests_debug,--testsuite=symfony-73-test)
 test_web_symfony_latest: global_test_run_dependencies tests/Frameworks/Symfony/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Latest/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-latest-test)
@@ -1569,7 +1596,7 @@ test_web_custom: global_test_run_dependencies tests/Frameworks/Custom/Version_Au
 	$(call run_tests_debug,--testsuite=custom-framework-autoloading-test)
 
 tests/Frameworks/Drupal/%/composer.lock-php: tests/Frameworks/Drupal/%/composer.json
-	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs)
+	$(call run_composer_with_retry,tests/Frameworks/Drupal/$*,--ignore-platform-reqs --no-dev)
 	touch tests/Frameworks/Drupal/$(*)/composer.lock-php
 
 tests/%/composer.lock-php$(PHP_MAJOR_MINOR): tests/%/composer.json

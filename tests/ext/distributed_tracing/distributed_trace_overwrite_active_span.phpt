@@ -41,7 +41,7 @@ function largeBaseConvert($numString, $fromBase, $toBase)
 
 function dump_spans() {
     foreach (dd_trace_serialize_closed_spans() as $span) {
-        unset($span["meta"]["process_id"], $span["meta"]["runtime-id"], $span["meta"]["_dd.p.dm"]);
+        unset($span["meta"]["process_id"], $span["meta"]["runtime-id"], $span["meta"]["_dd.p.dm"], $span["meta"]["_dd.tags.process"]);
         echo "parent: ", $span["parent_id"] ?? 0, ", trace: {$span["trace_id"]}, meta: " . json_encode($span["meta"] ?? []) . "\n";
     }
     return $span;

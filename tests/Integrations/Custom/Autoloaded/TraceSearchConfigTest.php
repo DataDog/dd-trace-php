@@ -42,6 +42,7 @@ final class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.method' => 'GET',
                     'http.url' => 'http://localhost/simple',
                     'http.status_code' => '200',
+                    'span.kind' => 'server',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,

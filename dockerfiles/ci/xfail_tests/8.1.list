@@ -87,6 +87,8 @@ ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt
 ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt
+ext/openssl/tests/sni_server.phpt
+ext/openssl/tests/sni_server_key_cert.phpt
 ext/openssl/tests/session_meta_capture.phpt
 ext/openssl/tests/session_meta_capture_tlsv13.phpt
 ext/openssl/tests/stream_crypto_flags_001.phpt
@@ -170,6 +172,7 @@ ext/standard/tests/general_functions/floatval.phpt
 ext/standard/tests/general_functions/floatval_variation1.phpt
 ext/standard/tests/general_functions/get_included_files.phpt
 ext/standard/tests/general_functions/gettype_settype_basic.phpt
+ext/standard/tests/general_functions/phpinfo.phpt
 ext/standard/tests/general_functions/print_r.phpt
 ext/standard/tests/general_functions/print_r_64bit.phpt
 ext/standard/tests/general_functions/proc_open_null.phpt

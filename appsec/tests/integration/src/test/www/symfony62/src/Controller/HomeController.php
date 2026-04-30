@@ -29,4 +29,12 @@ class HomeController extends AbstractController
             "Hi $param01!"
         );
     }
+
+    #[Route("/café/{item}", name: "utf8_route")]
+    public function utf8Action(Request $request, string $item)
+    {
+        return new Response(
+            "Café: $item"
+        );
+    }
 }

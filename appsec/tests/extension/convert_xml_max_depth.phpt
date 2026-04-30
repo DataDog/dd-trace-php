@@ -15,7 +15,7 @@ for ($i = $depth; $i >= 1; $i--) {
 
 $content_type = "application/xml";
 
-$result = datadog\appsec\testing\convert_xml($xml, $content_type);
+$result = datadog\appsec\convert_xml($xml, $content_type);
 
 echo(json_encode($result, JSON_PRETTY_PRINT));
 --EXPECTF--

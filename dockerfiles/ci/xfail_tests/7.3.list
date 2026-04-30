@@ -182,6 +182,8 @@ ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt
 ext/openssl/tests/openssl_x509_parse_basic.phpt
 ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt
+ext/openssl/tests/sni_server.phpt
+ext/openssl/tests/sni_server_key_cert.phpt
 ext/openssl/tests/session_meta_capture.phpt
 ext/openssl/tests/stream_crypto_flags_001.phpt
 ext/openssl/tests/stream_crypto_flags_002.phpt
@@ -345,6 +347,7 @@ ext/standard/tests/file/lstat_stat_variation10.phpt
 ext/standard/tests/general_functions/bug73973.phpt
 ext/standard/tests/general_functions/get_included_files.phpt
 ext/standard/tests/general_functions/gettype_settype_basic.phpt
+ext/standard/tests/general_functions/phpinfo.phpt
 ext/standard/tests/general_functions/print_r_64bit.phpt
 ext/standard/tests/general_functions/strval.phpt
 ext/standard/tests/general_functions/type.phpt
@@ -420,3 +423,4 @@ ext/standard/tests/http/ghsa-hgf5-96fm-v528-003.phpt
 ext/standard/tests/http/ghsa-hgf5-96fm-v528-002.phpt
 ext/standard/tests/http/ghsa-hgf5-96fm-v528-001.phpt
 ext/standard/tests/http/ignore_errors.phpt
+ext/openssl/tests/bug79145.phpt

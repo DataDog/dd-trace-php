@@ -95,4 +95,4 @@ x-datadog-trace-id: %d
 x-foo: after-the-copy
 
 Done.
-[ddtrace] [info] Flushing trace of size 5 to send-queue for %s
+[ddtrace] [info] [%d] Flushing trace of size 5 to send-queue for %s

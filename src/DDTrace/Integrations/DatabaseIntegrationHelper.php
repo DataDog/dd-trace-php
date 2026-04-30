@@ -48,6 +48,14 @@ class DatabaseIntegrationHelper
             $dbName = $span->meta[Tag::DB_NAME] ?? $span->meta[Tag::DB_INSTANCE] ?? '';
             $peerService = $span->meta['peer.service'] ?? '';
 
+            // Inject base hash into span tags if enabled
+            if (dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")) {
+                $baseHash = \DDTrace\System\process_tags_base_hash();
+                if ($baseHash !== null) {
+                    $span->meta[Tag::PROPAGATED_HASH] = $baseHash;
+                }
+            }
+
             $query = self::propagateViaSqlComments(
                 $hook->args[$argNum],
                 $span->service,
@@ -124,6 +132,14 @@ class DatabaseIntegrationHelper
         if ($mode == \DDTrace\DBM_PROPAGATION_FULL) {
             if ($headers = \DDTrace\generate_distributed_tracing_headers(["tracecontext"])) {
                 $tags["traceparent"] = $headers["traceparent"];
+            }
+        }
+
+        // Inject base hash into SQL comment if enabled
+        if (dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")) {
+            $baseHash = \DDTrace\System\process_tags_base_hash();
+            if ($baseHash !== null) {
+                $tags["ddsh"] = $baseHash;
             }
         }
 

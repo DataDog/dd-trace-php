@@ -72,6 +72,26 @@ class RequestReplayer
         } while (true);
     }
 
+    public function waitForRcRequest($matcher)
+    {
+        $i = 0;
+        do {
+            if ($i++ == $this->maxIteration) {
+                throw new Exception("wait for replay timeout");
+            }
+            usleep($this->flushInterval);
+
+            $requests = $this->replayAllRcRequests();
+            if (is_array($requests)) {
+                foreach ($requests as $request) {
+                    if ($matcher($request)) {
+                        return $request;
+                    }
+                }
+            }
+        } while (true);
+    }
+
     public function waitForDataAndReplay($ignoreTelemetry = true)
     {
         $i = 0;
@@ -102,6 +122,52 @@ class RequestReplayer
                 "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
             ],
         ])), true);
+    }
+
+    public function replayAllStats()
+    {
+        return json_decode(file_get_contents($this->endpoint . '/replay-stats', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ])), true);
+    }
+
+    public function waitForStats($matcher = null)
+    {
+        $i = 0;
+        do {
+            if ($i++ == $this->maxIteration) {
+                throw new Exception("wait for stats timeout");
+            }
+            usleep($this->flushInterval);
+            $requests = $this->replayAllStats();
+            if (is_array($requests)) {
+                foreach ($requests as $request) {
+                    if ($matcher === null || $matcher($request)) {
+                        return $request;
+                    }
+                }
+            }
+        } while (true);
+    }
+
+    public function replayAllRcRequests()
+    {
+        return json_decode(file_get_contents($this->endpoint . '/replay-rc-requests', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ])), true);
+    }
+
+    public function clearDumpedData()
+    {
+        file_get_contents($this->endpoint . '/clear-dumped-data', false, stream_context_create([
+            "http" => [
+                "header" => "X-Datadog-Test-Session-Token: " . ini_get("datadog.trace.agent_test_session_token"),
+            ],
+        ]));
     }
 
     public function replayHeaders($showOnly = [])

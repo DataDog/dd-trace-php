@@ -4,8 +4,6 @@ use std::ops::DerefMut;
 use std::os::unix::ffi::OsStrExt;
 use lazy_static::{lazy_static, LazyStatic};
 use tracing::warn;
-#[cfg(windows)]
-use std::os::windows::ffi::OsStrExt;
 use std::sync::Mutex;
 use std::time::Duration;
 use datadog_sidecar::config::{self, AppSecConfig, LogMethod};
@@ -119,6 +117,8 @@ pub extern "C" fn ddog_sidecar_connect_php(
     enable_telemetry: bool,
     on_reconnect: Option<extern "C" fn(*mut SidecarTransport)>,
     crashtracker_endpoint: Option<&Endpoint>,
+    backpressure_bytes: u64,
+    backpressure_queue: u64,
 ) -> MaybeError {
     let mut cfg = config::FromEnv::config();
     cfg.self_telemetry = enable_telemetry;
@@ -151,6 +151,8 @@ pub extern "C" fn ddog_sidecar_connect_php(
         cfg.child_env.insert(OsStr::new("DD_TRACE_LOG_LEVEL").into(), log_level);
     }
     
+    cfg.pipe_buffer_size = backpressure_bytes as usize;
+
     let reconnect_fn = on_reconnect.map(|on_reconnect| {
         let cfg = cfg.clone();
         Box::new(move || {
@@ -162,14 +164,11 @@ pub extern "C" fn ddog_sidecar_connect_php(
     
     let mut stream = try_c!(sidecar_connect(cfg));
     stream.reconnect_fn = reconnect_fn;
+    let _ = stream.set_backpressure(backpressure_bytes as usize, backpressure_queue);
     *connection = Box::into_raw(stream);
 
     MaybeError::None
 }
-
-#[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static mut ddtrace_sidecar: *mut SidecarTransport = std::ptr::null_mut();
 
 #[no_mangle]
 pub extern "C" fn ddtrace_sidecar_reconnect(

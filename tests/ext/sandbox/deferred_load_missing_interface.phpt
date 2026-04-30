@@ -28,7 +28,7 @@ namespace
     Test::public_static_method();
 }
 ?>
---EXPECT--
-[ddtrace] [warning] Error loading deferred integration ddtrace\test\testsandboxedintegration: Class is not an instance of DDTrace\Integration
+--EXPECTF--
+[ddtrace] [warning] [%d] Error loading deferred integration ddtrace\test\testsandboxedintegration: Class is not an instance of DDTrace\Integration
 PUBLIC STATIC METHOD
 PUBLIC STATIC METHOD

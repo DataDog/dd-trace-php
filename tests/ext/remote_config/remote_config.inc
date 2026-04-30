@@ -56,3 +56,18 @@ function put_dynamic_config_file($configs, $service = null, $env = null) {
     put_rc_file($path, $data, $service);
     return $path;
 }
+
+function put_wildcard_dynamic_config_file($configs, $service = "*", $env = "*") {
+    $json = [
+        "action" => "enable",
+        "service_target" => [
+            "service" => $service,
+            "env" => $env,
+        ],
+        "lib_config" => $configs,
+    ];
+    $data = json_encode($json);
+    $path = "datadog/2/APM_TRACING/" . sha1($data) . "/config";
+    put_rc_file($path, $data);
+    return $path;
+}

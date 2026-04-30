@@ -11,5 +11,12 @@
 #include "../network.h"
 #include "../request_abort.h"
 
-dd_result dd_request_exec(dd_conn *nonnull conn, zval *nonnull data,
-    zend_string *nullable rasp_rule, struct block_params *nonnull block_params);
+struct req_exec_opts {
+    zend_string *nullable rasp_rule;
+    zend_string *nullable subctx_id;
+    bool subctx_last_call;
+};
+
+dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,
+    const struct req_exec_opts *nonnull opts,
+    struct block_params *nonnull block_params);

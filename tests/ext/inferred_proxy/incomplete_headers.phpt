@@ -22,6 +22,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foo=bar
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 $parent = \DDTrace\start_span(0.120);
 $span = \DDTrace\start_span(0.130);
@@ -30,7 +31,7 @@ $span->name = "child";
 \DDTrace\close_span();
 \DDTrace\close_span();
 
-echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
+echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [
@@ -44,7 +45,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "service": "aws-server",
         "type": "web",
         "meta": {
-            "_dd.code_origin.frames.0.file": "%s\/incomplete_headers.php",
+            "_dd.code_origin.frames.0.file": "%sincomplete_headers.php",
             "_dd.code_origin.frames.0.line": "1",
             "_dd.code_origin.type": "entry",
             "_dd.p.dm": "-0",
@@ -54,6 +55,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "http.status_code": "200",
             "http.url": "http:\/\/localhost:8888\/foo",
             "runtime-id": "%s",
+            "span.kind": "server",
             "version": "1.0"
         },
         "metrics": {

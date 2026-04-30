@@ -12,10 +12,11 @@ CentOS:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:
@@ -33,17 +34,18 @@ CentOS:
         - php-7.0
   script:
     - cd dockerfiles/ci/centos/7
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Alpine:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:
@@ -61,17 +63,18 @@ Alpine:
         - 7.0-alpine
   script:
     - cd dockerfiles/ci/alpine_compile_extension
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Bookworm:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:
@@ -91,17 +94,18 @@ Bookworm:
         - php-7.0
   script:
     - cd dockerfiles/ci/bookworm
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Buster:
   stage: ci-build
   rules:
     - when: manual
+      allow_failure: true
   needs: []
   tags: ["arch:amd64"]
   timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   parallel:
     matrix:
       - PHP_VERSION:
@@ -121,5 +125,5 @@ Buster:
         - php-7.0
   script:
     - cd dockerfiles/ci/buster
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_TOKEN" $CI_REGISTRY
+    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION

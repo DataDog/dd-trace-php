@@ -28,6 +28,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foo=bar
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 function oops()
 {
@@ -45,7 +46,7 @@ try {
     //
 }
 
-echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
+echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [
@@ -62,13 +63,14 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
         "error": 1,
         "meta": {
             "env": "local-prod",
-            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:6",
-            "error.stack": "#0 %serror_propagated.php(14): oops()\n#1 {main}",
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
+            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
             "error.type": "Exception",
             "http.method": "GET",
             "http.status_code": "500",
             "http.url": "http:\/\/localhost:8888\/foo",
             "runtime-id": "%s",
+            "span.kind": "server",
             "version": "1.0"
         },
         "metrics": {
@@ -93,8 +95,8 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "_dd.p.tid": "%s",
             "component": "aws-apigateway",
             "env": "local-prod",
-            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:6",
-            "error.stack": "#0 %serror_propagated.php(14): oops()\n#1 {main}",
+            "error.message": "Uncaught Exception (500): An exception occurred in %serror_propagated.php:%d",
+            "error.stack": "#0 %serror_propagated.php(%d): oops()\n#1 {main}",
             "error.type": "Exception",
             "http.method": "GET",
             "http.status_code": "500",

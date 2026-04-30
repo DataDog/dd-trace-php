@@ -4,6 +4,7 @@ Assesses the opt-in behavior of peer service
 DD_TRACE_PEER_SERVICE_MAPPING=foo:bar
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function foo() { }
 
@@ -16,7 +17,7 @@ DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
 
 foo();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

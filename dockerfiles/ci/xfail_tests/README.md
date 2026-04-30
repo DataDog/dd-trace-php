@@ -120,6 +120,12 @@ Disabling the creation of the background sender thread the test passes (with a d
 
 See `ext/pcntl/tests/pcntl_unshare_01.phpt`.
 
+## `ext/openssl/tests/bug79145.phpt`
+
+Disabled on versions: `7.3`, `7.4`, `8.0`.
+
+This test verifies there is no memory leak in `openssl_get_publickey()` by looping 100,000 times. This is too slow sometimes, especially debug PHP build. The test was [rewritten in PHP 8.1](https://github.com/php/php-src/commit/6249172ae37f958f0a3ef92cb55d5bf7affa8214) to do a single warm-up call followed by one measured call, making it fast enough to run without a timeout. The test does not exist in PHP 7.2 and earlier.
+
 ## `ext/openssl/tests/bug74159.phpt`
 
 Disabled on versions: `7.2`.
@@ -149,6 +155,13 @@ Such tests were skipped before and are incredibly unstable on 5. It might be a C
 ## `ext/posix/tests/posix_errno_variation2.phpt`
 
 This test was flaky until it was [fixed in PHP 7.2](https://github.com/php/php-src/commit/f4474e5).
+
+## `ext/standard/tests/general_functions/phpinfo.phpt`
+
+* Disabled on versions: `7.0 --> 8.1`.
+* Upstream fix: [Reduce regex backtracking in phpinfo.phpt](https://github.com/php/php-src/commit/c4c45da4b96889348d86828c26225d113af14d21), which is present in PHP 8.2+.
+
+This test compares very large `phpinfo()` output. With tracer-specific modules and CI environment variables enabled, the output grows and older `%A`/`%a` patterns in this test can hit pathological backtracking and fail nondeterministically.
 
 ## `ext/standard/tests/streams/proc_open_bug69900.phpt`
 
@@ -228,4 +241,16 @@ These tests use object ids, and %00; changing the EXPECT to EXPECTF will cause t
 Disabled on versions: `8.1+`.
 
 This test checks PHP's handling of excessively large QName prefix in SoapVar (a stress test for edge cases). With ddtrace loaded, the additional memory overhead causes the test to be killed before it can complete, due to hitting memory limits during the stress test.
+
+## `ext/openssl/tests/sni_server.phpt`, `ext/openssl/tests/sni_server_key_cert.phpt`, `ext/openssl/tests/bug74796.phpt`
+
+Disabled on all versions (where present).
+
+The bundled test certificates expired on 2026-04-02. The TLS handshake fails because the client rejects the expired server certificates, causing `stream_socket_client` to return `false`.
+
+## `ext/sockets/tests/gh21161.phpt`
+
+Disabled on versions: `8.4`, `8.5`.
+
+The test calls `socket_create(AF_INET6, ...)` without a SKIPIF guard for IPv6 availability (only skips on Windows). In CI (Kubernetes pods), IPv6 is not available, so `socket_create` returns `false`. The subsequent `socket_set_option(false, ...)` call throws a `TypeError` instead of producing the expected warnings. This is an upstream bug in the test's SKIPIF section.
 

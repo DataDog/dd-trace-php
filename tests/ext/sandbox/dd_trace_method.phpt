@@ -7,6 +7,7 @@ DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 DD_TRACE_TRACED_INTERNAL_FUNCTIONS=mt_rand
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 class Test
@@ -81,8 +82,8 @@ var_dump($ret);
 
 echo "---\n";
 
-var_dump(dd_trace_serialize_closed_spans());
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 bool(true)
