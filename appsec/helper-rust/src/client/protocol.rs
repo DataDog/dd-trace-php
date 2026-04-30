@@ -167,12 +167,10 @@ pub struct RequestExecArgs {
     pub data: libddwaf::object::WafMap,
     pub options: RequestExecOptions,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Debug)]
 pub struct RequestExecOptions {
-    #[serde(rename = "rasp_rule")]
     pub run_type: WafRunType,
     pub subctx_id: Option<String>,
-    #[serde(default)]
     pub subctx_last_call: bool,
 }
 impl RequestExecOptions {
@@ -184,23 +182,42 @@ impl RequestExecOptions {
         }
     }
 }
-#[derive(Debug, PartialEq)]
-pub enum WafRunType {
-    NonRasp,
-    RaspRule(String),
-}
-impl<'de> Deserialize<'de> for WafRunType {
+impl<'de> Deserialize<'de> for RequestExecOptions {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let opt = Option::<String>::deserialize(deserializer)?;
-
-        match opt.as_deref() {
-            None | Some("") => Ok(WafRunType::NonRasp),
-            Some(s) => Ok(WafRunType::RaspRule(s.to_string())),
+        #[derive(Deserialize)]
+        struct Helper {
+            rasp_rule: Option<String>,
+            #[serde(default)]
+            rule_variant: Option<String>,
+            subctx_id: Option<String>,
+            #[serde(default)]
+            subctx_last_call: bool,
         }
+        let h = Helper::deserialize(deserializer)?;
+        Ok(RequestExecOptions {
+            run_type: match h.rasp_rule.as_deref() {
+                None | Some("") => WafRunType::NonRasp,
+                Some(rule_type) => WafRunType::RaspRule {
+                    rule_type: rule_type.to_string(),
+                    rule_variant: h.rule_variant,
+                },
+            },
+            subctx_id: h.subctx_id,
+            subctx_last_call: h.subctx_last_call,
+        })
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum WafRunType {
+    NonRasp,
+    RaspRule {
+        rule_type: String,
+        rule_variant: Option<String>,
+    },
 }
 
 #[derive(Debug, Serialize_tuple)]

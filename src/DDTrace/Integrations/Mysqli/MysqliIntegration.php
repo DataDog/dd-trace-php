@@ -468,6 +468,6 @@ class MysqliIntegration extends Integration
             'server.db.statement' => \is_string($span) ? $span : $span->resource,
             'server.db.system' => 'mysql',
         );
-        \datadog\appsec\push_addresses($addresses, "sqli");
+        \datadog\appsec\push_addresses($addresses, "sql_injection");
     }
 }

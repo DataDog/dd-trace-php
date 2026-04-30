@@ -546,6 +546,16 @@ class TelemetryTests {
                 assert metric.tags.find { it.startsWith('event_rules_version:') } != null :
                     "event_rules_version tag missing on ${metric.name} (tags: ${metric.tags})"
             }
+            // SSRF is triggered from a pre-hook (before the network call), so variant is "request"
+            [ssrfEval, ssrfMatch, ssrfTimeout].each { metric ->
+                assert 'rule_variant:request' in metric.tags :
+                    "rule_variant:request missing on ${metric.name} (tags: ${metric.tags})"
+            }
+            // LFI has no variant — tag must be absent (sidecar rejects empty tag values)
+            [lfiEval, lfiMatch, lfiTimeout].each { metric ->
+                assert !metric.tags.any { it.startsWith('rule_variant:') } :
+                    "unexpected rule_variant tag on ${metric.name} (tags: ${metric.tags})"
+            }
         } else {
             // C++ helper should NOT have the helper_runtime tag in telemetry
             raspMetrics.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }

@@ -53,8 +53,8 @@ pub struct WafMetrics {
     /// Count of RASP timeouts
     rasp_timeouts: u32,
 
-    /// Per-rule-type RASP metrics for telemetry
-    rasp_per_rule: HashMap<String, RaspRuleMetrics>,
+    /// Per-(rule_type, rule_variant) RASP metrics for telemetry
+    rasp_per_rule: HashMap<(String, String), RaspRuleMetrics>,
 
     /// Full round-trip time for non-RASP WAF calls, as measured by the extension
     /// (from before serialization to after receiving the response), in microseconds.
@@ -142,7 +142,12 @@ impl WafMetrics {
         }
     }
 
-    pub fn record_rasp_eval(&mut self, rule_type: &str, run_output: &libddwaf::RunOutput) {
+    pub fn record_rasp_eval(
+        &mut self,
+        rule_type: &str,
+        rule_variant: &str,
+        run_output: &libddwaf::RunOutput,
+    ) {
         self.rasp_duration += run_output.duration();
         self.rasp_rule_evals += 1;
 
@@ -150,7 +155,10 @@ impl WafMetrics {
             self.rasp_timeouts += 1;
         }
 
-        let entry = self.rasp_per_rule.entry(rule_type.to_string()).or_default();
+        let entry = self
+            .rasp_per_rule
+            .entry((rule_type.to_string(), rule_variant.to_string()))
+            .or_default();
         entry.evals += 1;
         if run_output.has_events() {
             entry.matches += 1;
@@ -267,9 +275,12 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
         }
 
         // Rasp rule metrics
-        for (rule_type, metrics) in &self.rasp_per_rule {
+        for ((rule_type, rule_variant), metrics) in &self.rasp_per_rule {
             let mut tags = telemetry::TelemetryTags::new();
             tags.add("rule_type", rule_type);
+            if !rule_variant.is_empty() {
+                tags.add("rule_variant", rule_variant);
+            }
             tags.add("waf_version", crate::service::Service::waf_version());
             tags.add(
                 "event_rules_version",

@@ -572,8 +572,9 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
 
     zval *addresses = NULL;
     zend_string *rasp_rule = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|S", &addresses, &rasp_rule) ==
-        FAILURE) {
+    zend_string *rule_variant = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|SS", &addresses, &rasp_rule,
+            &rule_variant) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -592,7 +593,7 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    struct req_exec_opts opts = {.rasp_rule = rasp_rule};
+    struct req_exec_opts opts = {.rasp_rule = rasp_rule, .rule_variant = rule_variant};
     struct block_params block_params = {0};
     struct timespec start = dd_monotime_start();
     dd_result res =

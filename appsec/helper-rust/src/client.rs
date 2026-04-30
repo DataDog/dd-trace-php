@@ -629,8 +629,15 @@ impl ReqContext {
             WafRunType::NonRasp => {
                 self.waf_metrics.record_non_rasp_eval(&run_output);
             }
-            WafRunType::RaspRule(rule_type) => {
-                self.waf_metrics.record_rasp_eval(rule_type, &run_output);
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => {
+                self.waf_metrics.record_rasp_eval(
+                    rule_type,
+                    rule_variant.as_deref().unwrap_or(""),
+                    &run_output,
+                );
             }
         }
 
