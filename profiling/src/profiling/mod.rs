@@ -248,8 +248,12 @@ pub struct ProfileIndex {
 
 #[derive(Debug)]
 pub struct SampleData {
-    pub frames: Backtrace,
-    pub labels: Vec<Label>,
+    /// Wrapped in Arc so a single allocation can be shared between the
+    /// in-flight sample message and the heap-live tracker (and re-shared
+    /// across batched heap-live emissions on each export).
+    pub frames: Arc<Backtrace>,
+    /// See `frames`.
+    pub labels: Arc<Vec<Label>>,
     pub sample_values: Vec<i64>,
     pub timestamp: i64,
 }
@@ -285,20 +289,22 @@ pub enum ProfilerMessage {
 /// we track raw allocation pointers. Samples are emitted in batches
 /// at profile export time, not on each allocation/free.
 #[derive(Clone, Debug)]
-pub struct LiveHeapSample {
+pub(crate) struct LiveHeapSample {
     /// The profile index (sample_types + tags) for adding to correct profile
     pub key: ProfileIndex,
-    /// The captured stack trace at allocation time
-    pub frames: Backtrace,
-    /// The labels at allocation time (thread id, span id, etc.)
-    pub labels: Vec<Label>,
+    /// The captured stack trace at allocation time. Arc so it can be
+    /// shared with the original `SampleMessage` and re-shared with the
+    /// synthetic heap-live `SampleMessage` emitted on each export.
+    pub frames: Arc<Backtrace>,
+    /// See `frames`.
+    pub labels: Arc<Vec<Label>>,
     /// The size of the allocation in bytes
     pub allocation_size: i64,
 }
 
 /// Maximum number of allocations to track for live heap profiling.
 /// This bounds memory usage. When full, new allocations are not tracked.
-pub const LIVE_HEAP_TRACKER_MAX_SIZE: usize = 4096;
+pub(crate) const LIVE_HEAP_TRACKER_MAX_SIZE: usize = 4096;
 
 pub struct Globals {
     pub interrupt_count: AtomicU32,
@@ -380,8 +386,8 @@ impl TimeCollector {
             let message = SampleMessage {
                 key: tracked.key.clone(),
                 value: SampleData {
-                    frames: tracked.frames.clone(),
-                    labels: tracked.labels.clone(),
+                    frames: Arc::clone(&tracked.frames),
+                    labels: Arc::clone(&tracked.labels),
                     sample_values,
                     timestamp: NO_TIMESTAMP,
                 },
@@ -968,8 +974,9 @@ impl Profiler {
 
     /// Track an allocation for live heap profiling.
     /// Returns true if tracked, false if tracking is disabled or limit reached.
-    pub fn track_allocation(&self, ptr: usize, sample: LiveHeapSample) -> bool {
-        // Check if we're under the tracking limit
+    pub(crate) fn track_allocation(&self, ptr: usize, sample: LiveHeapSample) -> bool {
+        // Best-effort cap: in ZTS the len() check and insert race, so the map
+        // can briefly exceed LIVE_HEAP_TRACKER_MAX_SIZE.
         if self.live_heap_tracker.len() >= LIVE_HEAP_TRACKER_MAX_SIZE {
             return false;
         }
@@ -979,20 +986,10 @@ impl Profiler {
     }
 
     /// Untrack an allocation. Returns the sample if it was tracked.
-    pub fn untrack_allocation(&self, ptr: usize) -> Option<LiveHeapSample> {
+    pub(crate) fn untrack_allocation(&self, ptr: usize) -> Option<LiveHeapSample> {
         self.live_heap_tracker
             .remove(&ptr)
             .map(|(_, sample)| sample)
-    }
-
-    /// Clear all tracked allocations (used after fork in child process)
-    pub fn clear_live_heap_tracker(&self) {
-        self.live_heap_tracker.clear();
-    }
-
-    /// Get the number of currently tracked allocations
-    pub fn live_heap_tracker_len(&self) -> usize {
-        self.live_heap_tracker.len()
     }
 
     pub fn send_sample(
@@ -1248,16 +1245,17 @@ impl Profiler {
                     ..Default::default()
                 };
 
+                let message = self.prepare_sample_message(frames, sample_values, labels, timestamp);
+
                 // Track allocation for heap live profiling if enabled.
                 // Samples will be emitted in batch at profile export time.
+                // Arc::clone the frames/labels out of the message so the tracker
+                // and the in-flight sample share one allocation each.
                 if self.is_heap_live_enabled() {
                     let tracked = LiveHeapSample {
-                        key: ProfileIndex {
-                            sample_types: self.sample_types_filter.sample_types(),
-                            tags: TAGS.with_borrow(Arc::clone),
-                        },
-                        frames: frames.clone(),
-                        labels: labels.clone(),
+                        key: message.key.clone(),
+                        frames: Arc::clone(&message.value.frames),
+                        labels: Arc::clone(&message.value.labels),
                         allocation_size: alloc_size,
                     };
                     if self.track_allocation(ptr as usize, tracked) {
@@ -1268,8 +1266,6 @@ impl Profiler {
                         );
                     }
                 }
-
-                let message = self.prepare_sample_message(frames, sample_values, labels, timestamp);
 
                 match self.message_sender.try_send(ProfilerMessage::Sample(message)) {
                     Ok(_) => trace!(
@@ -1288,7 +1284,7 @@ impl Profiler {
 
     /// Called when memory is freed. Removes the allocation from tracking. The next profile export
     /// will not include this allocation in the heap-live samples.
-    pub fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
+    pub(crate) fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
         // Bail out early if heap-live tracking is disabled to avoid DashMap lookup overhead
         if !self.is_heap_live_enabled() {
             return;
@@ -1306,7 +1302,7 @@ impl Profiler {
 
     /// Called when a tracked allocation is reallocated in place. Keeps heap-live samples current
     /// without changing the original allocation stack attached to the tracked pointer.
-    pub fn update_allocation_size(&self, ptr: *mut std::ffi::c_void, len: i64) {
+    pub(crate) fn update_allocation_size(&self, ptr: *mut std::ffi::c_void, len: i64) {
         if !self.is_heap_live_enabled() {
             return;
         }
@@ -1886,8 +1882,8 @@ impl Profiler {
         SampleMessage {
             key: ProfileIndex { sample_types, tags },
             value: SampleData {
-                frames,
-                labels,
+                frames: Arc::new(frames),
+                labels: Arc::new(labels),
                 sample_values,
                 timestamp,
             },

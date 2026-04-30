@@ -360,18 +360,22 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
+    // realloc returned NULL: the original prev_ptr is still live by C
+    // semantics, so we must not free-track it. zend_mm typically aborts
+    // on OOM, but be defensive in case of custom allocators.
+    if ptr.is_null() {
+        return ptr;
+    }
+
     if ptr::eq(ptr, prev_ptr) {
-        if !ptr.is_null() {
-            update_allocation_size(ptr, len);
-        }
+        update_allocation_size(ptr, len);
     } else {
-        // If pointer changed, treat as free(old) + alloc(new)
-        // Untrack the old allocation if it was tracked
+        // Pointer moved: treat as free(old) + alloc(new). prev_ptr can be
+        // null when realloc is called as a malloc replacement.
         if !prev_ptr.is_null() {
             free_allocation(prev_ptr);
         }
 
-        // Sample the new allocation
         if allocation_profiling_stats_should_collect(len) {
             collect_allocation(ptr, len);
         }
