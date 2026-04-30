@@ -540,6 +540,12 @@ class TelemetryTests {
         def raspMetrics = [wafReq1, lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
         if (System.getProperty('USE_HELPER_RUST') != null) {
             raspMetrics.each { assert 'helper_runtime:rust' in it.tags }
+            // RFC-1012: event_rules_version must be present on all RASP per-rule metrics
+            def raspRuleMetrics = [lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
+            raspRuleMetrics.each { metric ->
+                assert metric.tags.find { it.startsWith('event_rules_version:') } != null :
+                    "event_rules_version tag missing on ${metric.name} (tags: ${metric.tags})"
+            }
         } else {
             // C++ helper should NOT have the helper_runtime tag in telemetry
             raspMetrics.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }

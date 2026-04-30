@@ -271,6 +271,10 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
             let mut tags = telemetry::TelemetryTags::new();
             tags.add("rule_type", rule_type);
             tags.add("waf_version", crate::service::Service::waf_version());
+            tags.add(
+                "event_rules_version",
+                self.rules_version.as_deref().unwrap_or("unknown"),
+            );
 
             if metrics.evals > 0 {
                 submitter.submit_metric(
