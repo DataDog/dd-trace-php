@@ -359,7 +359,13 @@ REGEX;
 
     public static function useQuestionMarkPlaceholders($query)
     {
+        // Avoid 
+        if (\strlen($query) > 10000) {
+            return $query;
+        }
+
         // Regex according to rules from pdo_sql_parser.re
-        return \preg_replace('((?:/\*([^*]++|\*++[^/])*\*/(*COMMIT)|--.*(*SKIP)(*F)|"(?:""|[^"]++)*"(*COMMIT)|\'(?:\'\'|[^\']++)*\'(*COMMIT)|[^/:\'"-]++|.)*?\K:[a-zA-Z0-9_]+)s', "?", $query);
+        // This \Z(*COMMIT) prevents catastrophic backtracking after the last match
+        return \preg_replace('((?:[^/:\'"-]++|/\*(*COMMIT)([^*]++|\*++[^/])*+\*/|--.*+(*SKIP)(*F)|"(*COMMIT)(?:""|[^"]++)*+"|\'(*COMMIT)(?:\'\'|[^\']++)*+\'|.|\Z(*COMMIT))+?\K:[a-zA-Z0-9_]+)s', "?", $query);
     }
 }
