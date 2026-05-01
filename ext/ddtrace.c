@@ -1175,7 +1175,6 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         } else {
             span->parent_id = ddtrace_parse_userland_span_id(value);
             if (!span->parent_id) {
-                zval_ptr_dtor(value);
                 ZVAL_EMPTY_STRING(&zv);
                 Z_TRY_DELREF(zv);
                 value = &zv;
@@ -4052,4 +4051,3 @@ void dd_prepare_for_new_trace(void) {
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 #endif
 }
-
