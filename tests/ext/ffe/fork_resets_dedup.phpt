@@ -4,6 +4,7 @@ FFE: ddtrace_sidecar_handle_fork resets exposure dedup in child (T9)
 <?php
 if (!extension_loaded('pcntl')) die('skip: pcntl required');
 if (!function_exists('DDTrace\\ffe_send_exposure')) die('skip: DDTrace\\ffe_send_exposure not available');
+if (!function_exists('DDTrace\\Internal\\handle_fork')) die('skip: DDTrace\\Internal\\handle_fork not available');
 ?>
 --ENV--
 DD_TRACE_ENABLED=0
@@ -34,8 +35,9 @@ if ($pid === -1) {
 
 if ($pid === 0) {
     // Child: same (flag, targeting, allocation, variant) as the parent's prime.
-    // If the fork hook reset EXPOSURE_STATE, this is the child's first sighting
+    // If the fork handler reset EXPOSURE_STATE, this is the child's first sighting
     // -> returns true. Without T9 it would observe the parent's cache -> false.
+    DDTrace\Internal\handle_fork();
     $child = DDTrace\ffe_send_exposure($event, 'f', 'a', 'u', 'on');
     echo "child=" . ($child ? 'true' : 'false') . "\n";
     exit(0);
