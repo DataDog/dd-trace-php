@@ -240,6 +240,7 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
+    dd_telemetry_mshutdown();
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();

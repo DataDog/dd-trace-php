@@ -94,9 +94,7 @@ pub const WAF_UPDATES: MetricName = MetricName("waf.updates");
 pub const WAF_REQUESTS: MetricName = MetricName("waf.requests");
 pub const WAF_CONFIG_ERRORS: MetricName = MetricName("waf.config_errors");
 pub const WAF_DURATION_DIST: MetricName = MetricName("waf.duration");
-pub const WAF_DURATION_EXT_DIST: MetricName = MetricName("waf.duration_ext");
 pub const RASP_DURATION_DIST: MetricName = MetricName("rasp.duration");
-pub const RASP_DURATION_EXT_DIST: MetricName = MetricName("rasp.duration_ext");
 pub const RASP_RULE_EVAL: MetricName = MetricName("rasp.rule.eval");
 pub const RASP_RULE_MATCH: MetricName = MetricName("rasp.rule.match");
 pub const RASP_TIMEOUT: MetricName = MetricName("rasp.timeout");
@@ -129,15 +127,7 @@ pub const KNOWN_METRICS: &[KnownMetric] = &[
         metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
     },
     KnownMetric {
-        name: WAF_DURATION_EXT_DIST,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
-    },
-    KnownMetric {
         name: RASP_DURATION_DIST,
-        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
-    },
-    KnownMetric {
-        name: RASP_DURATION_EXT_DIST,
         metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
     },
     KnownMetric {
@@ -180,7 +170,6 @@ pub const EVENT_RULES_VERSION: SpanMetaName = SpanMetaName("_dd.appsec.event_rul
 
 pub const WAF_VERSION: SpanMetaName = SpanMetaName("_dd.appsec.waf.version");
 pub const WAF_DURATION: SpanMetricName = SpanMetricName("_dd.appsec.waf.duration");
-pub const WAF_DURATION_EXT: SpanMetricName = SpanMetricName("_dd.appsec.waf.duration_ext");
 pub const RAST_DURATION: SpanMetricName = SpanMetricName("_dd.appsec.rasp.duration");
 pub const RAST_RULE_EVALS: SpanMetricName = SpanMetricName("_dd.appsec.rasp.rule.eval");
 pub const RAST_TIMEOUTS: SpanMetricName = SpanMetricName("_dd.appsec.rasp.timeout");

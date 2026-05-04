@@ -235,8 +235,6 @@ pub struct RequestShutdownArgs {
     #[allow(dead_code)]
     pub queue_id: u64, // TODO: unused, update protocol
     pub input_truncated: bool,
-    pub waf_duration_ext_us: f64,
-    pub rasp_duration_ext_us: f64,
 }
 
 #[derive(Debug, Serialize_tuple)]
@@ -716,10 +714,7 @@ mod tests {
     #[tokio::test]
     async fn test_request_shutdown_command() {
         let waf_map = waf_map!(("foo", "bar"),);
-        let command = (
-            "request_shutdown",
-            (&waf_map, 12345u64, 67890u64, true, 1.5f64, 2.5f64),
-        );
+        let command = ("request_shutdown", (&waf_map, 12345u64, 67890u64, true));
         let data = serialize_message(&command);
 
         let mut decoder = CommandCodec;
@@ -733,8 +728,6 @@ mod tests {
             assert_eq!(args.api_sec_samp_key, 12345);
             assert_eq!(args.queue_id, 67890);
             assert!(args.input_truncated);
-            assert_eq!(args.waf_duration_ext_us, 1.5);
-            assert_eq!(args.rasp_duration_ext_us, 2.5);
         }
     }
 

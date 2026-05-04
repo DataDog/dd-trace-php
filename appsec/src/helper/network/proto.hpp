@@ -287,8 +287,6 @@ struct request_shutdown {
         std::uint64_t api_sec_samp_key{0};
         std::uint64_t queue_id{0};
         bool input_truncated{false};
-        double waf_duration_ext_us{0.0};
-        double rasp_duration_ext_us{0.0};
 
         request() = default;
         request(const request &) = delete;
@@ -297,8 +295,7 @@ struct request_shutdown {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(data, api_sec_samp_key, queue_id, input_truncated,
-            waf_duration_ext_us, rasp_duration_ext_us)
+        MSGPACK_DEFINE(data, api_sec_samp_key, queue_id, input_truncated)
     };
 
     struct response : base_response_generic<response> {

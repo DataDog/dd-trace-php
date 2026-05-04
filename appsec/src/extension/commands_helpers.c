@@ -701,14 +701,19 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
             has_schemas = true;
         }
 
+        const char *val_str = mpack_node_str(value);
+        size_t val_len = mpack_node_strlen(value);
+
         bool res = dd_trace_span_add_tag_str(span, key_str, key_len,
-            mpack_node_str(value), mpack_node_strlen(value));
+            val_str, val_len);
 
         if (!res) {
             mlog(dd_log_warning, "Failed to add tag %.*s", (int)key_len,
                 key_str);
             return;
         }
+
+        dd_telemetry_note_helper_string_meta(key_str, key_len, val_str, val_len);
     }
 
     if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
