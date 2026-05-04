@@ -735,14 +735,15 @@ impl ReqContext {
     ) {
         self.waf_metrics.set_input_truncated(input_truncated);
         self.waf_metrics
-            .set_rate_limited(matches!(self.limiter_result, Some(false)));
-        self.waf_metrics
             .set_waf_duration_ext_us(waf_duration_ext_us);
         self.waf_metrics
             .set_rasp_duration_ext_us(rasp_duration_ext_us);
     }
 
     pub fn take_waf_metrics(&mut self) -> metrics::WafMetrics {
+        self.waf_metrics
+            .set_rate_limited(matches!(self.limiter_result, Some(false)));
+
         std::mem::take(&mut self.waf_metrics)
     }
 }
