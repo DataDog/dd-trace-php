@@ -24,6 +24,7 @@ echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
 ?>
 --EXPECTF--
+%AWarning:%a[ddappsec] Unknown user collection mode: invalid%a
 root_span_get_meta():
 Array
 (

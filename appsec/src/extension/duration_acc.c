@@ -68,10 +68,7 @@ void dd_duration_reset_globals(void)
     _waf_ext_us = 0.0;
 }
 
-void dd_duration_req_finish(void)
-{
-    _flush_rasp();
-}
+void dd_duration_req_finish(void) { _flush_rasp(); }
 
 void dd_duration_rasp_ext_account(const struct timespec *start)
 {
