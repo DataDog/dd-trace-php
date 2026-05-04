@@ -33,7 +33,7 @@ class Laminas33Tests {
      * Laminas MVC 3.3.x supports PHP 7.3–8.1 per composer constraints in www/laminas33.
      */
     static boolean expectedVersion =
-            ['7.3', '7.4', '8.0', '8.1'].contains(getPhpVersion()) && !getVariant().contains('zts')
+            ['7.3', '7.4', '8.0', '8.1', '8.2', '8.3', '8.4'].contains(getPhpVersion()) && !getVariant().contains('zts')
 
     AppSecContainer getContainer() {
         getClass().CONTAINER
