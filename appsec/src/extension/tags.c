@@ -145,6 +145,7 @@ static THREAD_LOCAL_ON_ZTS bool _user_event_triggered;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
+static THREAD_LOCAL_ON_ZTS bool _track_authenticated_user_event_automated_fired;
 
 static void _init_relevant_headers(void);
 static zend_string *_concat_json_fragments(void);
@@ -357,6 +358,7 @@ void dd_tags_rinit(void)
 
     // Just in case...
     _event_user_id = NULL;
+    _track_authenticated_user_event_automated_fired = false;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
@@ -1546,6 +1548,12 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
         }
     }
 
+    if (_track_authenticated_user_event_automated_fired) {
+        mlog(dd_log_debug,
+            "track_authenticated_user_event_automated already fired");
+        return;
+    }
+
     zval *nullable meta = _root_span_get_meta();
     if (!meta) {
         if (anon_user_id) {
@@ -1555,6 +1563,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
     }
 
     _user_event_triggered = true;
+    _track_authenticated_user_event_automated_fired = true;
     zend_array *meta_ht = Z_ARRVAL_P(meta);
 
     dd_find_and_apply_verdict_for_user(
