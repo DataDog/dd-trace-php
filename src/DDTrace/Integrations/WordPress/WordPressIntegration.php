@@ -65,16 +65,13 @@ class WordPressIntegration extends Integration
                     if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                         return;
                     }
-                    if (empty($username)) {
-                        return;
-                    }
                     $errorClass = '\WP_Error';
                     $exists = $retval instanceof $errorClass &&
                         \property_exists($retval, 'errors') &&
                         is_array($retval->errors) &&
                         isset($retval->errors['incorrect_password']);
 
-                    \datadog\appsec\track_user_login_failure_event_automated($username, $username, $exists, []);
+                    \datadog\appsec\track_user_login_failure_event_automated($username, $username, $exists, [], 'wordpress');
                     return;
                 }
 
@@ -98,7 +95,8 @@ class WordPressIntegration extends Integration
                 \datadog\appsec\track_user_login_success_event_automated(
                     $username,
                     $id,
-                    $metadata
+                    $metadata,
+                    'wordpress'
                 );
             }
         );
@@ -127,7 +125,8 @@ class WordPressIntegration extends Integration
                 \datadog\appsec\track_user_signup_event_automated(
                     $login,
                     $retval,
-                    $metadata
+                    $metadata,
+                    'wordpress'
                 );
             }
         );
@@ -142,7 +141,7 @@ class WordPressIntegration extends Integration
 
                 if ($retval !== false) {
                     \datadog\appsec\track_authenticated_user_event_automated(
-                        $retval
+                        $retval, 'wordpress'
                     );
                 }
             }

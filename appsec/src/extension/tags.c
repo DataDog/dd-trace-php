@@ -16,6 +16,7 @@
 #include "php_objects.h"
 #include "request_lifecycle.h"
 #include "string_helpers.h"
+#include "telemetry.h"
 #include "user_tracking.h"
 #include <SAPI.h>
 #include <Zend/zend.h>
@@ -972,21 +973,44 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
         return;
     }
 
-    zend_string *user_login;
-    zend_string *user_id;
+    zend_string *user_login = NULL;
+    zend_string *user_id = NULL;
+    zend_string *framework = NULL;
     zend_string *anon_user_login = NULL;
     zend_string *anon_user_id = NULL;
     HashTable *metadata = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
-            &metadata) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S!S!|h!S!", &user_login,
+            &user_id, &metadata, &framework) == FAILURE) {
         mlog(dd_log_debug, "Unexpected parameter combination, expected "
-                           "(user_login, user_id, metadata)");
+                           "(user_login, user_id, metadata, framework)");
         return;
     }
 
-    if (ZSTR_LEN(user_login) == 0) {
+    const char *framework_str =
+        framework != NULL ? ZSTR_VAL(framework) : NULL;
+    size_t framework_len = framework != NULL ? ZSTR_LEN(framework) : 0;
+
+    bool login_missing = user_login == NULL || ZSTR_LEN(user_login) == 0;
+    bool user_id_missing = user_id == NULL || ZSTR_LEN(user_id) == 0;
+
+    if (login_missing) {
+        dd_telemetry_add_missing_user_login(
+            LSTRARG("signup"), framework_str, framework_len);
+    }
+    // Per spec: for signup events, missing_user_id must only fire when
+    // user_login is also unavailable.
+    if (login_missing && user_id_missing) {
+        dd_telemetry_add_missing_user_id(
+            LSTRARG("signup"), framework_str, framework_len);
+    }
+
+    if (login_missing) {
         mlog(dd_log_debug, "Unexpected empty user login");
         return;
+    }
+
+    if (user_id == NULL) {
+        user_id = zend_empty_string;
     }
 
     zval *nullable meta = _root_span_get_meta();
@@ -1004,16 +1028,20 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
     }
 
     if (mode == user_mode_anon) {
-        anon_user_id = dd_user_info_anonymize(user_id);
-        if (!anon_user_id) {
-            mlog(dd_log_debug, "Failed to anonymize user ID");
-            return;
+        if (ZSTR_LEN(user_id) > 0) {
+            anon_user_id = dd_user_info_anonymize(user_id);
+            if (!anon_user_id) {
+                mlog(dd_log_debug, "Failed to anonymize user ID");
+                return;
+            }
         }
 
         anon_user_login = dd_user_info_anonymize(user_login);
         if (!anon_user_login) {
             mlog(dd_log_debug, "Failed to anonymize user login");
-            zend_string_release(anon_user_id);
+            if (anon_user_id) {
+                zend_string_release(anon_user_id);
+            }
             return;
         }
     }
@@ -1122,21 +1150,44 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
         return;
     }
 
-    zend_string *user_login;
-    zend_string *user_id;
+    zend_string *user_login = NULL;
+    zend_string *user_id = NULL;
+    zend_string *framework = NULL;
     zend_string *anon_user_login = NULL;
     zend_string *anon_user_id = NULL;
     HashTable *metadata = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS|h", &user_login, &user_id,
-            &metadata) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S!S!|h!S!", &user_login,
+            &user_id, &metadata, &framework) == FAILURE) {
         mlog(dd_log_debug, "Unexpected parameter combination, expected "
-                           "(user_login, user_id, metadata)");
+                           "(user_login, user_id, metadata, framework)");
         return;
     }
 
-    if (ZSTR_LEN(user_login) == 0) {
+    const char *framework_str =
+        framework != NULL ? ZSTR_VAL(framework) : NULL;
+    size_t framework_len = framework != NULL ? ZSTR_LEN(framework) : 0;
+
+    bool login_missing = user_login == NULL || ZSTR_LEN(user_login) == 0;
+    bool user_id_missing = user_id == NULL || ZSTR_LEN(user_id) == 0;
+
+    if (login_missing) {
+        dd_telemetry_add_missing_user_login(
+            LSTRARG("login_success"), framework_str, framework_len);
+    }
+    // Per spec: for login_success events, missing_user_id must only fire
+    // when user_login is also unavailable.
+    if (login_missing && user_id_missing) {
+        dd_telemetry_add_missing_user_id(
+            LSTRARG("login_success"), framework_str, framework_len);
+    }
+
+    if (login_missing) {
         mlog(dd_log_debug, "Unexpected empty user login");
         return;
+    }
+
+    if (user_id == NULL) {
+        user_id = zend_empty_string;
     }
 
     zval *nullable meta = _root_span_get_meta();
@@ -1154,16 +1205,20 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     }
 
     if (mode == user_mode_anon) {
-        anon_user_id = dd_user_info_anonymize(user_id);
-        if (!anon_user_id) {
-            mlog(dd_log_debug, "Failed to anonymize user ID");
-            return;
+        if (ZSTR_LEN(user_id) > 0) {
+            anon_user_id = dd_user_info_anonymize(user_id);
+            if (!anon_user_id) {
+                mlog(dd_log_debug, "Failed to anonymize user ID");
+                return;
+            }
         }
 
         anon_user_login = dd_user_info_anonymize(user_login);
         if (!anon_user_login) {
             mlog(dd_log_debug, "Failed to anonymize user login");
-            zend_string_release(anon_user_id);
+            if (anon_user_id) {
+                zend_string_release(anon_user_id);
+            }
             return;
         }
     }
@@ -1277,17 +1332,44 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
         return;
     }
 
-    zend_string *user_login;
-    zend_string *user_id;
+    zend_string *user_login = NULL;
+    zend_string *user_id = NULL;
+    zend_string *framework = NULL;
     zend_string *anon_user_login = NULL;
     zend_string *anon_user_id = NULL;
     zend_bool exists;
     HashTable *metadata = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SSb|h", &user_login, &user_id,
-            &exists, &metadata) == FAILURE) {
-        mlog(dd_log_debug, "Unexpected parameter combination, expected "
-                           "(user_login, user_id, exists, metadata)");
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S!S!b|h!S!", &user_login,
+            &user_id, &exists, &metadata, &framework) == FAILURE) {
+        mlog(dd_log_debug,
+            "Unexpected parameter combination, expected "
+            "(user_login, user_id, exists, metadata, framework)");
         return;
+    }
+
+    const char *framework_str =
+        framework != NULL ? ZSTR_VAL(framework) : NULL;
+    size_t framework_len = framework != NULL ? ZSTR_LEN(framework) : 0;
+
+    bool login_missing = user_login == NULL || ZSTR_LEN(user_login) == 0;
+    bool user_id_missing = user_id == NULL || ZSTR_LEN(user_id) == 0;
+
+    if (login_missing) {
+        dd_telemetry_add_missing_user_login(
+            LSTRARG("login_failure"), framework_str, framework_len);
+    }
+    // Per spec: for login_failure events, missing_user_id must only fire
+    // when user_login is also unavailable.
+    if (login_missing && user_id_missing) {
+        dd_telemetry_add_missing_user_id(
+            LSTRARG("login_failure"), framework_str, framework_len);
+    }
+
+    if (user_login == NULL) {
+        user_login = zend_empty_string;
+    }
+    if (user_id == NULL) {
+        user_id = zend_empty_string;
     }
 
     zval *nullable meta = _root_span_get_meta();
@@ -1305,17 +1387,23 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     }
 
     if (mode == user_mode_anon) {
-        anon_user_id = dd_user_info_anonymize(user_id);
-        if (!anon_user_id) {
-            mlog(dd_log_debug, "Failed to anonymize user ID");
-            return;
+        if (ZSTR_LEN(user_id) > 0) {
+            anon_user_id = dd_user_info_anonymize(user_id);
+            if (!anon_user_id) {
+                mlog(dd_log_debug, "Failed to anonymize user ID");
+                return;
+            }
         }
 
-        anon_user_login = dd_user_info_anonymize(user_login);
-        if (!anon_user_login) {
-            mlog(dd_log_debug, "Failed to anonymize user login");
-            zend_string_release(anon_user_id);
-            return;
+        if (ZSTR_LEN(user_login) > 0) {
+            anon_user_login = dd_user_info_anonymize(user_login);
+            if (!anon_user_login) {
+                mlog(dd_log_debug, "Failed to anonymize user login");
+                if (anon_user_id) {
+                    zend_string_release(anon_user_id);
+                }
+                return;
+            }
         }
 
         if (metadata && zend_array_count(metadata) > 0) {
@@ -1439,15 +1527,23 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
         return;
     }
 
-    zend_string *user_id;
+    zend_string *user_id = NULL;
     zend_string *anon_user_id = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S", &user_id) == FAILURE) {
+    zend_string *framework = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "S!|S!", &user_id,
+            &framework) == FAILURE) {
         mlog(
             dd_log_debug, "Unexpected parameter combination, expected user_id");
         return;
     }
 
-    if (ZSTR_LEN(user_id) == 0) {
+    const char *framework_str =
+        framework != NULL ? ZSTR_VAL(framework) : NULL;
+    size_t framework_len = framework != NULL ? ZSTR_LEN(framework) : 0;
+
+    if (user_id == NULL || ZSTR_LEN(user_id) == 0) {
+        dd_telemetry_add_missing_user_id(
+            LSTRARG("authenticated_request"), framework_str, framework_len);
         mlog(dd_log_debug, "Unexpected empty user id");
         return;
     }
@@ -1644,10 +1740,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(add_ancillary_tags, 0, 1, IS_VOID, 0)
     ZEND_ARG_TYPE_INFO(2, "_server", IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_automated_arginfo, 0, 0, IS_VOID, 3)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_automated_arginfo, 0, 0, IS_VOID, 4)
 ZEND_ARG_INFO(0, user_login)
 ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
+ZEND_ARG_INFO(0, framework)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_arginfo, 0, 0, IS_VOID, 2)
@@ -1655,10 +1752,11 @@ ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_signup_event_automated_arginfo, 0, 0, IS_VOID, 3)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_signup_event_automated_arginfo, 0, 0, IS_VOID, 4)
 ZEND_ARG_INFO(0, user_login)
 ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
+ZEND_ARG_INFO(0, framework)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_signup_event_arginfo, 0, 0, IS_VOID, 2)
@@ -1666,11 +1764,12 @@ ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, metadata)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_automated_arginfo, 0, 0, IS_VOID, 4)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_automated_arginfo, 0, 0, IS_VOID, 5)
 ZEND_ARG_INFO(0, user_login)
 ZEND_ARG_INFO(0, user_id)
 ZEND_ARG_INFO(0, exists)
 ZEND_ARG_INFO(0, metadata)
+ZEND_ARG_INFO(0, framework)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_arginfo, 0, 0, IS_VOID, 3)
@@ -1679,8 +1778,9 @@ ZEND_ARG_INFO(0, exists)
 ZEND_ARG_INFO(0, metadata)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_authenticated_user_event_automated_arginfo, 0, 0, IS_VOID, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_authenticated_user_event_automated_arginfo, 0, 0, IS_VOID, 2)
 ZEND_ARG_INFO(0, user_id)
+ZEND_ARG_INFO(0, framework)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_authenticated_user_event_arginfo, 0, 0, IS_VOID, 2)

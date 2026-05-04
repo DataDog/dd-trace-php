@@ -222,7 +222,7 @@ class LaravelIntegration extends Integration
                             $id = $args[1]['id'];
                         }
 
-                        \datadog\appsec\track_user_signup_event_automated(self::getLoginFromArgs($args[1]), $id, []);
+                        \datadog\appsec\track_user_signup_event_automated(self::getLoginFromArgs($args[1]), $id, [], 'laravel');
                     }
                 },
                 'recurse' => true,
@@ -374,7 +374,7 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
-                \datadog\appsec\track_user_login_failure_event_automated(self::getLoginFromArgs($args[0]), null, false, []);
+                \datadog\appsec\track_user_login_failure_event_automated(self::getLoginFromArgs($args[0]), null, false, [], 'laravel');
             }
         );
 
@@ -417,7 +417,8 @@ class LaravelIntegration extends Integration
                 \datadog\appsec\track_user_login_success_event_automated(
                     self::getLoginFromArgs($user),
                     self::getAuthIdentifier($user),
-                    $metadata
+                    $metadata,
+                    'laravel'
                 );
             }
         );
@@ -450,7 +451,8 @@ class LaravelIntegration extends Integration
                 \datadog\appsec\track_user_login_success_event_automated(
                     self::getLoginFromArgs($args[0]),
                     self::getAuthIdentifier($args[0]),
-                    $metadata
+                    $metadata,
+                    'laravel'
                 );
             }
         );
@@ -465,7 +467,7 @@ class LaravelIntegration extends Integration
                     return;
                 }
 
-                \datadog\appsec\track_user_login_failure_event_automated(self::getLoginFromArgs($args[0]), null, false, []);
+                \datadog\appsec\track_user_login_failure_event_automated(self::getLoginFromArgs($args[0]), null, false, [], 'laravel');
             }
         );
 
@@ -489,7 +491,7 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_authenticated_user_event_automated(
-                    self::getAuthIdentifier($user)
+                    self::getAuthIdentifier($user), 'laravel'
                 );
             }
         );
@@ -514,7 +516,7 @@ class LaravelIntegration extends Integration
                 }
 
                 \datadog\appsec\track_authenticated_user_event_automated(
-                    self::getAuthIdentifier($args[1])
+                    self::getAuthIdentifier($args[1]), 'laravel'
                 );
             }
         );
@@ -537,7 +539,8 @@ class LaravelIntegration extends Integration
                 \datadog\appsec\track_user_signup_event_automated(
                     self::getLoginFromArgs($args[0]),
                     self::getAuthIdentifier($args[0]),
-                    []
+                    [],
+                    'laravel'
                 );
             }
         );

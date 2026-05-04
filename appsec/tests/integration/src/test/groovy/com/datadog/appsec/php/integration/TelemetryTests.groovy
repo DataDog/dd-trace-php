@@ -559,7 +559,6 @@ class TelemetryTests {
 
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
-            println allSeries
             loginSuccess = allSeries.find{ it.name == 'sdk.event' && 'event_type:login_success' in it.tags}
             loginFailure = allSeries.find{ it.name == 'sdk.event' && 'event_type:login_failure' in it.tags}
 

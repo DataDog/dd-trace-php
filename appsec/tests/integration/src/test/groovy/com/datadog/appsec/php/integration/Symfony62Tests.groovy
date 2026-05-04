@@ -79,6 +79,35 @@ class Symfony62Tests {
         assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == 'identification'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.metrics._sampling_priority_v1 == 2.0d
+
+        // The Symfony integration calls the automated login_failure tracking with
+        // (null, null), so per spec both missing_user_login and missing_user_id
+        // must fire, tagged framework:symfony.
+        TelemetryHelpers.Metric missingUserLogin
+        TelemetryHelpers.Metric missingUserId
+        TelemetryHelpers.waitForMetrics(container, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            missingUserLogin = allSeries.find {
+                it.name == 'appsec.instrum.user_auth.missing_user_login' &&
+                        'event_type:login_failure' in it.tags &&
+                        'framework:symfony' in it.tags
+            }
+            missingUserId = allSeries.find {
+                it.name == 'appsec.instrum.user_auth.missing_user_id' &&
+                        'event_type:login_failure' in it.tags &&
+                        'framework:symfony' in it.tags
+            }
+            missingUserLogin != null && missingUserId != null
+        }
+        assert missingUserLogin != null
+        assert missingUserLogin.namespace == 'appsec'
+        assert missingUserLogin.points[0][1] >= 1.0
+        assert missingUserLogin.type == 'count'
+
+        assert missingUserId != null
+        assert missingUserId.namespace == 'appsec'
+        assert missingUserId.points[0][1] >= 1.0
+        assert missingUserId.type == 'count'
     }
 
     @Test

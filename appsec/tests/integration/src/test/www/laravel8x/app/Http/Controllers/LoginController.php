@@ -20,8 +20,23 @@ class LoginController extends Controller
      */
     public function authenticate(Request $request)
     {
+        // When the `email` query param is present (even if empty), use its
+        // value verbatim; otherwise fall back to the default. Laravel's
+        // ConvertEmptyStringsToNull middleware coerces `?email=` to null on
+        // the parsed request, so we read from the raw query string instead.
+        $rawQuery = $request->getQueryString() ?? '';
+        $hasEmail = false;
+        $rawEmail = '';
+        foreach (explode('&', $rawQuery) as $pair) {
+            $kv = explode('=', $pair, 2);
+            if ($kv[0] === 'email') {
+                $hasEmail = true;
+                $rawEmail = isset($kv[1]) ? urldecode($kv[1]) : '';
+                break;
+            }
+        }
         $credentials = [
-            'email' => $request->get('email') ?? 'ciuser@example.com',
+            'email' => $hasEmail ? $rawEmail : 'ciuser@example.com',
             'password' => 'password',
         ];
 
