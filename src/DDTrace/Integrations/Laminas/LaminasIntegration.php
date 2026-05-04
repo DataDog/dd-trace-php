@@ -289,8 +289,18 @@ class LaminasIntegration extends Integration
                 // Push path params to appsec
                 if (function_exists('\datadog\appsec\push_addresses')) {
                     $params = $routeMatch->getParams();
-                    if (count($params) > 0) {
-                        \datadog\appsec\push_addresses(["server.request.path_params" => $params]);
+                    $pathParams = array_diff_key(
+                        $params,
+                        array_flip([
+                            'controller',
+                            'action',
+                            '__NAMESPACE__',
+                            '__CONTROLLER__',
+                            'locale',
+                        ])
+                    );
+                    if (count($pathParams) > 0) {
+                        \datadog\appsec\push_addresses(["server.request.path_params" => $pathParams]);
                     }
                 }
             }
