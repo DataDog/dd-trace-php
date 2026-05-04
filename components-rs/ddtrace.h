@@ -11,6 +11,14 @@ struct _zend_string;
 
 extern ddog_Uuid ddtrace_runtime_id;
 
+extern ddog_Uuid ddtrace_session_id;
+
+extern uint8_t ddtrace_formatted_session_id[36];
+
+extern uint8_t ddtrace_formatted_root_session_id[36];
+
+extern uint8_t ddtrace_formatted_parent_session_id[36];
+
 extern void (*ddog_log_callback)(ddog_CharSlice);
 
 extern ddog_VecRemoteConfigProduct DDTRACE_REMOTE_CONFIG_PRODUCTS;
@@ -21,9 +29,15 @@ extern const uint8_t *DDOG_PHP_FUNCTION;
 
 /**
  * # Safety
- * Must be called from a single-threaded context, such as MINIT.
+ * Must be called from a single-threaded context, such as MINIT or first rinit.
  */
 void ddtrace_generate_runtime_id(void);
+
+/**
+ * # Safety
+ * Must be called from a single-threaded context, such as MINIT.
+ */
+void ddtrace_generate_session_id(void);
 
 void ddtrace_format_runtime_id(uint8_t (*buf)[36]);
 
@@ -72,6 +86,15 @@ void ddog_apply_agent_info(struct ddog_AgentInfoReader *reader,
                            ddog_CharSlice *container_hash_out);
 
 /**
+ * Serialize the current cached agent info as a JSON string.
+ * Returns NULL if no info has been read yet.
+ * The returned pointer must be freed with `ddog_agent_info_json_free`.
+ */
+char *ddog_agent_info_as_json(struct ddog_AgentInfoReader *reader);
+
+void ddog_agent_info_json_free(char *ptr);
+
+/**
  * Apply concentrator config changes from the agent /info SHM.
  *
  * Cheap no-op when the SHM has not changed (`changed == false`).  Only applies when
@@ -103,6 +126,17 @@ struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_E
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
 bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
+
+/**
+ * Returns all loaded remote config entries as a JSON object:
+ *   { "config_id": "content_summary", ... }
+ * For live debugger entries the value is the probe ID (or "service_config").
+ * For dynamic config entries the value is "apm_tracing".
+ * The returned pointer must be freed with `ddog_remote_config_loaded_configs_free`.
+ */
+char *ddog_remote_config_get_loaded_configs(const struct ddog_RemoteConfigState *remote_config);
+
+void ddog_remote_config_loaded_configs_free(char *ptr);
 
 bool ddog_type_can_be_instrumented(const struct ddog_RemoteConfigState *remote_config,
                                    ddog_CharSlice typename_);
@@ -301,6 +335,13 @@ bool ddog_exception_hash_limiter_inc(struct ddog_SidecarTransport *connection,
  * has been properly initialised with peer-tag keys and span kinds.
  */
 bool ddog_is_agent_info_ready(void);
+
+/**
+ * Returns true when the agent supports client-side stats computation:
+ * agent info has been received, `client_drop_p0s` is true, and the reported
+ * agent version is >= 7.65.0.
+ */
+bool ddog_agent_has_stats_computation(void);
 
 /**
  * Look up (or lazily create) the concentrator for `(env, version, service)` and invoke

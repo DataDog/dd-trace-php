@@ -2,6 +2,7 @@
 Invalid (non-string) keys in span metadata are dropped
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 function meta_to_string() {}
@@ -18,7 +19,7 @@ DDTrace\trace_function('meta_to_string', function (SpanData $span) {
 
 meta_to_string();
 
-list($span) = dd_trace_serialize_closed_spans();
+list($span) = dd_clean_spans();
 unset($span['meta']['process_id']);
 var_dump($span['meta']);
 ?>

@@ -14,6 +14,10 @@ typedef enum {
     DD_SIDECAR_CONNECTION_THREAD = 2
 } dd_sidecar_active_mode_t;
 
+static inline bool ddtrace_is_empty_session_id(uint8_t id[36]) {
+    return memcmp(id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0;
+}
+
 // ddtrace_sidecar_instance_id is a process global — one identity per PHP process.
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 // Best-effort pointer used only by the signal handler (SIGTERM/SIGINT), which cannot call

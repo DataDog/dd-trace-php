@@ -27,6 +27,8 @@ $ecrLoginSnippet = <<<'EOT'
 EOT;
 ?>
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   CI_REGISTRY_USER:
     value: ""
     description: "Your docker hub username"
@@ -190,7 +192,6 @@ stages:
           - test7.4-release
           - test8.1-release
           - test8.3-debug
-          - test8.4-release-zts
 
 "helper-rust build and test":
   stage: test

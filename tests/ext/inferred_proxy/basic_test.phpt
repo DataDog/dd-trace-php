@@ -28,6 +28,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foo=bar
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 $requestTimeMs = 1742285908783;
 
@@ -42,7 +43,7 @@ $span->name = "child";
 
 $endTimeMs = (int)(microtime(true) * 1000);
 
-$serializedSpans = dd_trace_serialize_closed_spans();
+$serializedSpans = dd_clean_spans();
 echo json_encode($serializedSpans, JSON_PRETTY_PRINT);
 
 $actualDurationNs = $serializedSpans[1]["duration"];

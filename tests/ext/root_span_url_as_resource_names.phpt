@@ -20,11 +20,13 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(7) {
+array(8) {
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["_dd.tags.process"]=>
+  string(%d) "%s"
   ["http.method"]=>
   string(3) "GET"
   ["http.status_code"]=>

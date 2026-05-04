@@ -5,6 +5,7 @@ DD_SERVICE_MAPPING=new.service:mapped.service
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function greet($name)
 {
@@ -27,7 +28,7 @@ function greet($name)
 
 greet('World');
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

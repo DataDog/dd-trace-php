@@ -89,6 +89,8 @@ stages:
   - release
 
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
 
   # One pipeline injection package size ratchet
@@ -905,7 +907,7 @@ endforeach;
   script:
     - php datadog-setup.php --php-bin all --file $(ls packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
     - sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
-    - DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
+    - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
 
 "framework test":
   stage: verify
@@ -1007,8 +1009,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apk add --no-cache ca-certificates # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
-    - apk add curl ${INSTALL_PACKAGES:-}
+    - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+    - apk add curl ${INSTALL_PACKAGES:-} || exit 75
 
 "verify centos":
   extends: .verify_job
@@ -1050,8 +1052,8 @@ endforeach;
         echo "yum update failed (attempt $i/3), retrying in 5 seconds..."
         sleep 5
         if [ $i -eq 3 ]; then
-          echo "yum update failed after 3 attempts, exiting"
-          exit 1
+          echo "yum update failed after 3 attempts, signaling retry (exit 75)"
+          exit 75
         fi
       done
 
@@ -1075,8 +1077,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apt update
-    - apt-get install -y curl
+    - apt-get update || exit 75
+    - apt-get install -y curl || exit 75
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
@@ -1131,7 +1133,23 @@ endforeach;
     mkdir build
     move packages build
   script:
-    - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
+    - |
+      $maxAttempts = 3
+      for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          try {
+              Set-ExecutionPolicy Bypass -Scope Process -Force
+              [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+              Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+              break
+          } catch {
+              Write-Host "Chocolatey install attempt $attempt/$maxAttempts failed: $_"
+              if ($attempt -eq $maxAttempts) {
+                  Write-Host "Infrastructure failure: Chocolatey download failed after $maxAttempts attempts, signaling retry (exit 75)"
+                  exit 75
+              }
+              Start-Sleep -Seconds 15
+          }
+      }
     - .\dockerfiles\verify_packages\verify_windows.ps1
 
 "pecl tests":
@@ -1158,7 +1176,7 @@ endforeach;
     - pecl install datadog_trace.tgz
     - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
     - php --ri=ddtrace
-    - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
+    - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
   after_script:
     - mkdir artifacts
     - find $(pecl config-get test_dir) -type f -name '*.diff' -exec cp --parents '{}' artifacts \;
@@ -1271,6 +1289,30 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_RUNTIME_ACTIVATION
+        - INTEGRATIONS
+        - CROSSED_TRACING_LIBRARIES
+  script:
+    - ./run.sh $TESTSUITE
+
+"System Tests: [php-fpm-8.5, default]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.5 php
+  script:
+    - ./run.sh
+
+"System Tests: [php-fpm-8.5]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.5 php
+  parallel:
+    matrix:
+      - TESTSUITE:
+        - APPSEC_API_SECURITY
+        - APPSEC_API_SECURITY_RC
+        - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
   script:

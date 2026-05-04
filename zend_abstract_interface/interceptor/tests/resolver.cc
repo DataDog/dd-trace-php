@@ -191,7 +191,7 @@ INTERCEPTOR_TEST_CASE("runtime class_alias resolving", {
 INTERCEPTOR_TEST_CASE("ensure runtime post-declare resolving does not impact error", {
     int orig_resolved = zend_hash_num_elements(&zai_hook_resolved);
     INSTALL_CLASS_HOOK("Inherited", "bar");
-    CALL_FN("failDeclare", REQUIRE(zval_is_true(&result)););
+    CALL_FN("failDeclare", REQUIRE(zend_is_true(&result)););
     REQUIRE(zend_hash_num_elements(&zai_hook_resolved) == orig_resolved);
 });
 #endif

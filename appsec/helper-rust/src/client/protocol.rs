@@ -103,18 +103,19 @@ pub struct RemoteConfigSettings {
 
 impl RemoteConfigSettings {
     pub fn new(enabled: bool, shmem_path: PathBuf) -> Self {
+        // we allow enabled with an empty path -- a config_sync can then fix the path
         Self {
             enabled,
-            shmem_path,
+            shmem_path: if enabled { shmem_path } else { PathBuf::new() },
         }
     }
 
-    fn enabled(&self) -> bool {
-        self.enabled && !self.shmem_path.as_os_str().is_empty()
+    pub fn can_be_enabled(&self) -> bool {
+        self.enabled
     }
 
     pub fn shmem_path(&self) -> Option<&Path> {
-        if self.enabled() {
+        if self.enabled && !self.shmem_path.as_os_str().is_empty() {
             Some(&self.shmem_path)
         } else {
             None

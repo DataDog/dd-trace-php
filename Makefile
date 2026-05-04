@@ -33,7 +33,7 @@ RUST_DEBUG_BUILD ?= $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo 1)
 EXTRA_CONFIGURE_OPTIONS ?=
 ASSUME_COMPILED := ${DD_TRACE_ASSUME_COMPILED}
 MAX_TEST_PARALLELISM ?= $(shell nproc)
-ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
+ALL_TEST_ENV_OVERRIDE := $(shell [ -n "${DD_TRACE_DOCKER_DEBUG}" ] && echo DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1) DD_TRACE_GIT_METADATA_ENABLED=0 DD_CRASHTRACKER_RECEIVER_TIMEOUT_MS=15000
 
 VERSION := $(shell cat VERSION)
 
@@ -548,7 +548,7 @@ cores:
 ########################################################################################################################
 # TESTS
 ########################################################################################################################
-ENV_OVERRIDE := $(shell ([ -n "${DD_TRACE_DOCKER_DEBUG}" ] && [ -z "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ]) || ([ -n "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ] && [ "${DD_TRACE_AUTOLOAD_NO_COMPILE}" != "0" ]) && [ -z "${DD_TRACE_SOURCES_PATH}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE)
+ENV_OVERRIDE := $(shell ([ -n "${DD_TRACE_DOCKER_DEBUG}" ] && [ -z "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ]) || ([ -n "${DD_TRACE_AUTOLOAD_NO_COMPILE}" ] && [ "${DD_TRACE_AUTOLOAD_NO_COMPILE}" != "0" ]) && [ -z "${DD_TRACE_SOURCES_PATH}" ] && echo DD_AUTOLOAD_NO_COMPILE=true DD_TRACE_SOURCES_PATH=$(TRACER_SOURCE_DIR)) DD_DOGSTATSD_URL=http://request-replayer:80 $(ALL_TEST_ENV_OVERRIDE) DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
 TEST_EXTRA_INI ?=
 TEST_EXTRA_ENV ?=
 
@@ -580,6 +580,7 @@ TEST_INTEGRATIONS_70 := \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -624,6 +625,7 @@ TEST_INTEGRATIONS_71 := \
 	test_integrations_guzzle5 \
 	test_integrations_guzzle6 \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -679,6 +681,7 @@ TEST_INTEGRATIONS_72 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -742,6 +745,7 @@ TEST_INTEGRATIONS_73 :=\
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -806,6 +810,7 @@ TEST_INTEGRATIONS_74 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis3 \
 	test_integrations_phpredis4 \
 	test_integrations_phpredis5 \
@@ -877,6 +882,7 @@ TEST_INTEGRATIONS_80 := \
 	test_integrations_guzzle6 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_phpredis5 \
 	test_integrations_predis_1 \
 	test_integrations_predis_2 \
@@ -931,6 +937,7 @@ TEST_INTEGRATIONS_81 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -992,6 +999,7 @@ TEST_INTEGRATIONS_82 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1032,7 +1040,7 @@ TEST_WEB_82 := \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_62 \
-	test_web_symfony_latest \
+	test_web_symfony_73 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1060,6 +1068,7 @@ TEST_INTEGRATIONS_83 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1096,7 +1105,7 @@ TEST_WEB_83 := \
 	test_web_slim_312 \
 	test_web_slim_latest \
 	test_web_symfony_62 \
-	test_web_symfony_latest \
+	test_web_symfony_73 \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
 	test_web_custom \
@@ -1122,6 +1131,7 @@ TEST_INTEGRATIONS_84 := \
 	test_integrations_googlespanner_latest \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1144,6 +1154,7 @@ TEST_WEB_84 := \
 	test_web_lumen_100 \
 	test_web_nette_latest \
 	test_web_slim_312 \
+	test_web_symfony_73 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -1169,6 +1180,7 @@ TEST_INTEGRATIONS_85 := \
 	test_opentelemetry_1 \
 	test_integrations_guzzle_latest \
 	test_integrations_pcntl \
+	test_integrations_exec \
 	test_integrations_pdo \
 	test_integrations_elasticsearch7 \
 	test_integrations_elasticsearch8 \
@@ -1187,6 +1199,7 @@ TEST_WEB_85 := \
 	test_web_codeigniter_31 \
 	test_web_lumen_100 \
 	test_web_slim_312 \
+	test_web_symfony_73 \
 	test_web_symfony_latest \
 	test_web_wordpress_59 \
 	test_web_wordpress_61 \
@@ -1374,6 +1387,8 @@ test_integrations_deferred_loading: global_test_run_dependencies tests/Integrati
 	$(call run_tests_debug,tests/Integrations/DeferredLoading)
 test_integrations_filesystem: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Filesystem)
+test_integrations_exec: global_test_run_dependencies
+	$(call run_tests_debug,tests/Integrations/Exec)
 test_integrations_curl: global_test_run_dependencies
 	$(call run_tests_debug,tests/Integrations/Curl)
 test_integrations_elasticsearch1: global_test_run_dependencies tests/Integrations/Elasticsearch/V1/composer.lock-php$(PHP_MAJOR_MINOR)
@@ -1561,6 +1576,9 @@ test_web_symfony_52: global_test_run_dependencies tests/Frameworks/Symfony/Versi
 test_web_symfony_62: global_test_run_dependencies tests/Frameworks/Symfony/Version_6_2/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_6_2/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-62-test)
+test_web_symfony_73: global_test_run_dependencies tests/Frameworks/Symfony/Version_7_3/composer.lock-php$(PHP_MAJOR_MINOR)
+	php tests/Frameworks/Symfony/Version_7_3/bin/console cache:clear --no-warmup --env=prod
+	$(call run_tests_debug,--testsuite=symfony-73-test)
 test_web_symfony_latest: global_test_run_dependencies tests/Frameworks/Symfony/Latest/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Latest/bin/console cache:clear --no-warmup --env=prod
 	$(call run_tests_debug,--testsuite=symfony-latest-test)

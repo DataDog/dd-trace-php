@@ -1225,10 +1225,10 @@ static bool should_track_error(zend_object *exception, ddtrace_span_data *span) 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     // Check if error should be ignored or tracking is disabled
-    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zend_is_true(zv)) {
         return false;
     }
-    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zval_is_true(zv)) {
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zend_is_true(zv)) {
         return false;
     }
     return true;
@@ -1534,7 +1534,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         ZEND_HASH_FOREACH_END();
 
 
-        if (!span_sampling_applied && DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
+        if (!span_sampling_applied && DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
             if (inferred_span) {
                 // Inferred span won't be serialized, so feed it to the concentrator here.
                 ddtrace_span_precomputed inferred_pre;
@@ -1779,7 +1779,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     zend_string_release(Z_STR(prop_root_service_as_string));
     zend_string_release(Z_STR(prop_service_as_string));
 
-    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_is_agent_info_ready()) {
+    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
         ddtrace_feed_span_to_concentrator(span, &pre);
     }
 

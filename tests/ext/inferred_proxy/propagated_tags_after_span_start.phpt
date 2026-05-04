@@ -30,6 +30,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foo=bar
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 $parent = \DDTrace\start_span(0.120);
 
@@ -40,7 +41,7 @@ DDTrace\consume_distributed_tracing_headers([
 
 \DDTrace\close_span();
 
-echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
+echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [

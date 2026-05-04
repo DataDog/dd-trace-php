@@ -636,8 +636,8 @@ def runMainTask = { String phpVersion, String variant ->
             dependsOn 'buildHelperRustWithCoverage'
         } else if (project.hasProperty('useHelperRust')) {
             dependsOn 'buildHelperRust'
-        } else if (phpVersion == '8.5') {
-            // PHP 8.5+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
+        } else if (phpVersion in ['8.4', '8.5']) {
+            // PHP 8.4+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
             dependsOn 'buildHelperRust'
         }
     }
@@ -670,6 +670,10 @@ def runMainTask = { String phpVersion, String variant ->
         it.useJUnitPlatform {
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
+
+            if (!project.hasProperty('slowTests')) {
+                excludeTags('slow')
+            }
 
             if (isMusl) {
                 includeTags('musl')
@@ -710,8 +714,8 @@ def runMainTask = { String phpVersion, String variant ->
             dependsOn 'buildHelperRustWithCoverage'
         } else if (project.hasProperty('useHelperRust')) {
             dependsOn 'buildHelperRust'
-        } else if (phpVersion == '8.5') {
-            // PHP 8.5+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
+        } else if (phpVersion in ['8.4', '8.5']) {
+            // PHP 8.4+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
             dependsOn 'buildHelperRust'
         }
 
@@ -770,6 +774,10 @@ if (project.hasProperty('testClass')) {
         it.useJUnitPlatform {
             includeEngines('junit-jupiter')
             excludeEngines('junit-vintage')
+
+            if (!project.hasProperty('slowTests')) {
+                excludeTags('slow')
+            }
         }
 
         it.testClassesDirs = sourceSets.test.output.classesDirs

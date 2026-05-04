@@ -9,6 +9,7 @@
 #include <string.h>
 
 HashTable zai_config_name_map = {0};
+bool zai_config_first_rinit_done = false;
 
 uint16_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
@@ -278,8 +279,6 @@ void zai_config_first_time_rinit(bool in_request) {
     if (in_request) {
         zend_interned_strings_switch_storage(0);
     }
-#else
-    (void)in_request;
 #endif
 
     // Non-CLI SAPIs (CGI/FPM/mod_php) may inject env vars before the first
@@ -299,6 +298,10 @@ void zai_config_first_time_rinit(bool in_request) {
             zai_config_intern_zval(&memoized->decoded_value);
         }
 #endif
+    }
+
+    if (in_request) {
+        zai_config_first_rinit_done = true;
     }
 
 #if PHP_VERSION_ID >= 70400

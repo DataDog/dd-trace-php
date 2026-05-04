@@ -11,7 +11,23 @@
 use crate::stats::apply_concentrator_config;
 use datadog_sidecar::service::agent_info::AgentInfoReader;
 use libdd_common_ffi::slice::CharSlice;
+use libdd_data_pipeline::agent_info::schema::AgentInfoStruct;
 use std::ffi::c_char;
+use std::ffi::CString;
+
+fn info_to_concentrator_config(info: &AgentInfoStruct) {
+    apply_concentrator_config(
+        info.peer_tags.as_deref().unwrap_or(&[]).to_owned(),
+        info.span_kinds_stats_computed.as_deref().unwrap_or(&[]).to_owned(),
+        info.filter_tags.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
+        info.filter_tags.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
+        info.filter_tags_regex.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
+        info.filter_tags_regex.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
+        info.ignore_resources.as_deref().unwrap_or(&[]).to_owned(),
+        info.client_drop_p0s.unwrap_or(false),
+        info.version.as_deref(),
+    );
+}
 
 /// Read all agent /info data in one SHM read and apply env, container-hash and concentrator
 /// config atomically.
@@ -49,16 +65,31 @@ pub unsafe extern "C" fn ddog_apply_agent_info(
             } else {
                 *container_hash_out = CharSlice::empty();
             }
-            apply_concentrator_config(
-                info.peer_tags.as_deref().unwrap_or(&[]).to_owned(),
-                info.span_kinds_stats_computed.as_deref().unwrap_or(&[]).to_owned(),
-                info.filter_tags.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
-                info.filter_tags.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
-                info.filter_tags_regex.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
-                info.filter_tags_regex.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
-                info.ignore_resources.as_deref().unwrap_or(&[]).to_owned(),
-            );
+            info_to_concentrator_config(info);
         }
+    }
+}
+
+/// Serialize the current cached agent info as a JSON string.
+/// Returns NULL if no info has been read yet.
+/// The returned pointer must be freed with `ddog_agent_info_json_free`.
+#[no_mangle]
+pub unsafe extern "C" fn ddog_agent_info_as_json(reader: &mut AgentInfoReader) -> *mut c_char {
+    let (changed, info) = reader.read();
+    if let Some(info) = info {
+        if changed {
+            info_to_concentrator_config(info);
+        }
+        CString::new(serde_json::to_string(info).unwrap()).unwrap().into_raw()
+    } else {
+        std::ptr::null_mut()
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_agent_info_json_free(ptr: *mut c_char) {
+    if !ptr.is_null() {
+        drop(unsafe { CString::from_raw(ptr) });
     }
 }
 
@@ -79,14 +110,6 @@ pub unsafe extern "C" fn ddog_apply_agent_info_concentrator_config(
         return;
     }
     if let Some(info) = info {
-        apply_concentrator_config(
-            info.peer_tags.as_deref().unwrap_or(&[]).to_owned(),
-            info.span_kinds_stats_computed.as_deref().unwrap_or(&[]).to_owned(),
-            info.filter_tags.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
-            info.filter_tags.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
-            info.filter_tags_regex.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
-            info.filter_tags_regex.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
-            info.ignore_resources.as_deref().unwrap_or(&[]).to_owned(),
-        );
+        info_to_concentrator_config(info);
     }
 }

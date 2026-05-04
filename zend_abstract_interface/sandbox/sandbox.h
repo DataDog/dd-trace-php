@@ -157,10 +157,12 @@ void zai_sandbox_error_state_restore(zai_error_state *es);
 inline void zai_sandbox_exception_state_backup(zai_exception_state *es) {
     if (UNEXPECTED(EG(exception) != NULL)) {
         es->exception = EG(exception);
-        es->prev_exception = EG(prev_exception);
-        es->opline_before_exception = EG(opline_before_exception);
         EG(exception) = NULL;
+#if PHP_VERSION_ID < 80600
+        es->prev_exception = EG(prev_exception);
         EG(prev_exception) = NULL;
+#endif
+        es->opline_before_exception = EG(opline_before_exception);
     } else {
         es->exception = NULL;
         es->prev_exception = NULL;
@@ -174,7 +176,9 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
 
     if (es->exception) {
         EG(exception) = es->exception;
+#if PHP_VERSION_ID < 80600
         EG(prev_exception) = es->prev_exception;
+#endif
         if (EG(current_execute_data)) {
             // ensure that we continue handling an exception if we were handling one before the sandbox call
             EG(current_execute_data)->opline = EG(exception_op);

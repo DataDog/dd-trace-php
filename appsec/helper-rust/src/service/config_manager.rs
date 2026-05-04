@@ -19,15 +19,15 @@ impl<Final, Partial: Mergeable<Final>> ConfigManager<Final, Partial> {
         }
     }
 
-    pub fn add(&mut self, key: String, value_json: &[u8]) -> anyhow::Result<()> {
+    pub fn add(&mut self, key: String, value_json: &[u8]) -> anyhow::Result<bool> {
         let value = serde_json::from_slice::<Partial>(value_json).map_err(|e| {
             anyhow::anyhow!(
                 "failed to deserialize asm features config for {key} (value: {:?}): {e}",
                 String::from_utf8_lossy(value_json)
             )
         })?;
-        self.configs.insert(key, value);
-        Ok(())
+        let replaced = self.configs.insert(key, value).is_some();
+        Ok(replaced)
     }
 
     pub fn remove(&mut self, key: impl AsRef<str>) -> bool {

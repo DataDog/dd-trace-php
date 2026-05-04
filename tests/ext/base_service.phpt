@@ -2,6 +2,7 @@
 Properly set _dd.base_service when service name is manually changed
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function foo() { }
 
@@ -11,7 +12,7 @@ DDTrace\trace_function('foo', function (\DDTrace\SpanData $span) {
 
 foo();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

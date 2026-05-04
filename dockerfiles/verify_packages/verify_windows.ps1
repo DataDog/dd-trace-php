@@ -1,5 +1,6 @@
 # to run manually: docker run --rm -ti -v $pwd\..\..:c:\app -w c:\app chocolatey/choco:latest-windows powershell.exe .\dockerfiles\verify_packages\verify_windows.ps1
 
+if (-not $env:ChocolateyInstall) { $env:ChocolateyInstall = 'C:\ProgramData\chocolatey' }
 Import-Module $env:ChocolateyInstall\helpers\chocolateyProfile.psm1
 
 choco install -y php

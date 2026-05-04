@@ -104,7 +104,8 @@ ddog_MaybeError ddog_sidecar_clear_inherited_listener(void);
 
 ddog_MaybeError ddog_sidecar_ping(struct ddog_SidecarTransport **transport);
 
-ddog_MaybeError ddog_sidecar_flush_traces(struct ddog_SidecarTransport **transport);
+ddog_MaybeError ddog_sidecar_flush(struct ddog_SidecarTransport **transport,
+                                   struct ddog_SidecarFlushOptions options);
 
 struct ddog_InstanceId *ddog_sidecar_instanceId_build(ddog_CharSlice session_id,
                                                       ddog_CharSlice runtime_id);
@@ -214,7 +215,9 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 bool is_fork,
                                                 const struct ddog_Vec_Tag *process_tags,
                                                 ddog_CharSlice hostname,
-                                                ddog_CharSlice root_service);
+                                                ddog_CharSlice root_service,
+                                                ddog_CharSlice root_session_id,
+                                                ddog_CharSlice parent_session_id);
 
 /**
  * Updates the process_tags for an existing session.
