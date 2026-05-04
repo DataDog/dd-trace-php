@@ -7,6 +7,7 @@ namespace Application;
 use Application\Controller\DynamicPathController;
 use Application\Controller\LoginControllerFactory;
 use Laminas\Router\Http\Literal;
+use Laminas\Router\Http\Method;
 use Laminas\Router\Http\Segment;
 use Laminas\ServiceManager\Factory\InvokableFactory;
 
@@ -90,6 +91,24 @@ return [
                             ],
                         ],
                     ],
+                ],
+            ],
+            'verb_test' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/verb-test',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+                'may_terminate' => false,
+                'child_routes' => [
+                    'get'    => ['type' => Method::class, 'options' => ['verb' => 'GET']],
+                    'post'   => ['type' => Method::class, 'options' => ['verb' => 'POST']],
+                    'put'    => ['type' => Method::class, 'options' => ['verb' => 'PUT']],
+                    'patch'  => ['type' => Method::class, 'options' => ['verb' => 'PATCH']],
+                    'delete' => ['type' => Method::class, 'options' => ['verb' => 'DELETE']],
                 ],
             ],
             'chained_resource' => [

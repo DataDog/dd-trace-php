@@ -1023,6 +1023,19 @@ class LaminasIntegration extends Integration
         return $out;
     }
 
+    private static function extractHttpVerbFromRoute($route): string
+    {
+        if (!($route instanceof \Laminas\Router\Http\Method)) {
+            return 'GET';
+        }
+        $rp = new \ReflectionProperty($route, 'verb');
+        $rp->setAccessible(true);
+        $verb = strtoupper(trim((string) $rp->getValue($route)));
+        $first = explode(',', $verb)[0];
+        $first = trim($first);
+        return $first !== '' ? $first : 'GET';
+    }
+
     private static function walkRouteStackCollectEndpointRows(
         $rootRouter,
         $currentStack,
@@ -1033,7 +1046,7 @@ class LaminasIntegration extends Integration
             $qualifiedName = $namePrefix === '' ? (string) $name : $namePrefix . '/' . $name;
             $path = self::httpRouteTemplateFromNamedRouteStack($rootRouter, $qualifiedName);
             if ($path !== null && $path !== '') {
-                $method = 'GET';
+                $method = self::extractHttpVerbFromRoute($route);
                 $rows[] = [
                     'path' => $path,
                     'method' => $method,
@@ -1041,6 +1054,13 @@ class LaminasIntegration extends Integration
                 ];
             }
             if ($route instanceof \Laminas\Router\Http\Part) {
+                $rp = new \ReflectionProperty(\Laminas\Router\Http\Part::class, 'childRoutes');
+                $rp->setAccessible(true);
+                $childRoutes = $rp->getValue($route);
+                if ($childRoutes !== null) {
+                    $route->addRoutes($childRoutes);
+                    $rp->setValue($route, null);
+                }
                 self::walkRouteStackCollectEndpointRows($rootRouter, $route, $qualifiedName, $rows);
             }
         }

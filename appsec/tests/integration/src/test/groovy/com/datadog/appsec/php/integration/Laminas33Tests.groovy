@@ -81,13 +81,22 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 6
+        assert endpoints.size() == 13
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
         assert endpoints.find { it.path == '/behind-auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind-auth' } != null
         assert endpoints.find {
             it.path == '/dynamic-path[/:param01]' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path[/:param01]'
         } != null
+        assert endpoints.find { it.path == '/resource' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /resource' } != null
+        assert endpoints.find { it.path == '/resource/:resourceId' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /resource/:resourceId' } != null
+        assert endpoints.find { it.path == '/resource/:resourceId/:subId' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /resource/:resourceId/:subId' } != null
+        assert endpoints.find { it.path == '/chain/:chainId' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /chain/:chainId' } != null
+        assert endpoints.find { it.path == '/verb-test' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /verb-test' } != null
+        assert endpoints.find { it.path == '/verb-test' && it.method == 'POST' && it.operationName == 'http.request' && it.resourceName == 'POST /verb-test' } != null
+        assert endpoints.find { it.path == '/verb-test' && it.method == 'PUT' && it.operationName == 'http.request' && it.resourceName == 'PUT /verb-test' } != null
+        assert endpoints.find { it.path == '/verb-test' && it.method == 'PATCH' && it.operationName == 'http.request' && it.resourceName == 'PATCH /verb-test' } != null
+        assert endpoints.find { it.path == '/verb-test' && it.method == 'DELETE' && it.operationName == 'http.request' && it.resourceName == 'DELETE /verb-test' } != null
     }
 
     @Test
