@@ -8,12 +8,12 @@
 #include "../commands_helpers.h"
 #include "../ddappsec.h"
 #include "../ddtrace.h"
+#include "../duration_acc.h"
 #include "../entity_body.h"
 #include "../logging.h"
 #include "../msgpack_helpers.h"
 #include "../php_compat.h"
 #include "../string_helpers.h"
-#include "../duration_acc.h"
 #include <SAPI.h>
 
 static dd_result _request_pack(mpack_writer_t *nonnull w, void *nonnull ctx);
@@ -29,8 +29,8 @@ static const char *nullable _header_content_type_zend_array(
 static const dd_command_spec _spec = {
     .name = "request_shutdown",
     .name_len = sizeof("request_shutdown") - 1,
-    .num_args =
-        6, // a map, api sec sampling key, sidecar queue id, input_truncated, waf_duration_ext_us, rasp_duration_ext_us
+    .num_args = 6, // a map, api sec sampling key, sidecar queue id,
+                   // input_truncated, waf_duration_ext_us, rasp_duration_ext_us
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,

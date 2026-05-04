@@ -336,7 +336,11 @@ impl telemetry::SpanMetricsGenerator for WafMetrics {
 }
 
 fn bool_tag(value: bool) -> &'static str {
-    if value { "true" } else { "false" }
+    if value {
+        "true"
+    } else {
+        "false"
+    }
 }
 
 trait DurationExt {

@@ -28,6 +28,7 @@
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
+#include "duration_acc.h"
 #include "entity_body.h"
 #include "helper_process.h"
 #include "ip_extraction.h"
@@ -36,7 +37,6 @@
 #include "network.h"
 #include "php_compat.h"
 #include "php_objects.h"
-#include "duration_acc.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
@@ -593,7 +593,8 @@ static PHP_FUNCTION(datadog_appsec_push_addresses)
         return;
     }
 
-    struct req_exec_opts opts = {.rasp_rule = rasp_rule, .rule_variant = rule_variant};
+    struct req_exec_opts opts = {
+        .rasp_rule = rasp_rule, .rule_variant = rule_variant};
     struct block_params block_params = {0};
     struct timespec start = dd_monotime_start();
     dd_result res =

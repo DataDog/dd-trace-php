@@ -297,7 +297,8 @@ struct request_shutdown {
         request &operator=(request &&) = default;
         ~request() override = default;
 
-        MSGPACK_DEFINE(data, api_sec_samp_key, queue_id, input_truncated, waf_duration_ext_us, rasp_duration_ext_us)
+        MSGPACK_DEFINE(data, api_sec_samp_key, queue_id, input_truncated,
+            waf_duration_ext_us, rasp_duration_ext_us)
     };
 
     struct response : base_response_generic<response> {

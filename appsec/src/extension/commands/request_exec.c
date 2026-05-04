@@ -59,9 +59,10 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     dd_mpack_limits limits = dd_mpack_def_limits;
     dd_mpack_write_array_lim(w, ctx->data, &limits);
 
-    bool has_rule_variant = ctx->rule_variant != NULL && ZSTR_LEN(ctx->rule_variant) > 0;
-    size_t num_map_elems =
-        (ctx->rasp_rule != NULL) + has_rule_variant + (ctx->subctx_id != NULL) * 2;
+    bool has_rule_variant =
+        ctx->rule_variant != NULL && ZSTR_LEN(ctx->rule_variant) > 0;
+    size_t num_map_elems = (ctx->rasp_rule != NULL) + has_rule_variant +
+                           (ctx->subctx_id != NULL) * 2;
     mpack_start_map(w, num_map_elems);
 
     if (dd_mpack_limits_reached(&limits)) {

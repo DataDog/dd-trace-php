@@ -668,7 +668,12 @@ mod tests {
     #[tokio::test]
     async fn test_request_exec_command() {
         let waf_map = waf_map!(("foo", "bar"),);
-        let options = (Some("rasp_rule"), Some("subctx_id"), false);
+        let options = (
+            Some("rasp_rule"),
+            Option::<&str>::None,
+            Some("subctx_id"),
+            false,
+        );
 
         let command = ("request_exec", (&waf_map, options));
         let data = serialize_message(&command);
@@ -683,7 +688,10 @@ mod tests {
             assert_eq!(args.data, waf_map);
             assert_eq!(
                 args.options.run_type,
-                WafRunType::RaspRule("rasp_rule".to_string())
+                WafRunType::RaspRule {
+                    rule_type: "rasp_rule".to_string(),
+                    rule_variant: None,
+                }
             );
             assert_eq!(args.options.subctx_id, Some("subctx_id".to_string()));
             assert!(!args.options.subctx_last_call);
@@ -708,7 +716,10 @@ mod tests {
     #[tokio::test]
     async fn test_request_shutdown_command() {
         let waf_map = waf_map!(("foo", "bar"),);
-        let command = ("request_shutdown", (&waf_map, 12345u64, 67890u64, true));
+        let command = (
+            "request_shutdown",
+            (&waf_map, 12345u64, 67890u64, true, 1.5f64, 2.5f64),
+        );
         let data = serialize_message(&command);
 
         let mut decoder = CommandCodec;
@@ -722,6 +733,8 @@ mod tests {
             assert_eq!(args.api_sec_samp_key, 12345);
             assert_eq!(args.queue_id, 67890);
             assert!(args.input_truncated);
+            assert_eq!(args.waf_duration_ext_us, 1.5);
+            assert_eq!(args.rasp_duration_ext_us, 2.5);
         }
     }
 

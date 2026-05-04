@@ -43,8 +43,8 @@ static void _flush(double *nonnull acc, zend_string *nonnull key, double scale)
     zval zv;
     ZVAL_DOUBLE(&zv, *acc * scale);
     if (zend_hash_add(Z_ARRVAL_P(metrics_zv), key, &zv) == NULL) {
-        mlog(dd_log_warning, "Failed to add metric %.*s",
-            (int)ZSTR_LEN(key), ZSTR_VAL(key));
+        mlog(dd_log_warning, "Failed to add metric %.*s", (int)ZSTR_LEN(key),
+            ZSTR_VAL(key));
     }
 
     *acc = 0.0;
