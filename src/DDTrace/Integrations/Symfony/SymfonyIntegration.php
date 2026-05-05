@@ -678,7 +678,7 @@ class SymfonyIntegration extends Integration
      *   B) Walk exception chain for UserNotFoundException / UsernameNotFoundException
      *   C) Session '_security.last_username' — set by form login before calling authenticate
      */
-    public static function extractLoginFromAuthFailure($request, $exception): ?string
+    public static function extractLoginFromAuthFailure($request, $exception)
     {
         $login = null;
 
