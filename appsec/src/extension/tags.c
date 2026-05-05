@@ -1163,14 +1163,14 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     bool user_id_missing = user_id == NULL || ZSTR_LEN(user_id) == 0;
 
     if (login_missing) {
-        dd_telemetry_add_missing_user_login(LSTRARG("login_success"),
-            ZSTR_VAL(framework), ZSTR_LEN(framework));
+        dd_telemetry_add_missing_user_login(
+            LSTRARG("login_success"), ZSTR_VAL(framework), ZSTR_LEN(framework));
     }
     // Per spec: for login_success events, missing_user_id must only fire
     // when user_login is also unavailable.
     if (login_missing && user_id_missing) {
-        dd_telemetry_add_missing_user_id(LSTRARG("login_success"),
-            ZSTR_VAL(framework), ZSTR_LEN(framework));
+        dd_telemetry_add_missing_user_id(
+            LSTRARG("login_success"), ZSTR_VAL(framework), ZSTR_LEN(framework));
     }
 
     if (login_missing) {
@@ -1343,14 +1343,14 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     bool user_id_missing = user_id == NULL || ZSTR_LEN(user_id) == 0;
 
     if (login_missing) {
-        dd_telemetry_add_missing_user_login(LSTRARG("login_failure"),
-            ZSTR_VAL(framework), ZSTR_LEN(framework));
+        dd_telemetry_add_missing_user_login(
+            LSTRARG("login_failure"), ZSTR_VAL(framework), ZSTR_LEN(framework));
     }
     // Per spec: for login_failure events, missing_user_id must only fire
     // when user_login is also unavailable.
     if (login_missing && user_id_missing) {
-        dd_telemetry_add_missing_user_id(LSTRARG("login_failure"),
-            ZSTR_VAL(framework), ZSTR_LEN(framework));
+        dd_telemetry_add_missing_user_id(
+            LSTRARG("login_failure"), ZSTR_VAL(framework), ZSTR_LEN(framework));
     }
 
     if (user_login == NULL) {
@@ -1518,8 +1518,8 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
     zend_string *framework = NULL;
     zend_string *user_id = NULL;
     zend_string *anon_user_id = NULL;
-    if (zend_parse_parameters(
-            ZEND_NUM_ARGS(), "SS!", &framework, &user_id) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "SS!", &framework, &user_id) ==
+        FAILURE) {
         mlog(dd_log_debug,
             "Unexpected parameter combination, expected (framework, user_id)");
         return;

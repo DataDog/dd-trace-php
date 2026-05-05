@@ -45,8 +45,7 @@ void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
         ZSTR_VAL(tags_zstr), value);
 }
 
-void dd_telemetry_add_sdk_event(
-    char *nonnull event_type, size_t event_type_len)
+void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len)
 {
     char *tags = NULL;
     size_t tags_len = asprintf(&tags, "event_type:%.*s,sdk_version:v2",
@@ -67,8 +66,7 @@ static void _add_user_auth_metric(zend_string *nonnull name_zstr,
     size_t tags_len = asprintf(&tags, "framework:%.*s,event_type:%.*s",
         (int)framework_len, framework, (int)event_type_len, event_type);
     zend_string *tags_zstr = zend_string_init(tags, tags_len, 1);
-    dd_telemetry_add_metric(
-        name_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
+    dd_telemetry_add_metric(name_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
     zend_string_release(tags_zstr);
     free(tags);
 }
