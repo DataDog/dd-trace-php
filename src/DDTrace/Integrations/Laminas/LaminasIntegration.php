@@ -286,8 +286,13 @@ class LaminasIntegration extends Integration
                     }
                 }
 
-                // Push path params to appsec
-                if (function_exists('\datadog\appsec\push_addresses')) {
+                if (
+                    function_exists('\datadog\appsec\push_addresses')
+                    && $this instanceof \Laminas\Router\Http\TreeRouteStack
+                    && !($this instanceof \Laminas\Router\Http\Part)
+                    && $routeName !== null
+                    && $routeName !== ''
+                ) {
                     $params = $routeMatch->getParams();
                     $pathParams = array_diff_key(
                         $params,
