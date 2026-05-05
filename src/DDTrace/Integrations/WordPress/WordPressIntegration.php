@@ -71,7 +71,7 @@ class WordPressIntegration extends Integration
                         && in_array($retval->get_error_code(), ['empty_username', 'empty_password'], true)) {
                         return;
                     }
-                    if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                    if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                         return;
                     }
                     $exists = $retval instanceof $errorClass &&
@@ -79,12 +79,12 @@ class WordPressIntegration extends Integration
                         is_array($retval->errors) &&
                         isset($retval->errors['incorrect_password']);
 
-                    \datadog\appsec\track_user_login_failure_event_automated('wordpress', $username, null, $exists, []);
+                    \datadog\appsec\internal\track_user_login_failure_event_automated('wordpress', $username, null, $exists, []);
                     return;
                 }
 
                 //From this moment on, login is succesful
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
                     return;
                 }
 
@@ -100,7 +100,7 @@ class WordPressIntegration extends Integration
                     $metadata['name'] = $data->display_name;
                 }
 
-                \datadog\appsec\track_user_login_success_event_automated(
+                \datadog\appsec\internal\track_user_login_success_event_automated(
                     'wordpress',
                     $username,
                     $id,
@@ -114,7 +114,7 @@ class WordPressIntegration extends Integration
             'register_new_user',
             null,
             static function ($args, $retval) {
-                if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_signup_event_automated')) {
                     return;
                 }
 
@@ -130,7 +130,7 @@ class WordPressIntegration extends Integration
                     $metadata['email'] = $args[1];
                 }
 
-                \datadog\appsec\track_user_signup_event_automated(
+                \datadog\appsec\internal\track_user_signup_event_automated(
                     'wordpress',
                     $login,
                     $retval,
@@ -143,12 +143,12 @@ class WordPressIntegration extends Integration
             'wp_validate_auth_cookie',
             null,
             static function ($args, $retval) {
-                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_authenticated_user_event_automated')) {
                     return;
                 }
 
                 if ($retval !== false) {
-                    \datadog\appsec\track_authenticated_user_event_automated(
+                    \datadog\appsec\internal\track_authenticated_user_event_automated(
                         'wordpress', $retval
                     );
                 }

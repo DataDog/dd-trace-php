@@ -96,6 +96,7 @@ between the compile and test containers:
 .claude/ci/dockerh --cache tracer-web-83 --overlayfs \
   datadog/dd-trace-ci:php-8.3_bookworm-6 \
   -e CI_COMMIT_TAG=local \
+  -e SHARED=1 \
   -- bash -c '
 set -e
 .gitlab/compile_extension.sh

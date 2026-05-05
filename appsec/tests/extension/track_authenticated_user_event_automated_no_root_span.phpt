@@ -10,7 +10,7 @@ DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
-use function datadog\appsec\track_authenticated_user_event_automated;
+use function datadog\appsec\internal\track_authenticated_user_event_automated;
 
 include __DIR__ . '/inc/ddtrace_version.php';
 

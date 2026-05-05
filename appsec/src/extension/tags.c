@@ -1778,13 +1778,13 @@ ZEND_ARG_INFO(0, metadata)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_signup_event_automated", PHP_FN(datadog_appsec_track_user_signup_event_automated), track_user_signup_event_automated_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_user_signup_event_automated", PHP_FN(datadog_appsec_track_user_signup_event_automated), track_user_signup_event_automated_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_signup_event", PHP_FN(datadog_appsec_track_user_signup_event), track_user_signup_event_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_success_event_automated", PHP_FN(datadog_appsec_track_user_login_success_event_automated), track_user_login_success_event_automated_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_user_login_success_event_automated", PHP_FN(datadog_appsec_track_user_login_success_event_automated), track_user_login_success_event_automated_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_success_event", PHP_FN(datadog_appsec_track_user_login_success_event), track_user_login_success_event_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_failure_event_automated", PHP_FN(datadog_appsec_track_user_login_failure_event_automated), track_user_login_failure_event_automated_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_user_login_failure_event_automated", PHP_FN(datadog_appsec_track_user_login_failure_event_automated), track_user_login_failure_event_automated_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_failure_event", PHP_FN(datadog_appsec_track_user_login_failure_event), track_user_login_failure_event_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_authenticated_user_event_automated", PHP_FN(datadog_appsec_track_authenticated_user_event_automated), track_authenticated_user_event_automated_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_authenticated_user_event_automated", PHP_FN(datadog_appsec_track_authenticated_user_event_automated), track_authenticated_user_event_automated_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_authenticated_user_event", PHP_FN(datadog_appsec_track_authenticated_user_event), track_authenticated_user_event_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_APPSEC_NS "track_custom_event", PHP_FN(datadog_appsec_track_custom_event), track_custom_event_arginfo, 0, NULL, NULL)
     PHP_FE_END
