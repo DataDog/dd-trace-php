@@ -265,12 +265,15 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
 impl telemetry::SpanMetricsGenerator for WafMetrics {
     fn generate_span_metrics(&'_ self, submitter: &mut dyn telemetry::SpanMetricsSubmitter) {
         if !self.waf_duration.is_zero() {
-            submitter.submit_metric(telemetry::WAF_DURATION, self.waf_duration.duration_ms_f64());
+            submitter.submit_metric(
+                telemetry::WAF_DURATION,
+                self.waf_duration.as_micros() as f64,
+            );
         }
         if !self.rasp_duration.is_zero() {
             submitter.submit_metric(
                 telemetry::RAST_DURATION,
-                self.rasp_duration.duration_ms_f64(),
+                self.rasp_duration.as_micros() as f64,
             );
         }
         if self.rasp_rule_evals > 0 {

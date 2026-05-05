@@ -730,19 +730,23 @@ class TelemetryTests {
         assert wafDurationExt.count >= 1.0
 
         def span = trace[0]
-        def durationMs = span.metrics.'_dd.appsec.waf.duration'
-        assert durationMs != null && durationMs > 0.0d :
+        def durationUs = span.metrics.'_dd.appsec.waf.duration'
+        assert durationUs != null && durationUs > 0.0d :
             '_dd.appsec.waf.duration span metric must be > 0'
-        def durationExtMs = span.metrics.'_dd.appsec.waf.duration_ext'
-        assert durationExtMs != null && durationExtMs > 0.0d :
+        def durationExtUs = span.metrics.'_dd.appsec.waf.duration_ext'
+        assert durationExtUs != null && durationExtUs > 0.0d :
             '_dd.appsec.waf.duration_ext span metric must be > 0'
 
-        // Distributions are in µs; span metrics are in ms.
-        assert wafDuration.countForBinContaining(durationMs * 1000.0) != null :
-            "span metric value ${durationMs} ms (${durationMs * 1000.0} µs) not found in any " +
+        assert durationExtUs >= durationUs :
+            '_dd.appsec.waf.duration_ext must be >= .duration'
+
+        // Both waf.duration span metric and distribution are in µs.
+        assert wafDuration.countForBinContaining(durationUs) != null :
+            "span metric value ${durationUs} µs not found in any " +
             "waf.duration distribution bin; distribution: ${wafDuration}"
-        assert wafDurationExt.countForBinContaining(durationExtMs * 1000.0) != null :
-            "span metric value ${durationExtMs} ms (${durationExtMs * 1000.0} µs) not found in any " +
+        // Both waf.duration_ext span metric and distribution are in µs.
+        assert wafDurationExt.countForBinContaining(durationExtUs) != null :
+            "span metric value ${durationExtUs} µs not found in any " +
             "waf.duration_ext distribution bin; distribution: ${wafDurationExt}"
     }
 
@@ -965,16 +969,19 @@ class TelemetryTests {
         assert raspDurationExt.count >= 1.0
 
         def span = trace[0]
-        def raspDurationMs = span.metrics.'_dd.appsec.rasp.duration'
-        assert raspDurationMs != null && raspDurationMs > 0.0d :
+        def raspDurationUs = span.metrics.'_dd.appsec.rasp.duration'
+        assert raspDurationUs != null && raspDurationUs > 0.0d :
             '_dd.appsec.rasp.duration span metric must be > 0'
         def raspDurationExtUs = span.metrics.'_dd.appsec.rasp.duration_ext'
         assert raspDurationExtUs != null && raspDurationExtUs > 0.0d :
             '_dd.appsec.rasp.duration_ext span metric must be > 0'
 
-        // rasp.duration distribution is in µs; the span metric is in ms.
-        assert raspDuration.countForBinContaining(raspDurationMs * 1000.0) != null :
-            "span metric value ${raspDurationMs} ms (${raspDurationMs * 1000.0} µs) not found in any " +
+        assert raspDurationExtUs >= raspDurationUs :
+           '_dd.appsec.rasp.duration_ext should be >= .duration'
+
+        // Both rasp.duration span metric and distribution are in µs.
+        assert raspDuration.countForBinContaining(raspDurationUs) != null :
+            "span metric value ${raspDurationUs} µs not found in any " +
             "rasp.duration distribution bin; distribution: ${raspDuration}"
 
         // Both the span metric and the rasp.duration_ext distribution are in µs.

@@ -32,6 +32,7 @@ Array
 (
     [process_id] => %d
     [_dd.appsec.enabled] => %d
+    [_dd.appsec.waf.duration_ext] => %f
 )
 array(0) {
 }
