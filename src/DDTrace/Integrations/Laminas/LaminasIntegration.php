@@ -921,7 +921,7 @@ class LaminasIntegration extends Integration
 
         if ($matchedRoute instanceof \Laminas\Router\Http\Chain) {
             $buf = '';
-            foreach ($matchedRoute->getRoutes() as $chainedRoute) {
+            foreach (self::laminasGetChainRoutes($matchedRoute) as $chainedRoute) {
                 $part = self::httpRouteTemplateFromMatchedRoute($chainedRoute, null);
                 if ($part === null) {
                     return null;
@@ -1023,8 +1023,36 @@ class LaminasIntegration extends Integration
         return $out;
     }
 
+    /**
+     * Chain keeps child routes lazily in a private property; initialize before introspection.
+     *
+     * @return iterable<int|string, mixed>
+     */
+    private static function laminasGetChainRoutes(\Laminas\Router\Http\Chain $chain): iterable
+    {
+        $rp = new \ReflectionProperty(\Laminas\Router\Http\Chain::class, 'chainRoutes');
+        $rp->setAccessible(true);
+        $chainRoutes = $rp->getValue($chain);
+        if ($chainRoutes !== null) {
+            $chain->addRoutes($chainRoutes);
+            $rp->setValue($chain, null);
+        }
+
+        return $chain->getRoutes();
+    }
+
     private static function extractHttpVerbFromRoute($route): string
     {
+        if ($route instanceof \Laminas\Router\Http\Chain) {
+            foreach (self::laminasGetChainRoutes($route) as $chainRoute) {
+                $method = self::extractHttpVerbFromRoute($chainRoute);
+                if ($method !== 'GET') {
+                    return $method;
+                }
+            }
+
+            return 'GET';
+        }
         if (!($route instanceof \Laminas\Router\Http\Method)) {
             return 'GET';
         }
