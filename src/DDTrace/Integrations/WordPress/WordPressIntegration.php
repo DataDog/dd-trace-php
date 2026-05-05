@@ -79,7 +79,7 @@ class WordPressIntegration extends Integration
                         is_array($retval->errors) &&
                         isset($retval->errors['incorrect_password']);
 
-                    \datadog\appsec\track_user_login_failure_event_automated('wordpress', $username, $username, $exists, []);
+                    \datadog\appsec\track_user_login_failure_event_automated('wordpress', $username, null, $exists, []);
                     return;
                 }
 

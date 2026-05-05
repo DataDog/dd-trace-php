@@ -1,9 +1,10 @@
 package com.datadog.appsec.php.integration
 
-import com.datadog.appsec.php.TelemetryHelpers
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.model.Span
+import com.datadog.appsec.php.model.Trace
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
@@ -103,37 +104,94 @@ class WordPressTests {
 
     @Test
     @Order(1)
-    void 'Login failure with empty username triggers missing_user_login and missing_user_id telemetry'() {
-        CONTAINER.traceFromRequest('/login_trigger.php?user=&pass=test') {
+    void 'Login success automated event'() {
+        // admin/admin is the user created by `wp core install` in @BeforeAll.
+        Trace trace = CONTAINER.traceFromRequest('/login_trigger.php?user=admin&pass=admin') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
         }
 
-        TelemetryHelpers.Metric missingUserLogin
-        TelemetryHelpers.Metric missingUserId
-        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
-            def allSeries = messages.collectMany { it.series }
-            missingUserLogin = allSeries.find {
-                it.name == 'appsec.instrum.user_auth.missing_user_login' &&
-                        'event_type:login_failure' in it.tags &&
-                        'framework:wordpress' in it.tags
-            }
-            missingUserId = allSeries.find {
-                it.name == 'appsec.instrum.user_auth.missing_user_id' &&
-                        'event_type:login_failure' in it.tags &&
-                        'framework:wordpress' in it.tags
-            }
-            missingUserLogin != null && missingUserId != null
+        Span span = trace.first()
+        assert span.meta."appsec.events.users.login.success.track" == "true"
+        assert span.meta."_dd.appsec.events.users.login.success.auto.mode" == "identification"
+        assert span.meta."usr.id" == "1"
+        assert span.meta."appsec.events.users.login.success.usr.login" == 'admin'
+        assert span.metrics._sampling_priority_v1 == 2.0d
+    }
+
+    @Test
+    @Order(2)
+    void 'Login failure automated event - wrong password for existing user'() {
+        // Real failure path: the user exists, but the password is wrong. The
+        // integration must call track_user_login_failure_event_automated with a
+        // populated usr.login and usr.exists=true. missing_user_login must NOT
+        // fire because the login is present.
+        Trace trace = CONTAINER.traceFromRequest('/login_trigger.php?user=admin&pass=wrong') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
         }
 
-        assert missingUserLogin != null
-        assert missingUserLogin.namespace == 'appsec'
-        assert missingUserLogin.points[0][1] >= 1.0
-        assert missingUserLogin.type == 'count'
+        Span span = trace.first()
+        assert span.meta."appsec.events.users.login.failure.track" == "true"
+        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == "identification"
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'admin'
+        assert span.meta."appsec.events.users.login.failure.usr.exists" == "true"
+        assert !span.meta.containsKey("appsec.events.users.login.failure.usr.id")
+        assert span.metrics._sampling_priority_v1 == 2.0d
+    }
 
-        assert missingUserId != null
-        assert missingUserId.namespace == 'appsec'
-        assert missingUserId.points[0][1] >= 1.0
-        assert missingUserId.type == 'count'
+    @Test
+    @Order(3)
+    void 'Login failure automated event - unknown user'() {
+        // Non-empty unknown username: the integration emits a failure event with
+        // usr.exists=false. Login is non-empty, so no missing_user_login metric.
+        Trace trace = CONTAINER.traceFromRequest('/login_trigger.php?user=ghost&pass=whatever') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."appsec.events.users.login.failure.track" == "true"
+        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == "identification"
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'ghost'
+        assert span.meta."appsec.events.users.login.failure.usr.exists" == "false"
+        assert !span.meta.containsKey("appsec.events.users.login.failure.usr.id")
+        assert span.metrics._sampling_priority_v1 == 2.0d
+    }
+
+    @Test
+    @Order(4)
+    void 'Sign up automated event'() {
+        // Direct call to register_new_user via signup_trigger.php; this exercises
+        // the integration's hook on the function call, regardless of multisite or
+        // email-related side effects of the standard registration form.
+        Trace trace = CONTAINER.traceFromRequest(
+                '/signup_trigger.php?login=newuser1&email=newuser1@example.com') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."appsec.events.users.signup.track" == "true"
+        assert span.meta."_dd.appsec.events.users.signup.auto.mode" == "identification"
+        assert span.meta."appsec.events.users.signup.usr.login" == 'newuser1'
+        assert span.metrics._sampling_priority_v1 == 2.0d
+    }
+
+    @Test
+    @Order(5)
+    void 'Authenticated user automated event'() {
+        // behind_auth_trigger.php sets the current user and exercises
+        // wp_validate_auth_cookie, which the integration hooks to emit
+        // track_authenticated_user_event_automated.
+        Trace trace = CONTAINER.traceFromRequest('/behind_auth_trigger.php') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."usr.id" == "1"
+        assert span.meta."_dd.appsec.usr.id" == "1"
+        assert span.meta."_dd.appsec.user.collection_mode" == "identification"
     }
 }
