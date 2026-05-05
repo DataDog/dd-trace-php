@@ -990,7 +990,7 @@ class LaminasIntegration extends Integration
         if (\DDTrace\are_endpoints_collected()) {
             return;
         }
-        if (!($rootRouter instanceof \Laminas\Router\RouteStackInterface)) {
+        if (!($rootRouter instanceof \Laminas\Router\SimpleRouteStack)) {
             return;
         }
         $endpoints = self::collectLaminasRouteEndpointRows($rootRouter, $rootRouter, '');
@@ -1036,13 +1036,31 @@ class LaminasIntegration extends Integration
         return $first !== '' ? $first : 'GET';
     }
 
+    private static function laminasGetRoutesFromStack($stack)
+    {
+        if (!($stack instanceof \Laminas\Router\SimpleRouteStack)) {
+            return [];
+        }
+
+        return $stack->getRoutes();
+    }
+
+    private static function laminasGetNamedRouteFromStack($stack, string $name)
+    {
+        if (!($stack instanceof \Laminas\Router\SimpleRouteStack)) {
+            return null;
+        }
+
+        return $stack->getRoute($name);
+    }
+
     private static function walkRouteStackCollectEndpointRows(
         $rootRouter,
         $currentStack,
         string $namePrefix,
         array &$rows
     ): void {
-        foreach ($currentStack->getRoutes() as $name => $route) {
+        foreach (self::laminasGetRoutesFromStack($currentStack) as $name => $route) {
             $qualifiedName = $namePrefix === '' ? (string) $name : $namePrefix . '/' . $name;
             $path = self::httpRouteTemplateFromNamedRouteStack($rootRouter, $qualifiedName);
             if ($path !== null && $path !== '') {
@@ -1069,7 +1087,7 @@ class LaminasIntegration extends Integration
     public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
     {
         $segments = \explode('/', $matchedName, 2);
-        $route = $stack->getRoute($segments[0]);
+        $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
         if ($route === null) {
             return null;
         }
