@@ -364,13 +364,56 @@ class LaravelIntegration extends Integration
             ]
         );
 
-        // Used by Laravel >= 5.0
+        // Used by Laravel >= 5.2.35 (SessionGuard started dispatching Failed in
+        // that point release). Carries the resolved user when credentials matched
+        // a known account (wrong-password case) so we can populate usr.id alongside
+        // usr.login. Constructor signature is ($user, $credentials) on 5.2-5.6 and
+        // ($guard, $user, $credentials) on 5.7+.
+        \DDTrace\hook_method(
+            'Illuminate\Auth\Events\Failed',
+            '__construct',
+            static function ($This, $scope, $args) {
+                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                    return;
+                }
+
+                if (\count($args) >= 3) {
+                    $user = $args[1] ?? null;
+                    $credentials = $args[2] ?? null;
+                } else {
+                    $user = $args[0] ?? null;
+                    $credentials = $args[1] ?? null;
+                }
+
+                $authClass = 'Illuminate\Contracts\Auth\Authenticatable';
+                $userExists = $user instanceof $authClass;
+                $userId = $userExists ? self::getAuthIdentifier($user) : null;
+
+                \datadog\appsec\track_user_login_failure_event_automated(
+                    self::getLoginFromArgs($credentials),
+                    $userId ?: null,
+                    $userExists,
+                    [],
+                    'laravel'
+                );
+            }
+        );
+
+        // Used by Laravel >= 5.2 (SessionGuard exists since 5.2; earlier versions
+        // use Illuminate\Auth\Guard, hooked separately below). Fallback for the
+        // 5.2.0-5.2.34 window where SessionGuard exists but doesn't dispatch the
+        // Failed event yet. When Failed is available it has already fired by the
+        // time this post-hook runs, so we skip to avoid overwriting the user_id
+        // captured there.
         \DDTrace\hook_method(
             'Illuminate\Auth\SessionGuard',
             'attempt',
             null,
             static function ($This, $scope, $args, $loginSuccess) {
                 if ($loginSuccess || !function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                    return;
+                }
+                if (\class_exists('Illuminate\Auth\Events\Failed', false)) {
                     return;
                 }
 

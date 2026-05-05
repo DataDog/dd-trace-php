@@ -58,11 +58,32 @@ class Laravel8xTests {
         assert span.meta."appsec.events.users.login.failure.track" == "true"
         assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == "identification"
         assert span.meta."appsec.events.users.login.failure.usr.exists" == "false"
+        // Failed event hook reads the credentials array; usr.login is the attempted email.
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'nonExisiting@email.com'
         assert span.metrics._sampling_priority_v1 == 2.0d
     }
 
     @Test
     @Order(5)
+    void 'Login failure automated event - wrong password for existing user'() {
+        // Existing user (id=1) with a wrong password: the Failed event carries the
+        // resolved user object, so usr.id and usr.exists must be populated.
+        Trace trace = container.traceFromRequest('/authenticate?email=ciuser@example.com&password=wrong') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 403
+        }
+
+        Span span = trace.first()
+        assert span.meta."appsec.events.users.login.failure.track" == "true"
+        assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == "identification"
+        assert span.meta."appsec.events.users.login.failure.usr.exists" == "true"
+        assert span.meta."appsec.events.users.login.failure.usr.id" == "1"
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'ciuser@example.com'
+        assert span.metrics._sampling_priority_v1 == 2.0d
+    }
+
+    @Test
+    @Order(6)
     void 'Login failure automated event - missing login triggers telemetry'() {
         // Empty email: Auth::attempt(['email' => '']) fails with no user, the
         // Laravel integration calls track_user_login_failure_event_automated('',
@@ -101,7 +122,7 @@ class Laravel8xTests {
     }
 
     @Test
-    @Order(6)
+    @Order(7)
     void 'Login success automated event'() {
         //The user ciuser@example.com is already on the DB
         def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com') {
@@ -118,7 +139,7 @@ class Laravel8xTests {
     }
 
     @Test
-    @Order(7)
+    @Order(8)
     void 'Sign up automated event'() {
         def trace = container.traceFromRequest(
                 '/register?email=test-user-new@email.coms&name=somename&password=somepassword'
@@ -134,7 +155,7 @@ class Laravel8xTests {
     }
 
     @Test
-    @Order(8)
+    @Order(9)
     void 'test path params'() {
         // Set ip which is blocked
         HttpRequest req = container.buildReq('/dynamic-path/someValue').GET().build()

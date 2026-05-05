@@ -157,7 +157,10 @@ class SymfonyIntegration extends Integration
                 if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, [], 'symfony');
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\track_user_login_failure_event_automated($login, null, false, [], 'symfony');
             }
         );
 
@@ -169,7 +172,10 @@ class SymfonyIntegration extends Integration
                 if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, [], 'symfony');
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\track_user_login_failure_event_automated($login, null, false, [], 'symfony');
             }
         );
 
@@ -210,7 +216,10 @@ class SymfonyIntegration extends Integration
                 if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, [], 'symfony');
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\track_user_login_failure_event_automated($login, null, false, [], 'symfony');
             }
         );
 
@@ -659,6 +668,65 @@ class SymfonyIntegration extends Integration
                 $hook->data = true;
             });
         }
+    }
+
+    /**
+     * Extract the attempted login name from a Symfony authentication failure.
+     *
+     * Three sources in order of preference:
+     *   A) AuthenticationException::getToken() — set by AuthenticationProviderManager (legacy system)
+     *   B) Walk exception chain for UserNotFoundException / UsernameNotFoundException
+     *   C) Session '_security.last_username' — set by form login before calling authenticate
+     */
+    public static function extractLoginFromAuthFailure($request, $exception): ?string
+    {
+        $login = null;
+
+        // Path A: token attached by AuthenticationProviderManager (Symfony 5.x legacy path)
+        if ($exception !== null && \method_exists($exception, 'getToken')) {
+            $token = $exception->getToken();
+            if ($token) {
+                $login = \method_exists($token, 'getUserIdentifier')
+                    ? $token->getUserIdentifier()
+                    : (\method_exists($token, 'getUsername') ? $token->getUsername() : null);
+            }
+        }
+
+        // Path B: UserNotFoundException / UsernameNotFoundException carries the identifier
+        if (!$login && $exception !== null) {
+            $e = $exception;
+            while ($e !== null) {
+                if (\method_exists($e, 'getUserIdentifier')) {
+                    $id = $e->getUserIdentifier();
+                    if ($id) {
+                        $login = $id;
+                        break;
+                    }
+                } elseif (\method_exists($e, 'getUsername')) {
+                    $name = $e->getUsername();
+                    if ($name) {
+                        $login = $name;
+                        break;
+                    }
+                }
+                $e = \method_exists($e, 'getPrevious') ? $e->getPrevious() : null;
+            }
+        }
+
+        // Path C: session '_security.last_username' — most reliable for form-based logins;
+        // set before authenticate() is called so it survives even when exceptions don't carry tokens
+        if (!$login && $request !== null && \method_exists($request, 'hasSession')) {
+            try {
+                if ($request->hasSession()) {
+                    $sessionLogin = $request->getSession()->get('_security.last_username');
+                    if ($sessionLogin) {
+                        $login = $sessionLogin;
+                    }
+                }
+            } catch (\Throwable $ignored) {}
+        }
+
+        return $login ?: null;
     }
 
     /**

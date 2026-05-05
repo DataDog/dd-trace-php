@@ -37,7 +37,7 @@ class LoginController extends Controller
         }
         $credentials = [
             'email' => $hasEmail ? $rawEmail : 'ciuser@example.com',
-            'password' => 'password',
+            'password' => $request->query('password', 'password'),
         ];
 
         if (Auth::attempt($credentials)) {
