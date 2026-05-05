@@ -81,7 +81,7 @@ static PHP_FUNCTION(v2_track_user_login_success_wrapper)
         return;
     }
     _ddtrace_v2_track_user_login_success(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-    dd_telemetry_add_sdk_event(LSTRARG("login_success"), NULL, 0);
+    dd_telemetry_add_sdk_event(LSTRARG("login_success"));
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
     }
@@ -117,7 +117,7 @@ static PHP_FUNCTION(v2_track_user_login_failure_wrapper)
         return;
     }
     _ddtrace_v2_track_user_login_failure(INTERNAL_FUNCTION_PARAM_PASSTHRU);
-    dd_telemetry_add_sdk_event(LSTRARG("login_failure"), NULL, 0);
+    dd_telemetry_add_sdk_event(LSTRARG("login_failure"));
     if (!DDAPPSEC_G(active) && UNEXPECTED(!get_global_DD_APPSEC_TESTING())) {
         return;
     }

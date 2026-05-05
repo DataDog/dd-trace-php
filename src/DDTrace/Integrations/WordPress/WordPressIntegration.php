@@ -62,16 +62,24 @@ class WordPressIntegration extends Integration
 
                 if (!($retval instanceof $userClass)) {
                     //Login failed
+                    // Mirror WordPress' own $ignore_codes (wp-includes/pluggable.php
+                    // wp_authenticate). When the failure is a missing username or
+                    // password, WP itself does not consider this a real attempt —
+                    // skip emitting an automated event (e.g. plain GET /wp-login.php).
+                    $errorClass = '\WP_Error';
+                    if ($retval instanceof $errorClass
+                        && in_array($retval->get_error_code(), ['empty_username', 'empty_password'], true)) {
+                        return;
+                    }
                     if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
                         return;
                     }
-                    $errorClass = '\WP_Error';
                     $exists = $retval instanceof $errorClass &&
                         \property_exists($retval, 'errors') &&
                         is_array($retval->errors) &&
                         isset($retval->errors['incorrect_password']);
 
-                    \datadog\appsec\track_user_login_failure_event_automated($username, $username, $exists, [], 'wordpress');
+                    \datadog\appsec\track_user_login_failure_event_automated('wordpress', $username, $username, $exists, []);
                     return;
                 }
 
@@ -93,10 +101,10 @@ class WordPressIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_login_success_event_automated(
+                    'wordpress',
                     $username,
                     $id,
-                    $metadata,
-                    'wordpress'
+                    $metadata
                 );
             }
         );
@@ -123,10 +131,10 @@ class WordPressIntegration extends Integration
                 }
 
                 \datadog\appsec\track_user_signup_event_automated(
+                    'wordpress',
                     $login,
                     $retval,
-                    $metadata,
-                    'wordpress'
+                    $metadata
                 );
             }
         );
@@ -141,7 +149,7 @@ class WordPressIntegration extends Integration
 
                 if ($retval !== false) {
                     \datadog\appsec\track_authenticated_user_event_automated(
-                        $retval, 'wordpress'
+                        'wordpress', $retval
                     );
                 }
             }

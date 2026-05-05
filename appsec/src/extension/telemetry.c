@@ -45,19 +45,12 @@ void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
         ZSTR_VAL(tags_zstr), value);
 }
 
-void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len,
-    const char *nullable framework, size_t framework_len)
+void dd_telemetry_add_sdk_event(
+    char *nonnull event_type, size_t event_type_len)
 {
     char *tags = NULL;
-    size_t tags_len;
-    if (framework != NULL && framework_len > 0) {
-        tags_len = asprintf(&tags,
-            "event_type:%.*s,sdk_version:v2,framework:%.*s",
-            (int)event_type_len, event_type, (int)framework_len, framework);
-    } else {
-        tags_len = asprintf(&tags, "event_type:%.*s,sdk_version:v2",
-            (int)event_type_len, event_type);
-    }
+    size_t tags_len = asprintf(&tags, "event_type:%.*s,sdk_version:v2",
+        (int)event_type_len, event_type);
     zend_string *tags_zstr = zend_string_init(tags, tags_len, 1);
     dd_telemetry_add_metric(
         _dd_sdk_event_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
@@ -68,17 +61,11 @@ void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len,
 
 static void _add_user_auth_metric(zend_string *nonnull name_zstr,
     const char *nonnull event_type, size_t event_type_len,
-    const char *nullable framework, size_t framework_len)
+    const char *nonnull framework, size_t framework_len)
 {
     char *tags = NULL;
-    size_t tags_len;
-    if (framework != NULL && framework_len > 0) {
-        tags_len = asprintf(&tags, "framework:%.*s,event_type:%.*s",
-            (int)framework_len, framework, (int)event_type_len, event_type);
-    } else {
-        tags_len = asprintf(
-            &tags, "event_type:%.*s", (int)event_type_len, event_type);
-    }
+    size_t tags_len = asprintf(&tags, "framework:%.*s,event_type:%.*s",
+        (int)framework_len, framework, (int)event_type_len, event_type);
     zend_string *tags_zstr = zend_string_init(tags, tags_len, 1);
     dd_telemetry_add_metric(
         name_zstr, 1, tags_zstr, DDTRACE_METRIC_TYPE_COUNT);
@@ -87,14 +74,14 @@ static void _add_user_auth_metric(zend_string *nonnull name_zstr,
 }
 
 void dd_telemetry_add_missing_user_login(const char *nonnull event_type,
-    size_t event_type_len, const char *nullable framework, size_t framework_len)
+    size_t event_type_len, const char *nonnull framework, size_t framework_len)
 {
     _add_user_auth_metric(_dd_missing_user_login_zstr, event_type,
         event_type_len, framework, framework_len);
 }
 
 void dd_telemetry_add_missing_user_id(const char *nonnull event_type,
-    size_t event_type_len, const char *nullable framework, size_t framework_len)
+    size_t event_type_len, const char *nonnull framework, size_t framework_len)
 {
     _add_user_auth_metric(_dd_missing_user_id_zstr, event_type, event_type_len,
         framework, framework_len);

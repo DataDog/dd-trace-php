@@ -1,6 +1,7 @@
 <?php
 
 \datadog\appsec\track_user_login_success_event_automated(
+    'test',
     $_GET['login'] ?? 'Login',
     $_GET['id'] ?? 'Admin',
     [

@@ -115,7 +115,7 @@ class SymfonyIntegration extends Integration
                     $user = $userEntity->getUserIdentifier();
                 }
 
-                \datadog\appsec\track_user_signup_event_automated($user, $user, [], 'symfony');
+                \datadog\appsec\track_user_signup_event_automated('symfony', $user, $user, []);
             }
         );
 
@@ -141,10 +141,10 @@ class SymfonyIntegration extends Integration
                 $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
                 \datadog\appsec\track_user_login_success_event_automated(
+                    'symfony',
                     $user,
                     $user,
-                    $metadata,
-                    'symfony'
+                    $metadata
                 );
             }
         );
@@ -160,7 +160,7 @@ class SymfonyIntegration extends Integration
                 $login = SymfonyIntegration::extractLoginFromAuthFailure(
                     $args[0] ?? null, $args[1] ?? null
                 );
-                \datadog\appsec\track_user_login_failure_event_automated($login, null, false, [], 'symfony');
+                \datadog\appsec\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -175,7 +175,7 @@ class SymfonyIntegration extends Integration
                 $login = SymfonyIntegration::extractLoginFromAuthFailure(
                     $args[0] ?? null, $args[1] ?? null
                 );
-                \datadog\appsec\track_user_login_failure_event_automated($login, null, false, [], 'symfony');
+                \datadog\appsec\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -200,10 +200,10 @@ class SymfonyIntegration extends Integration
                 $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
                 \datadog\appsec\track_user_login_success_event_automated(
+                    'symfony',
                     $user,
                     $user,
-                    $metadata,
-                    'symfony'
+                    $metadata
                 );
             }
         );
@@ -219,7 +219,7 @@ class SymfonyIntegration extends Integration
                 $login = SymfonyIntegration::extractLoginFromAuthFailure(
                     $args[0] ?? null, $args[1] ?? null
                 );
-                \datadog\appsec\track_user_login_failure_event_automated($login, null, false, [], 'symfony');
+                \datadog\appsec\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -252,10 +252,10 @@ class SymfonyIntegration extends Integration
                     : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 \datadog\appsec\track_user_login_success_event_automated(
+                    'symfony',
                     $userIdentifier,
                     $userIdentifier,
-                    $metadata,
-                    'symfony'
+                    $metadata
                 );
             }
         );
@@ -285,7 +285,7 @@ class SymfonyIntegration extends Integration
                     : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 // Track the access check
-                \datadog\appsec\track_authenticated_user_event_automated($userIdentifier, 'symfony');
+                \datadog\appsec\track_authenticated_user_event_automated('symfony', $userIdentifier);
             }
         );
 

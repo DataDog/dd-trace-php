@@ -21,9 +21,11 @@ track_authenticated_user_event(
     [ "metadata" => "someValue" ]
 );
 track_authenticated_user_event_automated(
+    'test',
     "automatedID"
 );
 track_authenticated_user_event_automated(
+    'test',
     "otherAutomatedID"
 );
 track_authenticated_user_event(

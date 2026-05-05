@@ -17,6 +17,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 ddtrace_version_at_least('0.79.0');
 
 track_authenticated_user_event_automated(
+    'test',
     "automatedID"
 );
 track_authenticated_user_event(
