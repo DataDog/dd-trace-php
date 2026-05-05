@@ -167,13 +167,16 @@ to be per-target.
 (Step 2) before Step 3 runs.
 
 Replace `8.3` with your PHP version and `test_web_laravel_latest` with
-your target.
+your target. Pick a `--php <variant>` matching the SAPI being tested
+(bookworm images: `nts`, `debug`, `zts`, `nts-asan`, `debug-zts-asan`).
+For per-target PHP-version compatibility, see the `TEST_WEB_XY` lists in
+the toplevel `Makefile`.
 
 #### Full suite
 
 ```bash
 PROJECT=tracer-web-83-laravel-latest
-.claude/ci/dockerh --cache tracer-web-83 --overlayfs \
+.claude/ci/dockerh --cache tracer-web-83 --overlayfs --php <variant> \
   datadog/dd-trace-ci:php-8.3_bookworm-6 \
   --network ${PROJECT}_default \
   -e COMPOSER_MEMORY_LIMIT=-1 \
