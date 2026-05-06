@@ -352,11 +352,12 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             } => match value.data {
                 RemoteConfigData::LiveDebugger(debugger) => {
                     let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
-                    let rc_ref = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
+                    let rc_ref: &mut RemoteConfigState = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
                     let entry = remote_config.live_debugger.active.entry(value.config_id);
                     let (debugger, limiter) = &mut **match entry {
                         Entry::Occupied(mut e) => {
-                            e.insert(val);
+                            let old = e.insert(val);
+                            remove_config(rc_ref, &old.0);
                             e.into_mut()
                         }
                         Entry::Vacant(e) => e.insert(val),

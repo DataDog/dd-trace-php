@@ -332,7 +332,7 @@ static inline void dd_make_span_creation_observers_ref(zval *observers) {
     if (!Z_ISREF_P(observers)) {
         ZVAL_NEW_REF(observers, observers);
 #if PHP_VERSION_ID >= 80000
-        zend_property_info *prop = ddtrace_ce_span_stack->properties_info_table[(XtOffsetOf(ddtrace_span_stack, property_span_creation_observers) - (sizeof(zend_object) - sizeof(zval))) / sizeof(zval)];
+        zend_property_info *prop = ddtrace_ce_span_stack->properties_info_table[(offsetof(ddtrace_span_stack, property_span_creation_observers) - (sizeof(zend_object) - sizeof(zval))) / sizeof(zval)];
         ZEND_REF_ADD_TYPE_SOURCE(Z_REF_P(observers), prop);
 #endif
     }

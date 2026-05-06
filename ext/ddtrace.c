@@ -409,21 +409,21 @@ static inline void dd_alter_prop(size_t prop_offset, zval *old_value, zval *new_
 }
 
 bool ddtrace_alter_dd_service(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_service), old_value, new_value, new_str);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_service), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
         ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, new_str, get_DD_ENV(), get_DD_VERSION());
     }
     return true;
 }
 bool ddtrace_alter_dd_env(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_env), old_value, new_value, new_str);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_env), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
         ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, get_DD_SERVICE(), new_str, get_DD_VERSION());
     }
     return true;
 }
 bool ddtrace_alter_dd_version(zval *old_value, zval *new_value, zend_string *new_str) {
-    dd_alter_prop(XtOffsetOf(ddtrace_span_properties, property_version), old_value, new_value, new_str);
+    dd_alter_prop(offsetof(ddtrace_span_properties, property_version), old_value, new_value, new_str);
     if (DDTRACE_G(request_initialized)) {
         ddtrace_sidecar_submit_root_span_data_direct(&DDTRACE_G(sidecar), NULL, get_DD_SERVICE(), get_DD_ENV(), new_str);
     }
@@ -1069,7 +1069,7 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
 static void ddtrace_span_data_free_storage(zend_object *object) {
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
-    memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
+    memset(object->properties_table, 0, sizeof(ddtrace_span_data) - offsetof(ddtrace_span_data, std.properties_table));
 }
 
 #if PHP_VERSION_ID < 80000
@@ -1288,7 +1288,7 @@ static void dd_register_span_data_ce(void) {
     ddtrace_ce_span_data->create_object = ddtrace_span_data_create;
 
     memcpy(&ddtrace_span_data_handlers, &std_object_handlers, sizeof(zend_object_handlers));
-    ddtrace_span_data_handlers.offset = XtOffsetOf(ddtrace_span_data, std);
+    ddtrace_span_data_handlers.offset = offsetof(ddtrace_span_data, std);
     ddtrace_span_data_handlers.clone_obj = ddtrace_span_data_clone_obj;
     ddtrace_span_data_handlers.free_obj = ddtrace_span_data_free_storage;
     ddtrace_span_data_handlers.write_property = ddtrace_span_data_readonly;
@@ -1298,7 +1298,7 @@ static void dd_register_span_data_ce(void) {
     ddtrace_ce_inferred_span_data->create_object = ddtrace_inferred_span_data_create;
 
     memcpy(&ddtrace_inferred_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
-    ddtrace_inferred_span_data_handlers.offset = XtOffsetOf(ddtrace_inferred_span_data, std);
+    ddtrace_inferred_span_data_handlers.offset = offsetof(ddtrace_inferred_span_data, std);
     ddtrace_inferred_span_data_handlers.clone_obj = ddtrace_inferred_span_data_clone_obj;
 
 
@@ -1318,7 +1318,7 @@ static void dd_register_span_data_ce(void) {
 #endif
 
     memcpy(&ddtrace_root_span_data_handlers, &ddtrace_span_data_handlers, sizeof(zend_object_handlers));
-    ddtrace_root_span_data_handlers.offset = XtOffsetOf(ddtrace_root_span_data, std);
+    ddtrace_root_span_data_handlers.offset = offsetof(ddtrace_root_span_data, std);
     ddtrace_root_span_data_handlers.clone_obj = ddtrace_root_span_data_clone_obj;
     ddtrace_root_span_data_handlers.write_property = ddtrace_root_span_data_write;
 

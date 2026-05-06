@@ -9,7 +9,7 @@
 #include "sidecar.h"
 
 static ddog_CharSlice dd_validate_zstr(zend_string *str) {
-    if (zai_is_mapped(str, XtOffsetOf(zend_string, val))) {
+    if (zai_is_mapped(str, offsetof(zend_string, val))) {
         if (!ZSTR_LEN(str) || zai_is_mapped(ZSTR_VAL(str), ZSTR_LEN(str))) {
             ddog_CharSlice slice = dd_zend_string_to_CharSlice(str);
             if (slice.len > 512) {

@@ -99,6 +99,10 @@ static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
 #endif
 }
 
+#ifndef offsetof
+#define offsetof(type, member) XtOffsetOf(type, member)
+#endif
+
 #if PHP_VERSION_ID < 70100
 #define IS_VOID 0
 #define MAY_BE_NULL 0
@@ -512,6 +516,8 @@ static zend_always_inline int zend_compare(zval *op1, zval *op2) {
 #define Z_OBJDEBUG_P(zv, is_temp) Z_OBJDEBUG(*(zval *)(zv), is_temp)
 
 #define ZEND_TYPE_CONTAINS_CODE(type, code) ((code) == IS_NULL ? ZEND_TYPE_ALLOW_NULL(type) : ZEND_TYPE_CODE(type) == (code))
+
+#define zend_result ZEND_RESULT_CODE
 #endif
 
 #if PHP_VERSION_ID < 80100

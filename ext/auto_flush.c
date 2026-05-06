@@ -20,7 +20,7 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
-ZEND_RESULT_CODE ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, bool fast_shutdown) {
+zend_result ddtrace_flush_tracer(bool force_on_startup, bool collect_cycles, bool fast_shutdown) {
     bool success = true;
 
     ddog_TracesBytes *traces = ddog_get_traces();

@@ -100,7 +100,7 @@ struct ddtrace_span_data {
 };
 
 static inline ddtrace_span_data *OBJ_SPANDATA(zend_object *obj) {
-    return (ddtrace_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_span_data, std));
+    return (ddtrace_span_data *)((char *)(obj) - offsetof(ddtrace_span_data, std));
 }
 
 static inline ddtrace_span_data *SPANDATA(ddtrace_span_properties *obj) {
@@ -115,7 +115,7 @@ struct ddtrace_inferred_span_data {
 };
 
 static inline ddtrace_inferred_span_data *INFERRED_SPANDATA(zend_object *obj) {
-    return (ddtrace_inferred_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_inferred_span_data, std));
+    return (ddtrace_inferred_span_data *)((char *)(obj) - offsetof(ddtrace_inferred_span_data, std));
 }
 
 struct ddtrace_root_span_data {
@@ -144,7 +144,7 @@ struct ddtrace_root_span_data {
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
-    return (ddtrace_root_span_data *)((char *)(obj) - XtOffsetOf(ddtrace_root_span_data, std));
+    return (ddtrace_root_span_data *)((char *)(obj) - offsetof(ddtrace_root_span_data, std));
 }
 
 struct ddtrace_span_stack {
