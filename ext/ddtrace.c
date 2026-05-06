@@ -348,17 +348,21 @@ static int ddtrace_startup(zend_extension *extension) {
     }
 #endif
 
-    ddtrace_excluded_modules_startup();
-    // We deliberately leave handler replacement during startup, even though this uses some config
-    // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done post-startup
-    ddtrace_internal_handlers_startup();
+    if (!ddtrace_disable) {
+        ddtrace_excluded_modules_startup();
+        // We deliberately leave handler replacement during startup, even though this uses some config
+        // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done post-startup
+        ddtrace_internal_handlers_startup();
+    }
     return SUCCESS;
 }
 
 static void ddtrace_shutdown(struct _zend_extension *extension) {
     UNUSED(extension);
 
-    ddtrace_internal_handlers_shutdown();
+    if (ddtrace_disable != 1) {
+        ddtrace_internal_handlers_shutdown();
+    }
 
     zai_interceptor_shutdown();
 }

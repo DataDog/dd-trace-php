@@ -140,6 +140,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t baggage_malformed_count;
     uint32_t baggage_max_item_count;
     uint32_t baggage_max_byte_count;
+    uint32_t baggage_extract_max_item_count;
+    uint32_t baggage_extract_max_byte_count;
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;

@@ -100,6 +100,8 @@ void ddtrace_telemetry_rinit(void) {
     DDTRACE_G(baggage_malformed_count) = 0;
     DDTRACE_G(baggage_max_item_count) = 0;
     DDTRACE_G(baggage_max_byte_count) = 0;
+    DDTRACE_G(baggage_extract_max_item_count) = 0;
+    DDTRACE_G(baggage_extract_max_byte_count) = 0;
 }
 
 void ddtrace_telemetry_rshutdown(void) {
@@ -240,6 +242,8 @@ void ddtrace_telemetry_finalize() {
     ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), DDOG_CHARSLICE_C("context_header.truncated"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_item_exceeded"));
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_count_exceeded"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_extract_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_extract_item_exceeded"));
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_extract_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_extract_byte_exceeded"));
     ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), DDOG_CHARSLICE_C("context_header_style.malformed"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
     ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
 
