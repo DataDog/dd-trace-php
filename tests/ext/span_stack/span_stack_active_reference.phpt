@@ -16,7 +16,7 @@ DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
 
-function touch_ref(&$value): void {}
+function touch_ref(&$value) {}
 
 $root = \DDTrace\start_span();
 $root->service = "parent-service";
