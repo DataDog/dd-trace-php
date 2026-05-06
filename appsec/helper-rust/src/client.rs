@@ -467,6 +467,8 @@ async fn do_request_loop_iter(
                     .run_waf(data, &protocol::RequestExecOptions::regular())
                     .map_err(FatalRequestError)?;
 
+                req_ctx.record_shutdown_context(req.input_truncated);
+
                 // span metrics / meta
                 let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
                 req_ctx.generate_span_metrics(&mut span_submitter);
@@ -486,7 +488,7 @@ async fn do_request_loop_iter(
                     });
                 send_command_resp(framed, resp).await?;
 
-                submit_context_telemetry_metrics(client, &mut req_ctx, req.input_truncated);
+                submit_context_telemetry_metrics(client, &mut req_ctx);
                 submit_service_telemetry(client, service);
 
                 break;
@@ -524,11 +526,7 @@ fn submit_service_telemetry(client: &Client, service: &Service) {
     }
 }
 
-fn submit_context_telemetry_metrics(
-    client: &Client,
-    req_ctx: &mut ReqContext,
-    input_truncated: bool,
-) {
+fn submit_context_telemetry_metrics(client: &Client, req_ctx: &mut ReqContext) {
     let Some(ref sidecar_settings) = client.sidecar_settings else {
         warn!("Cannot submit context telemetry metrics: sidecar_settings not set");
         return;
@@ -542,7 +540,7 @@ fn submit_context_telemetry_metrics(
         &client.metrics_last_registered,
     );
 
-    let waf_metrics = req_ctx.take_waf_metrics(input_truncated);
+    let waf_metrics = req_ctx.take_waf_metrics();
     waf_metrics.generate_telemetry_metrics(&mut *tel_metric_submitter);
 }
 
@@ -631,8 +629,15 @@ impl ReqContext {
             WafRunType::NonRasp => {
                 self.waf_metrics.record_non_rasp_eval(&run_output);
             }
-            WafRunType::RaspRule(rule_type) => {
-                self.waf_metrics.record_rasp_eval(rule_type, &run_output);
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => {
+                self.waf_metrics.record_rasp_eval(
+                    rule_type,
+                    rule_variant.as_deref().unwrap_or(""),
+                    &run_output,
+                );
             }
         }
 
@@ -696,17 +701,19 @@ impl ReqContext {
     }
 
     fn should_force_keep(&mut self, service: &Service, waf_keep: bool) -> bool {
-        // cache limiter result (called once per request)
-        let limiter_allows = match self.limiter_result {
+        // The limiter slot is only consumed when the WAF triggered; clean requests
+        // must not burn a slot even if this function is called multiple times.
+        if !waf_keep {
+            return false;
+        }
+        match self.limiter_result {
             Some(result) => result,
             None => {
                 let result = service.should_force_keep();
                 self.limiter_result = Some(result);
                 result
             }
-        };
-
-        limiter_allows && waf_keep
+        }
     }
 
     fn settings(&self) -> HashMap<&'static str, String> {
@@ -716,8 +723,14 @@ impl ReqContext {
         )])
     }
 
-    pub fn take_waf_metrics(&mut self, input_truncated: bool) -> metrics::WafMetrics {
+    pub fn record_shutdown_context(&mut self, input_truncated: bool) {
         self.waf_metrics.set_input_truncated(input_truncated);
+    }
+
+    pub fn take_waf_metrics(&mut self) -> metrics::WafMetrics {
+        self.waf_metrics
+            .set_rate_limited(matches!(self.limiter_result, Some(false)));
+
         std::mem::take(&mut self.waf_metrics)
     }
 }
