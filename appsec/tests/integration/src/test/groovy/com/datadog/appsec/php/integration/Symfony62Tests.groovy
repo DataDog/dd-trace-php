@@ -79,6 +79,9 @@ class Symfony62Tests {
         assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == 'identification'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.metrics._sampling_priority_v1 == 2.0d
+        // The Symfony integration extracts the attempted username from the session;
+        // '_username=aa' is stored as _security.last_username before authenticate() is called.
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'aa'
     }
 
     @Test
