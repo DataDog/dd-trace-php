@@ -52,6 +52,10 @@ static inline int hex2int(char c) {
 
 static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, HashTable *baggage) {
     bool is_malformed = false;
+    uint64_t item_count = 0;
+    uint64_t total_bytes = 0;
+    uint64_t max_items = get_DD_TRACE_BAGGAGE_MAX_ITEMS();
+    uint64_t max_bytes = get_DD_TRACE_BAGGAGE_MAX_BYTES();
 
     while (baggage_ptr < baggage_end) {
         // Extract key
@@ -81,6 +85,16 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
         size_t value_len = baggage_ptr - value_start;
         if (value_len == 0) {  // Empty value is invalid
             is_malformed = true;
+            break;
+        }
+
+        size_t segment_bytes = key_len + 1 + value_len + (item_count > 0 ? 1 : 0);
+        if (item_count >= max_items) {
+            DDTRACE_G(baggage_extract_max_item_count) += 1;
+            break;
+        }
+        if (total_bytes + segment_bytes > max_bytes) {
+            DDTRACE_G(baggage_extract_max_byte_count) += 1;
             break;
         }
 
@@ -141,6 +155,8 @@ static void ddtrace_deserialize_baggage(char *baggage_ptr, char *baggage_end, Ha
         ZVAL_STR(&baggage_value, decoded_value);
         zend_symtable_update(baggage, decoded_key, &baggage_value);
         zend_string_release(decoded_key);
+        total_bytes += segment_bytes;
+        item_count++;
 
         // Move past ',' if it's there
         if (baggage_ptr < baggage_end && *baggage_ptr == ',') {
@@ -349,6 +365,7 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
             result.tracestate = zend_string_alloc(ZSTR_LEN(tracestate), 0);
             char *persist = ZSTR_VAL(result.tracestate);
             int commas = 0;
+            size_t tags_size = 0;
             for (char *ptr = ZSTR_VAL(tracestate), *end = ptr + ZSTR_LEN(tracestate); ptr < end; ++ptr) {
                 // dd member
                 if (last_comma && ptr + 2 < end && ptr[0] == 'd' && ptr[1] == 'd' && (ptr[2] == '=' || ptr[2] == '\t' || ptr[2] == ' ')) {
@@ -402,21 +419,30 @@ static ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids_t
                                 }
                             }
                         } else if (keylen > 2 && keystart[0] == 't' && keystart[1] == '.') {
-                            zend_string *tag_name = zend_strpprintf(0, "_dd.p.%.*s", (int) keylen - 2, keystart + 2);
-                            zval zv;
-                            ZVAL_STRINGL(&zv, valuestart, valuelen);
-                            for (char *valptr = Z_STRVAL(zv), *valend = valptr + valuelen; valptr < valend; ++valptr) {
-                                if (*valptr == '~') {
-                                    *valptr = '=';
+                            tags_size += keylen + sizeof("_dd.") + valuelen;
+                            if (tags_size < 512) {
+                                zend_string *tag_name = zend_strpprintf(0, "_dd.p.%.*s", (int) keylen - 2, keystart + 2);
+                                zval zv;
+                                ZVAL_STRINGL(&zv, valuestart, valuelen);
+                                for (char *valptr = Z_STRVAL(zv), *valend = valptr + valuelen; valptr < valend; ++valptr) {
+                                    if (*valptr == '~') {
+                                        *valptr = '=';
+                                    }
                                 }
+                                zend_hash_update(&result.meta_tags, tag_name, &zv);
+                                zend_hash_add_empty_element(&result.propagated_tags, tag_name);
+                                zend_string_release(tag_name);
+                            } else {
+                                zval error_zv;
+                                ZVAL_STRING(&error_zv, "extract_max_size");
+                                zend_hash_str_update(&result.meta_tags, ZEND_STRL("_dd.propagation_error"), &error_zv);
                             }
-                            zend_hash_update(&result.meta_tags, tag_name, &zv);
-                            zend_hash_add_empty_element(&result.propagated_tags, tag_name);
-                            zend_string_release(tag_name);
                         } else {
-                            zval zv;
-                            ZVAL_STRINGL(&zv, valuestart, valuelen);
-                            zend_hash_str_update(&result.tracestate_unknown_dd_keys, keystart, keylen, &zv);
+                            if (zend_hash_num_elements(&result.tracestate_unknown_dd_keys) < 100) {
+                                zval zv;
+                                ZVAL_STRINGL(&zv, valuestart, valuelen);
+                                zend_hash_str_update(&result.tracestate_unknown_dd_keys, keystart, keylen, &zv);
+                            }
                         }
                     } while (*ptr == ';');
 
