@@ -34,8 +34,8 @@
 | spiral/roadrunner           | 2.11.4                 | 2.11.4                 |
 | stripe/stripe-php           | 13.18.0                | 13.18.0                |
 | symfony/console             | 5.2.14                 | 8.0.9                  |
-| symfony/framework-bundle    | 2.3.42                 | 8.0.9                  |
-| symfony/messenger           | 4.4.49                 | 8.0.9                  |
+| symfony/framework-bundle    | 2.3.42                 | 8.0.10                 |
+| symfony/messenger           | 4.4.49                 | 8.0.10                 |
 | wordpress                   | 4.8.10                 | 6.1.1                  |
 | yiisoft/yii2                | 2.0.49                 | 2.0.53                 |
 | zendframework/zf1           | 1.12.20                | 1.12.20                |
