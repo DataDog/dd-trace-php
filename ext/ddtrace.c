@@ -1229,6 +1229,37 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 }
 
 #if PHP_VERSION_ID < 80000
+static zval *ddtrace_span_stack_read_property(zval *object, zval *member, int type, void **cache_slot, zval *rv) {
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+    ddtrace_span_stack *stack = (ddtrace_span_stack *)Z_OBJ_P(object);
+#else
+static zval *ddtrace_span_stack_read_property(zend_object *object, zend_string *member, int type, void **cache_slot, zval *rv) {
+    zend_string *prop_name = member;
+    ddtrace_span_stack *stack = (ddtrace_span_stack *)object;
+#endif
+    if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
+            && zend_string_equals_literal(prop_name, "active")) {
+        ZVAL_COPY(rv, &stack->property_active);
+        return rv;
+    }
+    return zend_std_read_property(object, member, type, cache_slot, rv);
+}
+
+#if PHP_VERSION_ID < 80000
+static zval *ddtrace_span_stack_get_property_ptr_ptr(zval *object, zval *member, int type, void **cache_slot) {
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+#else
+static zval *ddtrace_span_stack_get_property_ptr_ptr(zend_object *object, zend_string *member, int type, void **cache_slot) {
+    zend_string *prop_name = member;
+#endif
+    if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
+            && zend_string_equals_literal(prop_name, "active")) {
+        return NULL;  // prevent cache fill; read_property handles the copy
+    }
+    return zend_std_get_property_ptr_ptr(object, member, type, cache_slot);
+}
+
+#if PHP_VERSION_ID < 80000
 #if PHP_VERSION_ID >= 70400
 static zval *ddtrace_span_stack_readonly(zval *object, zval *member, zval *value, void **cache_slot) {
 #else
@@ -1332,6 +1363,8 @@ static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_span_stack_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     ddtrace_span_stack_handlers.clone_obj = ddtrace_span_stack_clone_obj;
     ddtrace_span_stack_handlers.dtor_obj = ddtrace_span_stack_dtor_obj;
+    ddtrace_span_stack_handlers.read_property = ddtrace_span_stack_read_property;
+    ddtrace_span_stack_handlers.get_property_ptr_ptr = ddtrace_span_stack_get_property_ptr_ptr;
     ddtrace_span_stack_handlers.write_property = ddtrace_span_stack_readonly;
 
 }
