@@ -165,10 +165,12 @@ impl RunOutputExt for libddwaf::RunOutput {
     }
     fn is_blocking(&self) -> bool {
         self.actions().is_some_and(|actions| {
-            actions
-                .value()
-                .iter()
-                .any(|action| matches!(action.key().to_str(), Some("block") | Some("redirect")))
+            actions.value().iter().any(|action| {
+                matches!(
+                    action.key().to_str(),
+                    Some("block_request") | Some("redirect_request")
+                )
+            })
         })
     }
 }
