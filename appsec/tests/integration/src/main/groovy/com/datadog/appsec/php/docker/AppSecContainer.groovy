@@ -96,7 +96,6 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
         withEnv 'DD_SPAWN_WORKER_USE_EXEC', '1' // gdb fails following child with fdexec
         withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
-        withEnv 'DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL', '10'
         // withEnv '_DD_SHARED_LIB_DEBUG', '1'
         if (System.getProperty('XDEBUG') == '1') {
             Testcontainers.exposeHostPorts(9003)
