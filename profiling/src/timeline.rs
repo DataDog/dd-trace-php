@@ -732,6 +732,8 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         #[cfg(php_gc_status)]
         let status = status.assume_init();
 
+        let survivors = gc_survivors::collect_top_n();
+
         trace!(
             "Garbage collection with reason \"{reason}\" took {} nanoseconds",
             duration.as_nanos()
@@ -747,6 +749,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                         reason,
                         collected as i64,
                         status.runs as i64,
+                        survivors,
                     );
                 } else {
                     profiler.collect_garbage_collection(
@@ -755,6 +758,7 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
                         duration.as_nanos() as i64,
                         reason,
                         collected as i64,
+                        survivors,
                     );
                 }
             }
@@ -765,5 +769,154 @@ unsafe extern "C" fn ddog_php_prof_gc_collect_cycles() -> i32 {
         // did exist, which could only be the case if another extension was misbehaving.
         // But technically it could be, so better safe than sorry
         0
+    }
+}
+
+/// Walks `EG(objects_store)` to produce a "top 10 live classes by instance
+/// count" string, used as the `survivors` label on the GC timeline sample.
+///
+/// Watching that label across consecutive GC events in the timeline view
+/// surfaces object leaks: a class whose count climbs run-over-run is the
+/// fingerprint.
+mod gc_survivors {
+    use crate::zend;
+    use std::collections::HashMap;
+
+    /// Don't bother emitting the label when the store is small enough that
+    /// the signal would be dominated by engine bookkeeping. Threshold is
+    /// arbitrary; the goal is just to filter out tiny CLI scripts.
+    const MIN_OBJECTS_THRESHOLD: u32 = 32;
+
+    /// Number of classes to include in the formatted string.
+    const TOP_N: usize = 10;
+
+    extern "C" {
+        fn ddog_php_prof_get_objects_store() -> *mut zend::zend_objects_store;
+    }
+
+    /// Mirrors PHP's `IS_OBJ_VALID(o)`: a free-list bucket has bit 0 set
+    /// (the handle is shifted left and ORed with `OBJ_BUCKET_INVALID = 1`).
+    /// A null pointer also has bit 0 clear, so callers must null-check
+    /// separately.
+    #[inline]
+    fn is_obj_valid(obj: *const zend::zend_object) -> bool {
+        (obj as usize) & 1 == 0
+    }
+
+    pub(super) fn collect_top_n() -> Option<String> {
+        // SAFETY: ddog_php_prof_get_objects_store returns a stable pointer
+        // to the executor's objects_store struct; the engine guarantees
+        // it's valid for the duration of a request.
+        let store = unsafe { ddog_php_prof_get_objects_store().as_ref()? };
+        if store.top < MIN_OBJECTS_THRESHOLD {
+            return None;
+        }
+
+        let mut counts: HashMap<*const zend::zend_class_entry, u64> = HashMap::new();
+        for i in 0..store.top {
+            // SAFETY: 0..top is the engine's "in use" range of buckets.
+            let bucket = unsafe { *store.object_buckets.add(i as usize) };
+            if bucket.is_null() || !is_obj_valid(bucket) {
+                continue;
+            }
+            // SAFETY: a valid bucket holds a live zend_object*; its `ce`
+            // is a valid zend_class_entry pointer by engine invariant.
+            let ce = unsafe { (*bucket).ce };
+            if ce.is_null() {
+                continue;
+            }
+            *counts.entry(ce as *const _).or_insert(0) += 1;
+        }
+        if counts.is_empty() {
+            return None;
+        }
+
+        let resolved: Vec<(String, u64)> = counts
+            .into_iter()
+            .filter_map(|(ce, count)| {
+                // SAFETY: ce came from a live object's `ce` field above.
+                unsafe { class_name(ce) }.map(|name| (name, count))
+            })
+            .collect();
+        if resolved.is_empty() {
+            return None;
+        }
+        Some(format_top_n(resolved, TOP_N))
+    }
+
+    unsafe fn class_name(ce: *const zend::zend_class_entry) -> Option<String> {
+        let name_ptr: *mut zend::zend_string = (*ce).name;
+        let bytes = zend::zai_str_from_zstr(name_ptr.as_mut()).into_bytes();
+        if bytes.is_empty() {
+            None
+        } else {
+            Some(String::from_utf8_lossy(bytes).into_owned())
+        }
+    }
+
+    fn format_top_n(mut entries: Vec<(String, u64)>, top_n: usize) -> String {
+        // Sort by (count desc, name asc) for deterministic, diff-friendly
+        // output across consecutive GC events.
+        entries.sort_unstable_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+        entries.truncate(top_n);
+
+        let mut out = String::new();
+        for (name, count) in entries {
+            if !out.is_empty() {
+                out.push_str(", ");
+            }
+            out.push('\\');
+            out.push_str(&name);
+            out.push(' ');
+            out.push_str(&count.to_string());
+        }
+        out
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn format_orders_by_count_desc() {
+            let input = vec![
+                ("Foo".to_string(), 3),
+                ("Bar".to_string(), 100),
+                ("Baz".to_string(), 50),
+            ];
+            assert_eq!(format_top_n(input, 10), "\\Bar 100, \\Baz 50, \\Foo 3");
+        }
+
+        #[test]
+        fn format_tie_break_by_name_asc() {
+            let input = vec![
+                ("Zeta".to_string(), 5),
+                ("Alpha".to_string(), 5),
+                ("Mu".to_string(), 5),
+            ];
+            assert_eq!(format_top_n(input, 10), "\\Alpha 5, \\Mu 5, \\Zeta 5");
+        }
+
+        #[test]
+        fn format_truncates_to_top_n() {
+            let input: Vec<(String, u64)> = (0..15)
+                .map(|i| (format!("Class{i:02}"), (15 - i) as u64))
+                .collect();
+            let s = format_top_n(input, 10);
+            assert!(s.starts_with("\\Class00 15"), "got: {s}");
+            assert!(s.contains("\\Class09 6"), "got: {s}");
+            assert!(!s.contains("Class10"), "got: {s}");
+        }
+
+        #[test]
+        fn format_empty_returns_empty_string() {
+            assert_eq!(format_top_n(vec![], 10), "");
+        }
+
+        #[test]
+        fn format_single_entry() {
+            let input = vec![("DateTime".to_string(), 24)];
+            assert_eq!(format_top_n(input, 10), "\\DateTime 24");
+        }
     }
 }

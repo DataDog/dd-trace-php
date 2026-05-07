@@ -244,6 +244,10 @@ zend_execute_data* ddog_php_prof_get_current_execute_data() {
     return EG(current_execute_data);
 }
 
+zend_objects_store* ddog_php_prof_get_objects_store() {
+    return &EG(objects_store);
+}
+
 #if CFG_FIBERS // defined by build.rs
 zend_fiber* ddog_php_prof_get_active_fiber()
 {

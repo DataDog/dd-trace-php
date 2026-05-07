@@ -1367,8 +1367,9 @@ impl Profiler {
         reason: &'static str,
         collected: i64,
         #[cfg(php_gc_status)] runs: i64,
+        survivors: Option<String>,
     ) {
-        let mut labels = Profiler::common_labels(4);
+        let mut labels = Profiler::common_labels(5);
 
         labels.push(Label {
             key: "event",
@@ -1389,6 +1390,12 @@ impl Profiler {
             key: "gc collected",
             value: LabelValue::Num(collected, "count"),
         });
+        if let Some(survivors) = survivors {
+            labels.push(Label {
+                key: "survivors",
+                value: LabelValue::Str(Cow::Owned(survivors)),
+            });
+        }
         let n_labels = labels.len();
 
         match self.prepare_and_send_message(
