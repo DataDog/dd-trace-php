@@ -1087,6 +1087,17 @@ class LaminasIntegration extends Integration
         return $stack->getRoute($name);
     }
 
+    private static function laminasMaterializePartChildRoutes(\Laminas\Router\Http\Part $part): void
+    {
+        $rp = new \ReflectionProperty(\Laminas\Router\Http\Part::class, 'childRoutes');
+        $rp->setAccessible(true);
+        $childRoutes = $rp->getValue($part);
+        if ($childRoutes !== null) {
+            $part->addRoutes($childRoutes);
+            $rp->setValue($part, null);
+        }
+    }
+
     private static function walkRouteStackCollectEndpointRows(
         $rootRouter,
         $currentStack,
@@ -1105,13 +1116,7 @@ class LaminasIntegration extends Integration
                 ];
             }
             if ($route instanceof \Laminas\Router\Http\Part) {
-                $rp = new \ReflectionProperty(\Laminas\Router\Http\Part::class, 'childRoutes');
-                $rp->setAccessible(true);
-                $childRoutes = $rp->getValue($route);
-                if ($childRoutes !== null) {
-                    $route->addRoutes($childRoutes);
-                    $rp->setValue($route, null);
-                }
+                self::laminasMaterializePartChildRoutes($route);
                 self::walkRouteStackCollectEndpointRows($rootRouter, $route, $qualifiedName, $rows);
             }
         }
@@ -1128,6 +1133,7 @@ class LaminasIntegration extends Integration
         $hasChild = isset($segments[1]);
 
         if ($route instanceof \Laminas\Router\Http\Part) {
+            self::laminasMaterializePartChildRoutes($route);
             $base = self::partRouteBaseTemplate($route);
             $base = $base ?? '';
             if (!$hasChild) {
@@ -1146,7 +1152,7 @@ class LaminasIntegration extends Integration
         }
 
         if ($hasChild) {
-            return self::httpRouteTemplateFromMatchedRoute($route, null);
+            return null;
         }
 
         return self::httpRouteTemplateFromMatchedRoute($route, null);
