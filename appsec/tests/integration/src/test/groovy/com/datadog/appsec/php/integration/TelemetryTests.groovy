@@ -913,6 +913,65 @@ class TelemetryTests {
         assert 'rate_limited:false' in wafReq.tags
     }
 
+
+    /**
+     * Verifies that appsec.waf.requests is tagged request_blocked:true when the WAF
+     * returns a block_request action and false otherwise
+     */
+    @Test
+    @Order(10)
+    void 'waf requests request_blocked tag is true on blocking attack'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'request_blocked tag is only emitted unconditionally by the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // Blocking request: 80.80.80.80 hits the recommended.json IP blocklist rule
+        // (on_match: ["block"]). The WAF returns a block_request action.
+        HttpRequest req = CONTAINER.buildReq('/hello.php')
+                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+        CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 403
+        }
+
+        TelemetryHelpers.Metric wafReqBlocked
+        TelemetryHelpers.Metric wafReqNotBlocked
+
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafReqBlocked = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'request_blocked:true' in it.tags
+            }
+            // from the 1st request
+            wafReqNotBlocked = allSeries.find {
+                it.name == 'waf.requests' && 'request_blocked:false' in it.tags
+            }
+            wafReqBlocked != null && wafReqNotBlocked != null
+        }
+
+        assert wafReqBlocked != null : 'waf.requests metric with request_blocked:true not found ' +
+                '-- helper failed to detect the WAF block action'
+        assert wafReqBlocked.namespace == 'appsec'
+        assert wafReqBlocked.type == 'count'
+        assert 'rule_triggered:true' in wafReqBlocked.tags
+        assert 'request_blocked:true' in wafReqBlocked.tags
+
+        assert wafReqNotBlocked != null : 'waf.requests metric with request_blocked:false not found ' +
+                '-- rust helper must emit request_blocked:false on non-blocked requests (RFC-1012)'
+        assert 'request_blocked:false' in wafReqNotBlocked.tags
+    }
+
     /**
      * Verifies that _dd.appsec.rasp.duration (ms) and _dd.appsec.rasp.duration_ext (µs) are
      * emitted as span metrics and that appsec.rasp.duration / appsec.rasp.duration_ext are
