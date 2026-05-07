@@ -60,11 +60,31 @@ type VecRemoteConfigCapabilities = libdd_common_ffi::Vec<RemoteConfigCapabilitie
 pub static mut DDTRACE_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities =
     libdd_common_ffi::Vec::new();
 
+struct ActiveDynamicConfig {
+    priority: u8,
+    configs: Vec<Configs>,
+}
+
 #[derive(Default)]
 struct DynamicConfig {
-    active_config_path: Option<String>,
-    configs: Vec<Configs>,
+    active_configs: HashMap<String, ActiveDynamicConfig>,
+    merged_configs: Vec<Configs>,
     old_config_values: HashMap<String, Option<OwnedZendString>>,
+}
+
+fn compute_merged_configs(active_configs: &HashMap<String, ActiveDynamicConfig>) -> Vec<Configs> {
+    let mut sorted: Vec<_> = active_configs.values().collect();
+    sorted.sort_by_key(|c| c.priority);
+    let mut seen = HashSet::new();
+    let mut merged = vec![];
+    for entry in sorted {
+        for config in &entry.configs {
+            if seen.insert(mem::discriminant(config)) {
+                merged.push(config.clone());
+            }
+        }
+    }
+    merged
 }
 
 pub struct RemoteConfigState {
@@ -93,6 +113,7 @@ pub struct LiveDebuggerState {
     pub config_id: String,
     pub allow_dfa: Option<Regex>,
     pub deny_dfa: Option<Regex>,
+    pub di_enabled: bool,
 }
 
 #[no_mangle]
@@ -109,6 +130,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingLogsInjection);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
+    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingMulticonfig);
 
     DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
@@ -156,6 +178,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(
 #[no_mangle]
 pub unsafe extern "C" fn ddog_init_remote_config_state(
     endpoint: &Endpoint,
+    di_enabled: bool,
 ) -> Box<RemoteConfigState> {
     Box::new(RemoteConfigState {
         manager: RemoteConfigManager::new(ConfigInvariants {
@@ -163,7 +186,10 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
             tracer_version: include_str!("../VERSION").trim().into(),
             endpoint: endpoint.clone(),
         }),
-        live_debugger: LiveDebuggerState::default(),
+        live_debugger: LiveDebuggerState {
+            di_enabled,
+            ..Default::default()
+        },
         dynamic_config: Default::default(),
     })
 }
@@ -254,8 +280,8 @@ fn remove_old_configs(remote_config: &mut RemoteConfigState) {
     for (name, val) in remote_config.dynamic_config.old_config_values.drain() {
         reset_old_config(name.as_str(), val);
     }
-    remote_config.dynamic_config.old_config_values.clear();
-    remote_config.dynamic_config.active_config_path = None;
+    remote_config.dynamic_config.active_configs.clear();
+    remote_config.dynamic_config.merged_configs.clear();
 }
 
 fn insert_new_configs(
@@ -338,14 +364,17 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     apply_config(rc_ref, debugger, limiter);
                 }
                 RemoteConfigData::DynamicConfig(config_data) => {
+                    let priority = config_data.priority();
                     let configs: Vec<Configs> = config_data.lib_config.into();
                     if !configs.is_empty() {
+                        remote_config.dynamic_config.active_configs
+                            .insert(value.config_id, ActiveDynamicConfig { priority, configs });
+                        let merged = compute_merged_configs(&remote_config.dynamic_config.active_configs);
                         insert_new_configs(
                             &mut remote_config.dynamic_config.old_config_values,
-                            &mut remote_config.dynamic_config.configs,
-                            configs,
+                            &mut remote_config.dynamic_config.merged_configs,
+                            merged,
                         );
-                        remote_config.dynamic_config.active_config_path = Some(value.config_id);
                     }
                 }
                 RemoteConfigData::Ignored(_) => (),
@@ -360,8 +389,17 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                     }
                 }
                 RemoteConfigProduct::ApmTracing => {
-                    if Some(path.config_id) == remote_config.dynamic_config.active_config_path {
-                        remove_old_configs(remote_config);
+                    if remote_config.dynamic_config.active_configs.remove(&path.config_id).is_some() {
+                        if remote_config.dynamic_config.active_configs.is_empty() {
+                            remove_old_configs(remote_config);
+                        } else {
+                            let merged = compute_merged_configs(&remote_config.dynamic_config.active_configs);
+                            insert_new_configs(
+                                &mut remote_config.dynamic_config.old_config_values,
+                                &mut remote_config.dynamic_config.merged_configs,
+                                merged,
+                            );
+                        }
                     }
                 }
                 _ => (),
@@ -381,13 +419,17 @@ fn apply_config(
         match debugger {
             LiveDebuggingData::Probe(probe) => {
                 debug!("Applying live debugger probe {probe:?}");
-                let hook_id = (callbacks.set_probe)(probe.into(), limiter);
-                if hook_id >= 0 {
-                    remote_config
-                        .live_debugger
-                        .spans_map
-                        .insert(probe.id.clone(), hook_id);
+                if remote_config.live_debugger.di_enabled {
+                    let hook_id = (callbacks.set_probe)(probe.into(), limiter);
+                    if hook_id >= 0 {
+                        remote_config
+                            .live_debugger
+                            .spans_map
+                            .insert(probe.id.clone(), hook_id);
+                    }
                 }
+                // If di_enabled is false, probe is stored in `active` but hook is not installed.
+                // It will be installed when di_enabled transitions to true.
             }
             LiveDebuggingData::ServiceConfiguration(config) => {
                 debug!("Applying live debugger service config {config:?}");
@@ -438,6 +480,45 @@ fn remove_config(remote_config: &mut RemoteConfigState, debugger: &LiveDebugging
                 }
             }
         }
+    }
+}
+
+/// Returns all loaded remote config entries as a JSON object:
+///   { "config_id": "content_summary", ... }
+/// For live debugger entries the value is the probe ID (or "service_config").
+/// For dynamic config entries the value is "apm_tracing".
+/// The returned pointer must be freed with `ddog_remote_config_loaded_configs_free`.
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_get_loaded_configs(remote_config: &RemoteConfigState) -> *mut c_char {
+    let mut entries: Vec<(String, String)> = Vec::new();
+
+    for (config_id, boxed) in &remote_config.live_debugger.active {
+        let value = match &boxed.0 {
+            LiveDebuggingData::Probe(p) => format!(r#"{{"type":"probe","id":"{}"}}"#, p.id),
+            LiveDebuggingData::ServiceConfiguration(sc) => format!(r#"{{"type":"service_config","id":"{}"}}"#, sc.id),
+        };
+        entries.push((config_id.clone(), value));
+    }
+
+    for config_id in remote_config.dynamic_config.active_configs.keys() {
+        entries.push((config_id.clone(), r#"{"type":"apm_tracing"}"#.to_string()));
+    }
+
+    entries.sort_unstable_by(|a, b| a.0.cmp(&b.0));
+
+    let json_pairs: Vec<String> = entries
+        .into_iter()
+        .map(|(k, v)| format!(r#"{}:{}"#, serde_json::to_string(&k).unwrap_or_default(), v))
+        .collect();
+    let json = format!("{{{}}}", json_pairs.join(","));
+
+    std::ffi::CString::new(json).unwrap_or_default().into_raw()
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_remote_config_loaded_configs_free(ptr: *mut c_char) {
+    if !ptr.is_null() {
+        drop(unsafe { std::ffi::CString::from_raw(ptr) });
     }
 }
 
@@ -529,7 +610,7 @@ pub unsafe extern "C" fn ddog_remote_config_alter_dynamic_config(
     {
         let mut ret = false;
         let config_name = config.to_utf8_lossy();
-        for config in remote_config.dynamic_config.configs.iter() {
+        for config in remote_config.dynamic_config.merged_configs.iter() {
             let name = map_config_name(config);
             if name == config_name.as_ref() {
                 let val = map_config_value(config);
@@ -555,10 +636,48 @@ pub unsafe extern "C" fn ddog_setup_remote_config(
     LIVE_DEBUGGER_CALLBACKS = Some(setup.callbacks.clone());
 }
 
+/// Enable or disable dynamic instrumentation.
+/// When disabling: all installed probe hooks are removed (but kept in `active` for reinstallation).
+/// When enabling: all probes in `active` that have no installed hook are (re-)installed.
+#[no_mangle]
+pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
+    remote_config: &mut RemoteConfigState,
+    enabled: bool,
+) {
+    if remote_config.live_debugger.di_enabled == enabled {
+        return;
+    }
+    remote_config.live_debugger.di_enabled = enabled;
+
+    if let Some(callbacks) = unsafe { &LIVE_DEBUGGER_CALLBACKS } {
+        if !enabled {
+            // Remove all installed probe hooks; keep `active` intact for reinstallation.
+            for (_, hook_id) in remote_config.live_debugger.spans_map.drain() {
+                (callbacks.remove_probe)(hook_id);
+            }
+        } else {
+            // Reinstall all probes currently stored in `active`.
+            for (probe_id, boxed) in remote_config.live_debugger.active.iter() {
+                if let (LiveDebuggingData::Probe(probe), limiter) = &**boxed {
+                    let hook_id = (callbacks.set_probe)(probe.into(), limiter);
+                    if hook_id >= 0 {
+                        remote_config
+                            .live_debugger
+                            .spans_map
+                            .insert(probe_id.clone(), hook_id);
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn ddog_rshutdown_remote_config(remote_config: &mut RemoteConfigState) {
     remote_config.live_debugger.spans_map.clear();
     remote_config.dynamic_config.old_config_values.clear();
+    remote_config.dynamic_config.active_configs.clear();
+    remote_config.dynamic_config.merged_configs.clear();
     remote_config.manager.unload_configs(&[
         RemoteConfigProduct::ApmTracing,
         RemoteConfigProduct::LiveDebugger,

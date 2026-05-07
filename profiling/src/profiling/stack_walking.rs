@@ -300,6 +300,11 @@ mod detail {
         top_execute_data: *mut zend_execute_data,
         string_set: &mut StringSet,
     ) -> Result<Backtrace, CollectStackSampleError> {
+        #[cfg(feature = "stack_walking_tests")]
+        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        #[cfg(not(feature = "stack_walking_tests"))]
+        use crate::bindings::zend_generator_check_placeholder_frame;
+
         let max_depth = 512;
         let mut samples = Vec::new();
         let mut execute_data_ptr = top_execute_data;
@@ -307,6 +312,17 @@ mod detail {
         samples.try_reserve(max_depth >> 3)?;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+            // Nested generators leave a placeholder frame (func == NULL,
+            // This == generator object) on the stack. Resolve it to the real
+            // frame the same way zend_fetch_debug_backtrace and the observer
+            // API do.
+            if execute_data.func.is_null() {
+                execute_data_ptr =
+                    unsafe { zend_generator_check_placeholder_frame(execute_data_ptr) };
+            }
+            let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
+                break;
+            };
             // allowed because it's only used on the frameless path
             #[allow(unused_variables)]
             if let Some(func) = unsafe { execute_data.func.as_ref() } {
@@ -485,6 +501,11 @@ mod detail {
     pub fn collect_stack_sample(
         top_execute_data: *mut zend_execute_data,
     ) -> Result<Backtrace, CollectStackSampleError> {
+        #[cfg(feature = "stack_walking_tests")]
+        use crate::bindings::ddog_test_zend_generator_check_placeholder_frame as zend_generator_check_placeholder_frame;
+        #[cfg(not(feature = "stack_walking_tests"))]
+        use crate::bindings::zend_generator_check_placeholder_frame;
+
         #[cfg(feature = "tracing")]
         let _span = tracing::trace_span!("collect_stack_sample").entered();
 
@@ -493,6 +514,13 @@ mod detail {
         let mut execute_data_ptr = top_execute_data;
 
         while let Some(execute_data) = unsafe { execute_data_ptr.as_ref() } {
+            if execute_data.func.is_null() {
+                execute_data_ptr =
+                    unsafe { zend_generator_check_placeholder_frame(execute_data_ptr) };
+            }
+            let Some(execute_data) = (unsafe { execute_data_ptr.as_ref() }) else {
+                break;
+            };
             let maybe_frame = unsafe { collect_call_frame(execute_data) };
             if let Some(frame) = maybe_frame {
                 samples.try_push(frame)?;

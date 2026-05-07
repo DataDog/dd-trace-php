@@ -399,8 +399,10 @@ class ExecIntegrationTest extends IntegrationTestCase
 
             try {
                 $res = self::doShell($sf, $opts);
-            } catch (\PHPUnit\Framework\Error\Warning | \ValueError $w) {
+            } catch (\PHPUnit\Framework\Error\Warning $v) {
                 // ignore warning
+                $res = false;
+            } catch (\ValueError $v) {
                 $res = false;
             }
             $this->assertEquals('', $res);
@@ -423,8 +425,10 @@ class ExecIntegrationTest extends IntegrationTestCase
 
             try {
                 $res = self::doShell($sf, $opts);
-            } catch (\PHPUnit\Framework\Error\Warning | \ValueError $w) {
+            } catch (\PHPUnit\Framework\Error\Warning $v) {
                 // ignore warning
+                $res = false;
+            } catch (\ValueError $v) {
                 $res = false;
             }
             $this->assertEquals('', $res);
@@ -461,8 +465,10 @@ class ExecIntegrationTest extends IntegrationTestCase
 
             try {
                 $res = self::doShell($sf, $opts);
-            } catch (\PHPUnit\Framework\Error\Warning | \ArgumentCountError $w) {
+            } catch (\PHPUnit\Framework\Error\Warning $v) {
                 // ignore warning
+                $res = false;
+            } catch (\ArgumentCountError $v) {
                 $res = false;
             }
             $this->assertEquals('', $res);
@@ -578,6 +584,56 @@ class ExecIntegrationTest extends IntegrationTestCase
             '["echo","' . str_repeat('a', 4092) . '",""]',
             $traces[0][0]['meta']['cmd.exec']
         );
+    }
+
+    public function testProcOpenInjectsSessionIds()
+    {
+        // Verify proc_inject_session_ids directly modifies the env array in place
+        $env = ['EXISTING' => 'preserved'];
+        \DDTrace\Integrations\Exec\proc_inject_session_ids($env);
+        $this->assertArrayHasKey('_DD_PARENT_PHP_SESSION_ID', $env);
+        $this->assertArrayHasKey('_DD_ROOT_PHP_SESSION_ID', $env);
+        $this->assertSame(36, strlen($env['_DD_PARENT_PHP_SESSION_ID']));
+        $this->assertSame(36, strlen($env['_DD_ROOT_PHP_SESSION_ID']));
+        $this->assertSame('preserved', $env['EXISTING']);
+
+        // Values may contain null bytes (zeros for root process); C env vars are
+        // null-terminated, so compute what the child will actually receive.
+        $expectedParent = explode("\0", $env['_DD_PARENT_PHP_SESSION_ID'], 2)[0];
+        $expectedRoot   = explode("\0", $env['_DD_ROOT_PHP_SESSION_ID'], 2)[0];
+
+        // Verify the proc_open hook injects the session IDs into an explicit env array.
+        // Use a plain shell command (no PHP/ddtrace) so env vars are read as-is.
+        $desc = [1 => ['pipe', 'wb']];
+        $h = proc_open(
+            'printf "%s\n%s" "$_DD_PARENT_PHP_SESSION_ID" "$_DD_ROOT_PHP_SESSION_ID"',
+            $desc, $pipes, null, ['PATH' => '/usr/bin:/bin']
+        );
+        $output = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        proc_close($h);
+
+        list($childParent, $childRoot) = explode("\n", $output, 2);
+        $this->assertSame($expectedParent, $childParent);
+        $this->assertSame($expectedRoot, $childRoot);
+    }
+
+    public function testShellExecInheritsSessionIds()
+    {
+        // For shell functions (no explicit env), subprocesses inherit the process
+        // environment. ddtrace_generate_session_id() sets _DD_PARENT_PHP_SESSION_ID
+        // and _DD_ROOT_PHP_SESSION_ID in the process env at startup, so they are
+        // always available to child processes without any extra injection.
+        $expectedParent = (string)getenv('_DD_PARENT_PHP_SESSION_ID');
+        $expectedRoot   = (string)getenv('_DD_ROOT_PHP_SESSION_ID');
+
+        // Use a plain shell command (no PHP/ddtrace) so env vars are read as inherited,
+        // without ddtrace overwriting _DD_PARENT_PHP_SESSION_ID with the child's own UUID.
+        $output = (string)shell_exec('printf "%s\n%s" "$_DD_PARENT_PHP_SESSION_ID" "$_DD_ROOT_PHP_SESSION_ID"');
+
+        list($childParent, $childRoot) = explode("\n", $output, 2);
+        $this->assertSame($expectedParent, $childParent);
+        $this->assertSame($expectedRoot, $childRoot);
     }
 
     private static function doShell($function, array &$opts = [])

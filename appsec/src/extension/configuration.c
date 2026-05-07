@@ -187,6 +187,7 @@ bool dd_config_minit(int module_number)
     // using the arduous way of accessing the decoded_value directly from
     // zai_config_memoized_entries.
     zai_config_first_time_rinit(false);
+    dd_log_startup_after_cfg();
 #ifdef TESTING
     _register_testing_objects();
 #endif

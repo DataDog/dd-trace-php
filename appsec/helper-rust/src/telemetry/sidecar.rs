@@ -394,7 +394,7 @@ impl<'a> TelemetrySidecarMetricSubmitter<'a> {
 
         let needs_registration = last_registration_time
             .get()
-            .is_none_or(|i| i.elapsed() < METRICS_REGISTRATION_REFRESH);
+            .is_none_or(|i| i.elapsed() >= METRICS_REGISTRATION_REFRESH);
         if needs_registration {
             if let Err(err) = super::register_known_metrics(sidecar_settings, telemetry_settings) {
                 warning!("Failed to register known metrics: {}", err);

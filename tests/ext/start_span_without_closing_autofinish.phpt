@@ -5,6 +5,7 @@ DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AUTOFINISH_SPANS=1
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function test() { }
 
@@ -15,12 +16,12 @@ DDTrace\trace_function("test", function($s) {
 
 test();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 // has no effect
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

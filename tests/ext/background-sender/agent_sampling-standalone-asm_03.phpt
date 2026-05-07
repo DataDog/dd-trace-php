@@ -1,7 +1,10 @@
 --TEST--
 Sample rate is not changed to 0 after first call during a minute when there is appsec upstream
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80

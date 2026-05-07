@@ -1,0 +1,36 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_generators",
+  "stacks": [
+    {
+      "profile-type": "alloc-size",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;middle;leaf;standard\\|str_repeat$",
+          "percent": 50,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;middle;leaf;standard\\|str_replace$",
+          "percent": 50,
+          "error_margin": 5
+        }
+      ]
+    },
+    {
+      "profile-type": "alloc-samples",
+      "stack-content": [
+        {
+          "regular_expression": "<?php;main;middle;leaf;standard\\|str_repeat$",
+          "percent": 50,
+          "error_margin": 5
+        },
+        {
+          "regular_expression": "<?php;main;middle;leaf;standard\\|str_replace$",
+          "percent": 50,
+          "error_margin": 5
+        }
+      ]
+    }
+  ]
+}

@@ -52,6 +52,14 @@ namespace DDTrace\Integrations\Exec {
     function proc_get_pid($proc_h) : ?int {}
 
     /**
+     * Inject _DD_PARENT_PHP_SESSION_ID and _DD_ROOT_PHP_SESSION_ID into an env array for proc_open().
+     *
+     * @internal for use by the exec integration only
+     * @param array $env The environment array passed to proc_open()
+     */
+    function proc_inject_session_ids(array &$env): void {}
+
+    /**
      * Closes the spans associated with live resources opened by popen() and proc_open()
      *
      * @internal for use by the testes of the exec integration only

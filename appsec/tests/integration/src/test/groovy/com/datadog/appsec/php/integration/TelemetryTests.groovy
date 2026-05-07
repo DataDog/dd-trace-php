@@ -121,10 +121,17 @@ class TelemetryTests {
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
-            // Rust helper has +1 tag (helper_runtime), C++ doesn't
             def useRust = System.getProperty('USE_HELPER_RUST') != null
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
-            wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 4 : 3) }
+            if (useRust) {
+                // RFC-1012: all boolean tags must be emitted unconditionally, so distinguish
+                // requests by tag value rather than tag count.
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:false' in it.tags }
+                wafReq2 = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:true' in it.tags }
+            } else {
+                // C++ helper: still uses tag-count-based detection (not yet RFC-1012 compliant)
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
+                wafReq2 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 3 }
+            }
             connSuccess = allSeries.find { it.name == 'helper.connection_success' }
             workerCount = allSeries.find { it.name == 'helper.service_worker_count' }
 
@@ -144,6 +151,14 @@ class TelemetryTests {
         assert wafReq1.tags.find { it.startsWith('event_rules_version:') } != null
         assert wafReq1.tags.find { it.startsWith('waf_version:') } != null
         assert wafReq1.type == 'count'
+        // RFC-1012: boolean tags must be present even when false (Rust helper only)
+        if (System.getProperty('USE_HELPER_RUST') != null) {
+            assert 'rule_triggered:false' in wafReq1.tags
+            assert 'request_blocked:false' in wafReq1.tags
+            assert 'waf_timeout:false' in wafReq1.tags
+            assert 'input_truncated:false' in wafReq1.tags
+            assert 'waf_error:false' in wafReq1.tags
+        }
 
         assert wafReq2 != null
         assert 'rule_triggered:true' in wafReq2.tags
@@ -272,6 +287,9 @@ class TelemetryTests {
         series.each {
             assert 'event_rules_version:1.1.1' in it.tags
             assert 'scope:item' in it.tags
+            if (System.getProperty('USE_HELPER_RUST') != null) {
+                assert 'action:update' in it.tags
+            }
         }
 
         def rulesOverride = series.find {
@@ -357,7 +375,7 @@ class TelemetryTests {
 
         def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
             def relevantLogs = logs.collectMany { it.logs.findAll { it.tags.contains('log_type:rc::') } }
-            relevantLogs.size() >= 3
+            relevantLogs.size() >= 3 && relevantLogs.any { it.tags.contains('rc_config_id:bad_config') }
         }.collectMany { it.logs }
 
         assert requestSup.get() != null
@@ -459,7 +477,12 @@ class TelemetryTests {
         def useRust = System.getProperty('USE_HELPER_RUST') != null
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
-            wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == (useRust ? 3 : 2) }
+            if (useRust) {
+                // RFC-1012: boolean tags always emitted; use tag value, not tag count
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:false' in it.tags }
+            } else {
+                wafReq1 = allSeries.find { it.name == 'waf.requests' && it.tags.size() == 2 }
+            }
             lfiEval = allSeries.find{ it.name == 'rasp.rule.eval' && 'rule_type:lfi' in it.tags}
             lfiMatch = allSeries.find{ it.name == 'rasp.rule.match' && 'rule_type:lfi' in it.tags}
             lfiTimeout = allSeries.find{ it.name == 'rasp.timeout' && 'rule_type:lfi' in it.tags}
@@ -517,6 +540,22 @@ class TelemetryTests {
         def raspMetrics = [wafReq1, lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
         if (System.getProperty('USE_HELPER_RUST') != null) {
             raspMetrics.each { assert 'helper_runtime:rust' in it.tags }
+            // RFC-1012: event_rules_version must be present on all RASP per-rule metrics
+            def raspRuleMetrics = [lfiEval, lfiMatch, lfiTimeout, ssrfEval, ssrfMatch, ssrfTimeout]
+            raspRuleMetrics.each { metric ->
+                assert metric.tags.find { it.startsWith('event_rules_version:') } != null :
+                    "event_rules_version tag missing on ${metric.name} (tags: ${metric.tags})"
+            }
+            // SSRF is triggered from a pre-hook (before the network call), so variant is "request"
+            [ssrfEval, ssrfMatch, ssrfTimeout].each { metric ->
+                assert 'rule_variant:request' in metric.tags :
+                    "rule_variant:request missing on ${metric.name} (tags: ${metric.tags})"
+            }
+            // LFI has no variant — tag must be absent (sidecar rejects empty tag values)
+            [lfiEval, lfiMatch, lfiTimeout].each { metric ->
+                assert !metric.tags.any { it.startsWith('rule_variant:') } :
+                    "unexpected rule_variant tag on ${metric.name} (tags: ${metric.tags})"
+            }
         } else {
             // C++ helper should NOT have the helper_runtime tag in telemetry
             raspMetrics.each { assert !it.tags.any { tag -> tag.startsWith('helper_runtime:') } }
@@ -559,7 +598,6 @@ class TelemetryTests {
 
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
-            println allSeries
             loginSuccess = allSeries.find{ it.name == 'sdk.event' && 'event_type:login_success' in it.tags}
             loginFailure = allSeries.find{ it.name == 'sdk.event' && 'event_type:login_failure' in it.tags}
 
@@ -639,6 +677,79 @@ class TelemetryTests {
     }
 
     /**
+     * Verifies that _dd.appsec.waf.duration and _dd.appsec.waf.duration_ext are emitted as
+     * span metrics (ms) and that appsec.waf.duration / appsec.waf.duration_ext are emitted
+     * as DDSketch distributions (µs). Cross-checks consistency: each span metric value
+     * (ms × 1000 → µs) must fall inside a populated bin of the corresponding distribution.
+     *
+     * This test only applies to the Rust helper (distributions not implemented elsewhere).
+     */
+    @Test
+    @Order(7)
+    void 'waf duration span metrics and distributions are consistent'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'appsec.waf.duration distributions are only implemented on the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // This span's WAF duration metrics will be cross-checked against the distributions.
+        def trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        TelemetryHelpers.DistributionMetric wafDuration
+        TelemetryHelpers.DistributionMetric wafDurationExt
+
+        TelemetryHelpers.waitForDistributions(CONTAINER, 30) { List<TelemetryHelpers.GenerateDistributions> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafDuration = wafDuration ?: allSeries.find { it.name == 'waf.duration' }
+            wafDurationExt = wafDurationExt ?: allSeries.find { it.name == 'waf.duration_ext' }
+            wafDuration != null && wafDurationExt != null
+        }
+
+        assert wafDuration != null : 'waf.duration distribution metric not found'
+        assert wafDuration.namespace == 'appsec'
+        assert wafDuration.tags.find { it.startsWith('waf_version:') } != null
+        assert wafDuration.tags.find { it.startsWith('event_rules_version:') } != null
+        assert wafDuration.count >= 1.0
+
+        assert wafDurationExt != null : 'waf.duration_ext distribution metric not found'
+        assert wafDurationExt.namespace == 'appsec'
+        assert wafDurationExt.tags.find { it.startsWith('waf_version:') } != null
+        assert wafDurationExt.tags.find { it.startsWith('event_rules_version:') } != null
+        assert wafDurationExt.count >= 1.0
+
+        def span = trace[0]
+        def durationUs = span.metrics.'_dd.appsec.waf.duration'
+        assert durationUs != null && durationUs > 0.0d :
+            '_dd.appsec.waf.duration span metric must be > 0'
+        def durationExtUs = span.metrics.'_dd.appsec.waf.duration_ext'
+        assert durationExtUs != null && durationExtUs > 0.0d :
+            '_dd.appsec.waf.duration_ext span metric must be > 0'
+
+        assert durationExtUs >= durationUs :
+            '_dd.appsec.waf.duration_ext must be >= .duration'
+
+        // Both waf.duration span metric and distribution are in µs.
+        assert wafDuration.countForBinContaining(durationUs) != null :
+            "span metric value ${durationUs} µs not found in any " +
+            "waf.duration distribution bin; distribution: ${wafDuration}"
+        // Both waf.duration_ext span metric and distribution are in µs.
+        assert wafDurationExt.countForBinContaining(durationExtUs) != null :
+            "span metric value ${durationExtUs} µs not found in any " +
+            "waf.duration_ext distribution bin; distribution: ${wafDurationExt}"
+    }
+
+    /**
      * This test verifies that helper-rust errors are properly sent to telemetry
      * with backtraces. It sends an invalid message to the helper which triggers
      * an error with backtrace.
@@ -646,7 +757,7 @@ class TelemetryTests {
      * This test only runs when USE_HELPER_RUST is set (Rust helper implementation).
      */
     @Test
-    @Order(7)
+    @Order(8)
     void 'helper error telemetry includes backtrace'() {
         Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
 
@@ -748,5 +859,354 @@ class TelemetryTests {
                exceptionLog.message?.contains('JSON') ||
                exceptionLog.message?.contains('Failed to apply config') :
                 "Expected error message about parse/JSON failure, got: ${exceptionLog.message}"
+    }
+
+    /**
+     * RFC-1012: all boolean tags on appsec.waf.requests must be emitted unconditionally,
+     * including when the value is false. This verifies a clean (non-attack, non-timeout,
+     * non-truncated) request still carries all boolean tags.
+     *
+     * This test only applies to the Rust helper, which implements RFC-1012.
+     */
+    @Test
+    @Order(9)
+    void 'waf requests boolean tags are emitted unconditionally'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'RFC-1012 boolean tag compliance is only enforced on the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // Start helper
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // Clean request: no attack, no truncation — all boolean tags must still be present
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        TelemetryHelpers.Metric wafReq
+
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafReq = allSeries.find { it.name == 'waf.requests' && 'rule_triggered:false' in it.tags }
+            wafReq != null
+        }
+
+        assert wafReq != null : 'waf.requests metric with rule_triggered:false not found — ' +
+                'boolean tags must be emitted even when false (RFC-1012)'
+        assert wafReq.namespace == 'appsec'
+        assert wafReq.type == 'count'
+        assert wafReq.tags.find { it.startsWith('waf_version:') } != null
+        assert wafReq.tags.find { it.startsWith('event_rules_version:') } != null
+        assert 'rule_triggered:false' in wafReq.tags
+        assert 'request_blocked:false' in wafReq.tags
+        assert 'waf_timeout:false' in wafReq.tags
+        assert 'input_truncated:false' in wafReq.tags
+        assert 'waf_error:false' in wafReq.tags
+        assert 'rate_limited:false' in wafReq.tags
+    }
+
+
+    /**
+     * Verifies that appsec.waf.requests is tagged request_blocked:true when the WAF
+     * returns a block_request action and false otherwise
+     */
+    @Test
+    @Order(10)
+    void 'waf requests request_blocked tag is true on blocking attack'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'request_blocked tag is only emitted unconditionally by the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // Blocking request: 80.80.80.80 hits the recommended.json IP blocklist rule
+        // (on_match: ["block"]). The WAF returns a block_request action.
+        HttpRequest req = CONTAINER.buildReq('/hello.php')
+                .header('X-Forwarded-For', '80.80.80.80').GET().build()
+        CONTAINER.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 403
+        }
+
+        TelemetryHelpers.Metric wafReqBlocked
+        TelemetryHelpers.Metric wafReqNotBlocked
+
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            wafReqBlocked = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'request_blocked:true' in it.tags
+            }
+            // from the 1st request
+            wafReqNotBlocked = allSeries.find {
+                it.name == 'waf.requests' && 'request_blocked:false' in it.tags
+            }
+            wafReqBlocked != null && wafReqNotBlocked != null
+        }
+
+        assert wafReqBlocked != null : 'waf.requests metric with request_blocked:true not found ' +
+                '-- helper failed to detect the WAF block action'
+        assert wafReqBlocked.namespace == 'appsec'
+        assert wafReqBlocked.type == 'count'
+        assert 'rule_triggered:true' in wafReqBlocked.tags
+        assert 'request_blocked:true' in wafReqBlocked.tags
+
+        assert wafReqNotBlocked != null : 'waf.requests metric with request_blocked:false not found ' +
+                '-- rust helper must emit request_blocked:false on non-blocked requests (RFC-1012)'
+        assert 'request_blocked:false' in wafReqNotBlocked.tags
+    }
+
+    /**
+     * Verifies that _dd.appsec.rasp.duration (ms) and _dd.appsec.rasp.duration_ext (µs) are
+     * emitted as span metrics and that appsec.rasp.duration / appsec.rasp.duration_ext are
+     * emitted as DDSketch distributions (both µs). Cross-checks consistency:
+     *  - rasp.duration: span metric ms × 1000 → µs must fall inside a populated bin
+     *  - rasp.duration_ext: span metric µs falls directly inside a populated bin (no conversion)
+     *
+     * This test only applies to the Rust helper (distributions not implemented elsewhere).
+     */
+    @Test
+    @Order(11)
+    void 'rasp duration span metrics and distributions are consistent'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'appsec.rasp.duration distributions are only implemented on the Rust helper')
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // This span's RASP duration metrics will be cross-checked against the distributions.
+        def trace = CONTAINER.traceFromRequest(
+                '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') {
+            HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
+        }
+
+        TelemetryHelpers.DistributionMetric raspDuration
+        TelemetryHelpers.DistributionMetric raspDurationExt
+
+        TelemetryHelpers.waitForDistributions(CONTAINER, 30) { List<TelemetryHelpers.GenerateDistributions> messages ->
+            def allSeries = messages.collectMany { it.series }
+            raspDuration = raspDuration ?: allSeries.find { it.name == 'rasp.duration' }
+            raspDurationExt = raspDurationExt ?: allSeries.find { it.name == 'rasp.duration_ext' }
+            raspDuration != null && raspDurationExt != null
+        }
+
+        assert raspDuration != null : 'rasp.duration distribution metric not found'
+        assert raspDuration.namespace == 'appsec'
+        assert raspDuration.tags.find { it.startsWith('waf_version:') } != null
+        assert raspDuration.tags.find { it.startsWith('event_rules_version:') } != null
+        assert raspDuration.count >= 1.0
+
+        assert raspDurationExt != null : 'rasp.duration_ext distribution metric not found'
+        assert raspDurationExt.namespace == 'appsec'
+        assert raspDurationExt.tags.find { it.startsWith('waf_version:') } != null
+        assert raspDurationExt.tags.find { it.startsWith('event_rules_version:') } != null
+        assert raspDurationExt.count >= 1.0
+
+        def span = trace[0]
+        def raspDurationUs = span.metrics.'_dd.appsec.rasp.duration'
+        assert raspDurationUs != null && raspDurationUs > 0.0d :
+            '_dd.appsec.rasp.duration span metric must be > 0'
+        def raspDurationExtUs = span.metrics.'_dd.appsec.rasp.duration_ext'
+        assert raspDurationExtUs != null && raspDurationExtUs > 0.0d :
+            '_dd.appsec.rasp.duration_ext span metric must be > 0'
+
+        assert raspDurationExtUs >= raspDurationUs :
+           '_dd.appsec.rasp.duration_ext should be >= .duration'
+
+        // Both rasp.duration span metric and distribution are in µs.
+        assert raspDuration.countForBinContaining(raspDurationUs) != null :
+            "span metric value ${raspDurationUs} µs not found in any " +
+            "rasp.duration distribution bin; distribution: ${raspDuration}"
+
+        // Both the span metric and the rasp.duration_ext distribution are in µs.
+        assert raspDurationExt.countForBinContaining(raspDurationExtUs) != null :
+            "span metric value ${raspDurationExtUs} µs not found in any rasp.duration_ext " +
+            "distribution bin; distribution: ${raspDurationExt}"
+    }
+
+    /**
+     * RFC-1012: appsec.waf.requests must include the rate_limited boolean tag.
+     * The rate limiter must only be consulted when the WAF triggered (waf_keep=true),
+     * matching C++ semantics: `event.keep && limiter_.allow()`. Clean requests must
+     * not consume a limiter slot.
+     *
+     * This test verifies:
+     * 1. Clean requests do not consume the limiter slot.
+     * 2. The first attack request gets rate_limited:false (slot was preserved).
+     * 3. The second attack request gets rate_limited:true (slot now exhausted).
+     *
+     * Only applies to the Rust helper. Ordered last because it restarts php-fpm
+     * with a different rate limit configuration.
+     */
+    @Test
+    @Order(20)
+    void 'waf requests rate_limited tag is emitted'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'rate_limited tag is only implemented on the Rust helper')
+
+        // Restart php-fpm with a rate limit of 1 trace/sec.
+        org.testcontainers.containers.Container.ExecResult res = CONTAINER.execInContainer(
+                'bash', '-c',
+                '''kill -9 `pgrep php-fpm`;
+                   export DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
+                   export DD_APPSEC_TRACE_RATE_LIMIT=1;
+                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
+        assert res.exitCode == 0
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // First request: starts helper. May or may not be covered by appsec depending on RC timing.
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert requestSup.get() != null
+
+        // Several clean requests: these must NOT consume the rate-limiter slot.
+        // With correct behavior (matching C++), the limiter is only consulted when
+        // the WAF triggered, so clean requests leave the slot untouched.
+        for (int i = 0; i < 3; i++) {
+            CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+        }
+
+        // Send a burst of attack requests. With rate_limit=1, all requests within the
+        // same second share a single slot: the first gets rate_limited:false and the
+        // rest get rate_limited:true. Sending several increases the chance that at
+        // least two land within the same second even under CI timing variance.
+        HttpRequest attackReq = CONTAINER.buildReq('/hello.php')
+                .header('User-Agent', 'Arachni/v1').GET().build()
+        for (int i = 0; i < 5; i++) {
+            CONTAINER.traceFromRequest(attackReq, ofString()) { HttpResponse<String> resp ->
+                assert resp.body().size() > 0
+            }
+        }
+
+        TelemetryHelpers.Metric wafReqRateLimited
+        TelemetryHelpers.Metric wafReqNotRateLimited
+
+        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            // Both must be attack requests (rule_triggered:true) to verify the limiter
+            // only fires for WAF-triggered requests, not clean ones.
+            wafReqRateLimited = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'rate_limited:true' in it.tags
+            }
+            wafReqNotRateLimited = allSeries.find {
+                it.name == 'waf.requests' &&
+                        'rule_triggered:true' in it.tags &&
+                        'rate_limited:false' in it.tags
+            }
+            wafReqRateLimited != null && wafReqNotRateLimited != null
+        }
+
+        assert wafReqNotRateLimited != null
+        assert wafReqNotRateLimited.namespace == 'appsec'
+        assert wafReqNotRateLimited.type == 'count'
+        assert 'rule_triggered:true' in wafReqNotRateLimited.tags
+        assert 'rate_limited:false' in wafReqNotRateLimited.tags
+
+        assert wafReqRateLimited != null
+        assert wafReqRateLimited.namespace == 'appsec'
+        assert wafReqRateLimited.type == 'count'
+        assert wafReqRateLimited.points[0][1] >= 1.0
+        assert 'rule_triggered:true' in wafReqRateLimited.tags
+        assert 'rate_limited:true' in wafReqRateLimited.tags
+    }
+
+    @Test
+    @Order(21)
+    void 'waf config errors emitted with action init for bad init rules'() {
+        CONTAINER.execInContainer('bash', '-c',
+                'printf \'%s\' \'{"version":"2.2","metadata":{"rules_version":"9.9.9"},"rules":[{"id":"t1","name":"G","tags":{"type":"test","category":"test"},"conditions":[{"parameters":{"inputs":[{"address":"http.client_ip"}],"data":"blocked_ips"},"operator":"ip_match"}],"transformers":[],"on_match":["block"]},{"id":"bad-rule"}]}\' > /tmp/bad_rules.json'
+        )
+
+        def res = CONTAINER.execInContainer('bash', '-c',
+                '''kill -9 `pgrep php-fpm`;
+                   export DD_APPSEC_ENABLED=1;
+                   export DD_APPSEC_RULES=/tmp/bad_rules.json;
+                   export DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
+                   php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
+        assert res.exitCode == 0
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        boolean useRust = System.getProperty('USE_HELPER_RUST') != null
+        TelemetryHelpers.Metric configError = null
+        TelemetryHelpers.Log bundledDiagLog = null
+
+        // drainTelemetry is destructive: collect metrics and logs in a single loop
+        def deadline = System.currentTimeSeconds() + 30
+        def lastHttpReq = System.currentTimeSeconds() - 6
+        while (System.currentTimeSeconds() < deadline) {
+            if (System.currentTimeSeconds() - lastHttpReq > 5) {
+                lastHttpReq = System.currentTimeSeconds()
+                CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+                    assert resp.statusCode() == 200
+                }
+            }
+            def telData = CONTAINER.drainTelemetry(500)
+
+            configError = configError ?:
+                TelemetryHelpers.filterMessages(telData, TelemetryHelpers.GenerateMetrics)
+                    .collectMany { it.series }
+                    .find { it.name == 'waf.config_errors' && 'event_rules_version:9.9.9' in it.tags }
+
+            if (useRust) {
+                bundledDiagLog = bundledDiagLog ?:
+                    TelemetryHelpers.filterMessages(telData, TelemetryHelpers.Logs)
+                        .collectMany { it.logs }
+                        .find { it.tags?.contains('log_type:rc::bundled_rules::diagnostic') &&
+                                it.tags?.contains('appsec_config_key:rules') }
+                if (configError != null && bundledDiagLog != null) break
+            } else {
+                if (configError != null) break
+            }
+        }
+
+        assert configError != null
+        assert configError.namespace == 'appsec'
+        assert 'event_rules_version:9.9.9' in configError.tags
+        assert 'config_key:rules' in configError.tags
+        if (useRust) {
+            assert 'action:init' in configError.tags
+
+            assert bundledDiagLog != null : 'Expected diagnostic log for bundled rules init errors'
+            assert bundledDiagLog.level == 'ERROR'
+            assert bundledDiagLog.tags?.contains('rc_config_id:bundled_rules')
+            assert bundledDiagLog.message == "{\"missing key 'conditions'\":[\"bad-rule\"]}"
+        }
     }
 }

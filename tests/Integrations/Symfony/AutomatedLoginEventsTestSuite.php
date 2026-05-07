@@ -74,7 +74,7 @@ abstract class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $this->assertEquals(1, count($loginEvents));
         $this->assertEquals(0, count($authEvents));
 
-        $this->assertEmpty($loginEvents[0]['userLogin']);
+        $this->assertEquals($email, $loginEvents[0]['userLogin']);
         $this->assertEmpty($loginEvents[0]['userId']);
         $this->assertEmpty($loginEvents[0]['metadata']);
     }

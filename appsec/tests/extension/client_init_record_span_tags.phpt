@@ -75,6 +75,7 @@ Array
     [runtime-id] => %s
     [http.url] => https://localhost:8888/foo
     [http.method] => GET
+    [span.kind] => server
     [http.useragent] => my user agent
 )
 rinit
@@ -102,12 +103,14 @@ Array
     [meta_1] => value_1
     [meta_2] => value_2
     [runtime-id] => %s
+    [span.kind] => server
 )
 metrics:
 Array
 (
     [%s] => %d
     [_dd.appsec.enabled] => 1
+    [_dd.appsec.waf.duration_ext] => %f
     [_sampling_priority_v1] => 1
     [metric_1] => 2
     [metric_2] => 10

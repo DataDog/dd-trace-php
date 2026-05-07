@@ -41,8 +41,7 @@ mod metrics;
 pub mod protocol;
 
 /// Smart pointer that tracks worker count for a service.
-/// Increments on creation/clone, decrements on drop.
-#[derive(Clone)]
+/// Increments on creation, decrements on drop.
 struct TrackedService {
     service: Arc<Service>,
 }
@@ -468,6 +467,8 @@ async fn do_request_loop_iter(
                     .run_waf(data, &protocol::RequestExecOptions::regular())
                     .map_err(FatalRequestError)?;
 
+                req_ctx.record_shutdown_context(req.input_truncated);
+
                 // span metrics / meta
                 let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
                 req_ctx.generate_span_metrics(&mut span_submitter);
@@ -487,7 +488,7 @@ async fn do_request_loop_iter(
                     });
                 send_command_resp(framed, resp).await?;
 
-                submit_context_telemetry_metrics(client, &mut req_ctx, req.input_truncated);
+                submit_context_telemetry_metrics(client, &mut req_ctx);
                 submit_service_telemetry(client, service);
 
                 break;
@@ -525,11 +526,7 @@ fn submit_service_telemetry(client: &Client, service: &Service) {
     }
 }
 
-fn submit_context_telemetry_metrics(
-    client: &Client,
-    req_ctx: &mut ReqContext,
-    input_truncated: bool,
-) {
+fn submit_context_telemetry_metrics(client: &Client, req_ctx: &mut ReqContext) {
     let Some(ref sidecar_settings) = client.sidecar_settings else {
         warn!("Cannot submit context telemetry metrics: sidecar_settings not set");
         return;
@@ -543,7 +540,7 @@ fn submit_context_telemetry_metrics(
         &client.metrics_last_registered,
     );
 
-    let waf_metrics = req_ctx.take_waf_metrics(input_truncated);
+    let waf_metrics = req_ctx.take_waf_metrics();
     waf_metrics.generate_telemetry_metrics(&mut *tel_metric_submitter);
 }
 
@@ -632,8 +629,15 @@ impl ReqContext {
             WafRunType::NonRasp => {
                 self.waf_metrics.record_non_rasp_eval(&run_output);
             }
-            WafRunType::RaspRule(rule_type) => {
-                self.waf_metrics.record_rasp_eval(rule_type, &run_output);
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => {
+                self.waf_metrics.record_rasp_eval(
+                    rule_type,
+                    rule_variant.as_deref().unwrap_or(""),
+                    &run_output,
+                );
             }
         }
 
@@ -697,17 +701,19 @@ impl ReqContext {
     }
 
     fn should_force_keep(&mut self, service: &Service, waf_keep: bool) -> bool {
-        // cache limiter result (called once per request)
-        let limiter_allows = match self.limiter_result {
+        // The limiter slot is only consumed when the WAF triggered; clean requests
+        // must not burn a slot even if this function is called multiple times.
+        if !waf_keep {
+            return false;
+        }
+        match self.limiter_result {
             Some(result) => result,
             None => {
                 let result = service.should_force_keep();
                 self.limiter_result = Some(result);
                 result
             }
-        };
-
-        limiter_allows && waf_keep
+        }
     }
 
     fn settings(&self) -> HashMap<&'static str, String> {
@@ -717,8 +723,14 @@ impl ReqContext {
         )])
     }
 
-    pub fn take_waf_metrics(&mut self, input_truncated: bool) -> metrics::WafMetrics {
+    pub fn record_shutdown_context(&mut self, input_truncated: bool) {
         self.waf_metrics.set_input_truncated(input_truncated);
+    }
+
+    pub fn take_waf_metrics(&mut self) -> metrics::WafMetrics {
+        self.waf_metrics
+            .set_rate_limited(matches!(self.limiter_result, Some(false)));
+
         std::mem::take(&mut self.waf_metrics)
     }
 }
@@ -876,7 +888,7 @@ async fn recv_command(
                     Ok(msg)
                 }
                 Some(Err(err)) => {
-                    if is_incomplete_stream_error(&err) {
+                    if is_forceful_disconnect_error(&err) {
                         Err(ForcefulDisconnect(err).into())
                     } else {
                         // Protocol error: invalid header marker, bad msgpack, unknown command
@@ -901,10 +913,20 @@ async fn recv_command(
     }
 }
 
-fn is_incomplete_stream_error(err: &io::Error) -> bool {
-    // tokio_util's FramedRead returns this specific error when EOF is reached
-    // with bytes still in the decode buffer
-    err.kind() == io::ErrorKind::Other && err.to_string().contains("bytes remaining on stream")
+fn is_forceful_disconnect_error(err: &io::Error) -> bool {
+    // tokio_util's FramedRead returns this when EOF is reached mid-message.
+    if err.kind() == io::ErrorKind::Other && err.to_string().contains("bytes remaining on stream") {
+        return true;
+    }
+    matches!(
+        err.kind(),
+        // Linux sends ECONNRESET to the peer when a Unix socket is closed while its receive
+        // buffer is non-empty (unix_release_sock). This is a connectivity issue, not a protocol
+        // error: the client crashed or was killed after we sent our response.
+        io::ErrorKind::ConnectionReset |
+        // EPIPE on a recv is unusual but handle it symmetrically with send_command_resp.
+        io::ErrorKind::BrokenPipe
+    )
 }
 
 async fn send_command_resp(
@@ -912,13 +934,16 @@ async fn send_command_resp(
     cmd: protocol::CommandResponse<'_>,
 ) -> anyhow::Result<()> {
     debug!("Sending command: {:?}", cmd);
-    match framed.send(cmd).await {
-        Ok(_) => Ok(()),
-        Err(err) => {
-            error!("Error sending command: {}", err);
-            Err(err)?
+    framed.send(cmd).await.map_err(|err| {
+        if matches!(
+            err.kind(),
+            io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset
+        ) {
+            ForcefulDisconnect(err).into()
+        } else {
+            anyhow::Error::from(err)
         }
-    }
+    })
 }
 
 async fn check_peer_uid_unix(stream: &UnixStream) -> anyhow::Result<()> {

@@ -101,7 +101,7 @@ array(2) {
 string(%d) "/debugger/v1/diagnostics?ddtags=debugger_version:1.%s,env:none,version:,runtime_id:%s-%s-%s-%s-%s,host_name:%s"
 array(1) {
   [0]=>
-  array(6) {
+  array(5) {
     ["service"]=>
     string(34) "debugger_span_decoration_probe.php"
     ["ddsource"]=>
@@ -142,7 +142,5 @@ array(1) {
     }
     ["message"]=>
     string(32) "Evaluation errors for probe id 2"
-    ["process_tags"]=>
-    NULL
   }
 }

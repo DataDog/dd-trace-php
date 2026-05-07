@@ -100,6 +100,10 @@ function windows_git_setup_with_packages() {
 }
 
 ?>
+variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+
 default:
   retry:
     max: 2
@@ -111,6 +115,8 @@ default:
       - api_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
+    exit_codes:
+      - 75
 
 .all_targets: &all_minor_major_targets
 <?php

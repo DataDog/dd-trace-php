@@ -296,7 +296,7 @@ static bool _parse_config_array(zval *config_array, zval **prehook, zval **posth
                 return false;
             }
         } else if (strcmp("recurse", ZSTR_VAL(key)) == 0) {
-            *allow_recursion = zval_is_true(value);
+            *allow_recursion = zend_is_true(value);
         } else {
             LOG_LINE_ONCE(WARN, "Unknown option '%s' in config_array", ZSTR_VAL(key));
             return false;

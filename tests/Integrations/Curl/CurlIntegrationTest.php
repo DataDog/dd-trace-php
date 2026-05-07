@@ -189,7 +189,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', 'span.kind'])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')
                         ->withExactTags([
@@ -620,7 +620,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
 
         $this->assertFlameGraph($traces, [
             SpanAssertion::build('web.request', 'top_level_app', 'web', 'GET /curl_in_web_request.php')
-                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code'])
+                ->withExistingTagsNames(['http.method', 'http.url', 'http.status_code', 'span.kind'])
                 ->withExactMetrics(['_sampling_priority_v1' => 1, '_dd.agent_psr' => 1, 'process_id' => getmypid()])
                 ->withChildren([
                     SpanAssertion::build('curl_exec', 'curl', 'http', 'http://' . HTTPBIN_INTEGRATION . '/status/?')

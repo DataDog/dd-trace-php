@@ -542,6 +542,7 @@ fn apple_linker_flags() {
         "_zend_extensions",
         "_zend_flf_functions",
         "_zend_gc_get_status",
+        "_zend_generator_check_placeholder_frame",
         "_zend_get_executed_filename_ex",
         "_zend_get_executed_lineno",
         "_zend_get_extension",

@@ -14,9 +14,17 @@ typedef enum {
     DD_SIDECAR_CONNECTION_THREAD = 2
 } dd_sidecar_active_mode_t;
 
-extern ddog_SidecarTransport *ddtrace_sidecar;
-extern ddog_Endpoint *ddtrace_endpoint;
+static inline bool ddtrace_is_empty_session_id(uint8_t id[36]) {
+    return memcmp(id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0;
+}
+
+// ddtrace_sidecar_instance_id is a process global — one identity per PHP process.
 extern struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+// Best-effort pointer used only by the signal handler (SIGTERM/SIGINT), which cannot call
+// TSRMLS_FETCH() safely.  Set to the first thread's connection; never cleared until MSHUTDOWN.
+// Not atomic: concurrent shutdown is a pre-existing best-effort race for signal handlers.
+extern ddog_SidecarTransport *ddtrace_sidecar_for_signal;
+extern ddog_Endpoint *ddtrace_endpoint;
 extern dd_sidecar_active_mode_t ddtrace_sidecar_active_mode;
 extern int32_t ddtrace_sidecar_master_pid;
 
@@ -56,6 +64,7 @@ void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
 void ddtrace_sidecar_activate(void);
 void ddtrace_sidecar_rinit(void);
 void ddtrace_sidecar_rshutdown(void);
+void ddtrace_sidecar_gshutdown(void);
 
 void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags);
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags);

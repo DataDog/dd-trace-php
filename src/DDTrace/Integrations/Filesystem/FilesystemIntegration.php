@@ -61,6 +61,7 @@ class FilesystemIntegration extends Integration
 
            $addresses = [];
            $rule = "";
+           $rule_variant = "";
 
            if (empty($protocol) || $protocol === 'file') {
                 $addresses["server.io.fs.file"] = $hook->args[0];
@@ -71,13 +72,14 @@ class FilesystemIntegration extends Integration
            in_array($protocol, ['http', 'https', 'ftp', 'ftps'])) {
                 $addresses["server.io.net.url"] = $hook->args[0];
                 $rule = "ssrf";
+                $rule_variant = "request";
            }
 
             if (empty($addresses)) {
                 return;
             }
 
-            \datadog\appsec\push_addresses($addresses, $rule);
+            \datadog\appsec\push_addresses($addresses, $rule, $rule_variant);
         };
     }
 

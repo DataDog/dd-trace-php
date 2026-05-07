@@ -9,6 +9,7 @@
 #include <string.h>
 
 HashTable zai_config_name_map = {0};
+bool zai_config_first_rinit_done = false;
 
 uint16_t zai_config_memoized_entries_count = 0;
 zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
@@ -99,9 +100,11 @@ static void zai_config_find_and_set_value(zai_config_memoized_entry *memoized, z
             break;
         }
     }
-    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(&buf, true)) {
-        zai_config_process_env(memoized, buf, &value);
+    ZAI_ENV_BUFFER_INIT(fallback_buf, ZAI_ENV_MAX_BUFSIZ);
+    if (!value.len && memoized->env_config_fallback && memoized->env_config_fallback(&fallback_buf, true)) {
+        zai_config_process_env(memoized, fallback_buf, &value);
         name_index = ZAI_CONFIG_ORIGIN_MODIFIED;
+        buf = fallback_buf;
     }
 
     int16_t ini_name_index = zai_config_initialize_ini_value(memoized->ini_entries, memoized->names_count, &value,
@@ -205,13 +208,13 @@ static void zai_config_dtor_memoized_zvals(void) {
 
 void zai_config_mshutdown(void) {
     zai_config_dtor_memoized_zvals();
+    zai_config_clear_sys_env_cache();
     zai_config_memoized_entries_count = 0;
     if (zai_config_name_map.nTableSize) {
         zend_hash_destroy(&zai_config_name_map);
     }
     zai_config_ini_mshutdown();
     zai_config_stable_file_mshutdown();
-    zai_config_clear_sys_env_cache();
 }
 
 void zai_config_runtime_config_ctor(void);
@@ -276,8 +279,6 @@ void zai_config_first_time_rinit(bool in_request) {
     if (in_request) {
         zend_interned_strings_switch_storage(0);
     }
-#else
-    (void)in_request;
 #endif
 
     // Non-CLI SAPIs (CGI/FPM/mod_php) may inject env vars before the first
@@ -297,6 +298,10 @@ void zai_config_first_time_rinit(bool in_request) {
             zai_config_intern_zval(&memoized->decoded_value);
         }
 #endif
+    }
+
+    if (in_request) {
+        zai_config_first_rinit_done = true;
     }
 
 #if PHP_VERSION_ID >= 70400

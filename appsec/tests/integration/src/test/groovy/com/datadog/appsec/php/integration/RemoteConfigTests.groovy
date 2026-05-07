@@ -1,5 +1,6 @@
 package com.datadog.appsec.php.integration
 
+import com.datadog.appsec.php.TelemetryHelpers
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.mock_agent.rem_cfg.Capability
@@ -8,6 +9,7 @@ import com.datadog.appsec.php.mock_agent.rem_cfg.Target
 import com.datadog.appsec.php.model.Span
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.BeforeAll
+import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
 import org.testcontainers.junit.jupiter.Container
@@ -292,9 +294,9 @@ class RemoteConfigTests {
                 'datadog/2/ASM/custom_user_cfg_1/config': null /* keep */,
                 'datadog/2/ASM/custom_user_cfg_2/config': [
                         actions: [[
-                                          id: 'block_custom',
-                                          type: 'block_request',
-                                          parameters: [
+                                           id: 'block_custom',
+                                           type: 'block_request',
+                                           parameters: [
                                                   status_code: '409'
                                           ]
                                   ]]
@@ -438,6 +440,90 @@ class RemoteConfigTests {
     }
 
     @Test
+    @Tag('slow')
+    void 'test no spurious waf updates when only non-ASM RC changes'() {
+        def asmDdRuleConfig = { String userAgent, String ruleId ->
+            [
+                    version : '2.2',
+                    metadata: [rules_version: '2.71.8182'],
+                    rules   : [[
+                                        id        : ruleId,
+                                        name      : userAgent,
+                                        tags      : [type: 'attack_tool', category: 'attack_attempt'],
+                                        conditions: [[
+                                                             parameters: [
+                                                                     inputs: [[
+                                                                                      address : 'server.request.headers.no_cookies',
+                                                                                      key_path: ['user-agent']
+                                                                              ]],
+                                                                     regex : "^${userAgent}\\/v",
+                                                             ],
+                                                             operator  : 'match_regex',
+                                                     ]]
+                                ]]
+            ]
+        }
+
+        // Step 1: apply initial config (ASM + ASM_DD + unrelated APM_TRACING)
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ],
+                'datadog/2/ASM_DD/rules_1/config'                      : asmDdRuleConfig('Arachni', 'str-000-001'),
+                'datadog/2/APM_TRACING/apm_config_1/config'            : [lib_config: [tracing_enabled: true]],
+        ])
+
+        def trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        // Step 2: consume initial waf.updates so we can detect only subsequent ones
+        List<TelemetryHelpers.GenerateMetrics> initialMetrics = TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            allSeries.find { it.name == 'waf.updates' } != null
+        }
+
+        def initialWafUpdates = initialMetrics.collectMany { it.series }
+                .findAll { it.name == 'waf.updates' }
+        def initialWafUpdateTotal = initialWafUpdates.collect { it.points[0][1] as double }.sum() ?: 0.0d
+        assert initialWafUpdateTotal > 0.0d :
+                "Expected at least one initial waf.updates before second RC apply, " +
+                "but got ${initialWafUpdateTotal}. waf.updates series: ${initialWafUpdates}"
+
+        // Step 3: change only non-ASM config; ASM rc_paths remain unchanged
+        applyRemoteConfig(INITIAL_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ],
+                'datadog/2/ASM_DD/rules_1/config'                      : asmDdRuleConfig('Arachni', 'str-000-001'),
+                'datadog/2/APM_TRACING/apm_config_2/config'            : [lib_config: [tracing_enabled: false]],
+        ])
+
+        CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        // Step 4: check there were no new waf.updates
+        List<TelemetryHelpers.GenerateMetrics> collectedMetrics = TelemetryHelpers.waitForMetrics(CONTAINER, 25) { false }
+
+        def allSeries = collectedMetrics.collectMany { it.series }
+        def wafUpdates = allSeries.findAll { it.name == 'waf.updates' }
+        def totalWafUpdates = wafUpdates.collect { it.points[0][1] as double }.sum() ?: 0.0d
+
+        assert totalWafUpdates == 0.0d :
+                "Expected 0 waf.updates after changing only non-ASM RC content, " +
+                "but got ${totalWafUpdates}. This indicates a spurious WAF re-apply. " +
+                "waf.updates series: ${wafUpdates}"
+
+        dropRemoteConfig(INITIAL_TARGET)
+    }
+
+    @Test
     void 'test asm_dd_multiconfig'() {
         def doReq = { String userAgent, String expectedRuleId = null ->
             HttpRequest req = CONTAINER.buildReq('/hello.php')
@@ -528,7 +614,7 @@ class RemoteConfigTests {
                 'datadog/2/ASM_FEATURES/asm_features_activation/config': [
                         asm: [enabled: true]
                 ],
-                'datadog/2/ASM_DD/rules_2/config': getConfigWithUserAgent('Arachni', 'str-000-002')
+                'datadog/2/ASM_DD/rules_3/config': getConfigWithUserAgent('Arachni', 'str-000-002')
         ])
 
         doReq.call('Arachni/v1', 'str-000-002')

@@ -21,8 +21,8 @@ class LoginController extends Controller
     public function authenticate(Request $request)
     {
         $credentials = [
-            'email' => $request->get('email') ?? 'ciuser@example.com',
-            'password' => 'password',
+            'email' => $request->get('email'),
+            'password' => $request->query('password', 'password'),
         ];
 
         if (Auth::attempt($credentials)) {

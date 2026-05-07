@@ -8,12 +8,12 @@ DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING=safe
 --FILE--
 <?php
 use function datadog\appsec\testing\root_span_get_meta;
-use function datadog\appsec\track_user_login_success_event_automated;
+use function datadog\appsec\internal\track_user_login_success_event_automated;
 include __DIR__ . '/inc/ddtrace_version.php';
 
 ddtrace_version_at_least('0.79.0');
 
-track_user_login_success_event_automated("login", "automatedID", ['something' => 'discarded']);
+track_user_login_success_event_automated('test', "login", "automatedID", ['something' => 'discarded']);
 
 echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());

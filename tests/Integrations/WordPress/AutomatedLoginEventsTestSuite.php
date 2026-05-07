@@ -78,7 +78,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $this->assertEquals(1, count($events));
         $this->assertEquals(0, count($authEvents));
 
-        $this->assertEquals($email, $events[0]['userId']);
+        $this->assertNull($events[0]['userId']);
         $this->assertEquals($email, $events[0]['userLogin']);
         $this->assertFalse($events[0]['exists']);
         $this->assertEmpty($events[0]['metadata']);
@@ -100,7 +100,7 @@ class AutomatedLoginEventsTestSuite extends AppsecTestCase
         $this->assertEquals(1, count($events));
         $this->assertEquals(0, count($authEvents));
 
-        $this->assertEquals($email, $events[0]['userId']);
+        $this->assertNull($events[0]['userId']);
         $this->assertEquals($email, $events[0]['userLogin']);
         $this->assertTrue($events[0]['exists']);
         $this->assertEmpty($events[0]['metadata']);

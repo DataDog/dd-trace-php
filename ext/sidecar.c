@@ -27,7 +27,12 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 ddog_Endpoint *ddtrace_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
-static uint8_t dd_sidecar_formatted_session_id[36];
+
+// Best-effort pointer for the signal handler (SIGTERM/SIGINT). Set to the first
+// per-thread connection; never cleared until MSHUTDOWN. Not atomic: concurrent
+// shutdown is already a best-effort race for signal handlers, so atomicity of
+// the pointer load alone would not prevent the underlying use-after-free.
+ddog_SidecarTransport *ddtrace_sidecar_for_signal = NULL;
 
 // Connection mode tracking
 dd_sidecar_active_mode_t ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_NONE;
@@ -45,7 +50,6 @@ static inline void dd_set_endpoint_test_token(ddog_Endpoint *endpoint) {
 
 // Set the globals that stay unchanged in case of fork
 static void ddtrace_set_non_resettable_sidecar_globals(void) {
-    ddtrace_format_runtime_id(&dd_sidecar_formatted_session_id);
     ddtrace_endpoint = ddtrace_sidecar_agent_endpoint();
 
     if (get_global_DD_TRACE_AGENTLESS() && ZSTR_LEN(get_global_DD_API_KEY())) {
@@ -57,12 +61,12 @@ static void ddtrace_set_non_resettable_sidecar_globals(void) {
     }
 }
 
-// Set the globals that must be updated in case of fork
+// Build the process-level instance ID (one per PHP process, reset after fork).
 static void ddtrace_set_resettable_sidecar_globals(void) {
     uint8_t formatted_run_time_id[36];
     ddtrace_format_runtime_id(&formatted_run_time_id);
     ddog_CharSlice runtime_id = (ddog_CharSlice) {.ptr = (char *) formatted_run_time_id, .len = sizeof(formatted_run_time_id)};
-    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
+    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};
     ddtrace_sidecar_instance_id = ddog_sidecar_instanceId_build(session_id, runtime_id);
 }
 
@@ -74,10 +78,10 @@ static void dd_free_endpoints(void) {
 }
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
-    if (memcmp(dd_sidecar_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
+    if (ddtrace_is_empty_session_id(ddtrace_formatted_session_id)) {
         return NULL;
     }
-    return dd_sidecar_formatted_session_id;
+    return ddtrace_formatted_session_id;
 }
 
 DDTRACE_PUBLIC struct telemetry_rc_info ddtrace_get_telemetry_rc_info(void) {
@@ -97,7 +101,9 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
 }
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
-    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)};
+    ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};
+    ddog_CharSlice root_session_id = ddtrace_is_empty_session_id(ddtrace_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_root_session_id, .len = sizeof(ddtrace_formatted_root_session_id)};
+    ddog_CharSlice parent_session_id = ddtrace_is_empty_session_id(ddtrace_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_parent_session_id, .len = sizeof(ddtrace_formatted_parent_session_id)};
     const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
     ddog_sidecar_session_set_config(transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
@@ -107,6 +113,8 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     (int)(get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS() * 1000),
                                     // for historical reasons in seconds
                                     get_global_DD_TELEMETRY_HEARTBEAT_INTERVAL() * 1000,
+                                    // extended heartbeat interval, also in seconds
+                                    (uint64_t)get_global_DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL() * 1000,
                                     get_global_DD_TRACE_BUFFER_SIZE(),
                                     get_global_DD_TRACE_AGENT_STACK_BACKLOG() * get_global_DD_TRACE_AGENT_MAX_PAYLOAD_SIZE(),
                                     get_global_DD_TRACE_DEBUG() ? DDOG_CHARSLICE_C("debug") : dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()),
@@ -118,7 +126,11 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     DDTRACE_REMOTE_CONFIG_CAPABILITIES.len,
                                     get_global_DD_REMOTE_CONFIG_ENABLED(),
                                     is_fork,
-                                    process_tags
+                                    process_tags,
+                                    dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
+                                    dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
+                                    root_session_id,
+                                    parent_session_id
                                 );
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -127,7 +139,7 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
 }
 
 void ddtrace_sidecar_update_process_tags(void) {
-    if (!ddtrace_sidecar) {
+    if (!DDTRACE_G(sidecar)) {
         return;
     }
 
@@ -136,7 +148,7 @@ void ddtrace_sidecar_update_process_tags(void) {
         return;
     }
 
-    ddog_sidecar_session_set_process_tags(&ddtrace_sidecar, process_tags);
+    ddog_sidecar_session_set_process_tags(&DDTRACE_G(sidecar), process_tags);
 }
 
 static ddog_SidecarTransport *dd_sidecar_connection_factory_ex(bool is_fork);
@@ -156,46 +168,18 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
 
     dd_sidecar_post_connect(&transport, false, logpath);
 
-    // update the sidecar connection on all threads on ZTS
-#if ZTS
-    tsrm_mutex_lock(ddtrace_threads_mutex);
+    tsrm_mutex_lock(DDTRACE_G(sidecar_universal_service_tags_mutex));
 
-    void *TSRMLS_CACHE; // DDTRACE_G() accesses a variable named TSRMLS_CACHE. Make use of variable shadowing in scopes...
-    ZEND_HASH_FOREACH_PTR(&ddtrace_tls_bases, TSRMLS_CACHE) {
-#endif
-        // We need the lock even on NTS as it might originate from the background sender
-        tsrm_mutex_lock(DDTRACE_G(sidecar_universal_service_tags_mutex));
+    if (DDTRACE_G(sidecar_queue_id) && DDTRACE_G(last_service_name)) {
+        ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
+        ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+        ddog_CharSlice version = dd_zend_string_to_CharSlice(DDTRACE_G(last_version));
+        ddtrace_ffi_try("Failed sending config data",
+                        ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
+                                                                env_name, version, &DDTRACE_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
+    }
 
-        // when we get disconnected during shutdown
-        if (DDTRACE_G(sidecar_queue_id) && DDTRACE_G(last_service_name)) {
-            ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
-            ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
-            ddog_CharSlice version = dd_zend_string_to_CharSlice(DDTRACE_G(last_version));
-
-            ddog_DynamicInstrumentationConfigState dynamic_instrumentation_state;
-#if ZTS
-            // With the current architecture of config it's not accessible via the TSRMLS_CACHE and thus may be actually invalid on the current thread.
-            // This is a known issue and will be fixed with refactor of the module_globals usage of config. The current behaviour is not perfect, but has to be considered acceptable.
-            if (zai_config_memoized_entries[DDTRACE_CONFIG_DD_DYNAMIC_INSTRUMENTATION_ENABLED].name_index >= 0) {
-                dynamic_instrumentation_state = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED() ? DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED : DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED;
-            } else {
-                dynamic_instrumentation_state = DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET;
-            }
-#else
-            dynamic_instrumentation_state = ddtrace_dynamic_instrumentation_state();
-#endif
-            ddtrace_ffi_try("Failed sending config data",
-                            ddog_sidecar_set_universal_service_tags(&transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), service_name,
-                                                                    env_name, version, &DDTRACE_G(active_global_tags), dynamic_instrumentation_state));
-        }
-
-        tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
-#if ZTS
-    } ZEND_HASH_FOREACH_END();
-
-    tsrm_mutex_unlock(ddtrace_threads_mutex);
-#endif
-
+    tsrm_mutex_unlock(DDTRACE_G(sidecar_universal_service_tags_mutex));
 }
 
 static ddog_SidecarTransport *dd_sidecar_connect(bool as_worker, bool is_fork) {
@@ -275,8 +259,8 @@ static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appse
     bool listener_available = ddog_sidecar_is_master_listener_active(ddtrace_sidecar_master_pid);
 
     if (is_child_process || listener_available) {
-        ddtrace_sidecar = dd_sidecar_connect(true, false);
-        if (ddtrace_sidecar) {
+        DDTRACE_G(sidecar) = dd_sidecar_connect(true, false);
+        if (DDTRACE_G(sidecar)) {
             if (is_child_process) {
                 LOG(INFO, "Worker connected to sidecar master listener (worker PID=%d, master PID=%d)",
                     (int32_t)current_pid, ddtrace_sidecar_master_pid);
@@ -285,14 +269,10 @@ static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appse
         }
 
         if (!is_child_process) {
-            // listener_available was true but connect failed (e.g. race: socket not yet bound)
             LOG(WARN, "Failed to connect to own master listener (PID=%d)", (int32_t)current_pid);
             return;
         }
 
-        // Worker processes must not start their own listener thread - the master listener
-        // must be started in MINIT (in the master process) so it survives forking.
-        // If we can't connect, run without the sidecar rather than starting a per-worker thread.
         LOG(WARN, "Cannot connect to master sidecar listener from worker (child PID=%d, master PID=%d)",
             (int32_t)current_pid, ddtrace_sidecar_master_pid);
         return;
@@ -308,8 +288,8 @@ static void ddtrace_sidecar_setup_thread_mode(bool appsec_activation, bool appse
 
     LOG(INFO, "Started sidecar master listener thread (PID=%d)", ddtrace_sidecar_master_pid);
 
-    ddtrace_sidecar = dd_sidecar_connect(true, false);
-    if (!ddtrace_sidecar) {
+    DDTRACE_G(sidecar) = dd_sidecar_connect(true, false);
+    if (!DDTRACE_G(sidecar)) {
         LOG(WARN, "Failed to connect master process to sidecar");
         return;
     }
@@ -416,23 +396,24 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
 
     if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD) {
         ddtrace_sidecar_setup_thread_mode(appsec_activation, appsec_config);
-        return;
+    } else {
+        DDTRACE_G(sidecar) = dd_sidecar_connect(false, false);
+
+        if (!DDTRACE_G(sidecar)) {
+            if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO && ddtrace_endpoint) {
+                LOG(WARN, "Subprocess connection failed, falling back to thread mode");
+                ddtrace_sidecar_setup_thread_mode(appsec_activation, appsec_config);
+            } else if (ddtrace_endpoint) {
+                dd_free_endpoints();
+            }
+        } else if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+            ddtrace_telemetry_first_init();
+        }
     }
 
-    ddtrace_sidecar = dd_sidecar_connect(false, false);
-
-    if (!ddtrace_sidecar) {
-        if (mode == DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO && ddtrace_endpoint) {
-            LOG(WARN, "Subprocess connection failed, falling back to thread mode");
-            ddtrace_sidecar_setup_thread_mode(appsec_activation, appsec_config);
-            return;
-        }
-
-        if (ddtrace_endpoint) {
-            dd_free_endpoints();
-        }
-    } else if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
-        ddtrace_telemetry_first_init();
+    // Record the first established connection for best-effort signal-handler use.
+    if (DDTRACE_G(sidecar) && !ddtrace_sidecar_for_signal) {
+        ddtrace_sidecar_for_signal = DDTRACE_G(sidecar);
     }
 }
 
@@ -463,44 +444,44 @@ void ddtrace_sidecar_handle_fork(void) {
 
     ddtrace_force_new_instance_id();
 
-    if (ddtrace_sidecar) {
-        ddog_sidecar_transport_drop(ddtrace_sidecar);
-        ddtrace_sidecar = NULL;
+    // After fork only one thread (the one that called fork) survives, so we only
+    // need to drop and reconnect the current thread's transport.
+    if (DDTRACE_G(sidecar)) {
+        ddog_sidecar_transport_drop(DDTRACE_G(sidecar));
+        DDTRACE_G(sidecar) = NULL;
     }
+    ddtrace_sidecar_for_signal = NULL;
 
     if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_THREAD) {
         ddtrace_ffi_try("Failed clearing inherited listener state",
                         ddog_sidecar_clear_inherited_listener());
 
-        // Try to connect as a worker to parent's listener
-        ddtrace_sidecar = dd_sidecar_connect(true, true);
-        if (ddtrace_sidecar) {
+        DDTRACE_G(sidecar) = dd_sidecar_connect(true, true);
+        if (DDTRACE_G(sidecar)) {
             LOG(INFO, "Child process reconnected to parent's sidecar listener after fork (child PID=%d, parent=%d)",
                 (int32_t)getpid(), ddtrace_sidecar_master_pid);
-            return;
-        }
+        } else {
+            LOG(INFO, "Parent's sidecar listener not available after fork (child PID=%d, parent=%d), starting new master",
+                (int32_t)getpid(), ddtrace_sidecar_master_pid);
 
-        // Parent's listener not available, fall back to starting a new master in this process
-        LOG(INFO, "Parent's sidecar listener not available after fork (child PID=%d, parent=%d), starting new master",
-            (int32_t)getpid(), ddtrace_sidecar_master_pid);
-
-        ddtrace_sidecar_master_pid = (int32_t)getpid();
-        if (!ddtrace_ffi_try("Failed starting sidecar master listener in child process",
-                ddog_sidecar_connect_master((int32_t)ddtrace_sidecar_master_pid))) {
-            if (ddtrace_endpoint) {
-                dd_free_endpoints();
+            ddtrace_sidecar_master_pid = (int32_t)getpid();
+            if (!ddtrace_ffi_try("Failed starting sidecar master listener in child process",
+                    ddog_sidecar_connect_master((int32_t)ddtrace_sidecar_master_pid))) {
+                if (ddtrace_endpoint) {
+                    dd_free_endpoints();
+                }
+                return;
             }
-            return;
-        }
 
-        ddtrace_sidecar = dd_sidecar_connect(true, false);
-        if (!ddtrace_sidecar) {
-            LOG(WARN, "Failed to connect to new sidecar master in child process (PID=%d)",
-                (int32_t)getpid());
+            DDTRACE_G(sidecar) = dd_sidecar_connect(true, false);
+            if (!DDTRACE_G(sidecar)) {
+                LOG(WARN, "Failed to connect to new sidecar master in child process (PID=%d)",
+                    (int32_t)getpid());
+            }
         }
     } else if (ddtrace_sidecar_active_mode == DD_SIDECAR_CONNECTION_SUBPROCESS) {
-        ddtrace_sidecar = ddtrace_sidecar_connect(true);
-        if (!ddtrace_sidecar) {
+        DDTRACE_G(sidecar) = ddtrace_sidecar_connect(true);
+        if (!DDTRACE_G(sidecar)) {
             if (ddtrace_endpoint) {
                 dd_free_endpoints();
             }
@@ -508,17 +489,28 @@ void ddtrace_sidecar_handle_fork(void) {
             ddtrace_sidecar_submit_root_span_data();
         }
     }
+
+    if (DDTRACE_G(sidecar)) {
+        ddtrace_sidecar_for_signal = DDTRACE_G(sidecar);
+    }
 #endif
 }
 
 void ddtrace_sidecar_ensure_active(void) {
-    if (ddtrace_sidecar) {
-        ddtrace_sidecar_reconnect(&ddtrace_sidecar, ddtrace_sidecar_connect_callback);
+    if (DDTRACE_G(sidecar)) {
+        ddtrace_sidecar_reconnect(&DDTRACE_G(sidecar), ddtrace_sidecar_connect_callback);
+    } else if (ddtrace_endpoint) {
+        // First RINIT on this thread: the process-level setup already ran (endpoint is
+        // set), so establish this thread's own connection now.
+        DDTRACE_G(sidecar) = ddtrace_sidecar_connect(false);
+        if (DDTRACE_G(sidecar) && !ddtrace_sidecar_for_signal) {
+            ddtrace_sidecar_for_signal = DDTRACE_G(sidecar);
+        }
     }
 }
 
 void ddtrace_sidecar_finalize(bool clear_id) {
-    if (!ddtrace_sidecar) {
+    if (!DDTRACE_G(sidecar)) {
         return;
     }
 
@@ -533,12 +525,17 @@ void ddtrace_sidecar_finalize(bool clear_id) {
 
     if (clear_id) {
         ddtrace_ffi_try("Failed removing application from sidecar",
-                        ddog_sidecar_application_remove(&ddtrace_sidecar, ddtrace_sidecar_instance_id, &queue_id));
+                        ddog_sidecar_application_remove(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &queue_id));
     }
 }
 
 void ddtrace_sidecar_shutdown(void) {
-    // Shutdown master listener if this is the master process and thread mode is active
+    ddtrace_sidecar_for_signal = NULL;
+
+    // In thread mode, drop the main thread's connection before shutting down the
+    // listener to avoid deadlock.  GSHUTDOWN owns transport cleanup for all other
+    // threads; the main thread's GSHUTDOWN runs after MSHUTDOWN on some SAPIs,
+    // so we handle it here explicitly for the thread-mode case.
 #ifdef _WIN32
     int32_t current_pid = (int32_t)GetCurrentProcessId();
 #else
@@ -548,18 +545,16 @@ void ddtrace_sidecar_shutdown(void) {
         ddtrace_sidecar_master_pid != 0 &&
         current_pid == ddtrace_sidecar_master_pid) {
 
-        // Close worker connection first to avoid deadlock
-        if (ddtrace_sidecar) {
-            ddog_sidecar_transport_drop(ddtrace_sidecar);
-            ddtrace_sidecar = NULL;
+        if (DDTRACE_G(sidecar)) {
+            ddog_sidecar_transport_drop(DDTRACE_G(sidecar));
+            DDTRACE_G(sidecar) = NULL;
         }
 
-        // Then shutdown listener thread
         ddtrace_ffi_try("Failed shutting down master listener",
                         ddog_sidecar_shutdown_master_listener());
     }
 
-    // Standard cleanup
+    // Process-level instance ID (dropped once at MSHUTDOWN, not per-thread).
     if (ddtrace_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(ddtrace_sidecar_instance_id);
         ddtrace_sidecar_instance_id = NULL;
@@ -569,12 +564,6 @@ void ddtrace_sidecar_shutdown(void) {
         dd_free_endpoints();
     }
 
-    if (ddtrace_sidecar) {
-        ddog_sidecar_transport_drop(ddtrace_sidecar);
-        ddtrace_sidecar = NULL;
-    }
-
-    // Reset mode
     ddtrace_sidecar_active_mode = DD_SIDECAR_CONNECTION_NONE;
 }
 
@@ -669,62 +658,62 @@ void ddtrace_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags) {
 }
 
 void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags) {
-    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
+    if (!DDTRACE_G(sidecar) || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
     ddtrace_ffi_try("Failed sending dogstatsd count metric",
-                    ddog_sidecar_dogstatsd_count(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_count(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags) {
-    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
+    if (!DDTRACE_G(sidecar) || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
     ddtrace_ffi_try("Failed sending dogstatsd distribution metric",
-                    ddog_sidecar_dogstatsd_distribution(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_distribution(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
 void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *tags) {
-    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
+    if (!DDTRACE_G(sidecar) || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
     ddtrace_ffi_try("Failed sending dogstatsd gauge metric",
-                    ddog_sidecar_dogstatsd_gauge(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_gauge(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
 void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags) {
-    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
+    if (!DDTRACE_G(sidecar) || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
     ddtrace_ffi_try("Failed sending dogstatsd histogram metric",
-                    ddog_sidecar_dogstatsd_histogram(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_histogram(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
 void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags) {
-    if (!ddtrace_sidecar || !get_DD_INTEGRATION_METRICS_ENABLED()) {
+    if (!DDTRACE_G(sidecar) || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;
     }
 
     ddog_Vec_Tag vec = ddog_Vec_Tag_new();
     ddtrace_sidecar_push_tags(&vec, tags);
     ddtrace_ffi_try("Failed sending dogstatsd set metric",
-                    ddog_sidecar_dogstatsd_set(&ddtrace_sidecar, ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
+                    ddog_sidecar_dogstatsd_set(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, dd_zend_string_to_CharSlice(metric), value, &vec));
     ddog_Vec_Tag_drop(vec);
 }
 
@@ -791,15 +780,10 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
     bool changed = true;
     if (DDTRACE_G(remote_config_state)) {
         changed = ddog_remote_configs_service_env_change(DDTRACE_G(remote_config_state), service_slice, env_slice, version_slice, &DDTRACE_G(active_global_tags), process_tags);
-        if (!changed && root) {
-            // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
-            // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
-            ddog_process_remote_configs(DDTRACE_G(remote_config_state));
-        }
     }
 
     // Force resend on reconnect
-    if (changed || !root || *transport != ddtrace_sidecar) {
+    if (changed || !root || *transport != DDTRACE_G(sidecar)) {
         tsrm_mutex_lock(DDTRACE_G(sidecar_universal_service_tags_mutex));
         if (DDTRACE_G(last_service_name)) {
             zend_string_release(DDTRACE_G(last_service_name));
@@ -828,25 +812,31 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
         ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
             ddog_sidecar_telemetry_filter_flush(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
     }
+
+    if (!changed && DDTRACE_G(remote_config_state)) {
+        // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
+        // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
+        ddog_process_remote_configs(DDTRACE_G(remote_config_state));
+    }
 }
 
 void ddtrace_sidecar_submit_root_span_data(void) {
     if (DDTRACE_G(active_stack)) {
         ddtrace_root_span_data *root = DDTRACE_G(active_stack)->root_span;
         if (root) {
-            ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, root);
+            ddtrace_sidecar_submit_root_span_data_direct_defaults(&DDTRACE_G(sidecar), root);
         }
     }
 }
 
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_data(&payloads););
-    ddog_sidecar_send_debugger_data(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payloads);
+    ddog_sidecar_send_debugger_data(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payloads);
 }
 
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload) {
     LOGEV(DEBUG, UNUSED(log); ddog_log_debugger_datum(payload););
-    ddog_sidecar_send_debugger_datum(&ddtrace_sidecar, ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payload);
+    ddog_sidecar_send_debugger_datum(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, DDTRACE_G(sidecar_queue_id), payload);
 }
 
 void ddtrace_sidecar_activate(void) {
@@ -879,19 +869,32 @@ void ddtrace_sidecar_rinit(void) {
         }
     }
 
-    ddtrace_sidecar_submit_root_span_data_direct_defaults(&ddtrace_sidecar, NULL);
+    ddtrace_sidecar_submit_root_span_data_direct_defaults(&DDTRACE_G(sidecar), NULL);
 }
 
 void ddtrace_sidecar_rshutdown(void) {
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
 }
 
+void ddtrace_sidecar_gshutdown(void) {
+    if (DDTRACE_G(sidecar)) {
+        if (DDTRACE_G(sidecar) == ddtrace_sidecar_for_signal) {
+            ddtrace_sidecar_for_signal = NULL;
+        }
+
+        // Drain any accumulated background-sender metrics before the transport goes away.
+        ddtrace_telemetry_flush_bgs_metrics_final();
+        ddog_sidecar_transport_drop(DDTRACE_G(sidecar));
+        DDTRACE_G(sidecar) = NULL;
+    }
+}
+
 bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
-    if (ddtrace_sidecar) {
+    if (DDTRACE_G(sidecar)) {
         ddog_endpoint_set_test_token(ddtrace_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
         ddtrace_ffi_try("Failed updating test session token",
-                        ddog_sidecar_set_test_session_token(&ddtrace_sidecar, dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
+                        ddog_sidecar_set_test_session_token(&DDTRACE_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
     }
 #ifndef _WIN32
     ddtrace_coms_set_test_session_token(Z_STRVAL_P(new_value), Z_STRLEN_P(new_value));
@@ -900,7 +903,7 @@ bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_str
 }
 
 bool ddtrace_exception_debugging_is_active(void) {
-    return ddtrace_sidecar && ddtrace_sidecar_instance_id && get_DD_EXCEPTION_REPLAY_ENABLED();
+    return DDTRACE_G(sidecar) && ddtrace_sidecar_instance_id && get_DD_EXCEPTION_REPLAY_ENABLED();
 }
 
 ddog_crasht_Metadata ddtrace_setup_crashtracking_metadata(ddog_Vec_Tag *tags) {
@@ -911,7 +914,7 @@ ddog_crasht_Metadata ddtrace_setup_crashtracking_metadata(ddog_Vec_Tag *tags) {
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("library_version"), DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION));
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("language"), DDOG_CHARSLICE_C("php"));
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime"), DDOG_CHARSLICE_C("php"));
-    ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime-id"), (ddog_CharSlice) {.ptr = (char *) dd_sidecar_formatted_session_id, .len = sizeof(dd_sidecar_formatted_session_id)});
+    ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime-id"), (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)});
 
     const char *runtime_version = zend_get_module_version("Reflection");
     ddtrace_sidecar_push_tag(tags, DDOG_CHARSLICE_C("runtime_version"), (ddog_CharSlice) {.ptr = (char *) runtime_version, .len = strlen(runtime_version)});

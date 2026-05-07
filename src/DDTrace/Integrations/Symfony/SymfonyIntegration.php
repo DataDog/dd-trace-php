@@ -12,7 +12,6 @@ use DDTrace\Util\Normalizer;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\KernelEvents;
-use Symfony\Contracts\Cache\ItemInterface;
 
 class SymfonyIntegration extends Integration
 {
@@ -87,7 +86,7 @@ class SymfonyIntegration extends Integration
             'Doctrine\ORM\UnitOfWork',
             'executeInserts',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_signup_event_automated')) {
                     return;
                 }
 
@@ -116,7 +115,7 @@ class SymfonyIntegration extends Integration
                     $user = $userEntity->getUserIdentifier();
                 }
 
-                \datadog\appsec\track_user_signup_event_automated($user, $user, []);
+                \datadog\appsec\internal\track_user_signup_event_automated('symfony', $user, $user, []);
             }
         );
 
@@ -125,7 +124,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationSuccess',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -141,7 +140,8 @@ class SymfonyIntegration extends Integration
                 $metadata = [];
                 $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
-                \datadog\appsec\track_user_login_success_event_automated(
+                \datadog\appsec\internal\track_user_login_success_event_automated(
+                    'symfony',
                     $user,
                     $user,
                     $metadata
@@ -154,10 +154,13 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationFailure',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\internal\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -166,10 +169,13 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\internal\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -178,7 +184,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onSuccess',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -193,7 +199,8 @@ class SymfonyIntegration extends Integration
                 $metadata = [];
                 $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
-                \datadog\appsec\track_user_login_success_event_automated(
+                \datadog\appsec\internal\track_user_login_success_event_automated(
+                    'symfony',
                     $user,
                     $user,
                     $metadata
@@ -206,10 +213,13 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationFailure',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\internal\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -218,7 +228,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationSuccess',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -241,7 +251,8 @@ class SymfonyIntegration extends Integration
                     ? $user->getUserIdentifier()
                     : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
-                \datadog\appsec\track_user_login_success_event_automated(
+                \datadog\appsec\internal\track_user_login_success_event_automated(
+                    'symfony',
                     $userIdentifier,
                     $userIdentifier,
                     $metadata
@@ -253,7 +264,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface',
             'decide',
             static function($This, $scope, $args, $result) {
-                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_authenticated_user_event_automated')) {
                     return;
                 }
 
@@ -274,7 +285,7 @@ class SymfonyIntegration extends Integration
                     : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 // Track the access check
-                \datadog\appsec\track_authenticated_user_event_automated($userIdentifier);
+                \datadog\appsec\internal\track_authenticated_user_event_automated('symfony', $userIdentifier);
             }
         );
 
@@ -422,16 +433,6 @@ class SymfonyIntegration extends Integration
         );
 
         if (\dd_trace_env_config('DD_TRACE_SYMFONY_HTTP_ROUTE')) {
-            /**
-             * Resolves the http.route tag for a given route name by looking up
-             * the route path in a cached map of all routes.
-             *
-             * Caching strategy:
-             * - Caches the entire route path map under a single key: '_datadog.symfony.route_paths'
-             * - Stores: ['mtime' => timestamp, 'paths' => ['route_name' => '/path', ...]]
-             * - Invalidates cache when Symfony's compiled routes file is newer than cached mtime
-             * - Falls back gracefully if cache.app is unavailable (no http.route tag)
-             */
             $handle_http_route = static function($route_name, $request, $rootSpan) {
                 if (self::$kernel === null) {
                     return;
@@ -439,87 +440,13 @@ class SymfonyIntegration extends Integration
 
                 /** @var ContainerInterface $container */
                 $container = self::$kernel->getContainer();
+                $path = EndpointCatalog::pathForRoute($route_name, $container);
 
-                try {
-                    $cache = $container->get('cache.app');
-                } catch (\Exception $e) {
-                    return;
-                }
-
-                if (!\method_exists($cache, 'getItem')) {
-                    return;
-                }
-
-                /** @var \Symfony\Bundle\FrameworkBundle\Routing\Router $router */
-                try {
-                    $router = $container->get('router');
-                } catch (\Exception $e) {
-                    return;
-                }
-
-                // Get the compiled routes file mtime for cache invalidation
-                $compiledRoutesMtime = null;
-                $cacheDir = \method_exists($router, 'getOption') ? $router->getOption('cache_dir') : null;
-                if ($cacheDir !== null) {
-                    $compiledRoutesFile = $cacheDir . '/url_generating_routes.php';
-                    if (\file_exists($compiledRoutesFile)) {
-                        $compiledRoutesMtime = @\filemtime($compiledRoutesFile);
-                    }
-                }
-
-                $cacheKey = '_datadog.symfony.route_paths';
-                /** @var ItemInterface $item */
-                $item = $cache->getItem($cacheKey);
-                $cachedData = $item->isHit() ? $item->get() : null;
-
-                $routePathMap = null;
-                $needsRebuild = true;
-
-                if (\is_array($cachedData) && isset($cachedData['paths']) && \is_array($cachedData['paths'])) {
-                    // Check if cache is still valid
-                    if ($compiledRoutesMtime === null) {
-                        // No compiled file to check against - cache is valid
-                        $needsRebuild = false;
-                        $routePathMap = $cachedData['paths'];
-                    } elseif (isset($cachedData['mtime']) && $cachedData['mtime'] >= $compiledRoutesMtime) {
-                        // Cached data is newer than or equal to compiled routes - cache is valid
-                        $needsRebuild = false;
-                        $routePathMap = $cachedData['paths'];
-                    }
-                    // Otherwise: compiled routes file is newer, rebuild cache
-                }
-
-                if ($needsRebuild) {
-                    $startTime = \function_exists('hrtime') ? \hrtime(true) : null;
-
-                    $routePathMap = [];
-                    $routeCollection = $router->getRouteCollection();
-                    foreach ($routeCollection->all() as $name => $route) {
-                        $routePathMap[$name] = $route->getPath();
-                    }
-
-                    if ($startTime !== null) {
-                        $durationNanoseconds = \hrtime(true) - $startTime;
-                        $durationMicroseconds = (int)($durationNanoseconds / 1000);
-                        $rootSpan->metrics['_dd.symfony.route.map_build_duration_us'] = $durationMicroseconds;
-                    }
-
-                    $item->set([
-                        'mtime' => \time(),
-                        'paths' => $routePathMap,
-                    ]);
-                    $cache->save($item);
-                }
-
-                // Look up the route path
-                $path = null;
-                if (isset($routePathMap[$route_name])) {
-                    $path = $routePathMap[$route_name];
-                } else {
-                    // Try with locale suffix (Symfony i18n routing convention)
-                    $locale = $request->get('_locale');
-                    if ($locale !== null && isset($routePathMap[$route_name . '.' . $locale])) {
-                        $path = $routePathMap[$route_name . '.' . $locale];
+                // Try with locale suffix (Symfony i18n routing convention)
+                if ($path === null) {
+                    $locale = $request->attributes->get('_locale');
+                    if ($locale !== null) {
+                        $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
                     }
                 }
 
@@ -556,7 +483,7 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
-                $route_name = $request->get('_route');
+                $route_name = $request->attributes->get('_route');
                 if ($route_name !== null) {
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $rootSpan->resource = $route_name;
@@ -565,7 +492,7 @@ class SymfonyIntegration extends Integration
                     $handle_http_route($route_name, $request, $rootSpan);
                 }
 
-                $parameters = $request->get('_route_params');
+                $parameters = $request->attributes->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
                     function_exists('datadog\appsec\push_addresses')) {
@@ -580,9 +507,10 @@ class SymfonyIntegration extends Integration
          * Since the arguments passed to the tracing closure on PHP 7 are mutable,
          * the closure must be run _before_ the original call via 'prehook'.
         */
+        $endpoints_collected = false;
         $eventDispatcherTracer = [
             'recurse' => true,
-            'prehook' => static function(SpanData $span, $args) use (&$injectedActionInfo) {
+            'prehook' => static function(SpanData $span, $args) use (&$injectedActionInfo, &$endpoints_collected) {
                 if (\DDTrace\root_span() === $span) {
                     return false; // e.g., lone symfony.console.terminate
                 }
@@ -657,17 +585,21 @@ class SymfonyIntegration extends Integration
                     }
                 }
 
-                if (self::$kernel !== null
+                // This hook may be called multiple times, so we need to make sure we only collect endpoints once
+                if (!$endpoints_collected
+                    && self::$kernel !== null
                     && \defined(\get_class(self::$kernel) . '::VERSION')
                     && \strpos(self::$kernel::VERSION, '4.') !== 0
-                    && self::$frameworkPrefix === SymfonyIntegration::NAME
-                    && !\DDTrace\are_endpoints_collected())
-                {
-                    /** @var ContainerInterface $container */
-                    $container = self::$kernel->getContainer();
-                    $endpoints = EndpointCatalog::generate($container);
-                    foreach ($endpoints as $endpoint) {
-                        \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
+                    && self::$frameworkPrefix === SymfonyIntegration::NAME) {
+                    $endpoints_collected = true;
+                    if (!\DDTrace\are_endpoints_collected()) {
+                        /** @var ContainerInterface $container */
+                        $container = self::$kernel->getContainer();
+                        $endpoints = EndpointCatalog::generate($container);
+                        foreach ($endpoints as $endpoint) {
+                            \DDTrace\add_endpoint($endpoint['path'], 'http.request', $endpoint['resourceName'], $endpoint['method']);
+                        }
+                        \DDTrace\flush_endpoints();
                     }
                 }
             }
@@ -736,6 +668,65 @@ class SymfonyIntegration extends Integration
                 $hook->data = true;
             });
         }
+    }
+
+    /**
+     * Extract the attempted login name from a Symfony authentication failure.
+     *
+     * Three sources in order of preference:
+     *   A) AuthenticationException::getToken() — set by AuthenticationProviderManager (legacy system)
+     *   B) Walk exception chain for UserNotFoundException / UsernameNotFoundException
+     *   C) Session '_security.last_username' — set by form login before calling authenticate
+     */
+    public static function extractLoginFromAuthFailure($request, $exception)
+    {
+        $login = null;
+
+        // Path A: token attached by AuthenticationProviderManager (Symfony 5.x legacy path)
+        if ($exception !== null && \method_exists($exception, 'getToken')) {
+            $token = $exception->getToken();
+            if ($token) {
+                $login = \method_exists($token, 'getUserIdentifier')
+                    ? $token->getUserIdentifier()
+                    : (\method_exists($token, 'getUsername') ? $token->getUsername() : null);
+            }
+        }
+
+        // Path B: UserNotFoundException / UsernameNotFoundException carries the identifier
+        if (!$login && $exception !== null) {
+            $e = $exception;
+            while ($e !== null) {
+                if (\method_exists($e, 'getUserIdentifier')) {
+                    $id = $e->getUserIdentifier();
+                    if ($id) {
+                        $login = $id;
+                        break;
+                    }
+                } elseif (\method_exists($e, 'getUsername')) {
+                    $name = $e->getUsername();
+                    if ($name) {
+                        $login = $name;
+                        break;
+                    }
+                }
+                $e = \method_exists($e, 'getPrevious') ? $e->getPrevious() : null;
+            }
+        }
+
+        // Path C: session '_security.last_username' — most reliable for form-based logins;
+        // set before authenticate() is called so it survives even when exceptions don't carry tokens
+        if (!$login && $request !== null && \method_exists($request, 'hasSession')) {
+            try {
+                if ($request->hasSession()) {
+                    $sessionLogin = $request->getSession()->get('_security.last_username');
+                    if ($sessionLogin) {
+                        $login = $sessionLogin;
+                    }
+                }
+            } catch (\Throwable $ignored) {}
+        }
+
+        return $login ?: null;
     }
 
     /**

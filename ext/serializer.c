@@ -51,6 +51,8 @@
 #include "trace_source.h"
 #include "exception_serialize.h"
 #include "sidecar.h"
+#include "span_stats.h"
+#include "trace_filter.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 
@@ -636,6 +638,14 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
         ZVAL_STR(&http_method, zend_string_init(method, strlen(method), 0));
         zend_hash_str_add_new(meta, ZEND_STRL("http.method"), &http_method);
 
+        // Mark HTTP server entry spans with span.kind=server for client-side stats aggregation.
+        // Only add if not already set (e.g. by an OTel or framework integration).
+        zval span_kind_server;
+        ZVAL_STRING(&span_kind_server, "server");
+        if (!zend_hash_str_add(meta, ZEND_STRL("span.kind"), &span_kind_server)) {
+            zval_ptr_dtor(&span_kind_server);
+        }
+
         if (get_DD_TRACE_URL_AS_RESOURCE_NAMES_ENABLED()) {
             const char *uri = dd_get_req_uri(data->server);
             zval *prop_resource = &span->property_resource;
@@ -1171,7 +1181,7 @@ static bool dd_is_http_error(int status) {
     return false;
 }
 
-static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, struct iter *headers, bool ignore_error) {
+static void dd_set_http_error(zend_array *meta, int status, bool ignore_error) {
     if (status) {
         zend_string *status_str = zend_long_to_str((long)status);
         zval status_zv;
@@ -1186,6 +1196,10 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
             }
         }
     }
+}
+
+static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, struct iter *headers, bool ignore_error) {
+    dd_set_http_error(meta, status, ignore_error);
 
     for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
         dd_add_header_to_meta(meta, "response", lowerheader, headerval);
@@ -1194,19 +1208,7 @@ static void dd_set_entrypoint_root_span_props_end(zend_array *meta, int status, 
     }
 }
 
-static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanBytes *span, int status, struct iter *headers, bool ignore_error) {
-    if (status) {
-        zend_string *status_str = zend_long_to_str((long)status);
-        ddog_add_str_span_meta_zstr(span, "http.status_code", status_str);
-        zend_string_release(status_str);
-
-        if (!ignore_error && dd_is_http_error(status)) {
-            if (!ddog_has_span_meta_str(span, "error.type")) {
-                ddog_add_str_span_meta_str(span, "error.type", "HttpError");
-            }
-        }
-    }
-
+static void dd_set_entrypoint_root_rust_span_props_end(ddog_SpanBytes *span, struct iter *headers) {
     for (zend_string *lowerheader, *headerval; headers->next(headers, &lowerheader, &headerval);) {
         dd_add_header_to_rust_span(span, "response", lowerheader, headerval);
         zend_string_release(lowerheader);
@@ -1223,229 +1225,15 @@ static bool should_track_error(zend_object *exception, ddtrace_span_data *span) 
     zend_array *meta = ddtrace_property_array(&span->property_meta);
 
     // Check if error should be ignored or tracking is disabled
-    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zval_is_true(zv)) {
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("error.ignored"))) && zend_is_true(zv)) {
         return false;
     }
-    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zval_is_true(zv)) {
+    if ((zv = zend_hash_str_find(meta, ZEND_STRL("track_error"))) && !zend_is_true(zv)) {
         return false;
     }
     return true;
 }
 
-static void _serialize_meta(ddog_SpanBytes *rust_span, ddtrace_span_data *span, zend_string *service_name) {
-    bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
-    bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;
-    bool ignore_error = false;
-
-    ddtrace_span_data *inferred_span = NULL;
-    if (is_root_span) {
-        inferred_span = ddtrace_get_inferred_span(ROOTSPANDATA(&span->std));
-    }
-
-    zval *meta = &span->property_meta;
-    ZVAL_DEREF(meta);
-
-    if (Z_TYPE_P(meta) == IS_ARRAY) {
-        zend_string *str_key;
-        zval *orig_val;
-        ZEND_HASH_FOREACH_STR_KEY_VAL_IND(Z_ARRVAL_P(meta), str_key, orig_val) {
-            if (str_key) {
-                if (zend_string_equals_literal_ci(str_key, "error.ignored")) {
-                    ignore_error = zend_is_true(orig_val);
-                    continue;
-                }
-
-                if (!ddog_has_span_meta_zstr(rust_span, str_key)) {
-                    dd_serialize_array_meta_recursively(rust_span, str_key, orig_val);
-                }
-            }
-        }
-        ZEND_HASH_FOREACH_END();
-    }
-
-    zval *existing_env, new_env;
-    if ((existing_env = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("env")))) {
-        LOG(DEPRECATED, "Using \"env\" in meta is deprecated. Instead specify the env property directly on the span.");
-    } else {
-        ddtrace_convert_to_string(&new_env, &span->property_env);
-        if (Z_STRLEN(new_env)) {
-            ddog_add_str_span_meta_zstr(rust_span, "env", Z_STR_P(&new_env));
-        } else {
-            zval_ptr_dtor(&new_env);
-            ZVAL_EMPTY_STRING(&new_env);
-        }
-
-        existing_env = &new_env;
-    }
-
-    if (existing_env == &new_env) {
-        zval_ptr_dtor(&new_env);
-        ZVAL_UNDEF(&new_env);
-    }
-
-    zval new_version;
-    if (zend_hash_str_exists(Z_ARRVAL_P(meta), ZEND_STRL("version"))) {
-        LOG(DEPRECATED, "Using \"version\" in meta is deprecated. Instead specify the version property directly on the span.");
-    } else {
-        ddtrace_convert_to_string(&new_version, &span->property_version);
-        if (Z_STRLEN(new_version)) {
-            ddog_add_str_span_meta_zstr(rust_span, "version", Z_STR_P(&new_version));
-        }
-        zval_ptr_dtor(&new_version);
-    }
-
-    zval *exception_zv = &span->property_exception;
-    bool has_exception = Z_TYPE_P(exception_zv) == IS_OBJECT && instanceof_function(Z_OBJCE_P(exception_zv), zend_ce_throwable);
-    if (has_exception && !ignore_error) {
-        enum dd_exception exception_type = DD_EXCEPTION_THROWN;
-        if (is_root_span) {
-            exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
-        }
-        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), service_name, span->start, rust_span, exception_type);
-    }
-
-    zend_array *span_links = ddtrace_property_array(&span->property_links);
-    if (zend_hash_num_elements(span_links) > 0) {
-        // Save the current exception, if any, and clear it for php_json_encode_serializable_object not to fail
-        // and zend_call_function to actually call the jsonSerialize method
-        // Restored after span links are serialized
-        zend_object* current_exception = EG(exception);
-        EG(exception) = NULL;
-
-        smart_str buf = {0};
-        _dd_serialize_json(span_links, &buf, 0);
-        ddog_add_str_span_meta_zstr(rust_span, "_dd.span_links", buf.s);
-
-        smart_str_free(&buf);
-
-        // Restore the exception
-        EG(exception) = current_exception;
-    }
-
-    zend_array *span_events = ddtrace_property_array(&span->property_events);
-    if (zend_hash_num_elements(span_events) > 0) {
-        // Save the current exception, if any, and clear it for php_json_encode_serializable_object not to fail
-        // and zend_call_function to actually call the jsonSerialize method
-        // Restored after span events are serialized
-        zend_object* current_exception = EG(exception);
-        EG(exception) = NULL;
-
-        smart_str buf = {0};
-        _dd_serialize_json(span_events, &buf, 0);
-        ddog_add_str_span_meta_zstr(rust_span, "events", buf.s);
-
-        smart_str_free(&buf);
-
-        // Restore the exception
-        EG(exception) = current_exception;
-    }
-
-    zval *git_metadata = &span->root->property_git_metadata;
-    if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
-        ddtrace_git_metadata *metadata = (ddtrace_git_metadata *)Z_OBJ_P(git_metadata);
-        if (is_root_span) {
-            if (Z_TYPE(metadata->property_commit) == IS_STRING) {
-                zend_string *commit_sha = ddtrace_convert_to_str(&metadata->property_commit);
-                ddog_add_str_span_meta_zstr(rust_span, "_dd.git.commit.sha", commit_sha);
-                zend_string_release(commit_sha);
-            }
-            if (Z_TYPE(metadata->property_repository) == IS_STRING) {
-                zend_string *repository_url = ddtrace_convert_to_str(&metadata->property_repository);
-                ddog_add_str_span_meta_zstr(rust_span, "_dd.git.repository_url", repository_url);
-                zend_string_release(repository_url);
-
-            }
-        }
-    }
-
-    if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) { // opt-in
-        zend_array *peer_service_sources = ddtrace_property_array(&span->property_peer_service_sources);
-        zval *peer_service = zend_hash_str_find(Z_ARRVAL_P(meta), ZEND_STRL("peer.service"));
-        if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) { // peer.service is already set by the user, honor it
-            ddog_add_str_span_meta_str(rust_span, "_dd.peer.service.source", "peer.service");
-            dd_set_mapped_peer_service(rust_span, Z_STR_P(peer_service));
-        } else if (zend_hash_num_elements(peer_service_sources) > 0) {
-            zval *tag;
-            ZEND_HASH_FOREACH_VAL(peer_service_sources, tag) {
-                if (Z_TYPE_P(tag) == IS_STRING) { // Use the first tag that is found in the span, if any
-                    zval *peer_service = zend_hash_find(Z_ARRVAL_P(meta), Z_STR_P(tag));
-                    if (peer_service && Z_TYPE_P(peer_service) == IS_STRING) {
-                        ddog_add_str_span_meta_zstr(rust_span, "_dd.peer.service.source", Z_STR_P(tag));
-
-                        zend_string *peer = zval_get_string(peer_service);
-                        if (!dd_set_mapped_peer_service(rust_span, peer)) {
-                            ddog_add_str_span_meta_zstr(rust_span, "peer.service", peer);
-                        }
-                        zend_string_release(peer);
-                        break;
-                    }
-                }
-            } ZEND_HASH_FOREACH_END();
-        }
-    }
-
-    if (ddtrace_span_is_entrypoint_root(span) || is_inferred_span) {
-        int status = SG(sapi_headers).http_response_code;
-        if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
-            status = has_exception ? 500 : 200;
-        }
-        struct iter *headers = dd_iterate_sapi_headers();
-        dd_set_entrypoint_root_rust_span_props_end(rust_span, status, headers, ignore_error);
-        efree(headers);
-    }
-
-    zval *origin = &span->root->property_origin;
-    if (Z_TYPE_P(origin) > IS_NULL && (Z_TYPE_P(origin) != IS_STRING || Z_STRLEN_P(origin))) {
-        ddog_add_str_span_meta_zstr(rust_span, "_dd.origin", Z_STR_P(origin));
-    }
-
-    bool error = ddog_has_span_meta_str(rust_span, "error.message") ||
-                 ddog_has_span_meta_str(rust_span, "error.type");
-    if (error && !ignore_error) {
-        ddog_set_span_error(rust_span, 1);
-
-        if (!ignore_error && Z_TYPE(span->property_exception) == IS_OBJECT) {
-            zend_object *exception = Z_OBJ(span->property_exception);
-            ddtrace_span_data *current = span;
-            bool should_track;
-
-            do {
-                should_track = should_track_error(exception, current);
-                if (!should_track) {
-                    ddog_add_str_span_meta_str(rust_span, "track_error", "false");
-                    break;
-                }
-                current = current->parent ? SPANDATA(current->parent) : NULL;
-            } while (current);
-        }
-    }
-
-    if (is_inferred_span || (span->root->trace_id.high && is_root_span && !inferred_span)) {
-        zend_string *trace_id_str = zend_strpprintf(0, "%" PRIx64, span->root->trace_id.high);
-        ddog_add_str_span_meta_zstr(rust_span, "_dd.p.tid", trace_id_str);
-        zend_string_release(trace_id_str);
-    }
-
-    // Add _dd.base_service if service name differs from mapped root service name
-    zval prop_service_as_string;
-    ddtrace_convert_to_string(&prop_service_as_string, &span->property_service);
-    zval prop_root_service_as_string;
-    ddtrace_convert_to_string(&prop_root_service_as_string, &span->root->property_service);
-
-    zend_array *service_mappings = get_DD_SERVICE_MAPPING();
-    zval *new_root_name = zend_hash_find(service_mappings, Z_STR(prop_root_service_as_string));
-    if (new_root_name) {
-        zend_string_release(Z_STR(prop_root_service_as_string));
-        ZVAL_COPY(&prop_root_service_as_string, new_root_name);
-    }
-
-    if (!is_inferred_span && !zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
-        ddog_add_str_span_meta_zstr(rust_span, "_dd.base_service", Z_STR_P(&prop_root_service_as_string));
-    }
-
-    zend_string_release(Z_STR(prop_root_service_as_string));
-    zend_string_release(Z_STR(prop_service_as_string));
-}
 
 static HashTable dd_span_sampling_limiters;
 #if ZTS
@@ -1546,11 +1334,54 @@ void transfer_metrics_data(ddog_SpanBytes *source, ddog_SpanBytes *destination, 
 }
 
 ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddog_TraceBytes *trace) {
-    bool is_first_span = ddog_get_trace_size(trace) == 0;
-    ddog_SpanBytes *rust_span = ddog_trace_new_span(trace);
+    zend_array *meta = ddtrace_property_array(&span->property_meta);
+    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
+
+    // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions < 1.21.0
+    zval *http_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.status_code"));
+    if (http_status_code) {
+        zval status_code_as_string;
+        ddtrace_convert_to_string(&status_code_as_string, http_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_code_as_string);
+        zend_hash_str_del(metrics, ZEND_STRL("http.status_code"));
+    }
+
+    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
+    // OTel HTTP semantic conventions >= 1.21.0
+    zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
+    if (http_response_status_code) {
+        zval status_code_as_string;
+        ddtrace_convert_to_string(&status_code_as_string, http_response_status_code);
+        zend_hash_str_update(meta, ZEND_STRL("http.status_code"), &status_code_as_string);
+        zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
+    }
+
+    ddtrace_span_precomputed pre;
+    ddtrace_precompute_span(span, &pre);
+
+    // Trace-level filter: when stats computation is enabled, drop the span from the
+    // entire pipeline (trace sending + stats) if its trace is filtered.
+    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED()) {
+        if (DDTRACE_G(agent_info_reader)) {
+            ddog_apply_agent_info_concentrator_config(DDTRACE_G(agent_info_reader));
+        }
+        if (!ddtrace_trace_passes_filter(span)) {
+            ddtrace_free_span_precomputed(&pre);
+            return NULL;
+        }
+    }
 
     bool is_root_span = span->std.ce == ddtrace_ce_root_span_data;
     bool is_inferred_span = span->std.ce == ddtrace_ce_inferred_span_data;
+
+    if (ddtrace_span_is_entrypoint_root(span) || is_inferred_span) {
+        int status = SG(sapi_headers).http_response_code;
+        if (ddtrace_active_sapi == DATADOG_PHP_SAPI_FRANKENPHP && !status) {
+            status = pre.has_exception ? 500 : 200;
+        }
+        dd_set_http_error(meta, status, pre.ignore_error);
+    }
 
     ddtrace_span_data *inferred_span = NULL;
     if (is_root_span) {
@@ -1561,175 +1392,24 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         }
     }
 
-    ddog_set_span_trace_id(rust_span, span->root->trace_id.low);
-    ddog_set_span_id(rust_span, span->span_id);
-
-    if (inferred_span) {
-        ddog_set_span_parent_id(rust_span, inferred_span->span_id);
-    } else if (span->parent) { // handle dropped spans
-        ddtrace_span_data *parent = SPANDATA(span->parent);
-        // Ensure the parent id is the root span if everything else was dropped
-        while (parent->parent && ddtrace_span_is_dropped(parent)) {
-            parent = SPANDATA(parent->parent);
-        }
-        if (parent) {
-            ddog_set_span_parent_id(rust_span, parent->span_id);
-        }
-    } else if (is_root_span) {
-        ddog_set_span_parent_id(rust_span, ROOTSPANDATA(&span->std)->parent_id);
-    } else if (is_inferred_span) {
-        ddog_set_span_parent_id(rust_span, span->root->parent_id);
-    }
-
-    ddog_set_span_start(rust_span, span->start);
-    ddog_set_span_duration(rust_span, span->duration);
-
-    zend_array *meta = ddtrace_property_array(&span->property_meta);
-    zend_array *metrics = ddtrace_property_array(&span->property_metrics);
-
-    // Remap OTel's status code (metric, http.response.status_code) to DD's status code (meta, http.status_code)
-    // OTel HTTP semantic conventions >= 1.21.0
-    zval *http_response_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.response.status_code"));
-    if (http_response_status_code) {
-        zval status_code_as_string;
-        ddtrace_convert_to_string(&status_code_as_string, http_response_status_code);
-        ddog_add_str_span_meta_zstr(rust_span, "http.status_code", Z_STR_P(&status_code_as_string));
-        zend_hash_str_del(metrics, ZEND_STRL("http.response.status_code"));
-        zval_ptr_dtor(&status_code_as_string);
-    }
-
-    // Remap OTel's status code (metric, http.status_code) to DD's status code (meta, http.status_code)
-    // OTel HTTP semantic conventions < 1.21.0
-    zval *http_status_code = zend_hash_str_find(metrics, ZEND_STRL("http.status_code"));
-    if (http_status_code) {
-        if (!ddog_has_span_meta_str(rust_span, "http.status_code")) {
-            zval status_code_as_string;
-            ddtrace_convert_to_string(&status_code_as_string, http_status_code);
-            ddog_add_str_span_meta_zstr(rust_span, "http.status_code", Z_STR_P(&status_code_as_string));
-            zval_ptr_dtor(&status_code_as_string);
-        }
-        zend_hash_str_del(metrics, ZEND_STRL("http.status_code"));
-    }
-
-    if (is_first_span) {
-        zend_string *process_tags = ddtrace_process_tags_get_serialized();
-        if (ZSTR_LEN(process_tags)) {
-            ddog_add_str_span_meta_zstr(rust_span, "_dd.tags.process", process_tags);
-        }
-    }
-
-    // SpanData::$name defaults to fully qualified called name (set at span close)
-    zval *operation_name = zend_hash_str_find(meta, ZEND_STRL("operation.name"));
-    zval *prop_name = &span->property_name;
-
-    if (operation_name) {
-        zend_string *lcname = zend_string_tolower(Z_STR_P(operation_name));
-        ddog_set_span_name_zstr(rust_span, lcname);
-        zend_string_release(lcname);
-    } else {
-        ZVAL_DEREF(prop_name);
-        if (Z_TYPE_P(prop_name) > IS_NULL) {
-            zval prop_name_as_string;
-            ddtrace_convert_to_string(&prop_name_as_string, prop_name);
-            ddog_set_span_name_zstr(rust_span, Z_STR_P(&prop_name_as_string));
-            zval_ptr_dtor(&prop_name_as_string);
-        }
-    }
-
-    // SpanData::$resource defaults to SpanData::$name
-    zval *resource_name = zend_hash_str_find(meta, ZEND_STRL("resource.name"));
-    zval *prop_resource = resource_name ? resource_name : &span->property_resource;
-    ZVAL_DEREF(prop_resource);
-    zval prop_resource_as_string;
-    ZVAL_UNDEF(&prop_resource_as_string);
-
-    if (Z_TYPE_P(prop_resource) > IS_FALSE && (Z_TYPE_P(prop_resource) != IS_STRING || Z_STRLEN_P(prop_resource) > 0)) {
-        ddtrace_convert_to_string(&prop_resource_as_string, prop_resource);
-    } else if (Z_TYPE_P(prop_name) > IS_NULL) {
-        ZVAL_COPY(&prop_resource_as_string, prop_name);
-    }
-
-    if (Z_TYPE(prop_resource_as_string) == IS_STRING) {
-        ddog_set_span_resource_zstr(rust_span, Z_STR_P(&prop_resource_as_string));
-    }
-
-    if (resource_name) {
-        zend_hash_str_del(meta, ZEND_STRL("resource.name"));
-    }
-
-    // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
-    zval *service_name = zend_hash_str_find(meta, ZEND_STRL("service.name"));
-    zval *prop_service = &span->property_service;
-    ZVAL_DEREF(prop_service);
-    zval prop_service_as_string;
-    ZVAL_UNDEF(&prop_service_as_string);
-
-    if (service_name) {
-        ddtrace_convert_to_string(&prop_service_as_string, service_name);
-    } else if (Z_TYPE_P(prop_service) > IS_NULL) {
-        ddtrace_convert_to_string(&prop_service_as_string, prop_service);
-    }
-
-    if (Z_TYPE(prop_service_as_string) == IS_STRING) {
-        zend_array *service_mappings = get_DD_SERVICE_MAPPING();
-        zval *new_name = zend_hash_find(service_mappings, Z_STR(prop_service_as_string));
-        if (new_name) {
-            zend_string_release(Z_STR(prop_service_as_string));
-            ZVAL_COPY(&prop_service_as_string, new_name);
-        }
-
-        ddog_set_span_service_zstr(rust_span, Z_STR_P(&prop_service_as_string));
-        zval_ptr_dtor(&prop_service_as_string);
-    }
-
-    if (service_name) {
-        zend_hash_str_del(meta, ZEND_STRL("service.name"));
-    }
-
-    // SpanData::$type is optional and defaults to 'custom' at the Agent level
-    zval *span_type = zend_hash_str_find(meta, ZEND_STRL("span.type"));
-    zval *prop_type = span_type ? span_type : &span->property_type;
-    ZVAL_DEREF(prop_type);
-    zval prop_type_as_string;
-    ZVAL_UNDEF(&prop_type_as_string);
-
-    if (Z_TYPE_P(prop_type) > IS_NULL) {
-        ddtrace_convert_to_string(&prop_type_as_string, prop_type);
-        ddog_set_span_type_zstr(rust_span, Z_STR_P(&prop_type_as_string));
-    }
-
-    if (span_type) {
-        zend_hash_str_del(meta, ZEND_STRL("span.type"));
-    }
-
-    zval *analytics_event = zend_hash_str_find(meta, ZEND_STRL("analytics.event"));
-    if (analytics_event) {
-        if (Z_TYPE_P(analytics_event) == IS_STRING) {
-            double parsed_analytics_event = strconv_parse_bool(Z_STR_P(analytics_event));
-            if (parsed_analytics_event >= 0) {
-                ddog_add_span_metrics_str(rust_span, "_dd1.sr.eausr", parsed_analytics_event);
-            }
-        } else {
-            ddog_add_span_metrics_str(rust_span, "_dd1.sr.eausr", zval_get_double(analytics_event));
-        }
-        zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
-    }
-
     // Notify profiling for Endpoint Profiling.
-    if (profiling_notify_trace_finished && ddtrace_span_is_entrypoint_root(span) && Z_TYPE(prop_resource_as_string) == IS_STRING) {
+    if (profiling_notify_trace_finished && ddtrace_span_is_entrypoint_root(span) && pre.resource) {
         zai_str type = ZAI_STRL("custom");
-        if (Z_TYPE(prop_type_as_string) == IS_STRING) {
-            type = (zai_str) ZAI_STR_FROM_ZSTR(Z_STR(prop_type_as_string));
+        if (pre.type) {
+            type = (zai_str) ZAI_STR_FROM_ZSTR(pre.type);
         }
-        zai_str resource = (zai_str)ZAI_STR_FROM_ZSTR(Z_STR(prop_resource_as_string));
+        zai_str resource = (zai_str)ZAI_STR_FROM_ZSTR(pre.resource);
         LOG(DEBUG, "Notifying profiler of finished local root span.");
         profiling_notify_trace_finished(span->span_id, type, resource);
     }
 
-    zval_ptr_dtor(&prop_type_as_string);
-    zval_ptr_dtor(&prop_resource_as_string);
+    // Determine sampling before allocating the rust span to avoid unnecessary work.
+    bool span_sampling_applied = false;
+    double span_sampling_rate = 1.0;
+    double span_sampling_max_per_second = 0.0;
+    bool span_sampling_has_max = false;
 
-    if (zend_hash_num_elements(get_DD_SPAN_SAMPLING_RULES()) && ddtrace_fetch_priority_sampling_from_span(span->root) <= 0) {
+    if (!is_inferred_span && zend_hash_num_elements(get_DD_SPAN_SAMPLING_RULES()) && ddtrace_fetch_priority_sampling_from_span(span->root) <= 0) {
         zval *rule;
         ZEND_HASH_FOREACH_VAL(get_DD_SPAN_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
@@ -1740,16 +1420,16 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
 
             zval *rule_service;
             if ((rule_service = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("service")))) {
-                if (Z_TYPE_P(prop_service) > IS_NULL) {
-                    rule_matches &= dd_glob_rule_matches(rule_service, Z_STR(prop_service_as_string));
+                if (pre.service) {
+                    rule_matches &= dd_glob_rule_matches(rule_service, pre.service);
                 } else {
-                    rule_matches &= false;
+                    rule_matches = false;
                 }
             }
             zval *rule_name;
             if ((rule_name = zend_hash_str_find(Z_ARR_P(rule), ZEND_STRL("name")))) {
-                if (Z_TYPE_P(prop_name) > IS_NULL) {
-                    rule_matches &= dd_glob_rule_matches(rule_name, Z_STR_P(prop_name));
+                if (pre.name) {
+                    rule_matches &= dd_glob_rule_matches(rule_name, pre.name);
                 } else {
                     rule_matches = false;
                 }
@@ -1845,23 +1525,263 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
                 }
             }
 
-            ddog_add_span_metrics_str(rust_span, "_dd.span_sampling.mechanism", 8.0);
-            ddog_add_span_metrics_str(rust_span, "_dd.span_sampling.rule_rate", sample_rate);
-
-            if (max_per_second_zv) {
-                ddog_add_span_metrics_str(rust_span, "_dd.span_sampling.max_per_second", max_per_second);
-            }
-
+            span_sampling_rate = sample_rate;
+            span_sampling_has_max = max_per_second_zv != NULL;
+            span_sampling_max_per_second = max_per_second;
+            span_sampling_applied = true;
             break;
+        }
+        ZEND_HASH_FOREACH_END();
+
+
+        if (!span_sampling_applied && DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+            if (inferred_span) {
+                // Inferred span won't be serialized, so feed it to the concentrator here.
+                ddtrace_span_precomputed inferred_pre;
+                ddtrace_precompute_span(inferred_span, &inferred_pre);
+                ddtrace_feed_span_to_concentrator(inferred_span, &inferred_pre);
+                ddtrace_free_span_precomputed(&inferred_pre);
+            }
+            ddtrace_feed_span_to_concentrator(span, &pre);
+            ddtrace_free_span_precomputed(&pre);
+            return NULL;
+        }
+    }
+
+    bool is_first_span = ddog_get_trace_size(trace) == 0;
+    ddog_SpanBytes *rust_span = ddog_trace_new_span(trace);
+
+    ddog_set_span_trace_id(rust_span, span->root->trace_id.low);
+    ddog_set_span_id(rust_span, span->span_id);
+
+    if (inferred_span) {
+        ddog_set_span_parent_id(rust_span, inferred_span->span_id);
+    } else if (span->parent) { // handle dropped spans
+        ddtrace_span_data *parent = SPANDATA(span->parent);
+        // Ensure the parent id is the root span if everything else was dropped
+        while (parent->parent && ddtrace_span_is_dropped(parent)) {
+            parent = SPANDATA(parent->parent);
+        }
+        if (parent) {
+            ddog_set_span_parent_id(rust_span, parent->span_id);
+        }
+    } else if (is_root_span) {
+        ddog_set_span_parent_id(rust_span, ROOTSPANDATA(&span->std)->parent_id);
+    } else if (is_inferred_span) {
+        ddog_set_span_parent_id(rust_span, span->root->parent_id);
+    }
+
+    ddog_set_span_start(rust_span, span->start);
+    ddog_set_span_duration(rust_span, span->duration);
+
+    if (is_first_span) {
+        zend_string *process_tags = ddtrace_process_tags_get_serialized();
+        if (ZSTR_LEN(process_tags)) {
+            ddog_add_str_span_meta_zstr(rust_span, "_dd.tags.process", process_tags);
+        }
+    }
+
+    // SpanData::$name defaults to fully qualified called name (set at span close)
+    if (pre.name) {
+        ddog_set_span_name_zstr(rust_span, pre.name);
+    }
+    if (pre.name_from_meta) {
+        zend_hash_str_del(meta, ZEND_STRL("operation.name"));
+    }
+
+    // SpanData::$resource defaults to SpanData::$name
+    if (pre.resource) {
+        ddog_set_span_resource_zstr(rust_span, pre.resource);
+    }
+    if (pre.resource_from_meta) {
+        zend_hash_str_del(meta, ZEND_STRL("resource.name"));
+    }
+
+    // TODO: SpanData::$service defaults to parent SpanData::$service or DD_SERVICE if root span
+    if (pre.service) {
+        ddog_set_span_service_zstr(rust_span, pre.service);
+    }
+    if (pre.service_from_meta) {
+        zend_hash_str_del(meta, ZEND_STRL("service.name"));
+    }
+
+    // SpanData::$type is optional and defaults to 'custom' at the Agent level
+    if (pre.type) {
+        ddog_set_span_type_zstr(rust_span, pre.type);
+    }
+    if (pre.type_from_meta) {
+        zend_hash_str_del(meta, ZEND_STRL("span.type"));
+    }
+
+    zval *analytics_event = zend_hash_str_find(meta, ZEND_STRL("analytics.event"));
+    if (analytics_event) {
+        if (Z_TYPE_P(analytics_event) == IS_STRING) {
+            double parsed_analytics_event = strconv_parse_bool(Z_STR_P(analytics_event));
+            if (parsed_analytics_event >= 0) {
+                ddog_add_span_metrics_str(rust_span, "_dd1.sr.eausr", parsed_analytics_event);
+            }
+        } else {
+            ddog_add_span_metrics_str(rust_span, "_dd1.sr.eausr", zval_get_double(analytics_event));
+        }
+        zend_hash_str_del(meta, ZEND_STRL("analytics.event"));
+    }
+
+    if (span_sampling_applied) {
+        ddog_add_span_metrics_str(rust_span, "_dd.span_sampling.mechanism", 8.0);
+        ddog_add_span_metrics_str(rust_span, "_dd.span_sampling.rule_rate", span_sampling_rate);
+        if (span_sampling_has_max) {
+            ddog_add_span_metrics_str(rust_span, "_dd.span_sampling.max_per_second", span_sampling_max_per_second);
+        }
+    }
+
+    if (meta) {
+        zend_string *meta_str_key;
+        zval *orig_val;
+        ZEND_HASH_FOREACH_STR_KEY_VAL_IND(meta, meta_str_key, orig_val) {
+            if (meta_str_key) {
+                if (!ddog_has_span_meta_zstr(rust_span, meta_str_key)) {
+                    dd_serialize_array_meta_recursively(rust_span, meta_str_key, orig_val);
+                }
+            }
         }
         ZEND_HASH_FOREACH_END();
     }
 
-    if (operation_name) {
-        zend_hash_str_del(meta, ZEND_STRL("operation.name"));
+    // Avoid adding it twice to meta
+    if (!pre.env_deprecated && pre.env) {
+        ddog_add_str_span_meta_zstr(rust_span, "env", pre.env);
+    }
+    if (!pre.version_deprecated && pre.version) {
+        ddog_add_str_span_meta_zstr(rust_span, "version", pre.version);
     }
 
-    _serialize_meta(rust_span, span, Z_TYPE_P(prop_service) > IS_NULL ? Z_STR(prop_service_as_string) : ZSTR_EMPTY_ALLOC());
+    zval *exception_zv = &span->property_exception;
+    if (pre.has_exception && !pre.ignore_error) {
+        enum dd_exception exception_type = DD_EXCEPTION_THROWN;
+        if (is_root_span) {
+            exception_type = Z_PROP_FLAG_P(exception_zv) == 2 ? DD_EXCEPTION_CAUGHT : DD_EXCEPTION_UNCAUGHT;
+        }
+        ddtrace_exception_to_meta(Z_OBJ_P(exception_zv), pre.service ? pre.service : ZSTR_EMPTY_ALLOC(), span->start, rust_span, exception_type);
+    }
+
+    zend_array *span_links = ddtrace_property_array(&span->property_links);
+    if (zend_hash_num_elements(span_links) > 0) {
+        zend_object *current_exception = EG(exception);
+        EG(exception) = NULL;
+        smart_str buf = {0};
+        _dd_serialize_json(span_links, &buf, 0);
+        ddog_add_str_span_meta_zstr(rust_span, "_dd.span_links", buf.s);
+        smart_str_free(&buf);
+        EG(exception) = current_exception;
+    }
+
+    zend_array *span_events = ddtrace_property_array(&span->property_events);
+    if (zend_hash_num_elements(span_events) > 0) {
+        zend_object *current_exception = EG(exception);
+        EG(exception) = NULL;
+        smart_str buf = {0};
+        _dd_serialize_json(span_events, &buf, 0);
+        ddog_add_str_span_meta_zstr(rust_span, "events", buf.s);
+        smart_str_free(&buf);
+        EG(exception) = current_exception;
+    }
+
+    zval *git_metadata = &span->root->property_git_metadata;
+    if (git_metadata && Z_TYPE_P(git_metadata) == IS_OBJECT) {
+        ddtrace_git_metadata *metadata = (ddtrace_git_metadata *)Z_OBJ_P(git_metadata);
+        if (is_root_span) {
+            if (Z_TYPE(metadata->property_commit) == IS_STRING) {
+                zend_string *commit_sha = ddtrace_convert_to_str(&metadata->property_commit);
+                ddog_add_str_span_meta_zstr(rust_span, "_dd.git.commit.sha", commit_sha);
+                zend_string_release(commit_sha);
+            }
+            if (Z_TYPE(metadata->property_repository) == IS_STRING) {
+                zend_string *repository_url = ddtrace_convert_to_str(&metadata->property_repository);
+                ddog_add_str_span_meta_zstr(rust_span, "_dd.git.repository_url", repository_url);
+                zend_string_release(repository_url);
+            }
+        }
+    }
+
+    if (get_DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED()) {
+        zend_array *peer_service_sources = ddtrace_property_array(&span->property_peer_service_sources);
+        zval *peer_service_tag = meta ? zend_hash_str_find(meta, ZEND_STRL("peer.service")) : NULL;
+        if (peer_service_tag && Z_TYPE_P(peer_service_tag) == IS_STRING) {
+            ddog_add_str_span_meta_str(rust_span, "_dd.peer.service.source", "peer.service");
+            dd_set_mapped_peer_service(rust_span, Z_STR_P(peer_service_tag));
+        } else if (zend_hash_num_elements(peer_service_sources) > 0) {
+            zval *tag;
+            ZEND_HASH_FOREACH_VAL(peer_service_sources, tag) {
+                if (Z_TYPE_P(tag) == IS_STRING) {
+                    zval *found_peer_service = meta ? zend_hash_find(meta, Z_STR_P(tag)) : NULL;
+                    if (found_peer_service && Z_TYPE_P(found_peer_service) == IS_STRING) {
+                        ddog_add_str_span_meta_zstr(rust_span, "_dd.peer.service.source", Z_STR_P(tag));
+                        zend_string *peer = zval_get_string(found_peer_service);
+                        if (!dd_set_mapped_peer_service(rust_span, peer)) {
+                            ddog_add_str_span_meta_zstr(rust_span, "peer.service", peer);
+                        }
+                        zend_string_release(peer);
+                        break;
+                    }
+                }
+            } ZEND_HASH_FOREACH_END();
+        }
+    }
+
+    if (ddtrace_span_is_entrypoint_root(span) || is_inferred_span) {
+        struct iter *headers = dd_iterate_sapi_headers();
+        dd_set_entrypoint_root_rust_span_props_end(rust_span, headers);
+        efree(headers);
+    }
+
+    zval *origin = &span->root->property_origin;
+    if (Z_TYPE_P(origin) > IS_NULL && (Z_TYPE_P(origin) != IS_STRING || Z_STRLEN_P(origin))) {
+        ddog_add_str_span_meta_zstr(rust_span, "_dd.origin", Z_STR_P(origin));
+    }
+
+    bool error = dd_compute_span_is_error(&pre);
+    if (error) {
+        ddog_set_span_error(rust_span, 1);
+        if (Z_TYPE(span->property_exception) == IS_OBJECT) {
+            zend_object *exception = Z_OBJ(span->property_exception);
+            ddtrace_span_data *current = span;
+            bool should_track;
+            do {
+                should_track = should_track_error(exception, current);
+                if (!should_track) {
+                    ddog_add_str_span_meta_str(rust_span, "track_error", "false");
+                    break;
+                }
+                current = current->parent ? SPANDATA(current->parent) : NULL;
+            } while (current);
+        }
+    }
+
+    if (is_inferred_span || (span->root->trace_id.high && is_root_span && !inferred_span)) {
+        zend_string *trace_id_str = zend_strpprintf(0, "%" PRIx64, span->root->trace_id.high);
+        ddog_add_str_span_meta_zstr(rust_span, "_dd.p.tid", trace_id_str);
+        zend_string_release(trace_id_str);
+    }
+
+    // Add _dd.base_service if service name differs from mapped root service name.
+    zval prop_service_as_string;
+    ddtrace_convert_to_string(&prop_service_as_string, &span->property_service);
+    zval prop_root_service_as_string;
+    ddtrace_convert_to_string(&prop_root_service_as_string, &span->root->property_service);
+    zval *new_root_name = zend_hash_find(get_DD_SERVICE_MAPPING(), Z_STR(prop_root_service_as_string));
+    if (new_root_name) {
+        zend_string_release(Z_STR(prop_root_service_as_string));
+        ZVAL_COPY(&prop_root_service_as_string, new_root_name);
+    }
+    if (!is_inferred_span && !zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
+        ddog_add_str_span_meta_zstr(rust_span, "_dd.base_service", Z_STR_P(&prop_root_service_as_string));
+    }
+    zend_string_release(Z_STR(prop_root_service_as_string));
+    zend_string_release(Z_STR(prop_service_as_string));
+
+    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+        ddtrace_feed_span_to_concentrator(span, &pre);
+    }
 
     zend_string *str_key;
     zval *val;
@@ -1881,6 +1801,24 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         }
         if(!get_global_DD_APM_TRACING_ENABLED()) {
             ddog_add_span_metrics_str(rust_span, "_dd.apm.enabled", 0);
+        }
+    }
+
+    if (DDTRACE_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && !is_inferred_span) {
+        bool is_top_level_span = !span->parent;
+        if (span->parent) {
+            zval *parent_service = &SPANDATA(span->parent)->property_service;
+            zval *span_service = &span->property_service;
+            ZVAL_DEREF(parent_service);
+            ZVAL_DEREF(span_service);
+            if (Z_TYPE_P(span_service) == IS_STRING && Z_TYPE_P(parent_service) == IS_STRING) {
+                is_top_level_span = !zend_string_equals(Z_STR_P(span_service), Z_STR_P(parent_service));
+            } else if (Z_TYPE_P(span_service) != Z_TYPE_P(parent_service)) {
+                is_top_level_span = true;
+            }
+        }
+        if (is_top_level_span) {
+            ddog_add_span_metrics_str(rust_span, "_dd.top_level", 1);
         }
     }
 
@@ -1928,6 +1866,9 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
     ZEND_HASH_FOREACH_END();
 
+    ddog_del_span_meta_str(rust_span, "error.ignored");
+
+    ddtrace_free_span_precomputed(&pre);
     return rust_span;
 }
 

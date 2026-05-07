@@ -115,7 +115,7 @@ if [ -n "${WAIT_FOR:-}" ]; then
     service_type="$(detect_service_type "${host}")"
 
     if ! wait_for_single_service "${host}" "${port}" "${service_type}" 30 5; then
-      exit 1
+      exit 75
     fi
   done
 fi

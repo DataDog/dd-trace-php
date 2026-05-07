@@ -63,7 +63,7 @@ elif command -v apt-get &> /dev/null; then
 
   echo "Installing packages individually..."
   # Install packages one by one, continue if some fail
-  for pkg in curl jq unzip nodejs npm xsltproc; do
+  for pkg in curl jq unzip nodejs npm; do
     if ! command -v $pkg &> /dev/null; then
       echo "Installing $pkg..."
       $use_sudo apt-get install -y $pkg || echo "Warning: Failed to install $pkg, continuing..."
@@ -142,9 +142,9 @@ export DATADOG_API_KEY
 # Determine which datadog-ci method to use
 datadog_ci_cmd=""
 
-# Prefer npm/npx if available and node version is recent enough (>=16)
+# Prefer npm/npx if available and node version is recent enough (>=20, required by @datadog/datadog-ci >= 5.13.0)
 node_version="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1)"
-if [ -n "$node_version" ] && [ "$node_version" -ge 16 ] 2>/dev/null && { command -v npx &> /dev/null || command -v npm &> /dev/null; }; then
+if [ -n "$node_version" ] && [ "$node_version" -ge 20 ] 2>/dev/null && { command -v npx &> /dev/null || command -v npm &> /dev/null; }; then
   echo "Using npx to run datadog-ci (node v${node_version})"
   datadog_ci_cmd="npx --yes @datadog/datadog-ci"
 else
@@ -187,14 +187,6 @@ echo "${junit_files}"
 
 mapfile -t files_array <<< "${junit_files}"
 
-echo "Add final_status property"
-for xml_file in "${files_array[@]}"; do
-    echo "Fixing $xml_file"
-    tmp_file="$(mktemp)"
-    xsltproc --output "$tmp_file" ".gitlab/add_final_status.xsl" "$xml_file"
-    mv "$tmp_file" "$xml_file"
-done
-
 # Normalize absolute paths to relative paths in JUnit XML files
 echo "Normalizing file paths in JUnit XML files..."
 for file in "${files_array[@]}"; do
@@ -223,8 +215,8 @@ echo "Current directory: $(pwd)"
 echo "Running command: ${datadog_ci_cmd} junit upload --service \"${DD_SERVICE}\" --max-concurrency 20 --verbose --tags git.repository_url:https://github.com/DataDog/dd-trace-php ${tags_args} ${xpath_tags_args} ${files_array[*]}"
 
 if ! ${datadog_ci_cmd} junit upload --service "${DD_SERVICE}" --max-concurrency 20 --verbose --tags "git.repository_url:https://github.com/DataDog/dd-trace-php" ${tags_args} ${xpath_tags_args} "${files_array[@]}"; then
-  echo "Warning: Failed to upload JUnit files" >&2
-  exit 0
+  echo "Error: Failed to upload JUnit files" >&2
+  exit 1
 fi
 
 echo "=== JUnit upload completed ==="

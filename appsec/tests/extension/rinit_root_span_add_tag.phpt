@@ -68,5 +68,6 @@ Array
     [http.status_code] => 200
     [http.url] => http://localhost:8888/my/ur%69/
     [runtime-id] => %s
+    [span.kind] => server
     [version] => 0.42.69
 )
