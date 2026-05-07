@@ -90,8 +90,14 @@ workflow:
 
 .pre-release-performance-quality-gates-rules: &pre-release-performance-quality-gates-rules
   - <<: *on-master-or-nightly-benchmarks-or-release-on-success-and-not-interruptible
-  # Unlike on "master", on nightly benchmarks, or on release branches there's
-  # no strict requirement to prevent interruption.
+  - interruptible: true
+
+# notify-slo-breaches must use `when: always` so it fires even when
+# check-slo-breaches fails — a failure there means a breach was detected.
+.notify-slo-breaches-rules: &notify-slo-breaches-rules
+  - if: '($CI_COMMIT_REF_NAME == "master" && ($NIGHTLY_BENCHMARKS || $CI_PIPELINE_SOURCE != "schedule")) || $CI_COMMIT_REF_NAME =~ /^ddtrace-/'
+    when: always
+    interruptible: false
   - interruptible: true
 
 .microbenchmarks:
@@ -255,6 +261,6 @@ notify-slo-breaches:
   extends: .notify-slo-breaches
   stage: notify
   needs: ["check-slo-breaches"]
-  rules: *pre-release-performance-quality-gates-rules
+  rules: *notify-slo-breaches-rules
   variables:
     CHANNEL: "guild-dd-php"
