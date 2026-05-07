@@ -283,6 +283,8 @@ static void dd_init_crashtracker() {
             .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
             .optional_unix_socket_filename = socket_path,
             .additional_files = {0},
+            .collect_all_threads = true,
+            .max_threads = 0, // uses libdatadog default, which is 256
         },
         .metadata = ddtrace_setup_crashtracking_metadata(&tags),
     };
