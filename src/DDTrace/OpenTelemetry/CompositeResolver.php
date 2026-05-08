@@ -19,11 +19,6 @@ class DatadogResolver implements ResolverInterface
 
     public function retrieveValue(string $name): mixed
     {
-        if ($name === 'OTEL_PHP_AUTOLOAD_ENABLED') {
-            return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED')
-                || \dd_trace_env_config('DD_LOGS_OTEL_ENABLED');
-        }
-
         if (!$this->isSignalEnabled($name)) {
             return null;
         }
@@ -43,11 +38,6 @@ class DatadogResolver implements ResolverInterface
 
     public function hasVariable(string $variableName): bool
     {
-        if ($variableName === 'OTEL_PHP_AUTOLOAD_ENABLED') {
-            return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED')
-                || \dd_trace_env_config('DD_LOGS_OTEL_ENABLED');
-        }
-
         if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'
             || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
             return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED');
