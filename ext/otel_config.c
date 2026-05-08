@@ -158,18 +158,6 @@ bool ddtrace_conf_otel_metrics_exporter(zai_env_buffer *buf, bool pre_rinit) {
     return false;
 }
 
-bool ddtrace_conf_otel_logs_exporter(zai_env_buffer *buf, bool pre_rinit) {
-    if (get_otel_value((zai_str)ZAI_STRL("OTEL_LOGS_EXPORTER"), buf, pre_rinit)) {
-        if (strcmp(buf->ptr, "none") == 0) {
-            buf->ptr = "0"; buf->len = 1;
-            return true;
-        }
-        LOG_ONCE(WARN, "OTEL_LOGS_EXPORTER has invalid value: %s", buf->ptr);
-        report_otel_cfg_telemetry_invalid("otel_logs_exporter", "dd_logs_otel_enabled", pre_rinit);
-    }
-    return false;
-}
-
 bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_rinit) {
     ZAI_ENV_BUFFER_INIT(local, ZAI_ENV_MAX_BUFSIZ);
     if (!get_otel_value((zai_str)ZAI_STRL("OTEL_RESOURCE_ATTRIBUTES"), &local, pre_rinit)) {
