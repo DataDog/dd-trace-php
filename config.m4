@@ -281,6 +281,14 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym -flto -fuse-linker-plugin"
 
+    dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
+    dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).
+    case $host_os in
+      linux*)
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_sidecar_direct_entry"
+      ;;
+    esac
+
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)
     PHP_SUBST(DDTRACE_SHARED_LIBADD)
@@ -365,21 +373,6 @@ EOT
 	$(LIBTOOL) --mode=link $(CC) -static $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -avoid-version -prefer-pic -module $(shared_objects_ddtrace)
 EOT
 
-  if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
-    ddtrace_rust_lib=""
-  elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
-    ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
-  else
-    dnl consider it debug if -g is specified (but not -g0)
-    ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
-    ddtrace_rust_lib="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a"
-
-    cat <<EOT >> Makefile.fragments
-$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
-	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
-EOT
-  fi
-
   if test "$ext_shared" = "yes"; then
     all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
     all_object_files_absolute=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' $(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
@@ -400,6 +393,34 @@ EOT
 
     PHP_ADD_SOURCES_X("/$ext_dir", "\$(builddir)/components-rs/mock_php.c", $ac_extra, shared_objects_ddtrace, yes)
   fi
+
+  if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
+    ddtrace_rust_lib=""
+  elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
+    ddtrace_rust_lib="$PHP_DDTRACE_RUST_LIBRARY"
+  else
+    dnl consider it debug if -g is specified (but not -g0)
+    ddtrace_cargo_profile=$(test "$PHP_DDTRACE_RUST_DEBUG" != "no" && echo debug || echo tracer-release)
+    ddtrace_rust_lib="\$(builddir)/target/$ddtrace_cargo_profile/libddtrace_php.a"
+
+    cat <<EOT >> Makefile.fragments
+$ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "Cargo.toml"; find "$ext_srcdir/../../libdatadog" -name "*.rs" -not -path "*/target/*"; find "$ext_srcdir/libdatadog" -name "*.rs" -not -path "*/target/*") 2>/dev/null | tr '\n' ' ' )
+	(cd "$ext_srcdir"; CARGO_TARGET_DIR=\$(builddir)/target/ SHARED=$(test "$ext_shared" = "yes" && echo 1) PROFILE="$ddtrace_cargo_profile" host_os="$host_os" DDTRACE_CARGO="\$(DDTRACE_CARGO)" $(if test "$PHP_DDTRACE_SANITIZE" != "no"; then echo COMPILE_ASAN=1; fi) sh ./compile_rust.sh \$(shell echo "\$(MAKEFLAGS)" | $EGREP -o "[[-]]j[[0-9]]+"))
+EOT
+  fi
+
+  dnl Weaken PHP-origin symbols in all .o files before the link step so that
+  dnl the resulting .so/.a naturally has weak references.
+  case "$EXTRA_LDFLAGS" in
+    *"-Wl,-e,"*)
+      _ddtrace_weaken_tmp=$(mktemp)
+      cat > "$_ddtrace_weaken_tmp" << WEAKEN
+	($ddtrace_mockgen_invocation weaken-dynsym $all_object_files_absolute $php_binary)
+WEAKEN
+      sed -i -e "/\/ddtrace\.la:\ \\$\|ddtrace\.a:/r $_ddtrace_weaken_tmp" Makefile.objects Makefile.fragments
+      rm -f "$_ddtrace_weaken_tmp"
+    ;;
+  esac
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
     shared_objects_ddtrace="$ddtrace_rust_lib $shared_objects_ddtrace"

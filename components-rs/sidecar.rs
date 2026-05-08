@@ -37,6 +37,12 @@ fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
         cfg.library_dependencies
             .push(LibDependency::Binary(mock));
     }
+
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("DD_SIDECAR_DISABLE_DIRECT_EXEC").map(|s| s.is_empty()).unwrap_or(true)
+        && std::env::var_os("DD_SPAWN_WORKER_USE_EXEC").map(|s| s.is_empty()).unwrap_or(true) {
+        cfg.spawn_without_trampoline = true;
+    }
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
 

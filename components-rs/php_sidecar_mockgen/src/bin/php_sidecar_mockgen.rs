@@ -2,15 +2,38 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2021-Present Datadog, Inc.
 
 pub use cc_utils::cc;
-pub use sidecar_mockgen::generate_mock_symbols;
+pub use sidecar_mockgen::{generate_mock_symbols, weaken_object_symbols};
 use std::path::Path;
 use std::{env, fs, process};
 
 fn main() {
+    let args: Vec<_> = env::args_os().collect();
+
+    // weaken-dynsym subcommand: patch .o symtab sections
+    if args.get(1).and_then(|a| a.to_str()) == Some("weaken-dynsym") {
+        if args.len() < 4 {
+            eprintln!("Usage: php_sidecar_mockgen weaken-dynsym <target.o ...> <php_binary>");
+            process::exit(1);
+        }
+        let php_binary = Path::new(args.last().unwrap());
+        let targets: Vec<_> = args[2..args.len() - 1]
+            .iter()
+            .map(|a| Path::new(a.as_os_str()))
+            .collect();
+
+        for target in targets {
+            if let Err(e) = weaken_object_symbols(target, php_binary) {
+                eprintln!("Warning: weaken-dynsym {}: {e}", target.display());
+                process::exit(1);
+            }
+        }
+        return;
+    }
+
+    // Normal mode: generate mock_php.c
     // This script is necessary to avoid the linker puking when the sidecar tries to load our ddtrace.so
     // As php itself is not available within the sidecar, it needs to make sure that all symbols ddtrace.so depends on, are available.
     // The mock_generator takes care of generating these symbols.
-    let args: Vec<_> = env::args_os().collect();
     if args.len() < 3 {
         eprintln!(
             "Needs at least 3 args: the output file, the shared object file followed by at least one object file"

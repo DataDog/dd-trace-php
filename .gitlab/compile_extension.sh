@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eo pipefail
+set -xeo pipefail
 
 SWITCH_PHP_VERSION=${SWITCH_PHP_VERSION:-}
 WITH_ASAN=${WITH_ASAN:-}
