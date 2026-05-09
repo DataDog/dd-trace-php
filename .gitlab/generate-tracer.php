@@ -74,7 +74,6 @@ stages:
         ARCH: *arch_targets
   variables:
     host_os: linux-gnu
-    SHARED: "1"
     WITH_ASAN: "0"
     CARGO_HOME: "/rust/cargo/"
     SWITCH_PHP_VERSION: "debug"
@@ -204,6 +203,7 @@ stages:
     DATADOG_HAVE_DEV_ENV: 1
     HTTPBIN_HOSTNAME: httpbin-integration
     HTTPBIN_PORT: 8080
+    RUST_BACKTRACE: 1
 <?php sidecar_logs(); ?>
   before_script:
 <?php before_script_steps(true) ?>

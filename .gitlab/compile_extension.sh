@@ -20,7 +20,7 @@ if [ "${WITH_ASAN}" -eq "1" ]; then
   export COMPILE_ASAN=1
 fi
 # Compile Rust and PHP in parallel
-./compile_rust.sh &
+SHARED=1 ./compile_rust.sh &
 make -j static &
 wait
 
