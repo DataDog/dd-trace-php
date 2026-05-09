@@ -417,7 +417,9 @@ EOT
       cat > "$_ddtrace_weaken_tmp" << WEAKEN
 	($ddtrace_mockgen_invocation weaken-dynsym $all_object_files_absolute $php_binary)
 WEAKEN
-      sed -i -e "/\/ddtrace\.la:\ \\$\|ddtrace\.a:/r $_ddtrace_weaken_tmp" Makefile.objects Makefile.fragments
+      sed -i -e "/\/ddtrace\.la:\ \\$/r $_ddtrace_weaken_tmp" Makefile.objects
+      dnl run weaken only once, create a dependencendy on .la for .a
+      echo "./modules/ddtrace.a: | ./ddtrace.la" >> Makefile.fragments
       rm -f "$_ddtrace_weaken_tmp"
     ;;
   esac
