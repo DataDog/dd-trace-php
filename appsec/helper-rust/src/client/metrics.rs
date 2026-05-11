@@ -76,8 +76,18 @@ pub struct WafMetrics {
 
 #[derive(Default, Debug, Clone)]
 pub struct RaspRuleMetrics {
+    /// Total number of RASP rule evaluations, whether they matched or not
     pub evals: u32,
-    pub matches: u32,
+
+    /// Matches whose RASP rule did not request a block (on_match had no block action,
+    /// or the rule was monitor-only). Emitted as rasp.rule.match with `block:irrelevant`.
+    pub matches_irrelevant: u32,
+
+    /// Matches whose RASP rule requested a block. PHP cannot fail to block once it
+    /// decides to, so every such match counts as `block:success` (no `block:failure`).
+    pub matches_blocked: u32,
+
+    /// Total number of RASP rule timeouts
     pub timeouts: u32,
 }
 
@@ -144,7 +154,11 @@ impl WafMetrics {
             .or_default();
         entry.evals += 1;
         if run_output.has_events() {
-            entry.matches += 1;
+            if run_output.is_blocking() {
+                entry.matches_blocked += 1;
+            } else {
+                entry.matches_irrelevant += 1;
+            }
         }
         if run_output.timeout() {
             entry.timeouts += 1;
@@ -250,11 +264,23 @@ impl telemetry::TelemetryMetricsGenerator for WafMetrics {
                 );
             }
 
-            if metrics.matches > 0 {
+            if metrics.matches_irrelevant > 0 {
+                let mut match_tags = tags.clone();
+                match_tags.add("block", "irrelevant");
                 submitter.submit_metric(
                     telemetry::RASP_RULE_MATCH,
-                    metrics.matches as f64,
-                    tags.clone(),
+                    metrics.matches_irrelevant as f64,
+                    match_tags,
+                );
+            }
+
+            if metrics.matches_blocked > 0 {
+                let mut match_tags = tags.clone();
+                match_tags.add("block", "success");
+                submitter.submit_metric(
+                    telemetry::RASP_RULE_MATCH,
+                    metrics.matches_blocked as f64,
+                    match_tags,
                 );
             }
 
