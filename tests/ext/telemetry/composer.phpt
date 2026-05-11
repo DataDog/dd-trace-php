@@ -22,6 +22,7 @@ include __DIR__ . '/vendor/autoload.php';
 DDTrace\close_span();
 
 dd_trace_internal_fn("finalize_telemetry");
+$initial_deps = [];
 
 for ($i = 0; $i < 300; ++$i) {
     ("us" . "leep")(100000);
@@ -31,8 +32,11 @@ for ($i = 0; $i < 300; ++$i) {
                 $json = json_decode($l, true);
                 $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                 foreach ($batch as $json) {
+                    if ($json["request_type"] == "app-started") {
+                        $initial_deps = $json["payload"]["dependencies"] ?? [];
+                    }
                     if ($json["request_type"] == "app-dependencies-loaded") {
-                        print_r($json["payload"]);
+                        print_r(array_merge($initial_deps, $json["payload"]["dependencies"]));
                         break 3;
                     }
                 }
@@ -49,22 +53,18 @@ if ($i == 300) {
 Included
 Array
 (
-    [dependencies] => Array
+    [0] => Array
         (
-            [0] => Array
-                (
-                    [name] => datadog/dd-trace
-                    [version] => dev-master
-                )
-
-            [1] => Array
-                (
-                    [name] => ext-Core
-                    [version] => %s
-                )
-%a
+            [name] => datadog/dd-trace
+            [version] => dev-master
         )
 
+    [1] => Array
+        (
+            [name] => ext-Core
+            [version] => %s
+        )
+%a
 )
 --CLEAN--
 <?php

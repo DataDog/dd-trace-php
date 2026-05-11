@@ -164,6 +164,43 @@ stages:
       - x64/Release/php_ddtrace.pdb
       - dumps
 
+"macos test_c":
+  stage: test
+  tags: ["macos:sonoma-arm64"]
+  timeout: 30m
+  variables:
+    PHP_MACOS_VERSION: "8.5.7"
+    PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
+  before_script:
+    - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium
+    - mkdir -p /tmp/php-build
+    - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
+    - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
+    - ./buildconf --force
+    - |
+      export PATH="$(brew --prefix bison)/bin:$(brew --prefix libxml2)/bin:${PATH}"
+      export PKG_CONFIG_PATH="$(brew --prefix libxml2)/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+      export LDFLAGS="-L$(brew --prefix libxml2)/lib ${LDFLAGS:-}"
+      export CPPFLAGS="-I$(brew --prefix libxml2)/include ${CPPFLAGS:-}"
+      ./configure \
+        --prefix="${PHP_INSTALL_DIR}" \
+        --enable-debug \
+        --enable-zts \
+        --without-iconv \
+        --with-openssl="$(brew --prefix openssl)" \
+        --with-libxml \
+        --enable-mbstring \
+        --with-sodium
+    - make -j"$(sysctl -n hw.ncpu)"
+    - make install
+    - cd "${CI_PROJECT_DIR}"
+    - rustup update stable && rustup default stable
+  script:
+    - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
+    - php --version
+    - make -j"$(sysctl -n hw.ncpu)"
+    - make test_c
+
 
 "Prepare code":
   stage: compile

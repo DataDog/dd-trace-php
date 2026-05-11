@@ -8,6 +8,7 @@ include_once __DIR__ . '/../startup_logging.inc';
 
 $logs = dd_get_startup_logs([], [
     'DD_AGENT_HOST' => '::1',
+    'DD_TRACE_AGENT_PORT' => '8126',
     'DD_TRACE_DEBUG' => 1,
 ]);
 
