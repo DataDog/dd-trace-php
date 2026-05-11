@@ -6,6 +6,7 @@ detect_service_type() {
   local host=${1}
   case ${host} in
     test-agent) echo "test-agent" ;;
+    request-replayer) echo "request-replayer" ;;
     mysql-integration) echo "mysql" ;;
     elasticsearch*) echo "elasticsearch" ;;
     zookeeper*) echo "zookeeper" ;;
@@ -35,6 +36,13 @@ wait_for_single_service() {
       test-agent)
         if curl -sf "http://${HOST}:${PORT}/info" > /dev/null 2>&1; then
           echo "Test agent is ready"
+          return 0
+        fi
+        ;;
+      request-replayer)
+        # /replay is read-only and always returns valid JSON when the PHP server is up
+        if curl -sf "http://${HOST}:${PORT}/replay" > /dev/null 2>&1; then
+          echo "request-replayer is ready"
           return 0
         fi
         ;;
