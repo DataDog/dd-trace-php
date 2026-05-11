@@ -411,18 +411,17 @@ EOT
 
   dnl Weaken PHP-origin symbols in all .o files before the link step so that
   dnl the resulting .so/.a naturally has weak references.
-  case "$EXTRA_LDFLAGS" in
-    *"-Wl,-e,"*)
-      _ddtrace_weaken_tmp=$(mktemp)
-      cat > "$_ddtrace_weaken_tmp" << WEAKEN
+  if test "$ext_shared" = "yes"; then
+    _ddtrace_weaken_tmp=$(mktemp)
+    cat > "$_ddtrace_weaken_tmp" << WEAKEN
 	($ddtrace_mockgen_invocation weaken-dynsym $all_object_files_absolute $php_binary)
 WEAKEN
-      sed -i -e "/\/ddtrace\.la:\ \\$/r $_ddtrace_weaken_tmp" Makefile.objects
-      dnl run weaken only once, create a dependencendy on .la for .a
-      echo "./modules/ddtrace.a: | ./ddtrace.la" >> Makefile.fragments
-      rm -f "$_ddtrace_weaken_tmp"
+    sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e "/\/ddtrace\.la:\ \\$/r $_ddtrace_weaken_tmp" Makefile.objects
     ;;
-  esac
+    dnl run weaken only once, create a dependency on .la for .a
+    echo "./modules/ddtrace.a: | ./ddtrace.la" >> Makefile.fragments
+    rm -f "$_ddtrace_weaken_tmp"
+  fi
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then
     shared_objects_ddtrace="$ddtrace_rust_lib $shared_objects_ddtrace"
