@@ -24,12 +24,15 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
         smart_str_appends(&str, "o:");
         size_t origin_offset = ZSTR_LEN(str.s);
         smart_str_append(&str, origin);
-        for (signed char *cur = (signed char *)ZSTR_VAL(str.s) + origin_offset,
-                *end = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s); cur < end; ++cur) {
-            if (*cur == '=') {
-                *cur = '~';
-            } else if (*cur < 0x20 || *cur == ',' || *cur == ';' || *cur == '~') {
-                *cur = '_';
+        {
+            signed char *cur = (signed char *)ZSTR_VAL(str.s) + origin_offset;
+            signed char *end = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s);
+            for (; cur < end; ++cur) {
+                if (*cur == '=') {
+                    *cur = '~';
+                } else if (*cur < 0x20 || *cur == ',' || *cur == ';' || *cur == '~') {
+                    *cur = '_';
+                }
             }
         }
     }
