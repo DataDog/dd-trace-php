@@ -5,8 +5,10 @@ Formatting a propagated origin into tracestate sanitizes the origin after
 appending it to a smart_str. The sanitizer must not keep a pointer into the
 smart_str across the append, because a long origin can reallocate the buffer
 before sanitization.
---ENV--
-DD_TRACE_PROPAGATION_STYLE_EXTRACT=datadog
+--INI--
+datadog.trace.enabled=1
+datadog.trace.generate_root_span=0
+datadog.trace.propagation_style_extract=datadog
 --FILE--
 <?php
 
