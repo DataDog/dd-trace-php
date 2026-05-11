@@ -106,7 +106,15 @@ uint64_t ddtrace_parse_hex_span_id(zval *zid) {
     return ddtrace_parse_hex_span_id_str(Z_STRVAL_P(zid), Z_STRLEN_P(zid));
 }
 
-uint64_t ddtrace_generate_span_id(void) { return (uint64_t)genrand64_int64(); }
+uint64_t ddtrace_generate_span_id(void) {
+    if (get_DD_TRACE_SECURE_RANDOM()) {
+        uint64_t id;
+        if (php_random_bytes_silent(&id, sizeof(id)) == SUCCESS) {
+            return id;
+        }
+    }
+    return (uint64_t)genrand64_int64();
+}
 
 uint64_t ddtrace_peek_span_id(void) {
     ddtrace_span_properties *pspan = DDTRACE_G(active_stack) ? DDTRACE_G(active_stack)->active : NULL;
