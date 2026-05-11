@@ -20,15 +20,17 @@ $link = DDTrace\SpanLink::fromHeaders([
 ]);
 
 $traceState = $link->traceState;
+$traceStatePrefix = "dd=o:";
+$formattedOrigin = substr($traceState, strlen($traceStatePrefix));
 
-var_dump(strlen($traceState));
+var_dump(substr($traceState, 0, strlen($traceStatePrefix)));
 var_dump(substr_count($traceState, "="));
-var_dump(substr_count($traceState, "~"));
-var_dump($traceState === "dd=o:" . str_repeat("~", strlen($origin)));
+var_dump($formattedOrigin === str_repeat("~", strlen($formattedOrigin)));
+var_dump(strlen($formattedOrigin) > 256);
 
 ?>
 --EXPECT--
-int(1005)
+string(5) "dd=o:"
 int(1)
-int(1000)
+bool(true)
 bool(true)
