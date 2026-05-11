@@ -112,6 +112,7 @@ $(BUILD_DIR)/configure: $(M4_FILES) $(BUILD_DIR)/datadog.sym $(BUILD_DIR)/VERSIO
 $(BUILD_DIR)/run-tests.php: $(if $(ASSUME_COMPILED),, $(BUILD_DIR)/configure)
 	$(if $(ASSUME_COMPILED), cp $(shell dirname $(shell realpath $(shell which phpize)))/../lib/php/build/run-tests.php $(BUILD_DIR)/run-tests.php)
 	sed -i 's/\bdl(/(bool)(/' $(BUILD_DIR)/run-tests.php # this dl() stuff in run-tests.php is for --EXTENSIONS-- sections, which we don't use; just strip it away (see https://github.com/php/php-src/issues/15367)
+	sed -i 's/return number_format($$this->rootSuite/return round($$this->rootSuite/' $(BUILD_DIR)/run-tests.php # number_format returns a comma-formatted string for elapsed >= 1000s (e.g. "1,500.0000"), which is non-numeric and triggers E_WARNING in PHP 8.0+ when used in += arithmetic inside record()
 
 # ensure list of rust files is up to date
 $(BUILD_DIR)/.rust_files_list: $(RUST_FILES)
