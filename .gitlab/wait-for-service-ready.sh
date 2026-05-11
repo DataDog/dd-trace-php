@@ -40,8 +40,9 @@ wait_for_single_service() {
         fi
         ;;
       request-replayer)
-        # /replay is read-only and always returns valid JSON when the PHP server is up
-        if curl -sf "http://${HOST}:${PORT}/replay" > /dev/null 2>&1; then
+        # Any HTTP response (2xx/3xx/4xx/5xx) proves php -S is up and executing index.php.
+        # /replay may return 4xx when no data has been dumped yet, so do not use -f.
+        if curl -s -o /dev/null "http://${HOST}:${PORT}/replay"; then
           echo "request-replayer is ready"
           return 0
         fi
