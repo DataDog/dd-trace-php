@@ -7,7 +7,7 @@ PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
 PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
   [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
 
-PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to generate mock_php.c,
+PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to weaken PHP symbols in object files,
   [  --with-ddtrace-sidecar-library Location to cargo binary produced by components-rs/php_sidecar_mockgen], -, will be compiled)
 
 PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
@@ -382,16 +382,6 @@ EOT
     else
       ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run"
     fi
-    cat <<EOT >> Makefile.fragments
-
-/\$(builddir)/components-rs/mock_php.c: $all_object_files
-	($ddtrace_mockgen_invocation \$(builddir)/components-rs/mock_php.c $php_binary $all_object_files_absolute)
-
-# avoid cargo running simultaneously for libddtrace_php and php_sidecar_mockgen
-/\$(builddir)/components-rs/mock_php.c: | \$(filter-out \$(builddir)/components-rs/mock_php.lo,\$(shared_objects_ddtrace))
-EOT
-
-    PHP_ADD_SOURCES_X("/$ext_dir", "\$(builddir)/components-rs/mock_php.c", $ac_extra, shared_objects_ddtrace, yes)
   fi
 
   if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
@@ -417,7 +407,6 @@ EOT
 	($ddtrace_mockgen_invocation weaken-dynsym $all_object_files_absolute $php_binary)
 WEAKEN
     sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e "/\/ddtrace\.la:\ \\$/r $_ddtrace_weaken_tmp" Makefile.objects
-    ;;
     dnl run weaken only once, create a dependency on .la for .a
     echo "./modules/ddtrace.a: | ./ddtrace.la" >> Makefile.fragments
     rm -f "$_ddtrace_weaken_tmp"
