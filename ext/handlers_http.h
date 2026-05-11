@@ -22,9 +22,10 @@ static inline zend_string *ddtrace_format_tracestate(zend_string *tracestate, ui
             smart_str_appendc(&str, ';');
         }
         smart_str_appends(&str, "o:");
-        signed char *cur = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s);
+        size_t origin_offset = ZSTR_LEN(str.s);
         smart_str_append(&str, origin);
-        for (signed char *end = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s); cur < end; ++cur) {
+        for (signed char *cur = (signed char *)ZSTR_VAL(str.s) + origin_offset,
+                *end = (signed char *)ZSTR_VAL(str.s) + ZSTR_LEN(str.s); cur < end; ++cur) {
             if (*cur == '=') {
                 *cur = '~';
             } else if (*cur < 0x20 || *cur == ',' || *cur == ';' || *cur == '~') {
