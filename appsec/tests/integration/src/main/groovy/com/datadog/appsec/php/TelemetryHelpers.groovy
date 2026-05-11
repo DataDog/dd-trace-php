@@ -2,6 +2,8 @@ package com.datadog.appsec.php
 
 import groovy.transform.Canonical
 import groovy.transform.ToString
+import groovy.transform.stc.ClosureParams
+import groovy.transform.stc.FromString
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.Base64
@@ -13,12 +15,31 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString
  * @link https://github.com/DataDog/instrumentation-telemetry-api-docs/blob/main/GeneratedDocumentation/ApiDocs/v2/producing-telemetry.md
  */
 class TelemetryHelpers {
-   static <T> List<T> filterMessages(List<Map> telemetryData, Class<T> type) {
-       (telemetryData.findAll { it['request_type'] in type.names } +
-                telemetryData.findAll { it['request_type'] == 'message-batch'}
-                        *.payload*.findAll { it['request_type'] in type.names }.flatten())
-        .collect { type.newInstance([it['payload']] as Object[]) }
-   }
+    /**
+     * Filters drained telemetry to messages of the given wrapper type, unwrapping any
+     * {@code message-batch} envelopes.
+     *
+     * <p>The sidecar runs two telemetry workers per session: one for the host app and
+     * one for {@code service_name == "datadog-ipc-helper"} (its own self-telemetry).
+     * Tests almost always want only the former; pass {@code userAppOnly = false} to
+     * include the sidecar's own telemetry too.
+     */
+    static <T> List<T> filterMessages(List<Map> telemetryData, Class<T> type, boolean userAppOnly = true) {
+        List<Map> payloads = []
+        for (msg in telemetryData) {
+            if (userAppOnly && msg.application?.service_name == 'datadog-ipc-helper') continue
+            if (msg.request_type in type.names) {
+                payloads << (msg.payload as Map)
+            } else if (msg.request_type == 'message-batch') {
+                for (inner in (msg.payload as List)) {
+                    if (inner.request_type in type.names) {
+                        payloads << (inner.payload as Map)
+                    }
+                }
+            }
+        }
+        payloads.collect { type.newInstance([it] as Object[]) }
+    }
 
     static class GenerateMetrics {
         static names = ['generate-metrics']
@@ -361,6 +382,19 @@ class TelemetryHelpers {
         }
     }
 
+    static class WithExtendedHeartbeat {
+        static names = ['app-extended-heartbeat']
+        List<ConfigurationEntry> configuration
+        List<DependencyEntry> dependencies
+        List<IntegrationEntry> integrations
+
+        WithExtendedHeartbeat(Map m) {
+            configuration = m.configuration?.collect { new ConfigurationEntry(it) }
+            dependencies  = m.dependencies?.collect { new DependencyEntry(it) }
+            integrations  = m.integrations?.collect { new IntegrationEntry(it) }
+        }
+    }
+
     static class ConfigurationEntry {
         String name
         String value
@@ -399,7 +433,10 @@ class TelemetryHelpers {
         }
     }
 
-    public static <T> List<T> waitForTelemetryData(AppSecContainer container, int timeoutSec, Closure<Boolean> cl, Class<T> cls, String path = '/hello.php') {
+    static <T> List<T> waitForTelemetryData(AppSecContainer container, int timeoutSec,
+                                            @ClosureParams(value = FromString, options = 'java.util.List<T>')
+                                                    Closure<Boolean> cl,
+                                            Class<T> cls, String path = '/hello.php') {
         List<T> messages = []
         def deadline = System.currentTimeSeconds() + timeoutSec
         def lastHttpReq = System.currentTimeSeconds() - 6
@@ -422,23 +459,46 @@ class TelemetryHelpers {
         messages
     }
 
-    public static List<AppEndpoints> waitForAppEndpoints(AppSecContainer container, int timeoutSec, Closure<Boolean> cl, String path = '/') {
+    static List<AppEndpoints> waitForAppEndpoints(AppSecContainer container, int timeoutSec,
+                                                  @ClosureParams(value = FromString,
+                                                          options = 'java.util.List<com.datadog.appsec.php.TelemetryHelpers.AppEndpoints>')
+                                                          Closure<Boolean> cl,
+                                                  String path = '/') {
         waitForTelemetryData(container, timeoutSec, cl, AppEndpoints, path)
     }
 
-    public static List<GenerateDistributions> waitForDistributions(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
+    static List<GenerateDistributions> waitForDistributions(AppSecContainer container, int timeoutSec,
+                                                            @ClosureParams(value = FromString,
+                                                                    options = 'java.util.List<com.datadog.appsec.php.TelemetryHelpers.GenerateDistributions>')
+                                                                    Closure<Boolean> cl) {
         waitForTelemetryData(container, timeoutSec, cl, GenerateDistributions)
     }
 
-    public static List<GenerateMetrics> waitForMetrics(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
+    static List<GenerateMetrics> waitForMetrics(AppSecContainer container, int timeoutSec,
+                                                @ClosureParams(value = FromString,
+                                                        options = 'java.util.List<com.datadog.appsec.php.TelemetryHelpers.GenerateMetrics>')
+                                                        Closure<Boolean> cl) {
         waitForTelemetryData(container, timeoutSec, cl, GenerateMetrics)
     }
 
-    public static List<WithIntegrations> waitForIntegrations(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
+    static List<WithIntegrations> waitForIntegrations(AppSecContainer container, int timeoutSec,
+                                                      @ClosureParams(value = FromString,
+                                                              options = 'java.util.List<com.datadog.appsec.php.TelemetryHelpers.WithIntegrations>')
+                                                              Closure<Boolean> cl) {
         waitForTelemetryData(container, timeoutSec, cl, WithIntegrations)
     }
 
-    public static List<Logs> waitForLogs(AppSecContainer container, int timeoutSec, Closure<Boolean> cl) {
+    static List<WithExtendedHeartbeat> waitForExtendedHeartbeat(AppSecContainer container, int timeoutSec,
+                                                                @ClosureParams(value = FromString,
+                                                                        options = 'java.util.List<com.datadog.appsec.php.TelemetryHelpers.WithExtendedHeartbeat>')
+                                                                        Closure<Boolean> cl) {
+        waitForTelemetryData(container, timeoutSec, cl, WithExtendedHeartbeat)
+    }
+
+    static List<Logs> waitForLogs(AppSecContainer container, int timeoutSec,
+                                  @ClosureParams(value = FromString,
+                                          options = 'java.util.List<com.datadog.appsec.php.TelemetryHelpers.Logs>')
+                                          Closure<Boolean> cl) {
         waitForTelemetryData(container, timeoutSec, cl, Logs)
     }
 }

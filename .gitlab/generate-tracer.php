@@ -204,6 +204,7 @@ stages:
     DATADOG_HAVE_DEV_ENV: 1
     HTTPBIN_HOSTNAME: httpbin-integration
     HTTPBIN_PORT: 8080
+<?php sidecar_logs(); ?>
   before_script:
 <?php before_script_steps(true) ?>
     - .gitlab/wait-for-service-ready.sh
@@ -213,7 +214,6 @@ stages:
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
-<?php sidecar_logs(); ?>
 
 <?php
 foreach ($asan_minor_major_targets as $major_minor):
@@ -505,7 +505,6 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
-<?php sidecar_logs(); ?>
   timeout: 40m
   retry:
     max: 2
