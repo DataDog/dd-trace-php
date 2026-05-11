@@ -160,7 +160,7 @@ final class DatadogLogger
     private static function handleLogInjection(): array
     {
         $logInjection = \dd_trace_env_config('DD_LOGS_INJECTION');
-        if ($logInjection && !\dd_trace_env_config('DD_LOGS_OTEL_ENABLED')) {
+        if ($logInjection) {
             $traceId = \DDTrace\logs_correlation_trace_id();
             $spanId = \dd_trace_peek_span_id();
             if ($traceId && $spanId) {

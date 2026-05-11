@@ -148,6 +148,37 @@ class LogsIntegration extends Integration
         return $context;
     }
 
+    /**
+     * Returns true when the call should bypass dd.* injection because the
+     * logger is already routing through OpenTelemetry's Monolog handler — in
+     * that case the OTLP LogRecord carries trace correlation in its dedicated
+     * binary trace_id/span_id fields, so injecting dd.* into the message/
+     * context would just duplicate the correlation in a non-spec'd location.
+     *
+     * PHP loggers aren't autowired to OTel; users opt in by attaching the
+     * OpenTelemetry\Contrib\Logs\Monolog\Handler from the
+     * open-telemetry/opentelemetry-logger-monolog package. So we only skip on
+     * the specific Monolog instances that have that handler — other loggers
+     * (file, syslog, etc.) keep getting dd.* injection.
+     *
+     * @param object|null $logger The receiver of the PSR-3 log call
+     */
+    private static function shouldSkipForOtelLogs($logger): bool
+    {
+        if ($logger === null || !\dd_trace_env_config('DD_LOGS_OTEL_ENABLED')) {
+            return false;
+        }
+        if (!$logger instanceof \Monolog\Logger) {
+            return false;
+        }
+        foreach ($logger->getHandlers() as $handler) {
+            if ($handler instanceof \OpenTelemetry\Contrib\Logs\Monolog\Handler) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static function getHookFn(
         string $levelName,
         int $messageIndex,
@@ -155,6 +186,10 @@ class LogsIntegration extends Integration
         $levelIndex = null
     ): callable {
         return static function (HookData $hook) use ($levelName, $messageIndex, $contextIndex, $levelIndex) {
+            if (self::shouldSkipForOtelLogs($hook->instance ?? null)) {
+                return;
+            }
+
             /** @var string $message */
             $message = $hook->args[$messageIndex];
             /** @var array $context */
