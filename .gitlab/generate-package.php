@@ -1229,10 +1229,6 @@ endforeach;
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
     APT_CACHE: $CI_PROJECT_DIR/.cache/apt
     DOCKER_DEFAULT_PLATFORM: linux/amd64
-    # Expand the DinD loopback volume to avoid running out of disk space.
-    # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
-    DOCKER_LOOPBACK_SIZE: 50G
-    DOCKER_LOOPBACK_PATH: /
     # TODO DD_API_KEY; SYSTEM_TESTS_AWS_ACCESS_KEY_ID; SYSTEM_TESTS_AWS_SECRET_ACCESS_KEY
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
@@ -1325,6 +1321,10 @@ endforeach;
 "System Tests: [tracer-release]":
   extends: .system_tests
   timeout: 4h
+  variables:
+    # Expand the DinD loopback volume to avoid running out of disk space.
+    # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
+    DOCKER_LOOPBACK_SIZE: 50G
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
       when: on_success
