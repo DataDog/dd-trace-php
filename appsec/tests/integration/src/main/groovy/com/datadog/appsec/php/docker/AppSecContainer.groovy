@@ -56,7 +56,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                     .connectTimeout(Duration.ofSeconds(5))
                     .build()
 
-    private MockDatadogAgent mockDatadogAgent = new MockDatadogAgent()    
+    private MockDatadogAgent mockDatadogAgent = new MockDatadogAgent()
 
     AppSecContainer(Map options) {
         super(imageNameFuture(options))
@@ -191,7 +191,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                             JsonOutput.toJson(it.value).getBytes(StandardCharsets.UTF_8)
                     ]
                 }
-        long newVersion = Instant.now().epochSecond
+        long newVersion = nextRCVersion
         def rcr = new RemoteConfigResponse()
         rcr.clientConfigs = files.keySet() as List
         rcr.targetFiles = encodedFiles.collect {
@@ -244,7 +244,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
      */
     Supplier<RemoteConfigRequest> applyRemoteConfigRaw(Target target, Map<String, byte[]> files) {
         Map<String, byte[]> encodedFiles = files.findAll { it.value != null }
-        long newVersion = Instant.now().epochSecond
+        long newVersion = nextRCVersion
         def rcr = new RemoteConfigResponse()
         rcr.clientConfigs = files.keySet() as List
         rcr.targetFiles = encodedFiles.collect {
@@ -285,6 +285,11 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         long start = System.currentTimeMillis()
         return { -> waitForRCVersion(target, newVersion,
                 5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
+    }
+
+    // The next version number for the new RC. Using the timestamp helpers troubleshooting
+    private static long getNextRCVersion() {
+        Instant.now().toEpochMilli()
     }
 
     void flushProfilingData() {
