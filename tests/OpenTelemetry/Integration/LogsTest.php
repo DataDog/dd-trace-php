@@ -72,6 +72,7 @@ final class LogsTest extends BaseTestCase
         parent::ddTearDown();
         self::putEnv("DD_LOGS_OTEL_ENABLED=");
         self::putEnv("DD_TRACE_GENERATE_ROOT_SPAN=");
+        self::putEnv("DD_AGENT_HOST=");
         \dd_trace_serialize_closed_spans();
     }
 
@@ -201,6 +202,42 @@ final class LogsTest extends BaseTestCase
         $this->assertFalse(
             \dd_trace_env_config('DD_LOGS_OTEL_ENABLED'),
             'DD_LOGS_OTEL_ENABLED should be false when set to false'
+        );
+    }
+
+    /**
+     * Test that DatadogResolver derives the OTLP logs endpoint from DD_AGENT_HOST
+     * when DD_LOGS_OTEL_ENABLED=true and no OTEL_EXPORTER_OTLP_*ENDPOINT is set.
+     * This is the load-bearing wiring that lets users opt into OTel logs with a
+     * single env var — without it, the SDK would default to localhost:4318
+     * regardless of the user's configured agent address.
+     */
+    public function testDatadogResolverDerivesLogsEndpointFromAgent()
+    {
+        if (!self::isOtelVersionSupported() || !self::hasExportersInstalled()) {
+            $this->markTestSkipped('OpenTelemetry SDK with OTLP exporters required');
+        }
+
+        self::putEnvAndReloadConfig([
+            'DD_LOGS_OTEL_ENABLED=true',
+            'DD_AGENT_HOST=test-agent.example',
+        ]);
+
+        // Touch an OpenTelemetry class so dd-trace-php's autoload populates the
+        // OTel bridge — DatadogResolver lives there and isn't otherwise loaded.
+        \OpenTelemetry\API\Globals::loggerProvider();
+
+        $resolver = new \DDTrace\OpenTelemetry\DatadogResolver();
+
+        $this->assertTrue(
+            $resolver->hasVariable('OTEL_EXPORTER_OTLP_LOGS_ENDPOINT'),
+            'DatadogResolver should claim OTEL_EXPORTER_OTLP_LOGS_ENDPOINT when DD_LOGS_OTEL_ENABLED=true'
+        );
+
+        $this->assertSame(
+            'http://test-agent.example:4318/v1/logs',
+            $resolver->retrieveValue('OTEL_EXPORTER_OTLP_LOGS_ENDPOINT'),
+            'Should derive HTTP OTLP logs endpoint from DD_AGENT_HOST when neither OTEL_EXPORTER_OTLP_LOGS_ENDPOINT nor OTEL_EXPORTER_OTLP_ENDPOINT is set'
         );
     }
 }
