@@ -16,8 +16,10 @@ use OpenTelemetry\SDK\Resource\ResourceInfo;
             return;
         }
 
-        // DD_TRACE_REPORT_HOSTNAME is not set — strip auto-detected host.name so it
-        // doesn't appear in logs unless explicitly set in OTEL_RESOURCE_ATTRIBUTES.
+        // DD_TRACE_REPORT_HOSTNAME is not set — strip the upstream Host detector's
+        // auto-detected host.name (php_uname('n'), typically a container ID). The
+        // Datadog Agent handles host attribution, so leaking container IDs as
+        // host.name would break correlation.
         $filtered = [];
         foreach ($hook->returned->getAttributes() as $key => $value) {
             if ($key !== 'host.name') {
