@@ -52,6 +52,10 @@ namespace
                     $json = json_decode($l, true);
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                     foreach ($batch as $json) {
+                        if ($json["request_type"] == "app-started" && !empty($json["payload"]["integrations"])) {
+                            var_dump(["integrations" => $json["payload"]]);
+                            break 3;
+                        }
                         if ($json["request_type"] == "app-integrations-change") {
                             var_dump($json["payload"]);
                             break 3;
