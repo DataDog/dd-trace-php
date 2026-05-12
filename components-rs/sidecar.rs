@@ -17,9 +17,7 @@ use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{CharSlice, self as ffi, MaybeError};
 use libdd_telemetry_ffi::try_c;
 #[cfg(windows)]
-use spawn_worker::LibDependency;
-#[cfg(windows)]
-use spawn_worker::get_trampoline_target_data;
+use spawn_worker::{get_trampoline_target_data, LibDependency};
 
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {

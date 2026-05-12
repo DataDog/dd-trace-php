@@ -285,7 +285,7 @@ if test "$PHP_DDTRACE" != "no"; then
     dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).
     case $host_os in
       linux*)
-        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_sidecar_direct_entry"
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_spawn_direct_entry"
       ;;
     esac
 

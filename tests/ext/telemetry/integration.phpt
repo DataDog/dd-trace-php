@@ -53,7 +53,7 @@ namespace
                     $batch = $json["request_type"] == "message-batch" ? $json["payload"] : [$json];
                     foreach ($batch as $json) {
                         if ($json["request_type"] == "app-started" && !empty($json["payload"]["integrations"])) {
-                            var_dump(["integrations" => $json["payload"]]);
+                            var_dump(["integrations" => $json["payload"]["integrations"]]);
                             break 3;
                         }
                         if ($json["request_type"] == "app-integrations-change") {
