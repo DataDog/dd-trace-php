@@ -1002,6 +1002,7 @@ class LaminasIntegration extends Integration
         foreach ($endpoints as $row) {
             \DDTrace\add_endpoint($row['path'], 'http.request', $row['resourceName'], $row['method']);
         }
+        \DDTrace\flush_endpoints();
     }
 
     private static function collectLaminasRouteEndpointRows($rootRouter, $currentStack, string $namePrefix): array
