@@ -19,7 +19,7 @@ class DatadogResolver implements ResolverInterface
 
     public function retrieveValue(string $name): mixed
     {
-        if (!$this->isMetricsEnabled($name)) {
+        if (!$this->isSignalEnabled($name)) {
             return null;
         }
 
@@ -27,7 +27,9 @@ class DatadogResolver implements ResolverInterface
             return 'delta';
         }
 
-        if ($name === 'OTEL_EXPORTER_OTLP_ENDPOINT' || $name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+        if ($name === 'OTEL_EXPORTER_OTLP_ENDPOINT'
+            || $name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'
+            || $name === 'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT') {
             return $this->resolveEndpoint($name);
         }
 
@@ -36,23 +38,34 @@ class DatadogResolver implements ResolverInterface
 
     public function hasVariable(string $variableName): bool
     {
-        if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT' ||
-            $variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT' ||
-            $variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
+        if ($variableName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT'
+            || $variableName === 'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE') {
             return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED');
         }
+
+        if ($variableName === 'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT') {
+            return \dd_trace_env_config('DD_LOGS_OTEL_ENABLED');
+        }
+
+        if ($variableName === 'OTEL_EXPORTER_OTLP_ENDPOINT') {
+            return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED')
+                || \dd_trace_env_config('DD_LOGS_OTEL_ENABLED');
+        }
+
         return false;
     }
 
-    private function isMetricsEnabled(string $name): bool
+    private function isSignalEnabled(string $name): bool
     {
-        $metricsOnlySettings = [
+        if (in_array($name, [
             'OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE',
             'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT',
-        ];
-
-        if (in_array($name, $metricsOnlySettings, true)) {
+        ], true)) {
             return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED');
+        }
+
+        if ($name === 'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT') {
+            return \dd_trace_env_config('DD_LOGS_OTEL_ENABLED');
         }
 
         return true;
@@ -61,41 +74,66 @@ class DatadogResolver implements ResolverInterface
     private function resolveEndpoint(string $name): string
     {
         $isMetricsEndpoint = ($name === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT');
-        $protocol = $this->resolveProtocol($isMetricsEndpoint);
+        $isLogsEndpoint = ($name === 'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT');
+        $protocol = $this->resolveProtocol($isMetricsEndpoint, $isLogsEndpoint);
 
-        // Check for user-configured general OTLP endpoint (only when requesting metrics endpoint)
+        // For signal-specific endpoints, check whether the user configured a general OTLP endpoint
+        // and derive the signal path from it rather than the agent address.
         if ($isMetricsEndpoint && Configuration::has('OTEL_EXPORTER_OTLP_ENDPOINT')) {
-            return $this->buildMetricsEndpointFromGeneral($protocol);
+            return $this->buildSignalEndpointFromGeneral($protocol, Signals::METRICS);
         }
 
-        return $this->buildEndpointFromAgent($protocol, $isMetricsEndpoint);
+        if ($isLogsEndpoint && Configuration::has('OTEL_EXPORTER_OTLP_ENDPOINT')) {
+            return $this->buildSignalEndpointFromGeneral($protocol, Signals::LOGS);
+        }
+
+        return $this->buildEndpointFromAgent($protocol, $name);
     }
 
-    private function resolveProtocol(bool $metricsSpecific): ?string
+    private function resolveProtocol(bool $metricsSpecific, bool $logsSpecific): string
     {
         if ($metricsSpecific && Configuration::has('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL')) {
-            return Configuration::getEnum('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL');
+            return $this->validateProtocol(Configuration::getEnum('OTEL_EXPORTER_OTLP_METRICS_PROTOCOL'));
         }
 
-        // Call getEnum without has() check to match original behavior -
-        // allows SDK defaults to be applied if they exist
+        if ($logsSpecific && Configuration::has('OTEL_EXPORTER_OTLP_LOGS_PROTOCOL')) {
+            return $this->validateProtocol(Configuration::getEnum('OTEL_EXPORTER_OTLP_LOGS_PROTOCOL'));
+        }
+
+        // Call getEnum without has() check to match original behavior —
+        // allows SDK defaults to be applied if they exist.
         $protocol = Configuration::getEnum('OTEL_EXPORTER_OTLP_PROTOCOL');
 
-        return $protocol ?? self::DEFAULT_PROTOCOL;
+        return $this->validateProtocol($protocol ?? self::DEFAULT_PROTOCOL);
     }
 
-    private function buildMetricsEndpointFromGeneral(string $protocol): string
+    private function validateProtocol(string $protocol): string
+    {
+        static $valid = ['grpc', 'http/protobuf', 'http/json', 'http/ndjson'];
+        if (!in_array($protocol, $valid, true)) {
+            trigger_error(
+                "OTEL_EXPORTER_OTLP_PROTOCOL '$protocol' is not recognized. "
+                . "Valid values are: grpc, http/protobuf, http/json, http/ndjson. "
+                . "Falling back to 'http/protobuf'.",
+                E_USER_WARNING
+            );
+            return self::DEFAULT_PROTOCOL;
+        }
+        return $protocol;
+    }
+
+    private function buildSignalEndpointFromGeneral(string $protocol, string $signal): string
     {
         $generalEndpoint = rtrim(Configuration::getString('OTEL_EXPORTER_OTLP_ENDPOINT'), '/');
 
         if ($this->isGrpc($protocol)) {
-            return $generalEndpoint . OtlpUtil::method(Signals::METRICS);
+            return $generalEndpoint . OtlpUtil::method($signal);
         }
 
-        return $generalEndpoint . '/v1/metrics';
+        return $generalEndpoint . '/v1/' . $signal;
     }
 
-    private function buildEndpointFromAgent(string $protocol, bool $isMetricsEndpoint): string
+    private function buildEndpointFromAgent(string $protocol, string $endpointName): string
     {
         $agentInfo = $this->resolveAgentInfo();
 
@@ -107,8 +145,12 @@ class DatadogResolver implements ResolverInterface
         $port = $this->isGrpc($protocol) ? self::GRPC_PORT : self::HTTP_PORT;
         $endpoint = $agentInfo['scheme'] . '://' . $agentInfo['host'] . ':' . $port;
 
-        if ($isMetricsEndpoint) {
-            return $this->appendMetricsPath($endpoint, $protocol);
+        if ($endpointName === 'OTEL_EXPORTER_OTLP_METRICS_ENDPOINT') {
+            return $this->appendSignalPath($endpoint, $protocol, Signals::METRICS);
+        }
+
+        if ($endpointName === 'OTEL_EXPORTER_OTLP_LOGS_ENDPOINT') {
+            return $this->appendSignalPath($endpoint, $protocol, Signals::LOGS);
         }
 
         return $endpoint;
@@ -156,13 +198,13 @@ class DatadogResolver implements ResolverInterface
         return ['scheme' => $scheme, 'host' => $host];
     }
 
-    private function appendMetricsPath(string $endpoint, string $protocol): string
+    private function appendSignalPath(string $endpoint, string $protocol, string $signal): string
     {
         if ($this->isGrpc($protocol)) {
-            return $endpoint . OtlpUtil::method(Signals::METRICS);
+            return $endpoint . OtlpUtil::method($signal);
         }
 
-        return $endpoint . '/v1/metrics';
+        return $endpoint . '/v1/' . $signal;
     }
 
     private function isGrpc(string $protocol): bool

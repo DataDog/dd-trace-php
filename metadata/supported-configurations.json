@@ -438,6 +438,13 @@
         "default": "true"
       }
     ],
+    "DD_LOGS_OTEL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_LOG_BACKTRACE": [
       {
         "implementation": "A",

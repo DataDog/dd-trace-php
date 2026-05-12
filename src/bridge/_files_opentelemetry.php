@@ -9,6 +9,7 @@ return [
     __DIR__ . '/../DDTrace/OpenTelemetry/CachedInstrumentation.php',
     __DIR__ . '/../DDTrace/OpenTelemetry/CompositeResolver.php',
     __DIR__ . '/../DDTrace/OpenTelemetry/Configuration.php',
+    __DIR__ . '/../DDTrace/OpenTelemetry/OtlpHooks.php',
     __DIR__ . '/../DDTrace/OpenTelemetry/Detectors/DetectorHelper.php',
     __DIR__ . '/../DDTrace/OpenTelemetry/Detectors/Environment.php',
     __DIR__ . '/../DDTrace/OpenTelemetry/Detectors/Host.php',
