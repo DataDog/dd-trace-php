@@ -1,6 +1,11 @@
 /* This is a generated file, edit the .stub.php file instead.
  * Stub hash: 12b545740a93f0ea5f4ecfdfc3a95fb144161bd2 */
 
+#ifndef ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE
+# define ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, type_hint, allow_null, default_value) \
+    ZEND_ARG_TYPE_INFO(pass_by_ref, name, type_hint, allow_null)
+#endif
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_is_enabled, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
