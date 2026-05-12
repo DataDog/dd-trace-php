@@ -10,7 +10,7 @@ use DDTrace\OpenTelemetry\Detectors\DetectorHelper;
 
         $ddEnv = \dd_trace_env_config('DD_ENV');
         if ($ddEnv !== '') {
-            $attributes['deployment.environment'] = $ddEnv;
+            $attributes['deployment.environment.name'] = $ddEnv;
         }
 
         $ddVersion = \dd_trace_env_config('DD_VERSION');
