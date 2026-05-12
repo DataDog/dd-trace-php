@@ -212,7 +212,7 @@ test_extension_ci: $(SO_FILE) $(TEST_FILES) $(TEST_STUB_FILES) $(BUILD_DIR)/run-
 	\
 	export TEST_PHP_JUNIT=$(JUNIT_RESULTS_DIR)/valgrind-extension-test.xml; \
 	export TEST_PHP_OUTPUT=$(JUNIT_RESULTS_DIR)/valgrind-run-tests.out; \
-	SHOW_SLOW=$$(php -r 'echo PHP_VERSION_ID >= 70200 ? "--show-slow 10000" : "";'); \
+	SHOW_SLOW=$$(php -r 'echo PHP_VERSION_ID >= 70200 ? "--show-slow 30000" : "";'); \
 	DD_SPAWN_WORKER_STABLE_TRAMPOLINE=1 $(ALL_TEST_ENV_OVERRIDE) $(RUN_TESTS_CMD) $$SHOW_SLOW -d extension=$(SO_FILE) -m -s $$TEST_PHP_OUTPUT $(BUILD_DIR)/$(TESTS) && ! grep -e '^LEAKED TEST SUMMARY' $$TEST_PHP_OUTPUT; \
 	)
 
