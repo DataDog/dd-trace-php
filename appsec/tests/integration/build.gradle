@@ -14,7 +14,12 @@ plugins {
 }
 
 repositories {
-    mavenCentral()
+    def proxy = System.getenv('MAVEN_REPOSITORY_PROXY')
+    if (proxy) {
+        maven { url proxy }
+    } else {
+        mavenCentral()
+    }
 }
 
 java {
