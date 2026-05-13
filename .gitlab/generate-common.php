@@ -117,6 +117,7 @@ default:
       - job_execution_timeout
     exit_codes:
       - 75
+      - 128
 
 .all_targets: &all_minor_major_targets
 <?php
