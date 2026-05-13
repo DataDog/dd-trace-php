@@ -660,8 +660,35 @@ class LaminasIntegration extends Integration
                     $adapter = $This->getAdapter() ?? null;
                 }
 
+                $identity = $result->getIdentity();
+                if ($adapter !== null && method_exists($adapter, 'getResultRowObject')) {
+                    $row = $adapter->getResultRowObject();
+                    if (is_object($row)) {
+                        $identity = $row;
+                    }
+                }
+                if ($identity === null || $identity === false || $identity === '') {
+                    return;
+                }
+                $userLogin = self::getUserLogin($identity);
+                $metadata = self::getUserMetadata($identity);
+                $userId = self::getUserId($identity);
+
                 if ($result->isValid()) {
-                    self::trackUserLoginSuccess($result, $adapter);
+                    if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
+                        return;
+                    }
+
+                    if ($userId === '') {
+                        return;
+                    }
+
+                    \datadog\appsec\internal\track_user_login_success_event_automated(
+                        'laminas',
+                        $userLogin,
+                        $userId,
+                        $metadata
+                    );
                     return;
                 }
 
@@ -670,18 +697,12 @@ class LaminasIntegration extends Integration
                 }
 
                 $code = $result->getCode();
-                $userLogin = null;
-
-                if ($adapter && method_exists($adapter, 'getIdentity')) {
-                    $userLogin = $adapter->getIdentity();
-                }
-
                 $userExists = ($code === \Laminas\Authentication\Result::FAILURE_CREDENTIAL_INVALID);
 
                 \datadog\appsec\internal\track_user_login_failure_event_automated(
                     'laminas',
                     $userLogin,
-                    $userLogin,
+                    $userId,
                     $userExists,
                     []
                 );
@@ -710,42 +731,6 @@ class LaminasIntegration extends Integration
         );
 
         return Integration::LOADED;
-    }
-
-    private static function trackUserLoginSuccess(
-        \Laminas\Authentication\Result $result,
-        $adapter
-    ) {
-        if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
-            return;
-        }
-
-        $identity = $result->getIdentity();
-        if ($adapter !== null && method_exists($adapter, 'getResultRowObject')) {
-            $row = $adapter->getResultRowObject();
-            if (is_object($row)) {
-                $identity = $row;
-            }
-        }
-
-        if ($identity === null || $identity === false || $identity === '') {
-            return;
-        }
-
-        $userId = self::getUserId($identity);
-        if ($userId === '') {
-            return;
-        }
-
-        $userLogin = self::getUserLogin($identity);
-        $metadata = self::getUserMetadata($identity);
-
-        \datadog\appsec\internal\track_user_login_success_event_automated(
-            'laminas',
-            $userLogin,
-            $userId,
-            $metadata
-        );
     }
 
     private static function getUserId($identity)
