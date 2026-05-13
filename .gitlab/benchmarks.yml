@@ -137,6 +137,7 @@ workflow:
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     UPSTREAM_BRANCH: $CI_COMMIT_REF_NAME
     UPSTREAM_COMMIT_SHA: $CI_COMMIT_SHA
+    DD_SIDECAR_DISABLE_DIRECT_EXEC: 1
 
 benchmarks-profiler:
   extends: .microbenchmarks
