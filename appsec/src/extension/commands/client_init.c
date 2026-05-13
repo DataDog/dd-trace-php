@@ -20,7 +20,7 @@
 #include "client_init.h"
 
 static dd_result _pack_command(mpack_writer_t *nonnull w, void *nullable ctx);
-static dd_result _process_response(mpack_node_t root, void *nullable ctx);
+static dd_result _process_response(mpack_node_t root, void *nonnull ctx);
 static void _process_helper_runtime(mpack_node_t root);
 static void _process_meta_and_metrics(
     mpack_node_t root, struct req_info *nonnull ctx);
@@ -34,9 +34,14 @@ static const dd_command_spec _spec = {
     .config_features_cb = dd_command_process_config_features_unexpected,
 };
 
+struct client_init_ctx {
+    struct req_info *nonnull req_info;
+    dd_conn *nonnull conn;
+};
 dd_result dd_client_init(dd_conn *nonnull conn, struct req_info *nonnull ctx)
 {
-    return dd_command_exec_cred(conn, &_spec, ctx);
+    struct client_init_ctx client_init_ctx = {.req_info = ctx, .conn = conn};
+    return dd_command_exec(conn, &_spec, &client_init_ctx);
 }
 
 static dd_result _pack_command(
@@ -150,14 +155,30 @@ static dd_result _pack_command(
 }
 
 static dd_result _check_helper_version(mpack_node_t root);
-static dd_result _process_response(
-    mpack_node_t root, ATTR_UNUSED void *nullable ctx)
+
+enum {
+    VERDICT_INDEX = 0,
+    VERSION_INDEX = 1,
+    CLIENT_ID_INDEX = 2,
+    ERRORS_INDEX = 3,
+    META_INDEX = 4,
+    METRICS_INDEX = 5,
+    HELPER_RUNTIME_INDEX = 6,
+};
+static dd_result _process_response(mpack_node_t root, void *nonnull ctx_)
 {
+    struct client_init_ctx *ctx = ctx_;
+
     _process_helper_runtime(root);
-    _process_meta_and_metrics(root, ctx);
+    _process_meta_and_metrics(root, ctx->req_info);
+
+    // save client id
+    assert(ctx->conn->client_id == 0);
+    ctx->conn->client_id =
+        mpack_node_u64(mpack_node_array_at(root, CLIENT_ID_INDEX));
 
     // check verdict
-    mpack_node_t verdict = mpack_node_array_at(root, 0);
+    mpack_node_t verdict = mpack_node_array_at(root, VERDICT_INDEX);
     bool is_ok = dd_mpack_node_lstr_eq(verdict, "ok");
     if (is_ok) {
         mlog(dd_log_debug, "Response to client_init is ok");
@@ -170,7 +191,7 @@ static dd_result _process_response(
     const char *ver = mpack_node_str(verdict);
     size_t verlen = mpack_node_strlen(verdict);
 
-    mpack_node_t errors = mpack_node_array_at(root, 2);
+    mpack_node_t errors = mpack_node_array_at(root, ERRORS_INDEX);
     mpack_node_t first_error_node = mpack_node_array_at(errors, 0);
     const char *first_error = mpack_node_str(first_error_node);
     size_t first_error_len = mpack_node_strlen(first_error_node);
@@ -196,15 +217,12 @@ static dd_result _process_response(
 
 static void _process_helper_runtime(mpack_node_t root)
 {
-#define HELPER_RUNTIME_INDEX 5
     mpack_node_t runtime_node = mpack_node_array_at(root, HELPER_RUNTIME_INDEX);
     if (mpack_node_type(runtime_node) == mpack_type_str) {
         const char *runtime = mpack_node_str(runtime_node);
         size_t runtime_len = mpack_node_strlen(runtime_node);
         if (STR_CONS_EQ(runtime, runtime_len, "rust")) {
             dd_helper_set_runtime(HELPER_RUNTIME_RUST);
-        } else if (STR_CONS_EQ(runtime, runtime_len, "cpp")) {
-            dd_helper_set_runtime(HELPER_RUNTIME_CPP);
         } else {
             dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
         }
@@ -214,7 +232,7 @@ static void _process_helper_runtime(mpack_node_t root)
 static void _process_meta_and_metrics(
     mpack_node_t root, struct req_info *nonnull ctx)
 {
-    mpack_node_t meta = mpack_node_array_at(root, 3);
+    mpack_node_t meta = mpack_node_array_at(root, META_INDEX);
     zend_object *span = ctx->root_span;
     if (!span) {
         mlog(
@@ -226,13 +244,13 @@ static void _process_meta_and_metrics(
         dd_command_process_meta(meta, span);
     }
 
-    mpack_node_t metrics = mpack_node_array_at(root, 4);
+    mpack_node_t metrics = mpack_node_array_at(root, METRICS_INDEX);
     dd_command_process_metrics(metrics, span);
 }
 
 static dd_result _check_helper_version(mpack_node_t root)
 {
-    mpack_node_t version_node = mpack_node_array_at(root, 1);
+    mpack_node_t version_node = mpack_node_array_at(root, VERSION_INDEX);
     const char *version = mpack_node_str(version_node);
     size_t version_len = mpack_node_strlen(version_node);
     int version_len_int = version_len > INT_MAX ? INT_MAX : (int)version_len;

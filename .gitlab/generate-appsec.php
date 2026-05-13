@@ -112,7 +112,6 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 30Gi
     DOCKER_LOOPBACK_SIZE: 30G
     ARCH: amd64
-    HELPER_RUST_FLAG: ""
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle-home"
     DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED: "0"
   before_script:
@@ -129,7 +128,7 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan $HELPER_RUST_FLAG
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -182,17 +181,6 @@ stages:
     matrix:
       - targets:
           - test8.3-release-ssi
-
-"appsec integration tests (helper-rust)":
-  extends: .appsec_integration_tests
-  variables:
-    HELPER_RUST_FLAG: "-PuseHelperRust"
-  parallel:
-    matrix:
-      - targets:
-          - test7.4-release
-          - test8.1-release
-          - test8.3-debug
 
 "helper-rust build and test":
   stage: test
@@ -419,11 +407,6 @@ stages:
       export PATH=$PATH:$HOME/.cargo/bin
       LLVM_PROFILE_FILE="/tmp/cov-ext/%p.profraw" \
         VERBOSE=1 make -j 4 xtest
-    - VERBOSE=1 make -j 4 ddappsec_helper_test
-    - |
-      cd ../..
-      LLVM_PROFILE_FILE="/tmp/cov-helper/%p.profraw" \
-        ./appsec/build/tests/helper/ddappsec_helper_test
     - |
       cd /tmp/cov-ext
       llvm-profdata-17 merge -sparse *.profraw -o default.profdata
@@ -433,15 +416,6 @@ stages:
       echo "Uploading extension coverage to codecov"
       cd "$CI_PROJECT_DIR"
       codecov -t "$CODECOV_TOKEN" -n appsec-extension -v -f appsec/build/coverage-ext.lcov
-    - |
-      cd /tmp/cov-helper
-      llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-      llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
-        -format=lcov -instr-profile=default.profdata \
-        > "$CI_PROJECT_DIR/appsec/build/coverage-helper.lcov"
-      echo "Uploading helper coverage to codecov"
-      cd "$CI_PROJECT_DIR"
-      codecov -t "$CODECOV_TOKEN" -n appsec-helper -v -f appsec/build/coverage-helper.lcov
     - |
       echo "Uploading coverage to Datadog"
       cd "$CI_PROJECT_DIR"
@@ -515,83 +489,8 @@ stages:
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
         -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 \
         -DCLANG_FORMAT=/usr/bin/clang-format-17
-    - make -j 4 extension ddappsec-helper
+    - make -j 4 extension
     - make format tidy
-
-"test appsec helper asan":
-  stage: test
-  extends: .appsec_test
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6
-  variables:
-    KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
-  parallel:
-    matrix:
-      - ARCH: *arch_targets
-  script:
-    - cd appsec/build
-    - |
-      cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF \
-        -DDD_APPSEC_ENABLE_COVERAGE=OFF -DDD_APPSEC_TESTING=ON \
-        -DCMAKE_CXX_FLAGS="-stdlib=libc++ -fsanitize=address -fsanitize=leak \
-        -DASAN_BUILD" -DCMAKE_C_FLAGS="-fsanitize=address -fsanitize=leak \
-        -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-        -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
-        -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
-        -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-    - make -j 4 ddappsec_helper_test
-    - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
-
-### Disabled: "we don't rely on the fuzzer these days as the protocol has been stable for a long time, so feel free to disable those jobs for now"
-#"fuzz appsec helper":
-#  stage: test
-#  extends: .appsec_test
-#  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-6
-#  variables:
-#    KUBERNETES_CPU_REQUEST: 3
-#    KUBERNETES_MEMORY_REQUEST: 5Gi
-#    KUBERNETES_MEMORY_LIMIT: 6Gi
-#  parallel:
-#    matrix:
-#      - ARCH: *arch_targets
-#  script:
-#    - curl -LO https://github.com/llvm/llvm-project/archive/refs/tags/llvmorg-17.0.6.tar.gz
-#    - tar xzf llvmorg-17.0.6.tar.gz
-#    - cd llvm-project-llvmorg-17.0.6/compiler-rt
-#    - cmake . -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++"
-#    - make -j 4 fuzzer
-#    - fuzzer=$(realpath lib/linux/libclang_rt.fuzzer_no_main-*.a)
-#    - cd -
-#
-#    - cd appsec/build
-#    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DBOOST_CACHE_PREFIX=/boost-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
-#    - make -j 4 ddappsec_helper_fuzzer corpus_generator
-#    - cd ..
-#    - mkdir -p tests/fuzzer/{corpus,results,logs}
-#    - rm -f tests/fuzzer/corpus/*
-#
-#    - '# Run fuzzer in nop mode'
-#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-#    - LLVM_PROFILE_FILE=off.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=off -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-#    - rm -f tests/fuzzer/corpus/*
-#
-#    - '# Run fuzzer in raw mode'
-#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-#    - LLVM_PROFILE_FILE=raw.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=raw -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-#    - rm -f tests/fuzzer/corpus/*
-#
-#    - '# Run fuzzer in body mode'
-#    - ./build/tests/fuzzer/corpus_generator tests/fuzzer/corpus 500
-#    - LLVM_PROFILE_FILE=body.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
-#
-#    - '# Generate coverage'
-#    - llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-#    - llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
-#    - llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
-#  artifacts:
-#    paths:
-#     - appsec/fuzzer-coverage.html
 
 "check libxml2 version":
   stage: test

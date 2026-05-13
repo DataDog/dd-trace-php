@@ -59,7 +59,6 @@ if(DD_APPSEC_BUILD_EXTENSION)
 endif()
 
 if(DD_APPSEC_BUILD_HELPER)
-    include ("cmake/helper.cmake")
     find_program(CARGO_EXECUTABLE cargo)
     find_program(RUSTC_EXECUTABLE rustc)
     if(CARGO_EXECUTABLE AND RUSTC_EXECUTABLE)

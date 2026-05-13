@@ -10,34 +10,26 @@ class Helper {
     private $process;
     private $mock_helper_path;
     private $lock_path;
+    private $ext_sock; // extension-side end of the socketpair
 
     function __construct($opts = array()) {
-        $runtime_path = key_exists('runtime_path', $opts) ? $opts['runtime_path'] : ini_get('datadog.appsec.helper_runtime_path');
-        $sock_path = $runtime_path . "/ddappsec_" . phpversion('ddappsec') . "_" . getmyuid() . ".sock";
         $received_pipe = key_exists('received_pipe', $opts) ? $opts['received_pipe'] : true;
         $this->mock_helper_path = key_exists('mock_helper_path', $opts) ? $opts['mock_helper_path'] : getenv('MOCK_HELPER_BINARY');
-        $this->lock_path = $runtime_path . "/ddappsec_" . phpversion('ddappsec') . ".lock";
+        $this->lock_path = sys_get_temp_dir() . '/mock_helper_' . getmypid() . '.lock';
+
+        $pair = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
+        $this->ext_sock = $pair[0];
+
         $descriptors = array(
             0 => array("pipe", "r"),
             1 => array("file", STDOUT_PATH, "w+"),
             2 => array("file", STDERR_PATH, "w+"),
-            3 => self::listen($sock_path),
+            3 => $pair[1],
         );
         if ($received_pipe) {
             $descriptors[] = array('pipe', 'w');
         }
         $this->descriptors = $descriptors;
-    }
-
-    static function listen($path) {
-        if (file_exists($path)) {
-            unlink($path);
-        }
-        $s = stream_socket_server("unix://$path", $errno, $errstr);
-        if (!$s) {
-            die("stream_socket_server failed: " . $s);
-        }
-        return $s;
     }
 
     static function createRun($responses, $opts = array()) {
@@ -51,12 +43,16 @@ class Helper {
         $empty_obj = new ArrayObject();
         $responses = array_merge([
             response_list(
-                response_client_init(['ok', phpversion('ddappsec'),[],$empty_obj,$empty_obj,null])
+                response_client_init(['ok', phpversion('ddappsec'), 0, [],$empty_obj,$empty_obj,null])
         )], $responses);
         return self::createRun($responses, $opts);
     }
 
     function run($responses, $continuous = false) {
+        // Register the extension-side socket with the mock transport before
+        // mock_helper starts, so rinit() finds the fd already set.
+        \datadog\appsec\testing\set_mock_helper_fd($this->ext_sock);
+
         $esc_resp = "";
         foreach ($responses as $response) {
             $esc_resp .= " " . escapeshellarg(json_encode($response));
@@ -68,6 +64,11 @@ class Helper {
         $this->process = proc_open($cmd, $this->descriptors, $pipes, null,
             array('GLOG_logtostderr' => '1', 'GLOG_v' => '1'));
         $this->command_pipe = end($pipes);
+
+        // Release the parent's reference to mock_helper's socket end so that
+        // when mock_helper exits and closes its fd, the extension sees EOF.
+        fclose($this->descriptors[3]);
+        unset($this->descriptors[3]);
 
         if (!is_resource($this->process)) {
             die("error starting helper process");
@@ -226,7 +227,7 @@ class Helper {
         }
         fclose($handle);
     }
-};
+}
 
 function response($type, $message) {
 //     var_dump([$type, $message]);

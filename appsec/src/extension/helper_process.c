@@ -6,13 +6,10 @@
 
 // NOLINTNEXTLINE(misc-header-include-cycle)
 #include <components-rs/ddtrace.h>
-#include <libgen.h>
-#include <limits.h>
 #include <php.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <sys/mman.h>
-#include <sys/stat.h>
 
 #define HELPER_PROCESS_C_INCLUDES
 #include "compatibility.h"
@@ -44,10 +41,6 @@ typedef struct _dd_helper_mgr {
     bool connected_this_req;
     dd_helper_shared_state hss;
 
-    char *nonnull socket_path; // if abstract, starts with @
-    char *nonnull lock_path;   // set, but not used with abstract ns sockets
-    char *nullable
-        resolved_helper_path; // resolved helper path (after redirection check)
 } dd_helper_mgr;
 
 static _Atomic(dd_helper_shared_state) *_shared_state;
@@ -61,27 +54,17 @@ static const double _backoff_base = 2.0;
 // max retry will be 3 * 2^10 =~ 51 mins */
 static const double _backoff_max_exponent = 10.0;
 
-static const int timeout_send = 500;
-static const int timeout_recv_initial = 1250;
-static const int timeout_recv_subseq = 750;
-
 #define DD_PATH_FORMAT "%s%sddappsec_" PHP_DDAPPSEC_VERSION "_%u"
-#define DD_SOCK_PATH_FORMAT DD_PATH_FORMAT ".sock"
-#define DD_LOCK_PATH_FORMAT DD_PATH_FORMAT ".lock"
-
-#define RUST_HELPER_FILENAME "libddappsec-helper-rust.so"
 
 #ifdef TESTING
 static void _register_testing_objects(void);
 #endif
 
-static void _read_settings(void);
 static bool _skip_connecting(dd_helper_shared_state *nonnull s);
 static bool _try_lock_shared_state(dd_helper_shared_state *nonnull s);
 static void _inc_failed_counter(dd_helper_shared_state *nonnull s);
 static void _release_shared_state_lock(dd_helper_shared_state *nonnull s);
 static void _maybe_reset_failed_counter(void);
-static char *nullable _compute_helper_path(void);
 
 void dd_helper_startup(void)
 {
@@ -105,12 +88,7 @@ void dd_helper_shutdown(void)
     }
 }
 
-void dd_helper_gshutdown(void)
-{
-    pefree(_mgr.socket_path, 1);
-    pefree(_mgr.lock_path, 1);
-    pefree(_mgr.resolved_helper_path, 1);
-}
+void dd_helper_gshutdown(void) {}
 
 void dd_helper_rshutdown(void)
 {
@@ -132,34 +110,19 @@ dd_conn *nullable dd_helper_mgr_acquire_conn(
         return NULL;
     }
 
-    _read_settings();
-
     if (!_try_lock_shared_state(&_mgr.hss)) {
         return NULL;
     }
 
-    int res = dd_conn_init(conn, _mgr.socket_path, strlen(_mgr.socket_path));
+    dd_conn_init(conn);
 
-    if (res) {
-        // connection failure
-        mlog(dd_log_warning, "Connection to helper failed (socket: %s): %s",
-            _mgr.socket_path, dd_result_to_string(res));
-        goto error;
-    }
-
-    // else we have a connection. Set timeouts and test it
-    dd_conn_set_timeout(conn, comm_type_send, timeout_send);
-    dd_conn_set_timeout(conn, comm_type_recv, timeout_recv_initial);
-
-    res = init_func(conn, ctx);
+    int res = init_func(conn, ctx);
     if (res) {
         mlog_g(dd_log_warning, "Initial exchange with helper failed; "
                                "abandoning the connection");
         dd_conn_destroy(conn);
         goto error;
     }
-
-    dd_conn_set_timeout(&_mgr.conn, comm_type_recv, timeout_recv_subseq);
 
     mlog(dd_log_debug, "returning fresh connection");
 
@@ -188,129 +151,9 @@ helper_runtime dd_helper_get_runtime(void) { return _helper_runtime; }
 
 void dd_helper_set_runtime(helper_runtime rt) { _helper_runtime = rt; }
 
-bool dd_helper_is_rust(void) { return _helper_runtime == HELPER_RUNTIME_RUST; }
-
-// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
-bool dd_on_runtime_path_update(zval *nullable old_val, zval *nonnull new_val,
-    zend_string *nullable new_str)
-{
-    UNUSED(old_val);
-    UNUSED(new_str);
-
-    uid_t uid = getuid();
-    char *base = Z_STRVAL_P(new_val);
-    size_t base_len = Z_STRLEN_P(new_val);
-    char *separator = base[base_len - 1] != '/' ? "/" : "";
-
-    size_t sock_name_len =
-        snprintf(NULL, 0, DD_SOCK_PATH_FORMAT, base, separator, uid);
-    char *sock_name = safe_pemalloc(sock_name_len, sizeof(char), 1, 1);
-    snprintf(sock_name, sock_name_len + 1, DD_SOCK_PATH_FORMAT, base, separator,
-        uid);
-    pefree(_mgr.socket_path, 1);
-    _mgr.socket_path = sock_name;
-
-    size_t lock_name_len =
-        snprintf(NULL, 0, DD_LOCK_PATH_FORMAT, base, separator, uid);
-    char *lock_name = safe_pemalloc(lock_name_len, sizeof(char), 1, 1);
-    snprintf(lock_name, lock_name_len + 1, DD_LOCK_PATH_FORMAT, base, separator,
-        uid);
-    pefree(_mgr.lock_path, 1);
-    _mgr.lock_path = lock_name;
-
-    return true;
-}
-
 static inline ddog_CharSlice to_char_slice(zend_string *zs)
 {
     return (ddog_CharSlice){.len = ZSTR_LEN(zs), .ptr = ZSTR_VAL(zs)};
-}
-
-static void _read_settings(void)
-{
-    if (_mgr.socket_path) {
-        return;
-    }
-
-    zval runtime_path;
-    ZVAL_STR(&runtime_path, get_DD_APPSEC_HELPER_RUNTIME_PATH());
-    dd_on_runtime_path_update(NULL, &runtime_path, NULL);
-}
-
-// Computes the actual helper path based on DD_APPSEC_HELPER_RUST_REDIRECTION
-// If redirection is enabled, looks for libddappsec-helper-rust.so alongside the
-// configured helper path. Returns the path to use (allocated with pemalloc)
-// or NULL to use the original path from configuration.
-// Uses an empty string as a sentinel to cache negative resolutions.
-static char *nullable _compute_helper_path(void)
-{
-    if (_mgr.resolved_helper_path) {
-        if (_mgr.resolved_helper_path[0] == '\0') {
-            return NULL;
-        }
-        return _mgr.resolved_helper_path;
-    }
-
-    if (!get_global_DD_APPSEC_HELPER_RUST_REDIRECTION()) {
-        _mgr.resolved_helper_path = pecalloc(1, 1, 1); // empty string
-        return NULL;
-    }
-
-    zend_string *helper_path_zs = get_DD_APPSEC_HELPER_PATH();
-    const char *helper_path = ZSTR_VAL(helper_path_zs);
-
-#ifdef __APPLE__
-    char dir_buf[PATH_MAX];
-    char *dir = dirname_r(helper_path, dir_buf);
-    if (!dir) {
-        mlog(dd_log_warning, "Failed to get dirname of helper path");
-        _mgr.resolved_helper_path = pecalloc(1, 1, 1); // cache negative result
-        return NULL;
-    }
-#else
-    size_t helper_path_len = ZSTR_LEN(helper_path_zs);
-    char *path_copy = safe_pemalloc(helper_path_len, sizeof(char), 1, 1);
-    memcpy(path_copy, helper_path, helper_path_len + 1);
-
-    // dirname is thread-safe on Linux
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    char *dir = dirname(path_copy);
-    if (!dir) {
-        pefree(path_copy, 1);
-        mlog(dd_log_warning, "Failed to get dirname of helper path");
-        _mgr.resolved_helper_path = pecalloc(1, 1, 1); // cache negative result
-        return NULL;
-    }
-#endif
-
-    // Compute the Rust helper path:
-    // dirname(helper_path)/libddappsec-helper-rust.so
-    size_t dir_len = strlen(dir);
-    size_t rust_helper_len = sizeof(RUST_HELPER_FILENAME) - 1;
-    size_t total_len = dir_len + 1 + rust_helper_len; // dir + / + filename
-
-    char *rust_helper_path = safe_pemalloc(total_len, sizeof(char), 1, 1);
-    snprintf(
-        rust_helper_path, total_len + 1, "%s/%s", dir, RUST_HELPER_FILENAME);
-
-#ifndef __APPLE__
-    pefree(path_copy, 1);
-#endif
-
-    struct stat sb;
-    if (stat(rust_helper_path, &sb) == 0 && S_ISREG(sb.st_mode)) {
-        mlog(dd_log_debug, "Rust helper found at %s, using it",
-            rust_helper_path);
-        _mgr.resolved_helper_path = rust_helper_path;
-        return _mgr.resolved_helper_path;
-    }
-
-    mlog(dd_log_debug,
-        "Rust helper not found at %s, falling back to original helper",
-        rust_helper_path);
-    pefree(rust_helper_path, 1);
-    _mgr.resolved_helper_path = pecalloc(1, 1, 1); // cache negative result
-    return NULL;
 }
 
 __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
@@ -327,27 +170,15 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
         return false;
     }
 
-    _read_settings();
-
-    // Determine actual helper path (may be redirected to Rust helper)
-    ddog_CharSlice helper_path;
-    char *resolved_path = _compute_helper_path();
-    if (resolved_path) {
-        helper_path = (ddog_CharSlice){
-            .ptr = resolved_path, .len = strlen(resolved_path)};
-    } else {
-        helper_path = to_char_slice(get_DD_APPSEC_HELPER_PATH());
-    }
+    ddog_CharSlice helper_path = to_char_slice(get_DD_APPSEC_HELPER_PATH());
     mlog(dd_log_debug, "Helper path is %.*s", (int)helper_path.len,
         helper_path.ptr);
-    ddog_CharSlice socket_path = {_mgr.socket_path, strlen(_mgr.socket_path)};
-    ddog_CharSlice lock_path = {_mgr.lock_path, strlen(_mgr.lock_path)};
     ddog_CharSlice log_path =
         to_char_slice(get_global_DD_APPSEC_HELPER_LOG_FILE());
     ddog_CharSlice log_level =
         to_char_slice(get_global_DD_APPSEC_HELPER_LOG_LEVEL());
 
-    enable_appsec(helper_path, socket_path, lock_path, log_path, log_level);
+    enable_appsec(helper_path, log_path, log_level);
 
     *appsec_activation = DDAPPSEC_G(enabled) == APPSEC_ENABLED_VIA_REMCFG;
     // only enable ASM / ASM_DD / ASM_DATA if no rules file is specified
@@ -363,10 +194,7 @@ void dd_helper_close_conn(void)
         return;
     }
 
-    int res = dd_conn_destroy(&_mgr.conn);
-    if (res == -1) {
-        mlog_err(dd_log_warning, "Error closing connection to helper");
-    }
+    dd_conn_destroy(&_mgr.conn);
 
     dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
     dd_telemetry_helper_conn_close();
