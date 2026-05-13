@@ -6,6 +6,7 @@ namespace Application;
 
 use Application\Controller\DynamicPathController;
 use Application\Controller\LoginControllerFactory;
+use Laminas\Router\Http\Hostname;
 use Laminas\Router\Http\Literal;
 use Laminas\Router\Http\Method;
 use Laminas\Router\Http\Segment;
@@ -142,6 +143,25 @@ return [
                         'type' => Segment::class,
                         'options' => [
                             'route' => '/:chainId',
+                            'defaults' => [
+                                'controller' => DynamicPathController::class,
+                                'action' => 'index',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'tenant_with_profile' => [
+                'type' => Hostname::class,
+                'options' => [
+                    'route' => ':tenant.example.com',
+                ],
+                'may_terminate' => false,
+                'child_routes' => [
+                    'profile' => [
+                        'type' => Literal::class,
+                        'options' => [
+                            'route' => '/profile',
                             'defaults' => [
                                 'controller' => DynamicPathController::class,
                                 'action' => 'index',
