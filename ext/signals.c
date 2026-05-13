@@ -53,7 +53,7 @@
 // true globals; only modify in MINIT/MSHUTDOWN
 static stack_t dd_altstack;
 static struct sigaction dd_sigsegv_sigaction;
-static char crashtracker_socket_path[100] = {0};
+static char crashtracker_socket_path[200] = {0};
 static char *dd_signal_async_stack;
 static size_t dd_signal_async_stack_size;
 
