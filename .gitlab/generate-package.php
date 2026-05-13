@@ -1318,10 +1318,26 @@ endforeach;
   script:
     - ./run.sh $TESTSUITE
 
-"System Tests: [tracer-release]":
+<?php
+$system_tests_weblogs = [
+    "apache-mod-7.0", "apache-mod-7.0-zts",
+    "apache-mod-7.1", "apache-mod-7.1-zts",
+    "apache-mod-7.2", "apache-mod-7.2-zts",
+    "apache-mod-7.3", "apache-mod-7.3-zts",
+    "apache-mod-7.4", "apache-mod-7.4-zts",
+    "apache-mod-8.0", "apache-mod-8.0-zts",
+    "apache-mod-8.1", "apache-mod-8.1-zts",
+    "apache-mod-8.2", "apache-mod-8.2-zts",
+    "php-fpm-7.0", "php-fpm-7.1", "php-fpm-7.2", "php-fpm-7.3", "php-fpm-7.4",
+    "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5",
+];
+?>
+<?php foreach ($system_tests_weblogs as $weblog): ?>
+"System Tests: [<?= $weblog ?>, tracer-release]":
   extends: .system_tests
   timeout: 4h
   variables:
+    BUILD_SH_ARGS: -w <?= $weblog ?> php
     # Expand the DinD loopback volume to avoid running out of disk space.
     # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
     DOCKER_LOOPBACK_SIZE: 50G
@@ -1338,6 +1354,7 @@ endforeach;
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
+<?php endforeach; ?>
 "System Tests: [parametric]":
   extends: .system_tests
   variables:
