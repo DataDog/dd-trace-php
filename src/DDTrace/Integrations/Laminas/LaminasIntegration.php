@@ -275,8 +275,11 @@ class LaminasIntegration extends Integration
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
 
+                $isTopLevelRouterMatch = $this instanceof \Laminas\Router\Http\TreeRouteStack
+                    && !($this instanceof \Laminas\Router\Http\Part);
+
                 if (
-                    $this instanceof \Laminas\Router\Http\TreeRouteStack
+                    $isTopLevelRouterMatch
                     && $routeName !== null
                     && $routeName !== ''
                 ) {
@@ -288,8 +291,7 @@ class LaminasIntegration extends Integration
 
                 if (
                     function_exists('\datadog\appsec\push_addresses')
-                    && $this instanceof \Laminas\Router\Http\TreeRouteStack
-                    && !($this instanceof \Laminas\Router\Http\Part)
+                    && $isTopLevelRouterMatch
                     && $routeName !== null
                     && $routeName !== ''
                 ) {
