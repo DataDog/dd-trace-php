@@ -133,8 +133,8 @@ class Laminas33Tests {
 
     @Test
     @Order(5)
-    void 'Login success automated event'() {
-        def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com') {
+    void 'Login success automated event - approach a'() {
+        def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com&mode=a') {
             HttpResponse<InputStream> resp ->
                 assert resp.statusCode() == 200
         }
@@ -142,6 +142,24 @@ class Laminas33Tests {
         Span span = trace.first()
         assert span.meta.'usr.id' == '1'
         assert span.meta.'_dd.appsec.events.users.login.success.auto.mode' == 'identification'
+        assert span.meta.'_dd.appsec.usr.login' == 'ciuser@example.com'
+        assert span.meta.'appsec.events.users.login.success.track' == 'true'
+        assert span.metrics._sampling_priority_v1 == 2.0d
+        assert span.meta.'http.route' == '/authenticate'
+    }
+
+    @Test
+    @Order(5)
+    void 'Login success automated event - approach b'() {
+        def trace = container.traceFromRequest('/authenticate?email=ciuser@example.com&mode=b') {
+            HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta.'usr.id' == '1'
+        assert span.meta.'_dd.appsec.events.users.login.success.auto.mode' == 'identification'
+        assert span.meta.'_dd.appsec.usr.login' == 'ciuser@example.com'
         assert span.meta.'appsec.events.users.login.success.track' == 'true'
         assert span.metrics._sampling_priority_v1 == 2.0d
         assert span.meta.'http.route' == '/authenticate'

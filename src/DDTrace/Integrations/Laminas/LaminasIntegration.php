@@ -644,18 +644,22 @@ class LaminasIntegration extends Integration
             }
         );
 
-        install_hook(
-            'Laminas\Authentication\AuthenticationService::authenticate',
+        hook_method(
+            'Laminas\Authentication\AuthenticationService',
+            'authenticate',
             null,
-            static function (HookData $hook) {
-                $result = $hook->returned;
-
+            static function ($This, $scope, $args, $result) {
                 if (!$result instanceof \Laminas\Authentication\Result) {
                     return;
                 }
 
+                $adapter = $args[0] ?? null;
+                if (!$adapter) {
+                    $adapter = $This->getAdapter() ?? null;
+                }
+
                 if ($result->isValid()) {
-                    self::trackUserLoginSuccess($result, $hook->args[0] ?? null);
+                    self::trackUserLoginSuccess($result, $adapter);
                     return;
                 }
 
@@ -664,7 +668,6 @@ class LaminasIntegration extends Integration
                 }
 
                 $code = $result->getCode();
-                $adapter = $hook->args[0] ?? null;
                 $userLogin = null;
 
                 if ($adapter && method_exists($adapter, 'getIdentity')) {

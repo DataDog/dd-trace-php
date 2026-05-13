@@ -32,7 +32,7 @@ class LoginController extends AbstractActionController
     {
         $email = $this->params()->fromQuery('email');
         $password = $this->params()->fromQuery('password', 'password');
-
+        $mode = $this->params()->fromQuery('mode', 'a');
         if (!$email) {
             $response = $this->getResponse();
             $response->setStatusCode(400);
@@ -52,7 +52,12 @@ class LoginController extends AbstractActionController
         $authAdapter->setIdentity($email);
         $authAdapter->setCredential(md5($password));
 
-        $result = $this->authService->authenticate($authAdapter);
+        if ($mode == 'a') {
+            $result = $this->authService->authenticate($authAdapter);
+        } else {
+            $this->authService->setAdapter($authAdapter);
+            $result = $this->authService->authenticate();
+        }
 
         if ($result->isValid()) {
             $userData = $authAdapter->getResultRowObject(null, 'password');
