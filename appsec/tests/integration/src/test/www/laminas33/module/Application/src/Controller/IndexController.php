@@ -13,4 +13,12 @@ class IndexController extends AbstractActionController
     {
         return new ViewModel();
     }
+
+    public function helloAction()
+    {
+        $response = $this->getResponse();
+        $response->setContent('hello from skeleton-style /application[/:action]');
+
+        return $response;
+    }
 }

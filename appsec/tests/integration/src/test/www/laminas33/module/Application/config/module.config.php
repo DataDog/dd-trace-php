@@ -9,7 +9,11 @@ use Application\Controller\LoginControllerFactory;
 use Laminas\Router\Http\Hostname;
 use Laminas\Router\Http\Literal;
 use Laminas\Router\Http\Method;
+use Laminas\Router\Http\Placeholder;
+use Laminas\Router\Http\Regex;
+use Laminas\Router\Http\Scheme;
 use Laminas\Router\Http\Segment;
+use Laminas\Router\Http\Wildcard;
 use Laminas\ServiceManager\Factory\InvokableFactory;
 
 return [
@@ -19,6 +23,19 @@ return [
                 'type' => Literal::class,
                 'options' => [
                     'route' => '/',
+                    'defaults' => [
+                        'controller' => Controller\IndexController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
+            'application' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/application[/:action]',
+                    'constraints' => [
+                        'action' => '[a-zA-Z][a-zA-Z0-9_-]*',
+                    ],
                     'defaults' => [
                         'controller' => Controller\IndexController::class,
                         'action' => 'index',
@@ -147,6 +164,75 @@ return [
                                 'controller' => DynamicPathController::class,
                                 'action' => 'index',
                             ],
+                        ],
+                    ],
+                ],
+            ],
+            'regex_year' => [
+                'type' => Regex::class,
+                'options' => [
+                    'regex' => '/regex-year/(?P<year>\d{4})',
+                    'spec' => '/regex-year/%year%',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                        'year' => '2000',
+                    ],
+                ],
+            ],
+            'scheme_http_gate' => [
+                'type' => Scheme::class,
+                'options' => [
+                    'scheme' => 'http',
+                    'defaults' => [],
+                ],
+                'may_terminate' => false,
+                'child_routes' => [
+                    'page' => [
+                        'type' => Literal::class,
+                        'options' => [
+                            'route' => '/scheme-only-page',
+                            'defaults' => [
+                                'controller' => DynamicPathController::class,
+                                'action' => 'index',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'placeholder_branch' => [
+                'type' => Placeholder::class,
+                'options' => [
+                    'defaults' => [],
+                ],
+                'child_routes' => [
+                    'under' => [
+                        'type' => Literal::class,
+                        'options' => [
+                            'route' => '/placeholder-literal',
+                            'defaults' => [
+                                'controller' => DynamicPathController::class,
+                                'action' => 'index',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'wildcard_keys' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/wildcard-keys',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+                'may_terminate' => false,
+                'child_routes' => [
+                    'pairs' => [
+                        'type' => Wildcard::class,
+                        'options' => [
+                            'defaults' => [],
                         ],
                     ],
                 ],

@@ -918,6 +918,26 @@ class LaminasIntegration extends Integration
             return \is_array($parts) ? self::laminasSegmentPartsToRouteTemplate($parts) : null;
         }
 
+        if ($matchedRoute instanceof \Laminas\Router\Http\Scheme) {
+            return '';
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Placeholder) {
+            return '';
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Regex) {
+            $rp = new ReflectionProperty($matchedRoute, 'spec');
+            $rp->setAccessible(true);
+            $spec = (string) $rp->getValue($matchedRoute);
+
+            return $spec !== '' ? $spec : null;
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Wildcard) {
+            return '/*';
+        }
+
         if ($matchedRoute instanceof \Laminas\Router\Http\Chain) {
             $buf = '';
             foreach (self::laminasGetChainRoutes($matchedRoute) as $chainedRoute) {

@@ -81,8 +81,11 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 19
+        assert endpoints.size() == 25
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
+        assert endpoints.find {
+            it.path == '/application[/:action]' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /application[/:action]'
+        } != null
         assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
         assert endpoints.find { it.path == '/behind-auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind-auth' } != null
         assert endpoints.find {
@@ -103,6 +106,21 @@ class Laminas33Tests {
         assert endpoints.find { it.path == '/multi-verb' && it.method == 'POST' && it.operationName == 'http.request' && it.resourceName == 'POST /multi-verb' } != null
         assert endpoints.find { it.path == '/multi-verb' && it.method == 'PUT' && it.operationName == 'http.request' && it.resourceName == 'PUT /multi-verb' } != null
         assert endpoints.find { it.path == '/profile' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /profile' } != null
+        assert endpoints.find {
+            it.path == '/regex-year/%year%' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /regex-year/%year%'
+        } != null
+        assert endpoints.find {
+            it.path == '/scheme-only-page' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /scheme-only-page'
+        } != null
+        assert endpoints.find {
+            it.path == '/placeholder-literal' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /placeholder-literal'
+        } != null
+        assert endpoints.find {
+            it.path == '/wildcard-keys' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /wildcard-keys'
+        } != null
+        assert endpoints.find {
+            it.path == '/wildcard-keys/*' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /wildcard-keys/*'
+        } != null
     }
 
     @Test
@@ -226,5 +244,37 @@ class Laminas33Tests {
             assert resp.statusCode() == 200
         }
         assert chainTrace.first().meta.'http.route' == '/chain/:chainId'
+    }
+
+    @Test
+    @Order(9)
+    void 'Regex Scheme Placeholder and Wildcard routes expose http route templates'() {
+        Trace regexTrace = container.traceFromRequest(
+                container.buildReq('/regex-year/2024').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert regexTrace.first().meta.'http.route' == '/regex-year/%year%'
+
+        Trace schemeTrace = container.traceFromRequest(
+                container.buildReq('/scheme-only-page').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert schemeTrace.first().meta.'http.route' == '/scheme-only-page'
+
+        Trace placeholderTrace = container.traceFromRequest(
+                container.buildReq('/placeholder-literal').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert placeholderTrace.first().meta.'http.route' == '/placeholder-literal'
+
+        Trace wildcardTrace = container.traceFromRequest(
+                container.buildReq('/wildcard-keys/foo/bar').GET().build(),
+                ofString()) { HttpResponse<String> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert wildcardTrace.first().meta.'http.route' == '/wildcard-keys/*'
     }
 }
