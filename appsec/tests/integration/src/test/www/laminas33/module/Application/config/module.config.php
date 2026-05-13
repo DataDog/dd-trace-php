@@ -111,6 +111,27 @@ return [
                     'delete' => ['type' => Method::class, 'options' => ['verb' => 'DELETE']],
                 ],
             ],
+            'multi_verb' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/multi-verb',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+                'may_terminate' => false,
+                'child_routes' => [
+                    'read' => [
+                        'type' => Method::class,
+                        'options' => ['verb' => 'GET,HEAD,OPTIONS'],
+                    ],
+                    'write' => [
+                        'type' => Method::class,
+                        'options' => ['verb' => 'POST,PUT'],
+                    ],
+                ],
+            ],
             'chained_resource' => [
                 'type' => Literal::class,
                 'options' => [

@@ -1051,27 +1051,25 @@ class LaminasIntegration extends Integration
         return $chain->getRoutes();
     }
 
-    private static function extractHttpVerbFromRoute($route): string
+    private static function extractHttpVerbFromRoute($route): array
     {
         if ($route instanceof \Laminas\Router\Http\Chain) {
             foreach (self::laminasGetChainRoutes($route) as $chainRoute) {
-                $method = self::extractHttpVerbFromRoute($chainRoute);
-                if ($method !== 'GET') {
-                    return $method;
+                $methods = self::extractHttpVerbFromRoute($chainRoute);
+                if (sizeof($methods) == 0 && $methods[0] !== 'GET') {
+                    return $methods;
                 }
             }
 
-            return 'GET';
+            return ['GET'];
         }
         if (!($route instanceof \Laminas\Router\Http\Method)) {
-            return 'GET';
+            return ['GET'];
         }
         $rp = new \ReflectionProperty($route, 'verb');
         $rp->setAccessible(true);
         $verb = strtoupper(trim((string) $rp->getValue($route)));
-        $first = explode(',', $verb)[0];
-        $first = trim($first);
-        return $first !== '' ? $first : 'GET';
+        return explode(',', $verb);
     }
 
     private static function laminasGetRoutesFromStack($stack)
@@ -1113,12 +1111,14 @@ class LaminasIntegration extends Integration
             $qualifiedName = $namePrefix === '' ? (string) $name : $namePrefix . '/' . $name;
             $path = self::httpRouteTemplateFromNamedRouteStack($rootRouter, $qualifiedName);
             if ($path !== null && $path !== '') {
-                $method = self::extractHttpVerbFromRoute($route);
-                $rows[] = [
-                    'path' => $path,
-                    'method' => $method,
-                    'resourceName' => $method . ' ' . $path,
-                ];
+                $methods = self::extractHttpVerbFromRoute($route);
+                foreach ($methods as $m) {
+                    $rows[] = [
+                        'path' => $path,
+                        'method' => $m,
+                        'resourceName' => $m . ' ' . $path,
+                    ];
+                }
             }
             if ($route instanceof \Laminas\Router\Http\Part) {
                 self::laminasMaterializePartChildRoutes($route);

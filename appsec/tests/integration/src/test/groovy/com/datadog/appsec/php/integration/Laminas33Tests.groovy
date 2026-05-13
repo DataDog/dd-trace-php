@@ -81,7 +81,7 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 13
+        assert endpoints.size() == 18
         assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
         assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
         assert endpoints.find { it.path == '/behind-auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind-auth' } != null
@@ -97,6 +97,11 @@ class Laminas33Tests {
         assert endpoints.find { it.path == '/verb-test' && it.method == 'PUT' && it.operationName == 'http.request' && it.resourceName == 'PUT /verb-test' } != null
         assert endpoints.find { it.path == '/verb-test' && it.method == 'PATCH' && it.operationName == 'http.request' && it.resourceName == 'PATCH /verb-test' } != null
         assert endpoints.find { it.path == '/verb-test' && it.method == 'DELETE' && it.operationName == 'http.request' && it.resourceName == 'DELETE /verb-test' } != null
+        assert endpoints.find { it.path == '/multi-verb' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /multi-verb' } != null
+        assert endpoints.find { it.path == '/multi-verb' && it.method == 'HEAD' && it.operationName == 'http.request' && it.resourceName == 'HEAD /multi-verb' } != null
+        assert endpoints.find { it.path == '/multi-verb' && it.method == 'OPTIONS' && it.operationName == 'http.request' && it.resourceName == 'OPTIONS /multi-verb' } != null
+        assert endpoints.find { it.path == '/multi-verb' && it.method == 'POST' && it.operationName == 'http.request' && it.resourceName == 'POST /multi-verb' } != null
+        assert endpoints.find { it.path == '/multi-verb' && it.method == 'PUT' && it.operationName == 'http.request' && it.resourceName == 'PUT /multi-verb' } != null
     }
 
     @Test
