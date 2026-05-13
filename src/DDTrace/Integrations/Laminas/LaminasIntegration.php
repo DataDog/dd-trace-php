@@ -25,6 +25,8 @@ use function DDTrace\remove_hook;
 use function DDTrace\root_span;
 use function DDTrace\trace_method;
 
+use ReflectionProperty;
+
 class LaminasIntegration extends Integration
 {
     const NAME = 'laminas';
@@ -917,14 +919,14 @@ class LaminasIntegration extends Integration
         }
 
         if ($matchedRoute instanceof \Laminas\Router\Http\Literal) {
-            $rp = new \ReflectionProperty($matchedRoute, 'route');
+            $rp = new ReflectionProperty($matchedRoute, 'route');
             $rp->setAccessible(true);
 
             return (string) $rp->getValue($matchedRoute);
         }
 
         if ($matchedRoute instanceof \Laminas\Router\Http\Segment) {
-            $rp = new \ReflectionProperty($matchedRoute, 'parts');
+            $rp = new ReflectionProperty($matchedRoute, 'parts');
             $rp->setAccessible(true);
             $parts = $rp->getValue($matchedRoute);
 
@@ -1043,7 +1045,7 @@ class LaminasIntegration extends Integration
      */
     private static function laminasGetChainRoutes(\Laminas\Router\Http\Chain $chain): iterable
     {
-        $rp = new \ReflectionProperty(\Laminas\Router\Http\Chain::class, 'chainRoutes');
+        $rp = new ReflectionProperty($chain, 'chainRoutes');
         $rp->setAccessible(true);
         $chainRoutes = $rp->getValue($chain);
         if ($chainRoutes !== null) {
@@ -1069,7 +1071,7 @@ class LaminasIntegration extends Integration
         if (!($route instanceof \Laminas\Router\Http\Method)) {
             return ['GET'];
         }
-        $rp = new \ReflectionProperty($route, 'verb');
+        $rp = new ReflectionProperty($route, 'verb');
         $rp->setAccessible(true);
         $verb = strtoupper(trim((string) $rp->getValue($route)));
         return explode(',', $verb);
@@ -1095,7 +1097,7 @@ class LaminasIntegration extends Integration
 
     private static function laminasMaterializePartChildRoutes(\Laminas\Router\Http\Part $part): void
     {
-        $rp = new \ReflectionProperty(\Laminas\Router\Http\Part::class, 'childRoutes');
+        $rp = new ReflectionProperty($part, 'childRoutes');
         $rp->setAccessible(true);
         $childRoutes = $rp->getValue($part);
         if ($childRoutes !== null) {
@@ -1168,7 +1170,7 @@ class LaminasIntegration extends Integration
 
     public static function partRouteBaseTemplate(\Laminas\Router\Http\Part $part): ?string
     {
-        $rp = new \ReflectionProperty($part, 'route');
+        $rp = new ReflectionProperty($part, 'route');
         $rp->setAccessible(true);
         $baseRoute = $rp->getValue($part);
 
