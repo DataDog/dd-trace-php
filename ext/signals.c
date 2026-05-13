@@ -159,8 +159,8 @@ static zend_always_inline zend_string *dd_crasht_find_ini_by_tag(ddog_CharSlice 
     // On PHP 8.0+ these INI should all exist, but guard against the NULL case
     // in case something goes wrong, or this changes in a future version.
     if (UNEXPECTED(!value)) {
-        LOG(WARN,
-            "crashtracker setup failed to find INI \"%.*s\"--is it removed in a newer version?",
+        LOG(DEBUG,
+            "crashtracker setup: INI \"%.*s\" not found (maybe compiled out in this PHP build)",
             (int) ini.len, ini.ptr);
     }
     return value;

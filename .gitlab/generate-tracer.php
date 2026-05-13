@@ -171,9 +171,11 @@ stages:
   variables:
     PHP_MACOS_VERSION: "8.5.7"
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
+    _DD_DEBUG_SIDECAR_LOG_LEVEL: trace
+    _DD_DEBUG_SIDECAR_LOG_METHOD: "file://${CI_PROJECT_DIR}/artifacts/sidecar.log"
   before_script:
     - brew install pkg-config openssl re2c bison libxml2 oniguruma libzip libsodium
-    - mkdir -p /tmp/php-build
+    - mkdir -p /tmp/php-build "${CI_PROJECT_DIR}/artifacts/tests"
     - curl -fL "https://github.com/php/php-src/archive/refs/tags/php-${PHP_MACOS_VERSION}.tar.gz" | tar xz -C /tmp/php-build
     - cd "/tmp/php-build/php-src-php-${PHP_MACOS_VERSION}"
     - ./buildconf --force
@@ -197,9 +199,19 @@ stages:
     - rustup update stable && rustup default stable
   script:
     - export PATH="${PHP_INSTALL_DIR}/bin:${PATH}"
+    - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     - php --version
     - make -j"$(sysctl -n hw.ncpu)"
     - make test_c
+  after_script:
+    - mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
+    - find . -type f \( -name '*.diff' -o -name '*.mem' \) -not -path '*/vendor/*' -exec cp '{}' "${CI_PROJECT_DIR}/artifacts/diffs/" \; || true
+  artifacts:
+    when: always
+    reports:
+      junit: "artifacts/tests/php-tests.xml"
+    paths:
+      - "artifacts/"
 
 
 "Prepare code":
