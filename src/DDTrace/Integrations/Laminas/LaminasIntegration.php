@@ -657,7 +657,7 @@ class LaminasIntegration extends Integration
                     return;
                 }
 
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                     return;
                 }
 
@@ -671,7 +671,8 @@ class LaminasIntegration extends Integration
 
                 $userExists = ($code === \Laminas\Authentication\Result::FAILURE_CREDENTIAL_INVALID);
 
-                \datadog\appsec\track_user_login_failure_event_automated(
+                \datadog\appsec\internal\track_user_login_failure_event_automated(
+                    'laminas',
                     $userLogin,
                     $userLogin,
                     $userExists,
@@ -688,7 +689,7 @@ class LaminasIntegration extends Integration
                 if ($identity === null || $identity === false) {
                     return;
                 }
-                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_authenticated_user_event_automated')) {
                     return;
                 }
 
@@ -697,7 +698,7 @@ class LaminasIntegration extends Integration
                     return;
                 }
 
-                \datadog\appsec\track_authenticated_user_event_automated($userId);
+                \datadog\appsec\internal\track_authenticated_user_event_automated('laminas', $userId);
             }
         );
 
@@ -708,7 +709,7 @@ class LaminasIntegration extends Integration
         \Laminas\Authentication\Result $result,
         $adapter
     ) {
-        if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+        if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
             return;
         }
 
@@ -732,7 +733,8 @@ class LaminasIntegration extends Integration
         $userLogin = self::getUserLogin($identity);
         $metadata = self::getUserMetadata($identity);
 
-        \datadog\appsec\track_user_login_success_event_automated(
+        \datadog\appsec\internal\track_user_login_success_event_automated(
+            'laminas',
             $userLogin,
             $userId,
             $metadata
