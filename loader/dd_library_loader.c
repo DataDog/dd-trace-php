@@ -793,7 +793,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
 
     /**
      * At that point, we don't know if the module will be registered or not by the PHP configuration.
-     * So we register it under the a temporary name, add set an optional dependencies to be sure that
+     * So we register it under a temporary name, and set optional dependencies to be sure that
      * our injected extension will be started up after the real one (if it's loaded!), and finally we
      * wrap the MINIT function to perform our checks there.
      */
@@ -1012,6 +1012,13 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
             }
             ext_config->so_handle = NULL;
         }
+
+        // Make sure to reset everything for simple apache reload
+        ext_config->injection_success = false;
+        ext_config->injection_error = NULL;
+        ext_config->module_number = 0;
+        *ext_config->extra_config = 0;
+        *ext_config->logs = 0;
     }
 
     if (libddtrace_php_handle) {
@@ -1019,6 +1026,9 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
         DL_UNLOAD(libddtrace_php_handle);
         libddtrace_php_handle = NULL;
     }
+
+    injection_forced = false;
+    already_done = false;
 }
 
 // Define fake version information to force the engine to always call ddloader_api_no_check / ddloader_build_id_check
