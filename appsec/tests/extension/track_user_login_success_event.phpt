@@ -30,6 +30,7 @@ print_r(root_span_get_metrics());
 var_dump(\DDTrace\get_priority_sampling());
 ?>
 --EXPECTF--
+Deprecated: Function datadog\appsec\track_user_login_success_event() is deprecated in %s on line %d
 root_span_get_meta():
 Array
 (

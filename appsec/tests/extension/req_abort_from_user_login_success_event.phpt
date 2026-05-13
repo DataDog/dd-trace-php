@@ -23,6 +23,7 @@ $helper = Helper::createInitedRun([
 rinit();
 
 
+error_reporting(E_ALL & ~E_DEPRECATED);
 track_user_login_success_event("Admin",
 [
     "value" => "something",

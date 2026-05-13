@@ -106,9 +106,13 @@ zend_bool try_convert_to_string(zval *op);
 #endif
 
 #if PHP_VERSION_ID < 80000
+/* ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE was added in PHP 8.0 */
 #define ZEND_ARG_TYPE_MASK(pass_by_ref, name, type_mask, default_value) ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value)
 #define ZEND_ARG_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, default_value) ZEND_ARG_INFO(pass_by_ref, name)
-#define ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, type_hint, allow_null, default_value) ZEND_ARG_TYPE_INFO(pass_by_ref, name, type_hint, allow_null)
+#ifndef ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE
+#    define ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(pass_by_ref, name, type_hint, allow_null, default_value) \
+        ZEND_ARG_TYPE_INFO(pass_by_ref, name, type_hint, allow_null)
+#endif
 #define IS_MIXED 0
 #endif
 

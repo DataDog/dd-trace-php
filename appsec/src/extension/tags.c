@@ -16,6 +16,7 @@
 #include "php_objects.h"
 #include "request_lifecycle.h"
 #include "string_helpers.h"
+#include "tags_arginfo.h"
 #include "telemetry.h"
 #include "user_tracking.h"
 #include <SAPI.h>
@@ -963,7 +964,7 @@ static zval *nullable _root_span_get_meta(void)
     return meta;
 }
 
-static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
+PHP_FUNCTION(datadog_appsec_internal_track_user_signup_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1080,7 +1081,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event_automated)
 
 void dd_tags_set_user_event_triggered(void) { _user_event_triggered = true; }
 
-static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
+PHP_FUNCTION(datadog_appsec_track_user_signup_event)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1136,7 +1137,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_signup_event)
     dd_trace_emit_asm_event();
 }
 
-static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
+PHP_FUNCTION(datadog_appsec_internal_track_user_login_success_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1254,7 +1255,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event_automated)
     dd_trace_emit_asm_event();
 }
 
-static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
+PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1314,7 +1315,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_success_event)
     dd_trace_emit_asm_event();
 }
 
-static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
+PHP_FUNCTION(datadog_appsec_internal_track_user_login_failure_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1445,7 +1446,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event_automated)
     dd_trace_emit_asm_event();
 }
 
-static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
+PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1505,7 +1506,7 @@ static PHP_FUNCTION(datadog_appsec_track_user_login_failure_event)
     dd_trace_emit_asm_event();
 }
 
-static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
+PHP_FUNCTION(datadog_appsec_internal_track_authenticated_user_event_automated)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1574,7 +1575,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event_automated)
         dd_get_user_collection_mode_zstr(), true, false);
 }
 
-static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
+PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1619,7 +1620,7 @@ static PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)
     _add_custom_event_metadata(meta_ht, _dd_tag_user, metadata, true);
 }
 
-static PHP_FUNCTION(datadog_appsec_track_custom_event)
+PHP_FUNCTION(datadog_appsec_track_custom_event)
 {
     UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
@@ -1724,72 +1725,6 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(add_ancillary_tags, 0, 1, IS_VOID, 0)
     ZEND_ARG_TYPE_INFO(2, "_server", IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_automated_arginfo, 0, 3, IS_VOID, 4)
-ZEND_ARG_INFO(0, framework)
-ZEND_ARG_INFO(0, user_login)
-ZEND_ARG_INFO(0, user_id)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_success_event_arginfo, 0, 0, IS_VOID, 2)
-ZEND_ARG_INFO(0, user_id)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_signup_event_automated_arginfo, 0, 3, IS_VOID, 4)
-ZEND_ARG_INFO(0, framework)
-ZEND_ARG_INFO(0, user_login)
-ZEND_ARG_INFO(0, user_id)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_signup_event_arginfo, 0, 0, IS_VOID, 2)
-ZEND_ARG_INFO(0, user_id)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_automated_arginfo, 0, 4, IS_VOID, 5)
-ZEND_ARG_INFO(0, framework)
-ZEND_ARG_INFO(0, user_login)
-ZEND_ARG_INFO(0, user_id)
-ZEND_ARG_INFO(0, exists)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_user_login_failure_event_arginfo, 0, 0, IS_VOID, 3)
-ZEND_ARG_INFO(0, user_id)
-ZEND_ARG_INFO(0, exists)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_authenticated_user_event_automated_arginfo, 0, 2, IS_VOID, 2)
-ZEND_ARG_INFO(0, framework)
-ZEND_ARG_INFO(0, user_id)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_authenticated_user_event_arginfo, 0, 0, IS_VOID, 2)
-ZEND_ARG_INFO(0, user_id)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(track_custom_event_arginfo, 0, 0, IS_VOID, 2)
-ZEND_ARG_INFO(0, event_name)
-ZEND_ARG_INFO(0, metadata)
-ZEND_END_ARG_INFO()
-
-static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_user_signup_event_automated", PHP_FN(datadog_appsec_track_user_signup_event_automated), track_user_signup_event_automated_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_signup_event", PHP_FN(datadog_appsec_track_user_signup_event), track_user_signup_event_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_user_login_success_event_automated", PHP_FN(datadog_appsec_track_user_login_success_event_automated), track_user_login_success_event_automated_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_success_event", PHP_FN(datadog_appsec_track_user_login_success_event), track_user_login_success_event_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_user_login_failure_event_automated", PHP_FN(datadog_appsec_track_user_login_failure_event_automated), track_user_login_failure_event_automated_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_user_login_failure_event", PHP_FN(datadog_appsec_track_user_login_failure_event), track_user_login_failure_event_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY("datadog\\appsec\\internal\\track_authenticated_user_event_automated", PHP_FN(datadog_appsec_track_authenticated_user_event_automated), track_authenticated_user_event_automated_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_authenticated_user_event", PHP_FN(datadog_appsec_track_authenticated_user_event), track_authenticated_user_event_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "track_custom_event", PHP_FN(datadog_appsec_track_custom_event), track_custom_event_arginfo, 0, NULL, NULL)
-    PHP_FE_END
-};
-
 static const zend_function_entry test_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "add_all_ancillary_tags", PHP_FN(datadog_appsec_testing_add_all_ancillary_tags), add_ancillary_tags, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "add_basic_ancillary_tags", PHP_FN(datadog_appsec_testing_add_basic_ancillary_tags), add_ancillary_tags, 0, NULL, NULL)
@@ -1797,7 +1732,8 @@ static const zend_function_entry test_functions[] = {
 };
 // clang-format on
 
-static void _register_functions(void) { dd_phpobj_reg_funcs(functions); }
+static void _register_functions(void) { dd_phpobj_reg_funcs(ext_functions); }
+
 static void _register_test_functions(void)
 {
     dd_phpobj_reg_funcs(test_functions);

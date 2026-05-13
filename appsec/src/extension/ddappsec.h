@@ -13,6 +13,7 @@
 #include <stdbool.h>
 
 #include "attributes.h"
+#include "php_compat.h"
 
 typedef enum _enabled_configuration {
     APPSEC_UNSET_STATE = 0,

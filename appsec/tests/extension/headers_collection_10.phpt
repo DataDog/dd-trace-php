@@ -78,6 +78,7 @@ var_dump($headers);
 $helper->finished_with_commands();
 ?>
 --EXPECTF--
+Deprecated: Function datadog\appsec\track_user_login_success_event() is deprecated in %s on line %d
 array(25) {
   ["http.request.headers.accept"]=>
   string(3) "*/*"

@@ -20,7 +20,7 @@
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
 #define APPLY_0(...)
-#define APPLY_1(macro, arg, ...) macro(arg)
+#define APPLY_1(macro, arg) macro(arg)
 #define APPLY_2(macro, arg, ...) macro(arg) APPLY_1(macro, __VA_ARGS__)
 #define APPLY_3(macro, arg, ...) macro(arg) APPLY_2(macro, __VA_ARGS__)
 #define APPLY_4(macro, arg, ...) macro(arg) APPLY_3(macro, __VA_ARGS__)
