@@ -46,6 +46,10 @@ pub struct ddog_Option_Error__bindgen_ty_1__bindgen_ty_1 {
     pub some: ddog_Error,
 }
 pub type ddog_MaybeError = ddog_Option_Error;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_GAUGE: ddog_MetricType = 0;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_COUNT: ddog_MetricType = 1;
+pub const ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION: ddog_MetricType = 2;
+pub type ddog_MetricType = ::core::ffi::c_uint;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_TRACERS: ddog_MetricNamespace = 0;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_PROFILERS: ddog_MetricNamespace = 1;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_RUM: ddog_MetricNamespace = 2;
@@ -58,10 +62,6 @@ pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_TELEMETRY: ddog_MetricNames
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_APM: ddog_MetricNamespace = 9;
 pub const ddog_MetricNamespace_DDOG_METRIC_NAMESPACE_SIDECAR: ddog_MetricNamespace = 10;
 pub type ddog_MetricNamespace = ::core::ffi::c_uint;
-pub const ddog_MetricType_DDOG_METRIC_TYPE_GAUGE: ddog_MetricType = 0;
-pub const ddog_MetricType_DDOG_METRIC_TYPE_COUNT: ddog_MetricType = 1;
-pub const ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION: ddog_MetricType = 2;
-pub type ddog_MetricType = ::core::ffi::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct ddog_SidecarTransport {
@@ -83,13 +83,14 @@ pub type ddog_OnMessageFn = ::core::option::Option<
     unsafe extern "C" fn(
         arg1: *const ::core::ffi::c_char,
         arg2: usize,
-        arg3: u64,
+        arg3: *mut u64,
         arg4: *const u8,
         arg5: usize,
     ) -> ddog_AppsecCResponse,
 >;
-pub type ddog_OnDisconnectFn =
-    ::core::option::Option<unsafe extern "C" fn(arg1: *const ::core::ffi::c_char, arg2: usize)>;
+pub type ddog_OnDisconnectFn = ::core::option::Option<
+    unsafe extern "C" fn(arg1: *const ::core::ffi::c_char, arg2: usize, arg3: u64),
+>;
 pub type ddog_FreeResponseFn =
     ::core::option::Option<unsafe extern "C" fn(arg1: *mut u8, arg2: usize, arg3: usize)>;
 unsafe extern "C" {
@@ -150,7 +151,7 @@ unsafe extern "C" {
     pub fn ddog_sidecar_send_appsec_message(
         transport: *mut *mut ddog_SidecarTransport,
         session_id: ddog_CharSlice,
-        thread_id: u64,
+        client_id: u64,
         data: ddog_CharSlice,
     ) -> ddog_AppsecCResponse;
 }

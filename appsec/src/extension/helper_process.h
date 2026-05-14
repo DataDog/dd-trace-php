@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #include "attributes.h"
+#include "ddappsec.h"
 #include "dddefs.h"
 #include "network.h"
 
@@ -29,13 +30,13 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
 
 void dd_helper_startup(void);
 void dd_helper_shutdown(void);
-void dd_helper_gshutdown(void);
+void dd_helper_gshutdown(zend_ddappsec_globals *nonnull globals);
 void dd_helper_rshutdown(void);
 
 typedef dd_result (*client_init_func)(dd_conn *nonnull, void *unspecnull ctx);
 dd_conn *nullable dd_helper_mgr_acquire_conn(
     client_init_func nonnull, void *unspecnull ctx);
 dd_conn *nullable dd_helper_mgr_cur_conn(void);
-void dd_helper_close_conn(void);
+void dd_helper_close_conn(bool goodbye, const char *nullable error, size_t error_len);
 
 #endif // DD_HELPER_MGR_H

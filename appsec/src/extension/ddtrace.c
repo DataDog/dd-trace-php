@@ -48,8 +48,13 @@ static void _register_testing_objects(void);
 
 static const uint8_t *(*nullable _ddtrace_get_formatted_session_id)(void);
 static uint64_t (*nullable _ddtrace_get_sidecar_queue_id)(void);
+#ifdef ZTS
+static ddog_SidecarTransport *nullable *nonnull (
+    *nullable _ddtrace_get_sidecar_transport)(void *nullable tsrm_ls);
+#else
 static ddog_SidecarTransport *nullable *nonnull (
     *nullable _ddtrace_get_sidecar_transport)(void);
+#endif
 static zend_object *(*nullable _ddtrace_get_root_span)(void);
 static void (*nullable _ddtrace_close_all_spans_and_flush)(void);
 static void (*nullable _ddtrace_set_priority_sampling_on_span_zobj)(
@@ -71,7 +76,8 @@ static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
     ddog_SidecarTransport *nonnull *nonnull transport,
-    ddog_CharSlice session_id, uint64_t client_id, ddog_CharSlice data);
+    ddog_CharSlice session_id, uint64_t client_id,
+    ddog_CharSlice data);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
 
@@ -388,8 +394,14 @@ uint64_t dd_trace_get_sidecar_queue_id(void)
     return _ddtrace_get_sidecar_queue_id();
 }
 
+#ifdef ZTS
+ddog_AppsecCResponse dd_trace_send_appsec_message(
+    uint64_t client_id, void *nullable tsrm_ls,
+    const uint8_t *nonnull request, size_t request_len)
+#else
 ddog_AppsecCResponse dd_trace_send_appsec_message(
     uint64_t client_id, const uint8_t *nonnull request, size_t request_len)
+#endif
 {
 #ifdef TESTING
     if (dd_testing_send_active) {
@@ -409,7 +421,11 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
         return (ddog_AppsecCResponse){0};
     }
 
+#ifdef ZTS
+    ddog_SidecarTransport *nullable sidecar = *_ddtrace_get_sidecar_transport(tsrm_ls);
+#else
     ddog_SidecarTransport *nullable sidecar = *_ddtrace_get_sidecar_transport();
+#endif
 
     if (sidecar == NULL) {
         mlog_once(dd_log_warning,

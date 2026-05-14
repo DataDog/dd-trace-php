@@ -4,10 +4,9 @@ use std::backtrace::Backtrace;
 use std::borrow::Cow;
 use std::cell::Cell;
 
-use super::{LogLevel, TelemetryLog, TelemetryTags};
+use super::{LogLevel, TelemetryLog, TelemetryLogSubmitter, TelemetryTags};
 use crate::client::log::ANYHOW_BACKTRACE_KEY;
 use crate::telemetry::error_tel_ctx::get_context_log_submitter;
-use crate::telemetry::TelemetryLogSubmitter;
 
 /// A composite logger that dispatches to the primary logger
 /// and submits error-level logs to telemetry.
@@ -94,6 +93,14 @@ fn submit_error_to_telemetry(record: &Record) {
         return;
     };
 
+    if should_rate_limit() {
+        return;
+    }
+
+    let Some(mut submitter) = get_context_log_submitter() else {
+        return;
+    };
+
     let mut tags = TelemetryTags::new();
     tags.add("log_type", "helper::logged_error");
     if let Some(module) = record.module_path() {
@@ -110,12 +117,7 @@ fn submit_error_to_telemetry(record: &Record) {
         Cow::Borrowed("unknown")
     };
 
-    if should_rate_limit() {
-        return;
-    }
-
     let stack_trace = extract_anyhow_backtrace(record).or_else(|| {
-        // Fall back to capturing backtrace at the logger (less useful but better than nothing)
         let backtrace = Backtrace::force_capture();
         match backtrace.status() {
             std::backtrace::BacktraceStatus::Captured => Some(backtrace.to_string()),
@@ -132,7 +134,6 @@ fn submit_error_to_telemetry(record: &Record) {
         is_sensitive: false,
     };
 
-    let mut submitter = get_context_log_submitter();
     submitter.submit_log(log);
 }
 

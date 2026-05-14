@@ -1245,13 +1245,11 @@ class TelemetryTests {
         assert configError.namespace == 'appsec'
         assert 'event_rules_version:9.9.9' in configError.tags
         assert 'config_key:rules' in configError.tags
-        if (useRust) {
-            assert 'action:init' in configError.tags
+        assert 'action:init' in configError.tags
 
-            assert bundledDiagLog != null : 'Expected diagnostic log for bundled rules init errors'
-            assert bundledDiagLog.level == 'ERROR'
-            assert bundledDiagLog.tags?.contains('rc_config_id:bundled_rules')
-            assert bundledDiagLog.message == "{\"missing key 'conditions'\":[\"bad-rule\"]}"
-        }
+        assert bundledDiagLog != null : 'Expected diagnostic log for bundled rules init errors'
+        assert bundledDiagLog.level == 'ERROR'
+        assert bundledDiagLog.tags?.contains('rc_config_id:bundled_rules')
+        assert bundledDiagLog.message == "{\"missing key 'conditions'\":[\"bad-rule\"]}"
     }
 }

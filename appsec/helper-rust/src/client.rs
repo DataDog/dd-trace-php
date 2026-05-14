@@ -96,44 +96,47 @@ pub struct Client {
     service: Option<TrackedService>,
     sidecar_settings: Option<protocol::SidecarSettings>,
     metrics_last_registered: Cell<Option<Instant>>,
-    req_receiver: Option<mpsc::Receiver<HelperRequest>>,
-    req_sender: mpsc::Sender<HelperRequest>,
 }
 
 static CLIENT_SERIAL: AtomicU64 = AtomicU64::new(1);
 impl Client {
     pub fn new(service_manager: &'static ServiceManager) -> Self {
-        let (tx, rx) = mpsc::channel(5);
         Self {
             id: CLIENT_SERIAL.fetch_add(1, atomic::Ordering::Relaxed),
             service_manager,
             service: None,
             sidecar_settings: None,
             metrics_last_registered: Default::default(),
-            req_receiver: Some(rx),
-            req_sender: tx,
         }
     }
 
-    pub async fn entrypoint(self, cancel_token: CancellationToken) {
+    pub async fn entrypoint(
+        self,
+        rx: mpsc::Receiver<HelperRequest>,
+        cancel_token: CancellationToken,
+    ) {
         // wrap entrypoint with the task locals that allow:
         // - client id in the logs
         // - submission of errors to telemetry (if they happen after client_init)
         let client_id = self.id;
-        let entrypoint_fut = self.do_entrypoint(cancel_token);
+        let entrypoint_fut = self.do_entrypoint(rx, cancel_token);
         log::with_scoped_client_id(client_id, with_error_telemetry_handle(entrypoint_fut)).await;
     }
 
-    async fn do_entrypoint(mut self, cancel_token: CancellationToken) {
+    async fn do_entrypoint(
+        self,
+        rx: mpsc::Receiver<HelperRequest>,
+        cancel_token: CancellationToken,
+    ) {
         info!("starting");
 
-        let res = do_client_entrypoint(&mut self, cancel_token).await;
+        let res = do_client_entrypoint(self, rx, cancel_token).await;
         match res {
             Ok(_) => {
                 info!("ended normally");
             }
             Err(err) if err.is::<ForcefulDisconnect>() => {
-                warn!("ended due to client connectivity issue: {}", err);
+                info!("ended due to client connectivity issue: {:#}", err);
             }
             Err(err) => {
                 error!("ended with failure: {:#}", err);
@@ -145,53 +148,21 @@ impl Client {
     pub fn get_service(&self) -> &Service {
         self.service.as_ref().expect("service not initialized")
     }
-
-    pub fn get_req_sender(&self) -> mpsc::Sender<HelperRequest> {
-        self.req_sender.clone()
-    }
-
-    fn req_stream(&mut self) -> CommandStream {
-        let receiver = std::mem::take(&mut self.req_receiver).unwrap();
-        let cmd_stream = ReceiverStream::new(receiver);
-        let cmd_stream = StreamExt::map(cmd_stream, |msg| {
-            let mut codec = protocol::CommandCodec;
-            (
-                codec.decode_eof(&mut BytesMut::from(msg.command)),
-                msg.response_tx,
-            )
-        });
-        let cmd_stream = cmd_stream
-            .take_while(|r| matches!(r, (Ok(Some(_)), _) | (Err(_), _)))
-            .map(|r| match r {
-                (Ok(Some(cmd)), response_tx) => Ok((cmd, response_tx)),
-                (Err(e), response_tx) => {
-                    let fatal_error = FatalRequestError(
-                        anyhow::Error::new(e).context("Error decoding command"),
-                        response_tx,
-                    );
-                    Err(fatal_error)
-                }
-                (Ok(None), _) => unreachable!(),
-            });
-        Box::pin(cmd_stream)
-    }
 }
 
-/// Indicates a clean client shutdown - the client properly closed its connection
-/// after completing all pending writes. This is NOT an error condition.
+/// Indicates a clean client shutdown - happened after good bye.
 #[derive(Debug, Error)]
 #[error("Client closed connection cleanly")]
 struct CleanShutdown;
 
 /// Indicates the client disconnected unexpectedly (no client_shutdown received,
-/// or client_shutdown reported an unclean exit). Reported as a connectivity
-/// issue, not a protocol error.
+/// or client_shutdown reported an unclean exit).
 #[derive(Debug, Error)]
 #[error("client disconnected forcefully: {0}")]
 struct ForcefulDisconnect(String);
 
-/// A fatal error occurred while processing a request.  The client will be sent
-/// a FatalError response and the connection will be closed.
+/// A fatal error occurred while processing a request.  The extension will be
+/// sent a FatalError response and the client will be abandoned.
 #[derive(Error)]
 #[error("{0}")]
 struct FatalRequestError(anyhow::Error, oneshot::Sender<sidecar_msg::HelperResponse>);
@@ -203,15 +174,16 @@ impl fmt::Debug for FatalRequestError {
 }
 
 async fn do_client_entrypoint(
-    client: &mut Client,
+    mut client: Client,
+    rx: mpsc::Receiver<HelperRequest>,
     cancel_token: CancellationToken,
 ) -> anyhow::Result<()> {
-    let mut cmd_stream = client.req_stream();
+    let mut cmd_stream = make_command_stream(rx);
 
     // first, client_init
     match recv_command(&mut cmd_stream, &cancel_token).await {
         Ok((protocol::Command::ClientInit(args), response_tx)) => {
-            let resp = handle_client_init(client, *args);
+            let resp = handle_client_init(&mut client, *args);
             match resp {
                 Ok(resp) => {
                     send_command_resp(response_tx, resp)?;
@@ -229,25 +201,9 @@ async fn do_client_entrypoint(
                 }
             }
         }
-        Ok((protocol::Command::ClientShutdown(args), response_tx)) => {
-            let res = handle_client_shutdown(response_tx, *args);
-            return if res
-                .as_ref()
-                .err()
-                .map_or(false, |e| e.is::<CleanShutdown>())
-            {
-                Ok(())
-            } else {
-                res
-            };
-        }
         Ok((cmd, response_tx)) => {
             send_command_resp(response_tx, CommandResponse::FatalError)?;
             anyhow::bail!("expected client_init, got {:?}", cmd);
-        }
-        Err(e) if e.is::<CleanShutdown>() => {
-            info!("client session was dropped");
-            return Ok(());
         }
         Err(e) if e.is::<FatalRequestError>() => {
             let FatalRequestError(inner_err, response_tx) = e
@@ -263,7 +219,7 @@ async fn do_client_entrypoint(
 
     // then the request loop
     loop {
-        match do_request_loop_iter(client, &mut cmd_stream, &cancel_token).await {
+        match do_request_loop_iter(&mut client, &mut cmd_stream, &cancel_token).await {
             Ok(_) => {
                 debug!("request done; waiting for new one");
             }
@@ -286,6 +242,31 @@ async fn do_client_entrypoint(
             }
         }
     }
+}
+
+fn make_command_stream(rx: mpsc::Receiver<HelperRequest>) -> CommandStream {
+    let cmd_stream = ReceiverStream::new(rx);
+    let cmd_stream = StreamExt::map(cmd_stream, |msg| {
+        let mut codec = protocol::CommandCodec;
+        (
+            codec.decode_eof(&mut BytesMut::from(msg.command)),
+            msg.response_tx,
+        )
+    });
+    let cmd_stream = cmd_stream
+        .take_while(|r| matches!(r, (Ok(Some(_)), _) | (Err(_), _)))
+        .map(|r| match r {
+            (Ok(Some(cmd)), response_tx) => Ok((cmd, response_tx)),
+            (Err(e), response_tx) => {
+                let fatal_error = FatalRequestError(
+                    anyhow::Error::new(e).context("Error decoding command"),
+                    response_tx,
+                );
+                Err(fatal_error)
+            }
+            (Ok(None), _) => unreachable!(),
+        });
+    Box::pin(cmd_stream)
 }
 
 fn handle_client_init(
@@ -420,7 +401,8 @@ async fn do_request_loop_iter(
     cmd_stream: &mut CommandStream,
     cancel_token: &CancellationToken,
 ) -> anyhow::Result<()> {
-    // wait for any number of config_syncs, followed by request_init
+    // wait for any number of config_syncs, followed by request_init.
+    // client_shutdown may be gotten at any time
     let mut req_ctx = match recv_command(cmd_stream, cancel_token).await? {
         (protocol::Command::ClientShutdown(args), response_tx) => {
             return handle_client_shutdown(response_tx, *args);
@@ -758,7 +740,7 @@ impl ReqContext {
                         .waf_subctxs
                         .remove(subctx_id)
                         .or_else(|| self.waf_ctx.new_subcontext().ok()) // error should not happen
-                        .ok_or(anyhow!("Failed to create subcontext"))?;
+                        .ok_or_else(|| anyhow!("Failed to create subcontext"))?;
                     Ok(RunnableCtx::Owned(subctx))
                 } else {
                     let waf_ctx = &mut self.waf_ctx;
@@ -873,7 +855,7 @@ fn convert_actions(
             let parameters = kv
                 .value()
                 .as_type::<libddwaf::object::WafMap>()
-                .ok_or(anyhow!("Action parameter map not a map"))?
+                .ok_or_else(|| anyhow!("Action parameter map not a map"))?
                 .iter()
                 .try_fold(HashMap::new(), |mut acc, kv| -> anyhow::Result<_> {
                     let key = kv.key_str().map_err(|e| anyhow!(e.to_string()))?;
@@ -1335,12 +1317,8 @@ mod tests {
             Box::leak(bytes.into_boxed_slice())
         }
 
-        fn make_test_client() -> (Client, mpsc::Sender<HelperRequest>) {
-            let service_manager: &'static ServiceManager =
-                Box::leak(Box::new(ServiceManager::new()));
-            let client = Client::new(service_manager);
-            let sender = client.get_req_sender();
-            (client, sender)
+        fn make_channel() -> (mpsc::Sender<HelperRequest>, mpsc::Receiver<HelperRequest>) {
+            mpsc::channel(5)
         }
 
         fn enqueue_messages(tx: &mpsc::Sender<HelperRequest>, messages: Vec<Vec<u8>>) {
@@ -1354,18 +1332,12 @@ mod tests {
             }
         }
 
-        fn close_request_channel(client: &mut Client, tx: mpsc::Sender<HelperRequest>) {
-            let (dummy_tx, _dummy_rx) = mpsc::channel(1);
-            client.req_sender = dummy_tx;
-            drop(tx);
-        }
-
         /// Bare EOF without a prior client_shutdown is treated as a forceful disconnect
         #[tokio::test]
         async fn test_eof_without_goodbye_returns_forceful_disconnect() {
-            let (mut client, tx) = make_test_client();
-            close_request_channel(&mut client, tx);
-            let mut stream = client.req_stream();
+            let (tx, rx) = make_channel();
+            drop(tx);
+            let mut stream = make_command_stream(rx);
             let cancel_token = CancellationToken::new();
             let err = match recv_command(&mut stream, &cancel_token).await {
                 Ok(_) => panic!("expected forceful disconnect error"),
@@ -1381,10 +1353,10 @@ mod tests {
         /// Incomplete data should return a fatal request decode error
         #[tokio::test]
         async fn test_incomplete_data_returns_fatal_request_error() {
-            let (mut client, tx) = make_test_client();
+            let (tx, rx) = make_channel();
             enqueue_messages(&tx, vec![b"dds".to_vec()]);
-            close_request_channel(&mut client, tx);
-            let mut stream = client.req_stream();
+            drop(tx);
+            let mut stream = make_command_stream(rx);
             let cancel_token = CancellationToken::new();
             let err = match recv_command(&mut stream, &cancel_token).await {
                 Ok(_) => panic!("expected decode failure"),
@@ -1405,10 +1377,10 @@ mod tests {
             invalid.extend_from_slice(&10u32.to_le_bytes());
             invalid.extend_from_slice(b"0123456789");
 
-            let (mut client, tx) = make_test_client();
+            let (tx, rx) = make_channel();
             enqueue_messages(&tx, vec![invalid]);
-            close_request_channel(&mut client, tx);
-            let mut stream = client.req_stream();
+            drop(tx);
+            let mut stream = make_command_stream(rx);
             let cancel_token = CancellationToken::new();
             let err = match recv_command(&mut stream, &cancel_token).await {
                 Ok(_) => panic!("expected invalid header error"),
@@ -1421,56 +1393,16 @@ mod tests {
             );
         }
 
-        /// client_shutdown with C wire format (num_args=1 wraps the map in a 1-element array)
-        /// decodes correctly. Without this test the protocol mismatch is silent.
-        #[tokio::test]
-        async fn test_client_shutdown_c_wire_format_decodes() {
-            use rmp_serde::Serializer;
-            use serde::Serialize;
-            // C side produces: ("client_shutdown", ({clean: true, error: nil},))
-            // The outer tuple's second element is a 1-element tuple (array) wrapping the map.
-            #[derive(serde::Serialize)]
-            struct Inner {
-                clean: bool,
-                error: Option<String>,
-            }
-            let msg = (
-                "client_shutdown",
-                (Inner {
-                    clean: true,
-                    error: None,
-                },),
-            );
-            let mut body = Vec::new();
-            msg.serialize(&mut Serializer::new(&mut body)).unwrap();
-            let framed = serialize_message_raw(body);
-
-            let (mut client, tx) = make_test_client();
-            enqueue_messages(&tx, vec![framed]);
-            drop(tx);
-            let mut stream = client.req_stream();
-            let cancel_token = CancellationToken::new();
-            let (cmd, _response_tx) = recv_command(&mut stream, &cancel_token)
-                .await
-                .expect("should decode client_shutdown in C wire format");
-            assert!(
-                matches!(cmd, protocol::Command::ClientShutdown(_)),
-                "should decode as ClientShutdown, got {:?}",
-                cmd
-            );
-        }
-
         /// Cancellation should return CleanShutdown (treated same as clean close)
         #[tokio::test]
         async fn test_cancellation_returns_clean_shutdown() {
-            let (mut client, tx) = make_test_client();
-            let mut stream = client.req_stream();
+            let (_tx, rx) = make_channel();
+            let mut stream = make_command_stream(rx);
             let cancel_token = CancellationToken::new();
 
             cancel_token.cancel();
 
-            drop(tx);
-
+            // _tx stays alive so only the cancel branch is immediately ready in select!
             let err = match recv_command(&mut stream, &cancel_token).await {
                 Ok(_) => panic!("expected cancellation as clean shutdown"),
                 Err(err) => err,

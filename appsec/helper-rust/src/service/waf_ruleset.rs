@@ -78,7 +78,7 @@ fn get_default_rules_file() -> anyhow::Result<PathBuf> {
     let base_path: PathBuf = if let Ok(helper_path) = helper_path {
         helper_path
             .parent()
-            .ok_or(anyhow!("No parent for {:?}", helper_path))?
+            .ok_or_else(|| anyhow!("No parent for {:?}", helper_path))?
             .to_path_buf()
     } else {
         get_self_path().with_context(|| "Could find neither lib path nor self exe path")?

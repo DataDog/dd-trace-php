@@ -12,6 +12,7 @@
 #include <sys/uio.h>
 
 #define HELPER_PROCESS_C_INCLUDES
+#include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
 #include "logging.h"
@@ -60,7 +61,7 @@ dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
     if (data_len_out > UINT32_MAX) {
         mlog(dd_log_warning, "Outgoing appsec message too large: %zu",
             data_len_out);
-        return dd_error;
+        return dd_helper_say_goobye;
     }
 
     size_t total_len = sizeof(dd_header) + data_len_out;
@@ -77,29 +78,53 @@ dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
         writep += iov->iov_len;
     }
 
+#ifdef ZTS
+    ddog_AppsecCResponse response = dd_trace_send_appsec_message(
+        conn->client_id, DDAPPSEC_G(ts_ls_cache),
+        (const uint8_t *)req, total_len);
+#else
     ddog_AppsecCResponse response = dd_trace_send_appsec_message(
         conn->client_id, (const uint8_t *)req, total_len);
+#endif
     efree(req);
+
+    dd_result ret;
+
+    if (response.disconnect) {
+        mlog(dd_log_warning, "Helper has responded with an error indicating we "
+                             "need to redo client_init (abandon client id %"
+                            PRIu64 ")", conn->client_id);
+        // in this case, the helper indicated it's abandoned the client already,
+        // so we can't send the goodbye
+        ret = dd_helper_fatal;
+        goto error;
+    }
 
     if (response.ptr == NULL) {
         mlog(dd_log_info, "Empty result from dd_trace_send_appsec_message");
+        // if the response is empty, that indicates some serious problem with
+        // the helper, so we won't try to send the goodbye
+        ret = dd_helper_fatal;
         goto error;
     }
 
     if (response.len < sizeof(dd_header)) {
         mlog(dd_log_warning, "Helper response is too short: %zu", response.len);
+        ret = dd_helper_say_goobye;
         goto error;
     }
     dd_header h;
     memcpy(&h, response.ptr, sizeof(h));
     if (memcmp(h.code, "dds", 4) != 0) {
         mlog(dd_log_warning, "Helper response has invalid magic: %s", h.code);
+        ret = dd_helper_say_goobye;
         goto error;
     }
 
     if (h.size > MAX_RECV_MESSAGE_SIZE) {
         mlog(dd_log_warning,
             "Helper response exceed the maximum size: %" PRIu32, h.size);
+        ret = dd_helper_say_goobye;
         goto error;
     }
     size_t expected_size = sizeof(dd_header) + h.size;
@@ -107,12 +132,7 @@ dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
         mlog(dd_log_warning,
             "Helper response length mismatch: expected %zu, got %zu",
             expected_size, response.len);
-        goto error;
-    }
-
-    if (response.disconnect) {
-        mlog(dd_log_warning, "Helper has responded with an error indicating we "
-                             "need to redo client_init on the next request");
+        ret = dd_helper_say_goobye;
         goto error;
     }
 
@@ -127,7 +147,7 @@ error:
     if (response.ptr != NULL) {
         dd_trace_free_appsec_message_response(response);
     }
-    return dd_network;
+    return ret;
 }
 
 void dd_helper_response_destroy(dd_helper_response *nonnull response)

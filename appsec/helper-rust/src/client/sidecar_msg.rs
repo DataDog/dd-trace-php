@@ -15,7 +15,7 @@ type ClientId = u64;
 type NewClientFn = Box<dyn Fn(SessionId) -> (mpsc::Sender<HelperRequest>, ClientId) + Send + Sync>;
 type SessionId = Vec<u8>;
 
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub(crate) struct ClientKey {
     // session id is not strictly necessary, but could help with troubleshooting
     pub session_id: SessionId,
@@ -94,16 +94,23 @@ pub enum HelperResponse {
 extern "C" fn on_message(
     session_id_ptr: *const libc::c_char,
     session_id_len: usize,
-    client_id: ClientId,
+    client_id: *mut ClientId,
     data_ptr: *const u8,
     data_len: usize,
 ) -> sidecar_ffi::ddog_AppsecCResponse {
+    // SAFETY: sidecar guarantees client_id is valid and aligned for the duration of this call
+    let orig_client_id = unsafe { *client_id };
     let session_id =
         unsafe { std::slice::from_raw_parts(session_id_ptr as *const u8, session_id_len) };
     let data = unsafe { std::slice::from_raw_parts(data_ptr, data_len) };
-    let res = on_message_impl(session_id, client_id, data);
+    let res = on_message_impl(session_id, orig_client_id, data);
     match res {
-        Ok(HelperResponse::Data(data)) => {
+        Ok((resolved_id, HelperResponse::Data(data))) => {
+            if orig_client_id == 0 {
+                // SAFETY: same guarantee as above
+                unsafe { *client_id = resolved_id };
+            }
+
             let mut data = std::mem::ManuallyDrop::new(data);
             let (ptr, len, capacity) = (data.as_mut_ptr(), data.len(), data.capacity());
             sidecar_ffi::ddog_AppsecCResponse {
@@ -113,16 +120,16 @@ extern "C" fn on_message(
                 disconnect: false,
             }
         }
-        Ok(HelperResponse::Reinitialize(data)) => {
+        Ok((_, HelperResponse::Reinitialize(data))) => {
             // The extension will redo client init on next request.
             // Destroy our client task as well by destroying the sender
             // task will get an eof
             // In general, the task will also exit, and deregister itself from
             // the client list, so this is just a safety fallback
-            if client_id != 0 {
+            if orig_client_id != 0 {
                 remove_client_bookkeeping(&ClientKey {
                     session_id: session_id.to_vec(),
-                    client_id,
+                    client_id: orig_client_id,
                 });
             }
 
@@ -140,7 +147,8 @@ extern "C" fn on_message(
             match e.downcast_ref::<OnMessageError>() {
                 Some(OnMessageError::ShuttingDown) => {
                     info!(
-                        "Dropping message during shutdown (session={session}, client_id={client_id})"
+                        "Dropping message during shutdown (session={session}, \
+                        client_id={orig_client_id})"
                     );
                 }
                 Some(
@@ -150,28 +158,30 @@ extern "C" fn on_message(
                     | OnMessageError::RecvClosed { .. },
                 ) => {
                     error!(
-                        "Could not obtain response from client task (session={}, thread={}): {}",
-                        session, client_id, e
+                        "Could not obtain response from client task (session={}, thread={}): {:#}",
+                        session, orig_client_id, e
                     );
                 }
                 Some(OnMessageError::RuntimeHandleUnavailable) => {
                     error!(
                         "Callback runtime not initialized (session={}, client_id={})",
-                        session, client_id
+                        session, orig_client_id
                     );
                 }
                 None => {
                     error!(
                         "Could not obtain response from client task (session={}, thread={}): {:#}",
-                        session, client_id, e
+                        session, orig_client_id, e
                     );
                 }
             }
 
-            remove_client_bookkeeping(&ClientKey {
-                session_id: session_id.to_vec(),
-                client_id,
-            });
+            if orig_client_id != 0 {
+                remove_client_bookkeeping(&ClientKey {
+                    session_id: session_id.to_vec(),
+                    client_id: orig_client_id,
+                });
+            }
 
             use tokio_util::codec::Encoder;
             let encoded = {
@@ -180,7 +190,7 @@ extern "C" fn on_message(
                     Ok(()) => buf.to_vec(),
                     Err(encode_err) => {
                         error!(
-                            "Could not encode fatal response after client failure: {}",
+                            "Could not encode fatal response after client failure: {:#}",
                             encode_err
                         );
                         Vec::new()
@@ -201,10 +211,10 @@ extern "C" fn on_message(
 
 fn on_message_impl(
     session_id: &[u8],
-    client_id: u64,
+    client_id: ClientId,
     command: &'static [u8],
-) -> anyhow::Result<HelperResponse> {
-    let request_tx = sender_for_client(ClientKey {
+) -> anyhow::Result<(ClientId, HelperResponse)> {
+    let (request_tx, resolved_id) = sender_for_client(ClientKey {
         session_id: session_id.to_vec(),
         client_id,
     })
@@ -248,7 +258,7 @@ fn on_message_impl(
                 })
             })?;
 
-        Ok(response)
+        Ok((resolved_id, response))
     })
 }
 
@@ -256,14 +266,15 @@ fn callback_runtime_handle() -> Option<&'static tokio::runtime::Handle> {
     CALLBACK_RT_HANDLE.get()
 }
 
-fn sender_for_client(key: ClientKey) -> Option<mpsc::Sender<HelperRequest>> {
+fn sender_for_client(key: ClientKey) -> Option<(mpsc::Sender<HelperRequest>, ClientId)> {
     if key.requesting_new_client() {
         return channel_for_new_client(key.session_id);
     }
 
+    let client_id = key.client_id;
     let clients = CLIENTS.lock().expect("CLIENTS not initialized");
     match clients.get(&key) {
-        Some(sender) => Some(sender.clone()),
+        Some(sender) => Some((sender.clone(), client_id)),
         None => {
             warning!("Client for {key:?} not found",);
             None
@@ -272,7 +283,9 @@ fn sender_for_client(key: ClientKey) -> Option<mpsc::Sender<HelperRequest>> {
 }
 
 // Creates a new client and adds it to the client list
-fn channel_for_new_client(session_id: SessionId) -> Option<mpsc::Sender<HelperRequest>> {
+fn channel_for_new_client(
+    session_id: SessionId,
+) -> Option<(mpsc::Sender<HelperRequest>, ClientId)> {
     let new_client = NEW_CLIENT.read().expect("NEW_CLIENT not initialized");
     if new_client.is_none() {
         info!("No new clients accepted (we're shutting down)");
@@ -287,30 +300,63 @@ fn channel_for_new_client(session_id: SessionId) -> Option<mpsc::Sender<HelperRe
         },
         sender.clone(),
     );
-    Some(sender)
+    Some((sender, client_id))
 }
 
 // This will also force the client to exit by destroying the sending part of
 // the client channel
 pub(crate) fn remove_client_bookkeeping(key: &ClientKey) {
-    info!("Destroying client for {key:?}");
     let mut sessions = CLIENTS.lock().expect("CLIENTS not initialized");
     if sessions.remove(key).is_none() {
-        debug!("Client for {key:?} not found, nothing to destroy");
+        // normal if the client disconnected -> bookkeeping was removed ->
+        // Forceful disconnect -> client exits -> tries to remove bookkeeping again
+        debug!("Client booking for {key:?} not found");
+    } else {
+        debug!(
+            "Client bookkeeping for {key:?} removed, \
+               if client is still running it will trigger a ForcefulDisconnect and exit"
+        );
     }
 }
 
-extern "C" fn on_disconnect(session_id_ptr: *const c_char, session_id_len: usize) {
+extern "C" fn on_disconnect(
+    session_id_ptr: *const c_char,
+    session_id_len: usize,
+    client_id: ClientId,
+) {
     let session_id =
         unsafe { std::slice::from_raw_parts(session_id_ptr as *const u8, session_id_len) };
     debug!(
-        "Disconnecting notification from sidecar for session: {}",
-        String::from_utf8_lossy(session_id)
+        "Disconnect notification from sidecar: session={}, client_id={}",
+        String::from_utf8_lossy(session_id),
+        client_id,
     );
-    // Remove all (session_id, client_id) entries for this session — in ZTS
-    // there may be one per worker thread.
-    let mut sessions = CLIENTS.lock().expect("CLIENTS not initialized");
-    sessions.retain(|key, _| key.session_id != session_id);
+    if client_id == 0 {
+        debug!(
+            "Session-wide sweep: removing all clients for session {}",
+            String::from_utf8_lossy(session_id)
+        );
+        // Session-wide sweep: remove all clients for this session.
+        // Sent by the sidecar as a failsafe when the session is torn down,
+        // catching any client entries that per-client notifications missed.
+        // Collect keys first and release the lock before calling
+        // remove_client_bookkeeping, which also needs to acquire CLIENTS.
+        let keys_to_remove: Vec<ClientKey> = CLIENTS
+            .lock()
+            .expect("CLIENTS not initialized")
+            .keys()
+            .filter(|key| key.session_id == session_id)
+            .cloned()
+            .collect();
+        for key in &keys_to_remove {
+            remove_client_bookkeeping(key);
+        }
+        return;
+    }
+    remove_client_bookkeeping(&ClientKey {
+        session_id: session_id.to_vec(),
+        client_id,
+    });
 }
 
 extern "C" fn free_response(ptr: *mut u8, len: usize, capacity: usize) {
@@ -409,17 +455,17 @@ mod tests {
             (tx, id)
         }));
 
-        let first = sender_for_client(ClientKey {
+        let (first, _) = sender_for_client(ClientKey {
             session_id: b"sess-a".to_vec(),
             client_id: 0,
         })
         .expect("first sender should exist");
-        let second = sender_for_client(ClientKey {
+        let (second, _) = sender_for_client(ClientKey {
             session_id: b"sess-a".to_vec(),
             client_id: 1,
         })
         .expect("second sender should exist");
-        let third = sender_for_client(ClientKey {
+        let (third, _) = sender_for_client(ClientKey {
             session_id: b"sess-b".to_vec(),
             client_id: 0,
         })
@@ -453,7 +499,7 @@ mod tests {
             (tx, 1u64)
         }));
 
-        let _sender = sender_for_client(ClientKey {
+        let (_sender, _) = sender_for_client(ClientKey {
             session_id: b"sess".to_vec(),
             client_id: 0,
         })
@@ -499,7 +545,7 @@ mod tests {
             (tx, 1u64)
         }));
 
-        let response = on_message_impl(b"sess", 0, b"cmd").expect("message should succeed");
+        let (_, response) = on_message_impl(b"sess", 0, b"cmd").expect("message should succeed");
         match response {
             HelperResponse::Data(bytes) => assert_eq!(bytes, vec![1, 2, 3]),
             HelperResponse::Reinitialize(_) => panic!("expected normal data response"),
@@ -598,10 +644,11 @@ mod tests {
 
         let session = b"sess";
         let payload = b"cmd";
+        let mut cid = 0u64;
         let resp = on_message(
             session.as_ptr() as *const c_char,
             session.len(),
-            0,
+            &mut cid as *mut u64,
             payload.as_ptr(),
             payload.len(),
         );
@@ -632,10 +679,11 @@ mod tests {
 
         let session = b"sess";
         let payload = b"cmd";
+        let mut cid = 0u64;
         let resp = on_message(
             session.as_ptr() as *const c_char,
             session.len(),
-            0,
+            &mut cid as *mut u64,
             payload.as_ptr(),
             payload.len(),
         );
@@ -655,10 +703,11 @@ mod tests {
 
         let session = b"sess";
         let payload = b"cmd";
+        let mut cid = 0u64;
         let resp = on_message(
             session.as_ptr() as *const c_char,
             session.len(),
-            0,
+            &mut cid as *mut u64,
             payload.as_ptr(),
             payload.len(),
         );

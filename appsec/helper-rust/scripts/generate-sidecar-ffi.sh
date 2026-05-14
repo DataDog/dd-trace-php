@@ -20,7 +20,7 @@ docker run --init --rm \
     --mount type=volume,src=php-tracer-cargo-cache-git,dst=/usr/local/cargo/git \
     datadog/dd-appsec-php-ci:php-deps \
     -e -c "
-        command -v bindgen >/dev/null 2>&1 || cargo install bindgen-cli -q
+        command -v bindgen >/dev/null 2>&1 || cargo install bindgen-cli --locked -q
         cd $COMPONENTS_RS_INNER
         bindgen sidecar.h \
             --allowlist-function 'ddog_sidecar_appsec_register_message_handler' \

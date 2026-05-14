@@ -8,7 +8,6 @@
 #include <ext/standard/info.h>
 #include <php.h>
 
-// for open(2)
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <string.h>
@@ -20,7 +19,6 @@
 
 #include "backtrace.h"
 #include "commands/client_init.h"
-#include "commands/client_shutdown.h"
 #include "commands/request_exec.h"
 #include "commands_ctx.h"
 #include "commands_helpers.h"
@@ -64,6 +62,7 @@ static PHP_RINIT_FUNCTION(ddappsec);
 static PHP_RSHUTDOWN_FUNCTION(ddappsec);
 static PHP_MINFO_FUNCTION(ddappsec);
 static PHP_GINIT_FUNCTION(ddappsec);
+static void _tshutdown_handler(void *unspecnull ptr);
 static PHP_GSHUTDOWN_FUNCTION(ddappsec);
 static int ddappsec_startup(zend_extension *extension);
 #if PHP_VERSION_ID < 80000
@@ -161,35 +160,70 @@ static int ddappsec_startup(zend_extension *extension)
 // GINIT/GSHUTDOWN run before/after MINIT/MSHUTDOWN
 static PHP_GINIT_FUNCTION(ddappsec)
 {
-#if defined(ZTS)
-    TSRMLS_CACHE = tsrm_get_ls_cache();
-#endif
-
+    // Don't log here; the logging subsystem is only initialized in MINIT, and
+    // then fully initialized in the first RINIT.
 #if ZTS
+    TSRMLS_CACHE = tsrm_get_ls_cache();
     atomic_fetch_add(&_thread_count, 1);
 #endif
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
     ddappsec_globals->to_be_configured = true;
+
+#if defined(ZTS) && (defined(__linux__) || defined(__APPLE__))
+    ddappsec_globals->ts_ls_cache = TSRMLS_CACHE;
+
+    // Because GSHUTDOWN may run for all exited threads on the main thread,
+    // we register a thread-local destructor for this thread (GINIT runs for the
+    // main thread and for worker threads).
+    //
+    // We skip registering the destructor on the main thread because the main
+    // thread never exits, so the TLS destructor would pin ddappsec.so via
+    // l_tls_dtor_count, which blocks DSO unload on apache graceful reload.
+    //
+    // We don't really need to call _tshutdown_handler on the main thread,
+    // though I guess we could do it maybe on MSHUTDOWN or GSHUTDOWN if we
+    // detected it was running for the main thread globals there.
+    if (!tsrm_is_main_thread()) {
+# if defined(__linux__)
+        extern void *__dso_handle;
+        extern int __cxa_thread_atexit_impl(
+            void (*func)(void *), void *arg, void *dso_handle);
+        __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
+# elif defined(__APPLE__)
+        extern void _tlv_atexit(void (*termFunc)(void *), void *objAddr);
+        _tlv_atexit(_tshutdown_handler, NULL);
+# endif
+    }
+#endif
 }
 
-static void _send_client_shutdown_goodbye(
-    bool clean, const char *nullable error)
+static void _tshutdown_handler(void *unspecnull ptr)
 {
-    dd_conn *conn = dd_helper_mgr_cur_conn();
-    if (!conn) {
-        return;
-    }
-    struct client_shutdown_data data = {.clean = clean, .error = error};
-    dd_client_shutdown(conn, &data);
+    UNUSED(ptr);
+    mlog_g(dd_log_debug, "Running tshutdown (thread %0lx" PRIxPTR ")",
+        (uintptr_t)pthread_self());
+
+    dd_entity_body_tshutdown();
+    dd_telemetry_tshutdown();
+
+    mlog_g(dd_log_debug, "Finished tshutdown (thread %0lx" PRIxPTR ")",
+        (uintptr_t)pthread_self());
 }
 
 static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 {
-    _send_client_shutdown_goodbye(true, NULL);
+    mlog_g(dd_log_debug, "Finished GSHUTDOWN actions (thread %0lx" PRIxPTR ")",
+        (uintptr_t)pthread_self());
 
-    dd_entity_body_gshutdown();
-    dd_helper_gshutdown();
+#ifndef ZTS
+    // In non-ZTS mode there is a single thread, so GSHUTDOWN is the right place
+    // to run tshutdown actions.
+    _tshutdown_handler(NULL);
+#endif
+
+    dd_helper_gshutdown(ddappsec_globals);
+
     // delay log shutdown until the last possible moment, so that TSRM
     // destructors can run with logging
 #if ZTS
@@ -207,6 +241,7 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
 }
+
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static PHP_MINIT_FUNCTION(ddappsec)
@@ -257,7 +292,6 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
-    dd_telemetry_mshutdown();
     dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
@@ -559,7 +593,11 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
     if (res == dd_success) {
         RETURN_TRUE;
     } else {
-        dd_helper_close_conn();
+        char *error = NULL;
+        size_t error_len = spprintf(&error, 0,
+            "Failed to send invalid command: %s", dd_result_to_string(res));
+        dd_helper_close_conn(res == dd_helper_say_goobye, error, error_len);
+        efree(error);
         RETURN_FALSE;
     }
 }

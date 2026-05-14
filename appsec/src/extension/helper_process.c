@@ -12,6 +12,7 @@
 #include <sys/mman.h>
 
 #define HELPER_PROCESS_C_INCLUDES
+#include "commands/client_shutdown.h"
 #include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
@@ -36,11 +37,8 @@ _Static_assert(sizeof(dd_helper_shared_state) == sizeof(uint64_t),
     "dd_helper_shared_state should be 8 bytes");
 
 typedef struct _dd_helper_mgr {
-    dd_conn conn;
-
     bool connected_this_req;
     dd_helper_shared_state hss;
-
 } dd_helper_mgr;
 
 static _Atomic(dd_helper_shared_state) *_shared_state;
@@ -88,7 +86,38 @@ void dd_helper_shutdown(void)
     }
 }
 
-void dd_helper_gshutdown(void) {}
+void dd_helper_gshutdown(zend_ddappsec_globals *nonnull globals)
+{
+    // Under ZTS, ts_free_id calls this from the main thread for each worker's
+    // TSRM storage. We temporarily redirect this thread's DDAPPSEC_G lookups
+    // to the worker's ls cache.
+#ifdef ZTS
+    void *saved_ls = TSRMLS_CACHE;
+    TSRMLS_CACHE = globals->ts_ls_cache;
+#endif
+    if (!dd_conn_connected(&globals->conn)) {
+        mlog(dd_log_debug, "Not connected; nothing to do in %s", __func__);
+        goto exit;
+    }
+
+    // we assume we're running before the ddtrace shutdown, so we're able to
+    // send the goodbye
+    mlog_g(dd_log_debug, "Sending client shutdown goodbye on gshutdown");
+    struct client_shutdown_data data = {.clean = true, .error = NULL};
+    int res = dd_client_shutdown(&globals->conn, &data);
+    if (res) {
+        mlog(dd_log_warning,
+            "Failed to send client shutdown goodbye on gshutdown: %s",
+            dd_result_to_string(res));
+    }
+
+    dd_conn_destroy(&globals->conn);
+
+exit:;
+#ifdef ZTS
+    TSRMLS_CACHE = saved_ls;
+#endif
+}
 
 void dd_helper_rshutdown(void)
 {
@@ -101,7 +130,7 @@ void dd_helper_rshutdown(void)
 dd_conn *nullable dd_helper_mgr_acquire_conn(
     client_init_func nonnull init_func, void *unspecnull ctx)
 {
-    dd_conn *conn = &_mgr.conn;
+    dd_conn *conn = &DDAPPSEC_G(conn);
     if (dd_conn_connected(conn)) {
         return conn;
     }
@@ -140,7 +169,7 @@ error:
 
 dd_conn *nullable dd_helper_mgr_cur_conn(void)
 {
-    dd_conn *conn = &_mgr.conn;
+    dd_conn *conn = &DDAPPSEC_G(conn);
     if (dd_conn_connected(conn)) {
         return conn;
     }
@@ -187,17 +216,35 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
     return true;
 }
 
-void dd_helper_close_conn(void)
+void dd_helper_close_conn(bool goodbye, const char *nullable error, size_t error_len)
 {
-    if (!dd_conn_connected(&_mgr.conn)) {
-        mlog(dd_log_debug, "Not connected; nothing to do");
+    if (!dd_conn_connected(&DDAPPSEC_G(conn))) {
+        if (!error) {
+            mlog(dd_log_debug, "Not connected; nothing to do");
+        } else if (error_len < (size_t)INT_MAX) {
+            mlog(dd_log_debug,
+                "Not connected; nothing to do; ignoring error: %.*s",
+                (int)error_len, error);
+        }
         return;
     }
 
-    dd_conn_destroy(&_mgr.conn);
+    if (goodbye) {
+        struct client_shutdown_data data = {
+            .clean = error == NULL, .error = error};
+        int res = dd_client_shutdown(&DDAPPSEC_G(conn), &data);
+        if (res) {
+            mlog(dd_log_warning, "Failed to send client shutdown goodbye: %s",
+                dd_result_to_string(res));
+        }
+    }
+
+    dd_conn_destroy(&DDAPPSEC_G(conn));
 
     dd_helper_set_runtime(HELPER_RUNTIME_UNKNOWN);
-    dd_telemetry_helper_conn_close();
+    if (error) {
+        dd_telemetry_helper_conn_close();
+    }
 
     /* we treat closing the connection on the request it was opened a failure
      * for the purposes of the connection backoff */
@@ -382,7 +429,7 @@ static void _release_shared_state_lock(dd_helper_shared_state *nonnull s)
 static void _maybe_reset_failed_counter(void)
 {
     if (_shared_state && _mgr.connected_this_req && _mgr.hss.failed_count > 0 &&
-        dd_conn_connected(&_mgr.conn)) {
+        dd_conn_connected(&DDAPPSEC_G(conn))) {
         // we can reset the failed counter because we had a full request
         // processed successfully
         dd_helper_shared_state new_state = {
@@ -421,7 +468,7 @@ static PHP_FUNCTION(datadog_appsec_testing_is_connected_to_helper)
         RETURN_FALSE;
     }
 
-    if (dd_conn_connected(&_mgr.conn)) {
+    if (dd_conn_connected(&DDAPPSEC_G(conn))) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;

@@ -33,14 +33,14 @@ pub fn log_error_with_backtrace_at(
         bt: &'a Backtrace,
     }
 
-    impl<'kvs> log::kv::Source for BacktraceKvs<'kvs> {
+    impl log::kv::Source for BacktraceKvs<'_> {
         fn visit<'a>(
             &'a self,
             visitor: &mut dyn log::kv::VisitSource<'a>,
         ) -> Result<(), log::kv::Error> {
             visitor.visit_pair(
                 log::kv::Key::from_str(ANYHOW_BACKTRACE_KEY),
-                log::kv::Value::from_display(self.bt),
+                log::kv::Value::from_display(&self.bt),
             )
         }
     }
@@ -81,7 +81,11 @@ pub trait TryGetBacktrace {
 impl TryGetBacktrace for anyhow::Error {
     #[inline]
     fn try_get_backtrace(&self) -> Option<&Backtrace> {
-        Some(self.backtrace())
+        let bt = self.backtrace();
+        match bt.status() {
+            std::backtrace::BacktraceStatus::Captured => Some(bt),
+            _ => None,
+        }
     }
 }
 

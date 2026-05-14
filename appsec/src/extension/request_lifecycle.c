@@ -52,7 +52,7 @@ static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
-#define MAX_LENGTH_OF_REM_CFG_PATH 31
+#define MAX_LENGTH_OF_REM_CFG_PATH 31 // NOLINT(cppcoreguidelines-macro-to-enum)
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
@@ -209,7 +209,11 @@ static zend_array *nullable _do_request_begin(
         .entity = rbe,
     };
 
+    // we want to retry once only if we're connected from a previous request
+    int retries_left = dd_helper_mgr_cur_conn() ? 1 : 0;
+
     // connect/client_init
+retry:;
     dd_conn *conn =
         dd_helper_mgr_acquire_conn((client_init_func)dd_client_init, &req_info);
     if (conn == NULL) {
@@ -247,17 +251,32 @@ static zend_array *nullable _do_request_begin(
     // we might have been disabled by request_init
 
     zend_array *spec = NULL;
-    if (res == dd_network) {
+    if (res == dd_helper_say_goobye) {
         mlog_g(dd_log_info,
-            "request_init/config_sync failed with dd_network; closing "
+            "request_init/config_sync failed with dd_helper_say_goobye; closing "
             "connection to helper");
-        dd_helper_close_conn();
+        dd_helper_close_conn(true, LSTRARG(
+            "request_init/config_sync failed with dd_helper_say_goobye"));
+    } else if (res == dd_helper_fatal) {
+        mlog_g(dd_log_info,
+            "request_init/config_sync failed with dd_helper_fatal; closing "
+            "connection to helper");
+        dd_helper_close_conn(false, LSTRARG(
+            "request_init/config_sync failed with dd_helper_fatal"));
     } else if (res == dd_should_block || res == dd_should_redirect) {
         spec = dd_req_lifecycle_abort(
             REQUEST_STAGE_REQUEST_BEGIN, res, &req_info.req_info.block_params);
     } else if (res != dd_success && res != dd_should_record) {
         mlog_g(
             dd_log_info, "request init failed: %s", dd_result_to_string(res));
+    }
+
+    if (retries_left > 0 &&
+        (res == dd_helper_say_goobye || res == dd_helper_fatal)) {
+        mlog_g(dd_log_info,
+            "Trying to to connect to the helper %d more time(s)", retries_left);
+        retries_left--;
+        goto retry;
     }
 
     dd_request_abort_destroy_block_params(&req_info.req_info.block_params);
@@ -306,11 +325,14 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
             dd_result res = dd_config_sync(conn,
                 &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
                     .telemetry_settings = dd_trace_get_telemetry_rc_info()});
-            if (res == dd_network) {
-                mlog_g(dd_log_info, "request_init/config_sync failed with "
-                                    "dd_network; closing "
-                                    "connection to helper");
-                dd_helper_close_conn();
+            if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
+                mlog_g(dd_log_info,
+                    "request_init/config_sync failed with dd_helper_say_goobye "
+                    "or dd_helper_fatal; closing connection to helper");
+                bool goodbye = res == dd_helper_say_goobye;
+                dd_helper_close_conn(goodbye,
+                    LSTRARG("request_init/config_sync failed with "
+                            "dd_helper_say_goobye or dd_helper_fatal"));
             } else if (res) {
                 mlog_g(dd_log_info,
                     "Failed to sync remote config path on rshutdown: %s",
@@ -341,11 +363,13 @@ static void _do_request_finish_php(bool ignore_verdict)
         struct timespec shutdown_start = dd_monotime_start();
         int res = dd_request_shutdown(conn, &ctx);
         dd_duration_waf_ext_account(&shutdown_start);
-        if (res == dd_network) {
+        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
             mlog_g(dd_log_info,
-                "request_shutdown failed with dd_network; closing "
-                "connection to helper");
-            dd_helper_close_conn();
+                "request_shutdown failed with dd_helper_say_goobye or "
+                "dd_helper_fatal; closing connection to helper");
+            bool goodbye = res == dd_helper_say_goobye;
+            dd_helper_close_conn(goodbye,
+                LSTRARG("request_shutdown failed with dd_helper_..."));
         } else if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {
@@ -391,11 +415,13 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
         struct timespec shutdown_start = dd_monotime_start();
         int res = dd_request_shutdown(conn, &ctx);
         dd_duration_waf_ext_account(&shutdown_start);
-        if (res == dd_network) {
+        if (res == dd_helper_say_goobye || res == dd_helper_fatal) {
             mlog_g(dd_log_info,
-                "request_shutdown failed with dd_network; closing "
-                "connection to helper");
-            dd_helper_close_conn();
+                "request_shutdown failed with dd_helper_say_goobye or "
+                "dd_helper_fatal; closing connection to helper");
+            bool goodbye = res == dd_helper_say_goobye;
+            dd_helper_close_conn(goodbye,
+                LSTRARG("request_shutdown failed with dd_helper_..."));
         } else if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {

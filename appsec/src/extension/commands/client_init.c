@@ -177,11 +177,18 @@ static dd_result _process_response(mpack_node_t root, void *nonnull ctx_)
     ctx->conn->client_id =
         mpack_node_u64(mpack_node_array_at(root, CLIENT_ID_INDEX));
 
+    if (ctx->conn->client_id == 0) {
+        mlog(dd_log_warning, "Helper has not responded with a valid client_id");
+        return dd_error;
+    }
+
     // check verdict
     mpack_node_t verdict = mpack_node_array_at(root, VERDICT_INDEX);
     bool is_ok = dd_mpack_node_lstr_eq(verdict, "ok");
     if (is_ok) {
-        mlog(dd_log_debug, "Response to client_init is ok");
+        mlog(dd_log_debug,
+            "Response to client_init is ok (client id: %" PRIu64 ")",
+            ctx->conn->client_id);
 
         return _check_helper_version(root);
     }

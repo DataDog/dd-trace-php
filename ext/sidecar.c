@@ -100,9 +100,23 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
     return DDTRACE_G(sidecar_queue_id);
 }
 
+#ifdef ZTS
+DDTRACE_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void *tsrm_ls) {
+    if (tsrm_ls) {
+        void *saved = TSRMLS_CACHE;
+        TSRMLS_CACHE = tsrm_ls;
+        ddog_SidecarTransport **result = &TSRMG_STATIC(
+            ddtrace_globals_id, zend_ddtrace_globals *, sidecar);
+        TSRMLS_CACHE = saved;
+        return result;
+    }
+    return &DDTRACE_G(sidecar);
+}
+#else
 DDTRACE_PUBLIC ddog_SidecarTransport **ddtrace_get_sidecar_transport(void) {
     return &DDTRACE_G(sidecar);
 }
+#endif
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};

@@ -1243,11 +1243,11 @@ typedef struct ddog_AppsecCResponse {
 
 typedef struct ddog_AppsecCResponse (*ddog_OnMessageFn)(const char*,
                                                         uintptr_t,
-                                                        uint64_t,
+                                                        uint64_t*,
                                                         const uint8_t*,
                                                         uintptr_t);
 
-typedef void (*ddog_OnDisconnectFn)(const char*, uintptr_t);
+typedef void (*ddog_OnDisconnectFn)(const char*, uintptr_t, uint64_t);
 
 typedef void (*ddog_FreeResponseFn)(uint8_t*, uintptr_t, uintptr_t);
 

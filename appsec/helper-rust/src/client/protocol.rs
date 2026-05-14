@@ -37,7 +37,9 @@ pub enum CommandResponse<'a> {
     ClientShutdown,
 }
 
-/// Outer tuple matches the `num_args = 1` array wrapper from commands_helpers.c.
+// ClientShutdown has a single argument, which is a map with two keys:
+// - clean: a boolean indicating if the client shutdown was clean (i.e. the client is exiting normally)
+// - error: an optional string indicating the error that caused the client to shutdown
 #[derive(Debug, Deserialize_tuple)]
 pub struct ClientShutdownArgs {
     pub inner: ClientShutdownArgsInner,

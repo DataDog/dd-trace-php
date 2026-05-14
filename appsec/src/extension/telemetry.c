@@ -47,7 +47,7 @@ void dd_telemetry_startup(void)
         zend_string_init_interned(LSTRARG("rasp.duration_ext"), 1);
 }
 
-void dd_telemetry_mshutdown(void)
+void dd_telemetry_tshutdown(void)
 {
     _release_zstr(&_cached_waf_version);
     _release_zstr(&_cached_event_rules_version);

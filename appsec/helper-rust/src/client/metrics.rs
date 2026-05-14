@@ -320,12 +320,3 @@ fn bool_tag(value: bool) -> &'static str {
         "false"
     }
 }
-
-trait DurationExt {
-    fn duration_ms_f64(&self) -> f64;
-}
-impl DurationExt for Duration {
-    fn duration_ms_f64(&self) -> f64 {
-        self.as_secs() as f64 * 1_000.0 + self.subsec_nanos() as f64 / 1_000_000.0
-    }
-}

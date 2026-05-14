@@ -80,7 +80,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
         mlog(dd_log_warning, "Error serializing message for command %.*s: %s",
             NAME_L, mpack_error_to_string(err));
         _omsg_destroy(&omsg);
-        return dd_network;
+        return dd_helper_say_goobye;
     }
 
     dd_imsg imsg = {0};
@@ -88,7 +88,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
     _dump_out_msg(dd_log_trace, &omsg.iovecs);
     _omsg_destroy(&omsg);
     if (res) {
-        mlog(dd_log_warning, "Error sending message for command %.*s: %s",
+        mlog(dd_log_warning, "Error in message exchange for command %.*s: %s",
             NAME_L, dd_result_to_string(res));
         return res;
     }
@@ -152,14 +152,15 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
         }
         zend_end_try();
     } else if (dd_mpack_node_lstr_eq(type, "error")) {
-        mlog(dd_log_info, "Helper responded with an error. Check helper logs");
-        return dd_helper_error;
+        mlog(dd_log_warning, "Helper responded with an error and removed this "
+                             "client. Check helper logs");
+        return dd_helper_fatal;
     } else {
         mlog(dd_log_debug,
             "Received message for command %.*s unexpected: \"%.*s\". "
             "Expected \"config_features\", \"error\" or \"%.*s\"",
             NAME_L, (int)mpack_node_strlen(type), mpack_node_str(type), NAME_L);
-        return dd_error;
+        return dd_helper_say_goobye;
     }
 
     mlog(dd_log_debug, "Processing for command %.*s returned %s", NAME_L,
@@ -239,8 +240,6 @@ static ATTR_WARN_UNUSED dd_result _imsg_recv(
 {
     mlog(dd_log_debug, "Will exchange message with helper");
 
-    // dd_result res = dd_conn_roundtripv(conn, iovecs, &imsg->_data,
-    // &imsg->_size);
     dd_helper_response response;
     dd_result res = dd_conn_roundtripv(conn, iovecs, &response);
     if (res) {
@@ -258,7 +257,7 @@ static ATTR_WARN_UNUSED dd_result _imsg_recv(
         _dump_in_msg(dd_log_debug, response.data, response.data_len);
         dd_helper_response_destroy(&response);
         UNUSED(_imsg_destroy(imsg));
-        return dd_error;
+        return dd_helper_say_goobye;
     }
 
     return dd_success;
@@ -484,12 +483,14 @@ static void dd_command_process_settings(mpack_node_t root);
  *    4: [metrics: map]
  * )
  */
-#define RESP_INDEX_ACTION_PARAMS 0
-#define RESP_INDEX_APPSEC_SPAN_DATA 1
-#define RESP_INDEX_FORCE_KEEP 2
-#define RESP_INDEX_SETTINGS 3
-#define RESP_INDEX_SPAN_META 4
-#define RESP_INDEX_SPAN_METRICS 5
+enum {
+    RESP_INDEX_ACTION_PARAMS = 0,
+    RESP_INDEX_APPSEC_SPAN_DATA = 1,
+    RESP_INDEX_FORCE_KEEP = 2,
+    RESP_INDEX_SETTINGS = 3,
+    RESP_INDEX_SPAN_META = 4,
+    RESP_INDEX_SPAN_METRICS = 5,
+};
 
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, void *unspecnull _ctx)

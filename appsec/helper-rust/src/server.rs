@@ -2,6 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::time::Duration;
 
+use tokio::sync::mpsc;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
@@ -43,14 +44,19 @@ pub fn accept_appsec_messages(
                 session_id,
                 client_id,
             };
-            let sender = client.get_req_sender();
+
+            let (tx, rx) = mpsc::channel(5);
+
             let future_tx = future_tx.clone();
             let cancel_token = cancel_token.clone();
 
-            let client_future = client.entrypoint(cancel_token);
+            let client_future = client.entrypoint(rx, cancel_token);
             runtime_handle.spawn(async move {
                 let managed_future = async move {
                     client_future.await;
+                    log::debug!(
+                        "Client future for {client_key:?} completed; removing client bookkeeping"
+                    );
                     client::remove_client_bookkeeping(&client_key);
                 };
                 if let Err(e) = future_tx.send(Box::pin(managed_future)).await {
@@ -58,7 +64,7 @@ pub fn accept_appsec_messages(
                 }
             });
 
-            (sender, client_id)
+            (tx, client_id)
         }),
     )?;
 
@@ -78,11 +84,8 @@ pub struct ClientTaskSet {
 }
 
 impl ClientTaskSet {
-    fn create(
-        runtime_handle: tokio::runtime::Handle,
-    ) -> (Self, tokio::sync::mpsc::Sender<ClientFuture>) {
-        let (tx, rx) =
-            tokio::sync::mpsc::channel::<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>(10);
+    fn create(runtime_handle: tokio::runtime::Handle) -> (Self, mpsc::Sender<ClientFuture>) {
+        let (tx, rx) = mpsc::channel::<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>(10);
 
         (
             Self {
@@ -94,7 +97,7 @@ impl ClientTaskSet {
     }
 
     async fn task_entrypoint(
-        mut rx: tokio::sync::mpsc::Receiver<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>,
+        mut rx: mpsc::Receiver<Pin<Box<dyn Future<Output = ()> + Send + 'static>>>,
     ) {
         let mut join_set = JoinSet::<()>::new();
 

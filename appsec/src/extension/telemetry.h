@@ -20,7 +20,7 @@ void dd_telemetry_add_missing_user_id(const char *nonnull event_type,
     size_t event_type_len, const char *nonnull framework,
     size_t framework_len);
 void dd_telemetry_startup(void);
-void dd_telemetry_mshutdown(void);
+void dd_telemetry_tshutdown(void);
 
 void dd_telemetry_rinit(void);
 void dd_telemetry_note_helper_string_meta(const char *nonnull key, size_t key_len,
@@ -30,6 +30,9 @@ void dd_telemetry_note_helper_string_meta(const char *nonnull key, size_t key_le
 void dd_telemetry_submit_duration_ext(
     double waf_ext_us, double rasp_ext_us);
 
+// Exchanged failed up to and including client_init
 void dd_telemetry_helper_conn_error(void);
+// client_init succeeded / obtained new client_id
 void dd_telemetry_helper_conn_success(void);
+// helper client abandoned (with or without goodbye) (except php worker shutdown)
 void dd_telemetry_helper_conn_close(void);

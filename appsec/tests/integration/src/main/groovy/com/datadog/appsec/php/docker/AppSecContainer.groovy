@@ -115,6 +115,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         overlayWww()
         enableCoredumps()
         runInitialize()
+        enableCoredumps()
     }
 
     private Consumer<OutputFrame> createLogConsumer() {
@@ -502,7 +503,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         privilegedMode = true
 
-        withCreateContainerCmdModifier { cmd ->
+        withCreateContainerCmdModifier { CreateContainerCmd cmd ->
             cmd.hostConfig.withUlimits([new Ulimit('core', -1L, -1L)] as Ulimit[])
         }
 
