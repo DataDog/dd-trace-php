@@ -156,7 +156,7 @@ benchmarks-tracer:
     expire_in: 3 months
   variables:
     SCENARIO: "tracer"
-    CHECK_TRACER_FILE_CHANGES: "true"
+    CHECK_TRACER_FILE_CHANGES: "false"
 
 benchmarks-appsec:
   extends: .microbenchmarks
