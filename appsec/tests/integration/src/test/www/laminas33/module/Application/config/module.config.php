@@ -218,6 +218,16 @@ return [
                     ],
                 ],
             ],
+            'any_verb' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/any-verb',
+                    'defaults' => [
+                        'controller' => DynamicPathController::class,
+                        'action' => 'index',
+                    ],
+                ],
+            ],
             'wildcard_keys' => [
                 'type' => Literal::class,
                 'options' => [

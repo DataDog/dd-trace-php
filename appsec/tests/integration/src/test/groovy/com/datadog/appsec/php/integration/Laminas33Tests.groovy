@@ -81,20 +81,20 @@ class Laminas33Tests {
             endpoints.size() > 0
         })
 
-        assert endpoints.size() == 25
-        assert endpoints.find { it.path == '/' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /' } != null
+        assert endpoints.size() == 26
+        assert endpoints.find { it.path == '/' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /' } != null
         assert endpoints.find {
-            it.path == '/application[/:action]' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /application[/:action]'
+            it.path == '/application[/:action]' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /application[/:action]'
         } != null
-        assert endpoints.find { it.path == '/authenticate' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /authenticate' } != null
-        assert endpoints.find { it.path == '/behind-auth' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /behind-auth' } != null
+        assert endpoints.find { it.path == '/authenticate' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /authenticate' } != null
+        assert endpoints.find { it.path == '/behind-auth' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /behind-auth' } != null
         assert endpoints.find {
-            it.path == '/dynamic-path[/:param01]' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /dynamic-path[/:param01]'
+            it.path == '/dynamic-path[/:param01]' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /dynamic-path[/:param01]'
         } != null
-        assert endpoints.find { it.path == '/resource' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /resource' } != null
-        assert endpoints.find { it.path == '/resource/:resourceId' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /resource/:resourceId' } != null
-        assert endpoints.find { it.path == '/resource/:resourceId/:subId' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /resource/:resourceId/:subId' } != null
-        assert endpoints.find { it.path == '/chain/:chainId' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /chain/:chainId' } != null
+        assert endpoints.find { it.path == '/resource' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /resource' } != null
+        assert endpoints.find { it.path == '/resource/:resourceId' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /resource/:resourceId' } != null
+        assert endpoints.find { it.path == '/resource/:resourceId/:subId' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /resource/:resourceId/:subId' } != null
+        assert endpoints.find { it.path == '/chain/:chainId' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /chain/:chainId' } != null
         assert endpoints.find { it.path == '/verb-test' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /verb-test' } != null
         assert endpoints.find { it.path == '/verb-test' && it.method == 'POST' && it.operationName == 'http.request' && it.resourceName == 'POST /verb-test' } != null
         assert endpoints.find { it.path == '/verb-test' && it.method == 'PUT' && it.operationName == 'http.request' && it.resourceName == 'PUT /verb-test' } != null
@@ -105,21 +105,24 @@ class Laminas33Tests {
         assert endpoints.find { it.path == '/multi-verb' && it.method == 'OPTIONS' && it.operationName == 'http.request' && it.resourceName == 'OPTIONS /multi-verb' } != null
         assert endpoints.find { it.path == '/multi-verb' && it.method == 'POST' && it.operationName == 'http.request' && it.resourceName == 'POST /multi-verb' } != null
         assert endpoints.find { it.path == '/multi-verb' && it.method == 'PUT' && it.operationName == 'http.request' && it.resourceName == 'PUT /multi-verb' } != null
-        assert endpoints.find { it.path == '/profile' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /profile' } != null
+        assert endpoints.find { it.path == '/profile' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /profile' } != null
         assert endpoints.find {
-            it.path == '/regex-year/%year%' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /regex-year/%year%'
+            it.path == '/regex-year/%year%' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /regex-year/%year%'
         } != null
         assert endpoints.find {
-            it.path == '/scheme-only-page' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /scheme-only-page'
+            it.path == '/scheme-only-page' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /scheme-only-page'
         } != null
         assert endpoints.find {
-            it.path == '/placeholder-literal' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /placeholder-literal'
+            it.path == '/placeholder-literal' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /placeholder-literal'
         } != null
         assert endpoints.find {
-            it.path == '/wildcard-keys' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /wildcard-keys'
+            it.path == '/wildcard-keys' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /wildcard-keys'
         } != null
         assert endpoints.find {
-            it.path == '/wildcard-keys/*' && it.method == 'GET' && it.operationName == 'http.request' && it.resourceName == 'GET /wildcard-keys/*'
+            it.path == '/wildcard-keys/*' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /wildcard-keys/*'
+        } != null
+        assert endpoints.find {
+            it.path == '/any-verb' && it.method == 'OTHER' && it.operationName == 'http.request' && it.resourceName == '* /any-verb'
         } != null
     }
 
@@ -248,6 +251,19 @@ class Laminas33Tests {
 
     @Test
     @Order(9)
+    void 'Route with no method constraint is reachable via GET POST and PUT'() {
+        ["GET", "POST", "PUT"].each { verb ->
+            HttpRequest req = container.buildReq('/any-verb')
+                    .method(verb, HttpRequest.BodyPublishers.noBody()).build()
+            Trace trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert trace.first().meta.'http.route' == '/any-verb'
+        }
+    }
+
+    @Test
+    @Order(10)
     void 'Regex Scheme Placeholder and Wildcard routes expose http route templates'() {
         Trace regexTrace = container.traceFromRequest(
                 container.buildReq('/regex-year/2024').GET().build(),

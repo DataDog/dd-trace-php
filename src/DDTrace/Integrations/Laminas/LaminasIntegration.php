@@ -1063,19 +1063,20 @@ class LaminasIntegration extends Integration
 
     private static function extractHttpVerbFromRoute($route): array
     {
-        $defaultMethods = ['GET'];
         if ($route instanceof \Laminas\Router\Http\Chain) {
             foreach (self::laminasGetChainRoutes($route) as $chainRoute) {
-                $methods = self::extractHttpVerbFromRoute($chainRoute);
-                if (count($methods) > 0 && $methods !== $defaultMethods) {
-                    return $methods;
+                if ($chainRoute instanceof \Laminas\Router\Http\Method) {
+                    $rp = new ReflectionProperty($chainRoute, 'verb');
+                    $rp->setAccessible(true);
+                    $verb = strtoupper(trim((string) $rp->getValue($chainRoute)));
+                    return explode(',', $verb);
                 }
             }
 
-            return $defaultMethods;
+            return ['*'];
         }
         if (!($route instanceof \Laminas\Router\Http\Method)) {
-            return $defaultMethods;
+            return ['*'];
         }
         $rp = new ReflectionProperty($route, 'verb');
         $rp->setAccessible(true);
@@ -1112,6 +1113,17 @@ class LaminasIntegration extends Integration
         }
     }
 
+    private static function partHasDirectMethodChildren(\Laminas\Router\Http\Part $part): bool
+    {
+        self::laminasMaterializePartChildRoutes($part);
+        foreach (self::laminasGetRoutesFromStack($part) as $child) {
+            if ($child instanceof \Laminas\Router\Http\Method) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static function walkRouteStackCollectEndpointRows(
         $rootRouter,
         $currentStack,
@@ -1122,13 +1134,17 @@ class LaminasIntegration extends Integration
             $qualifiedName = $namePrefix === '' ? (string) $name : $namePrefix . '/' . $name;
             $path = self::httpRouteTemplateFromNamedRouteStack($rootRouter, $qualifiedName);
             if ($path !== null && $path !== '') {
-                $methods = self::extractHttpVerbFromRoute($route);
-                foreach ($methods as $m) {
-                    $rows[] = [
-                        'path' => $path,
-                        'method' => $m,
-                        'resourceName' => $m . ' ' . $path,
-                    ];
+                $skipDirect = $route instanceof \Laminas\Router\Http\Part
+                    && self::partHasDirectMethodChildren($route);
+                if (!$skipDirect) {
+                    $methods = self::extractHttpVerbFromRoute($route);
+                    foreach ($methods as $m) {
+                        $rows[] = [
+                            'path' => $path,
+                            'method' => $m,
+                            'resourceName' => $m . ' ' . $path,
+                        ];
+                    }
                 }
             }
             if ($route instanceof \Laminas\Router\Http\Part) {
