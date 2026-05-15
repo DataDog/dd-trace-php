@@ -60,6 +60,13 @@ namespace
                             var_dump($json["payload"]);
                             break 3;
                         }
+                        // The integrations may also be bundled into the app-started payload
+                        // depending on registration timing (see libdd-telemetry build_app_started).
+                        if ($json["request_type"] == "app-started"
+                            && !empty($json["payload"]["integrations"])) {
+                            var_dump(["integrations" => $json["payload"]["integrations"]]);
+                            break 3;
+                        }
                     }
                 }
             }
