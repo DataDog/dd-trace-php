@@ -146,6 +146,8 @@ static THREAD_LOCAL_ON_ZTS bool _user_event_triggered;
 static THREAD_LOCAL_ON_ZTS bool _appsec_json_frags_inited;
 static THREAD_LOCAL_ON_ZTS zend_llist _appsec_json_frags;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _event_user_id;
+static THREAD_LOCAL_ON_ZTS zend_string *nullable
+    _auth_user_event_automated_last_user_id;
 
 static void _init_relevant_headers(void);
 static zend_string *_concat_json_fragments(void);
@@ -356,8 +358,9 @@ void dd_tags_rinit(void)
             _zend_string_release_indirect, 0);
     }
 
-    // Just in case...
+    // Just in case (e.g. rinit without a prior rshutdown in edge paths)...
     _event_user_id = NULL;
+    _auth_user_event_automated_last_user_id = NULL;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
@@ -368,6 +371,9 @@ void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
 
 void dd_tags_set_event_user_id(zend_string *nonnull zstr)
 {
+    if (_event_user_id) {
+        zend_string_release(_event_user_id);
+    }
     _event_user_id = zend_string_copy(zstr);
 }
 
@@ -378,6 +384,11 @@ void dd_tags_rshutdown(void)
     if (_event_user_id) {
         zend_string_release(_event_user_id);
         _event_user_id = NULL;
+    }
+
+    if (_auth_user_event_automated_last_user_id) {
+        zend_string_release(_auth_user_event_automated_last_user_id);
+        _auth_user_event_automated_last_user_id = NULL;
     }
 }
 
@@ -1533,6 +1544,11 @@ PHP_FUNCTION(datadog_appsec_internal_track_authenticated_user_event_automated)
         return;
     }
 
+    if (_auth_user_event_automated_last_user_id &&
+        zend_string_equals(user_id, _auth_user_event_automated_last_user_id)) {
+        return;
+    }
+
     user_collection_mode mode = dd_get_user_collection_mode();
     if (mode == user_mode_disabled ||
         !get_DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING_ENABLED()) {
@@ -1573,6 +1589,11 @@ PHP_FUNCTION(datadog_appsec_internal_track_authenticated_user_event_automated)
     // <DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING>
     _add_new_zstr_to_meta(meta_ht, _dd_user_collection_mode,
         dd_get_user_collection_mode_zstr(), true, false);
+
+    if (_auth_user_event_automated_last_user_id) {
+        zend_string_release(_auth_user_event_automated_last_user_id);
+    }
+    _auth_user_event_automated_last_user_id = zend_string_copy(user_id);
 }
 
 PHP_FUNCTION(datadog_appsec_track_authenticated_user_event)

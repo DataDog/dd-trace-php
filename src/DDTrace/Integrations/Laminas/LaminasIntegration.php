@@ -25,6 +25,8 @@ use function DDTrace\remove_hook;
 use function DDTrace\root_span;
 use function DDTrace\trace_method;
 
+use ReflectionProperty;
+
 class LaminasIntegration extends Integration
 {
     const NAME = 'laminas';
@@ -274,8 +276,70 @@ class LaminasIntegration extends Integration
                 }
                 $rootSpan->meta['laminas.route.name'] = $routeName;
                 $rootSpan->meta['laminas.route.action'] = "$controller@$action";
+
+                $isTopLevelRouterMatch = $this instanceof \Laminas\Router\Http\TreeRouteStack
+                    && !($this instanceof \Laminas\Router\Http\Part);
+
+                if (
+                    $isTopLevelRouterMatch
+                    && $routeName !== null
+                    && $routeName !== ''
+                ) {
+                    $httpRoute = LaminasIntegration::httpRouteTemplateFromNamedRouteStack($this, (string) $routeName);
+                    if ($httpRoute !== null && $httpRoute !== '') {
+                        $rootSpan->meta[Tag::HTTP_ROUTE] = $httpRoute;
+                    }
+                }
+
+                if (
+                    function_exists('\datadog\appsec\push_addresses')
+                    && $isTopLevelRouterMatch
+                    && $routeName !== null
+                    && $routeName !== ''
+                ) {
+                    $params = $routeMatch->getParams();
+                    $pathParams = array_diff_key(
+                        $params,
+                        array_flip([
+                            'controller',
+                            'action',
+                            '__NAMESPACE__',
+                            '__CONTROLLER__',
+                            'locale',
+                        ])
+                    );
+                    if (count($pathParams) > 0) {
+                        \datadog\appsec\push_addresses(["server.request.path_params" => $pathParams]);
+                    }
+                }
             }
         );
+
+        if (\class_exists('Laminas\\Mvc\\RouteListener')) {
+            hook_method(
+                'Laminas\Mvc\RouteListener',
+                'onRoute',
+                null,
+                static function ($This, $scope, $args) {
+                    if (!isset($args[0]) || !($args[0] instanceof MvcEvent)) {
+                        return;
+                    }
+                    /** @var MvcEvent $event */
+                    $event = $args[0];
+                    if ($event->getRouteMatch() === null) {
+                        return;
+                    }
+                    if (\DDTrace\are_endpoints_collected()) {
+                        return;
+                    }
+                    $router = $event->getRouter();
+                    if ($router === null || !($router instanceof \Laminas\Router\RouteStackInterface)) {
+                        return;
+                    }
+                    LaminasIntegration::registerLaminasRouteEndpoints($router);
+                }
+            );
+        }
 
         hook_method(
             'Laminas\Http\Response',
@@ -582,8 +646,557 @@ class LaminasIntegration extends Integration
             }
         );
 
+        hook_method(
+            'Laminas\Authentication\AuthenticationService',
+            'authenticate',
+            null,
+            static function ($This, $scope, $args, $result) {
+                if (!$result instanceof \Laminas\Authentication\Result) {
+                    return;
+                }
+
+                $adapter = $args[0] ?? null;
+                if (!$adapter) {
+                    $adapter = $This->getAdapter() ?? null;
+                }
+
+                $identity = $result->getIdentity();
+                if ($adapter !== null && method_exists($adapter, 'getResultRowObject')) {
+                    $row = $adapter->getResultRowObject();
+                    if (is_object($row)) {
+                        $identity = $row;
+                    }
+                }
+                if ($identity === null || $identity === false || $identity === '') {
+                    return;
+                }
+                $userLogin = self::getUserLogin($identity);
+                $metadata = self::getUserMetadata($identity);
+                $userId = self::getUserId($identity);
+
+                if ($result->isValid()) {
+                    if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
+                        return;
+                    }
+
+                    if ($userId === '') {
+                        return;
+                    }
+
+                    \datadog\appsec\internal\track_user_login_success_event_automated(
+                        'laminas',
+                        $userLogin,
+                        $userId,
+                        $metadata
+                    );
+                    return;
+                }
+
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
+                    return;
+                }
+
+                $code = $result->getCode();
+                $userExists = ($code === \Laminas\Authentication\Result::FAILURE_CREDENTIAL_INVALID);
+
+                \datadog\appsec\internal\track_user_login_failure_event_automated(
+                    'laminas',
+                    $userLogin,
+                    $userId,
+                    $userExists,
+                    []
+                );
+            }
+        );
+
+        hook_method(
+            'Laminas\Authentication\AuthenticationService',
+            'getIdentity',
+            null,
+            static function ($This, $scope, $args, $identity) {
+                if ($identity === null || $identity === false) {
+                    return;
+                }
+                if (!function_exists('\datadog\appsec\internal\track_authenticated_user_event_automated')) {
+                    return;
+                }
+
+                $userId = self::getUserId($identity);
+                if ($userId === '') {
+                    return;
+                }
+
+                \datadog\appsec\internal\track_authenticated_user_event_automated('laminas', $userId);
+            }
+        );
 
         return Integration::LOADED;
+    }
+
+    private static function getUserId($identity)
+    {
+        if (is_string($identity) || is_int($identity)) {
+            return (string)$identity;
+        }
+
+        if (is_array($identity)) {
+            if (isset($identity['id'])) {
+                return (string)$identity['id'];
+            }
+            if (isset($identity['user_id'])) {
+                return (string)$identity['user_id'];
+            }
+            if (isset($identity['username'])) {
+                return $identity['username'];
+            }
+            if (isset($identity['email'])) {
+                return $identity['email'];
+            }
+        }
+
+        if (is_object($identity)) {
+            if (isset($identity->id)) {
+                return (string)$identity->id;
+            }
+            if (isset($identity->user_id)) {
+                return (string)$identity->user_id;
+            }
+            if (isset($identity->userId)) {
+                return (string)$identity->userId;
+            }
+
+            if (method_exists($identity, 'getId')) {
+                return (string)$identity->getId();
+            }
+            if (method_exists($identity, 'getUserId')) {
+                return (string)$identity->getUserId();
+            }
+            if (method_exists($identity, 'getUsername')) {
+                return $identity->getUsername();
+            }
+            if (method_exists($identity, 'getEmail')) {
+                return $identity->getEmail();
+            }
+
+            if ($identity instanceof \ArrayAccess) {
+                if (isset($identity['id'])) {
+                    return (string)$identity['id'];
+                }
+                if (isset($identity['user_id'])) {
+                    return (string)$identity['user_id'];
+                }
+                if (isset($identity['username'])) {
+                    return $identity['username'];
+                }
+                if (isset($identity['email'])) {
+                    return $identity['email'];
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private static function getUserLogin($identity)
+    {
+        if (is_string($identity)) {
+            return $identity;
+        }
+
+        if (is_array($identity)) {
+            if (isset($identity['email'])) {
+                return $identity['email'];
+            }
+            if (isset($identity['username'])) {
+                return $identity['username'];
+            }
+        }
+
+        if (is_object($identity)) {
+            if (isset($identity->email)) {
+                return $identity->email;
+            }
+            if (isset($identity->username)) {
+                return $identity->username;
+            }
+
+            if (method_exists($identity, 'getEmail')) {
+                return $identity->getEmail();
+            }
+            if (method_exists($identity, 'getUsername')) {
+                return $identity->getUsername();
+            }
+
+            if ($identity instanceof \ArrayAccess) {
+                if (isset($identity['email'])) {
+                    return $identity['email'];
+                }
+                if (isset($identity['username'])) {
+                    return $identity['username'];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static function getUserMetadata($identity)
+    {
+        $metadata = [];
+
+        if (is_array($identity)) {
+            if (isset($identity['name'])) {
+                $metadata['name'] = $identity['name'];
+            }
+            if (isset($identity['email'])) {
+                $metadata['email'] = $identity['email'];
+            }
+            return $metadata;
+        }
+
+        if (is_object($identity)) {
+            if (isset($identity->name)) {
+                $metadata['name'] = $identity->name;
+            }
+            if (isset($identity->email)) {
+                $metadata['email'] = $identity->email;
+            }
+
+            if (method_exists($identity, 'getName')) {
+                $metadata['name'] = $identity->getName();
+            }
+            if (method_exists($identity, 'getEmail') && !isset($metadata['email'])) {
+                $metadata['email'] = $identity->getEmail();
+            }
+
+            if ($identity instanceof \ArrayAccess) {
+                if (isset($identity['name']) && !isset($metadata['name'])) {
+                    $metadata['name'] = $identity['name'];
+                }
+                if (isset($identity['email']) && !isset($metadata['email'])) {
+                    $metadata['email'] = $identity['email'];
+                }
+            }
+        }
+
+        return $metadata;
+    }
+
+    public static function httpRouteTemplateFromMatchedRoute($matchedRoute, $routeMatch = null)
+    {
+        if (is_object($matchedRoute)) {
+            if (method_exists($matchedRoute, 'getSpec')) {
+                $routeSpec = $matchedRoute->getSpec();
+                if (is_string($routeSpec) && $routeSpec !== '') {
+                    return $routeSpec;
+                }
+            }
+            
+            if (
+                method_exists($matchedRoute, 'getRoute')
+                && !($matchedRoute instanceof \Laminas\Router\RouteStackInterface)
+            ) {
+                $routeSpec = $matchedRoute->getRoute();
+                if (is_string($routeSpec) && $routeSpec !== '') {
+                    return $routeSpec;
+                }
+            }
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Literal) {
+            $rp = new ReflectionProperty($matchedRoute, 'route');
+            $rp->setAccessible(true);
+
+            return (string) $rp->getValue($matchedRoute);
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Segment) {
+            $rp = new ReflectionProperty($matchedRoute, 'parts');
+            $rp->setAccessible(true);
+            $parts = $rp->getValue($matchedRoute);
+
+            return \is_array($parts) ? self::laminasSegmentPartsToRouteTemplate($parts) : null;
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Scheme) {
+            return '';
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Placeholder) {
+            return '';
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Regex) {
+            $rp = new ReflectionProperty($matchedRoute, 'spec');
+            $rp->setAccessible(true);
+            $spec = (string) $rp->getValue($matchedRoute);
+
+            return $spec !== '' ? $spec : null;
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Wildcard) {
+            return '/*';
+        }
+
+        if ($matchedRoute instanceof \Laminas\Router\Http\Chain) {
+            $buf = '';
+            foreach (self::laminasGetChainRoutes($matchedRoute) as $chainedRoute) {
+                $part = self::httpRouteTemplateFromMatchedRoute($chainedRoute, null);
+                if ($part === null) {
+                    return null;
+                }
+                $buf .= $part;
+            }
+            return $buf !== '' ? $buf : null;
+        }
+
+        if (
+            $matchedRoute instanceof \Laminas\Router\Http\TreeRouteStack
+            && $routeMatch instanceof RouteMatch
+        ) {
+            if (method_exists($routeMatch, 'getMatchedRoute')) {
+                $getMatchedRoute = [$routeMatch, 'getMatchedRoute'];
+                $nestedMatchedRoute = call_user_func($getMatchedRoute);
+                $nestedTemplate = self::httpRouteTemplateFromMatchedRoute($nestedMatchedRoute, $routeMatch);
+                if ($nestedTemplate !== null && $nestedTemplate !== '') {
+                    return $nestedTemplate;
+                }
+            }
+
+            $matchedName = $routeMatch->getMatchedRouteName();
+            if ($matchedName === null || $matchedName === '') {
+                return null;
+            }
+
+            return self::httpRouteTemplateFromNamedRouteStack($matchedRoute, (string) $matchedName);
+        }
+
+        return null;
+    }
+    
+    private static function laminasSegmentPartsToRouteTemplate(array $parts): string
+    {
+        $buf = '';
+        foreach ($parts as $part) {
+            if (!\is_array($part) || !isset($part[0])) {
+                continue;
+            }
+            switch ($part[0]) {
+                case 'literal':
+                    $buf .= $part[1] ?? '';
+                    break;
+                case 'parameter':
+                    $buf .= ':';
+                    $buf .= $part[1] ?? '';
+                    if (isset($part[2]) && $part[2] !== null && $part[2] !== '') {
+                        $buf .= '{' . $part[2] . '}';
+                    }
+                    break;
+                case 'optional':
+                    $buf .= '[' . self::laminasSegmentPartsToRouteTemplate($part[1] ?? []) . ']';
+                    break;
+                case 'translated-literal':
+                    $buf .= '{' . ($part[1] ?? '') . '}';
+                    break;
+            }
+        }
+
+        return $buf;
+    }
+
+    public static function registerLaminasRouteEndpoints($rootRouter): void
+    {
+        if (\DDTrace\are_endpoints_collected()) {
+            return;
+        }
+        if (!($rootRouter instanceof \Laminas\Router\SimpleRouteStack)) {
+            return;
+        }
+        $endpoints = self::collectLaminasRouteEndpointRows($rootRouter, $rootRouter, '');
+        foreach ($endpoints as $row) {
+            \DDTrace\add_endpoint($row['path'], 'http.request', $row['resourceName'], $row['method']);
+        }
+        \DDTrace\flush_endpoints();
+    }
+
+    private static function collectLaminasRouteEndpointRows($rootRouter, $currentStack, string $namePrefix): array
+    {
+        $rows = [];
+        self::walkRouteStackCollectEndpointRows($rootRouter, $currentStack, $namePrefix, $rows);
+
+        return self::dedupeLaminasEndpointRows($rows);
+    }
+
+    private static function dedupeLaminasEndpointRows(array $rows): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($rows as $row) {
+            $key = $row['method'] . "\0" . $row['path'];
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $out[] = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Chain keeps child routes lazily in a private property; initialize before introspection.
+     *
+     * @return iterable<int|string, mixed>
+     */
+    private static function laminasGetChainRoutes(\Laminas\Router\Http\Chain $chain): iterable
+    {
+        $rp = new ReflectionProperty($chain, 'chainRoutes');
+        $rp->setAccessible(true);
+        $chainRoutes = $rp->getValue($chain);
+        if ($chainRoutes !== null) {
+            $chain->addRoutes($chainRoutes);
+            $rp->setValue($chain, null);
+        }
+
+        return $chain->getRoutes();
+    }
+
+    private static function extractHttpVerbFromRoute($route): array
+    {
+        if ($route instanceof \Laminas\Router\Http\Chain) {
+            foreach (self::laminasGetChainRoutes($route) as $chainRoute) {
+                if ($chainRoute instanceof \Laminas\Router\Http\Method) {
+                    $rp = new ReflectionProperty($chainRoute, 'verb');
+                    $rp->setAccessible(true);
+                    $verb = strtoupper(trim((string) $rp->getValue($chainRoute)));
+                    return explode(',', $verb);
+                }
+            }
+
+            return ['*'];
+        }
+        if (!($route instanceof \Laminas\Router\Http\Method)) {
+            return ['*'];
+        }
+        $rp = new ReflectionProperty($route, 'verb');
+        $rp->setAccessible(true);
+        $verb = strtoupper(trim((string) $rp->getValue($route)));
+        return explode(',', $verb);
+    }
+
+    private static function laminasGetRoutesFromStack($stack)
+    {
+        if (!($stack instanceof \Laminas\Router\SimpleRouteStack)) {
+            return [];
+        }
+
+        return $stack->getRoutes();
+    }
+
+    private static function laminasGetNamedRouteFromStack($stack, string $name)
+    {
+        if (!($stack instanceof \Laminas\Router\SimpleRouteStack)) {
+            return null;
+        }
+
+        return $stack->getRoute($name);
+    }
+
+    private static function laminasMaterializePartChildRoutes(\Laminas\Router\Http\Part $part): void
+    {
+        $rp = new ReflectionProperty($part, 'childRoutes');
+        $rp->setAccessible(true);
+        $childRoutes = $rp->getValue($part);
+        if ($childRoutes !== null) {
+            $part->addRoutes($childRoutes);
+            $rp->setValue($part, null);
+        }
+    }
+
+    private static function partHasDirectMethodChildren(\Laminas\Router\Http\Part $part): bool
+    {
+        self::laminasMaterializePartChildRoutes($part);
+        foreach (self::laminasGetRoutesFromStack($part) as $child) {
+            if ($child instanceof \Laminas\Router\Http\Method) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function walkRouteStackCollectEndpointRows(
+        $rootRouter,
+        $currentStack,
+        string $namePrefix,
+        array &$rows
+    ): void {
+        foreach (self::laminasGetRoutesFromStack($currentStack) as $name => $route) {
+            $qualifiedName = $namePrefix === '' ? (string) $name : $namePrefix . '/' . $name;
+            $path = self::httpRouteTemplateFromNamedRouteStack($rootRouter, $qualifiedName);
+            if ($path !== null && $path !== '') {
+                $skipDirect = $route instanceof \Laminas\Router\Http\Part
+                    && self::partHasDirectMethodChildren($route);
+                if (!$skipDirect) {
+                    $methods = self::extractHttpVerbFromRoute($route);
+                    foreach ($methods as $m) {
+                        $rows[] = [
+                            'path' => $path,
+                            'method' => $m,
+                            'resourceName' => $m . ' ' . $path,
+                        ];
+                    }
+                }
+            }
+            if ($route instanceof \Laminas\Router\Http\Part) {
+                self::laminasMaterializePartChildRoutes($route);
+                self::walkRouteStackCollectEndpointRows($rootRouter, $route, $qualifiedName, $rows);
+            }
+        }
+    }
+
+    public static function httpRouteTemplateFromNamedRouteStack($stack, string $matchedName): ?string
+    {
+        $segments = \explode('/', $matchedName, 2);
+        $route = self::laminasGetNamedRouteFromStack($stack, $segments[0]);
+        if ($route === null) {
+            return null;
+        }
+
+        $hasChild = isset($segments[1]);
+
+        if ($route instanceof \Laminas\Router\Http\Part) {
+            self::laminasMaterializePartChildRoutes($route);
+            $base = self::partRouteBaseTemplate($route);
+            $base = $base ?? '';
+            if (!$hasChild) {
+                return $base !== '' ? $base : null;
+            }
+            $child = self::httpRouteTemplateFromNamedRouteStack($route, $segments[1]);
+            if ($child === null) {
+                return $base !== '' ? $base : null;
+            }
+
+            return $base . $child;
+        }
+
+        if ($route instanceof \Laminas\Router\Http\TreeRouteStack && $hasChild) {
+            return self::httpRouteTemplateFromNamedRouteStack($route, $segments[1]);
+        }
+
+        if ($hasChild) {
+            return null;
+        }
+
+        return self::httpRouteTemplateFromMatchedRoute($route, null);
+    }
+
+    public static function partRouteBaseTemplate(\Laminas\Router\Http\Part $part): ?string
+    {
+        $rp = new ReflectionProperty($part, 'route');
+        $rp->setAccessible(true);
+        $baseRoute = $rp->getValue($part);
+
+        return self::httpRouteTemplateFromMatchedRoute($baseRoute, null);
     }
 
     public static function debugBacktraceToString(array $backtrace)

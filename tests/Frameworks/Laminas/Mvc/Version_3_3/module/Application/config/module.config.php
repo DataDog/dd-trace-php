@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Application;
 
 use Application\Controller\CommonSpecsController;
+use Application\Controller\LoginController;
+use Application\Controller\LoginControllerFactory;
 use Laminas\Router\Http\Literal;
+use Laminas\Router\Http\Method;
 use Laminas\Router\Http\Segment;
 use Laminas\ServiceManager\Factory\InvokableFactory;
 
@@ -61,6 +64,68 @@ return [
                         'action' => 'error',
                     ],
                 ]
+            ],
+            'login_auth' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/login/auth',
+                    'defaults' => [
+                        'controller' => Controller\LoginController::class,
+                        'action' => 'auth',
+                    ],
+                ]
+            ],
+            'login_signup' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/login/signup',
+                    'defaults' => [
+                        'controller' => Controller\LoginController::class,
+                        'action' => 'signup',
+                    ],
+                ]
+            ],
+            'behind_auth' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/behind_auth',
+                    'defaults' => [
+                        'controller' => Controller\LoginController::class,
+                        'action' => 'behindAuth',
+                    ],
+                ]
+            ],
+            'verb_test' => [
+                'type' => Literal::class,
+                'options' => [
+                    'route' => '/verb-test',
+                    'defaults' => [
+                        'controller' => Controller\CommonSpecsController::class,
+                        'action' => 'simple',
+                    ],
+                ],
+                'may_terminate' => false,
+                'child_routes' => [
+                    'get'    => ['type' => Method::class, 'options' => ['verb' => 'GET']],
+                    'post'   => ['type' => Method::class, 'options' => ['verb' => 'POST']],
+                    'put'    => ['type' => Method::class, 'options' => ['verb' => 'PUT']],
+                    'patch'  => ['type' => Method::class, 'options' => ['verb' => 'PATCH']],
+                    'delete' => ['type' => Method::class, 'options' => ['verb' => 'DELETE']],
+                ],
+            ],
+            'dynamic_route' => [
+                'type' => Segment::class,
+                'options' => [
+                    'route' => '/dynamic_route[/:param01[/static[/:param02]]]',
+                    'constraints' => [
+                        'param01' => '[a-zA-Z0-9_-]+',
+                        'param02' => '[a-zA-Z0-9_-]+',
+                    ],
+                    'defaults' => [
+                        'controller' => Controller\CommonSpecsController::class,
+                        'action' => 'dynamicRoute',
+                    ],
+                ]
             ]
         ],
     ],
@@ -68,6 +133,7 @@ return [
         'factories' => [
             Controller\IndexController::class => InvokableFactory::class,
             Controller\CommonSpecsController::class => InvokableFactory::class,
+            Controller\LoginController::class => LoginControllerFactory::class,
         ],
     ],
     'view_manager' => [

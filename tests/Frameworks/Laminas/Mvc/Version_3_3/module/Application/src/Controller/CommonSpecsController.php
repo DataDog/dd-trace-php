@@ -32,4 +32,11 @@ class CommonSpecsController extends AbstractActionController
     {
         throw new \Exception('Controller error');
     }
+
+    public function dynamicRouteAction()
+    {
+        $response = new Response();
+        $response->setContent('dynamicRoute');
+        return $response;
+    }
 }

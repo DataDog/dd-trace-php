@@ -14,12 +14,16 @@
         "laminas/laminas-component-installer": "^2.4",
         "laminas/laminas-development-mode": "^3.2",
         "laminas/laminas-skeleton-installer": "^0.6",
-        "laminas/laminas-mvc": "3.3.*"
+        "laminas/laminas-mvc": "3.3.*",
+        "laminas/laminas-authentication": "^2.9",
+        "laminas/laminas-db": "^2.13",
+        "laminas/laminas-session": "^2.10"
     },
     "autoload": {
         "psr-4": {
             "Application\\": "module/Application/src/"
-        }
+        },
+        "files": ["../../../../Appsec/Mock.php"]
     },
     "autoload-dev": {
         "psr-4": {
