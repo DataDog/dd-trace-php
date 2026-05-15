@@ -1321,6 +1321,10 @@ endforeach;
 "System Tests: [tracer-release]":
   extends: .system_tests
   timeout: 4h
+  variables:
+    # Expand the DinD loopback volume to avoid running out of disk space.
+    # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
+    DOCKER_LOOPBACK_SIZE: 50G
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
       when: on_success

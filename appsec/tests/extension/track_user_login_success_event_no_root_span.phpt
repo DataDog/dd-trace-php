@@ -26,4 +26,5 @@ require __DIR__ . '/inc/logging.php';
 match_log("/No root span available on request init/");
 ?>
 --EXPECTF--
+Deprecated: Function datadog\appsec\track_user_login_success_event() is deprecated in %s on line %d
 found message in log matching /No root span available on request init/

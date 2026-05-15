@@ -40,6 +40,7 @@ print_r(root_span_get_meta());
 $helper->finished_with_commands();
 ?>
 --EXPECTF--
+Deprecated: Function datadog\appsec\track_user_login_success_event() is deprecated in %s on line %d
 usr.id:
 string(5) "Admin"
 root_span_get_meta():

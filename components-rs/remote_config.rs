@@ -592,7 +592,8 @@ pub extern "C" fn ddog_remote_configs_service_env_change(
     }
 
     remote_config.manager.track_target(&Arc::new(new_target));
-    ddog_process_remote_configs(remote_config);
+    // Caller must call ddog_process_remote_configs if true.
+    // We don't call it here to allow the caller delaying the call as necessary.
 
     true
 }
