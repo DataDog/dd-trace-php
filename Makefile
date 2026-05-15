@@ -125,6 +125,7 @@ $(BUILD_DIR)/Makefile: $(BUILD_DIR)/configure $(BUILD_DIR)/.rust_files_list
 
 $(SO_FILE): $(if $(ASSUME_COMPILED),, $(ALL_OBJECT_FILES) $(BUILD_DIR)/compile_rust.sh)
 	$(if $(ASSUME_COMPILED),,$(Q) $(MAKE) -C $(BUILD_DIR) -j)
+	$(if $(filter Darwin,$(shell uname -s)),$(Q) codesign --force --sign - $@,)
 
 $(AR_FILE): $(ALL_OBJECT_FILES)
 	$(Q) $(MAKE) -C $(BUILD_DIR) -j ./modules/ddtrace.a all
