@@ -30,19 +30,10 @@ datadog.trace.agent_test_session_token=dd_trace_agent_env
 --FILE--
 <?php
 
-include __DIR__ . '/../includes/request_replayer.inc';
-
-$rr = new RequestReplayer();
+// Block until the sidecar has fetched /info from the agent so env is propagated
+dd_trace_internal_fn('await_agent_info');
 
 $span = \DDTrace\start_span();
-
-// make sure sidecar keeps up with us
-$start = microtime(true);
-\DDTrace\start_trace_span();
-\DDTrace\close_span();
-$rr->waitForDataAndReplay();
-usleep(floor(microtime(true) - $start) * 100000);
-
 \DDTrace\close_span();
 var_dump($span->env);
 
