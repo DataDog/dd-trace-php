@@ -1063,18 +1063,19 @@ class LaminasIntegration extends Integration
 
     private static function extractHttpVerbFromRoute($route): array
     {
+        $defaultMethods = ['GET'];
         if ($route instanceof \Laminas\Router\Http\Chain) {
             foreach (self::laminasGetChainRoutes($route) as $chainRoute) {
                 $methods = self::extractHttpVerbFromRoute($chainRoute);
-                if (sizeof($methods) == 0 && $methods[0] !== 'GET') {
+                if (count($methods) > 0 && $methods !== $defaultMethods) {
                     return $methods;
                 }
             }
 
-            return ['GET'];
+            return $defaultMethods;
         }
         if (!($route instanceof \Laminas\Router\Http\Method)) {
-            return ['GET'];
+            return $defaultMethods;
         }
         $rp = new ReflectionProperty($route, 'verb');
         $rp->setAccessible(true);

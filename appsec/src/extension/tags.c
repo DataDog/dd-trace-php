@@ -358,14 +358,8 @@ void dd_tags_rinit(void)
     }
 
     // Just in case (e.g. rinit without a prior rshutdown in edge paths)...
-    if (_event_user_id) {
-        zend_string_release(_event_user_id);
-        _event_user_id = NULL;
-    }
-    if (_auth_user_event_automated_last_user_id) {
-        zend_string_release(_auth_user_event_automated_last_user_id);
-        _auth_user_event_automated_last_user_id = NULL;
-    }
+    _event_user_id = NULL;
+    _auth_user_event_automated_last_user_id = NULL;
 }
 
 void dd_tags_add_appsec_json_frag(zend_string *nonnull zstr)
