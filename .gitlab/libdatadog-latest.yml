@@ -1,0 +1,350 @@
+stages:
+  - analyze
+
+"analyze and create pr":
+  stage: analyze
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: ["arch:amd64"]
+  timeout: 5h # large timeout because retries can sometimes take a long time
+  when: always
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  script:
+    - |
+      set -xuo pipefail
+      git config --global --add safe.directory "${CI_PROJECT_DIR}"
+      git config --global --add safe.directory "${CI_PROJECT_DIR}/libdatadog"
+      git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      git config --global user.name "github-actions[bot]"
+
+      if [ "${LIBDATADOG_NO_CHANGES:-false}" = "true" ]; then
+        echo "libdatadog is already at the latest commit — nothing to do."
+        exit 0
+      fi
+
+      LIBDATADOG_SHA="${LIBDATADOG_OVERRIDE_SHA}"
+      LIBDATADOG_PINNED="${LIBDATADOG_PINNED_SHA}"
+      echo "libdatadog: ${LIBDATADOG_PINNED:0:8} → ${LIBDATADOG_SHA:0:8}"
+
+      # Obtain a short-lived GitLab project access token (api + read_repository scope)
+      # via the BTI CI API.  Authentication to BTI uses a Vault-issued JWT for the
+      # 'sdm' audience — the same Vault proxy that Emissary injects (VAULT_ADDR).
+      _vault_jwt() {
+        local audience="$1"
+        if [ -n "${VAULT_ADDR:-}" ]; then
+          curl -sf -H "X-Vault-Request: true" \
+            "${VAULT_ADDR}/v1/identity/oidc/token/${audience}" | jq -r '.data.token' 2>/dev/null \
+            && return 0
+        fi
+        if [ -n "${DD_DATACENTER:-}" ]; then
+          curl -sf -H "X-Vault-Request: true" \
+            "https://vault.${DD_DATACENTER}/v1/identity/oidc/token/${audience}" | jq -r '.data.token' 2>/dev/null \
+            && return 0
+        fi
+        return 1
+      }
+      BTI_JWT=$(_vault_jwt sdm) || {
+        echo "ERROR: Could not obtain a BTI JWT (VAULT_ADDR=${VAULT_ADDR:-unset}, DD_DATACENTER=${DD_DATACENTER:-unset})." >&2
+        exit 1
+      }
+      GITLAB_TOKEN=$(curl -sf \
+        -H "Authorization: Bearer ${BTI_JWT}" \
+        "https://bti-ci-api.us1.ddbuild.io/internal/ci/gitlab/token?owner=DataDog&repository=dd-trace-php" \
+        | jq -r '.token')
+      GITLAB_API="https://gitlab.ddbuild.io/api/v4"
+
+      mkdir -p tmp/artifacts/traces
+
+      # collect failed jobs from a child pipeline (up to 3 pages)
+      collect_failures() {
+        local child_id="$1" trigger_name="$2"
+        local failed_jobs="[]"
+        for page in 1 2 3; do
+          page_data=$(curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${child_id}/jobs?per_page=100&page=${page}" \
+            || echo "[]")
+          page_failed=$(echo "${page_data}" | jq '[.[] | select(.status == "failed")]')
+          failed_jobs=$(jq -n --argjson a "${failed_jobs}" --argjson b "${page_failed}" '$a + $b')
+          [ "$(echo "${page_data}" | jq 'length')" -lt 100 ] && break
+        done
+        echo "${failed_jobs}" | jq --arg t "${trigger_name}" '[.[] | . + {trigger: $t}]'
+      }
+
+      # wait for a single job to leave its running/pending states
+      wait_for_job() {
+        local job_id="$1" label="$2"
+        while true; do
+          status=$(curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${job_id}" \
+            | jq -r '.status')
+          case "${status}" in
+            running|pending|created|waiting_for_resource|preparing)
+              sleep 20 ;;
+            *)
+              echo "  ${label}: ${status}"
+              break ;;
+          esac
+        done
+      }
+
+      echo "Collecting CI results from parent pipeline ${PARENT_PIPELINE_ID}..."
+
+      curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+        "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${PARENT_PIPELINE_ID}/bridges?per_page=100" \
+        -o tmp/artifacts/bridges.json
+
+      echo "[]" > tmp/artifacts/all_failures.json
+
+      while IFS=$'\t' read -r child_id child_status trigger_name; do
+        echo ""
+        echo "=== ${trigger_name} (pipeline ${child_id}) status: ${child_status} ==="
+        failures=$(collect_failures "${child_id}" "${trigger_name}")
+        count=$(echo "${failures}" | jq 'length')
+        if [ "${count}" = "0" ]; then
+          echo "  No failures."
+          continue
+        fi
+        echo "  Failed jobs (${count}):"
+        echo "${failures}" | jq -r '.[] | "    - \(.name)"'
+        all=$(cat tmp/artifacts/all_failures.json)
+        jq -n --argjson a "${all}" --argjson b "${failures}" '$a + $b' > tmp/artifacts/all_failures.json
+      done < <(jq -r '.[] | select(.downstream_pipeline != null)
+                      | [(.downstream_pipeline.id | tostring),
+                        (.downstream_pipeline.status // "unknown"),
+                        .name]
+                      | @tsv' \
+        tmp/artifacts/bridges.json)
+
+      TOTAL_FAILURES=$(jq 'length' tmp/artifacts/all_failures.json)
+      echo ""
+      echo "Initial failures: ${TOTAL_FAILURES}"
+
+      # Retry once if fewer than 10 failures (avoids flaky tests)
+      if [ "${TOTAL_FAILURES}" -gt 0 ] && [ "${TOTAL_FAILURES}" -lt 10 ]; then
+        echo "Retrying ${TOTAL_FAILURES} failed job(s) to filter flakiness..."
+        echo "" > tmp/artifacts/retried_jobs.tsv
+
+        while IFS= read -r job_json; do
+          orig_id=$(echo "${job_json}" | jq -r '.id')
+          trigger=$(echo "${job_json}" | jq -r '.trigger')
+          name=$(echo "${job_json}"   | jq -r '.name')
+          new_job=$(curl -sf -X POST -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${orig_id}/retry" || echo "{}")
+          new_id=$(echo "${new_job}" | jq -r '.id // empty')
+          if [ -n "${new_id}" ]; then
+            printf '%s\t%s\t%s\n' "${new_id}" "${trigger}" "${name}" \
+              >> tmp/artifacts/retried_jobs.tsv
+            echo "  Retried: ${name} → job ${new_id}"
+          else
+            echo "  Could not retry: ${name} (skipping)"
+          fi
+        done < <(jq -c '.[]' tmp/artifacts/all_failures.json)
+
+        echo "Waiting for retried jobs..."
+        while IFS=$'\t' read -r retried_id trigger name; do
+          [ -z "${retried_id}" ] && continue
+          wait_for_job "${retried_id}" "${name}"
+        done < tmp/artifacts/retried_jobs.tsv
+
+        # Rebuild failure list from jobs that still failed after retry
+        echo "[]" > tmp/artifacts/all_failures.json
+        while IFS=$'\t' read -r retried_id trigger name; do
+          [ -z "${retried_id}" ] && continue
+          job_data=$(curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+            "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${retried_id}" || echo "{}")
+          status=$(echo "${job_data}" | jq -r '.status')
+          if [ "${status}" = "failed" ]; then
+            entry=$(echo "${job_data}" | jq --arg t "${trigger}" '. + {trigger: $t}')
+            all=$(cat tmp/artifacts/all_failures.json)
+            jq -n --argjson a "${all}" --argjson b "[${entry}]" '$a + $b' > tmp/artifacts/all_failures.json
+          fi
+        done < tmp/artifacts/retried_jobs.tsv
+
+        TOTAL_FAILURES=$(jq 'length' tmp/artifacts/all_failures.json)
+        echo "Failures after retry: ${TOTAL_FAILURES}"
+      fi
+
+      # Build the CI summary
+      {
+        echo "Total persistent failures: ${TOTAL_FAILURES}"
+        echo ""
+        jq -r '.[] | "[\(.trigger)] \(.name)"' tmp/artifacts/all_failures.json
+      } > tmp/artifacts/ci_summary.txt
+
+      BUILD_STATUS="$([ "${TOTAL_FAILURES}" = "0" ] \
+        && echo "✅ all passed" || echo "❌ ${TOTAL_FAILURES} job(s) failed")"
+
+      # Clone libdatadog at the tested SHA
+      git -C libdatadog checkout "${LIBDATADOG_SHA}"
+      (git -C libdatadog log --oneline "${LIBDATADOG_PINNED}..HEAD" 2>/dev/null | head -200 || git -C libdatadog log --oneline -100) > tmp/artifacts/libdatadog_changelog.txt
+
+      if [ "${TOTAL_FAILURES}" = "0" ]; then
+        # Clean update: write a brief report and skip Claude
+        echo "All CI jobs passed — skipping Claude analysis."
+        printf '# libdatadog Integration Report\n\n## Overall status\n\n✅ Clean update — all CI jobs passed.\n\n## Build & test summary\n\nAll sub-pipelines (tracer, appsec, profiler, shared, package) passed.\nNo code changes required.\n\n## Non-trivial changes made\n\nNone.\n\n## Identified libdatadog issues\n\nNone.\n\n## Flaky / ignored failures\n\nNone.\n' > tmp/REPORT.md
+      else
+        # Failures remain: download traces and run Claude
+        compile_keywords="compile build sidecar tracing profil appsec"
+        while IFS= read -r job_json; do
+          job_name=$(echo "${job_json}" | jq -r '.name')
+          job_id=$(echo "${job_json}"   | jq -r '.id')
+          trigger=$(echo "${job_json}"  | jq -r '.trigger')
+          jname_lower=$(echo "${job_name}" | tr '[:upper:]' '[:lower:]')
+          is_compile=false
+          for kw in ${compile_keywords}; do
+            [[ "${jname_lower}" == *"${kw}"* ]] && is_compile=true && break
+          done
+          if [ "${is_compile}" = "true" ]; then
+            safe=$(echo "${jname_lower}" | tr '/ ' '-_' | cut -c1-60)
+            trace_file="tmp/artifacts/traces/${safe}_${job_id}.txt"
+            echo "" && echo "--- trace: ${job_name} (${trigger}) ---"
+            trace=$(curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
+              "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${job_id}/trace" \
+              || echo "[trace unavailable]")
+            { echo "=== ${job_name} (trigger: ${trigger}) ==="; echo "${trace}" | tail -c 15360; } \
+              > "${trace_file}"
+            echo "${trace}" | tail -c 2000
+          fi
+        done < <(jq -c '.[]' tmp/artifacts/all_failures.json)
+
+        # Install Claude (nvm — no root required)
+        if ! command -v claude &>/dev/null; then
+          export NVM_DIR="${HOME}/.nvm"
+          curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - 2>&1
+          . "${NVM_DIR}/nvm.sh"
+          nvm install --lts --no-progress 2>&1
+          npm install -g @anthropic-ai/claude-code 2>&1
+        fi
+
+        AI_GATEWAY_TOKEN=$(_vault_jwt rapid-ai-platform) || {
+          echo "ERROR: Could not obtain an AI Gateway token (VAULT_ADDR=${VAULT_ADDR:-unset}, DD_DATACENTER=${DD_DATACENTER:-unset})." >&2
+          exit 1
+        }
+
+        export ANTHROPIC_API_KEY=not-set
+        export ANTHROPIC_BASE_URL="https://ai-gateway.us1.ddbuild.io"
+        export ANTHROPIC_CUSTOM_HEADERS="$(printf '%s\n' \
+          "source: dd-trace-php-libdatadog-ci" \
+          "org-id: 2" \
+          "provider: anthropic" \
+          "claude-code: true" \
+          "Authorization: Bearer ${AI_GATEWAY_TOKEN}")"
+
+        PROMPT_CONTEXT="## Environment
+        - dd-trace-php source: ${CI_PROJECT_DIR}
+        - New libdatadog source: ${CI_PROJECT_DIR}/libdatadog
+        - libdatadog SHA: ${LIBDATADOG_SHA}
+        - Full CI result: ${BUILD_STATUS}
+        - CI summary: tmp/artifacts/ci_summary.txt
+        - Compilation failure traces: tmp/artifacts/traces/
+        - libdatadog changelog: tmp/artifacts/libdatadog_changelog.txt
+        - CI pipeline: ${CI_PIPELINE_URL}"
+        PROMPT_BODY=$(cat .gitlab/libdatadog-latest-prompt.md)
+
+        set +e
+        claude \
+          --allowedTools "Read,Glob,Grep,Edit,Write" \
+          --permission-mode bypassPermissions \
+          --max-turns 50 \
+          -p "${PROMPT_CONTEXT}
+
+        ${PROMPT_BODY}" 2>&1 | tee tmp/artifacts/claude_output.txt
+        CLAUDE_EXIT=$?
+        set -e
+        echo "Claude exit code: ${CLAUDE_EXIT}"
+      fi
+
+      # Get GitHub token via dd-octo-sts
+      dd-octo-sts debug --scope DataDog/dd-trace-php --policy gitlab-ci-libdatadog-latest
+      dd-octo-sts token --scope DataDog/dd-trace-php --policy gitlab-ci-libdatadog-latest > tmp/github_token.txt
+      GITHUB_TOKEN=$(cat tmp/github_token.txt)
+      export GITHUB_TOKEN GH_TOKEN="${GITHUB_TOKEN}"
+
+      # Commit: submodule pointer + any Claude edits
+      TARGET_BRANCH="bot/libdatadog-latest"
+      git checkout -B "${TARGET_BRANCH}"
+
+      git add -A
+
+      # Feedback runs append [no-ci-feedback] so the next push doesn't trigger
+      # another analyze-and-create-pr, breaking the potential infinite loop.
+      FEEDBACK_MARKER="${LIBDATADOG_FEEDBACK_RUN:+' [no-ci-feedback]'}"
+      COMMIT_MSG="libdatadog update to ${LIBDATADOG_SHA:0:8}${FEEDBACK_MARKER}
+
+      Automated update by CI pipeline ${CI_PIPELINE_URL}
+
+      Full CI result: ${BUILD_STATUS}"
+
+      if ! git diff --cached --quiet; then
+        git commit -m "${COMMIT_MSG}" \
+          --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+        git push --force \
+          "https://x-access-token:${GITHUB_TOKEN}@github.com/DataDog/dd-trace-php.git" \
+          "HEAD:${TARGET_BRANCH}"
+      elif [ -z "${LIBDATADOG_FEEDBACK_RUN:-}" ]; then
+        # Original schedule run with no code changes: still push the submodule bump.
+        git commit --allow-empty -m "${COMMIT_MSG}" \
+          --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+        git push --force \
+          "https://x-access-token:${GITHUB_TOKEN}@github.com/DataDog/dd-trace-php.git" \
+          "HEAD:${TARGET_BRANCH}"
+      else
+        echo "Feedback run with no code changes — updating PR description only."
+      fi
+
+      # Create or update the PR
+      REPORT_BODY=$(cat tmp/REPORT.md 2>/dev/null \
+        || echo "*(Claude did not produce a report — see \`tmp/artifacts/claude_output.txt\` in the CI pipeline.)*")
+
+      PR_TITLE="libdatadog update to ${LIBDATADOG_SHA:0:8}"
+      if [ -n "${LIBDATADOG_PINNED}" ]; then
+        SHA_TABLE="| | SHA |
+      |---|---|
+      | Previous | \`${LIBDATADOG_PINNED}\` |
+      | New | \`${LIBDATADOG_SHA}\` |"
+      else
+        SHA_TABLE="**SHA**: \`${LIBDATADOG_SHA}\`"
+      fi
+      PR_BODY="## Summary
+
+      Automated update of the libdatadog submodule to the latest HEAD.
+
+      ${SHA_TABLE}
+
+      **Full CI result**: ${BUILD_STATUS}
+      **CI pipeline**: ${CI_PIPELINE_URL}
+
+      ---
+
+      ${REPORT_BODY}
+
+      ---
+      /cc @bwoebi"
+
+      PR_NUMBER=$(gh pr list \
+        --repo DataDog/dd-trace-php \
+        --head "${TARGET_BRANCH}" \
+        --json number \
+        --jq '.[0].number' 2>/dev/null || echo "")
+
+      if [ -z "${PR_NUMBER}" ]; then
+        gh pr create \
+          --repo DataDog/dd-trace-php \
+          --base master \
+          --head "${TARGET_BRANCH}" \
+          --title "${PR_TITLE}" \
+          --body "${PR_BODY}"
+      else
+        gh pr edit "${PR_NUMBER}" \
+          --repo DataDog/dd-trace-php \
+          --title "${PR_TITLE}" \
+          --body "${PR_BODY}"
+      fi
+  after_script:
+    - if [[ -f tmp/github_token.txt ]]; then dd-octo-sts revoke -t "$(cat tmp/github_token.txt)" || true; fi
+  artifacts:
+    paths:
+      - tmp/REPORT.md
+      - tmp/artifacts/
+    when: always
