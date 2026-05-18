@@ -27,9 +27,6 @@ final class PDOIntegrationTest extends BaseTestCase
 
     public function dsnDbNameCases()
     {
-        // libpq strips paired wrapping single quotes from key=value pairs, so the tracer must too —
-        // otherwise `dbname='milk'` produces `db.name='milk'`, which the agent sanitizer rewrites
-        // as `_milk`, splitting the inferred-entity peer.* tuple from other tracers (APMS-19464).
         return [
             'unquoted dbname'                 => ['pgsql:host=h;dbname=milk',   'milk'],
             'paired single quotes stripped'   => ["pgsql:host=h;dbname='milk'", 'milk'],
