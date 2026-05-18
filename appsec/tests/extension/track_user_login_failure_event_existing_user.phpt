@@ -23,6 +23,7 @@ echo "root_span_get_meta():\n";
 print_r(root_span_get_meta());
 ?>
 --EXPECTF--
+Deprecated: Function datadog\appsec\track_user_login_failure_event() is deprecated in %s on line %d
 root_span_get_meta():
 Array
 (

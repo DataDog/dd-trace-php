@@ -22,29 +22,32 @@ const DIAGNOSTIC_KEYS: &[&str] = &[
 ];
 
 pub fn report_diagnostics_errors(
-    rc_path: &rc::RcPath,
+    rc_path: Option<&rc::RcPath>,
     diagnostics: &libddwaf::object::WafOwnedDefaultAllocator<libddwaf::object::WafMap>,
     rules_version: &str,
-    metric_submitter: &mut impl TelemetryMetricSubmitter,
+    action: &str,
+    metric_submitter: &mut dyn TelemetryMetricSubmitter,
     log_submitter: &TelemetryLogsCollector,
 ) {
     use libddwaf::object::WafObjectType;
 
-    let maybe_parsed_key = rc::ParsedConfigKey::from_rc_path(rc_path);
-    let parsed_key = match maybe_parsed_key {
-        Some(parsed_key) => {
-            debug!(
-                "Processing diagnostics for {:?}: {} keys",
-                rc_path.as_str(),
-                diagnostics.len()
-            );
-            parsed_key
-        }
-        None => {
-            warning!("Failed to parse config key for {:?}", rc_path);
+    let path_label = rc_path.map_or("(bundled rules)", |p| p.as_str());
+    let parsed_key = match rc_path.map(|p| rc::ParsedConfigKey::from_rc_path(p)) {
+        Some(None) => {
+            warning!("Failed to parse config key for {:?}", path_label);
             return;
         }
+        Some(Some(key)) => key,
+        None => rc::ParsedConfigKey {
+            product: "bundled_rules".to_string(),
+            config_id: "bundled_rules".to_string(),
+        },
     };
+    debug!(
+        "Processing diagnostics for {:?}: {} keys",
+        path_label,
+        diagnostics.len()
+    );
 
     for &config_key in DIAGNOSTIC_KEYS {
         let Some(keyed) = diagnostics.get_str(config_key) else {
@@ -53,9 +56,9 @@ pub fn report_diagnostics_errors(
         let value = keyed.value();
         if value.object_type() != WafObjectType::Map {
             warning!(
-                "Diagnostic key {} for {:?} is not a map, skipping",
+                "Diagnostic key {} for {} is not a map, skipping",
                 config_key,
-                rc_path
+                path_label
             );
             continue;
         }
@@ -67,9 +70,9 @@ pub fn report_diagnostics_errors(
         }
 
         debug!(
-            "Diagnostic {} for {:?} has {} entries",
+            "Diagnostic {} for {} has {} entries",
             config_key,
-            rc_path,
+            path_label,
             map.len()
         );
         for kv in map.iter() {
@@ -87,6 +90,7 @@ pub fn report_diagnostics_errors(
         let mut tags = TelemetryTags::new();
         tags.add("waf_version", Service::waf_version())
             .add("event_rules_version", rules_version)
+            .add("action", action)
             .add("config_key", config_key);
 
         if let Some(error_keyed) = map.get_str("error") {

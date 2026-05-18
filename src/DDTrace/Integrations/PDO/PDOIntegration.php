@@ -354,7 +354,7 @@ REGEX;
             'server.db.statement' => $span->resource,
             'server.db.system' => $storedConnectionInfo[Tag::DB_SYSTEM],
         );
-        \datadog\appsec\push_addresses($addresses, "sqli");
+        \datadog\appsec\push_addresses($addresses, "sql_injection");
     }
 
     public static function useQuestionMarkPlaceholders($query)

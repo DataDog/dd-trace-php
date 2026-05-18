@@ -507,6 +507,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "borrow-or-share"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
+
+[[package]]
 name = "build_common"
 version = "0.0.1"
 dependencies = [
@@ -951,6 +957,7 @@ dependencies = [
  "ciborium",
  "clap",
  "criterion-plot",
+ "csv",
  "is-terminal",
  "itertools 0.10.5",
  "num-traits",
@@ -1073,12 +1080,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "current_platform"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a74858bcfe44b22016cb49337d7b6f04618c58e5dbfdef61b06b8c434324a0bc"
-
-[[package]]
 name = "cxx"
 version = "1.0.194"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1190,10 +1191,11 @@ dependencies = [
  "derive_more",
  "env_logger 0.10.2",
  "faststr",
+ "libdd-common",
  "log",
  "md5",
  "pyo3",
- "regex",
+ "semver",
  "serde",
  "serde-bool",
  "serde_json",
@@ -1257,8 +1259,6 @@ dependencies = [
  "libdd-common",
  "libdd-data-pipeline",
  "percent-encoding",
- "regex",
- "regex-automata",
  "serde",
  "serde_json",
  "smallvec",
@@ -1339,7 +1339,6 @@ dependencies = [
  "libdd-common",
  "libdd-trace-protobuf",
  "manual_future",
- "regex",
  "serde",
  "serde_json",
  "serde_with",
@@ -1356,6 +1355,7 @@ name = "datadog-sidecar"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "arrayref",
  "base64 0.22.1",
  "bincode",
@@ -1761,6 +1761,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b09cf3155332e944990140d967ff5eceb70df778b34f77d8075db46e4704e6d8"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "fluent-uri"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc74ac4d8359ae70623506d512209619e5cf8f347124910440dbc221714b328e"
+dependencies = [
+ "borrow-or-share",
+ "ref-cast",
+ "serde",
 ]
 
 [[package]]
@@ -2729,6 +2740,7 @@ dependencies = [
  "http-body-util",
  "libdd-capabilities",
  "libdd-common",
+ "tokio",
 ]
 
 [[package]]
@@ -2760,6 +2772,7 @@ dependencies = [
  "pin-project",
  "rand 0.8.5",
  "regex",
+ "regex-lite",
  "reqwest",
  "rustls",
  "rustls-native-certs",
@@ -2863,11 +2876,13 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-ddsketch",
  "libdd-dogstatsd-client",
  "libdd-log",
  "libdd-shared-runtime",
  "libdd-telemetry",
  "libdd-tinybytes",
+ "libdd-trace-obfuscation",
  "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
@@ -2939,9 +2954,9 @@ dependencies = [
 
 [[package]]
 name = "libdd-libunwind-sys"
-version = "1.0.0"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eecc52581f5ccbcced4e2264fb7dd95112dba55f47d217c859420dd64e62c43a"
+checksum = "227f0e30af5fbb91d1b3768db7997fdd1ded87c44b371663783c4ff3eb686908"
 dependencies = [
  "cc",
  "libc 0.2.177",
@@ -3020,16 +3035,19 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "futures",
+ "futures-util",
  "libdd-capabilities",
+ "libdd-capabilities-impl",
  "libdd-common",
  "tokio",
  "tokio-util",
  "tracing",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
 name = "libdd-telemetry"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3039,6 +3057,7 @@ dependencies = [
  "hashbrown 0.15.2",
  "http",
  "http-body-util",
+ "httpmock",
  "libc 0.2.177",
  "libdd-common",
  "libdd-ddsketch",
@@ -3065,6 +3084,7 @@ dependencies = [
  "libdd-common-ffi",
  "libdd-telemetry",
  "paste",
+ "serde_json",
  "tempfile",
 ]
 
@@ -3095,6 +3115,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "libdd-trace-obfuscation"
+version = "2.0.0"
+dependencies = [
+ "anyhow",
+ "criterion",
+ "duplicate",
+ "fluent-uri",
+ "libdd-common",
+ "libdd-trace-protobuf",
+ "libdd-trace-utils",
+ "log",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "libdd-trace-protobuf"
 version = "3.0.1"
 dependencies = [
@@ -3113,6 +3150,7 @@ name = "libdd-trace-stats"
 version = "2.0.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "async-trait",
  "criterion",
  "hashbrown 0.15.2",
@@ -3123,6 +3161,7 @@ dependencies = [
  "libdd-common",
  "libdd-ddsketch",
  "libdd-shared-runtime",
+ "libdd-trace-obfuscation",
  "libdd-trace-protobuf",
  "libdd-trace-utils",
  "rand 0.8.5",
@@ -3871,8 +3910,6 @@ dependencies = [
 name = "php_sidecar_mockgen"
 version = "0.1.0"
 dependencies = [
- "cc_utils",
- "current_platform",
  "sidecar_mockgen",
 ]
 
@@ -4475,6 +4512,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "regex-lite"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab834c73d247e67f4fae452806d17d3c7501756d98c8808d7c9c7aa7d18f973"
+
+[[package]]
 name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4956,6 +4999,7 @@ version = "1.0.137"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "930cfb6e6abf99298aaad7d29abbef7a9999a9a8806a40088f55f0dcec03146b"
 dependencies = [
+ "indexmap 2.12.1",
  "itoa",
  "memchr",
  "ryu",

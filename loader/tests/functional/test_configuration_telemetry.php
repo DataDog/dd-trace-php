@@ -16,7 +16,7 @@ $output = runCLI('-r "echo \'foo\'; dd_trace_internal_fn(\'finalize_telemetry\')
 assertMatchesFormat($output, '%A"loaded_by_ssi":true%s%A');
 
 // Let time to write the telemetry log
-usleep(10000);
+usleep(300000);
 
 $content = file_get_contents($telemetryLogPath);
 assertContains($content, '{"name":"instrumentation_source","value":"ssi","origin":"default","config_id":null,"seq_id":null}');

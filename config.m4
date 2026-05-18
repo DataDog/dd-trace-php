@@ -7,7 +7,7 @@ PHP_ARG_ENABLE(ddtrace-sanitize, whether to enable AddressSanitizer for ddtrace,
 PHP_ARG_WITH(ddtrace-rust-library, the rust library is located; i.e. to compile without cargo,
   [  --with-ddtrace-rust-library Location to rust library for linking against], -, will be compiled)
 
-PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to generate mock_php.c,
+PHP_ARG_WITH(ddtrace-sidecar-mockgen, binary to weaken PHP symbols in object files,
   [  --with-ddtrace-sidecar-library Location to cargo binary produced by components-rs/php_sidecar_mockgen], -, will be compiled)
 
 PHP_ARG_WITH(ddtrace-cargo, where cargo is located for rust code compilation,
@@ -281,6 +281,14 @@ if test "$PHP_DDTRACE" != "no"; then
     EXTRA_CFLAGS="$EXTRA_CFLAGS -fvisibility=hidden"
     EXTRA_LDFLAGS="$EXTRA_LDFLAGS -export-symbols $ext_srcdir/ddtrace.sym -flto -fuse-linker-plugin"
 
+    dnl On Linux: set the ELF entry point so ddtrace.so can be exec'd directly by ld.so
+    dnl for sidecar spawning (no trampoline binary, no memfd, no temp files).
+    case $host_os in
+      linux*)
+        EXTRA_LDFLAGS="$EXTRA_LDFLAGS -Wl,-e,ddog_spawn_direct_entry"
+      ;;
+    esac
+
     PHP_SUBST(EXTRA_CFLAGS)
     PHP_SUBST(EXTRA_LDFLAGS)
     PHP_SUBST(DDTRACE_SHARED_LIBADD)
@@ -365,6 +373,17 @@ EOT
 	$(LIBTOOL) --mode=link $(CC) -static $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS)  -o $@ -avoid-version -prefer-pic -module $(shared_objects_ddtrace)
 EOT
 
+  if test "$ext_shared" = "yes"; then
+    all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
+    all_object_files_absolute=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' $(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
+    php_binary=$("$PHP_CONFIG" --php-binary)
+    if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
+      ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
+    else
+      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run"
+    fi
+  fi
+
   if test "$PHP_DDTRACE_RUST_LIBRARY_SPLIT" != "no"; then
     ddtrace_rust_lib=""
   elif test "$PHP_DDTRACE_RUST_LIBRARY" != "-"; then
@@ -380,25 +399,17 @@ $ddtrace_rust_lib: $( (find "$ext_srcdir/components-rs" -name "*.rs" -o -name "C
 EOT
   fi
 
+  dnl Weaken PHP-origin symbols in all .o files before the link step so that
+  dnl the resulting .so/.a naturally has weak references.
   if test "$ext_shared" = "yes"; then
-    all_object_files=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' %s' "${src%?}lo"; done)
-    all_object_files_absolute=$(for src in $DD_TRACE_PHP_SOURCES $ZAI_SOURCES; do printf ' $(builddir)/%s' "$(dirname "$src")/$objdir/$(basename "${src%?}o")"; done)
-    php_binary=$("$PHP_CONFIG" --php-binary)
-    if test "$PHP_DDTRACE_SIDECAR_MOCKGEN" != "-"; then
-      ddtrace_mockgen_invocation="HOST= TARGET= $PHP_DDTRACE_SIDECAR_MOCKGEN"
-    else
-      ddtrace_mockgen_invocation="cd \"$ext_srcdir/components-rs/php_sidecar_mockgen\"; HOST= TARGET= CARGO_TARGET_DIR=\$(builddir)/target_mockgen/ \$(DDTRACE_CARGO) run"
-    fi
-    cat <<EOT >> Makefile.fragments
-
-/\$(builddir)/components-rs/mock_php.c: $all_object_files
-	($ddtrace_mockgen_invocation \$(builddir)/components-rs/mock_php.c $php_binary $all_object_files_absolute)
-
-# avoid cargo running simultaneously for libddtrace_php and php_sidecar_mockgen
-/\$(builddir)/components-rs/mock_php.c: | \$(filter-out \$(builddir)/components-rs/mock_php.lo,\$(shared_objects_ddtrace))
-EOT
-
-    PHP_ADD_SOURCES_X("/$ext_dir", "\$(builddir)/components-rs/mock_php.c", $ac_extra, shared_objects_ddtrace, yes)
+    _ddtrace_weaken_tmp=$(mktemp)
+    cat > "$_ddtrace_weaken_tmp" << WEAKEN
+	($ddtrace_mockgen_invocation weaken-dynsym $all_object_files_absolute $php_binary)
+WEAKEN
+    sed -i $({ sed --version 2>&1 || echo ''; } | grep GNU >/dev/null || echo "''") -e "/\/ddtrace\.la:\ \\$/r $_ddtrace_weaken_tmp" Makefile.objects
+    dnl run weaken only once, create a dependency on .la for .a
+    echo "./modules/ddtrace.a: | ./ddtrace.la" >> Makefile.fragments
+    rm -f "$_ddtrace_weaken_tmp"
   fi
 
   if test "$ext_shared" = "shared" || test "$ext_shared" = "yes"; then

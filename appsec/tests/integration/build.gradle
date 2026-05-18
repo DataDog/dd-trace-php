@@ -14,7 +14,12 @@ plugins {
 }
 
 repositories {
-    mavenCentral()
+    def proxy = System.getenv('MAVEN_REPOSITORY_PROXY')
+    if (proxy) {
+        maven { url proxy }
+    } else {
+        mavenCentral()
+    }
 }
 
 java {
@@ -710,6 +715,7 @@ def runMainTask = { String phpVersion, String variant ->
         dependsOn "buildAppsec-${phpVersion}-${variant}"
         if (project.hasProperty('helperBinary')) {
             // Skip building helper-rust when explicit binary path is provided
+            dependsOn createVolumeTask('php-helper-rust')
         } else if (project.hasProperty('useHelperRustCoverage')) {
             dependsOn 'buildHelperRustWithCoverage'
         } else if (project.hasProperty('useHelperRust')) {
@@ -717,6 +723,11 @@ def runMainTask = { String phpVersion, String variant ->
         } else if (phpVersion in ['8.4', '8.5']) {
             // PHP 8.4+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
             dependsOn 'buildHelperRust'
+        } else {
+            // C++ helper path: test containers still mount php-helper-rust (for
+            // the rust-redirection mechanism). Pre-create and chown the volume
+            // here so Docker doesn't auto-create it as root-owned.
+            dependsOn createVolumeTask('php-helper-rust')
         }
 
         if (phpVersion in ['7.0', '7.1']) {

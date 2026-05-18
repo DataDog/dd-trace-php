@@ -1,1 +1,12 @@
+pluginManagement {
+    repositories {
+        def proxy = System.getenv('MAVEN_REPOSITORY_PROXY')
+        if (proxy) {
+            maven { url proxy }
+        } else {
+            gradlePluginPortal()
+        }
+    }
+}
+
 rootProject.name = 'dd-appsec-php-integration'

@@ -181,6 +181,7 @@ class CommonScenariosTest extends IntegrationTestCase
             'DD_TRACE_EXEC_ENABLED' => 'false',
         ], [], 'about', false, null, false);
 
+        $this->assertSame([], $traces);
         $this->assertFlameGraph(
             $traces,
             []

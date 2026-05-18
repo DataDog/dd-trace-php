@@ -301,6 +301,17 @@ impl Service {
         tel_submitter.submit_metric(WAF_INIT, 1.0, tags);
         let uwafi = maybe_uwafi?;
 
+        // Submit waf.config_errors for any errors in the bundled rules
+        let logs_collector = TelemetryLogsCollector::new();
+        waf_diag::report_diagnostics_errors(
+            None,
+            &diagnostics,
+            rules_version.as_deref().unwrap_or("unknown"),
+            "init",
+            tel_submitter,
+            &logs_collector,
+        );
+
         // Initialization of remaining components
         let limiter = limiter::Limiter::new(waf_settings.trace_rate_limit);
         let poller = rc_settings.shmem_path().map(rc::ConfigPoller::new);
@@ -333,7 +344,7 @@ impl Service {
                 asm_always_enabled,
                 rules_version,
             )),
-            logs_collector: TelemetryLogsCollector::new(),
+            logs_collector,
             worker_count: Default::default(),
         };
         service.poll_and_apply_rc()?;
@@ -437,9 +448,10 @@ impl Service {
             .unwrap_or("unknown");
         for (rc_path, diagnostics) in &all_diagnostics {
             waf_diag::report_diagnostics_errors(
-                rc_path,
+                Some(rc_path),
                 diagnostics,
                 version,
+                "update",
                 &mut state.pending_telemetry_metrics,
                 &self.logs_collector,
             );

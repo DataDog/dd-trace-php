@@ -104,6 +104,7 @@ Array
 (
     [%s] => %d
     [_dd.appsec.enabled] => 1
+    [_dd.appsec.waf.duration_ext] => %f
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
     [php.memory.peak_real_usage_bytes] => %f

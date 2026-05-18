@@ -29,6 +29,7 @@ EOT;
 variables:
   FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
   FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+  MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   CI_REGISTRY_USER:
     value: ""
     description: "Your docker hub username"

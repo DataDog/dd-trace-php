@@ -813,9 +813,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
             ddog_sidecar_telemetry_filter_flush(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
     }
 
-    if (!changed && DDTRACE_G(remote_config_state)) {
-        // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
-        // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
+    if (DDTRACE_G(remote_config_state)) {
+        // Must happen after ddog_sidecar_set_universal_service_tags (session state fully initialized)
         ddog_process_remote_configs(DDTRACE_G(remote_config_state));
     }
 }

@@ -1,6 +1,6 @@
 **/vendor
 !/ext/vendor
-tmp/build_extension/
+tmp/
 composer.lock*
 **/core*
 .DS_Store
