@@ -64,7 +64,7 @@ void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
 void ddtrace_sidecar_activate(void);
 void ddtrace_sidecar_rinit(void);
 void ddtrace_sidecar_rshutdown(void);
-void ddtrace_sidecar_gshutdown(void);
+void ddtrace_sidecar_gshutdown(zend_ddtrace_globals *ddtrace_globals);
 
 void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval *tags);
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags);

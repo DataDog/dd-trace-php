@@ -204,8 +204,10 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #  endif
 extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #  define DDTRACE_G(v) ZEND_TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
+#  define DDTRACE_GLOBALS_PTR() TSRMG_BULK_STATIC(ddtrace_globals_id, zend_ddtrace_globals *)
 #else
 #  define DDTRACE_G(v) (ddtrace_globals.v)
+#  define DDTRACE_GLOBALS_PTR() (&ddtrace_globals)
 #endif
 
 #define PHP_DDTRACE_EXTNAME "ddtrace"

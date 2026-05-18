@@ -39,11 +39,11 @@ void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span);
 // Never touches the sidecar; the request thread flushes via ddtrace_telemetry_flush_bgs_metrics_if_due().
 void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics);
 // Called from ddtrace_telemetry_finalize() to flush accumulated BGS metrics through
-// the current thread's sidecar connection, at most once per flush interval.
-void ddtrace_telemetry_flush_bgs_metrics_if_due(void);
+// the given thread's sidecar connection, at most once per flush interval.
+void ddtrace_telemetry_flush_bgs_metrics_if_due(zend_ddtrace_globals *ddtrace_globals);
 // Force-flush accumulated BGS metrics regardless of the time gate.  Call immediately
 // before dropping the per-thread transport in GSHUTDOWN so no data is lost.
-void ddtrace_telemetry_flush_bgs_metrics_final(void);
+void ddtrace_telemetry_flush_bgs_metrics_final(zend_ddtrace_globals *ddtrace_globals);
 
 // public API
 DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns);

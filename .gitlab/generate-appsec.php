@@ -129,7 +129,7 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan $HELPER_RUST_FLAG
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps $HELPER_RUST_FLAG
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
@@ -343,7 +343,7 @@ stages:
       # Build helper-rust with coverage instrumentation
       TERM=dumb ./gradlew buildHelperRustWithCoverage --info -Pbuildscan --scan
       # Run integration tests with coverage-instrumented binary
-      TERM=dumb ./gradlew test8.3-debug --info -Pbuildscan --scan -PuseHelperRustCoverage
+      TERM=dumb ./gradlew test8.3-debug --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
       # Generate coverage report from profraw files
       TERM=dumb ./gradlew generateHelperRustIntegrationCoverage --info -Pbuildscan --scan
       TERM=dumb ./gradlew saveCaches --info
