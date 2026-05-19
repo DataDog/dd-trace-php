@@ -56,6 +56,11 @@ const char *datadog_extension_build_id(void);
 const char *datadog_module_build_id(void);
 
 /**
+ * Detects tailcall VM interrupt bugs where the profiler must be disabled.
+ */
+zend_result ddog_php_prof_check_tailcall_vm_interrupt(void);
+
+/**
  * Returns the `sapi_request_info` from the SAPI_GLOBALS
  */
 sapi_request_info datadog_sapi_globals_request_info();
