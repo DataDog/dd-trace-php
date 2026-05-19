@@ -1187,9 +1187,7 @@ name = "datadog-ffe"
 version = "1.0.0"
 dependencies = [
  "chrono",
- "criterion",
  "derive_more",
- "env_logger 0.10.2",
  "faststr",
  "libdd-common",
  "log",
@@ -2723,7 +2721,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2733,7 +2731,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities-impl"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "bytes",
  "http",
@@ -2745,7 +2743,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "4.0.0"
+version = "4.1.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3031,7 +3029,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-shared-runtime"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "futures",
@@ -3090,7 +3088,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-tinybytes"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "libdd-tinybytes",
  "once_cell",
@@ -3133,7 +3131,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-protobuf"
-version = "3.0.1"
+version = "3.0.2"
 dependencies = [
  "bolero",
  "prost",
@@ -3174,7 +3172,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "3.0.1"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
