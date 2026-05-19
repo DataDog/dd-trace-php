@@ -7,6 +7,7 @@ cannot regress again.
 <?php
 if (!extension_loaded('datadog-profiling'))
     die("skip: test requires datadog-profiling");
+require __DIR__ . '/skipif_tailcall_vm_interrupt.inc';
 ?>
 --INI--
 datadog.profiling.enabled=1

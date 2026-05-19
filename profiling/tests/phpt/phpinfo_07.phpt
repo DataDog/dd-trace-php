@@ -7,6 +7,7 @@ test verifies that certain information is present.
 <?php
 if (!extension_loaded('datadog-profiling'))
     echo "skip: test requires Datadog Continuous Profiler\n";
+require __DIR__ . '/skipif_tailcall_vm_interrupt.inc';
 ?>
 --ENV--
 DD_PROFILING_ENABLED=yes
