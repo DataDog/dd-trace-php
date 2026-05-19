@@ -22,16 +22,27 @@ import static org.testcontainers.containers.Container.ExecResult
  * every thread's TSRM storage from the main thread and invokes
  * zm_globals_dtor_ddtrace for each per-thread slot.
  *
- * Only runs on ZTS variants (MPM event is only used on ZTS) and only when
- * -PcheckCoreDumps is passed.
+ * Only runs on ZTS variants (MPM event is only used on ZTS), PHP >= 7.4, and
+ * only when -PcheckCoreDumps is passed.
+ *
+ * PHP 7.0-7.3 is excluded because of a PHP bug in zend_llist_destroy: it does
+ * not null out the head/tail pointers after freeing elements. When
+ * php_request_shutdown() calls php_shutdown_ticks() -> zend_llist_destroy(),
+ * the tick-functions list elements are freed but head is left dangling. The
+ * subsequent call to php_shutdown_ticks() from core_globals_dtor() (via
+ * ts_free_id) then hits a double-free -> SIGABRT. (There remains the bug that
+ * shutdown_ticks() should not refer to PG() from GSHUTDOWN, but at least
+ * PHP >= 7.4 doesn't crash).
  */
 @Testcontainers
 @Slf4j
 @EnabledIf('isZtsAndCheckCoreDumps')
 class ZtsGshutdownTests {
-    /** Only enabled on ZTS variants and when -PcheckCoreDumps is passed. */
+    /** Only enabled on ZTS variants, PHP >= 7.4, and when -PcheckCoreDumps is passed. */
     static boolean isZtsAndCheckCoreDumps() {
-        variant.contains('zts') && System.getProperty('checkCoreDumps') != null
+        variant.contains('zts') &&
+                System.getProperty('checkCoreDumps') != null &&
+                phpVersion >= '7.4'
     }
 
     @Container
@@ -43,6 +54,8 @@ class ZtsGshutdownTests {
                     phpVariant: variant,
                     www: 'base',
             )
+            .withEnv('DD_CRASHTRACKING_ENABLED', '0')
+            .withEnv('DD_INSTRUMENTATION_TELEMETRY_ENABLED', '0')
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
