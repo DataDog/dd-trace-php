@@ -620,6 +620,9 @@ def runMainTask = { String phpVersion, String variant ->
         if (project.hasProperty('XDEBUG')) {
             systemProperty 'XDEBUG', '1'
         }
+        if (project.hasProperty('checkCoreDumps')) {
+            systemProperty 'checkCoreDumps', '1'
+        }
         systemProperty 'PHP_VERSION', phpVersion
         systemProperty 'VARIANT', variant
 
@@ -692,6 +695,9 @@ def runMainTask = { String phpVersion, String variant ->
         it.systemProperty 'VARIANT', variant
         if (project.hasProperty('XDEBUG')) {
             it.systemProperty 'XDEBUG', '1'
+        }
+        if (project.hasProperty('checkCoreDumps')) {
+            it.systemProperty 'checkCoreDumps', '1'
         }
         if (project.hasProperty('helperBinary')) {
             it.systemProperty 'USE_HELPER_RUST', '1'
@@ -800,6 +806,9 @@ if (project.hasProperty('testClass')) {
 
         if (project.hasProperty('XDEBUG')) {
             it.systemProperty 'XDEBUG', '1'
+        }
+        if (project.hasProperty('checkCoreDumps')) {
+            it.systemProperty 'checkCoreDumps', '1'
         }
         if (project.hasProperty('helperBinary')) {
             it.systemProperty 'USE_HELPER_RUST', '1'

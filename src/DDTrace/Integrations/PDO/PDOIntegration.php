@@ -247,6 +247,10 @@ REGEX;
             $tags[Tag::DB_SYSTEM] = $dbSystem;
             $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
 
+            // Match libpq: strip paired wrapping single quotes from dbname (APMS-19464).
+            if (strlen($db) >= 2 && $db[0] === "'" && substr($db, -1) === "'") {
+                $db = substr($db, 1, -1);
+            }
             if ($db !== "") {
                 $tags[Tag::DB_NAME] = $db;
             }

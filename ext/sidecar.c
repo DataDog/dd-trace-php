@@ -875,16 +875,18 @@ void ddtrace_sidecar_rshutdown(void) {
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
 }
 
-void ddtrace_sidecar_gshutdown(void) {
-    if (DDTRACE_G(sidecar)) {
-        if (DDTRACE_G(sidecar) == ddtrace_sidecar_for_signal) {
+void ddtrace_sidecar_gshutdown(zend_ddtrace_globals *ddtrace_globals) {
+    // NOTE: do not use DDTRACE_G() in this function; it may be called from the
+    // main thread via ts_free_id()
+    if (ddtrace_globals->sidecar) {
+        if (ddtrace_globals->sidecar == ddtrace_sidecar_for_signal) {
             ddtrace_sidecar_for_signal = NULL;
         }
 
         // Drain any accumulated background-sender metrics before the transport goes away.
-        ddtrace_telemetry_flush_bgs_metrics_final();
-        ddog_sidecar_transport_drop(DDTRACE_G(sidecar));
-        DDTRACE_G(sidecar) = NULL;
+        ddtrace_telemetry_flush_bgs_metrics_final(ddtrace_globals);
+        ddog_sidecar_transport_drop(ddtrace_globals->sidecar);
+        ddtrace_globals->sidecar = NULL;
     }
 }
 
