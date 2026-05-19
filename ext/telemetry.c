@@ -274,7 +274,7 @@ void ddtrace_telemetry_finalize() {
     ddog_sidecar_telemetry_buffer_drop(buffer);
 
     // Flush any accumulated BGS (background sender) metrics if enough time has passed.
-    ddtrace_telemetry_flush_bgs_metrics_if_due();
+    ddtrace_telemetry_flush_bgs_metrics_if_due(DDTRACE_GLOBALS_PTR());
 }
 
 void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
@@ -350,8 +350,8 @@ void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
     atomic_fetch_add(&bgs_metric_errors_status_code, metrics.errors_status_code);
 }
 
-void ddtrace_telemetry_flush_bgs_metrics_if_due(void) {
-    if (!DDTRACE_G(sidecar) || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+void ddtrace_telemetry_flush_bgs_metrics_if_due(zend_ddtrace_globals *ddtrace_globals) {
+    if (!ddtrace_globals->sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
 
@@ -402,18 +402,18 @@ void ddtrace_telemetry_flush_bgs_metrics_if_due(void) {
     }
 
     ddtrace_ffi_try("Failed flushing background sender metrics",
-                    ddog_sidecar_telemetry_buffer_flush(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
+                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_globals->sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
 }
 
-void ddtrace_telemetry_flush_bgs_metrics_final(void) {
-    if (!DDTRACE_G(sidecar) || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+void ddtrace_telemetry_flush_bgs_metrics_final(zend_ddtrace_globals *ddtrace_globals) {
+    if (!ddtrace_sidecar_instance_id) {
         return;
     }
     // Bypass the time gate so any remaining metrics are sent before the transport
     // is dropped in GSHUTDOWN.  Setting last_flush_ns to 0 makes the time check in
     // _if_due always pass; the CAS inside still prevents a concurrent double-flush.
     atomic_store(&bgs_metrics_last_flush_ns, 0);
-    ddtrace_telemetry_flush_bgs_metrics_if_due();
+    ddtrace_telemetry_flush_bgs_metrics_if_due(ddtrace_globals);
 }
 
 DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns) {

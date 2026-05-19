@@ -10,6 +10,7 @@ import com.github.dockerjava.api.command.CreateContainerCmd
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
 import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.model.Bind
+import com.github.dockerjava.api.model.Ulimit
 import com.github.dockerjava.api.model.Volume
 import com.google.common.util.concurrent.SettableFuture
 import groovy.json.JsonOutput
@@ -49,8 +50,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     private File logsDir
     // Set to true to include sidecar.log in stdout (very verbose)
     private static final boolean TAIL_SIDECAR_LOG = false
+    private static final boolean CHECK_CORE_DUMPS = System.getProperty('checkCoreDumps') != null
     private String wwwDir
     private String wwwSrcDir
+    private String savedCorePattern = null
     public final HttpClient httpClient = HttpClient.newBuilder()
                     .followRedirects(HttpClient.Redirect.NEVER)
                     .connectTimeout(Duration.ofSeconds(5))
@@ -110,6 +113,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         this.logConsumer = createLogConsumer()
         followOutput(logConsumer)
         overlayWww()
+        enableCoredumps()
         runInitialize()
     }
 
@@ -315,11 +319,69 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         }
     }
 
+    private void enableCoredumps() {
+        if (!CHECK_CORE_DUMPS) {
+            return
+        }
+        try {
+            ExecResult res = execInContainer('cat', '/proc/sys/kernel/core_pattern')
+            if (res.exitCode == 0) {
+                savedCorePattern = res.stdout.trim()
+            }
+            execInContainer('sh', '-c',
+                    'mkdir -p /tmp/cores && chmod 1777 /tmp/cores' +
+                    ' && echo /tmp/cores/core.%e.%p.%t > /proc/sys/kernel/core_pattern')
+        } catch (Exception e) {
+            log.warn("Could not enable coredumps: {}", e.message)
+        }
+    }
+
+    private List<String> detectCrashes() {
+        if (!CHECK_CORE_DUMPS) {
+            return []
+        }
+        List<String> crashes = []
+        try {
+            ExecResult res = execInContainer('find', '/tmp/cores', '-type', 'f')
+            if (res.exitCode == 0 && res.stdout.trim()) {
+                res.stdout.trim().readLines()*.trim().findAll { it }.each { String f ->
+                    crashes << "Core dump: $f".toString()
+                    log.error("Crash core dump found: {}", f)
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not check for core dumps: {}", e.message)
+        }
+        crashes
+    }
+
+    void clearCoreFiles() {
+        execInContainer('sh', '-c', 'rm -f /tmp/cores/core.*')
+    }
+
+    private void restoreCorePattern() {
+        if (savedCorePattern != null) {
+            try {
+                execInContainer('sh', '-c',
+                        "printf '%s' '${savedCorePattern}' > /proc/sys/kernel/core_pattern")
+            } catch (Exception e) {
+                log.warn("Could not restore core pattern: {}", e.message)
+            }
+        }
+    }
+
     void close() {
         flushProfilingData()
         copyLogs()
+        List<String> crashes = detectCrashes()
+        restoreCorePattern()
         mockDatadogAgent.drainTraces()
         super.close()
+        if (crashes) {
+            throw new AssertionError(
+                    ("Process crash(es) detected in container during test run (${crashes.size()} crash(es)):\n" +
+                            crashes.join('\n')).toString())
+        }
     }
 
     private static final Random RAND = new Random()
@@ -439,6 +501,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         }
 
         privilegedMode = true
+
+        withCreateContainerCmdModifier { cmd ->
+            cmd.hostConfig.withUlimits([new Ulimit('core', -1L, -1L)] as Ulimit[])
+        }
 
         this.wwwDir ="src/test/www/${options.get('www', 'base')}"
         if (options['www_src']) {
@@ -628,6 +694,19 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             it = it.trim()
             if (it) {
                 copyFileFromContainer(it, new File(logsDir, new File(it).name).absolutePath)
+            }
+        }
+
+        if (CHECK_CORE_DUMPS) {
+            ExecResult coresRes = execInContainer('find', '/tmp/cores', '-type', 'f')
+            if (coresRes.exitCode == 0) {
+                coresRes.stdout.eachLine {
+                    it = it.trim()
+                    if (it) {
+                        log.info("Copying core dump: {}", it)
+                        copyFileFromContainer(it, new File(logsDir, new File(it).name).absolutePath)
+                    }
+                }
             }
         }
     }

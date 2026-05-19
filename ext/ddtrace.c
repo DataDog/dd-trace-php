@@ -706,7 +706,7 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     zend_hash_destroy(&ddtrace_globals->git_metadata);
 
     // Drop the per-thread sidecar transport (thread-lifetime, one per thread).
-    ddtrace_sidecar_gshutdown();
+    ddtrace_sidecar_gshutdown(ddtrace_globals);
 
     tsrm_mutex_free(ddtrace_globals->sidecar_universal_service_tags_mutex);
 
