@@ -65,7 +65,7 @@ stages:
             "${GITLAB_API}/projects/${CI_PROJECT_ID}/pipelines/${child_id}/jobs?per_page=100&page=${page}" \
             || echo "[]")
           page_failed=$(echo "${page_data}" | jq '[.[] | select(.status == "failed")]')
-          failed_jobs=$(jq -n --argjson a "${failed_jobs}" --argjson b "${page_failed}" '$a + $b')
+          failed_jobs=$(jq -n --slurpfile a <(printf '%s' "${failed_jobs}") --slurpfile b <(printf '%s' "${page_failed}") '$a[0] + $b[0]')
           [ "$(echo "${page_data}" | jq 'length')" -lt 100 ] && break
         done
         echo "${failed_jobs}" | jq --arg t "${trigger_name}" '[.[] | . + {trigger: $t}]'
@@ -108,7 +108,7 @@ stages:
         echo "  Failed jobs (${count}):"
         echo "${failures}" | jq -r '.[] | "    - \(.name)"'
         all=$(cat tmp/artifacts/all_failures.json)
-        jq -n --argjson a "${all}" --argjson b "${failures}" '$a + $b' > tmp/artifacts/all_failures.json
+        jq -n --slurpfile a <(printf '%s' "${all}") --slurpfile b <(printf '%s' "${failures}") '$a[0] + $b[0]' > tmp/artifacts/all_failures.json
       done < <(jq -r '.[] | select(.downstream_pipeline != null)
                       | [(.downstream_pipeline.id | tostring),
                         (.downstream_pipeline.status // "unknown"),
@@ -157,7 +157,7 @@ stages:
           if [ "${status}" = "failed" ]; then
             entry=$(echo "${job_data}" | jq --arg t "${trigger}" '. + {trigger: $t}')
             all=$(cat tmp/artifacts/all_failures.json)
-            jq -n --argjson a "${all}" --argjson b "[${entry}]" '$a + $b' > tmp/artifacts/all_failures.json
+            jq -n --slurpfile a <(printf '%s' "${all}") --argjson b "[${entry}]" '$a[0] + $b' > tmp/artifacts/all_failures.json
           fi
         done < tmp/artifacts/retried_jobs.tsv
 
