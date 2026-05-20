@@ -45,3 +45,5 @@ hyper-util = { version = "0.1.10", features = [
   "client-legacy",
 ] }
 
+[workspace.lints]
+# empty for compat with libdatadog
