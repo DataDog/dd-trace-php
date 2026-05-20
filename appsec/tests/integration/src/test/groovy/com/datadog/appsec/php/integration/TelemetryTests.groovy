@@ -1049,6 +1049,180 @@ class TelemetryTests {
     }
 
     /**
+     * Verifies that WafString(...) contents in helper error messages are redacted before
+     * being submitted to telemetry, while the local helper file log retains the original
+     * unredacted contents.
+     *
+     * The scenario triggers `unexpected command {:?}` in the helper request loop by
+     * sending a request_exec when the helper is waiting for request_init.
+     */
+    @Test
+    @Order(12)
+    void 'telemetry log redacts WafString contents'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null)
+
+        Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                        asm: [enabled: true]
+                ]
+        ])
+
+        // warm-up request to start helper and apply RC
+        Trace trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+        assert requestSup.get() != null
+
+        // another covered request to ensure the connection is established
+        trace = CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+        assert trace.traceId != null
+
+        // trigger the error path with a known sentinel value embedded as a WafString
+        CONTAINER.traceFromRequest('/send_request_exec_before_init.php', ofString()) {
+            HttpResponse<String> resp -> assert resp.statusCode() == 200
+        }
+
+        def messages = TelemetryHelpers.waitForLogs(CONTAINER, 30) { List<TelemetryHelpers.Logs> logs ->
+            def relevantLogs = logs.collectMany {
+                it.logs.findAll {
+                    it.tags?.contains('log_type:helper::logged_error') &&
+                            it.message?.contains('error in request loop')
+                }
+            }
+            !relevantLogs.empty
+        }.collectMany { it.logs }
+
+        def errorLog = messages.find {
+            it.tags?.contains('log_type:helper::logged_error') &&
+                    it.message?.contains('error in request loop')
+        }
+        assert errorLog != null : "Expected to find an 'error in request loop' telemetry log. " +
+                "All logs: ${messages.collect { [tags: it.tags, message: it.message] }}"
+
+        // The telemetry log must NOT leak the original WafString payload
+        assert !errorLog.message.contains('APPSEC_REDACT_TEST_SENTINEL_XYZ') :
+                "Telemetry log leaked unredacted WafString contents: ${errorLog.message}"
+
+        // And the WafString(...) span must have been replaced with the redacted marker
+        assert errorLog.message.contains('WafString("<REDACTED>")') :
+                "Telemetry log is missing redacted WafString marker; got: ${errorLog.message}"
+
+        // The local helper file log must still contain the original unredacted contents
+        def helperLog = CONTAINER.execInContainer('bash', '-c', 'cat /tmp/logs/helper.log').stdout
+        assert helperLog.contains('APPSEC_REDACT_TEST_SENTINEL_XYZ') :
+                "Expected helper.log to contain the original (unredacted) WafString contents"
+    }
+
+    /**
+     * Verifies that appsec.rasp.rule.match carries the `block` tag with the correct value:
+     *   - block:irrelevant  → RASP rule matched but `on_match` did not request a block
+     *   - block:success     → RASP rule matched, block was requested and (per PHP semantics)
+     *                         always succeeds; PHP cannot fail to block once it decides to.
+     *
+     * Cross-tracer spec (see dd-trace-go, dd-trace-py): the tag is always emitted on
+     * rasp.rule.match. PHP never emits block:failure because the layer is assumed to
+     * always succeed at terminating the script.
+     *
+     * Only applies to the Rust helper.
+     */
+    @Test
+    @Order(13)
+    void 'rasp rule match has block tag'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'block tag on rasp.rule.match is only implemented on the Rust helper')
+
+        try {
+            // Phase 1: non-blocking RASP rule match (recommended.json lfi/ssrf rules have
+            // on_match: ["stack_trace"], so a match does not block). Expect block:irrelevant.
+            Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                            asm: [enabled: true]
+                    ]
+            ])
+
+            CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
+                assert resp.statusCode() == 200
+            }
+            assert requestSup.get() != null
+
+            CONTAINER.traceFromRequest(
+                    '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') {
+                HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
+            }
+
+            // Phase 2: override the LFI rule on_match to ["block"]. The first @fopen in
+            // multiple_rasp.php hits an LFI match, the WAF returns block_request, and the
+            // PHP layer terminates the request. Expect block:success on the rasp.rule.match
+            // emitted for rule_type:lfi from that request.
+            Supplier<RemoteConfigRequest> overrideSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
+                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                            asm: [enabled: true]
+                    ],
+                    'datadog/2/ASM/rasp_lfi_block_override/config': [
+                            rules_override: [[
+                                                     rules_target: [[rule_id: 'rasp-001-001']],
+                                                     on_match: ['block']
+                                             ]]
+                    ]
+            ])
+            assert overrideSup.get() != null
+
+            // Trigger the blocking LFI; status code is 403 because the rule now blocks.
+            HttpRequest blockingReq = CONTAINER.buildReq(
+                    '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254')
+                    .GET().build()
+            CONTAINER.traceFromRequest(blockingReq, ofString()) { HttpResponse<String> resp ->
+                assert resp.statusCode() == 403
+            }
+
+            TelemetryHelpers.Metric lfiMatchIrrelevant
+            TelemetryHelpers.Metric lfiMatchSuccess
+
+            TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+                def allSeries = messages.collectMany { it.series }
+                lfiMatchIrrelevant = lfiMatchIrrelevant ?: allSeries.find {
+                    it.name == 'rasp.rule.match' &&
+                            'rule_type:lfi' in it.tags &&
+                            'block:irrelevant' in it.tags
+                }
+                lfiMatchSuccess = lfiMatchSuccess ?: allSeries.find {
+                    it.name == 'rasp.rule.match' &&
+                            'rule_type:lfi' in it.tags &&
+                            'block:success' in it.tags
+                }
+                lfiMatchIrrelevant != null && lfiMatchSuccess != null
+            }
+
+            assert lfiMatchIrrelevant != null :
+                    'rasp.rule.match metric with block:irrelevant not found — ' +
+                    'helper must emit block:irrelevant when the matched RASP rule has no block action'
+            assert lfiMatchIrrelevant.namespace == 'appsec'
+            assert lfiMatchIrrelevant.type == 'count'
+            assert lfiMatchIrrelevant.points[0][1] >= 1.0d
+
+            assert lfiMatchSuccess != null :
+                    'rasp.rule.match metric with block:success not found — ' +
+                    'helper must emit block:success when the matched RASP rule triggered a block'
+            assert lfiMatchSuccess.namespace == 'appsec'
+            assert lfiMatchSuccess.type == 'count'
+            assert lfiMatchSuccess.points[0][1] >= 1.0d
+        } finally {
+            // Drop the override so subsequent ordered tests in this class run with the
+            // default (non-blocking) RASP ruleset, even if assertions above failed.
+            CONTAINER.applyRemoteConfig(RC_TARGET, [
+                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
+                            asm: [enabled: true]
+                    ],
+                    'datadog/2/ASM/rasp_lfi_block_override/config': null
+            ])
+        }
+    }
+
+
+    /**
      * RFC-1012: appsec.waf.requests must include the rate_limited boolean tag.
      * The rate limiter must only be consulted when the WAF triggered (waf_keep=true),
      * matching C++ semantics: `event.keep && limiter_.allow()`. Clean requests must
@@ -1142,111 +1316,6 @@ class TelemetryTests {
         assert wafReqRateLimited.points[0][1] >= 1.0
         assert 'rule_triggered:true' in wafReqRateLimited.tags
         assert 'rate_limited:true' in wafReqRateLimited.tags
-    }
-
-    /**
-     * Verifies that appsec.rasp.rule.match carries the `block` tag with the correct value:
-     *   - block:irrelevant  → RASP rule matched but `on_match` did not request a block
-     *   - block:success     → RASP rule matched, block was requested and (per PHP semantics)
-     *                         always succeeds; PHP cannot fail to block once it decides to.
-     *
-     * Cross-tracer spec (see dd-trace-go, dd-trace-py): the tag is always emitted on
-     * rasp.rule.match. PHP never emits block:failure because the layer is assumed to
-     * always succeed at terminating the script.
-     *
-     * Only applies to the Rust helper.
-     */
-    @Test
-    @Order(12)
-    void 'rasp rule match has block tag'() {
-        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
-                'block tag on rasp.rule.match is only implemented on the Rust helper')
-
-        try {
-            // Phase 1: non-blocking RASP rule match (recommended.json lfi/ssrf rules have
-            // on_match: ["stack_trace"], so a match does not block). Expect block:irrelevant.
-            Supplier<RemoteConfigRequest> requestSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
-                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
-                            asm: [enabled: true]
-                    ]
-            ])
-
-            CONTAINER.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
-                assert resp.statusCode() == 200
-            }
-            assert requestSup.get() != null
-
-            CONTAINER.traceFromRequest(
-                    '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254') {
-                HttpResponse<InputStream> resp -> assert resp.statusCode() == 200
-            }
-
-            // Phase 2: override the LFI rule on_match to ["block"]. The first @fopen in
-            // multiple_rasp.php hits an LFI match, the WAF returns block_request, and the
-            // PHP layer terminates the request. Expect block:success on the rasp.rule.match
-            // emitted for rule_type:lfi from that request.
-            Supplier<RemoteConfigRequest> overrideSup = CONTAINER.applyRemoteConfig(RC_TARGET, [
-                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
-                            asm: [enabled: true]
-                    ],
-                    'datadog/2/ASM/rasp_lfi_block_override/config': [
-                            rules_override: [[
-                                                     rules_target: [[rule_id: 'rasp-001-001']],
-                                                     on_match: ['block']
-                                             ]]
-                    ]
-            ])
-            assert overrideSup.get() != null
-
-            // Trigger the blocking LFI; status code is 403 because the rule now blocks.
-            HttpRequest blockingReq = CONTAINER.buildReq(
-                    '/multiple_rasp.php?path=../somefile&other=../otherfile&domain=169.254.169.254')
-                    .GET().build()
-            CONTAINER.traceFromRequest(blockingReq, ofString()) { HttpResponse<String> resp ->
-                assert resp.statusCode() == 403
-            }
-
-            TelemetryHelpers.Metric lfiMatchIrrelevant
-            TelemetryHelpers.Metric lfiMatchSuccess
-
-            TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
-                def allSeries = messages.collectMany { it.series }
-                lfiMatchIrrelevant = lfiMatchIrrelevant ?: allSeries.find {
-                    it.name == 'rasp.rule.match' &&
-                            'rule_type:lfi' in it.tags &&
-                            'block:irrelevant' in it.tags
-                }
-                lfiMatchSuccess = lfiMatchSuccess ?: allSeries.find {
-                    it.name == 'rasp.rule.match' &&
-                            'rule_type:lfi' in it.tags &&
-                            'block:success' in it.tags
-                }
-                lfiMatchIrrelevant != null && lfiMatchSuccess != null
-            }
-
-            assert lfiMatchIrrelevant != null :
-                    'rasp.rule.match metric with block:irrelevant not found — ' +
-                    'helper must emit block:irrelevant when the matched RASP rule has no block action'
-            assert lfiMatchIrrelevant.namespace == 'appsec'
-            assert lfiMatchIrrelevant.type == 'count'
-            assert lfiMatchIrrelevant.points[0][1] >= 1.0d
-
-            assert lfiMatchSuccess != null :
-                    'rasp.rule.match metric with block:success not found — ' +
-                    'helper must emit block:success when the matched RASP rule triggered a block'
-            assert lfiMatchSuccess.namespace == 'appsec'
-            assert lfiMatchSuccess.type == 'count'
-            assert lfiMatchSuccess.points[0][1] >= 1.0d
-        } finally {
-            // Drop the override so subsequent ordered tests in this class run with the
-            // default (non-blocking) RASP ruleset, even if assertions above failed.
-            CONTAINER.applyRemoteConfig(RC_TARGET, [
-                    'datadog/2/ASM_FEATURES/asm_features_activation/config': [
-                            asm: [enabled: true]
-                    ],
-                    'datadog/2/ASM/rasp_lfi_block_override/config': null
-            ])
-        }
     }
 
     @Test
