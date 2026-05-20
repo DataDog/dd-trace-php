@@ -33,6 +33,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 
 ### Fixed
 - Treat cleared shared memory as no-config rather than an error in AppSec helper #3876
+- Avoid the possibility of sensitive data going to the telemetry logs backend via WAF strings #3884
 
 ### Internal
 - Fix `blocked_request` metric tag detection in AppSec helper #3863
