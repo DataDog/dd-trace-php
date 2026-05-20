@@ -283,10 +283,6 @@ stages:
     - |
       echo "Uploading helper-rust unit test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      # Capture only vault's stdout (the JSON token document) and let stderr
-      # flow to the CI log unchanged -- merging stderr into the pipe would
-      # corrupt jq's input whenever vault prints a non-fatal warning on a
-      # successful call, falsely tripping the exit-75 retry path.
       if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
         echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
         exit 75
@@ -366,10 +362,6 @@ stages:
     - |
       echo "Uploading helper-rust integration test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      # Capture only vault's stdout (the JSON token document) and let stderr
-      # flow to the CI log unchanged -- merging stderr into the pipe would
-      # corrupt jq's input whenever vault prints a non-fatal warning on a
-      # successful call, falsely tripping the exit-75 retry path.
       if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
         echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
         exit 75
