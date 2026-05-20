@@ -35,7 +35,7 @@
 #include "logging.h"
 #include "msgpack_helpers.h"
 #include "network.h"
-#include "php_compat.h"
+#include "php_compat.h" // NOLINT (must come before ddappsec_arginfo.h)
 #include "php_objects.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
@@ -185,15 +185,15 @@ static PHP_GINIT_FUNCTION(ddappsec)
     // though I guess we could do it maybe on MSHUTDOWN or GSHUTDOWN if we
     // detected it was running for the main thread globals there.
     if (!tsrm_is_main_thread()) {
-# if defined(__linux__)
+#    if defined(__linux__)
         extern void *__dso_handle;
         extern int __cxa_thread_atexit_impl(
             void (*func)(void *), void *arg, void *dso_handle);
         __cxa_thread_atexit_impl(_tshutdown_handler, NULL, __dso_handle);
-# elif defined(__APPLE__)
+#    elif defined(__APPLE__)
         extern void _tlv_atexit(void (*termFunc)(void *), void *objAddr);
         _tlv_atexit(_tshutdown_handler, NULL);
-# endif
+#    endif
     }
 #endif
 }
@@ -241,7 +241,6 @@ static PHP_GSHUTDOWN_FUNCTION(ddappsec)
 
     memset(ddappsec_globals, '\0', sizeof(*ddappsec_globals)); // NOLINT
 }
-
 
 // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
 static PHP_MINIT_FUNCTION(ddappsec)

@@ -252,17 +252,18 @@ retry:;
 
     zend_array *spec = NULL;
     if (res == dd_helper_say_goobye) {
-        mlog_g(dd_log_info,
-            "request_init/config_sync failed with dd_helper_say_goobye; closing "
-            "connection to helper");
-        dd_helper_close_conn(true, LSTRARG(
-            "request_init/config_sync failed with dd_helper_say_goobye"));
+        mlog_g(dd_log_info, "request_init/config_sync failed with "
+                            "dd_helper_say_goobye; closing "
+                            "connection to helper");
+        dd_helper_close_conn(true,
+            LSTRARG(
+                "request_init/config_sync failed with dd_helper_say_goobye"));
     } else if (res == dd_helper_fatal) {
         mlog_g(dd_log_info,
             "request_init/config_sync failed with dd_helper_fatal; closing "
             "connection to helper");
-        dd_helper_close_conn(false, LSTRARG(
-            "request_init/config_sync failed with dd_helper_fatal"));
+        dd_helper_close_conn(false,
+            LSTRARG("request_init/config_sync failed with dd_helper_fatal"));
     } else if (res == dd_should_block || res == dd_should_redirect) {
         spec = dd_req_lifecycle_abort(
             REQUEST_STAGE_REQUEST_BEGIN, res, &req_info.req_info.block_params);
@@ -368,8 +369,8 @@ static void _do_request_finish_php(bool ignore_verdict)
                 "request_shutdown failed with dd_helper_say_goobye or "
                 "dd_helper_fatal; closing connection to helper");
             bool goodbye = res == dd_helper_say_goobye;
-            dd_helper_close_conn(goodbye,
-                LSTRARG("request_shutdown failed with dd_helper_..."));
+            dd_helper_close_conn(
+                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
         } else if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {
@@ -420,8 +421,8 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
                 "request_shutdown failed with dd_helper_say_goobye or "
                 "dd_helper_fatal; closing connection to helper");
             bool goodbye = res == dd_helper_say_goobye;
-            dd_helper_close_conn(goodbye,
-                LSTRARG("request_shutdown failed with dd_helper_..."));
+            dd_helper_close_conn(
+                goodbye, LSTRARG("request_shutdown failed with dd_helper_..."));
         } else if (res == dd_should_block || res == dd_should_redirect) {
             verdict = ignore_verdict ? dd_success : res;
         } else if (res) {

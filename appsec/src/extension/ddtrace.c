@@ -76,8 +76,7 @@ static zend_string *(*nullable _ddtrace_guess_endpoint_from_url)(
     const char *nonnull url, size_t url_len);
 static ddog_AppsecCResponse (*nullable _ddog_sidecar_send_appsec_message)(
     ddog_SidecarTransport *nonnull *nonnull transport,
-    ddog_CharSlice session_id, uint64_t client_id,
-    ddog_CharSlice data);
+    ddog_CharSlice session_id, uint64_t client_id, ddog_CharSlice data);
 static void (*nullable _ddog_sidecar_appsec_response_drop)(
     ddog_AppsecCResponse response);
 
@@ -395,9 +394,8 @@ uint64_t dd_trace_get_sidecar_queue_id(void)
 }
 
 #ifdef ZTS
-ddog_AppsecCResponse dd_trace_send_appsec_message(
-    uint64_t client_id, void *nullable tsrm_ls,
-    const uint8_t *nonnull request, size_t request_len)
+ddog_AppsecCResponse dd_trace_send_appsec_message(uint64_t client_id,
+    void *nullable tsrm_ls, const uint8_t *nonnull request, size_t request_len)
 #else
 ddog_AppsecCResponse dd_trace_send_appsec_message(
     uint64_t client_id, const uint8_t *nonnull request, size_t request_len)
@@ -422,7 +420,8 @@ ddog_AppsecCResponse dd_trace_send_appsec_message(
     }
 
 #ifdef ZTS
-    ddog_SidecarTransport *nullable sidecar = *_ddtrace_get_sidecar_transport(tsrm_ls);
+    ddog_SidecarTransport *nullable sidecar =
+        *_ddtrace_get_sidecar_transport(tsrm_ls);
 #else
     ddog_SidecarTransport *nullable sidecar = *_ddtrace_get_sidecar_transport();
 #endif

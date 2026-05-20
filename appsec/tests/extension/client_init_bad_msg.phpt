@@ -17,7 +17,7 @@ $helper = Helper::createRun([
 sleep(1);
 var_dump(rinit());
 
-match_log('/Unexpected client_init response: mpack_error_type/');
+match_log('/Helper has not responded with a valid client_id/');
 match_log('/Response message for client_init does not have the expected form/');
 match_log('/Initial exchange with helper failed; abandoning the connection/');
 
@@ -29,7 +29,7 @@ match_log('/Contents of message \\(base64 encoded\\): /');
 ?>
 --EXPECTF--
 bool(true)
-found message in log matching /Unexpected client_init response: mpack_error_type/
+found message in log matching /Helper has not responded with a valid client_id/
 found message in log matching /Response message for client_init does not have the expected form/
 found message in log matching /Initial exchange with helper failed; abandoning the connection/
 array(2) {

@@ -79,9 +79,9 @@ dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
     }
 
 #ifdef ZTS
-    ddog_AppsecCResponse response = dd_trace_send_appsec_message(
-        conn->client_id, DDAPPSEC_G(ts_ls_cache),
-        (const uint8_t *)req, total_len);
+    ddog_AppsecCResponse response =
+        dd_trace_send_appsec_message(conn->client_id, DDAPPSEC_G(ts_ls_cache),
+            (const uint8_t *)req, total_len);
 #else
     ddog_AppsecCResponse response = dd_trace_send_appsec_message(
         conn->client_id, (const uint8_t *)req, total_len);
@@ -91,9 +91,10 @@ dd_result dd_conn_roundtripv(dd_conn *nonnull conn, zend_llist *nonnull iovecs,
     dd_result ret;
 
     if (response.disconnect) {
-        mlog(dd_log_warning, "Helper has responded with an error indicating we "
-                             "need to redo client_init (abandon client id %"
-                            PRIu64 ")", conn->client_id);
+        mlog(dd_log_warning,
+            "Helper has responded with an error indicating we "
+            "need to redo client_init (abandon client id %" PRIu64 ")",
+            conn->client_id);
         // in this case, the helper indicated it's abandoned the client already,
         // so we can't send the goodbye
         ret = dd_helper_fatal;

@@ -216,7 +216,8 @@ __attribute__((visibility("default"))) bool dd_appsec_maybe_enable_helper(
     return true;
 }
 
-void dd_helper_close_conn(bool goodbye, const char *nullable error, size_t error_len)
+void dd_helper_close_conn(
+    bool goodbye, const char *nullable error, size_t error_len)
 {
     if (!dd_conn_connected(&DDAPPSEC_G(conn))) {
         if (!error) {
