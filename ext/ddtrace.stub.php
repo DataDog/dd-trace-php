@@ -845,6 +845,48 @@ namespace DDTrace {
      * Call this once after batching all add_endpoint() calls.
      */
     function flush_endpoints(): void {}
+
+    /**
+     * Evaluate a feature flag using the stored UFC configuration.
+     *
+     * @param string $flagKey The flag key to evaluate.
+     * @param int $expectedType The expected flag type (0=string, 1=int, 2=float, 3=bool, 4=object).
+     * @param string|null $targetingKey The targeting key for evaluation context.
+     * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
+     * @return array|null Associative array with keys: value_json, variant, allocation_key, reason, error_code, do_log. Null only if evaluation engine is unavailable.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?array {}
+
+    /**
+     * Check if FFE (Feature Flag Evaluation) configuration is loaded.
+     *
+     * @return bool True if a flag configuration has been loaded.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_has_config(): bool {}
+
+    /**
+     * Return the current FFE configuration version counter.
+     *
+     * @return int Monotonically-increasing version counter.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_config_version(): int {}
+
+    /**
+     * Load a UFC JSON configuration string into the FFE engine.
+     * Used for testing without Remote Config.
+     *
+     * @param string $json UFC JSON configuration string.
+     * @return bool True if the configuration was parsed and loaded successfully.
+     *
+     * @internal Used by tests.
+     */
+    function ffe_load_config(string $json): bool {}
 }
 
 namespace DDTrace\System {
@@ -975,6 +1017,7 @@ namespace DDTrace\Internal {
      * @internal
      */
     function handle_fork(): void {}
+
 }
 
 namespace datadog\appsec\v2 {

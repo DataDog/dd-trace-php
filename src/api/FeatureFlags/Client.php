@@ -45,7 +45,7 @@ final class Client
         }
 
         return new self(
-            $evaluator ?: new UnavailableEvaluator(),
+            $evaluator ?: NativeEvaluator::createOrUnavailable(),
             $warningEmitter ?: new TriggerErrorWarningEmitter(),
             $exposureWriter,
             $metricsRecorder

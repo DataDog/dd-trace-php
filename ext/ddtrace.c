@@ -2951,6 +2951,138 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
         ddog_sidecar_telemetry_filter_flush(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_name, env_name));
 }
 
+PHP_FUNCTION(DDTrace_ffe_has_config) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_BOOL(ddog_ffe_has_config());
+}
+
+PHP_FUNCTION(DDTrace_ffe_config_version) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_LONG((zend_long) ddog_ffe_config_version());
+}
+
+PHP_FUNCTION(DDTrace_ffe_load_config) {
+    char *json;
+    size_t json_len;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STRING(json, json_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    UNUSED(json_len);
+    RETURN_BOOL(ddog_ffe_load_config(json));
+}
+
+PHP_FUNCTION(DDTrace_ffe_evaluate) {
+    char *flag_key;
+    size_t flag_key_len;
+    zend_long type_id_zl;
+    char *targeting_key = NULL;
+    size_t targeting_key_len = 0;
+    zval *attrs_zv;
+    int32_t type_id;
+    struct ddog_FfeAttribute *c_attrs = NULL;
+    size_t attrs_count = 0;
+    const char *tk = NULL;
+    HashTable *attributes;
+    size_t idx = 0;
+    zend_string *key;
+    zval *value;
+    struct ddog_FfeResult *result;
+    const char *value_json;
+    const char *variant;
+    const char *allocation_key;
+
+    ZEND_PARSE_PARAMETERS_START(4, 4)
+        Z_PARAM_STRING(flag_key, flag_key_len)
+        Z_PARAM_LONG(type_id_zl)
+        Z_PARAM_STRING_OR_NULL(targeting_key, targeting_key_len)
+        Z_PARAM_ARRAY(attrs_zv)
+    ZEND_PARSE_PARAMETERS_END();
+
+    UNUSED(flag_key_len);
+
+    type_id = (int32_t) type_id_zl;
+    tk = targeting_key_len > 0 ? targeting_key : NULL;
+    attributes = Z_ARRVAL_P(attrs_zv);
+    attrs_count = zend_hash_num_elements(attributes);
+
+    if (attrs_count > 0) {
+        c_attrs = ecalloc(attrs_count, sizeof(struct ddog_FfeAttribute));
+        ZEND_HASH_FOREACH_STR_KEY_VAL(attributes, key, value) {
+            if (!key || idx >= attrs_count) {
+                continue;
+            }
+
+            c_attrs[idx].key = ZSTR_VAL(key);
+            switch (Z_TYPE_P(value)) {
+                case IS_STRING:
+                    c_attrs[idx].value_type = 0;
+                    c_attrs[idx].string_value = Z_STRVAL_P(value);
+                    break;
+                case IS_LONG:
+                    c_attrs[idx].value_type = 1;
+                    c_attrs[idx].number_value = (double) Z_LVAL_P(value);
+                    break;
+                case IS_DOUBLE:
+                    c_attrs[idx].value_type = 1;
+                    c_attrs[idx].number_value = Z_DVAL_P(value);
+                    break;
+                case IS_TRUE:
+                    c_attrs[idx].value_type = 2;
+                    c_attrs[idx].bool_value = true;
+                    break;
+                case IS_FALSE:
+                    c_attrs[idx].value_type = 2;
+                    c_attrs[idx].bool_value = false;
+                    break;
+                default:
+                    continue;
+            }
+
+            idx++;
+        } ZEND_HASH_FOREACH_END();
+        attrs_count = idx;
+    }
+
+    result = ddog_ffe_evaluate(flag_key, type_id, tk, c_attrs, attrs_count);
+    if (c_attrs) {
+        efree(c_attrs);
+    }
+
+    if (!result) {
+        RETURN_NULL();
+    }
+
+    value_json = ddog_ffe_result_value(result);
+    variant = ddog_ffe_result_variant(result);
+    allocation_key = ddog_ffe_result_allocation_key(result);
+
+    array_init(return_value);
+    if (value_json) {
+        add_assoc_string(return_value, "value_json", (char *) value_json);
+    } else {
+        add_assoc_null(return_value, "value_json");
+    }
+    if (variant) {
+        add_assoc_string(return_value, "variant", (char *) variant);
+    } else {
+        add_assoc_null(return_value, "variant");
+    }
+    if (allocation_key) {
+        add_assoc_string(return_value, "allocation_key", (char *) allocation_key);
+    } else {
+        add_assoc_null(return_value, "allocation_key");
+    }
+    add_assoc_long(return_value, "reason", ddog_ffe_result_reason(result));
+    add_assoc_long(return_value, "error_code", ddog_ffe_result_error_code(result));
+    add_assoc_bool(return_value, "do_log", ddog_ffe_result_do_log(result));
+
+    ddog_ffe_free_result(result);
+}
+
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;
