@@ -139,10 +139,8 @@ impl SystemSettings {
             && tailcall_check != bindings::ZendResult::Success
         {
             error!(concat!(
-                "Wall-time and CPU-time sample collection is disabled because PHP 8.5.0-8.5.6 can crash ",
-                "on the tailcall VM kind with VM interrupt based sample collection enabled.",
-                " Other profiling sample types remain enabled.",
-                " To enable time sample collection, upgrade PHP to 8.5.7 or newer, or use a PHP build without the tailcall VM.",
+                "Wall- and CPU-time sample types are disabled because their VM interrupts can crash PHP 8.5.0-8.5.6 builds that have the tailcall VM.",
+                " To re-enable them, upgrade PHP to 8.5.7 or newer, or use a PHP build without the tailcall VM.",
                 " See https://github.com/php/php-src/pull/21922"
             ));
             system_settings.profiling_wall_time_enabled = false;
