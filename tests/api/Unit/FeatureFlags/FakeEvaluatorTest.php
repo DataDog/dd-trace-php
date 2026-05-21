@@ -38,7 +38,11 @@ final class FakeEvaluatorTest extends TestCase
         $this->assertNull($details->getErrorCode());
         $this->assertSame(array('source' => 'fixture'), $details->getFlagMetadata());
         $this->assertSame(array('allocationKey' => 'alloc-1'), $details->getExposureData());
-        $this->assertSame(array('hasConfig' => true), $details->getProviderState());
+        $this->assertSame(array(
+            'evaluator' => 'fake',
+            'productionRuntime' => false,
+            'hasConfig' => true,
+        ), $details->getProviderState());
 
         $this->assertSame(array(
             array(
@@ -107,5 +111,19 @@ final class FakeEvaluatorTest extends TestCase
         $this->assertSame(EvaluationReason::ERROR, $details->getReason());
         $this->assertSame(EvaluationErrorCode::PROVIDER_NOT_READY, $details->getErrorCode());
         $this->assertSame(array('ready' => false), $details->getProviderState());
+    }
+
+    public function testFakeEvaluatorErrorsAreIdentifiableAsFakeRuntime()
+    {
+        $evaluator = new FakeEvaluator();
+        $evaluator->setProviderNotReady('flag.error');
+
+        $details = $evaluator->evaluate('flag.error', EvaluationType::BOOLEAN, false);
+
+        $this->assertSame(EvaluationErrorCode::PROVIDER_NOT_READY, $details->getErrorCode());
+        $this->assertSame(array(
+            'evaluator' => 'fake',
+            'productionRuntime' => false,
+        ), $details->getProviderState());
     }
 }

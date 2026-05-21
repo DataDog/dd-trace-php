@@ -61,7 +61,7 @@ final class FakeEvaluator implements Evaluator
             'variant' => $variant,
             'flag_metadata' => $flagMetadata,
             'exposure_data' => $exposureData,
-            'provider_state' => $providerState,
+            'provider_state' => $this->fakeProviderState($providerState),
         ));
     }
 
@@ -127,6 +127,15 @@ final class FakeEvaluator implements Evaluator
             'reason' => ResultMapper::BRIDGE_REASON_ERROR,
             'error_code' => $bridgeErrorCode,
             'error_message' => $message,
+            'provider_state' => $this->fakeProviderState(),
         ));
+    }
+
+    private function fakeProviderState(array $providerState = array())
+    {
+        return array_merge(array(
+            'evaluator' => 'fake',
+            'productionRuntime' => false,
+        ), $providerState);
     }
 }
