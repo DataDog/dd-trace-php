@@ -73,6 +73,12 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
 void *datadog_php_profiling_vm_interrupt_addr(void);
 
 /**
+ * Detects tailcall VM interrupt bugs where time sample collection must be
+ * disabled.
+ */
+zend_result ddog_php_prof_check_tailcall_vm_interrupt(void);
+
+/**
  * For Code Hotspots, we need the tracer's local root span id and the current
  * span id. This is a cross-product struct, so keep it in sync with tracer's
  * version of this struct.

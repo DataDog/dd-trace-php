@@ -132,6 +132,23 @@ impl SystemSettings {
         let mut system_settings = SystemSettings::new();
 
         // Work around version-specific issues.
+        let tailcall_check = unsafe { bindings::ddog_php_prof_check_tailcall_vm_interrupt() };
+        if system_settings.profiling_enabled
+            && (system_settings.profiling_wall_time_enabled
+                | system_settings.profiling_experimental_cpu_time_enabled)
+            && tailcall_check != bindings::ZendResult::Success
+        {
+            error!(concat!(
+                "Wall-time and CPU-time sample collection is disabled because PHP 8.5.0-8.5.6 can crash ",
+                "on the tailcall VM kind with VM interrupt based sample collection enabled.",
+                " Other profiling sample types remain enabled.",
+                " To enable time sample collection, upgrade PHP to 8.5.7 or newer, or use a PHP build without the tailcall VM.",
+                " See https://github.com/php/php-src/pull/21922"
+            ));
+            system_settings.profiling_wall_time_enabled = false;
+            system_settings.profiling_experimental_cpu_time_enabled = false;
+        }
+
         #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
         if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {
             if bindings::PHP_VERSION_ID >= 80400 {
@@ -1106,9 +1123,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     displayer: None,
                     env_config_fallback: None,
                 },
-                // At the moment, wall-time cannot be fully disabled. This only
-                // controls automatic collection (manual collection is still
-                // possible).
+                // Controls wall-time collection and the wall-time related
+                // sample types.
                 zai_config_entry {
                     id: transmute::<ConfigId, u16>(ProfilingWallTimeEnabled),
                     name: ProfilingWallTimeEnabled.env_var_name(),

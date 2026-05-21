@@ -41,12 +41,17 @@ impl SampleTypeFilter {
         let mut sample_types_mask = [false; MAX_SAMPLE_TYPES];
 
         if system_settings.profiling_enabled {
-            // sample, wall-time, cpu-time
-            let len = 2 + system_settings.profiling_experimental_cpu_time_enabled as usize;
-            sample_types.extend_from_slice(&SAMPLE_TYPES[0..len]);
-            sample_types_mask[0] = true;
-            sample_types_mask[1] = true;
-            sample_types_mask[2] = system_settings.profiling_experimental_cpu_time_enabled;
+            if system_settings.profiling_wall_time_enabled {
+                // sample, wall-time
+                sample_types.extend_from_slice(&SAMPLE_TYPES[0..2]);
+                sample_types_mask[0] = true;
+                sample_types_mask[1] = true;
+            }
+
+            if system_settings.profiling_experimental_cpu_time_enabled {
+                sample_types.push(SAMPLE_TYPES[2]);
+                sample_types_mask[2] = true;
+            }
 
             // alloc-samples, alloc-size
             if system_settings.profiling_allocation_enabled {
@@ -220,6 +225,36 @@ mod tests {
     }
 
     #[test]
+    fn filter_without_wall_or_cpu_time() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_wall_time_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = false;
+
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
+
+        assert_eq!(types, Vec::<ValueType>::new());
+        assert_eq!(values, Vec::<i64>::new());
+    }
+
+    #[test]
+    fn filter_with_cpu_time_and_without_wall_time() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_wall_time_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = true;
+
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
+
+        assert_eq!(types, vec![ValueType::new("cpu-time", "nanoseconds")]);
+        assert_eq!(values, vec![30]);
+    }
+
+    #[test]
     fn filter_with_allocations() {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
@@ -240,6 +275,28 @@ mod tests {
             ]
         );
         assert_eq!(values, vec![10, 20, 40, 50]);
+    }
+
+    #[test]
+    fn filter_with_allocations_without_wall_or_cpu_time() {
+        let mut settings = get_system_settings();
+        settings.profiling_enabled = true;
+        settings.profiling_allocation_enabled = true;
+        settings.profiling_wall_time_enabled = false;
+        settings.profiling_experimental_cpu_time_enabled = false;
+
+        let sample_type_filter = SampleTypeFilter::new(&settings);
+        let values = sample_type_filter.filter(get_samples());
+        let types = sample_type_filter.sample_types();
+
+        assert_eq!(
+            types,
+            vec![
+                ValueType::new("alloc-samples", "count"),
+                ValueType::new("alloc-size", "bytes"),
+            ]
+        );
+        assert_eq!(values, vec![40, 50]);
     }
 
     #[test]

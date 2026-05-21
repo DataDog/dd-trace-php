@@ -322,6 +322,10 @@ extern "C" {
     /// Must be called from a PHP thread during a request.
     pub fn datadog_php_profiling_vm_interrupt_addr() -> *const AtomicBool;
 
+    /// Returns Failure when this PHP build/runtime has the tailcall VM
+    /// interrupt crash that requires time sample collection to be disabled.
+    pub fn ddog_php_prof_check_tailcall_vm_interrupt() -> ZendResult;
+
     /// Registers the extension. Note that it's kept in a zend_llist and gets
     /// pemalloc'd + memcpy'd into place. The engine says this is a mutable
     /// pointer, but in practice it's const.
