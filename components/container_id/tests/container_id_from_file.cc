@@ -35,6 +35,12 @@ TEST_CASE("parse a Fargate 1.4+ container ID", "[container_id]") {
     REQUIRE(strcmp("34dc0b5e626f2c5c4c5170e34b10e765-1234567890", id) == 0);
 }
 
+TEST_CASE("parse a PCF container ID", "[container_id]") {
+    char id[DATADOG_PHP_CONTAINER_ID_MAX_LEN + 1];
+    REQUIRE(datadog_php_container_id_from_file(id, "./stubs/cgroup.pcf"));
+    REQUIRE(strcmp("6f265890-5165-7fab-6b52-18d1", id) == 0);
+}
+
 /* Whitespace around the matching ID is permitted so long as it is matched
  * within a valid cgroup line.
  */

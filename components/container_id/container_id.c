@@ -37,6 +37,18 @@
  * 1:name=systemd:/ecs/34dc0b5e626f2c5c4c5170e34b10e765-1234567890
  */
 #define TASK_REGEX "[0-9a-f]\\{32\\}-[0-9]\\{1,20\\}"  // Original ERE: "[0-9a-f]{32}-[0-9]+"
+/* Example of a valid PCF / Garden container UUID (8-4-4-4-4 format, 28 chars).
+ *
+ * Pivotal Cloud Foundry
+ * 1:name=systemd:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1
+ *
+ * The '[[:space:]]*$' tail anchors at end-of-line (allowing the trailing '\n'
+ * that fgets leaves on the line) and prevents matching the longer 8-4-4-4-12
+ * UUID form (e.g. Fargate ECS pod UIDs) by requiring the 28-char PCF UUID to
+ * be the last non-whitespace token on the line. We cannot use a bare '$'
+ * because POSIX BRE on BSD libc does not match '$' before a trailing newline.
+ */
+#define PCF_REGEX "[0-9a-f]\\{8\\}\\(-[0-9a-f]\\{4\\}\\)\\{4\\}[[:space:]]*$"  // Original ERE: "[0-9a-f]{8}(-[0-9a-f]{4}){4}$"
 
 typedef datadog_php_container_id_parser dd_parser;
 
@@ -158,6 +170,86 @@ static bool dd_parser_extract_container_id(dd_parser *parser, char *buf, const c
     return false;
 }
 
+#define PCF_ID_LEN 28  // [0-9a-f]{8}(-[0-9a-f]{4}){4} = 8 + 4*(1+4)
+
+static bool dd_parser_extract_pcf_id(dd_parser *parser, char *buf, const char *line) {
+    if (regexec(&parser->pcf_regex, line, 0, NULL, 0) != 0) return false;
+
+    /* We cannot use 'regmatch_t' for position matching due to the possibility
+     * of Oniguruma <= 6.9.4 being linked nor can we use sscanf() (as explained
+     * in comments above). So we fall back to traversing the string
+     * character-by-character to find the start and end positions of the target
+     * ID.
+     */
+    const char *start = line;
+    size_t len = strlen(line);
+
+    /* Traverse the string to find a PCF / Garden UUID with the following
+     * pattern (28 chars total):
+     *
+     *     [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
+     *
+     * To avoid mis-matching the longer 8-4-4-4-12 UUID form, we additionally
+     * require the 28th character to be end-of-string, newline, or whitespace.
+     */
+    while ((size_t)(start - line + PCF_ID_LEN) <= len) {
+        /* First group: exactly 8 hex chars. */
+        size_t id_len = 0;
+        while (id_len < 8 && isxdigit(start[id_len])) {
+            ++id_len;
+        }
+        if (id_len != 8) {
+            start++;
+            continue;
+        }
+
+        /* Four more groups of: '-' followed by exactly 4 hex chars. */
+        bool ok = true;
+        for (int group = 0; group < 4; ++group) {
+            if (start[id_len] != '-') {
+                ok = false;
+                break;
+            }
+            ++id_len;
+
+            size_t group_start = id_len;
+            while (id_len < group_start + 4 && isxdigit(start[id_len])) {
+                ++id_len;
+            }
+            if (id_len != group_start + 4) {
+                ok = false;
+                break;
+            }
+        }
+        if (!ok) {
+            start++;
+            continue;
+        }
+
+        /* Reject if the next character continues a longer UUID (e.g.
+         * 8-4-4-4-12). Acceptable: end-of-string, newline, or whitespace.
+         */
+        char next = start[id_len];
+        if (next != '\0' && !isspace((unsigned char)next)) {
+            start++;
+            continue;
+        }
+
+        /* We have a valid PCF container ID at this point so we can ignore
+         * the rest of the line.
+         */
+        memcpy(buf, start, id_len);
+        buf[id_len] = '\0';
+
+        return true;
+    }
+
+    /* If we made it down here that means our regex pattern matched but we
+     * failed to manually extract the ID from the string.
+     */
+    return false;
+}
+
 bool datadog_php_container_id_parser_ctor(dd_parser *parser) {
     if (parser == NULL) return false;
 
@@ -177,7 +269,8 @@ bool datadog_php_container_id_parser_ctor(dd_parser *parser) {
     int l_res = regcomp(&parser->line_regex, LINE_REGEX, REG_NOSUB);
     int t_res = regcomp(&parser->task_regex, TASK_REGEX, REG_NOSUB);
     int c_res = regcomp(&parser->container_regex, CONTAINER_REGEX, REG_NOSUB);
-    if (l_res != 0 || t_res != 0 || c_res != 0) {
+    int p_res = regcomp(&parser->pcf_regex, PCF_REGEX, REG_NOSUB);
+    if (l_res != 0 || t_res != 0 || c_res != 0 || p_res != 0) {
         datadog_php_container_id_parser_dtor(parser);
         return false;
     }
@@ -185,6 +278,7 @@ bool datadog_php_container_id_parser_ctor(dd_parser *parser) {
     parser->is_valid_line = dd_parser_is_valid_line;
     parser->extract_task_id = dd_parser_extract_task_id;
     parser->extract_container_id = dd_parser_extract_container_id;
+    parser->extract_pcf_id = dd_parser_extract_pcf_id;
 
     return true;
 }
@@ -192,6 +286,7 @@ bool datadog_php_container_id_parser_ctor(dd_parser *parser) {
 bool datadog_php_container_id_parser_dtor(dd_parser *parser) {
     if (parser == NULL) return false;
 
+    regfree(&parser->pcf_regex);
     regfree(&parser->container_regex);
     regfree(&parser->task_regex);
     regfree(&parser->line_regex);
@@ -239,6 +334,15 @@ bool datadog_php_container_id_from_file(char *buf, const char *file) {
              * case with Fargate 1.4+) and those take precedence over standard
              * container IDs.
              */
+            /* break; */
+        }
+
+        /* Match a PCF / Garden UUID and fill into empty buf. PCF IDs have the
+         * lowest precedence: they are only used when neither a task ID nor a
+         * standard container ID has been found. We continue scanning so a
+         * higher-precedence ID elsewhere in the file can still override.
+         */
+        if (buf[0] == '\0' && parser.extract_pcf_id(&parser, buf, line)) {
             /* break; */
         }
     }

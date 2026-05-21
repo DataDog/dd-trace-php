@@ -15,6 +15,7 @@ Changelog for older versions can be found in our [release page](https://github.c
 - Crashtracking now collects stack traces from all threads at the moment of a crash #3866
 
 ### Fixed
+- Fix container ID extraction for PCF (Pivotal Cloud Foundry / Garden) cgroup paths #TBD
 - Fix NULL dereference crash in ZTS mode during sidecar/telemetry shutdown #3886
 - Ensure remote config processing happens strictly after request initialization #3882
 - Strip libpq-style paired quotes from PostgreSQL `dbname` DSN value in PDO integration #3885

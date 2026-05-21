@@ -18,6 +18,10 @@
  * Most of the container IDs match:
  *    [0-9a-f]{64}
  * This makes the longest expected ID 64 characters long.
+ *
+ * PCF / Garden container UUIDs match:
+ *    [0-9a-f]{8}(-[0-9a-f]{4}){4}
+ * These are 28 characters long (well within MAX_LEN).
  */
 #define DATADOG_PHP_CONTAINER_ID_MAX_LEN 64
 
@@ -25,9 +29,11 @@ typedef struct datadog_php_container_id_parser {
     regex_t line_regex;
     regex_t task_regex;
     regex_t container_regex;
+    regex_t pcf_regex;
     bool (*is_valid_line)(struct datadog_php_container_id_parser *parser, const char *line);
     bool (*extract_task_id)(struct datadog_php_container_id_parser *parser, char *buf, const char *line);
     bool (*extract_container_id)(struct datadog_php_container_id_parser *parser, char *buf, const char *line);
+    bool (*extract_pcf_id)(struct datadog_php_container_id_parser *parser, char *buf, const char *line);
 } datadog_php_container_id_parser;
 
 bool datadog_php_container_id_parser_ctor(datadog_php_container_id_parser *parser);

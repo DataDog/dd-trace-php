@@ -199,6 +199,56 @@ TEST_CASE("parser: fail to parse a task ID", "[container_id_parser]") {
     REQUIRE(datadog_php_container_id_parser_dtor(&parser));
 }
 
+TEST_CASE("parser: successfully parse a PCF container ID", "[container_id_parser]") {
+    dd_parser parser;
+    REQUIRE(datadog_php_container_id_parser_ctor(&parser));
+
+    const char *lines[] = {
+        "6f265890-5165-7fab-6b52-18d1",
+        "10:freezer:/garden/6f265890-5165-7fab-6b52-18d1",
+        "1:name=systemd:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1",
+        "1:name=systemd:/system.slice/garden.service/garden/6f265890-5165-7fab-6b52-18d1\n",
+    };
+
+    char buf[MAX_ID_LEN + 1] = {0};
+
+    for (const char *line : lines) {
+        memset(buf, 0, sizeof buf);
+        REQUIRE(buf[0] == '\0');
+
+        REQUIRE(parser.extract_pcf_id(&parser, buf, line));
+        REQUIRE(strcmp("6f265890-5165-7fab-6b52-18d1", buf) == 0);
+    }
+
+    REQUIRE(datadog_php_container_id_parser_dtor(&parser));
+}
+
+TEST_CASE("parser: fail to parse a PCF container ID", "[container_id_parser]") {
+    dd_parser parser;
+    REQUIRE(datadog_php_container_id_parser_ctor(&parser));
+
+    const char *lines[] = {
+        "6f265890-5165-7fab-6b52",                       // Too short, only 3 groups after first
+        "6f265890_5165_7fab_6b52_18d1",                  // Underscores instead of hyphens
+        "",                                              // Empty
+        "g6265890-5165-7fab-6b52-18d1",                  // Non-hex character
+        "6f26589-5165-7fab-6b52-18d1",                   // First group only 7 chars
+        "5a081c13-b8cf-4801-b427-f4601742204d",          // 8-4-4-4-12 UUID (would-be Fargate pod UID)
+    };
+
+    char buf[MAX_ID_LEN + 1] = {0};
+
+    for (const char *line : lines) {
+        memset(buf, 0, sizeof buf);
+        REQUIRE(buf[0] == '\0');
+
+        REQUIRE(false == parser.extract_pcf_id(&parser, buf, line));
+        REQUIRE(buf[0] == '\0');
+    }
+
+    REQUIRE(datadog_php_container_id_parser_dtor(&parser));
+}
+
 /* This specific k8s example was reported as not being parsed correctly on the
  * Python tracer.
  * https://github.com/DataDog/dd-trace-py/issues/2314
