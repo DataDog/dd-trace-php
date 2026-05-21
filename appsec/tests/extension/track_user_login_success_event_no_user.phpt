@@ -24,4 +24,5 @@ require __DIR__ . '/inc/logging.php';
 match_log("/Unexpected empty user id/");
 ?>
 --EXPECTF--
+Deprecated: Function datadog\appsec\track_user_login_success_event() is deprecated in %s on line %d
 found message in log matching /Unexpected empty user id/

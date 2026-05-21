@@ -813,9 +813,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
             ddog_sidecar_telemetry_filter_flush(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
     }
 
-    if (!changed && DDTRACE_G(remote_config_state)) {
-        // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
-        // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
+    if (DDTRACE_G(remote_config_state)) {
+        // Must happen after ddog_sidecar_set_universal_service_tags (session state fully initialized)
         ddog_process_remote_configs(DDTRACE_G(remote_config_state));
     }
 }
@@ -876,16 +875,18 @@ void ddtrace_sidecar_rshutdown(void) {
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
 }
 
-void ddtrace_sidecar_gshutdown(void) {
-    if (DDTRACE_G(sidecar)) {
-        if (DDTRACE_G(sidecar) == ddtrace_sidecar_for_signal) {
+void ddtrace_sidecar_gshutdown(zend_ddtrace_globals *ddtrace_globals) {
+    // NOTE: do not use DDTRACE_G() in this function; it may be called from the
+    // main thread via ts_free_id()
+    if (ddtrace_globals->sidecar) {
+        if (ddtrace_globals->sidecar == ddtrace_sidecar_for_signal) {
             ddtrace_sidecar_for_signal = NULL;
         }
 
         // Drain any accumulated background-sender metrics before the transport goes away.
-        ddtrace_telemetry_flush_bgs_metrics_final();
-        ddog_sidecar_transport_drop(DDTRACE_G(sidecar));
-        DDTRACE_G(sidecar) = NULL;
+        ddtrace_telemetry_flush_bgs_metrics_final(ddtrace_globals);
+        ddog_sidecar_transport_drop(ddtrace_globals->sidecar);
+        ddtrace_globals->sidecar = NULL;
     }
 }
 

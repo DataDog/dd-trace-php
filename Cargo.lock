@@ -1080,12 +1080,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "current_platform"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a74858bcfe44b22016cb49337d7b6f04618c58e5dbfdef61b06b8c434324a0bc"
-
-[[package]]
 name = "cxx"
 version = "1.0.194"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1193,9 +1187,7 @@ name = "datadog-ffe"
 version = "1.0.0"
 dependencies = [
  "chrono",
- "criterion",
  "derive_more",
- "env_logger 0.10.2",
  "faststr",
  "libdd-common",
  "log",
@@ -1361,6 +1353,7 @@ name = "datadog-sidecar"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "arrayref",
  "base64 0.22.1",
  "bincode",
@@ -1599,6 +1592,17 @@ checksum = "a0a4be4cd710e92098de6ad258e6e7c24af11c29c5142f3c6f2a545652480ff8"
 dependencies = [
  "heck 0.4.1",
  "proc-macro-error",
+]
+
+[[package]]
+name = "duplicate"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e92f10a49176cbffacaedabfaa11d51db1ea0f80a83c26e1873b43cd1742c24"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "proc-macro2-diagnostics",
 ]
 
 [[package]]
@@ -2728,7 +2732,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2738,18 +2742,19 @@ dependencies = [
 
 [[package]]
 name = "libdd-capabilities-impl"
-version = "1.0.0"
+version = "2.0.0"
 dependencies = [
  "bytes",
  "http",
  "http-body-util",
  "libdd-capabilities",
  "libdd-common",
+ "tokio",
 ]
 
 [[package]]
 name = "libdd-common"
-version = "4.0.0"
+version = "4.1.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2864,7 +2869,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "3.0.1"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2872,6 +2877,7 @@ dependencies = [
  "bytes",
  "clap",
  "criterion",
+ "duplicate 2.0.1",
  "either",
  "getrandom 0.2.15",
  "http",
@@ -2880,11 +2886,13 @@ dependencies = [
  "libdd-capabilities",
  "libdd-capabilities-impl",
  "libdd-common",
+ "libdd-ddsketch",
  "libdd-dogstatsd-client",
  "libdd-log",
  "libdd-shared-runtime",
  "libdd-telemetry",
  "libdd-tinybytes",
+ "libdd-trace-obfuscation",
  "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
@@ -2912,7 +2920,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-dogstatsd-client"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "cadence",
@@ -3033,15 +3041,18 @@ dependencies = [
 
 [[package]]
 name = "libdd-shared-runtime"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "futures-util",
  "libdd-capabilities",
+ "libdd-capabilities-impl",
  "libdd-common",
  "tokio",
  "tokio-util",
  "tracing",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -3056,6 +3067,7 @@ dependencies = [
  "hashbrown 0.15.2",
  "http",
  "http-body-util",
+ "httpmock",
  "libc 0.2.177",
  "libdd-common",
  "libdd-ddsketch",
@@ -3082,12 +3094,13 @@ dependencies = [
  "libdd-common-ffi",
  "libdd-telemetry",
  "paste",
+ "serde_json",
  "tempfile",
 ]
 
 [[package]]
 name = "libdd-tinybytes"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "libdd-tinybytes",
  "once_cell",
@@ -3106,18 +3119,18 @@ dependencies = [
  "anyhow",
  "arbitrary",
  "criterion",
- "duplicate",
+ "duplicate 0.4.1",
  "libdd-trace-protobuf",
  "rand 0.8.5",
 ]
 
 [[package]]
 name = "libdd-trace-obfuscation"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "criterion",
- "duplicate",
+ "duplicate 0.4.1",
  "fluent-uri",
  "libdd-common",
  "libdd-trace-protobuf",
@@ -3130,7 +3143,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-protobuf"
-version = "3.0.1"
+version = "3.0.2"
 dependencies = [
  "bolero",
  "prost",
@@ -3144,9 +3157,10 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "async-trait",
  "criterion",
  "hashbrown 0.15.2",
@@ -3170,7 +3184,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "3.0.1"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3906,8 +3920,6 @@ dependencies = [
 name = "php_sidecar_mockgen"
 version = "0.1.0"
 dependencies = [
- "cc_utils",
- "current_platform",
  "sidecar_mockgen",
 ]
 
@@ -4094,6 +4106,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60946a68e5f9d28b0dc1c21bb8a97ee7d018a8b322fa57838ba31cc878e22d99"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "proc-macro2-diagnostics"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af066a9c399a26e020ada66a034357a868728e72cd426f3adcd35f80d88d88c8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+ "version_check 0.9.5",
 ]
 
 [[package]]
