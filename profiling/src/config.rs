@@ -110,21 +110,6 @@ impl SystemSettings {
             uri,
         }
     }
-
-    fn disable_profiling(&mut self) {
-        self.profiling_enabled = false;
-        self.profiling_experimental_features_enabled = false;
-        self.profiling_endpoint_collection_enabled = false;
-        self.profiling_experimental_cpu_time_enabled = false;
-        self.profiling_allocation_enabled = false;
-        self.profiling_timeline_enabled = false;
-        self.profiling_exception_enabled = false;
-        self.profiling_exception_message_enabled = false;
-        self.profiling_wall_time_enabled = false;
-        self.profiling_io_enabled = false;
-        self.output_pprof = None;
-        self.profiling_log_level = LevelFilter::Off;
-    }
 }
 
 static mut SYSTEM_SETTINGS: SystemSettings = SystemSettings::initial();
@@ -147,16 +132,6 @@ impl SystemSettings {
         let mut system_settings = SystemSettings::new();
 
         // Work around version-specific issues.
-        let tailcall_check = unsafe { bindings::ddog_php_prof_check_tailcall_vm_interrupt() };
-        if system_settings.profiling_enabled && tailcall_check != bindings::ZendResult::Success {
-            error!(concat!(
-                "Profiling is disabled because PHP 8.5.0-8.5.6 can crash on the tailcall VM kind with profiling enabled.",
-                " To enable profiling, upgrade PHP to 8.5.7 or newer, or use a PHP build without the tailcall VM.",
-                " See https://github.com/php/php-src/pull/21922"
-            ));
-            system_settings.disable_profiling();
-        }
-
         #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
         if allocation::allocation_le83::first_rinit_should_disable_due_to_jit() {
             if bindings::PHP_VERSION_ID >= 80400 {
