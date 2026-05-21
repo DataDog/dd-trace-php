@@ -396,7 +396,7 @@ void zai_config_ini_rinit(void) {
 
 #if ZTS
     // Skip during preloading, in that case EG(ini_directives) is the actual source of truth (NTS-like)
-    if (env_to_ini_name && !inis_synchronized && zai_config_first_rinit_done) {
+    if (env_to_ini_name && !inis_synchronized && zai_config_first_rinit_done && !in_startup) {
         for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
             zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
             if (!memoized->original_on_modify) {
