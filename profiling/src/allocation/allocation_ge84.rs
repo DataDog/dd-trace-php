@@ -7,6 +7,9 @@ use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, trace, warn};
 use std::sync::atomic::Ordering::Relaxed;
 
+#[cfg(php_debug)]
+use libc::c_uint;
+
 #[cfg(feature = "debug_stats")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
 
@@ -271,7 +274,23 @@ unsafe fn restore_zend_heap(heap: *mut zend::_zend_mm_heap, custom_heap: c_int) 
     ptr::write(heap as *mut c_int, custom_heap);
 }
 
+#[cfg(not(php_debug))]
 unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
+    alloc_prof_malloc_impl(len)
+}
+
+#[cfg(php_debug)]
+unsafe extern "C" fn alloc_prof_malloc(
+    len: size_t,
+    _file: *const c_char,
+    _line: c_uint,
+    _orig_file: *const c_char,
+    _orig_line: c_uint,
+) -> *mut c_void {
+    alloc_prof_malloc_impl(len)
+}
+
+unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
     #[cfg(feature = "debug_stats")]
@@ -300,6 +319,11 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
     // neighboring extension could misbehave. If that happens, we want a proper
     // panic with backtrace for debugging rather than undefined behavior.
     let alloc = tls_zend_mm_state_get!(prev_custom_mm_alloc).unwrap();
+    #[cfg(php_debug)]
+    {
+        return alloc(len, ptr::null(), 0, ptr::null(), 0);
+    }
+    #[cfg(not(php_debug))]
     alloc(len)
 }
 
@@ -308,6 +332,9 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
     // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
     // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    #[cfg(php_debug)]
+    return zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0);
+    #[cfg(not(php_debug))]
     zend::_zend_mm_alloc(heap, len)
 }
 
@@ -315,7 +342,23 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// you need to pass a pointer to a `free()` function as well, otherwise your
 /// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
+#[cfg(not(php_debug))]
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
+    alloc_prof_free_impl(ptr);
+}
+
+#[cfg(php_debug)]
+unsafe extern "C" fn alloc_prof_free(
+    ptr: *mut c_void,
+    _file: *const c_char,
+    _line: c_uint,
+    _orig_file: *const c_char,
+    _orig_line: c_uint,
+) {
+    alloc_prof_free_impl(ptr);
+}
+
+unsafe fn alloc_prof_free_impl(ptr: *mut c_void) {
     tls_zend_mm_state_get!(free)(ptr);
 }
 
@@ -327,6 +370,11 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
     // neighboring extension could misbehave. If that happens, we want a proper
     // panic with backtrace for debugging rather than undefined behavior.
     let free = tls_zend_mm_state_get!(prev_custom_mm_free).unwrap();
+    #[cfg(php_debug)]
+    {
+        return free(ptr, core::ptr::null(), 0, core::ptr::null(), 0);
+    }
+    #[cfg(not(php_debug))]
     free(ptr)
 }
 
@@ -335,10 +383,30 @@ unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
     // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
     // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    #[cfg(php_debug)]
+    return zend::_zend_mm_free(heap, ptr, core::ptr::null(), 0, core::ptr::null(), 0);
+    #[cfg(not(php_debug))]
     zend::_zend_mm_free(heap, ptr);
 }
 
+#[cfg(not(php_debug))]
 unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
+    alloc_prof_realloc_impl(prev_ptr, len)
+}
+
+#[cfg(php_debug)]
+unsafe extern "C" fn alloc_prof_realloc(
+    prev_ptr: *mut c_void,
+    len: size_t,
+    _file: *const c_char,
+    _line: c_uint,
+    _orig_file: *const c_char,
+    _orig_line: c_uint,
+) -> *mut c_void {
+    alloc_prof_realloc_impl(prev_ptr, len)
+}
+
+unsafe fn alloc_prof_realloc_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
     #[cfg(feature = "debug_stats")]
@@ -367,6 +435,11 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     // neighboring extension could misbehave. If that happens, we want a proper
     // panic with backtrace for debugging rather than undefined behavior.
     let realloc = tls_zend_mm_state_get!(prev_custom_mm_realloc).unwrap();
+    #[cfg(php_debug)]
+    {
+        return realloc(prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
+    }
+    #[cfg(not(php_debug))]
     realloc(prev_ptr, len)
 }
 
@@ -375,6 +448,9 @@ unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     // handlers only point to this function after successful init. Using `unwrap_unchecked()` is
     // safe here as we have full control over ZendMM with no neighboring extensions.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    #[cfg(php_debug)]
+    return zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
+    #[cfg(not(php_debug))]
     zend::_zend_mm_realloc(heap, prev_ptr, len)
 }
 
