@@ -6,8 +6,8 @@ stages:
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  # Only clone libdatadog submodule by default
-  GIT_SUBMODULE_PATHS: libdatadog
+  # Only clone submodules required by default test jobs
+  GIT_SUBMODULE_PATHS: libdatadog tests/FeatureFlags/ffe-system-test-data
   RELIABILITY_ENV_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"

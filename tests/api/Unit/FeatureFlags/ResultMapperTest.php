@@ -121,6 +121,27 @@ final class ResultMapperTest extends TestCase
         $this->assertSame(EvaluationReason::SPLIT, $details->getReason());
     }
 
+    public function testJsonObjectMapsToObjectDetails()
+    {
+        $details = (new ResultMapper())->map(array(
+            'value_json' => '{"enabled":true,"threshold":2,"labels":["a","b"]}',
+            'variant' => 'json-a',
+            'allocation_key' => 'alloc-json',
+            'reason' => ResultMapper::BRIDGE_REASON_SPLIT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'do_log' => true,
+        ), EvaluationType::OBJECT, array('fallback' => true));
+
+        $this->assertSame(array(
+            'enabled' => true,
+            'threshold' => 2,
+            'labels' => array('a', 'b'),
+        ), $details->getValue());
+        $this->assertSame(EvaluationReason::SPLIT, $details->getReason());
+        $this->assertSame('json-a', $details->getVariant());
+        $this->assertSame(array('allocationKey' => 'alloc-json', 'doLog' => true), $details->getExposureData());
+    }
+
     /**
      * @dataProvider reasonProvider
      */

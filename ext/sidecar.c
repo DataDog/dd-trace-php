@@ -444,8 +444,6 @@ void ddtrace_sidecar_handle_fork(void) {
     bool appsec_config = false;
     bool enable_sidecar = ddtrace_sidecar_should_enable(&appsec_activation, &appsec_config);
 
-    ddog_ffe_reset_exposure_state();
-
     if (!enable_sidecar) {
         return;
     }
@@ -537,11 +535,7 @@ void ddtrace_sidecar_finalize(bool clear_id) {
     }
 }
 
-static void dd_flush_ffe_exposures(void);
-
 void ddtrace_sidecar_shutdown(void) {
-    dd_flush_ffe_exposures();
-
     ddtrace_sidecar_for_signal = NULL;
 
     // In thread mode, drop the main thread's connection before shutting down the
@@ -884,26 +878,7 @@ void ddtrace_sidecar_rinit(void) {
 }
 
 void ddtrace_sidecar_rshutdown(void) {
-    dd_flush_ffe_exposures();
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
-}
-
-static void dd_flush_ffe_exposures(void) {
-    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id) {
-        return;
-    }
-
-    ddog_CharSlice payload = ddog_ffe_flush_exposures();
-    if (payload.ptr == NULL || payload.len == 0) {
-        return;
-    }
-
-    ddtrace_ffi_try("Failed forwarding FFE exposures to sidecar",
-                    ddog_sidecar_send_ffe_exposures(&DDTRACE_G(sidecar),
-                                                    ddtrace_sidecar_instance_id,
-                                                    &DDTRACE_G(sidecar_queue_id),
-                                                    payload));
-    ddog_ffe_free_flush_result(payload);
 }
 
 void ddtrace_sidecar_gshutdown(zend_ddtrace_globals *ddtrace_globals) {

@@ -28,6 +28,20 @@ $config = <<<'JSON'
         "doLog": true
       }]
     },
+    "object.flag": {
+      "key": "object.flag",
+      "enabled": true,
+      "variationType": "JSON",
+      "variations": {
+        "json-a": {"key": "json-a", "value": {"enabled": true, "threshold": 2}}
+      },
+      "allocations": [{
+        "key": "alloc-json",
+        "rules": [],
+        "splits": [{"variationKey": "json-a", "serialId": 8, "shards": []}],
+        "doLog": true
+      }]
+    },
     "bad.flag": {
       "key": "bad.flag",
       "enabled": true,
@@ -52,6 +66,15 @@ show('success', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array(
     'age' => 42,
     'ignored' => array('drop'),
 )));
+$object = \DDTrace\ffe_evaluate('object.flag', 4, 'user-1', array());
+show('object_success_value', json_decode($object['value_json'], true));
+show('object_success_metadata', array(
+    'variant' => $object['variant'],
+    'allocation_key' => $object['allocation_key'],
+    'reason' => $object['reason'],
+    'error_code' => $object['error_code'],
+    'do_log' => $object['do_log'],
+));
 show('missing', \DDTrace\ffe_evaluate('missing.flag', 0, 'user-1', array()));
 show('type_mismatch', \DDTrace\ffe_evaluate('string.flag', 3, 'user-1', array()));
 show('parse_error', \DDTrace\ffe_evaluate('bad.flag', 0, 'user-1', array()));
@@ -62,6 +85,8 @@ provider_not_ready={"value_json":"null","variant":null,"allocation_key":null,"re
 load=true
 has_config_after=true
 success={"value_json":"\"blue\"","variant":"blue","allocation_key":"alloc-string","reason":0,"error_code":0,"do_log":true}
+object_success_value={"enabled":true,"threshold":2}
+object_success_metadata={"variant":"json-a","allocation_key":"alloc-json","reason":0,"error_code":0,"do_log":true}
 missing={"value_json":"null","variant":null,"allocation_key":null,"reason":1,"error_code":3,"do_log":false}
 type_mismatch={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":1,"do_log":false}
 parse_error={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":2,"do_log":false}

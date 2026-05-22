@@ -22,24 +22,7 @@ final class RemoteConfigClientTest extends TestCase
         $this->assertSame(42, $client->configVersion());
     }
 
-    public function testWaitUntilReadyPollsUntilConfigArrives()
-    {
-        $attempts = 0;
-        $client = new RemoteConfigClient(
-            function () use (&$attempts) {
-                ++$attempts;
-                return $attempts >= 2;
-            },
-            function () {
-                return 0;
-            }
-        );
-
-        $this->assertTrue($client->waitUntilReady(0.05, 1000));
-        $this->assertGreaterThanOrEqual(2, $attempts);
-    }
-
-    public function testZeroTimeoutDoesNotBlock()
+    public function testUnavailableConfigIsReportedWithoutBlocking()
     {
         $client = new RemoteConfigClient(
             function () {
@@ -50,6 +33,7 @@ final class RemoteConfigClientTest extends TestCase
             }
         );
 
-        $this->assertFalse($client->waitUntilReady(0));
+        $this->assertFalse($client->hasConfig());
+        $this->assertSame(0, $client->configVersion());
     }
 }

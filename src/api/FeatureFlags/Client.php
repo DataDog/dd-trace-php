@@ -6,35 +6,19 @@ final class Client
 {
     private $evaluator;
     private $warningEmitter;
-    private $exposureWriter;
-    private $metricsRecorder;
     private $warnedAboutNonProductionRuntime = false;
 
     public function __construct(
         Evaluator $evaluator,
-        WarningEmitter $warningEmitter,
-        $exposureWriter = null,
-        $metricsRecorder = null
+        WarningEmitter $warningEmitter
     ) {
-        if ($exposureWriter !== null && !$exposureWriter instanceof ExposureWriter) {
-            throw new \InvalidArgumentException('Expected an ExposureWriter instance');
-        }
-
-        if ($metricsRecorder !== null && !$metricsRecorder instanceof MetricsRecorder) {
-            throw new \InvalidArgumentException('Expected a MetricsRecorder instance');
-        }
-
         $this->evaluator = $evaluator;
         $this->warningEmitter = $warningEmitter;
-        $this->exposureWriter = $exposureWriter ?: new NoopExposureWriter();
-        $this->metricsRecorder = $metricsRecorder ?: new NoopMetricsRecorder();
     }
 
     public static function create(
         $evaluator = null,
-        $warningEmitter = null,
-        $exposureWriter = null,
-        $metricsRecorder = null
+        $warningEmitter = null
     ) {
         if ($evaluator !== null && !$evaluator instanceof Evaluator) {
             throw new \InvalidArgumentException('Expected an Evaluator instance');
@@ -46,9 +30,7 @@ final class Client
 
         return new self(
             $evaluator ?: NativeEvaluator::createOrUnavailable(),
-            $warningEmitter ?: new TriggerErrorWarningEmitter(),
-            $exposureWriter ?: NativeExposureWriter::createOrNoop(),
-            $metricsRecorder
+            $warningEmitter ?: new TriggerErrorWarningEmitter()
         );
     }
 
@@ -116,49 +98,8 @@ final class Client
         );
 
         $this->warnIfNonProductionRuntime($details);
-        $this->metricsRecorder->recordEvaluation(
-            $flagKey,
-            $details->getValueType(),
-            $details->getReason(),
-            $details->getErrorCode()
-        );
-        $this->writeExposure($flagKey, $targetingKey, $attributes, $details);
 
         return $details;
-    }
-
-    private function writeExposure($flagKey, $targetingKey, array $attributes, EvaluationDetails $details)
-    {
-        if ($details->isError()) {
-            return;
-        }
-
-        $exposureData = $details->getExposureData();
-        if (!$exposureData || (array_key_exists('doLog', $exposureData) && $exposureData['doLog'] === false)) {
-            return;
-        }
-
-        $event = array(
-            'flagKey' => $flagKey,
-            'targetingKey' => $targetingKey,
-            'attributes' => $attributes,
-            'value' => $details->getValue(),
-            'valueType' => $details->getValueType(),
-            'reason' => $details->getReason(),
-            'variant' => $details->getVariant(),
-            'flagMetadata' => $details->getFlagMetadata(),
-            'exposureData' => $exposureData,
-        );
-
-        if (array_key_exists('allocationKey', $exposureData)) {
-            $event['allocationKey'] = $exposureData['allocationKey'];
-        }
-
-        if (array_key_exists('doLog', $exposureData)) {
-            $event['doLog'] = $exposureData['doLog'];
-        }
-
-        $this->exposureWriter->write($event);
     }
 
     private function normalizeContext(array $context)

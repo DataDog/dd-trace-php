@@ -18,7 +18,11 @@ compile_rust.sh @Datadog/libdatadog-apm
 /components-rs/ffe.rs @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk
 /libdatadog @Datadog/libdatadog-apm @DataDog/feature-flagging-and-experimentation-sdk
 /src/api/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
+/src/DDTrace/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk
+/src/bridge/_files_openfeature.php @DataDog/feature-flagging-and-experimentation-sdk
+/tests/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
 /tests/api/Unit/FeatureFlags/ @DataDog/feature-flagging-and-experimentation-sdk
+/tests/OpenFeature/ @DataDog/feature-flagging-and-experimentation-sdk
 /tests/ext/ffe/ @DataDog/feature-flagging-and-experimentation-sdk
 
 # Release files

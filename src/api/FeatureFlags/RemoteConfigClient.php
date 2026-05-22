@@ -41,25 +41,4 @@ final class RemoteConfigClient
         $version = call_user_func($this->configVersion);
         return is_int($version) ? $version : (int) $version;
     }
-
-    public function waitUntilReady($timeoutSeconds = 5.0, $pollIntervalMicroseconds = 10000)
-    {
-        if ($this->hasConfig()) {
-            return true;
-        }
-
-        if ($timeoutSeconds <= 0) {
-            return false;
-        }
-
-        $deadline = microtime(true) + (float) $timeoutSeconds;
-        while (microtime(true) < $deadline) {
-            usleep((int) $pollIntervalMicroseconds);
-            if ($this->hasConfig()) {
-                return true;
-            }
-        }
-
-        return $this->hasConfig();
-    }
 }

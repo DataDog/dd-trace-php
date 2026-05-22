@@ -87,22 +87,6 @@ bool ddog_ffe_result_do_log(const struct ddog_FfeResult *result);
 
 void ddog_ffe_free_result(struct ddog_FfeResult *result);
 
-void ddog_ffe_set_service_context(const char *service,
-                                  const char *env,
-                                  const char *version);
-
-bool ddog_ffe_enqueue_exposure(const char *event_json,
-                               const char *flag_key,
-                               const char *allocation_key,
-                               const char *targeting_key,
-                               const char *variant_key);
-
-ddog_CharSlice ddog_ffe_flush_exposures(void);
-
-void ddog_ffe_free_flush_result(ddog_CharSlice slice);
-
-void ddog_ffe_reset_exposure_state(void);
-
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 
 void ddog_free_normalized_tag_value(const char *ptr);

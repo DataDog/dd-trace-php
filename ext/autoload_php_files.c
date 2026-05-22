@@ -32,7 +32,9 @@ static zend_class_entry *(*dd_prev_autoloader)(zend_string *name, zend_string *l
 static zend_bool dd_api_is_preloaded = false;
 static zend_bool dd_otel_is_preloaded = false;
 static zend_bool dd_legacy_tracer_is_preloaded = false;
+static zend_bool dd_openfeature_is_preloaded = false;
 #endif
+static zend_bool dd_openfeature_is_loaded = false;
 
 #if PHP_VERSION_ID < 80000
 #define LAST_ERROR_STRING PG(last_error_message)
@@ -234,6 +236,18 @@ static zend_class_entry *dd_perform_autoload(zend_string *class_name, zend_strin
                     return ce;
                 }
             }
+            if (zend_string_starts_with_literal(lc_name, "ddtrace\\openfeature\\")) {
+#if PHP_VERSION_ID >= 80000
+                if (!dd_openfeature_is_loaded) {
+                    dd_openfeature_is_loaded = 1;
+                    dd_load_files("openfeature");
+                }
+                if ((ce = zend_hash_find_ptr(EG(class_table), lc_name))) {
+                    return ce;
+                }
+#endif
+                return NULL;
+            }
             if (!DDTRACE_G(legacy_tracer_is_loaded) && !zend_string_starts_with_literal(lc_name, "ddtrace\\integration\\")) {
                 DDTRACE_G(legacy_tracer_is_loaded) = 1;
                 dd_load_files("tracer");
@@ -420,13 +434,16 @@ void ddtrace_autoload_rshutdown(void) {
         dd_api_is_preloaded = DDTRACE_G(api_is_loaded);
         dd_otel_is_preloaded = DDTRACE_G(otel_is_loaded);
         dd_legacy_tracer_is_preloaded = DDTRACE_G(legacy_tracer_is_loaded);
+        dd_openfeature_is_preloaded = dd_openfeature_is_loaded;
     } else {
         DDTRACE_G(api_is_loaded) = dd_api_is_preloaded;
         DDTRACE_G(otel_is_loaded) = dd_otel_is_preloaded;
         DDTRACE_G(legacy_tracer_is_loaded) = dd_legacy_tracer_is_preloaded;
+        dd_openfeature_is_loaded = dd_openfeature_is_preloaded;
     }
 #else
     DDTRACE_G(api_is_loaded) = 0;
     DDTRACE_G(otel_is_loaded) = 0;
+    dd_openfeature_is_loaded = 0;
 #endif
 }
