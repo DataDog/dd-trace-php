@@ -4,6 +4,7 @@
 #![allow(static_mut_refs)] // remove with move to Rust 2024 edition
 
 pub mod agent_info;
+pub mod ffe;
 pub mod log;
 pub mod remote_config;
 pub mod sidecar;

@@ -15,7 +15,8 @@ libdd-telemetry-ffi = { path = "../libdatadog/libdd-telemetry-ffi", default-feat
 datadog-live-debugger = { path = "../libdatadog/datadog-live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/datadog-live-debugger-ffi", default-features = false }
 datadog-ipc = { path = "../libdatadog/datadog-ipc" }
-datadog-remote-config = { path = "../libdatadog/datadog-remote-config" }
+datadog-ffe = { path = "../libdatadog/datadog-ffe" }
+datadog-remote-config = { path = "../libdatadog/datadog-remote-config", features = ["ffe"] }
 datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
 libdd-data-pipeline = { path = "../libdatadog/libdd-data-pipeline" }
@@ -32,6 +33,7 @@ serde = "1.0.196"
 simd-json = "0.14.1"
 serde_with = "3.6.0"
 lazy_static = "1.4"
+lru = "0.16.4"
 log = "0.4.20"
 env_logger = "0.10.1"
 zwohash = "0.1.2"

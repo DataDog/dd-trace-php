@@ -845,6 +845,79 @@ namespace DDTrace {
      * Call this once after batching all add_endpoint() calls.
      */
     function flush_endpoints(): void {}
+
+    /**
+     * Evaluate a feature flag using the stored UFC configuration.
+     *
+     * @param string $flagKey The flag key to evaluate.
+     * @param int $expectedType The expected flag type (0=string, 1=int, 2=float, 3=bool, 4=object).
+     * @param string|null $targetingKey The targeting key for evaluation context.
+     * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
+     * @return array|null Associative array with keys: value_json, variant, allocation_key, reason, error_code, do_log. Null only if evaluation engine is unavailable.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?array {}
+
+    /**
+     * Check if FFE (Feature Flag Evaluation) configuration is loaded.
+     *
+     * @return bool True if a flag configuration has been loaded.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_has_config(): bool {}
+
+    /**
+     * Return the current FFE configuration version counter.
+     *
+     * @return int Monotonically-increasing version counter.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_config_version(): int {}
+
+    /**
+     * Load a UFC JSON configuration string into the FFE engine.
+     * Used for testing without Remote Config.
+     *
+     * @param string $json UFC JSON configuration string.
+     * @return bool True if the configuration was parsed and loaded successfully.
+     *
+     * @internal Used by tests.
+     */
+    function ffe_load_config(string $json): bool {}
+
+    /**
+     * Enqueue a serialized FFE exposure event for native deduplication and batched delivery.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_send_exposure(string $eventJson, string $flagKey, ?string $allocationKey, ?string $targetingKey, string $variantKey): bool {}
+
+    /**
+     * Drain buffered FFE exposure events and return the native batch payload.
+     * Used by tests; production delivery is owned by request/module shutdown.
+     *
+     * @return string|null Serialized batch payload, or null when the buffer is empty.
+     *
+     * @internal Used by tests.
+     */
+    function ffe_flush_exposures(): ?string {}
+
+    /**
+     * Set service/env/version context for native FFE exposure batch payloads.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_set_service_context(string $service, string $env, string $version): void {}
+
+    /**
+     * Reset native FFE exposure state.
+     *
+     * @internal Used by tests and fork handling.
+     */
+    function ffe_reset_exposure_state(): void {}
 }
 
 namespace DDTrace\System {
@@ -975,6 +1048,7 @@ namespace DDTrace\Internal {
      * @internal
      */
     function handle_fork(): void {}
+
 }
 
 namespace datadog\appsec\v2 {

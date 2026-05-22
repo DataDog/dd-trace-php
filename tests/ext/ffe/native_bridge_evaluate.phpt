@@ -1,0 +1,67 @@
+--TEST--
+FFE native bridge evaluates through libdatadog
+--FILE--
+<?php
+function show($label, $value) {
+    echo $label . '=' . json_encode($value, JSON_UNESCAPED_SLASHES) . "\n";
+}
+
+show('has_config_before', \DDTrace\ffe_has_config());
+show('provider_not_ready', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array()));
+
+$config = <<<'JSON'
+{
+  "createdAt": "2024-01-01T00:00:00Z",
+  "environment": {"name": "test"},
+  "flags": {
+    "string.flag": {
+      "key": "string.flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "blue": {"key": "blue", "value": "blue"}
+      },
+      "allocations": [{
+        "key": "alloc-string",
+        "rules": [],
+        "splits": [{"variationKey": "blue", "serialId": 7, "shards": []}],
+        "doLog": true
+      }]
+    },
+    "bad.flag": {
+      "key": "bad.flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "bad": {"key": "bad", "value": 1}
+      },
+      "allocations": [{
+        "key": "alloc-bad",
+        "rules": [],
+        "splits": [{"variationKey": "bad", "shards": []}]
+      }]
+    }
+  }
+}
+JSON;
+
+show('load', \DDTrace\ffe_load_config($config));
+show('has_config_after', \DDTrace\ffe_has_config());
+show('success', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array(
+    'country' => 'US',
+    'age' => 42,
+    'ignored' => array('drop'),
+)));
+show('missing', \DDTrace\ffe_evaluate('missing.flag', 0, 'user-1', array()));
+show('type_mismatch', \DDTrace\ffe_evaluate('string.flag', 3, 'user-1', array()));
+show('parse_error', \DDTrace\ffe_evaluate('bad.flag', 0, 'user-1', array()));
+?>
+--EXPECT--
+has_config_before=false
+provider_not_ready={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":6,"do_log":false}
+load=true
+has_config_after=true
+success={"value_json":"\"blue\"","variant":"blue","allocation_key":"alloc-string","reason":0,"error_code":0,"do_log":true}
+missing={"value_json":"null","variant":null,"allocation_key":null,"reason":1,"error_code":3,"do_log":false}
+type_mismatch={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":1,"do_log":false}
+parse_error={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":2,"do_log":false}

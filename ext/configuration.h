@@ -278,6 +278,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(INT, DD_CODE_ORIGIN_MAX_USER_FRAMES, "8")                                                           \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
+    CONFIG(BOOL, DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED, "false")                                           \
     CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")                                       \
     CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
     DD_INTEGRATIONS

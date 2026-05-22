@@ -439,6 +439,8 @@ typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
 typedef struct ddog_DslString ddog_DslString;
 
+typedef struct ddog_FfeResult ddog_FfeResult;
+
 typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_HashMap_ShmCacheKey__ShmCache;
 
 /**
@@ -477,6 +479,19 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  * next call once the SHM becomes available.
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
+
+/**
+ * Flags selecting which Remote Config products/capabilities to subscribe to.
+ *
+ * Passed as a single C-ABI struct so call sites can use designated initializers
+ * and name the flags, instead of a positional sequence of bool args.
+ */
+typedef struct ddog_DdogRemoteConfigFlags {
+  bool live_debugging_enabled;
+  bool appsec_activation;
+  bool appsec_config;
+  bool ffe_enabled;
+} ddog_DdogRemoteConfigFlags;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -678,6 +693,14 @@ typedef struct ddog_Vec_DebuggerPayload {
  * It contains a single field, `inner`, which is a 64-bit unsigned integer.
  */
 typedef uint64_t ddog_QueueId;
+
+typedef struct ddog_FfeAttribute {
+  const char *key;
+  int32_t value_type;
+  const char *string_value;
+  double number_value;
+  bool bool_value;
+} ddog_FfeAttribute;
 
 /**
  * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.

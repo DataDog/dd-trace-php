@@ -1451,6 +1451,7 @@ dependencies = [
  "bincode",
  "cbindgen 0.27.0",
  "const-str",
+ "datadog-ffe",
  "datadog-ipc",
  "datadog-live-debugger",
  "datadog-live-debugger-ffi",
@@ -1474,6 +1475,7 @@ dependencies = [
  "libdd-trace-stats",
  "libdd-trace-utils",
  "log",
+ "lru",
  "paste",
  "regex",
  "regex-automata",
@@ -2081,6 +2083,11 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
+]
 
 [[package]]
 name = "hdrhistogram"
@@ -3284,6 +3291,15 @@ checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
 dependencies = [
  "serde",
  "value-bag",
+]
+
+[[package]]
+name = "lru"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
+dependencies = [
+ "hashbrown 0.16.1",
 ]
 
 [[package]]

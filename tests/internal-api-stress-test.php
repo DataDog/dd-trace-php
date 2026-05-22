@@ -131,7 +131,12 @@ function generate_garbage()
     return $garbage;
 }
 
-$minFunctionArgs = [];
+$minFunctionArgs = [
+    'DDTrace\ffe_load_config' => 1,
+    'DDTrace\ffe_evaluate' => 4,
+    'DDTrace\ffe_send_exposure' => 5,
+    'DDTrace\ffe_set_service_context' => 3,
+];
 
 function call_function(ReflectionFunction $function)
 {
