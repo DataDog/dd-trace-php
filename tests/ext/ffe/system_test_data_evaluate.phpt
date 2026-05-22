@@ -5,6 +5,9 @@ FFE canonical system test data evaluates through the Datadog client
 if (getenv('PHP_PEAR_RUNTESTS') === '1') {
     die('skip: canonical FFE fixtures are not shipped in the PECL test package');
 }
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) {
+    die('skip: canonical FFE fixture sweep is too slow for valgrind');
+}
 ?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
