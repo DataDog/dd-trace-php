@@ -17,6 +17,8 @@ CentOS:
   tags: ["arch:amd64"]
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
   parallel:
     matrix:
       - PHP_VERSION:
@@ -46,6 +48,8 @@ Alpine:
   tags: ["arch:amd64"]
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
   parallel:
     matrix:
       - PHP_VERSION:
@@ -75,6 +79,8 @@ Bookworm:
   tags: ["arch:amd64"]
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
   parallel:
     matrix:
       - PHP_VERSION:
