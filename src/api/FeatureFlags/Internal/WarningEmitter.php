@@ -1,6 +1,6 @@
 <?php
 
-namespace DDTrace\FeatureFlags;
+namespace DDTrace\FeatureFlags\Internal;
 
 interface WarningEmitter
 {

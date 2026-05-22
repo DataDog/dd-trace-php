@@ -132,7 +132,6 @@ function generate_garbage()
 }
 
 $minFunctionArgs = [
-    'DDTrace\ffe_load_config' => 1,
     'DDTrace\ffe_evaluate' => 4,
 ];
 

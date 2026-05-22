@@ -1,6 +1,8 @@
 <?php
 
-namespace DDTrace\FeatureFlags;
+namespace DDTrace\FeatureFlags\Internal;
+
+use DDTrace\FeatureFlags\EvaluationType;
 
 final class NativeEvaluator implements Evaluator
 {

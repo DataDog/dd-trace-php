@@ -9,12 +9,12 @@ use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
-use DDTrace\FeatureFlags\Evaluator;
-use DDTrace\FeatureFlags\NativeEvaluator;
-use DDTrace\FeatureFlags\UnavailableEvaluator;
-use DDTrace\FeatureFlags\WarningEmitter;
+use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
+use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
+use DDTrace\FeatureFlags\Internal\WarningEmitter;
 use DDTrace\OpenFeature\DataDogProvider;
-use DDTrace\OpenFeature\NoopWarningEmitter;
 use OpenFeature\implementation\flags\Attributes;
 use OpenFeature\implementation\flags\EvaluationContext;
 use OpenFeature\interfaces\provider\ErrorCode;
@@ -26,7 +26,7 @@ final class DataDogProviderTest extends TestCase
 {
     public function testProviderMetadataNamesDatadogProvider(): void
     {
-        $provider = new DataDogProvider($this->clientForEvaluator(new OpenFeatureTestEvaluator()));
+        $provider = new DataDogProvider();
 
         self::assertSame('Datadog', $provider->getMetadata()->getName());
     }
@@ -41,7 +41,7 @@ final class DataDogProviderTest extends TestCase
             ->setSuccess('float.flag', 3.5)
             ->setSuccess('object.flag', ['enabled' => true]);
 
-        $client = $this->openFeatureClientFor(new DataDogProvider($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
 
         self::assertTrue($client->getBooleanValue('bool.flag', false));
         self::assertSame('blue', $client->getStringValue('string.flag', 'red'));
@@ -62,7 +62,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setSuccess('static.flag', 'value', EvaluationReason::STATIC_REASON);
 
-        $client = $this->openFeatureClientFor(new DataDogProvider($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
         $details = $client->getStringDetails('static.flag', 'fallback');
 
         self::assertSame(EvaluationReason::STATIC_REASON, $details->getReason());
@@ -73,7 +73,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setSuccess('context.flag', 'on');
 
-        $provider = new DataDogProvider($this->clientForEvaluator($evaluator));
+        $provider = DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator));
         $provider->resolveStringValue('context.flag', 'off', new EvaluationContext(
             'user-123',
             new Attributes([
@@ -101,7 +101,7 @@ final class DataDogProviderTest extends TestCase
     public function testUnavailableRuntimeReturnsDefaultDetailsAndOneWarning(): void
     {
         $warnings = new OpenFeatureRecordingWarningEmitter();
-        $client = $this->openFeatureClientFor(new DataDogProvider(null, $warnings));
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies(null, $warnings));
 
         $value = $client->getBooleanValue('checkout.enabled', true);
         $details = $client->getStringDetails('checkout.copy', 'fallback');
@@ -125,7 +125,7 @@ final class DataDogProviderTest extends TestCase
             ->setUnavailable('first.flag', true, 'temporary unavailable')
             ->setUnavailable('second.flag', true, 'temporary unavailable');
 
-        $client = $this->openFeatureClientFor(new DataDogProvider($this->clientForEvaluator($evaluator), $warnings));
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator), $warnings));
 
         $client->getBooleanValue('first.flag', false);
         $client->getBooleanValue('second.flag', false);
@@ -138,7 +138,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setFlagNotFound('missing.flag');
 
-        $client = $this->openFeatureClientFor(new DataDogProvider($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
         $details = $client->getStringDetails('missing.flag', 'fallback');
 
         self::assertSame('fallback', $details->getValue());
@@ -152,7 +152,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setSuccess('integer.flag', 'not-an-int');
 
-        $client = $this->openFeatureClientFor(new DataDogProvider($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
         $details = $client->getIntegerDetails('integer.flag', 7);
 
         self::assertSame(7, $details->getValue());
@@ -162,7 +162,7 @@ final class DataDogProviderTest extends TestCase
 
     private function clientForEvaluator(Evaluator $evaluator): FeatureFlagsClient
     {
-        return FeatureFlagsClient::create($evaluator, new NoopWarningEmitter());
+        return FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter());
     }
 
     private function openFeatureClientFor(DataDogProvider $provider)

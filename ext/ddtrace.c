@@ -2963,7 +2963,7 @@ PHP_FUNCTION(DDTrace_ffe_config_version) {
     RETURN_LONG((zend_long) ddog_ffe_config_version());
 }
 
-PHP_FUNCTION(DDTrace_ffe_load_config) {
+PHP_FUNCTION(DDTrace_Testing_ffe_load_config) {
     char *json;
     size_t json_len;
 
@@ -3005,7 +3005,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     UNUSED(flag_key_len);
 
     type_id = (int32_t) type_id_zl;
-    tk = targeting_key_len > 0 ? targeting_key : NULL;
+    tk = targeting_key != NULL ? targeting_key : NULL;
     attributes = Z_ARRVAL_P(attrs_zv);
     attrs_count = zend_hash_num_elements(attributes);
 
@@ -3047,6 +3047,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
+    ddtrace_process_remote_config_now();
     result = ddog_ffe_evaluate(flag_key, type_id, tk, c_attrs, attrs_count);
     if (c_attrs) {
         efree(c_attrs);

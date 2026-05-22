@@ -1,6 +1,8 @@
 <?php
 
-namespace DDTrace\FeatureFlags;
+namespace DDTrace\FeatureFlags\Internal;
+
+use DDTrace\FeatureFlags\EvaluationDetails;
 
 interface Evaluator
 {

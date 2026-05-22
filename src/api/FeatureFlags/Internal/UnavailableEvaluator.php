@@ -1,6 +1,10 @@
 <?php
 
-namespace DDTrace\FeatureFlags;
+namespace DDTrace\FeatureFlags\Internal;
+
+use DDTrace\FeatureFlags\EvaluationDetails;
+use DDTrace\FeatureFlags\EvaluationErrorCode;
+use DDTrace\FeatureFlags\EvaluationReason;
 
 final class UnavailableEvaluator implements Evaluator
 {

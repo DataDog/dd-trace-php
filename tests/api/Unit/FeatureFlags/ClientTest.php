@@ -7,14 +7,19 @@ use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
-use DDTrace\FeatureFlags\Evaluator;
-use DDTrace\FeatureFlags\NativeEvaluator;
-use DDTrace\FeatureFlags\UnavailableEvaluator;
-use DDTrace\FeatureFlags\WarningEmitter;
+use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
+use DDTrace\FeatureFlags\Internal\WarningEmitter;
 use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
 {
+    public function testCreateBuildsDefaultRemoteConfigBackedClient()
+    {
+        $this->assertInstanceOf(Client::class, Client::create());
+    }
+
     public function testValueMethodsReturnEvaluatedValues()
     {
         $evaluator = new ClientTestEvaluator();
@@ -25,7 +30,7 @@ final class ClientTest extends TestCase
             ->setSuccess('float.flag', 3.5)
             ->setSuccess('object.flag', array('enabled' => true));
 
-        $client = Client::create($evaluator, new RecordingWarningEmitter());
+        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
 
         $this->assertTrue($client->getBooleanValue('bool.flag', false));
         $this->assertSame('blue', $client->getStringValue('string.flag', 'red'));
@@ -47,7 +52,7 @@ final class ClientTest extends TestCase
             array('runtime' => 'test', 'hasConfig' => true)
         );
 
-        $client = Client::create($evaluator, new RecordingWarningEmitter());
+        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
 
         $details = $client->getBooleanDetails('checkout-redesign', false);
 
@@ -65,7 +70,7 @@ final class ClientTest extends TestCase
         $evaluator = new ClientTestEvaluator();
         $evaluator->setSuccess('flag.context', 'on');
 
-        $client = Client::create($evaluator, new RecordingWarningEmitter());
+        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
         $client->getStringValue('flag.context', 'off', array(
             'targetingKey' => 123,
             'attributes' => array(
@@ -93,7 +98,7 @@ final class ClientTest extends TestCase
     public function testUnavailableRuntimeReturnsDefaultWithProviderNotReadyDetailsAndWarning()
     {
         $warnings = new RecordingWarningEmitter();
-        $client = Client::create(null, $warnings);
+        $client = Client::createWithDependencies(null, $warnings);
 
         $value = $client->getBooleanValue('checkout-redesign', true);
         $details = $client->getStringDetails('checkout-copy', 'fallback');
@@ -120,7 +125,7 @@ final class ClientTest extends TestCase
     public function testWarningIsEmittedOncePerClientNotOncePerEvaluation()
     {
         $warnings = new RecordingWarningEmitter();
-        $client = Client::create(null, $warnings);
+        $client = Client::createWithDependencies(null, $warnings);
 
         $client->getBooleanValue('flag-1', false);
         $client->getBooleanValue('flag-2', false);
@@ -134,7 +139,7 @@ final class ClientTest extends TestCase
      */
     public function testTypedMethodsRejectInvalidDefaults($method, $defaultValue)
     {
-        $client = Client::create(new ClientTestEvaluator(), new RecordingWarningEmitter());
+        $client = Client::createWithDependencies(new ClientTestEvaluator(), new RecordingWarningEmitter());
 
         $this->expectException(\InvalidArgumentException::class);
 

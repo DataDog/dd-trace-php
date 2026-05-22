@@ -189,7 +189,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_config_version, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_load_config, 0, 1, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Testing_ffe_load_config, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, json, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
@@ -414,7 +414,7 @@ ZEND_FUNCTION(DDTrace_flush_endpoints);
 ZEND_FUNCTION(DDTrace_ffe_evaluate);
 ZEND_FUNCTION(DDTrace_ffe_has_config);
 ZEND_FUNCTION(DDTrace_ffe_config_version);
-ZEND_FUNCTION(DDTrace_ffe_load_config);
+ZEND_FUNCTION(DDTrace_Testing_ffe_load_config);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_System_process_tags_base_hash);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
@@ -513,7 +513,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_evaluate"), zif_DDTrace_ffe_evaluate, arginfo_DDTrace_ffe_evaluate, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_has_config"), zif_DDTrace_ffe_has_config, arginfo_DDTrace_ffe_has_config, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_config_version"), zif_DDTrace_ffe_config_version, arginfo_DDTrace_ffe_config_version, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_load_config"), zif_DDTrace_ffe_load_config, arginfo_DDTrace_ffe_load_config, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "process_tags_base_hash"), zif_DDTrace_System_process_tags_base_hash, arginfo_DDTrace_System_process_tags_base_hash, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)
@@ -522,6 +521,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "notify_start"), zif_DDTrace_UserRequest_notify_start, arginfo_DDTrace_UserRequest_notify_start, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "notify_commit"), zif_DDTrace_UserRequest_notify_commit, arginfo_DDTrace_UserRequest_notify_commit, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\UserRequest", "set_blocking_function"), zif_DDTrace_UserRequest_set_blocking_function, arginfo_DDTrace_UserRequest_set_blocking_function, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "ffe_load_config"), zif_DDTrace_Testing_ffe_load_config, arginfo_DDTrace_Testing_ffe_load_config, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "trigger_error"), zif_DDTrace_Testing_trigger_error, arginfo_DDTrace_Testing_trigger_error, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "emit_asm_event"), zif_DDTrace_Testing_emit_asm_event, arginfo_DDTrace_Testing_emit_asm_event, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "normalize_tag_value"), zif_DDTrace_Testing_normalize_tag_value, arginfo_DDTrace_Testing_normalize_tag_value, 0, NULL, NULL)

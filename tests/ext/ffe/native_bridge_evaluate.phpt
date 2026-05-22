@@ -59,7 +59,7 @@ $config = <<<'JSON'
 }
 JSON;
 
-show('load', \DDTrace\ffe_load_config($config));
+show('load', \DDTrace\Testing\ffe_load_config($config));
 show('has_config_after', \DDTrace\ffe_has_config());
 show('success', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array(
     'country' => 'US',

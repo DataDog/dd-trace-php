@@ -2,13 +2,18 @@
 
 namespace DDTrace\FeatureFlags;
 
+use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
+use DDTrace\FeatureFlags\Internal\WarningEmitter;
+
 final class Client
 {
     private $evaluator;
     private $warningEmitter;
     private $warnedAboutNonProductionRuntime = false;
 
-    public function __construct(
+    private function __construct(
         Evaluator $evaluator,
         WarningEmitter $warningEmitter
     ) {
@@ -16,7 +21,15 @@ final class Client
         $this->warningEmitter = $warningEmitter;
     }
 
-    public static function create(
+    public static function create()
+    {
+        return self::createWithDependencies();
+    }
+
+    /**
+     * @internal Tests and Datadog-owned bridge adapters only.
+     */
+    public static function createWithDependencies(
         $evaluator = null,
         $warningEmitter = null
     ) {

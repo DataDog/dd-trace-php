@@ -8,6 +8,7 @@ void ddtrace_mshutdown_remote_config(void);
 void ddtrace_rinit_remote_config(void);
 void ddtrace_rshutdown_remote_config(void);
 void ddtrace_check_for_new_config_now(void);
+void ddtrace_process_remote_config_now(void);
 
 
 DDTRACE_PUBLIC void ddtrace_set_all_thread_vm_interrupt(void);

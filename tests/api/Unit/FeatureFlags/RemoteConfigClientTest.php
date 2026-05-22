@@ -2,7 +2,7 @@
 
 namespace DDTrace\Tests\Api\Unit\FeatureFlags;
 
-use DDTrace\FeatureFlags\RemoteConfigClient;
+use DDTrace\FeatureFlags\Internal\RemoteConfigClient;
 use PHPUnit\Framework\TestCase;
 
 final class RemoteConfigClientTest extends TestCase

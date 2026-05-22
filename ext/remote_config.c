@@ -64,6 +64,17 @@ void ddtrace_check_for_new_config_now(void) {
     }
 }
 
+void ddtrace_process_remote_config_now(void) {
+    if (!DDTRACE_G(remote_config_state)) {
+        return;
+    }
+
+    DDTRACE_G(reread_remote_configuration) = 0;
+    if (ddog_process_remote_configs(DDTRACE_G(remote_config_state))) {
+        ddtrace_set_all_thread_vm_interrupt();
+    }
+}
+
 #ifndef _WIN32
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);

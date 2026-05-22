@@ -8,8 +8,9 @@ use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
-use DDTrace\FeatureFlags\TriggerErrorWarningEmitter;
-use DDTrace\FeatureFlags\WarningEmitter;
+use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
+use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
+use DDTrace\FeatureFlags\Internal\WarningEmitter;
 use OpenFeature\implementation\provider\AbstractProvider;
 use OpenFeature\implementation\provider\ResolutionDetailsBuilder;
 use OpenFeature\implementation\provider\ResolutionError;
@@ -27,10 +28,28 @@ final class DataDogProvider extends AbstractProvider
     private WarningEmitter $warningEmitter;
     private bool $warnedAboutNonProductionRuntime = false;
 
-    public function __construct(?FeatureFlagsClient $client = null, ?WarningEmitter $warningEmitter = null)
+    public function __construct()
     {
-        $this->client = $client ?? FeatureFlagsClient::create(null, new NoopWarningEmitter());
-        $this->warningEmitter = $warningEmitter ?? new TriggerErrorWarningEmitter();
+        $this->client = FeatureFlagsClient::createWithDependencies(null, new NoopWarningEmitter());
+        $this->warningEmitter = new TriggerErrorWarningEmitter();
+    }
+
+    /**
+     * @internal Tests and Datadog-owned bridge adapters only.
+     */
+    public static function createWithDependencies(
+        ?FeatureFlagsClient $client = null,
+        ?WarningEmitter $warningEmitter = null
+    ): self {
+        $provider = new self();
+        if ($client !== null) {
+            $provider->client = $client;
+        }
+        if ($warningEmitter !== null) {
+            $provider->warningEmitter = $warningEmitter;
+        }
+
+        return $provider;
     }
 
     public function resolveBooleanValue(

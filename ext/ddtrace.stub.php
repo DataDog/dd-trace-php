@@ -877,17 +877,6 @@ namespace DDTrace {
      */
     function ffe_config_version(): int {}
 
-    /**
-     * Load a UFC JSON configuration string into the FFE engine.
-     * Used for testing without Remote Config.
-     *
-     * @param string $json UFC JSON configuration string.
-     * @return bool True if the configuration was parsed and loaded successfully.
-     *
-     * @internal Used by tests.
-     */
-    function ffe_load_config(string $json): bool {}
-
 }
 
 namespace DDTrace\System {
@@ -967,6 +956,16 @@ namespace DDTrace\UserRequest {
 }
 
 namespace DDTrace\Testing {
+    /**
+     * Load a UFC JSON configuration string into the FFE engine.
+     *
+     * @param string $json UFC JSON configuration string.
+     * @return bool True if the configuration was parsed and loaded successfully.
+     *
+     * @internal Used by extension tests only.
+     */
+    function ffe_load_config(string $json): bool {}
+
     /**
      * Overrides PHP's default error handling.
      *

@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DDTrace\OpenFeature;
-
-use DDTrace\FeatureFlags\WarningEmitter;
+namespace DDTrace\FeatureFlags\Internal;
 
 final class NoopWarningEmitter implements WarningEmitter
 {

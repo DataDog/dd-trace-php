@@ -21,7 +21,7 @@ $fixtureRoot = $root . '/tests/FeatureFlags/ffe-system-test-data';
 
 require_feature_flag_api($root);
 
-final class FfeFixtureWarningEmitter implements \DDTrace\FeatureFlags\WarningEmitter
+final class FfeFixtureWarningEmitter implements \DDTrace\FeatureFlags\Internal\WarningEmitter
 {
     public function warning($message)
     {
@@ -38,7 +38,7 @@ if ($configJson === false) {
     throw new \RuntimeException('failed to read fixture config: ' . $configPath);
 }
 
-show('config_loaded', \DDTrace\ffe_load_config($configJson));
+show('config_loaded', \DDTrace\Testing\ffe_load_config($configJson));
 
 $caseFiles = glob($fixtureRoot . '/evaluation-cases/*.json');
 if ($caseFiles === false) {
@@ -50,8 +50,8 @@ if (count($caseFiles) === 0) {
     throw new \RuntimeException('no evaluation-case fixture files found under ' . $fixtureRoot);
 }
 
-$client = \DDTrace\FeatureFlags\Client::create(
-    new \DDTrace\FeatureFlags\NativeEvaluator(),
+$client = \DDTrace\FeatureFlags\Client::createWithDependencies(
+    new \DDTrace\FeatureFlags\Internal\NativeEvaluator(),
     new FfeFixtureWarningEmitter()
 );
 
@@ -90,6 +90,12 @@ function require_feature_flag_api($root)
         'EvaluationReason',
         'EvaluationErrorCode',
         'EvaluationDetails',
+    ) as $classFile) {
+        require_once $apiRoot . '/' . $classFile . '.php';
+    }
+
+    $internalRoot = $apiRoot . '/Internal';
+    foreach (array(
         'Evaluator',
         'WarningEmitter',
         'ResultMapper',
@@ -97,10 +103,11 @@ function require_feature_flag_api($root)
         'UnavailableEvaluator',
         'TriggerErrorWarningEmitter',
         'NativeEvaluator',
-        'Client',
     ) as $classFile) {
-        require_once $apiRoot . '/' . $classFile . '.php';
+        require_once $internalRoot . '/' . $classFile . '.php';
     }
+
+    require_once $apiRoot . '/Client.php';
 }
 
 function run_fixture_case($client, $fileName, $index, array $case, array &$failures)
