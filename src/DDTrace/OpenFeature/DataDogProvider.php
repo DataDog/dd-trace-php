@@ -8,6 +8,7 @@ use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
+use DDTrace\FeatureFlags\Internal\Exposure\ExposureHook;
 use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
 use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
 use DDTrace\FeatureFlags\Internal\WarningEmitter;
@@ -30,7 +31,11 @@ final class DataDogProvider extends AbstractProvider
 
     public function __construct()
     {
-        $this->client = FeatureFlagsClient::createWithDependencies(null, new NoopWarningEmitter());
+        $this->client = FeatureFlagsClient::createWithDependencies(
+            null,
+            new NoopWarningEmitter(),
+            ExposureHook::createDefault()
+        );
         $this->warningEmitter = new TriggerErrorWarningEmitter();
     }
 

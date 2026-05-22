@@ -5,6 +5,7 @@ namespace DDTrace\FeatureFlags;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
 use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
+use DDTrace\FeatureFlags\Internal\Exposure\ExposureHook;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\NoopEvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
@@ -29,7 +30,7 @@ final class Client
 
     public static function create()
     {
-        return self::createWithDependencies();
+        return self::createWithDependencies(null, null, ExposureHook::createDefault());
     }
 
     /**
