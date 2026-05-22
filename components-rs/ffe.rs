@@ -137,7 +137,7 @@ pub extern "C" fn ddog_ffe_evaluate(
         None
     } else {
         match unsafe { CStr::from_ptr(targeting_key) }.to_str() {
-            Ok(targeting_key) if !targeting_key.is_empty() => Some(Str::from(targeting_key)),
+            Ok(targeting_key) => Some(Str::from(targeting_key)),
             _ => None,
         }
     };
@@ -346,6 +346,74 @@ mod tests {
     fn load_empty_config() -> bool {
         let json = CString::new(EMPTY_CONFIG).expect("test fixture is valid cstring");
         ddog_ffe_load_config(json.as_ptr())
+    }
+
+    const EMPTY_TARGETING_KEY_CONFIG: &str = r#"{
+        "createdAt": "2026-05-22T00:00:00.000Z",
+        "format": "SERVER",
+        "environment": {
+            "name": "Test"
+        },
+        "flags": {
+            "empty.targeting.shard.flag": {
+                "key": "empty.targeting.shard.flag",
+                "enabled": true,
+                "variationType": "STRING",
+                "variations": {
+                    "empty-target": {
+                        "key": "empty-target",
+                        "value": "empty-targeting-key"
+                    }
+                },
+                "allocations": [{
+                    "key": "alloc-empty-targeting-key",
+                    "rules": [],
+                    "splits": [{
+                        "variationKey": "empty-target",
+                        "shards": [{
+                            "salt": "empty-targeting-key-regression",
+                            "totalShards": 10000,
+                            "ranges": [{"start": 8022, "end": 8023}]
+                        }]
+                    }],
+                    "doLog": true
+                }]
+            }
+        }
+    }"#;
+
+    #[test]
+    fn empty_targeting_key_is_not_dropped() {
+        clear_config();
+        let config =
+            CString::new(EMPTY_TARGETING_KEY_CONFIG).expect("test fixture is valid cstring");
+        assert!(ddog_ffe_load_config(config.as_ptr()));
+
+        let flag_key =
+            CString::new("empty.targeting.shard.flag").expect("test flag key is valid cstring");
+        let targeting_key = CString::new("").expect("empty string is a valid cstring");
+        let result = ddog_ffe_evaluate(
+            flag_key.as_ptr(),
+            TYPE_STRING,
+            targeting_key.as_ptr(),
+            std::ptr::null(),
+            0,
+        );
+
+        assert!(!result.is_null());
+        unsafe {
+            assert_eq!((*result).reason, REASON_SPLIT);
+            assert_eq!((*result).error_code, ERROR_NONE);
+            assert_eq!((*result).do_log, true);
+            assert_eq!(
+                CStr::from_ptr(ddog_ffe_result_value(result))
+                    .to_str()
+                    .unwrap(),
+                r#""empty-targeting-key""#
+            );
+            ddog_ffe_free_result(result);
+        }
+        clear_config();
     }
 
     #[test]
