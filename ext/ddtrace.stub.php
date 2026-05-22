@@ -887,6 +887,37 @@ namespace DDTrace {
      * @internal Used by tests.
      */
     function ffe_load_config(string $json): bool {}
+
+    /**
+     * Enqueue a serialized FFE exposure event for native deduplication and batched delivery.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_send_exposure(string $eventJson, string $flagKey, ?string $allocationKey, ?string $targetingKey, string $variantKey): bool {}
+
+    /**
+     * Drain buffered FFE exposure events and return the native batch payload.
+     * Used by tests; production delivery is owned by request/module shutdown.
+     *
+     * @return string|null Serialized batch payload, or null when the buffer is empty.
+     *
+     * @internal Used by tests.
+     */
+    function ffe_flush_exposures(): ?string {}
+
+    /**
+     * Set service/env/version context for native FFE exposure batch payloads.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_set_service_context(string $service, string $env, string $version): void {}
+
+    /**
+     * Reset native FFE exposure state.
+     *
+     * @internal Used by tests and fork handling.
+     */
+    function ffe_reset_exposure_state(): void {}
 }
 
 namespace DDTrace\System {

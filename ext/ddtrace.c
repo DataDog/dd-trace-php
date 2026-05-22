@@ -3083,6 +3083,71 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddog_ffe_free_result(result);
 }
 
+PHP_FUNCTION(DDTrace_ffe_send_exposure) {
+    char *event_json, *flag_key, *variant_key;
+    size_t event_json_len, flag_key_len, variant_key_len;
+    char *allocation_key = NULL;
+    size_t allocation_key_len = 0;
+    char *targeting_key = NULL;
+    size_t targeting_key_len = 0;
+
+    ZEND_PARSE_PARAMETERS_START(5, 5)
+        Z_PARAM_STRING(event_json, event_json_len)
+        Z_PARAM_STRING(flag_key, flag_key_len)
+        Z_PARAM_STRING_OR_NULL(allocation_key, allocation_key_len)
+        Z_PARAM_STRING_OR_NULL(targeting_key, targeting_key_len)
+        Z_PARAM_STRING(variant_key, variant_key_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    UNUSED(event_json_len);
+    UNUSED(flag_key_len);
+    UNUSED(variant_key_len);
+
+    RETURN_BOOL(ddog_ffe_enqueue_exposure(
+        event_json,
+        flag_key,
+        allocation_key_len > 0 ? allocation_key : NULL,
+        targeting_key_len > 0 ? targeting_key : NULL,
+        variant_key));
+}
+
+PHP_FUNCTION(DDTrace_ffe_flush_exposures) {
+    ddog_CharSlice payload;
+
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    payload = ddog_ffe_flush_exposures();
+    if (payload.ptr == NULL || payload.len == 0) {
+        RETURN_NULL();
+    }
+
+    RETVAL_STRINGL(payload.ptr, payload.len);
+    ddog_ffe_free_flush_result(payload);
+}
+
+PHP_FUNCTION(DDTrace_ffe_set_service_context) {
+    char *service, *env, *version;
+    size_t service_len, env_len, version_len;
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STRING(service, service_len)
+        Z_PARAM_STRING(env, env_len)
+        Z_PARAM_STRING(version, version_len)
+    ZEND_PARSE_PARAMETERS_END();
+
+    UNUSED(service_len);
+    UNUSED(env_len);
+    UNUSED(version_len);
+
+    ddog_ffe_set_service_context(service, env, version);
+}
+
+PHP_FUNCTION(DDTrace_ffe_reset_exposure_state) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    ddog_ffe_reset_exposure_state();
+}
+
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
     char *payload = NULL;
     ddtrace_zpplong_t num_traces = 0;

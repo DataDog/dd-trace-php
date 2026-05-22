@@ -193,6 +193,25 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_load_config, 0, 1, _
 	ZEND_ARG_TYPE_INFO(0, json, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_send_exposure, 0, 5, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, eventJson, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, variantKey, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_flush_exposures, 0, 0, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_set_service_context, 0, 3, IS_VOID, 0)
+	ZEND_ARG_TYPE_INFO(0, service, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, env, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, version, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_DDTrace_ffe_reset_exposure_state arginfo_DDTrace_flush
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_System_container_id, 0, 0, IS_STRING, 1)
 ZEND_END_ARG_INFO()
 
@@ -415,6 +434,10 @@ ZEND_FUNCTION(DDTrace_ffe_evaluate);
 ZEND_FUNCTION(DDTrace_ffe_has_config);
 ZEND_FUNCTION(DDTrace_ffe_config_version);
 ZEND_FUNCTION(DDTrace_ffe_load_config);
+ZEND_FUNCTION(DDTrace_ffe_send_exposure);
+ZEND_FUNCTION(DDTrace_ffe_flush_exposures);
+ZEND_FUNCTION(DDTrace_ffe_set_service_context);
+ZEND_FUNCTION(DDTrace_ffe_reset_exposure_state);
 ZEND_FUNCTION(DDTrace_System_container_id);
 ZEND_FUNCTION(DDTrace_System_process_tags_base_hash);
 ZEND_FUNCTION(DDTrace_Config_integration_analytics_enabled);
@@ -514,6 +537,10 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_has_config"), zif_DDTrace_ffe_has_config, arginfo_DDTrace_ffe_has_config, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_config_version"), zif_DDTrace_ffe_config_version, arginfo_DDTrace_ffe_config_version, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_load_config"), zif_DDTrace_ffe_load_config, arginfo_DDTrace_ffe_load_config, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_send_exposure"), zif_DDTrace_ffe_send_exposure, arginfo_DDTrace_ffe_send_exposure, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_flush_exposures"), zif_DDTrace_ffe_flush_exposures, arginfo_DDTrace_ffe_flush_exposures, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_set_service_context"), zif_DDTrace_ffe_set_service_context, arginfo_DDTrace_ffe_set_service_context, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "ffe_reset_exposure_state"), zif_DDTrace_ffe_reset_exposure_state, arginfo_DDTrace_ffe_reset_exposure_state, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "container_id"), zif_DDTrace_System_container_id, arginfo_DDTrace_System_container_id, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\System", "process_tags_base_hash"), zif_DDTrace_System_process_tags_base_hash, arginfo_DDTrace_System_process_tags_base_hash, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Config", "integration_analytics_enabled"), zif_DDTrace_Config_integration_analytics_enabled, arginfo_DDTrace_Config_integration_analytics_enabled, 0, NULL, NULL)

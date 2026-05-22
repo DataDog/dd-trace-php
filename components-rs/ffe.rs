@@ -2,8 +2,11 @@ use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
+use libdd_common_ffi::CharSlice;
+use lru::LruCache;
 use std::collections::HashMap;
 use std::ffi::{c_char, CStr, CString};
+use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
 struct FfeState {
@@ -330,4 +333,225 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
 
 fn string_to_cstring(value: String) -> CString {
     CString::new(value).unwrap_or_default()
+}
+
+struct ServiceContext {
+    service: String,
+    env: String,
+    version: String,
+}
+
+struct ExposureState {
+    dedup_cache: LruCache<(String, String), (String, String)>,
+    batch_buffer: Vec<String>,
+    service_context: Option<ServiceContext>,
+}
+
+const EXPOSURE_DEDUP_LIMIT: usize = 65_536;
+const EXPOSURE_BATCH_LIMIT: usize = 1_000;
+
+lazy_static::lazy_static! {
+    static ref EXPOSURE_STATE: Mutex<ExposureState> = Mutex::new(ExposureState {
+        dedup_cache: LruCache::new(NonZeroUsize::new(EXPOSURE_DEDUP_LIMIT).unwrap()),
+        batch_buffer: Vec::new(),
+        service_context: None,
+    });
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_set_service_context(
+    service: *const c_char,
+    env: *const c_char,
+    version: *const c_char,
+) {
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        state.service_context = Some(ServiceContext {
+            service: optional_cstr_to_string(service),
+            env: optional_cstr_to_string(env),
+            version: optional_cstr_to_string(version),
+        });
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_enqueue_exposure(
+    event_json: *const c_char,
+    flag_key: *const c_char,
+    allocation_key: *const c_char,
+    targeting_key: *const c_char,
+    variant_key: *const c_char,
+) -> bool {
+    if event_json.is_null() || flag_key.is_null() || variant_key.is_null() {
+        return false;
+    }
+
+    let event = match required_cstr_to_string(event_json) {
+        Some(event) => event,
+        None => return false,
+    };
+    let flag = match required_cstr_to_string(flag_key) {
+        Some(flag) => flag,
+        None => return false,
+    };
+    let variant = match required_cstr_to_string(variant_key) {
+        Some(variant) => variant,
+        None => return false,
+    };
+    let allocation = optional_cstr_to_string(allocation_key);
+    let targeting = optional_cstr_to_string(targeting_key);
+
+    let dedup_key = (flag, targeting);
+    let dedup_value = (allocation, variant);
+
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        if let Some(cached) = state.dedup_cache.get(&dedup_key) {
+            if *cached == dedup_value {
+                return false;
+            }
+        }
+
+        state.dedup_cache.put(dedup_key, dedup_value);
+        if state.batch_buffer.len() >= EXPOSURE_BATCH_LIMIT {
+            return false;
+        }
+
+        state.batch_buffer.push(event);
+        return true;
+    }
+
+    false
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_flush_exposures() -> CharSlice<'static> {
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        if state.batch_buffer.is_empty() {
+            return CharSlice::default();
+        }
+
+        let events = state.batch_buffer.drain(..).collect::<Vec<_>>();
+        let context = match &state.service_context {
+            Some(context) => serde_json::json!({
+                "service": context.service.as_str(),
+                "env": context.env.as_str(),
+                "version": context.version.as_str(),
+            }),
+            None => serde_json::json!({
+                "service": "",
+                "env": "",
+                "version": "",
+            }),
+        };
+
+        let payload = format!(
+            r#"{{"context":{},"exposures":[{}]}}"#,
+            context,
+            events.join(",")
+        );
+        let mut bytes = payload.into_bytes().into_boxed_slice();
+        let ptr = bytes.as_mut_ptr();
+        let len = bytes.len();
+        std::mem::forget(bytes);
+
+        return unsafe { CharSlice::from_raw_parts(ptr as *const c_char, len) };
+    }
+
+    CharSlice::default()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ddog_ffe_free_flush_result(slice: CharSlice<'static>) {
+    use libdd_common_ffi::slice::AsBytes;
+
+    let bytes = slice.as_bytes();
+    let len = bytes.len();
+    let ptr = bytes.as_ptr() as *mut u8;
+    if !ptr.is_null() && len > 0 {
+        let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len) as *mut [u8]);
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn ddog_ffe_reset_exposure_state() {
+    if let Ok(mut state) = EXPOSURE_STATE.lock() {
+        state.dedup_cache.clear();
+        state.batch_buffer.clear();
+        state.service_context = None;
+    }
+}
+
+unsafe fn required_cstr_to_string(value: *const c_char) -> Option<String> {
+    CStr::from_ptr(value)
+        .to_str()
+        .ok()
+        .map(|value| value.to_string())
+}
+
+unsafe fn optional_cstr_to_string(value: *const c_char) -> String {
+    if value.is_null() {
+        return String::new();
+    }
+
+    required_cstr_to_string(value).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use libdd_common_ffi::slice::AsBytes;
+
+    #[test]
+    fn exposure_flush_drains_buffer_and_keeps_context() {
+        ddog_ffe_reset_exposure_state();
+
+        let service = CString::new("svc-flush").unwrap();
+        let env = CString::new("test").unwrap();
+        let version = CString::new("1.2.3").unwrap();
+        let event = CString::new(
+            r#"{"timestamp":1,"flag":{"key":"demo"},"allocation":{"key":"alloc-a"},"variant":{"key":"on"},"subject":{"id":"user-1","attributes":{}}}"#,
+        )
+        .unwrap();
+        let flag = CString::new("demo").unwrap();
+        let allocation = CString::new("alloc-a").unwrap();
+        let targeting = CString::new("user-1").unwrap();
+        let on = CString::new("on").unwrap();
+        let off = CString::new("off").unwrap();
+
+        unsafe {
+            ddog_ffe_set_service_context(service.as_ptr(), env.as_ptr(), version.as_ptr());
+            assert!(ddog_ffe_enqueue_exposure(
+                event.as_ptr(),
+                flag.as_ptr(),
+                allocation.as_ptr(),
+                targeting.as_ptr(),
+                on.as_ptr(),
+            ));
+            assert!(!ddog_ffe_enqueue_exposure(
+                event.as_ptr(),
+                flag.as_ptr(),
+                allocation.as_ptr(),
+                targeting.as_ptr(),
+                on.as_ptr(),
+            ));
+            assert!(ddog_ffe_enqueue_exposure(
+                event.as_ptr(),
+                flag.as_ptr(),
+                allocation.as_ptr(),
+                targeting.as_ptr(),
+                off.as_ptr(),
+            ));
+        }
+
+        let payload = ddog_ffe_flush_exposures();
+        assert!(!payload.as_bytes().is_empty());
+        let decoded: serde_json::Value = serde_json::from_slice(payload.as_bytes()).unwrap();
+        assert_eq!(decoded["context"]["service"], "svc-flush");
+        assert_eq!(decoded["context"]["env"], "test");
+        assert_eq!(decoded["context"]["version"], "1.2.3");
+        assert_eq!(decoded["exposures"].as_array().unwrap().len(), 2);
+        unsafe { ddog_ffe_free_flush_result(payload) };
+
+        let empty = ddog_ffe_flush_exposures();
+        assert!(empty.as_bytes().is_empty());
+    }
 }

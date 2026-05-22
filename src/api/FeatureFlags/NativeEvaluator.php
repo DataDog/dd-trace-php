@@ -4,7 +4,7 @@ namespace DDTrace\FeatureFlags;
 
 final class NativeEvaluator implements Evaluator
 {
-    const WARNING_MESSAGE = 'Datadog-backed PHP feature flag evaluation is using the native bridge before Remote Config and exposure delivery are fully enabled.';
+    const WARNING_MESSAGE = 'Datadog-backed PHP feature flag evaluation is not fully production-ready yet.';
 
     private $mapper;
     private $unavailableEvaluator;
@@ -107,7 +107,7 @@ final class NativeEvaluator implements Evaluator
             'configVersion' => $configVersion,
             'productionRuntime' => false,
             'mode' => 'manual_native_bridge',
-            'reason' => $hasConfig ? 'remote_config_lifecycle_pending' : 'configuration_missing',
+            'reason' => $hasConfig ? 'metrics_delivery_pending' : 'configuration_missing',
         );
 
         if (isset($rawResult['provider_state']) && is_array($rawResult['provider_state'])) {
