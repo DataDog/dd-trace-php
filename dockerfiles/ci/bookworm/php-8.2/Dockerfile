@@ -29,6 +29,8 @@ ENV PHP_VERSION=${phpVersion}
 ENV PHP_INSTALL_DIR=${PHP_INSTALL_DIR}
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
+ARG MAKE_JOBS=
+ENV MAKE_JOBS=${MAKE_JOBS}
 # install cross-compiling packages
 RUN if [ "$BUILDPLATFORM" != "$TARGETPLATFORM" ]; then \
         sudo dpkg --add-architecture ${TARGETPLATFORM#linux/}; \

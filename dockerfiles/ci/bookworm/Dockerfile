@@ -83,6 +83,7 @@ ENV PHPIZE_DEPS \
     re2c
 
 ARG TARGETPLATFORM
+ARG MAKE_JOBS=
 RUN set -eux; \
 # Set timezone to UTC by default
     ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime; \
@@ -188,6 +189,8 @@ RUN set -eux; \
 
 # Install gdb
 RUN set -eux; \
+    make_jobs="${MAKE_JOBS:-0}"; \
+    if [ "$make_jobs" = "0" ]; then make_jobs="$(nproc)"; fi; \
     apt install -y libmpfr-dev libgmp-dev; \
     GDB_VERSION="17.2"; \
     GDB_SHA256="cb891b9a9f554cac972eea5368176b240640ae90b681aae84bf873a9501f0063";\
@@ -196,12 +199,14 @@ RUN set -eux; \
     mkdir gdb && cd gdb; \
     tar -xf ../gdb-${GDB_VERSION}.tar.gz --strip 1;\
     ./configure; \
-    make -j "$((`nproc`+1))"; \
+    make -j "$make_jobs"; \
     make install; \
     rm -rfv /tmp/*
 
 # Install valgrind
 RUN set -eux; \
+    make_jobs="${MAKE_JOBS:-0}"; \
+    if [ "$make_jobs" = "0" ]; then make_jobs="$(nproc)"; fi; \
     VALGRIND_VERSION="3.25.1"; \
     VALGRIND_SHA256="61deb8d0727b45c268efdc1b3b6c9e679cd97cbf5ee4b28d1dead7c8b7a271af"; \
     cd /tmp && curl -OL https://mirrors.kernel.org/sourceware/valgrind/valgrind-${VALGRIND_VERSION}.tar.bz2; \
@@ -209,7 +214,7 @@ RUN set -eux; \
     mkdir valgrind && cd valgrind; \
     tar -xjf ../valgrind-${VALGRIND_VERSION}.tar.bz2 --strip 1;\
     ./configure; \
-    make -j "$((`nproc`+1))"; \
+    make -j "$make_jobs"; \
     make install; \
     rm -rfv /tmp/*
 

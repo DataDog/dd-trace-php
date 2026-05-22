@@ -12,6 +12,7 @@ services:
           - linux/amd64
       args: &build-base
         BUILD_BASE: datadog/dd-trace-ci:bookworm-$BOOKWORM_NEXT_VERSION
+        MAKE_JOBS: ${MAKE_JOBS:-}
 
   php-8.5:
     image: datadog/dd-trace-ci:php-8.5_bookworm-$BOOKWORM_NEXT_VERSION
@@ -170,4 +171,3 @@ services:
         phpVersion: "7.0"
         phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
         phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
-

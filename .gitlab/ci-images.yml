@@ -85,6 +85,7 @@ Bookworm:
     matrix:
       - PHP_VERSION:
         - base
+      - PHP_VERSION:
         - php-8.5
         - php-8.4
         - php-8.3
@@ -98,6 +99,7 @@ Bookworm:
         - php-7.2
         - php-7.1
         - php-7.0
+        MAKE_JOBS: ["2"]
   script:
     - cd dockerfiles/ci/bookworm
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
