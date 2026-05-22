@@ -1,5 +1,11 @@
 --TEST--
 FFE canonical system test data evaluates through the Datadog client
+--SKIPIF--
+<?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') {
+    die('skip: canonical FFE fixtures are not shipped in the PECL test package');
+}
+?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 --FILE--
