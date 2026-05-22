@@ -16,7 +16,7 @@ datadog-live-debugger = { path = "../libdatadog/datadog-live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/datadog-live-debugger-ffi", default-features = false }
 datadog-ipc = { path = "../libdatadog/datadog-ipc" }
 datadog-ffe = { path = "../libdatadog/datadog-ffe" }
-datadog-remote-config = { path = "../libdatadog/datadog-remote-config" }
+datadog-remote-config = { path = "../libdatadog/datadog-remote-config", features = ["ffe"] }
 datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
 libdd-data-pipeline = { path = "../libdatadog/libdd-data-pipeline" }

@@ -390,7 +390,12 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
 
-    ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
+    ddog_init_remote_config((struct ddog_DdogRemoteConfigFlags){
+        .live_debugging_enabled = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
+        .appsec_activation = appsec_activation,
+        .appsec_config = appsec_config,
+        .ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED(),
+    });
 
     zend_long mode = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE();
 

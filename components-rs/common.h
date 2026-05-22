@@ -481,6 +481,19 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 /**
+ * Flags selecting which Remote Config products/capabilities to subscribe to.
+ *
+ * Passed as a single C-ABI struct so call sites can use designated initializers
+ * and name the flags, instead of a positional sequence of bool args.
+ */
+typedef struct ddog_DdogRemoteConfigFlags {
+  bool live_debugging_enabled;
+  bool appsec_activation;
+  bool appsec_config;
+  bool ffe_enabled;
+} ddog_DdogRemoteConfigFlags;
+
+/**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
  */
