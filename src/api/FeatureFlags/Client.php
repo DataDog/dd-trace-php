@@ -3,7 +3,10 @@
 namespace DDTrace\FeatureFlags;
 
 use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
+use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
+use DDTrace\FeatureFlags\Internal\NoopEvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
 use DDTrace\FeatureFlags\Internal\WarningEmitter;
 
@@ -11,14 +14,17 @@ final class Client
 {
     private $evaluator;
     private $warningEmitter;
+    private $evaluationCompletedHook;
     private $warnedAboutNonProductionRuntime = false;
 
     private function __construct(
         Evaluator $evaluator,
-        WarningEmitter $warningEmitter
+        WarningEmitter $warningEmitter,
+        EvaluationCompletedHook $evaluationCompletedHook
     ) {
         $this->evaluator = $evaluator;
         $this->warningEmitter = $warningEmitter;
+        $this->evaluationCompletedHook = $evaluationCompletedHook;
     }
 
     public static function create()
@@ -31,7 +37,8 @@ final class Client
      */
     public static function createWithDependencies(
         $evaluator = null,
-        $warningEmitter = null
+        $warningEmitter = null,
+        $evaluationCompletedHook = null
     ) {
         if ($evaluator !== null && !$evaluator instanceof Evaluator) {
             throw new \InvalidArgumentException('Expected an Evaluator instance');
@@ -41,9 +48,14 @@ final class Client
             throw new \InvalidArgumentException('Expected a WarningEmitter instance');
         }
 
+        if ($evaluationCompletedHook !== null && !$evaluationCompletedHook instanceof EvaluationCompletedHook) {
+            throw new \InvalidArgumentException('Expected an EvaluationCompletedHook instance');
+        }
+
         return new self(
             $evaluator ?: NativeEvaluator::createOrUnavailable(),
-            $warningEmitter ?: new TriggerErrorWarningEmitter()
+            $warningEmitter ?: new TriggerErrorWarningEmitter(),
+            $evaluationCompletedHook ?: new NoopEvaluationCompletedHook()
         );
     }
 
@@ -111,8 +123,25 @@ final class Client
         );
 
         $this->warnIfNonProductionRuntime($details);
+        $this->evaluationCompleted(new EvaluationCompleted(
+            $flagKey,
+            $expectedType,
+            $defaultValue,
+            $targetingKey,
+            $attributes,
+            $details
+        ));
 
         return $details;
+    }
+
+    private function evaluationCompleted(EvaluationCompleted $evaluation)
+    {
+        try {
+            $this->evaluationCompletedHook->evaluationCompleted($evaluation);
+        } catch (\Throwable $throwable) {
+            // Internal exposure/metric hooks must never affect flag evaluation results.
+        }
     }
 
     private function normalizeContext(array $context)

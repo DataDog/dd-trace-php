@@ -10,6 +10,8 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
+use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
@@ -96,6 +98,48 @@ final class DataDogProviderTest extends TestCase
             'rate' => 1.5,
             'beta' => true,
         ], $calls[0]['attributes']);
+    }
+
+    public function testOpenFeatureBridgeUsesSharedEvaluationCompletedHook(): void
+    {
+        $evaluator = new OpenFeatureTestEvaluator();
+        $evaluator->setSuccess(
+            'openfeature.completed',
+            true,
+            EvaluationReason::TARGETING_MATCH,
+            'enabled',
+            ['owner' => 'ffe'],
+            ['allocationKey' => 'alloc-openfeature', 'doLog' => true]
+        );
+        $hook = new OpenFeatureRecordingEvaluationCompletedHook();
+        $featureFlagsClient = FeatureFlagsClient::createWithDependencies(
+            $evaluator,
+            new NoopWarningEmitter(),
+            $hook
+        );
+        $provider = DataDogProvider::createWithDependencies($featureFlagsClient);
+
+        $details = $provider->resolveBooleanValue('openfeature.completed', false, new EvaluationContext(
+            '',
+            new Attributes([
+                'plan' => 'pro',
+                'nested' => ['drop'],
+            ])
+        ));
+
+        self::assertTrue($details->getValue());
+
+        $evaluations = $hook->evaluations();
+        self::assertCount(1, $evaluations);
+        $evaluation = $evaluations[0];
+        self::assertSame('openfeature.completed', $evaluation->getFlagKey());
+        self::assertSame(EvaluationType::BOOLEAN, $evaluation->getValueType());
+        self::assertSame('', $evaluation->getTargetingKey());
+        self::assertSame(['plan' => 'pro'], $evaluation->getAttributes());
+        self::assertSame(EvaluationReason::TARGETING_MATCH, $evaluation->getReason());
+        self::assertSame('enabled', $evaluation->getVariant());
+        self::assertSame('alloc-openfeature', $evaluation->getAllocationKey());
+        self::assertTrue($evaluation->shouldLogExposure());
     }
 
     public function testUnavailableRuntimeReturnsDefaultDetailsAndOneWarning(): void
@@ -186,13 +230,19 @@ final class OpenFeatureTestEvaluator implements Evaluator
         string $flagKey,
         mixed $value,
         string $reason = EvaluationReason::STATIC_REASON,
-        ?string $variant = null
+        ?string $variant = null,
+        array $metadata = [],
+        array $exposureData = []
     ): self {
         $this->details[$flagKey] = new EvaluationDetails(
             $value,
             $this->typeForValue($value),
             $reason,
-            $variant
+            $variant,
+            null,
+            null,
+            $metadata,
+            $exposureData
         );
 
         return $this;
@@ -321,6 +371,25 @@ final class OpenFeatureRecordingWarningEmitter implements WarningEmitter
     public function warnings(): array
     {
         return $this->warnings;
+    }
+}
+
+final class OpenFeatureRecordingEvaluationCompletedHook implements EvaluationCompletedHook
+{
+    /** @var list<EvaluationCompleted> */
+    private array $evaluations = [];
+
+    public function evaluationCompleted(EvaluationCompleted $evaluation)
+    {
+        $this->evaluations[] = $evaluation;
+    }
+
+    /**
+     * @return list<EvaluationCompleted>
+     */
+    public function evaluations(): array
+    {
+        return $this->evaluations;
     }
 }
 }

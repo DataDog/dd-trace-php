@@ -8,6 +8,8 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
+use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
 use DDTrace\FeatureFlags\Internal\WarningEmitter;
@@ -93,6 +95,61 @@ final class ClientTest extends TestCase
             'rate' => 1.5,
             'beta' => true,
         ), $calls[0]['attributes']);
+    }
+
+    public function testEvaluationCompletedHookReceivesNormalizedContextAndDetails()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess(
+            'flag.completed',
+            true,
+            EvaluationReason::SPLIT,
+            'treatment',
+            array('owner' => 'ffe'),
+            array('allocationKey' => 'alloc-1', 'doLog' => true)
+        );
+        $hook = new RecordingEvaluationCompletedHook();
+
+        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter(), $hook);
+        $details = $client->getBooleanDetails('flag.completed', false, array(
+            'targetingKey' => '',
+            'attributes' => array(
+                'plan' => 'pro',
+                'age' => 41,
+                'nested' => array('drop'),
+            ),
+        ));
+
+        $evaluations = $hook->evaluations();
+        $this->assertCount(1, $evaluations);
+        $evaluation = $evaluations[0];
+
+        $this->assertSame('flag.completed', $evaluation->getFlagKey());
+        $this->assertSame(EvaluationType::BOOLEAN, $evaluation->getValueType());
+        $this->assertFalse($evaluation->getDefaultValue());
+        $this->assertSame('', $evaluation->getTargetingKey());
+        $this->assertSame(array('plan' => 'pro', 'age' => 41), $evaluation->getAttributes());
+        $this->assertSame($details->getValue(), $evaluation->getValue());
+        $this->assertSame(EvaluationReason::SPLIT, $evaluation->getReason());
+        $this->assertSame('treatment', $evaluation->getVariant());
+        $this->assertNull($evaluation->getErrorCode());
+        $this->assertNull($evaluation->getErrorMessage());
+        $this->assertSame('alloc-1', $evaluation->getAllocationKey());
+        $this->assertTrue($evaluation->shouldLogExposure());
+    }
+
+    public function testEvaluationCompletedHookFailureDoesNotChangeEvaluationResult()
+    {
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess('flag.completed.failure', 'on');
+
+        $client = Client::createWithDependencies(
+            $evaluator,
+            new RecordingWarningEmitter(),
+            new ThrowingEvaluationCompletedHook()
+        );
+
+        $this->assertSame('on', $client->getStringValue('flag.completed.failure', 'off'));
     }
 
     public function testUnavailableRuntimeReturnsDefaultWithProviderNotReadyDetailsAndWarning()
@@ -246,5 +303,28 @@ final class RecordingWarningEmitter implements WarningEmitter
     public function warnings()
     {
         return $this->warnings;
+    }
+}
+
+final class RecordingEvaluationCompletedHook implements EvaluationCompletedHook
+{
+    private $evaluations = array();
+
+    public function evaluationCompleted(EvaluationCompleted $evaluation)
+    {
+        $this->evaluations[] = $evaluation;
+    }
+
+    public function evaluations()
+    {
+        return $this->evaluations;
+    }
+}
+
+final class ThrowingEvaluationCompletedHook implements EvaluationCompletedHook
+{
+    public function evaluationCompleted(EvaluationCompleted $evaluation)
+    {
+        throw new \RuntimeException('hook failed');
     }
 }
