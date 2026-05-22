@@ -2,34 +2,37 @@ use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::{c_char, CStr, CString};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 struct FfeState {
     config: Option<Configuration>,
     version: u64,
 }
 
-lazy_static::lazy_static! {
-    static ref FFE_STATE: Mutex<FfeState> = Mutex::new(FfeState {
+thread_local! {
+    static FFE_STATE: RefCell<FfeState> = const { RefCell::new(FfeState {
         config: None,
         version: 0,
-    });
+    }) };
 }
 
 pub fn store_config(config: Configuration) {
-    if let Ok(mut state) = FFE_STATE.lock() {
+    FFE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
         state.config = Some(config);
         state.version = state.version.wrapping_add(1);
-    }
+    });
 }
 
 pub fn clear_config() {
-    if let Ok(mut state) = FFE_STATE.lock() {
+    FFE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
         state.config = None;
         state.version = state.version.wrapping_add(1);
-    }
+    });
 }
 
 #[no_mangle]
@@ -54,15 +57,12 @@ pub extern "C" fn ddog_ffe_load_config(json: *const c_char) -> bool {
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_has_config() -> bool {
-    FFE_STATE
-        .lock()
-        .map(|state| state.config.is_some())
-        .unwrap_or(false)
+    FFE_STATE.with(|state| state.borrow().config.is_some())
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_config_version() -> u64 {
-    FFE_STATE.lock().map(|state| state.version).unwrap_or(0)
+    FFE_STATE.with(|state| state.borrow().version)
 }
 
 const REASON_STATIC: i32 = 0;
@@ -145,20 +145,18 @@ pub extern "C" fn ddog_ffe_evaluate(
     let attributes = parse_attributes(attributes, attributes_count);
     let context = EvaluationContext::new(targeting_key, Arc::new(attributes));
 
-    let state = match FFE_STATE.lock() {
-        Ok(state) => state,
-        Err(_) => return std::ptr::null_mut(),
-    };
+    FFE_STATE.with(|state| {
+        let state = state.borrow();
+        let assignment = ffe::get_assignment(
+            state.config.as_ref(),
+            flag_key,
+            &context,
+            expected_type,
+            ffe::now(),
+        );
 
-    let assignment = ffe::get_assignment(
-        state.config.as_ref(),
-        flag_key,
-        &context,
-        expected_type,
-        ffe::now(),
-    );
-
-    Box::into_raw(Box::new(result_from_assignment(assignment)))
+        Box::into_raw(Box::new(result_from_assignment(assignment)))
+    })
 }
 
 #[no_mangle]
@@ -330,4 +328,50 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
 
 fn string_to_cstring(value: String) -> CString {
     CString::new(value).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EMPTY_CONFIG: &str = r#"{
+        "createdAt": "2026-05-22T00:00:00.000Z",
+        "format": "SERVER",
+        "environment": {
+            "name": "Test"
+        },
+        "flags": {}
+    }"#;
+
+    fn load_empty_config() -> bool {
+        let json = CString::new(EMPTY_CONFIG).expect("test fixture is valid cstring");
+        ddog_ffe_load_config(json.as_ptr())
+    }
+
+    #[test]
+    fn configuration_state_is_thread_local() {
+        clear_config();
+        let empty_version = ddog_ffe_config_version();
+        assert!(!ddog_ffe_has_config());
+
+        assert!(load_empty_config());
+        assert!(ddog_ffe_has_config());
+        let loaded_version = ddog_ffe_config_version();
+        assert_eq!(loaded_version, empty_version.wrapping_add(1));
+
+        let child = std::thread::spawn(|| {
+            assert!(!ddog_ffe_has_config());
+            assert_eq!(ddog_ffe_config_version(), 0);
+
+            assert!(load_empty_config());
+            assert!(ddog_ffe_has_config());
+            assert_eq!(ddog_ffe_config_version(), 1);
+        });
+
+        child.join().expect("child thread should not panic");
+
+        assert!(ddog_ffe_has_config());
+        assert_eq!(ddog_ffe_config_version(), loaded_version);
+        clear_config();
+    }
 }
