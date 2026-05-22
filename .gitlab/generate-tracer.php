@@ -67,7 +67,7 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -186,7 +186,7 @@ stages:
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   timeout: 60m
   interruptible: true
   rules:

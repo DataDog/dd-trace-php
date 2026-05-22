@@ -49,12 +49,12 @@ jobs:
         run: |
           codename="$(lsb_release -cs)"
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-19 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-          sudo apt-get install -y clang-19 lld-19
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
-          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-19 100
+          sudo apt-get install -y clang-20 lld-20
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-20 100
           clang --version
           ld.lld --version
           cd profiling
