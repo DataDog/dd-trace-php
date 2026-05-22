@@ -1,6 +1,11 @@
 <?php
 
-namespace DDTrace\FeatureFlags;
+namespace DDTrace\FeatureFlags\Internal;
+
+use DDTrace\FeatureFlags\EvaluationDetails;
+use DDTrace\FeatureFlags\EvaluationErrorCode;
+use DDTrace\FeatureFlags\EvaluationReason;
+use DDTrace\FeatureFlags\EvaluationType;
 
 final class ResultMapper
 {
@@ -66,6 +71,11 @@ final class ResultMapper
             );
         }
 
+        $reason = $this->mapReason($this->read($rawResult, array('reason'), self::BRIDGE_REASON_DEFAULT));
+        if ($this->isDefaultReturn($rawResult, $reason)) {
+            return $this->defaultDetails($defaultValue, $expectedType, $reason, $rawResult);
+        }
+
         $decoded = null;
         $decodeError = $this->decodeValue($rawResult, $expectedType, $decoded);
         if ($decodeError !== null) {
@@ -80,8 +90,6 @@ final class ResultMapper
             );
         }
 
-        $reason = $this->mapReason($this->read($rawResult, array('reason'), self::BRIDGE_REASON_DEFAULT));
-
         return new EvaluationDetails(
             $decoded,
             $expectedType,
@@ -91,6 +99,21 @@ final class ResultMapper
             null,
             $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata')),
             $this->exposureData($rawResult),
+            $this->providerState($rawResult)
+        );
+    }
+
+    private function defaultDetails($defaultValue, $expectedType, $reason, array $rawResult)
+    {
+        return new EvaluationDetails(
+            $defaultValue,
+            $expectedType,
+            $reason,
+            null,
+            null,
+            null,
+            $this->readArray($rawResult, array('flag_metadata', 'flagMetadata', 'metadata')),
+            array(),
             $this->providerState($rawResult)
         );
     }
@@ -136,6 +159,21 @@ final class ResultMapper
         }
 
         return null;
+    }
+
+    private function isDefaultReturn(array $rawResult, $reason)
+    {
+        if ($reason !== EvaluationReason::DEFAULT_REASON && $reason !== EvaluationReason::DISABLED) {
+            return false;
+        }
+
+        if (array_key_exists('value', $rawResult)) {
+            return $rawResult['value'] === null;
+        }
+
+        $valueJson = $this->read($rawResult, array('value_json', 'valueJson'), null);
+
+        return is_string($valueJson) && trim($valueJson) === 'null';
     }
 
     private function coerceValue($value, $expectedType, &$coerced)

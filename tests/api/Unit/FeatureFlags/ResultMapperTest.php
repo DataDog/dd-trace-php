@@ -6,7 +6,7 @@ use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
-use DDTrace\FeatureFlags\ResultMapper;
+use DDTrace\FeatureFlags\Internal\ResultMapper;
 use PHPUnit\Framework\TestCase;
 
 final class ResultMapperTest extends TestCase
@@ -107,6 +107,42 @@ final class ResultMapperTest extends TestCase
         $this->assertFalse($details->getValue());
         $this->assertSame(EvaluationReason::ERROR, $details->getReason());
         $this->assertSame(EvaluationErrorCode::TYPE_MISMATCH, $details->getErrorCode());
+    }
+
+    public function testDisabledResultReturnsDefaultWithoutTypeMismatch()
+    {
+        $details = (new ResultMapper())->map(array(
+            'value_json' => 'null',
+            'variant' => null,
+            'allocation_key' => null,
+            'reason' => ResultMapper::BRIDGE_REASON_DISABLED,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+            'do_log' => false,
+            'has_config' => true,
+            'config_version' => 7,
+        ), EvaluationType::BOOLEAN, true);
+
+        $this->assertTrue($details->getValue());
+        $this->assertSame(EvaluationReason::DISABLED, $details->getReason());
+        $this->assertNull($details->getErrorCode());
+        $this->assertNull($details->getVariant());
+        $this->assertSame(array(), $details->getExposureData());
+        $this->assertSame(array('hasConfig' => true, 'configVersion' => 7), $details->getProviderState());
+        $this->assertFalse($details->isError());
+    }
+
+    public function testDefaultNullResultReturnsDefaultWithoutTypeMismatch()
+    {
+        $details = (new ResultMapper())->map(array(
+            'value_json' => 'null',
+            'reason' => ResultMapper::BRIDGE_REASON_DEFAULT,
+            'error_code' => ResultMapper::BRIDGE_ERROR_NONE,
+        ), EvaluationType::STRING, 'fallback');
+
+        $this->assertSame('fallback', $details->getValue());
+        $this->assertSame(EvaluationReason::DEFAULT_REASON, $details->getReason());
+        $this->assertNull($details->getErrorCode());
+        $this->assertFalse($details->isError());
     }
 
     public function testIntegerJsonCanMapToFloat()
