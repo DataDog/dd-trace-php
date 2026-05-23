@@ -103,6 +103,9 @@ function require_feature_flag_api($root)
         'UnavailableEvaluator',
         'TriggerErrorWarningEmitter',
         'NativeEvaluator',
+        'EvaluationCompleted',
+        'EvaluationCompletedHook',
+        'NoopEvaluationCompletedHook',
     ) as $classFile) {
         require_once $internalRoot . '/' . $classFile . '.php';
     }
