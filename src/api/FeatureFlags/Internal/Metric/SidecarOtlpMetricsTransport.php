@@ -61,20 +61,34 @@ final class SidecarOtlpMetricsTransport implements EvaluationMetricTransport
         return \DDTrace\send_ffe_metrics($this->endpoint, $payload);
     }
 
-    private static function resolveEndpoint()
+    const DEFAULT_OTLP_PORT = 4318;
+
+    public static function resolveEndpoint()
     {
-        foreach (array('OTEL_EXPORTER_OTLP_METRICS_ENDPOINT', 'OTEL_EXPORTER_OTLP_ENDPOINT') as $envKey) {
-            $value = self::env($envKey);
-            if (is_string($value) && $value !== '') {
-                // The base OTLP endpoint convention appends /v1/metrics if not specified.
-                if ($envKey === 'OTEL_EXPORTER_OTLP_ENDPOINT'
-                    && strpos($value, '/v1/metrics') === false) {
-                    return rtrim($value, '/') . '/v1/metrics';
-                }
-                return $value;
-            }
+        $metricsEndpoint = self::env('OTEL_EXPORTER_OTLP_METRICS_ENDPOINT');
+        if ($metricsEndpoint !== '') {
+            return $metricsEndpoint;
         }
-        return 'http://localhost:4318/v1/metrics';
+
+        $baseEndpoint = self::env('OTEL_EXPORTER_OTLP_ENDPOINT');
+        if ($baseEndpoint !== '') {
+            return rtrim($baseEndpoint, '/') . '/v1/metrics';
+        }
+
+        // Test-agent path: parametric tests inject DD_AGENT_HOST pointing at
+        // the test-agent container; the test agent serves OTLP on port 4318
+        // by convention. Production behaviour: localhost OTLP collector.
+        $host = self::env('DD_AGENT_HOST');
+        if ($host === '') {
+            $host = 'localhost';
+        }
+        if (strncmp($host, 'unix://', 7) === 0) {
+            return $host;
+        }
+        if (strpos($host, ':') !== false && $host[0] !== '[') {
+            $host = '[' . $host . ']';
+        }
+        return 'http://' . $host . ':' . self::DEFAULT_OTLP_PORT . '/v1/metrics';
     }
 
     private static function env($name)
