@@ -167,7 +167,7 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
-    pre->has_top_level = ddtrace_span_is_entrypoint_root(span);
+    pre->has_top_level = ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0) || (span->parent && !zend_is_identical(&span->property_service, &span->parent->property_service));
     zval *is_measured = pre->metrics ? zend_hash_str_find(pre->metrics, ZEND_STRL("_dd.measured")) : NULL;
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;
