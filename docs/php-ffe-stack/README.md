@@ -6,7 +6,7 @@ PHP Feature Flag Evaluation (FFE) PR stack:
 | PR | Layer | Diagrams |
 | --- | --- | --- |
 | #3906 | M1 — Evaluations (this PR's local copy) — libdatadog runtime + RC + PHP 7/8 APIs | `stack-pr3906.mmd` + `system-pr3906.mmd` |
-| #3909 | Hook seam | `stack-pr3909.mmd` + `system-pr3909.mmd` |
+| #3909 | Hook layer | `stack-pr3909.mmd` + `system-pr3909.mmd` |
 | #3910 | EVP exposures (sibling of metrics under #3909) | `stack-pr3910.mmd` + `system-pr3910.mmd` |
 | #3911 | OTLP evaluation metrics (sibling of EVP under #3909) | `stack-pr3911.mmd` + `system-pr3911.mmd` |
 
