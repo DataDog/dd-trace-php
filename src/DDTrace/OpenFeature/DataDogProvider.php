@@ -8,6 +8,8 @@ use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
+use DDTrace\FeatureFlags\Internal\DefaultEvaluationCompletedHook;
+use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricHook;
 use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
 use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
 use DDTrace\FeatureFlags\Internal\WarningEmitter;
@@ -27,11 +29,46 @@ final class DataDogProvider extends AbstractProvider
     private FeatureFlagsClient $client;
     private WarningEmitter $warningEmitter;
     private bool $warnedAboutNonProductionRuntime = false;
+    private ?EvaluationDetails $lastEvaluationDetails = null;
 
     public function __construct()
     {
-        $this->client = FeatureFlagsClient::createWithDependencies(null, new NoopWarningEmitter());
+        // PHP 8 OpenFeature path records `feature_flag.evaluations` via an
+        // OpenFeature `after`/`error` hook (mirroring dd-trace-go/js/java/dotnet
+        // architecture). Construct the DD client with an exposure-only hook
+        // composite so the metric is not also recorded inside Client::evaluate()
+        // and double-counted.
+        $this->client = FeatureFlagsClient::createWithDependencies(
+            null,
+            new NoopWarningEmitter(),
+            DefaultEvaluationCompletedHook::createWithoutMetric()
+        );
         $this->warningEmitter = new TriggerErrorWarningEmitter();
+
+        $provider = $this;
+        $this->setHooks([
+            new EvalMetricsHook(
+                EvaluationMetricHook::sharedWriter(),
+                function () use ($provider) {
+                    return $provider->consumeLastEvaluationDetails();
+                }
+            ),
+        ]);
+    }
+
+    /**
+     * @internal Datadog-owned bridge adapters only.
+     *
+     * Returns the most recent DD-side `EvaluationDetails` produced by this
+     * provider during the current OpenFeature evaluation, then clears the
+     * stash. Returns `null` if the provider was not invoked for this
+     * evaluation (e.g. a `before` hook threw before `resolve*Value`).
+     */
+    public function consumeLastEvaluationDetails(): ?EvaluationDetails
+    {
+        $details = $this->lastEvaluationDetails;
+        $this->lastEvaluationDetails = null;
+        return $details;
     }
 
     /**
@@ -39,7 +76,8 @@ final class DataDogProvider extends AbstractProvider
      */
     public static function createWithDependencies(
         ?FeatureFlagsClient $client = null,
-        ?WarningEmitter $warningEmitter = null
+        ?WarningEmitter $warningEmitter = null,
+        $metricWriter = null
     ): self {
         $provider = new self();
         if ($client !== null) {
@@ -47,6 +85,16 @@ final class DataDogProvider extends AbstractProvider
         }
         if ($warningEmitter !== null) {
             $provider->warningEmitter = $warningEmitter;
+        }
+        if ($metricWriter !== null) {
+            $provider->setHooks([
+                new EvalMetricsHook(
+                    $metricWriter,
+                    function () use ($provider) {
+                        return $provider->consumeLastEvaluationDetails();
+                    }
+                ),
+            ]);
         }
 
         return $provider;
@@ -101,7 +149,11 @@ final class DataDogProvider extends AbstractProvider
         mixed $defaultValue,
         ?EvaluationContext $context
     ): ResolutionDetailsInterface {
+        // Clear any stale stash so a throw from inside evaluate() leaves it null
+        // and the OpenFeature `error` hook sees no leftover details from a prior call.
+        $this->lastEvaluationDetails = null;
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $this->normalizeContext($context));
+        $this->lastEvaluationDetails = $details;
         $this->warnIfNonProductionRuntime($details);
 
         $builder = (new ResolutionDetailsBuilder())

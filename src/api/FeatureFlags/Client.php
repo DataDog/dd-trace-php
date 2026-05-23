@@ -2,6 +2,7 @@
 
 namespace DDTrace\FeatureFlags;
 
+use DDTrace\FeatureFlags\Internal\DefaultEvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
 use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
@@ -29,7 +30,7 @@ final class Client
 
     public static function create()
     {
-        return self::createWithDependencies();
+        return self::createWithDependencies(null, null, DefaultEvaluationCompletedHook::create());
     }
 
     /**
