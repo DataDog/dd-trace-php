@@ -1,0 +1,49 @@
+---
+title: "PHP FFE system architecture — current = #3906 (M1 Evaluations)"
+---
+flowchart TD
+    subgraph PHPProc["PHP request worker (FPM / CLI / Apache)"]
+        UserCode["User code — THIS PR"]
+        OFClient["OpenFeature Client<br/>(PHP 8 path) — THIS PR"]
+        DDClient["DDTrace FeatureFlags Client<br/>(PHP 7 and PHP 8 share this) — THIS PR"]
+        DDProvider["DDTrace OpenFeature DataDogProvider<br/>(PHP 8 only) — THIS PR"]
+        Evaluator["NativeEvaluator (FFI → libdatadog) — THIS PR"]
+        RC["Remote Config client (FFE_FLAGS product) — THIS PR"]
+        Hook["EvaluationCompletedHook composite (future)"]
+        OFHook["OpenFeature SDK Hook layer<br/>(EvalMetricsHook on DataDogProvider) (future)"]
+        ExposureWriter["ExposureWriter (future)"]
+        MetricWriter["EvaluationMetricWriter<br/>(aggregate, OTLP protobuf encode) (future)"]
+        SidecarFFI["ddog_sidecar_send_ffe_{exposures,metrics} FFI (future)"]
+    end
+
+    subgraph Host["Host"]
+        Sidecar["libdatadog sidecar (Rust, async) (future)"]
+    end
+
+    subgraph Backend["Backend"]
+        Agent["Datadog Agent (future)"]
+        EVP["EVP proxy (future)"]
+        OTLP["OTLP HTTP intake (future)"]
+    end
+
+    UserCode -- "PHP 7" --> DDClient
+    UserCode -- "PHP 8" --> OFClient --> DDProvider --> DDClient
+    DDClient --> Evaluator
+    Evaluator <--> RC
+    DDClient --> Hook
+    Hook --> ExposureWriter
+    Hook --> MetricWriter
+    DDProvider -. registers .-> OFHook
+    OFHook --> MetricWriter
+    OFHook --> ExposureWriter
+    ExposureWriter --> SidecarFFI
+    MetricWriter -- "OTLP protobuf" --> SidecarFFI
+    SidecarFFI --> Sidecar
+    Sidecar --> Agent --> EVP
+    Sidecar -- "OTLP HTTP" --> OTLP
+
+    classDef pr1 fill:#ddd6fe,stroke:#6d28d9,color:#1e1b4b,stroke-width:3px
+    classDef future fill:#e5e7eb,stroke:#9ca3af,color:#374151,stroke-dasharray: 5 5
+
+    class UserCode,OFClient,DDClient,DDProvider,Evaluator,RC pr1
+    class Hook,OFHook,ExposureWriter,MetricWriter,SidecarFFI,Sidecar,Agent,EVP,OTLP future
