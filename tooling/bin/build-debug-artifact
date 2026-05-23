@@ -200,8 +200,8 @@ fi
 echo "Building ddtrace ${php_version} ${thread_safety} [${libc}/${arch}]..."
 echo "Image: ${DOCKER_IMAGE}"
 
-TMP_OUT=$(mktemp -d)
-TMP_PKG=$(mktemp -d)
+TMP_OUT=$(mktemp -d "${OUTPUT_DIR%/}/.build-debug-artifact-out.XXXXXX")
+TMP_PKG=$(mktemp -d "${OUTPUT_DIR%/}/.build-debug-artifact-pkg.XXXXXX")
 trap 'rm -rf "$TMP_OUT" "$TMP_PKG"' EXIT
 
 # ─── Build script construction ────────────────────────────────────────────────
