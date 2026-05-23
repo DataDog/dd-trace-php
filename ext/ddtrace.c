@@ -2784,6 +2784,28 @@ PHP_FUNCTION(DDTrace_dogstatsd_count) {
     RETURN_NULL();
 }
 
+PHP_FUNCTION(DDTrace_send_ffe_exposures) {
+    zend_string *payload;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_STR(payload)
+    ZEND_PARSE_PARAMETERS_END();
+
+    RETURN_BOOL(ddtrace_sidecar_send_ffe_exposures(payload));
+}
+
+PHP_FUNCTION(DDTrace_send_ffe_metrics) {
+    zend_string *endpoint;
+    zend_string *payload;
+
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_STR(endpoint)
+    Z_PARAM_STR(payload)
+    ZEND_PARSE_PARAMETERS_END();
+
+    RETURN_BOOL(ddtrace_sidecar_send_ffe_metrics(endpoint, payload));
+}
+
 PHP_FUNCTION(DDTrace_dogstatsd_distribution) {
     zend_string *metric;
     double value;

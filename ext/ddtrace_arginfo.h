@@ -153,6 +153,15 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_dogstatsd_set arginfo_DDTrace_dogstatsd_count
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_send_ffe_exposures, 0, 1, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, payloadJson, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_send_ffe_metrics, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, endpoint, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, payloadBytes, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_resource_weak_store, 0, 3, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, resource, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
@@ -406,6 +415,8 @@ ZEND_FUNCTION(DDTrace_dogstatsd_distribution);
 ZEND_FUNCTION(DDTrace_dogstatsd_gauge);
 ZEND_FUNCTION(DDTrace_dogstatsd_histogram);
 ZEND_FUNCTION(DDTrace_dogstatsd_set);
+ZEND_FUNCTION(DDTrace_send_ffe_exposures);
+ZEND_FUNCTION(DDTrace_send_ffe_metrics);
 ZEND_FUNCTION(DDTrace_resource_weak_store);
 ZEND_FUNCTION(DDTrace_resource_weak_get);
 ZEND_FUNCTION(DDTrace_are_endpoints_collected);
@@ -505,6 +516,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_gauge"), zif_DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_histogram"), zif_DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_set"), zif_DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "send_ffe_exposures"), zif_DDTrace_send_ffe_exposures, arginfo_DDTrace_send_ffe_exposures, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "send_ffe_metrics"), zif_DDTrace_send_ffe_metrics, arginfo_DDTrace_send_ffe_metrics, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "resource_weak_store"), zif_DDTrace_resource_weak_store, arginfo_DDTrace_resource_weak_store, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "resource_weak_get"), zif_DDTrace_resource_weak_get, arginfo_DDTrace_resource_weak_get, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "are_endpoints_collected"), zif_DDTrace_are_endpoints_collected, arginfo_DDTrace_are_endpoints_collected, 0, NULL, NULL)
