@@ -675,6 +675,38 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
     ddog_Vec_Tag_drop(vec);
 }
 
+bool ddtrace_sidecar_send_ffe_exposures(zend_string *payload_json) {
+    if (!DDTRACE_G(sidecar) || payload_json == NULL || ZSTR_LEN(payload_json) == 0) {
+        return false;
+    }
+    return ddtrace_ffi_try(
+        "Failed sending FFE exposure batch to sidecar",
+        ddog_sidecar_send_ffe_exposures(
+            &DDTRACE_G(sidecar),
+            ddtrace_sidecar_instance_id,
+            &DDTRACE_G(sidecar_queue_id),
+            dd_zend_string_to_CharSlice(payload_json)));
+}
+
+bool ddtrace_sidecar_send_ffe_metrics(zend_string *endpoint, zend_string *payload_bytes) {
+    if (!DDTRACE_G(sidecar) || endpoint == NULL || ZSTR_LEN(endpoint) == 0
+        || payload_bytes == NULL || ZSTR_LEN(payload_bytes) == 0) {
+        return false;
+    }
+    ddog_ByteSlice payload = {
+        .ptr = (const uint8_t *) ZSTR_VAL(payload_bytes),
+        .len = ZSTR_LEN(payload_bytes),
+    };
+    return ddtrace_ffi_try(
+        "Failed sending FFE metrics batch to sidecar",
+        ddog_sidecar_send_ffe_metrics(
+            &DDTRACE_G(sidecar),
+            ddtrace_sidecar_instance_id,
+            &DDTRACE_G(sidecar_queue_id),
+            dd_zend_string_to_CharSlice(endpoint),
+            payload));
+}
+
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags) {
     if (!DDTRACE_G(sidecar) || !get_DD_INTEGRATION_METRICS_ENABLED()) {
         return;

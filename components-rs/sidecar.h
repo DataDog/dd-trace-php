@@ -328,6 +328,33 @@ ddog_CharSlice ddog_sidecar_dump(struct ddog_SidecarTransport **transport);
 ddog_CharSlice ddog_sidecar_stats(struct ddog_SidecarTransport **transport);
 
 /**
+ * Forward a single FFE (Feature Flag Evaluation) exposure batch payload to
+ * the sidecar. The sidecar asynchronously POSTs it to the agent EVP proxy
+ * at `/evp_proxy/v2/api/v2/exposures`.
+ *
+ * A null or empty `payload` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_exposures(struct ddog_SidecarTransport **transport,
+                                                const struct ddog_InstanceId *instance_id,
+                                                const ddog_QueueId *queue_id,
+                                                ddog_CharSlice payload);
+
+/**
+ * Forward a single FFE evaluation-metrics batch payload (OTLP/protobuf,
+ * encoded by the PHP-side `OtlpMetricEncoder`) to the sidecar. The sidecar
+ * asynchronously POSTs it as `application/x-protobuf` to the configured
+ * OTLP HTTP metrics intake (`endpoint` argument, typically the value of
+ * `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`).
+ *
+ * A null/empty `endpoint` or `payload` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_metrics(struct ddog_SidecarTransport **transport,
+                                              const struct ddog_InstanceId *instance_id,
+                                              const ddog_QueueId *queue_id,
+                                              ddog_CharSlice endpoint,
+                                              ddog_ByteSlice payload);
+
+/**
  * Send a DogStatsD "count" metric.
  */
 ddog_MaybeError ddog_sidecar_dogstatsd_count(struct ddog_SidecarTransport **transport,

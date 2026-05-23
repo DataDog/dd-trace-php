@@ -32,7 +32,7 @@ final class ExposureWriter
 
     public static function createDefault()
     {
-        return new self(new AgentExposureTransport(), self::defaultContext());
+        return new self(new SidecarExposureTransport(), self::defaultContext());
     }
 
     public function record(EvaluationCompleted $evaluation)

@@ -96,6 +96,25 @@ typedef struct ddog_Slice_CChar {
  */
 typedef struct ddog_Slice_CChar ddog_CharSlice;
 
+typedef struct ddog_Slice_U8 {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const uint8_t *ptr;
+  /**
+   * The number of bytes that `.ptr` points to. Must be less than or equal
+   * to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_U8;
+
+/**
+ * Use to represent arbitrary binary byte slices (e.g. encoded protobuf).
+ */
+typedef struct ddog_Slice_U8 ddog_ByteSlice;
+
 typedef enum ddog_Option_Error_Tag {
   DDOG_OPTION_ERROR_SOME_ERROR,
   DDOG_OPTION_ERROR_NONE_ERROR,

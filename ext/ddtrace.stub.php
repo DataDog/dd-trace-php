@@ -806,6 +806,40 @@ namespace DDTrace {
     function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
 
     /**
+     * @internal Datadog-owned bridge adapters only — used by
+     * `DDTrace\FeatureFlags\Internal\Exposure\SidecarExposureTransport`.
+     *
+     * Forward an FFE (Feature Flag Evaluation) exposure batch payload to the
+     * libdatadog sidecar. The sidecar asynchronously POSTs the JSON batch to
+     * the agent EVP proxy at `/evp_proxy/v2/api/v2/exposures`.
+     *
+     * Fire-and-forget: the sidecar handles retries/backoff. An empty payload
+     * is a no-op.
+     *
+     * @param string $payloadJson Server-side batched exposure JSON envelope.
+     * @return bool true if enqueued for sidecar dispatch, false otherwise.
+     */
+    function send_ffe_exposures(string $payloadJson): bool {}
+
+    /**
+     * @internal Datadog-owned bridge adapters only — used by
+     * `DDTrace\FeatureFlags\Internal\Metric\SidecarOtlpMetricsTransport`.
+     *
+     * Forward an FFE evaluation-metrics batch payload (OTLP/protobuf, encoded
+     * by the PHP-side `OtlpMetricEncoder`) to the libdatadog sidecar. The
+     * sidecar asynchronously POSTs it as `application/x-protobuf` to the
+     * configured OTLP HTTP metrics intake (typically the value of
+     * `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`).
+     *
+     * Fire-and-forget. Empty endpoint or payload is a no-op.
+     *
+     * @param string $endpoint     OTLP HTTP metrics endpoint URL.
+     * @param string $payloadBytes Encoded OTLP/protobuf payload bytes.
+     * @return bool true if enqueued for sidecar dispatch, false otherwise.
+     */
+    function send_ffe_metrics(string $endpoint, string $payloadBytes): bool {}
+
+    /**
      * Store data tied to a resource. Behaves like a weakmap, i.e. data is freed when the associated resource is freed.
      *
      * @param resource $resource Some resource

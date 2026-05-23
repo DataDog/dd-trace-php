@@ -6,7 +6,6 @@ use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
-use DDTrace\FeatureFlags\Internal\Exposure\AgentExposureTransport;
 use DDTrace\FeatureFlags\Internal\Exposure\ExposureHook;
 use DDTrace\FeatureFlags\Internal\Exposure\ExposureTransport;
 use DDTrace\FeatureFlags\Internal\Exposure\ExposureWriter;
@@ -195,22 +194,14 @@ final class ExposureWriterTest extends TestCase
         $this->assertSame('flag.hook', $transport->payloads()[0]['exposures'][0]['flag']['key']);
     }
 
-    public function testAgentTransportBuildsAgentEvpRequest()
-    {
-        $method = new \ReflectionMethod(AgentExposureTransport::class, 'buildHttpRequest');
-        if (PHP_VERSION_ID < 80100) {
-            $method->setAccessible(true);
-        }
-
-        $request = $method->invoke(null, 'agent.local:8126', '{"exposures":[]}');
-
-        $this->assertTrue(strpos($request, "POST /evp_proxy/v2/api/v2/exposures HTTP/1.1\r\n") !== false);
-        $this->assertTrue(strpos($request, "Host: agent.local:8126\r\n") !== false);
-        $this->assertTrue(strpos($request, "Content-Type: application/json\r\n") !== false);
-        $this->assertTrue(strpos($request, "X-Datadog-EVP-Subdomain: event-platform-intake\r\n") !== false);
-        $this->assertTrue(strpos($request, "Content-Length: 16\r\n") !== false);
-        $this->assertTrue(strpos($request, "\r\n\r\n{\"exposures\":[]}") !== false);
-    }
+    // The former `testAgentTransportBuildsAgentEvpRequest` covered the
+    // raw-socket `AgentExposureTransport` HTTP request construction. That
+    // transport is deleted in this PR — exposure delivery now goes through
+    // the libdatadog sidecar via `SidecarExposureTransport`, which calls
+    // `\DDTrace\send_ffe_exposures()` (a native FFI). HTTP request
+    // construction is covered by `cargo test -p datadog-sidecar ffe_flusher`
+    // on the libdatadog side (PR DataDog/libdatadog#2026); there is no
+    // PHP-side HTTP construction to assert anymore.
 
     private function evaluation(
         $flagKey,
