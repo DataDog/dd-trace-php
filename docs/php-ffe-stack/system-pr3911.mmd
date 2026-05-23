@@ -1,7 +1,7 @@
 ---
-title: PHP FFE system architecture — current = #3911 (OTLP metrics)
+title: "PHP FFE system architecture — current = #3911 (OTLP metrics)"
 ---
-flowchart LR
+flowchart TD
     subgraph PHPProc["PHP request worker (FPM / CLI / Apache)"]
         UserCode["User code"]
         OFClient["OpenFeature Client<br/>(PHP 8 path)"]

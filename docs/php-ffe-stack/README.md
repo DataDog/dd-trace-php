@@ -25,16 +25,31 @@ review and rendered on GitHub. To regenerate after editing:
 
 ```sh
 cd /path/to/dd-trace-php
-npx --yes @mermaid-js/mermaid-cli@latest \
-  -i docs/php-ffe-stack/stack-pr3909.mmd \
-  -o docs/php-ffe-stack/stack-pr3909.png
-npx --yes @mermaid-js/mermaid-cli@latest \
-  -i docs/php-ffe-stack/system-pr3909.mmd \
-  -o docs/php-ffe-stack/system-pr3909.png
+for kind in stack system; do
+  for pr in 3909 3911; do
+    npx --yes @mermaid-js/mermaid-cli@latest \
+      -i "docs/php-ffe-stack/${kind}-pr${pr}.mmd" \
+      -o "docs/php-ffe-stack/${kind}-pr${pr}.png" \
+      -w 2400 -H 2400 --scale 3 -b white
+  done
+done
 ```
 
-The first `npx` invocation downloads a headless Chromium (~150 MB,
-~60 s). Subsequent runs are fast.
+`-w 2400 -H 2400 --scale 3 -b white` yields crisp, white-background
+PNGs (~1800×2000 for stack, ~3000×4500 for system) that read well on
+PR pages and survive zooming. The first `npx` invocation downloads
+a headless Chromium (~150 MB, ~60 s); subsequent runs are fast.
+
+All diagrams use `flowchart TD` (top-to-bottom). For tall system
+diagrams that keeps the PHP-process → host-sidecar → backend lanes
+stacked vertically, which is easier to follow than the previous
+left-to-right rendering.
+
+`title:` values **must be quoted** in the YAML frontmatter because they
+contain `#` (the PR number). Unquoted, Mermaid's YAML parser truncates
+the title at the first `#`, leaving the rendered diagram with a header
+like "PHP FFE 4-PR stack — current =" and no way to tell which PR it
+belongs to.
 
 ## Architecture rule encoded in these diagrams
 
