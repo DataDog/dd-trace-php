@@ -61,8 +61,18 @@ final class SidecarOtlpMetricsTransport implements EvaluationMetricTransport
         return \DDTrace\send_ffe_metrics($this->endpoint, $payload);
     }
 
-    const DEFAULT_OTLP_PORT = 4318;
-
+    /**
+     * Resolve the OTLP HTTP metrics endpoint per the OpenTelemetry environment
+     * variable specification:
+     *
+     *  1. `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` — signal-specific, used as-is.
+     *  2. `OTEL_EXPORTER_OTLP_ENDPOINT` — generic base; append `/v1/metrics`.
+     *  3. spec default: `http://localhost:4318/v1/metrics`.
+     *
+     * No Datadog-specific fallback (e.g. `DD_AGENT_HOST`) — callers that want
+     * the metric to land on the local Agent's OTLP intake set
+     * `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` explicitly.
+     */
     public static function resolveEndpoint()
     {
         $metricsEndpoint = self::env('OTEL_EXPORTER_OTLP_METRICS_ENDPOINT');
@@ -75,20 +85,7 @@ final class SidecarOtlpMetricsTransport implements EvaluationMetricTransport
             return rtrim($baseEndpoint, '/') . '/v1/metrics';
         }
 
-        // Test-agent path: parametric tests inject DD_AGENT_HOST pointing at
-        // the test-agent container; the test agent serves OTLP on port 4318
-        // by convention. Production behaviour: localhost OTLP collector.
-        $host = self::env('DD_AGENT_HOST');
-        if ($host === '') {
-            $host = 'localhost';
-        }
-        if (strncmp($host, 'unix://', 7) === 0) {
-            return $host;
-        }
-        if (strpos($host, ':') !== false && $host[0] !== '[') {
-            $host = '[' . $host . ']';
-        }
-        return 'http://' . $host . ':' . self::DEFAULT_OTLP_PORT . '/v1/metrics';
+        return 'http://localhost:4318/v1/metrics';
     }
 
     private static function env($name)
