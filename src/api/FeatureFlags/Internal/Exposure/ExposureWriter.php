@@ -69,10 +69,16 @@ final class ExposureWriter
         }
 
         if (count($this->buffer) >= $this->bufferLimit) {
-            // TODO(FFE-self-telemetry): emit a drop counter here.
-            $this->dropped++;
-            $this->maybeWarnFirstDrop('buffer overflow at ' . $this->bufferLimit . ' events');
-            return false;
+            // Long-running PHP runtimes (Swoole, RoadRunner, FrankenPHP/Octane,
+            // CLI worker loops) don't fire `register_shutdown_function`
+            // callbacks between requests — only when the worker process exits.
+            // Without an inline flush here, a worker that accumulates
+            // `$bufferLimit` unique exposures silently drops every subsequent
+            // unique exposure for the rest of its lifetime (hours/days).
+            // Flush synchronously to make room. The flush call clears the
+            // buffer regardless of transport success, so the append below
+            // always finds capacity.
+            $this->flush();
         }
 
         $this->remember($cacheKey, $cacheValue);

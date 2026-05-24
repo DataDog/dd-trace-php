@@ -135,23 +135,46 @@ final class ExposureWriterTest extends TestCase
         ));
     }
 
-    public function testFullBufferDropsWithoutPoisoningDedupCache()
+    public function testFullBufferAutoFlushesSoLongRunningRuntimesDoNotDrop()
     {
+        // Simulates a long-running PHP runtime (Swoole/RoadRunner/CLI worker)
+        // that records more unique exposures than the buffer can hold without
+        // ever exiting and firing register_shutdown_function. The writer
+        // must flush inline when the buffer fills so subsequent unique
+        // exposures aren't permanently dropped for the worker's lifetime.
+
         $transport = new RecordingExposureTransport();
         $writer = new ExposureWriter($transport, array(), 65536, 1);
 
         $this->assertTrue($writer->record($this->evaluation('flag.full', 'user-1', array(), true, 'alloc', 'first')));
-        $this->assertFalse($writer->record($this->evaluation('flag.full', 'user-1', array(), true, 'alloc', 'second')));
-        $this->assertSame(1, $writer->droppedCount());
-        $this->assertTrue($writer->flush());
-
+        // Second call hits the buffer limit, triggers an inline flush, then
+        // buffers itself successfully — no drop.
         $this->assertTrue($writer->record($this->evaluation('flag.full', 'user-1', array(), true, 'alloc', 'second')));
+        $this->assertSame(0, $writer->droppedCount());
+        // Final flush emits the second batch.
         $this->assertTrue($writer->flush());
 
         $payloads = $transport->payloads();
         $this->assertCount(2, $payloads);
         $this->assertSame('first', $payloads[0]['exposures'][0]['variant']['key']);
         $this->assertSame('second', $payloads[1]['exposures'][0]['variant']['key']);
+    }
+
+    public function testFullBufferAutoFlushPropagatesTransportFailure()
+    {
+        // When the inline flush itself fails (sidecar unavailable), the
+        // already-buffered events are counted as dropped — same as an
+        // explicit flush failure — and the new event is then buffered.
+        $transport = new RecordingExposureTransport(false);
+        $writer = new ExposureWriter($transport, array(), 65536, 1);
+
+        $this->assertTrue($writer->record($this->evaluation('flag.full', 'user-1', array(), true, 'alloc', 'first')));
+        $this->assertTrue($writer->record($this->evaluation('flag.full', 'user-1', array(), true, 'alloc', 'second')));
+        // The first batch (1 event) attempted to flush during the second
+        // record() call; the transport reported failure, so it's counted
+        // as dropped. The second event is now buffered.
+        $this->assertSame(1, $writer->droppedCount());
+        $this->assertSame(1, $writer->bufferedCount());
     }
 
     public function testFailedTransportDropsFlushedEventsAndClearsBuffer()
