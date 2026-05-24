@@ -18,6 +18,18 @@ final class ExposureWriter
     private $buffer = array();
     private $dropped = 0;
 
+    /**
+     * One-shot guard so we surface a single warning per process when the
+     * first FFE exposure drop occurs. TODO(FFE-self-telemetry): replace this
+     * with a real self-telemetry counter (matching DogStatsD-style drop
+     * accounting in the rest of dd-trace-php) once the telemetry channel
+     * for FFE is wired up. Until then this is the only operator-visible
+     * signal that exposure batches are being silently lost.
+     *
+     * @var bool
+     */
+    private $warnedOnDrop = false;
+
     public function __construct(
         ExposureTransport $transport,
         array $context = array(),
@@ -57,7 +69,9 @@ final class ExposureWriter
         }
 
         if (count($this->buffer) >= $this->bufferLimit) {
+            // TODO(FFE-self-telemetry): emit a drop counter here.
             $this->dropped++;
+            $this->maybeWarnFirstDrop('buffer overflow at ' . $this->bufferLimit . ' events');
             return false;
         }
 
@@ -98,10 +112,29 @@ final class ExposureWriter
         }
 
         if (!$sent) {
+            // TODO(FFE-self-telemetry): emit a drop counter here.
             $this->dropped += count($events);
+            $this->maybeWarnFirstDrop('transport flush failed (' . count($events) . ' events)');
         }
 
         return $sent;
+    }
+
+    /**
+     * Emit a one-time PHP warning the first time this writer drops, so
+     * operators have a breadcrumb. Removed once the self-telemetry counter
+     * lands (TODO(FFE-self-telemetry)).
+     *
+     * @param string $reason
+     * @return void
+     */
+    private function maybeWarnFirstDrop($reason)
+    {
+        if ($this->warnedOnDrop) {
+            return;
+        }
+        $this->warnedOnDrop = true;
+        \error_log('[ddtrace] FFE exposure drop: ' . $reason . '. Future drops in this process will be counted silently until self-telemetry lands.');
     }
 
     public function bufferedCount()
