@@ -31,6 +31,9 @@ final class DataDogProvider extends AbstractProvider
     private bool $warnedAboutNonProductionRuntime = false;
     private ?EvaluationDetails $lastEvaluationDetails = null;
 
+    /** @var EvalMetricsHook */
+    private $metricsHook;
+
     public function __construct()
     {
         // PHP 8 OpenFeature path records `feature_flag.evaluations` via an
@@ -46,14 +49,28 @@ final class DataDogProvider extends AbstractProvider
         $this->warningEmitter = new TriggerErrorWarningEmitter();
 
         $provider = $this;
-        $this->setHooks([
-            new EvalMetricsHook(
-                EvaluationMetricHook::sharedWriter(),
-                function () use ($provider) {
-                    return $provider->consumeLastEvaluationDetails();
-                }
-            ),
-        ]);
+        $this->metricsHook = new EvalMetricsHook(
+            EvaluationMetricHook::sharedWriter(),
+            function () use ($provider) {
+                return $provider->consumeLastEvaluationDetails();
+            }
+        );
+    }
+
+    /**
+     * Always include the Datadog metric hook ahead of any user-supplied
+     * provider hooks. `AbstractProvider::setHooks()` REPLACES the hook list,
+     * so registering the metric hook via `setHooks([$metricsHook])` in the
+     * constructor would let a later `$provider->setHooks($userHooks)` silently
+     * drop our metric emission. Overriding `getHooks()` keeps both: the user
+     * can register their own provider-level hooks freely, and we always
+     * record `feature_flag.evaluations` on the OpenFeature path.
+     *
+     * @return array<int, \OpenFeature\interfaces\hooks\Hook>
+     */
+    public function getHooks(): array
+    {
+        return array_merge([$this->metricsHook], parent::getHooks());
     }
 
     /**

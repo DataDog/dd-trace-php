@@ -209,6 +209,28 @@ final class DataDogProviderTest extends TestCase
         return FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter());
     }
 
+    public function testDatadogMetricHookIsAlwaysPresentEvenAfterUserSetHooks(): void
+    {
+        $provider = new DataDogProvider();
+        $userHook = new class implements \OpenFeature\interfaces\hooks\Hook {
+            public function before(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): ?\OpenFeature\interfaces\flags\EvaluationContext { return null; }
+            public function after(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\provider\ResolutionDetails $details, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
+            public function error(\OpenFeature\interfaces\hooks\HookContext $context, \Throwable $error, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
+            public function finally(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
+            public function supportsFlagValueType(string $flagValueType): bool { return true; }
+        };
+
+        // Calling setHooks() on AbstractProvider REPLACES the hook list. The
+        // Datadog metric hook MUST still run after a user does this — otherwise
+        // we silently lose feature_flag.evaluations on the OpenFeature path.
+        $provider->setHooks([$userHook]);
+
+        $hooks = $provider->getHooks();
+        self::assertCount(2, $hooks, 'expected DD metric hook + user hook');
+        self::assertInstanceOf(\DDTrace\OpenFeature\EvalMetricsHook::class, $hooks[0]);
+        self::assertSame($userHook, $hooks[1]);
+    }
+
     private function openFeatureClientFor(DataDogProvider $provider)
     {
         $api = OpenFeatureAPI::getInstance();
