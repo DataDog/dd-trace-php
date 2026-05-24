@@ -65,8 +65,14 @@ final class EvaluationMetricWriter
         }
 
         if (count($this->series) >= $this->seriesLimit) {
-            $this->dropped++;
-            return false;
+            // Long-running PHP runtimes (Swoole, RoadRunner, FrankenPHP/Octane,
+            // CLI worker loops) don't fire `register_shutdown_function`
+            // callbacks between requests — only at worker process exit.
+            // Without an inline flush here, a worker that accumulates
+            // `$seriesLimit` unique attribute-set keys silently drops every
+            // subsequent new key for the rest of its lifetime. Flush
+            // synchronously so the new series fits.
+            $this->flush();
         }
 
         $this->series[$key] = array(

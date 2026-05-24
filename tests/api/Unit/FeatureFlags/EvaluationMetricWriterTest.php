@@ -84,21 +84,35 @@ final class EvaluationMetricWriterTest extends TestCase
         $this->assertSame('off', $points[1]['attributes']['feature_flag.result.variant']);
     }
 
-    public function testSeriesOverflowDropsNewSeriesButKeepsExistingSeries()
+    public function testSeriesOverflowAutoFlushesSoLongRunningRuntimesDoNotDrop()
     {
+        // Simulates a long-running PHP runtime that records more unique
+        // attribute-set keys than `seriesLimit` between worker exits. Without
+        // an inline flush when the series cap is hit, every new key after
+        // the first `seriesLimit` would be silently dropped for the worker's
+        // lifetime — and that lifetime is hours/days in Swoole/RoadRunner.
         $transport = new RecordingEvaluationMetricTransport();
         $writer = new EvaluationMetricWriter($transport, 'checkout-service', 1);
 
         $this->assertTrue($writer->record($this->evaluation('flag.one', 'on')));
-        $this->assertFalse($writer->record($this->evaluation('flag.two', 'on')));
+        // Second unique key hits the cap → inline flush of {flag.one:1} →
+        // {flag.two:1} now buffered.
+        $this->assertTrue($writer->record($this->evaluation('flag.two', 'on')));
+        // Hitting flag.one again triggers another inline flush of {flag.two:1}
+        // because flag.one is no longer in the series map after the previous flush.
         $this->assertTrue($writer->record($this->evaluation('flag.one', 'on')));
-        $this->assertSame(1, $writer->droppedCount());
+        $this->assertSame(0, $writer->droppedCount());
         $this->assertTrue($writer->flush());
 
-        $points = $transport->payloads()[0]['points'];
-        $this->assertCount(1, $points);
-        $this->assertSame('flag.one', $points[0]['attributes']['feature_flag.key']);
-        $this->assertSame(2, $points[0]['count']);
+        // Three flushes total: {flag.one:1}, {flag.two:1}, {flag.one:1}.
+        $payloads = $transport->payloads();
+        $this->assertCount(3, $payloads);
+        $this->assertSame('flag.one', $payloads[0]['points'][0]['attributes']['feature_flag.key']);
+        $this->assertSame(1, $payloads[0]['points'][0]['count']);
+        $this->assertSame('flag.two', $payloads[1]['points'][0]['attributes']['feature_flag.key']);
+        $this->assertSame(1, $payloads[1]['points'][0]['count']);
+        $this->assertSame('flag.one', $payloads[2]['points'][0]['attributes']['feature_flag.key']);
+        $this->assertSame(1, $payloads[2]['points'][0]['count']);
     }
 
     public function testFailedTransportDropsCountsAndClearsBuffer()
