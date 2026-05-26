@@ -260,7 +260,11 @@ pub struct SampleData {
 
 #[derive(Debug)]
 pub struct SampleMessage {
-    pub key: ProfileIndex,
+    /// Arc-shared so the in-flight sample message and the heap-live tracker
+    /// (and re-emissions on each export) share one allocation. `ProfileIndex`
+    /// is effectively a singleton per request, so this is an `Arc::clone`
+    /// instead of a deep clone of `sample_types`.
+    pub key: Arc<ProfileIndex>,
     pub value: SampleData,
 }
 
@@ -290,8 +294,10 @@ pub enum ProfilerMessage {
 /// at profile export time, not on each allocation/free.
 #[derive(Clone, Debug)]
 pub(crate) struct LiveHeapSample {
-    /// The profile index (sample_types + tags) for adding to correct profile
-    pub key: ProfileIndex,
+    /// The profile index (sample_types + tags) for adding to correct profile.
+    /// Arc-shared with the originating `SampleMessage` and re-shared with the
+    /// synthetic heap-live `SampleMessage` emitted on each export.
+    pub key: Arc<ProfileIndex>,
     /// The captured stack trace at allocation time. Arc so it can be
     /// shared with the original `SampleMessage` and re-shared with the
     /// synthetic heap-live `SampleMessage` emitted on each export.
@@ -358,7 +364,7 @@ impl TimeCollector {
     /// This should be called before exporting profiles to ensure heap-live data is included.
     fn collect_batched_heap_live_samples(
         &self,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
         started_at: &WallTime,
     ) {
         let tracker_len = self.live_heap_tracker.len();
@@ -384,7 +390,7 @@ impl TimeCollector {
                 .collect();
 
             let message = SampleMessage {
-                key: tracked.key.clone(),
+                key: Arc::clone(&tracked.key),
                 value: SampleData {
                     frames: Arc::clone(&tracked.frames),
                     labels: Arc::clone(&tracked.labels),
@@ -401,7 +407,7 @@ impl TimeCollector {
 
     fn handle_timeout(
         &self,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
         last_export: &WallTime,
     ) -> WallTime {
         // Collect batched heap-live samples before export
@@ -665,7 +671,7 @@ impl TimeCollector {
 
     fn handle_resource_message(
         message: LocalRootSpanResourceMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
     ) {
         trace!(
             "Received Endpoint Profiling message for span id {}.",
@@ -690,7 +696,7 @@ impl TimeCollector {
 
     fn handle_sample_message(
         message: SampleMessage,
-        profiles: &mut HashMap<ProfileIndex, InternalProfile>,
+        profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
         started_at: &WallTime,
     ) {
         if message.key.sample_types.is_empty() {
@@ -703,7 +709,7 @@ impl TimeCollector {
             value
         } else {
             profiles.insert(
-                message.key.clone(),
+                Arc::clone(&message.key),
                 Self::create_profile(&message, started_at.systemtime),
             );
             profiles
@@ -748,7 +754,7 @@ impl TimeCollector {
 
     pub fn run(self) {
         let mut last_wall_export = WallTime::now();
-        let mut profiles: HashMap<ProfileIndex, InternalProfile> = HashMap::with_capacity(1);
+        let mut profiles: HashMap<Arc<ProfileIndex>, InternalProfile> = HashMap::with_capacity(1);
 
         debug!(
             "Started with an upload period of {} seconds and approximate wall-time period of {} milliseconds.",
@@ -834,7 +840,7 @@ impl TimeCollector {
 }
 
 pub struct UploadRequest {
-    index: ProfileIndex,
+    index: Arc<ProfileIndex>,
     profile: InternalProfile,
     end_time: SystemTime,
     duration: Option<Duration>,
@@ -1253,7 +1259,7 @@ impl Profiler {
                 // and the in-flight sample share one allocation each.
                 if self.is_heap_live_enabled() {
                     let tracked = LiveHeapSample {
-                        key: message.key.clone(),
+                        key: Arc::clone(&message.key),
                         frames: Arc::clone(&message.value.frames),
                         labels: Arc::clone(&message.value.labels),
                         allocation_size: alloc_size,
@@ -1880,7 +1886,7 @@ impl Profiler {
         let tags = TAGS.with_borrow(Arc::clone);
 
         SampleMessage {
-            key: ProfileIndex { sample_types, tags },
+            key: Arc::new(ProfileIndex { sample_types, tags }),
             value: SampleData {
                 frames: Arc::new(frames),
                 labels: Arc::new(labels),
