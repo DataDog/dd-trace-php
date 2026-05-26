@@ -95,8 +95,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.2"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.2.30.tar.gz
-        phpSha256Hash: "a0fa6673ba4b0c8335fbab08afb7c2e13a3791f2b5a0928c7ad3d7ad872edf26"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.31.tar.gz
+        phpSha256Hash: "083c2f61cc5f527eb293c4c468a91af46a9678785957e023b2796a9db290d870"
     image: 'datadog/dd-trace-ci:php-8.2_centos-7'
 
   php-8.3:
@@ -106,8 +106,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.3"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.3.30.tar.gz
-        phpSha256Hash: "e587dc95fb7f62730299fa7b36b6e4f91e6708aaefa2fff68a0098d320c16386"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.3.31.tar.gz
+        phpSha256Hash: "4e7baaf0a690e954a20e7ced3dd633ce8cb8094e2b6b612a55e703ecbbdcbf4f"
     image: 'datadog/dd-trace-ci:php-8.3_centos-7'
 
   php-8.4:
@@ -117,8 +117,8 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.4"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.4.19.tar.gz
-        phpSha256Hash: "9e862435ffb533dc5b0eb486170a74e5f7c8095e8eb8819a2ff5aad430292a18"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.4.21.tar.gz
+        phpSha256Hash: "db96ee0a8e5ee7b73a4913a2aeddc162ba2ef16cd34b9347b5b9a6150e1f8e48"
     image: 'datadog/dd-trace-ci:php-8.4_centos-7'
 
   php-8.5:
@@ -128,6 +128,6 @@ services:
       x-bake: *bake
       args:
         phpVersion: "8.5"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.5.4.tar.gz
-        phpSha256Hash: "4fef7f44eff3c18e329504cb0d3eb30b41cf54e2db05cb4ebe8b78fc37d38ce1"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.5.6.tar.gz
+        phpSha256Hash: "169aaa21c2834b38df8e39169f43bc5bea8d4059a816cfbc59be08fc2bae60cd"
     image: 'datadog/dd-trace-ci:php-8.5_centos-7'

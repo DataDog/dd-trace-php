@@ -132,6 +132,8 @@ RUN set -eux; \
         useradd --uid 3434 --gid circleci --shell /bin/bash --create-home circleci; \
         echo 'circleci ALL=NOPASSWD: ALL' >> /etc/sudoers.d/50-circleci; \
         echo 'Defaults    env_keep += "DEBIAN_FRONTEND"' >> /etc/sudoers.d/env_keep; \
+    mkdir -p /opt; \
+    chown circleci:circleci /opt; \
     \
 # Allow nginx to be run as non-root for tests
     chown -R circleci:circleci /var/log/nginx/ /var/lib/nginx/; \
@@ -302,7 +304,7 @@ RUN set -eux; \
     chown -R circleci:circleci /usr/local/src; \
 # Setup php install directory
     mkdir -p $PHP_INSTALL_DIR; \
-    chown -R circleci:circleci /opt;
+    chown circleci:circleci $PHP_INSTALL_DIR;
 
 # rust sha256sum generated locally after verifying it with sha256
 ARG RUST_VERSION="1.87.0"
@@ -313,10 +315,10 @@ ENV RUSTUP_HOME=/rust/rustup
 RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && chmod -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && MARCH=$(uname -m) \
-    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $RUST_VERSION -c "rustc,cargo,clippy-preview,rustfmt-preview,rust-std,rust-src" \
+    && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain $RUST_VERSION -c "rustc,cargo,clippy-preview,rustfmt-preview,rust-std,rust-src" \
     && export PATH="/rust/cargo/bin:$PATH" \
-    && rustup install nightly${RUST_NIGHTLY_VERSION} \
-    && rustup component add rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}-$MARCH-unknown-linux-gnu
+    && rustup toolchain install --profile minimal nightly${RUST_NIGHTLY_VERSION} \
+    && rustup component add clippy-preview rustfmt-preview rust-src --toolchain nightly${RUST_NIGHTLY_VERSION}-$MARCH-unknown-linux-gnu
 
 ENV PATH="/rust/cargo/bin:${PATH}"
 
