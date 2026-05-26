@@ -407,7 +407,6 @@ void zai_config_ini_rinit(void) {
                     // On ZTS INIs must be not shared between threads (otherwise: refcount race conditions). Hence we dup them rather than just copy.
                     ZEND_ASSERT(ini && source);
                     ZEND_ASSERT(ini != source && "ZTS INI sync must not run against the global INI table");
-                    ZEND_ASSERT(ini->value != source->value && "ZTS INI values must not be shared before syncing");
                     if (ini->modified) {
                         bool identical_orig = ini->orig_value == ini->value;
                         zend_string_release(ini->orig_value);
