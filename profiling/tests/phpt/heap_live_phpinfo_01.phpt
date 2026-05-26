@@ -11,7 +11,7 @@ if (!extension_loaded('datadog-profiling'))
 --ENV--
 DD_PROFILING_ENABLED=yes
 DD_PROFILING_ALLOCATION_ENABLED=yes
-DD_PROFILING_HEAP_LIVE_ENABLED=yes
+DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED=yes
 DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED=no
 --INI--
 assert.exception=1
@@ -38,7 +38,7 @@ foreach ($lines as $line) {
 $sections = [
     ["Profiling Enabled", "true"],
     ["Allocation Profiling Enabled", "true"],
-    ["Heap Live Profiling Enabled", "true"],
+    ["Experimental Heap Live Profiling Enabled", "true"],
 ];
 
 foreach ($sections as [$key, $expected]) {

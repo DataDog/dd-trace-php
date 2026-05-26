@@ -879,7 +879,7 @@ impl Profiler {
         // attempt a `Profiler::get()`. The `Profiler` itself is published
         // through the `OnceLock` (with Acquire) inside `Profiler::get`.
         crate::allocation::HEAP_LIVE_ENABLED.store(
-            system_settings.profiling_heap_live_enabled,
+            system_settings.profiling_experimental_heap_live_enabled,
             Ordering::Relaxed,
         );
 
@@ -1946,7 +1946,7 @@ mod tests {
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_allocation_sampling_distance: DEFAULT_ALLOCATION_SAMPLING_INTERVAL,
-            profiling_heap_live_enabled: false,
+            profiling_experimental_heap_live_enabled: false,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,

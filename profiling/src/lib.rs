@@ -869,8 +869,8 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                 );
                 zend::php_info_print_table_row(
                     2,
-                    c"Heap Live Profiling Enabled".as_ptr(),
-                    if system_settings.profiling_heap_live_enabled {
+                    c"Experimental Heap Live Profiling Enabled".as_ptr(),
+                    if system_settings.profiling_experimental_heap_live_enabled {
                         yes
                     } else if !system_settings.profiling_allocation_enabled {
                         c"false (requires allocation profiling)".as_ptr()

@@ -46,7 +46,7 @@ pub struct SystemSettings {
     pub profiling_experimental_cpu_time_enabled: bool,
     pub profiling_allocation_enabled: bool,
     pub profiling_allocation_sampling_distance: NonZeroU32,
-    pub profiling_heap_live_enabled: bool,
+    pub profiling_experimental_heap_live_enabled: bool,
     pub profiling_timeline_enabled: bool,
     pub profiling_exception_enabled: bool,
     pub profiling_exception_message_enabled: bool,
@@ -71,7 +71,7 @@ impl SystemSettings {
             profiling_experimental_cpu_time_enabled: false,
             profiling_allocation_enabled: false,
             profiling_allocation_sampling_distance: NonZeroU32::MAX,
-            profiling_heap_live_enabled: false,
+            profiling_experimental_heap_live_enabled: false,
             profiling_timeline_enabled: false,
             profiling_exception_enabled: false,
             profiling_exception_message_enabled: false,
@@ -101,7 +101,7 @@ impl SystemSettings {
             profiling_experimental_cpu_time_enabled: profiling_experimental_cpu_time_enabled(),
             profiling_allocation_enabled: profiling_allocation_enabled(),
             profiling_allocation_sampling_distance: profiling_allocation_sampling_distance(),
-            profiling_heap_live_enabled: profiling_heap_live_enabled(),
+            profiling_experimental_heap_live_enabled: profiling_experimental_heap_live_enabled(),
             profiling_timeline_enabled: profiling_timeline_enabled(),
             profiling_exception_enabled: profiling_exception_enabled(),
             profiling_exception_message_enabled: profiling_exception_message_enabled(),
@@ -409,7 +409,7 @@ pub(crate) enum ConfigId {
     ProfilingExperimentalCpuTimeEnabled,
     ProfilingAllocationEnabled,
     ProfilingAllocationSamplingDistance,
-    ProfilingHeapLiveEnabled,
+    ProfilingExperimentalHeapLiveEnabled,
     ProfilingTimelineEnabled,
     ProfilingExceptionEnabled,
     ProfilingExceptionMessageEnabled,
@@ -442,7 +442,9 @@ impl ConfigId {
             ProfilingExperimentalCpuTimeEnabled => b"DD_PROFILING_EXPERIMENTAL_CPU_TIME_ENABLED\0",
             ProfilingAllocationEnabled => b"DD_PROFILING_ALLOCATION_ENABLED\0",
             ProfilingAllocationSamplingDistance => b"DD_PROFILING_ALLOCATION_SAMPLING_DISTANCE\0",
-            ProfilingHeapLiveEnabled => b"DD_PROFILING_HEAP_LIVE_ENABLED\0",
+            ProfilingExperimentalHeapLiveEnabled => {
+                b"DD_PROFILING_EXPERIMENTAL_HEAP_LIVE_ENABLED\0"
+            }
             ProfilingTimelineEnabled => b"DD_PROFILING_TIMELINE_ENABLED\0",
             ProfilingExceptionEnabled => b"DD_PROFILING_EXCEPTION_ENABLED\0",
             ProfilingExceptionMessageEnabled => b"DD_PROFILING_EXCEPTION_MESSAGE_ENABLED\0",
@@ -481,7 +483,7 @@ static DEFAULT_SYSTEM_SETTINGS: SystemSettings = SystemSettings {
     profiling_allocation_enabled: true,
     // SAFETY: value is > 0.
     profiling_allocation_sampling_distance: unsafe { NonZeroU32::new_unchecked(1024 * 4096) },
-    profiling_heap_live_enabled: false,
+    profiling_experimental_heap_live_enabled: false,
     profiling_timeline_enabled: true,
     profiling_exception_enabled: true,
     profiling_exception_message_enabled: false,
@@ -563,12 +565,16 @@ unsafe fn profiling_allocation_sampling_distance() -> NonZeroU32 {
 /// # Safety
 /// This function must only be called after config has been initialized in
 /// rinit, and before it is uninitialized in mshutdown.
-unsafe fn profiling_heap_live_enabled() -> bool {
+///
+/// Honors the umbrella `DD_PROFILING_EXPERIMENTAL_FEATURES_ENABLED` flag the
+/// same way `profiling_experimental_cpu_time_enabled` does.
+unsafe fn profiling_experimental_heap_live_enabled() -> bool {
     profiling_allocation_enabled()
-        && get_system_bool(
-            ProfilingHeapLiveEnabled,
-            DEFAULT_SYSTEM_SETTINGS.profiling_heap_live_enabled,
-        )
+        && (profiling_experimental_features_enabled()
+            || get_system_bool(
+                ProfilingExperimentalHeapLiveEnabled,
+                DEFAULT_SYSTEM_SETTINGS.profiling_experimental_heap_live_enabled,
+            ))
 }
 
 /// # Safety
@@ -1040,8 +1046,8 @@ pub(crate) fn minit(module_number: libc::c_int) {
                     env_config_fallback: None,
                 },
                 zai_config_entry {
-                    id: transmute::<ConfigId, u16>(ProfilingHeapLiveEnabled),
-                    name: ProfilingHeapLiveEnabled.env_var_name(),
+                    id: transmute::<ConfigId, u16>(ProfilingExperimentalHeapLiveEnabled),
+                    name: ProfilingExperimentalHeapLiveEnabled.env_var_name(),
                     type_: ZAI_CONFIG_TYPE_BOOL,
                     default_encoded_value: ZaiStr::literal(b"0\0"),
                     aliases: ptr::null_mut(),

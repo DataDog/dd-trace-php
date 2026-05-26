@@ -59,7 +59,7 @@ impl SampleTypeFilter {
 
             // heap-live-samples, heap-live-size (indices 5, 6)
             if system_settings.profiling_allocation_enabled
-                && system_settings.profiling_heap_live_enabled
+                && system_settings.profiling_experimental_heap_live_enabled
             {
                 sample_types.extend_from_slice(&SAMPLE_TYPES[5..7]);
                 sample_types_mask[5] = true;
@@ -275,7 +275,7 @@ mod tests {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_allocation_enabled = true;
-        settings.profiling_heap_live_enabled = true;
+        settings.profiling_experimental_heap_live_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = false;
 
         let sample_type_filter = SampleTypeFilter::new(&settings);
@@ -301,7 +301,7 @@ mod tests {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_allocation_enabled = false;
-        settings.profiling_heap_live_enabled = true;
+        settings.profiling_experimental_heap_live_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = false;
 
         let sample_type_filter = SampleTypeFilter::new(&settings);
@@ -324,7 +324,7 @@ mod tests {
         let mut settings = get_system_settings();
         settings.profiling_enabled = true;
         settings.profiling_allocation_enabled = true;
-        settings.profiling_heap_live_enabled = true;
+        settings.profiling_experimental_heap_live_enabled = true;
         settings.profiling_experimental_cpu_time_enabled = true;
 
         let sample_type_filter = SampleTypeFilter::new(&settings);

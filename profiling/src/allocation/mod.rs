@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 /// Fast-path gate for the heap-live tracking code paths.
 ///
-/// Mirrors `SystemSettings::profiling_heap_live_enabled` so the alloc/free/
+/// Mirrors `SystemSettings::profiling_experimental_heap_live_enabled` so the alloc/free/
 /// realloc handlers can short-circuit with a single relaxed atomic load,
 /// avoiding the `Profiler::get()` `OnceLock` load on every `efree`/`erealloc`
 /// when heap-live profiling is disabled (which is the default).
