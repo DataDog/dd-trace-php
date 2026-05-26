@@ -54,6 +54,7 @@ fn main() {
     cfg_php_major_version(vernum);
     cfg_php_feature_flags(vernum);
     cfg_zts();
+    cfg_php_debug();
     apple_linker_flags();
 }
 
@@ -459,6 +460,71 @@ int main() {
 
     if zts_value == "1" {
         println!("cargo:rustc-cfg=php_zts");
+    }
+}
+
+fn cfg_php_debug() {
+    println!("cargo::rustc-check-cfg=cfg(php_debug)");
+
+    let output = Command::new("php-config")
+        .arg("--include-dir")
+        .output()
+        .expect("Unable to run `php-config`. Is it in your PATH?");
+
+    if !output.status.success() {
+        match String::from_utf8(output.stderr) {
+            Ok(stderr) => panic!("`php-config --include-dir` failed: {stderr}"),
+            Err(err) => panic!("`php-config --include-dir` failed, not utf8: {err}"),
+        }
+    }
+
+    let include_dir = std::str::from_utf8(output.stdout.as_slice())
+        .expect("`php-config`'s stdout to be valid utf8")
+        .trim();
+
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let probe_path = Path::new(&out_dir).join("php_debug_probe.c");
+    fs::write(
+        &probe_path,
+        r#"
+#include "main/php_config.h"
+#include <stdio.h>
+int main() {
+#if ZEND_DEBUG
+    printf("1");
+#else
+    printf("0");
+#endif
+    return 0;
+}
+"#,
+    )
+    .expect("Failed to write PHP debug probe file");
+
+    let compiler = cc::Build::new().get_compiler();
+    let probe_exe = Path::new(&out_dir).join("php_debug_probe");
+    let compile_status = Command::new(compiler.path())
+        .arg(format!("-I{}", include_dir))
+        .arg(&probe_path)
+        .arg("-o")
+        .arg(&probe_exe)
+        .status()
+        .expect("Failed to compile PHP debug probe");
+
+    if !compile_status.success() {
+        panic!("Failed to compile PHP debug probe");
+    }
+
+    let probe_output = Command::new(&probe_exe)
+        .output()
+        .expect("Failed to run PHP debug probe");
+
+    let debug_value = std::str::from_utf8(&probe_output.stdout)
+        .expect("PHP debug probe output not UTF-8")
+        .trim();
+
+    if debug_value == "1" {
+        println!("cargo:rustc-cfg=php_debug");
     }
 }
 

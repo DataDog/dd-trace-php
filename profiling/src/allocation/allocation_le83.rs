@@ -323,6 +323,9 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
+    #[cfg(php_debug)]
+    let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len, ptr::null(), 0, ptr::null(), 0);
+    #[cfg(not(php_debug))]
     let ptr: *mut c_void = zend::_zend_mm_alloc(heap, len);
     restore(heap, custom_heap);
     ptr
@@ -355,6 +358,9 @@ unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
     // Safety: `ZEND_MM_STATE.heap` will be initialised in `alloc_prof_rinit()` and custom ZendMM
     // handlers are only installed and pointing to this function if initialization was succesful.
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
+    #[cfg(php_debug)]
+    zend::_zend_mm_free(heap, ptr, core::ptr::null(), 0, core::ptr::null(), 0);
+    #[cfg(not(php_debug))]
     zend::_zend_mm_free(heap, ptr);
 }
 
@@ -414,6 +420,10 @@ unsafe fn alloc_prof_orig_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     let heap = tls_zend_mm_state_get!(heap).unwrap_unchecked();
     let (prepare, restore) = tls_zend_mm_state_get!(prepare_restore_zend_heap);
     let custom_heap = prepare(heap);
+    #[cfg(php_debug)]
+    let ptr: *mut c_void =
+        zend::_zend_mm_realloc(heap, prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
+    #[cfg(not(php_debug))]
     let ptr: *mut c_void = zend::_zend_mm_realloc(heap, prev_ptr, len);
     restore(heap, custom_heap);
     ptr
