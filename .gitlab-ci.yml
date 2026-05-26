@@ -45,6 +45,9 @@ generate-templates:
       elif [ "${CI_COMMIT_BRANCH:-}" = "bot/libdatadog-latest" ]; then
         # Feedback run after a bot commit: the submodule already points to the tested SHA.
         # Don't export — generate-common.php must not inject fetch/checkout (no-op anyway).
+        set -x
+        apt update
+        apt install -y git
         LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
         printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
       fi
