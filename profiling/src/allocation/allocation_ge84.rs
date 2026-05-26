@@ -290,6 +290,7 @@ unsafe extern "C" fn alloc_prof_malloc(
     alloc_prof_malloc_impl(len)
 }
 
+#[inline(always)]
 unsafe fn alloc_prof_malloc_impl(len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
@@ -358,6 +359,7 @@ unsafe extern "C" fn alloc_prof_free(
     alloc_prof_free_impl(ptr);
 }
 
+#[inline(always)]
 unsafe fn alloc_prof_free_impl(ptr: *mut c_void) {
     tls_zend_mm_state_get!(free)(ptr);
 }
@@ -406,6 +408,7 @@ unsafe extern "C" fn alloc_prof_realloc(
     alloc_prof_realloc_impl(prev_ptr, len)
 }
 
+#[inline(always)]
 unsafe fn alloc_prof_realloc_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     #[cfg(feature = "debug_stats")]
     ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
