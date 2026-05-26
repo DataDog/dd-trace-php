@@ -8,6 +8,7 @@ edition = "2021"
 # Irrelevant version and license. These do NOT apply here, they just are here to make cargo build pass.
 version = "0.0.1"
 license = "Apache-2.0"
+authors = ["Datadog Inc. <info@datadoghq.com>"]
 
 [profile.dev]
 debug = 2 # full debug info
@@ -33,6 +34,7 @@ inherits = "release"
 # components-rs. There may be a better way to fix this, but I'm alreday two
 # tasks removed from what I'm trying to do, so pushing forward.
 [workspace.dependencies]
+arc-swap = "1.7.1"
 hyper = { version = "1.6", features = [
   "http1",
   "client",
@@ -43,3 +45,5 @@ hyper-util = { version = "0.1.10", features = [
   "client-legacy",
 ] }
 
+[workspace.lints]
+# empty for compat with libdatadog

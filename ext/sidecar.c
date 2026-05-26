@@ -78,7 +78,7 @@ static void dd_free_endpoints(void) {
 }
 
 DDTRACE_PUBLIC const uint8_t *ddtrace_get_formatted_session_id(void) {
-    if (memcmp(ddtrace_formatted_session_id, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 36) == 0) {
+    if (ddtrace_is_empty_session_id(ddtrace_formatted_session_id)) {
         return NULL;
     }
     return ddtrace_formatted_session_id;
@@ -102,6 +102,8 @@ DDTRACE_PUBLIC uint64_t ddtrace_get_sidecar_queue_id(void) {
 
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_session_id, .len = sizeof(ddtrace_formatted_session_id)};
+    ddog_CharSlice root_session_id = ddtrace_is_empty_session_id(ddtrace_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_root_session_id, .len = sizeof(ddtrace_formatted_root_session_id)};
+    ddog_CharSlice parent_session_id = ddtrace_is_empty_session_id(ddtrace_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) ddtrace_formatted_parent_session_id, .len = sizeof(ddtrace_formatted_parent_session_id)};
     const ddog_Vec_Tag *process_tags = ddtrace_process_tags_get_vec();
     ddog_sidecar_session_set_config(transport, session_id, ddtrace_endpoint, dogstatsd_endpoint,
                                     DDOG_CHARSLICE_C("php"),
@@ -126,7 +128,9 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     is_fork,
                                     process_tags,
                                     dd_zend_string_to_CharSlice(get_global_DD_HOSTNAME()),
-                                    dd_zend_string_to_CharSlice(get_global_DD_SERVICE())
+                                    dd_zend_string_to_CharSlice(get_global_DD_SERVICE()),
+                                    root_session_id,
+                                    parent_session_id
                                 );
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
@@ -809,9 +813,8 @@ void ddtrace_sidecar_submit_root_span_data_direct(ddog_SidecarTransport **transp
             ddog_sidecar_telemetry_filter_flush(transport, ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_slice, env_slice));
     }
 
-    if (!changed && DDTRACE_G(remote_config_state)) {
-        // ddog_remote_configs_service_env_change() generally only processes configs if they changed. However, upon request initialization it may be identical to the previous request.
-        // However, at request shutdown some configs are unloaded. Explicitly forcing a processing step ensures these are re-loaded.
+    if (DDTRACE_G(remote_config_state)) {
+        // Must happen after ddog_sidecar_set_universal_service_tags (session state fully initialized)
         ddog_process_remote_configs(DDTRACE_G(remote_config_state));
     }
 }
@@ -872,16 +875,18 @@ void ddtrace_sidecar_rshutdown(void) {
     ddog_Vec_Tag_drop(DDTRACE_G(active_global_tags));
 }
 
-void ddtrace_sidecar_gshutdown(void) {
-    if (DDTRACE_G(sidecar)) {
-        if (DDTRACE_G(sidecar) == ddtrace_sidecar_for_signal) {
+void ddtrace_sidecar_gshutdown(zend_ddtrace_globals *ddtrace_globals) {
+    // NOTE: do not use DDTRACE_G() in this function; it may be called from the
+    // main thread via ts_free_id()
+    if (ddtrace_globals->sidecar) {
+        if (ddtrace_globals->sidecar == ddtrace_sidecar_for_signal) {
             ddtrace_sidecar_for_signal = NULL;
         }
 
         // Drain any accumulated background-sender metrics before the transport goes away.
-        ddtrace_telemetry_flush_bgs_metrics_final();
-        ddog_sidecar_transport_drop(DDTRACE_G(sidecar));
-        DDTRACE_G(sidecar) = NULL;
+        ddtrace_telemetry_flush_bgs_metrics_final(ddtrace_globals);
+        ddog_sidecar_transport_drop(ddtrace_globals->sidecar);
+        ddtrace_globals->sidecar = NULL;
     }
 }
 

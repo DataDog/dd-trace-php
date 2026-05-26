@@ -244,6 +244,10 @@ Note that path — it is the output file for the next step.
 .claude/ci/ci-watch [--start-offset N] OUTPUT_FILE
 ```
 
+**`OUTPUT_FILE` must be the output file from a `check-ci` process** — not an
+arbitrary background task. `ci-watch` parses `check-ci`'s structured
+`FAILED:` / `SUCCESS:` lines and exits silently on anything else.
+
 `ci-watch` tails the output file and exits when there is something to
 act on. Run it with `run_in_background: true` — you will be notified
 when it completes. While it runs, you can do other work.
@@ -414,8 +418,9 @@ Python-based `datadog/system-tests` framework; lives in `../../../system-tests/`
 
 → **[system-tests.md](system-tests.md)**
 Covers: `System Tests: [default]`, `System Tests: [parametric]`,
-`System Tests: [APPSEC_API_SECURITY*]`, `System Tests: [INTEGRATIONS]`,
-`System Tests: [CROSSED_TRACING_LIBRARIES]`
+`System Tests: [APPSEC_API_SECURITY*]`, `System Tests: [APPSEC_RUNTIME_ACTIVATION]`,
+`System Tests: [INTEGRATIONS]`, `System Tests: [CROSSED_TRACING_LIBRARIES]`,
+`System Tests: [php-fpm-8.5, default]`, `System Tests: [php-fpm-8.5]` (matrix)
 
 → **[system-tests-onboarding.md](system-tests-onboarding.md)**
 Covers: `configure_system_tests` and onboarding/SSI scenario groups

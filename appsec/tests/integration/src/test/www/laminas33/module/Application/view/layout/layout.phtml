@@ -1,0 +1,15 @@
+<?php
+/**
+ * @var Laminas\View\Renderer\PhpRenderer $this
+ */
+?>
+<?= $this->doctype() ?>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <?= $this->headTitle('Laminas AppSec')->setSeparator(' - ')->setAutoEscape(false) ?>
+</head>
+<body>
+    <?= $this->content ?>
+</body>
+</html>

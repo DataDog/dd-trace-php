@@ -20,7 +20,7 @@
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
 #define APPLY_0(...)
-#define APPLY_1(macro, arg, ...) macro(arg)
+#define APPLY_1(macro, arg) macro(arg)
 #define APPLY_2(macro, arg, ...) macro(arg) APPLY_1(macro, __VA_ARGS__)
 #define APPLY_3(macro, arg, ...) macro(arg) APPLY_2(macro, __VA_ARGS__)
 #define APPLY_4(macro, arg, ...) macro(arg) APPLY_3(macro, __VA_ARGS__)
@@ -187,6 +187,7 @@ bool dd_config_minit(int module_number)
     // using the arduous way of accessing the decoded_value directly from
     // zai_config_memoized_entries.
     zai_config_first_time_rinit(false);
+    dd_log_startup_after_cfg();
 #ifdef TESTING
     _register_testing_objects();
 #endif

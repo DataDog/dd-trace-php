@@ -510,9 +510,19 @@ void ddtrace_exception_handlers_startup(void) {
         .function_name = zend_string_init_interned(ZEND_STRL("ddtrace_exception_handler"), 1),
         .num_args = 4,
         .required_num_args = 1,
+#if PHP_VERSION_ID < 80600
         .arg_info = (zend_internal_arg_info *)(arginfo_ddtrace_exception_or_error_handler + 1),
+#endif
         .handler = &zim_DDTrace_ExceptionOrErrorHandler_execute,
     };
+#if PHP_VERSION_ID >= 80600
+    uint32_t num_args = ddtrace_exception_or_error_handler.num_args + 1;
+    zend_arg_info *new_arg_info = pemalloc(sizeof(zend_arg_info) * num_args, 1);
+    for (uint32_t i = 0; i < num_args; i++) {
+        zend_convert_internal_arg_info(&new_arg_info[i], &arginfo_ddtrace_exception_or_error_handler[i], i == 0, true);
+    }
+    ddtrace_exception_or_error_handler.arg_info = new_arg_info + 1;
+#endif
 
     INIT_NS_CLASS_ENTRY(dd_exception_or_error_handler_ce, "DDTrace", "ExceptionHandler", NULL);
     dd_exception_or_error_handler_ce.type = ZEND_INTERNAL_CLASS;
@@ -619,6 +629,9 @@ void ddtrace_exception_handlers_startup(void) {
 }
 
 void ddtrace_exception_handlers_shutdown(void) {
+#if PHP_VERSION_ID >= 80600
+    zend_free_internal_arg_info(&ddtrace_exception_or_error_handler, true);
+#endif
     ddtrace_free_unregistered_class(&dd_exception_or_error_handler_ce);
     zend_hash_destroy(&ddtrace_exception_custom_create_object);
 }

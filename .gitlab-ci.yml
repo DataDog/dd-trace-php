@@ -25,16 +25,41 @@ generate-templates:
   tags: [ "arch:amd64" ]
   needs: []
   script:
-    - php ./.gitlab/generate-package.php | tee .gitlab/package-gen.yml
-    - php ./.gitlab/generate-tracer.php | tee .gitlab/tracer-gen.yml
-    - php ./.gitlab/generate-appsec.php | tee .gitlab/appsec-gen.yml
+    - |
+      touch libdatadog.env  # always present so dotenv artifact never errors
+      # On libdatadog CI schedule: fetch the latest SHA from GitHub, export it so
+      # generate-common.php can embed it directly in compilation job before_scripts.
+      if [ "${SCHEDULED_LIBDATADOG_LATEST:-}" = "true" ]; then
+        set -x
+        apt update
+        apt install -y git
+        LIBDATADOG_PINNED_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
+        LIBDATADOG_OVERRIDE_SHA=$(git ls-remote https://github.com/DataDog/libdatadog main | cut -f1)
+        export LIBDATADOG_OVERRIDE_SHA LIBDATADOG_PINNED_SHA
+        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_PINNED_SHA=%s\n' "$LIBDATADOG_OVERRIDE_SHA" "$LIBDATADOG_PINNED_SHA" >> libdatadog.env
+        if [ "$LIBDATADOG_OVERRIDE_SHA" = "$LIBDATADOG_PINNED_SHA" ]; then
+          echo 'LIBDATADOG_NO_CHANGES=true'  >> libdatadog.env
+        else
+          echo 'LIBDATADOG_NO_CHANGES=false' >> libdatadog.env
+        fi
+      elif [ "${CI_COMMIT_BRANCH:-}" = "bot/libdatadog-latest" ]; then
+        # Feedback run after a bot commit: the submodule already points to the tested SHA.
+        # Don't export — generate-common.php must not inject fetch/checkout (no-op anyway).
+        LIBDATADOG_SHA=$(git ls-tree HEAD libdatadog | awk '{print $3}')
+        printf 'LIBDATADOG_OVERRIDE_SHA=%s\nLIBDATADOG_FEEDBACK_RUN=true\n' "$LIBDATADOG_SHA" >> libdatadog.env
+      fi
+    - php ./.gitlab/generate-package.php  | tee .gitlab/package-gen.yml
+    - php ./.gitlab/generate-tracer.php   | tee .gitlab/tracer-gen.yml
+    - php ./.gitlab/generate-appsec.php   | tee .gitlab/appsec-gen.yml
     - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
-    - php ./.gitlab/generate-shared.php | tee .gitlab/shared-gen.yml
+    - php ./.gitlab/generate-shared.php   | tee .gitlab/shared-gen.yml
   variables:
     GIT_SUBMODULE_STRATEGY: none
   artifacts:
     paths:
       - .gitlab/*-gen.yml
+    reports:
+      dotenv: libdatadog.env
 
 tracer-trigger:
   stage: tests
@@ -96,3 +121,33 @@ package-trigger:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/libddwaf-rust appsec/third_party/msgpack-c
     NIGHTLY_BUILD: $NIGHTLY_BUILD
+
+# Runs after the full CI completes.  Triggered in two situations:
+#   1. Scheduled libdatadog CI run (SCHEDULED_LIBDATADOG_LATEST=true)
+#   2. Push to bot/libdatadog-latest by the bot — feeds CI results back so we can verify whether Claude's fixes actually worked.  The [no-ci-feedback] marker in bot commits prevents triggering a third run.
+analyze-and-create-pr:
+  stage: deploy
+  rules:
+    - if: $SCHEDULED_LIBDATADOG_LATEST == "true"
+      when: always
+    - if: '$CI_COMMIT_BRANCH == "bot/libdatadog-latest" && $CI_COMMIT_AUTHOR =~ /github-actions\[bot\]/ && $CI_COMMIT_MESSAGE !~ /\[no-ci-feedback\]/'
+      when: always
+    - when: never
+  needs:
+    - job: generate-templates
+      artifacts: true
+    - tracer-trigger
+    - appsec-trigger
+    - profiler-trigger
+    - shared-trigger
+    - package-trigger
+  trigger:
+    include:
+      - local: .gitlab/libdatadog-latest.yml
+    strategy: depend
+  variables:
+    LIBDATADOG_OVERRIDE_SHA: $LIBDATADOG_OVERRIDE_SHA
+    LIBDATADOG_PINNED_SHA: $LIBDATADOG_PINNED_SHA
+    LIBDATADOG_NO_CHANGES: $LIBDATADOG_NO_CHANGES
+    LIBDATADOG_FEEDBACK_RUN: $LIBDATADOG_FEEDBACK_RUN
+    PARENT_PIPELINE_ID: $CI_PIPELINE_ID

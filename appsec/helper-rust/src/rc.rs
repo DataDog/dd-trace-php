@@ -175,6 +175,10 @@ impl ConfigDirectory {
     }
 
     pub fn runtime_id(&self) -> anyhow::Result<&str> {
+        if self.data.is_empty() {
+            // Cleared shmem state (expired()): no config available, same as unwritten shmem.
+            return Ok("");
+        }
         self.data.iter().position(|&b| b == b'\n').map_or_else(
             || {
                 Err(anyhow::anyhow!(
@@ -194,6 +198,13 @@ impl ConfigDirectory {
     }
 
     pub fn iter(&self) -> anyhow::Result<impl Iterator<Item = anyhow::Result<Config<'_>>> + '_> {
+        if self.data.is_empty() {
+            // Cleared shmem state (expired()): no config available, same as unwritten shmem.
+            return Ok(ConfigIter {
+                data: &self.data[..],
+                pos: 0,
+            });
+        }
         self.data.iter().position(|&b| b == b'\n').map_or_else(
             || {
                 Err(anyhow::anyhow!(
@@ -261,6 +272,10 @@ pub struct Config<'a> {
 impl<'a> Config<'a> {
     pub fn rc_path(&self) -> &RcPath {
         &self.rc_path
+    }
+
+    pub fn shm_path(&self) -> &Path {
+        self.shm_path
     }
 
     fn from_line(line: &'a [u8]) -> anyhow::Result<Self> {
@@ -633,6 +648,28 @@ mod tests {
         let payload_size = body.len() + 1;
         shm_create_config_dir_with_raw_payload(name, &body)?;
         Ok(payload_size)
+    }
+
+    #[test]
+    fn config_directory_handles_cleared_shmem() -> anyhow::Result<()> {
+        // expired() calls writer.write(&[]), which stores size=1 with just the trailing NUL byte.
+        // This cleared state means "no config available" and must not be treated as an error.
+        let name = "/helper_rust_cfg_cleared_state";
+        shm_create_config_dir_with_raw_payload(name, b"")?;
+
+        let mut poller = ConfigPoller::new(Path::new(OsStr::from_bytes(name.as_bytes())));
+        let cfg_dir = poller
+            .poll()?
+            .context("expected config snapshot when seq advanced")?;
+
+        assert_eq!(cfg_dir.runtime_id()?, "");
+        let configs: Vec<_> = cfg_dir.iter()?.collect::<anyhow::Result<Vec<_>>>()?;
+        assert!(configs.is_empty());
+
+        unsafe {
+            let _ = libc::shm_unlink(CString::new(name.as_bytes()).unwrap().as_ptr());
+        }
+        Ok(())
     }
 
     #[test]

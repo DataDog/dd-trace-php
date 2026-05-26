@@ -1,7 +1,7 @@
 use anyhow::Context;
 use arc_swap::ArcSwap;
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     hash::Hash,
     path::PathBuf,
     sync::{Arc, Mutex, Weak},
@@ -301,6 +301,17 @@ impl Service {
         tel_submitter.submit_metric(WAF_INIT, 1.0, tags);
         let uwafi = maybe_uwafi?;
 
+        // Submit waf.config_errors for any errors in the bundled rules
+        let logs_collector = TelemetryLogsCollector::new();
+        waf_diag::report_diagnostics_errors(
+            None,
+            &diagnostics,
+            rules_version.as_deref().unwrap_or("unknown"),
+            "init",
+            tel_submitter,
+            &logs_collector,
+        );
+
         // Initialization of remaining components
         let limiter = limiter::Limiter::new(waf_settings.trace_rate_limit);
         let poller = rc_settings.shmem_path().map(rc::ConfigPoller::new);
@@ -324,7 +335,7 @@ impl Service {
             schema_sampler,
             rc_update_lock: Mutex::new(RcUpdateState {
                 poller,
-                last_configs: HashSet::new(),
+                last_configs: HashMap::new(),
                 asm_feature_config_manager: AsmFeatureConfigManager::new(),
                 pending_telemetry_metrics: TelemetryMetricsCollector::default(),
                 pending_init_diagnostics_legacy: Some(init_diagnostics_legacy),
@@ -333,7 +344,7 @@ impl Service {
                 asm_always_enabled,
                 rules_version,
             )),
-            logs_collector: TelemetryLogsCollector::new(),
+            logs_collector,
             worker_count: Default::default(),
         };
         service.poll_and_apply_rc()?;
@@ -347,6 +358,8 @@ impl Service {
     ) -> anyhow::Result<()> {
         debug!("Applying config for runtime id {}", cfg_dir.runtime_id()?);
 
+        // map rc path -> shm path
+        // the shm path only changes if the contents of the config changes
         let new_configs = cfg_dir
             .iter()
             .map_err(|e| {
@@ -361,9 +374,11 @@ impl Service {
                         self.log_general_rc_error(&any_error);
                         any_error
                     })
-                    .map(|cfg| cfg.rc_path().clone())
+                    .map(|cfg: rc::Config<'_>| {
+                        (cfg.rc_path().clone(), cfg.shm_path().to_path_buf())
+                    })
             })
-            .collect::<Result<HashSet<_>, anyhow::Error>>()?;
+            .collect::<Result<HashMap<_, _>, anyhow::Error>>()?;
 
         let mut new_snapshot = (**self.config_snapshot.load()).clone();
         let mut waf_changed = false;
@@ -371,7 +386,11 @@ impl Service {
         let mut rules_version: Option<String> = None;
 
         // Handle removal of configs
-        for old_path in state.last_configs.difference(&new_configs) {
+        for old_path in state
+            .last_configs
+            .keys()
+            .filter(|k| !new_configs.contains_key(*k))
+        {
             if old_path.as_str().contains("/ASM_FEATURES/") {
                 state.asm_feature_config_manager.remove(old_path);
             } else {
@@ -407,6 +426,7 @@ impl Service {
             let result = self.apply_config_file(
                 &cfg,
                 rc_path,
+                cfg.shm_path(),
                 state,
                 &mut all_diagnostics,
                 &mut rules_version,
@@ -428,9 +448,10 @@ impl Service {
             .unwrap_or("unknown");
         for (rc_path, diagnostics) in &all_diagnostics {
             waf_diag::report_diagnostics_errors(
-                rc_path,
+                Some(rc_path),
                 diagnostics,
                 version,
+                "update",
                 &mut state.pending_telemetry_metrics,
                 &self.logs_collector,
             );
@@ -501,6 +522,7 @@ impl Service {
         &self,
         cfg: &rc::Config,
         rc_path: &rc::RcPath,
+        shm_path: &std::path::Path,
         state: &mut RcUpdateState,
         all_diagnostics: &mut Vec<(
             rc::RcPath,
@@ -511,8 +533,8 @@ impl Service {
         waf_changed: &mut bool,
     ) -> anyhow::Result<()> {
         let product = cfg.product();
-        if state.last_configs.contains(rc_path) {
-            debug!("Config already applied on previous update: {:?}", rc_path);
+        if state.last_configs.get(rc_path).map(PathBuf::as_path) == Some(shm_path) {
+            debug!("Config unchanged since previous update: {:?}", rc_path);
             return Ok(());
         }
 
@@ -525,9 +547,14 @@ impl Service {
             "ASM_FEATURES" => {
                 let shmem = cfg.read()?;
                 let data = unsafe { shmem.as_slice() };
-                state
+                let replaced = state
                     .asm_feature_config_manager
                     .add(rc_path.as_str().to_string(), data)?;
+                debug!(
+                    "{} ASM_FEATURES config: {:?}",
+                    if replaced { "Replaced" } else { "Added" },
+                    rc_path
+                );
                 Ok(())
             }
             "ASM_DD" | "ASM" | "ASM_DATA" => {
@@ -764,7 +791,10 @@ impl ServiceManagerInner {
 
 struct RcUpdateState {
     poller: Option<rc::ConfigPoller>,
-    last_configs: HashSet<rc::RcPath>,
+    // the path is kept as key to determine if the config has changed, since
+    // the version of the config is encoded inside the shm path
+    // If it hasn't we can skip reapplying the same config
+    last_configs: HashMap<rc::RcPath, PathBuf>,
     asm_feature_config_manager: AsmFeatureConfigManager,
     pending_telemetry_metrics: TelemetryMetricsCollector,
     pending_init_diagnostics_legacy: Option<InitDiagnosticsLegacy>,

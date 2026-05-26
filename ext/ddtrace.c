@@ -348,17 +348,21 @@ static int ddtrace_startup(zend_extension *extension) {
     }
 #endif
 
-    ddtrace_excluded_modules_startup();
-    // We deliberately leave handler replacement during startup, even though this uses some config
-    // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done post-startup
-    ddtrace_internal_handlers_startup();
+    if (!ddtrace_disable) {
+        ddtrace_excluded_modules_startup();
+        // We deliberately leave handler replacement during startup, even though this uses some config
+        // This touches global state, which, while unlikely, may play badly when interacting with other extensions, if done post-startup
+        ddtrace_internal_handlers_startup();
+    }
     return SUCCESS;
 }
 
 static void ddtrace_shutdown(struct _zend_extension *extension) {
     UNUSED(extension);
 
-    ddtrace_internal_handlers_shutdown();
+    if (ddtrace_disable != 1) {
+        ddtrace_internal_handlers_shutdown();
+    }
 
     zai_interceptor_shutdown();
 }
@@ -702,7 +706,7 @@ static PHP_GSHUTDOWN_FUNCTION(ddtrace) {
     zend_hash_destroy(&ddtrace_globals->git_metadata);
 
     // Drop the per-thread sidecar transport (thread-lifetime, one per thread).
-    ddtrace_sidecar_gshutdown();
+    ddtrace_sidecar_gshutdown(ddtrace_globals);
 
     tsrm_mutex_free(ddtrace_globals->sidecar_universal_service_tags_mutex);
 
@@ -1175,7 +1179,6 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
         } else {
             span->parent_id = ddtrace_parse_userland_span_id(value);
             if (!span->parent_id) {
-                zval_ptr_dtor(value);
                 ZVAL_EMPTY_STRING(&zv);
                 Z_TRY_DELREF(zv);
                 value = &zv;
@@ -1223,6 +1226,37 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #if PHP_VERSION_ID >= 70400
     return ret;
 #endif
+}
+
+#if PHP_VERSION_ID < 80000
+static zval *ddtrace_span_stack_read_property(zval *object, zval *member, int type, void **cache_slot, zval *rv) {
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+    ddtrace_span_stack *stack = (ddtrace_span_stack *)Z_OBJ_P(object);
+#else
+static zval *ddtrace_span_stack_read_property(zend_object *object, zend_string *member, int type, void **cache_slot, zval *rv) {
+    zend_string *prop_name = member;
+    ddtrace_span_stack *stack = (ddtrace_span_stack *)object;
+#endif
+    if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
+            && zend_string_equals_literal(prop_name, "active")) {
+        ZVAL_COPY(rv, &stack->property_active);
+        return rv;
+    }
+    return zend_std_read_property(object, member, type, cache_slot, rv);
+}
+
+#if PHP_VERSION_ID < 80000
+static zval *ddtrace_span_stack_get_property_ptr_ptr(zval *object, zval *member, int type, void **cache_slot) {
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+#else
+static zval *ddtrace_span_stack_get_property_ptr_ptr(zend_object *object, zend_string *member, int type, void **cache_slot) {
+    zend_string *prop_name = member;
+#endif
+    if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
+            && zend_string_equals_literal(prop_name, "active")) {
+        return NULL;  // prevent cache fill; read_property handles the copy
+    }
+    return zend_std_get_property_ptr_ptr(object, member, type, cache_slot);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -1329,6 +1363,8 @@ static void dd_register_span_data_ce(void) {
     memcpy(&ddtrace_span_stack_handlers, &std_object_handlers, sizeof(zend_object_handlers));
     ddtrace_span_stack_handlers.clone_obj = ddtrace_span_stack_clone_obj;
     ddtrace_span_stack_handlers.dtor_obj = ddtrace_span_stack_dtor_obj;
+    ddtrace_span_stack_handlers.read_property = ddtrace_span_stack_read_property;
+    ddtrace_span_stack_handlers.get_property_ptr_ptr = ddtrace_span_stack_get_property_ptr_ptr;
     ddtrace_span_stack_handlers.write_property = ddtrace_span_stack_readonly;
 
 }
@@ -4052,4 +4088,3 @@ void dd_prepare_for_new_trace(void) {
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 #endif
 }
-

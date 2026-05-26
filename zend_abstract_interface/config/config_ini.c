@@ -12,6 +12,9 @@
 
 static void (*env_to_ini_name)(zai_str env_name, zai_config_name *ini_name);
 static bool is_fpm = false;
+#if ZTS
+ZEND_TLS bool inis_synchronized;
+#endif
 
 static bool zai_config_generate_ini_name(zai_str name, zai_config_name *ini_name) {
     ini_name->len = 0;
@@ -233,7 +236,9 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
 #endif
         if (alias != entry) {  // otherwise we leak memory, entry->modified is cached in zend_alter_ini_entry_ex...
             if (alias->modified) {
-                zend_string_release(alias->value);
+                if (alias->value != alias->orig_value) {
+                    zend_string_release(alias->value);
+                }
             } else {
                 alias->modified = true;
                 alias->orig_value = alias->value;
@@ -241,7 +246,7 @@ static ZEND_INI_MH(ZaiConfigOnUpdateIni) {
                 zend_hash_add_ptr(EG(modified_ini_directives), alias->name, alias);
             }
             if (is_reset) {
-                alias->value = entry->orig_value;
+                alias->value = alias->orig_value;
                 alias->modified = false;
                 alias->orig_value = NULL;
             } else {
@@ -391,7 +396,7 @@ void zai_config_ini_rinit(void) {
 
 #if ZTS
     // Skip during preloading, in that case EG(ini_directives) is the actual source of truth (NTS-like)
-    if (env_to_ini_name && !in_startup) {
+    if (env_to_ini_name && !inis_synchronized && zai_config_first_rinit_done) {
         for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
             zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
             if (!memoized->original_on_modify) {
@@ -399,31 +404,35 @@ void zai_config_ini_rinit(void) {
                 for (uint8_t n = 0; n < memoized->names_count; ++n) {
                     zend_ini_entry *source = memoized->ini_entries[n],
                                    *ini = zend_hash_find_ptr(EG(ini_directives), source->name);
+                    // On ZTS INIs must be not shared between threads (otherwise: refcount race conditions). Hence we dup them rather than just copy.
                     if (ini->modified) {
-                        if (ini->orig_value == ini->value) {
-                            ini->value = source->value;
-                        }
+                        bool identical_orig = ini->orig_value == ini->value;
                         zend_string_release(ini->orig_value);
-                        ini->orig_value = zend_string_copy(source->value);
+                        ini->orig_value = zend_string_dup(source->value, 1);
+                        if (identical_orig) {
+                            ini->value = ini->orig_value;
 
-                        if (!applied_update) {
-                            if (ZaiConfigOnUpdateIni(ini, ini->value, NULL, NULL, NULL, PHP_INI_STAGE_RUNTIME) == SUCCESS) {
-                                // first encountered name has highest priority
-                                applied_update = true;
-                            } else {
-                                zend_string_release(ini->value);
-                                ini->value = ini->orig_value;
-                                ini->modified = false;
-                                ini->orig_value = NULL;
+                            if (!applied_update) {
+                                if (ZaiConfigOnUpdateIni(ini, ini->value, NULL, NULL, NULL, PHP_INI_STAGE_RUNTIME) == SUCCESS) {
+                                    // first encountered name has highest priority
+                                    applied_update = true;
+                                } else {
+                                    zend_string_release(ini->value);
+                                    ini->value = ini->orig_value;
+                                    ini->modified = false;
+                                    ini->orig_value = NULL;
+                                }
                             }
                         }
                     } else {
                         zend_string_release(ini->value);
-                        ini->value = zend_string_copy(source->value);
+                        ini->value = zend_string_dup(source->value, 1);
                     }
                 }
             }
         }
+        // We need to do this copying just once - once after zai_config_first_rinit_done.
+        inis_synchronized = true;
     }
 #endif
 

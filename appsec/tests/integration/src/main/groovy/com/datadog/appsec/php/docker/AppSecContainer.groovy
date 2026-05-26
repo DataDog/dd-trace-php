@@ -10,6 +10,7 @@ import com.github.dockerjava.api.command.CreateContainerCmd
 import com.github.dockerjava.api.command.ExecCreateCmdResponse
 import com.github.dockerjava.api.exception.NotFoundException
 import com.github.dockerjava.api.model.Bind
+import com.github.dockerjava.api.model.Ulimit
 import com.github.dockerjava.api.model.Volume
 import com.google.common.util.concurrent.SettableFuture
 import groovy.json.JsonOutput
@@ -49,14 +50,16 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
     private File logsDir
     // Set to true to include sidecar.log in stdout (very verbose)
     private static final boolean TAIL_SIDECAR_LOG = false
+    private static final boolean CHECK_CORE_DUMPS = System.getProperty('checkCoreDumps') != null
     private String wwwDir
     private String wwwSrcDir
+    private String savedCorePattern = null
     public final HttpClient httpClient = HttpClient.newBuilder()
                     .followRedirects(HttpClient.Redirect.NEVER)
                     .connectTimeout(Duration.ofSeconds(5))
                     .build()
 
-    private MockDatadogAgent mockDatadogAgent = new MockDatadogAgent()    
+    private MockDatadogAgent mockDatadogAgent = new MockDatadogAgent()
 
     AppSecContainer(Map options) {
         super(imageNameFuture(options))
@@ -96,7 +99,6 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         withEnv '_DD_DEBUG_SIDECAR_LOG_METHOD', 'file:///tmp/logs/sidecar.log'
         withEnv 'DD_SPAWN_WORKER_USE_EXEC', '1' // gdb fails following child with fdexec
         withEnv 'DD_TELEMETRY_HEARTBEAT_INTERVAL', '10'
-        withEnv 'DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL', '10'
         // withEnv '_DD_SHARED_LIB_DEBUG', '1'
         if (System.getProperty('XDEBUG') == '1') {
             Testcontainers.exposeHostPorts(9003)
@@ -111,6 +113,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         this.logConsumer = createLogConsumer()
         followOutput(logConsumer)
         overlayWww()
+        enableCoredumps()
         runInitialize()
     }
 
@@ -191,7 +194,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                             JsonOutput.toJson(it.value).getBytes(StandardCharsets.UTF_8)
                     ]
                 }
-        long newVersion = Instant.now().epochSecond
+        long newVersion = nextRCVersion
         def rcr = new RemoteConfigResponse()
         rcr.clientConfigs = files.keySet() as List
         rcr.targetFiles = encodedFiles.collect {
@@ -244,7 +247,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
      */
     Supplier<RemoteConfigRequest> applyRemoteConfigRaw(Target target, Map<String, byte[]> files) {
         Map<String, byte[]> encodedFiles = files.findAll { it.value != null }
-        long newVersion = Instant.now().epochSecond
+        long newVersion = nextRCVersion
         def rcr = new RemoteConfigResponse()
         rcr.clientConfigs = files.keySet() as List
         rcr.targetFiles = encodedFiles.collect {
@@ -287,6 +290,11 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                 5_000 - (Math.max(0, System.currentTimeMillis() - start))) }
     }
 
+    // The next version number for the new RC. Using the timestamp helpers troubleshooting
+    private static long getNextRCVersion() {
+        Instant.now().toEpochMilli()
+    }
+
     void flushProfilingData() {
         if (!System.getProperty('USE_HELPER_RUST_COVERAGE')) {
             return
@@ -311,11 +319,69 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         }
     }
 
+    private void enableCoredumps() {
+        if (!CHECK_CORE_DUMPS) {
+            return
+        }
+        try {
+            ExecResult res = execInContainer('cat', '/proc/sys/kernel/core_pattern')
+            if (res.exitCode == 0) {
+                savedCorePattern = res.stdout.trim()
+            }
+            execInContainer('sh', '-c',
+                    'mkdir -p /tmp/cores && chmod 1777 /tmp/cores' +
+                    ' && echo /tmp/cores/core.%e.%p.%t > /proc/sys/kernel/core_pattern')
+        } catch (Exception e) {
+            log.warn("Could not enable coredumps: {}", e.message)
+        }
+    }
+
+    private List<String> detectCrashes() {
+        if (!CHECK_CORE_DUMPS) {
+            return []
+        }
+        List<String> crashes = []
+        try {
+            ExecResult res = execInContainer('find', '/tmp/cores', '-type', 'f')
+            if (res.exitCode == 0 && res.stdout.trim()) {
+                res.stdout.trim().readLines()*.trim().findAll { it }.each { String f ->
+                    crashes << "Core dump: $f".toString()
+                    log.error("Crash core dump found: {}", f)
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not check for core dumps: {}", e.message)
+        }
+        crashes
+    }
+
+    void clearCoreFiles() {
+        execInContainer('sh', '-c', 'rm -f /tmp/cores/core.*')
+    }
+
+    private void restoreCorePattern() {
+        if (savedCorePattern != null) {
+            try {
+                execInContainer('sh', '-c',
+                        "printf '%s' '${savedCorePattern}' > /proc/sys/kernel/core_pattern")
+            } catch (Exception e) {
+                log.warn("Could not restore core pattern: {}", e.message)
+            }
+        }
+    }
+
     void close() {
         flushProfilingData()
         copyLogs()
+        List<String> crashes = detectCrashes()
+        restoreCorePattern()
         mockDatadogAgent.drainTraces()
         super.close()
+        if (crashes) {
+            throw new AssertionError(
+                    ("Process crash(es) detected in container during test run (${crashes.size()} crash(es)):\n" +
+                            crashes.join('\n')).toString())
+        }
     }
 
     private static final Random RAND = new Random()
@@ -342,6 +408,16 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
                            boolean ignoreOtherRequests = false) {
         HttpRequest req = buildReq(path).GET().build()
         traceFromRequest(req, HttpResponse.BodyHandlers.ofInputStream(), doWithConn, ignoreOtherRequests)
+    }
+
+    <T> Trace traceFromRequest(String path,
+                               HttpResponse.BodyHandler<T> bodyHandler,
+                               @ClosureParams(value = FromString,
+                                       options = 'java.net.http.HttpResponse<T>')
+                                       Closure<Void> doWithResp = null,
+                               boolean ignoreOtherRequests = false) {
+        HttpRequest req = buildReq(path).GET().build()
+        traceFromRequest(req, bodyHandler, doWithResp, ignoreOtherRequests)
     }
 
     @CompileStatic(TypeCheckingMode.SKIP)
@@ -436,6 +512,10 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
 
         privilegedMode = true
 
+        withCreateContainerCmdModifier { cmd ->
+            cmd.hostConfig.withUlimits([new Ulimit('core', -1L, -1L)] as Ulimit[])
+        }
+
         this.wwwDir ="src/test/www/${options.get('www', 'base')}"
         if (options['www_src']) {
             this.wwwSrcDir = "src/test/www/${options['www_src']}"
@@ -494,7 +574,7 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
         } else {
             // Mount helper-rust volume so enable_extensions.sh can copy the binary
             // for the redirection mechanism (DD_APPSEC_HELPER_RUST_REDIRECTION
-            // defaults to true on PHP 8.5+)
+            // defaults to true on PHP 8.4+)
             addVolumeMount('php-helper-rust', '/helper-rust')
         }
 
@@ -624,6 +704,19 @@ class AppSecContainer<SELF extends AppSecContainer<SELF>> extends GenericContain
             it = it.trim()
             if (it) {
                 copyFileFromContainer(it, new File(logsDir, new File(it).name).absolutePath)
+            }
+        }
+
+        if (CHECK_CORE_DUMPS) {
+            ExecResult coresRes = execInContainer('find', '/tmp/cores', '-type', 'f')
+            if (coresRes.exitCode == 0) {
+                coresRes.stdout.eachLine {
+                    it = it.trim()
+                    if (it) {
+                        log.info("Copying core dump: {}", it)
+                        copyFileFromContainer(it, new File(logsDir, new File(it).name).absolutePath)
+                    }
+                }
             }
         }
     }

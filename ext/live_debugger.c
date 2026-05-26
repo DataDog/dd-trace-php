@@ -408,7 +408,12 @@ static void dd_log_probe_ensure_payload(dd_log_probe_dyn *dyn, dd_log_probe_def 
 
 static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_probe_def *def, zend_execute_data *execute_data) {
     const ddog_CaptureConfiguration *capture_config = def->parent.probe.probe.log.capture;
-    if (ZEND_USER_CODE(EX(func)->type)) {
+#if PHP_VERSION_ID < 80600
+    if (ZEND_USER_CODE(EX(func)->type))
+#else
+    if (ZEND_USER_CODE(EX(func)->type) || EX(func)->internal_function.arg_info)
+#endif
+    {
         zend_array *symbol_table = zend_rebuild_symbol_table();
         zend_string *symbol;
         zval *variable;
@@ -422,6 +427,7 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
                 ddog_snapshot_add_field(capture, type, name_slice, capture_value);
             }
         } ZEND_HASH_FOREACH_END();
+#if PHP_VERSION_ID < 80600
     } else if (EX(func)->internal_function.arg_info) {
         uint32_t num_args = EX(func)->internal_function.num_args;
         for (uintptr_t i = 0; i < num_args; ++i) {
@@ -432,6 +438,7 @@ static void dd_log_probe_capture_snapshot(ddog_DebuggerCapture *capture, dd_log_
             ddtrace_create_capture_value(EX_VAR_NUM(i), &capture_value, capture_config, capture_config->max_reference_depth);
             ddog_snapshot_add_field(capture, DDOG_FIELD_TYPE_ARG, name_slice, capture_value);
         }
+#endif
     }
     if (hasThis()) {
         struct ddog_CaptureValue capture_value = {0};
@@ -978,7 +985,18 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
     zend_execute_data *execute_data = eval_ctx->frame;
 
     if (EX(func)) {
-        if (ZEND_USER_CODE(EX(func)->type)) {
+#if PHP_VERSION_ID < 80600
+        if (!ZEND_USER_CODE(EX(func)->type)) {
+            int call_args = MIN(EX_NUM_ARGS(), EX(func)->common.num_args);
+            for (int i = 0; i < call_args; ++i) {
+                const char *argname = EX(func)->internal_function.arg_info[i].name;
+                if (zend_binary_strcmp(argname, strlen(argname), name->ptr, name->len) == 0) {
+                    return EX_VAR_NUM(i);
+                }
+            }
+        } else
+#endif
+        {
             zend_execute_data *current_execute_data = EG(current_execute_data);
             EG(current_execute_data) = execute_data;
             zend_array *symtable = zend_rebuild_symbol_table();
@@ -989,14 +1007,6 @@ static const void *dd_eval_fetch_identifier(void *ctx, const ddog_CharSlice *nam
             EG(current_execute_data) = current_execute_data;
             if (zvp) {
                 return zvp;
-            }
-        } else {
-            int call_args = MIN(EX_NUM_ARGS(), EX(func)->common.num_args);
-            for (int i = 0; i < call_args; ++i) {
-                const char *argname = EX(func)->internal_function.arg_info[i].name;
-                if (zend_binary_strcmp(argname, strlen(argname), name->ptr, name->len) == 0) {
-                    return EX_VAR_NUM(i);
-                }
             }
         }
     }
@@ -1658,7 +1668,8 @@ void ddtrace_live_debugger_minit(void) {
 bool ddtrace_alter_dynamic_instrumentation_config(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
     bool enabled = Z_TYPE_P(new_value) == IS_TRUE;
-    if (DDTRACE_G(remote_config_state) && !ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C("datadog.dynamic_instrumentation.enabled"), zend_string_copy(new_str))) {
+    // When RC writes, bypass the check for ddog_remote_config_alter_dynamic_config
+    if (DDTRACE_G(remote_config_state) && !DDTRACE_G(remote_config_writing) && !ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C("datadog.dynamic_instrumentation.enabled"), zend_string_copy(new_str))) {
         return false;
     }
 
