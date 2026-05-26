@@ -1,6 +1,6 @@
 use crate::allocation::{
     allocation_profiling_stats_should_collect, collect_allocation, free_allocation,
-    update_allocation_size,
+    update_allocation_size, HEAP_LIVE_ENABLED,
 };
 use crate::bindings as zend;
 use crate::PROFILER_NAME;
@@ -319,8 +319,10 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
-    // Check if this was a tracked allocation (before freeing!)
-    if !ptr.is_null() {
+    // Check if this was a tracked allocation (before freeing!).
+    // `HEAP_LIVE_ENABLED` is checked first so the disabled path is a single
+    // relaxed load + branch and never touches `Profiler::get()`.
+    if !ptr.is_null() && HEAP_LIVE_ENABLED.load(Relaxed) {
         free_allocation(ptr);
     }
 
@@ -367,12 +369,16 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
         return ptr;
     }
 
+    let heap_live = HEAP_LIVE_ENABLED.load(Relaxed);
+
     if ptr::eq(ptr, prev_ptr) {
-        update_allocation_size(ptr, len);
+        if heap_live {
+            update_allocation_size(ptr, len);
+        }
     } else {
         // Pointer moved: treat as free(old) + alloc(new). prev_ptr can be
         // null when realloc is called as a malloc replacement.
-        if !prev_ptr.is_null() {
+        if heap_live && !prev_ptr.is_null() {
             free_allocation(prev_ptr);
         }
 

@@ -873,6 +873,16 @@ impl Profiler {
     }
 
     pub fn new(system_settings: &SystemSettings) -> Self {
+        // Publish the heap-live gate before any handlers can observe it.
+        // Relaxed is sufficient: the alloc handlers don't synchronize state
+        // through this flag, they only use it to decide whether to even
+        // attempt a `Profiler::get()`. The `Profiler` itself is published
+        // through the `OnceLock` (with Acquire) inside `Profiler::get`.
+        crate::allocation::HEAP_LIVE_ENABLED.store(
+            system_settings.profiling_heap_live_enabled,
+            Ordering::Relaxed,
+        );
+
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
@@ -1024,6 +1034,10 @@ impl Profiler {
     /// # Safety
     /// Must be called in mshutdown.
     pub unsafe fn stop(timeout: Duration) {
+        // Disable the heap-live fast path early so any remaining
+        // allocations during teardown short-circuit cleanly.
+        crate::allocation::HEAP_LIVE_ENABLED.store(false, Ordering::Relaxed);
+
         // SAFETY: only called during mshutdown, where we have ownership of
         // the PROFILER object.
         if let Some(profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).get_mut() } {
@@ -1113,6 +1127,10 @@ impl Profiler {
     /// Must be called when no other thread is using the PROFILER object. That
     /// includes this thread in some kind of recursive manner.
     pub unsafe fn kill() {
+        // Same rationale as `stop`: stop the fast path from entering
+        // `Profiler::get()` before we tear the profiler down.
+        crate::allocation::HEAP_LIVE_ENABLED.store(false, Ordering::Relaxed);
+
         // SAFETY: see this function's safety conditions.
         if let Some(mut profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).take() } {
             // Drop some things to reduce memory.
@@ -1157,11 +1175,13 @@ impl Profiler {
     }
 
     /// Returns true if heap live profiling is enabled.
+    ///
+    /// Reads the same static as the alloc handlers' fast path so all
+    /// heap-live gates agree on a single source of truth and avoid an
+    /// `AtomicPtr` load + `SystemSettings` deref on the hot path.
     #[inline]
     fn is_heap_live_enabled(&self) -> bool {
-        let system_settings = self.system_settings.load(Ordering::Relaxed);
-        // SAFETY: system settings are valid while the Profiler is alive.
-        unsafe { (*system_settings).profiling_heap_live_enabled }
+        crate::allocation::HEAP_LIVE_ENABLED.load(Ordering::Relaxed)
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
