@@ -2,7 +2,6 @@
 
 namespace DDTrace\FeatureFlags;
 
-use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\TriggerErrorLogger;
@@ -13,38 +12,19 @@ final class Client
     private $logger;
     private $warnedAboutNonProductionRuntime = false;
 
-    private function __construct(
-        Evaluator $evaluator,
-        LoggerInterface $logger
-    ) {
-        $this->evaluator = $evaluator;
-        $this->logger = $logger;
-    }
-
-    public static function create()
+    public function __construct($logger = null)
     {
-        return self::createWithDependencies();
-    }
-
-    /**
-     * @internal Tests and Datadog-owned bridge adapters only.
-     */
-    public static function createWithDependencies(
-        $evaluator = null,
-        $logger = null
-    ) {
-        if ($evaluator !== null && !$evaluator instanceof Evaluator) {
-            throw new \InvalidArgumentException('Expected an Evaluator instance');
-        }
-
         if ($logger !== null && !$logger instanceof LoggerInterface) {
             throw new \InvalidArgumentException('Expected a LoggerInterface instance');
         }
 
-        return new self(
-            $evaluator ?: NativeEvaluator::create(),
-            $logger ?: new TriggerErrorLogger()
-        );
+        $this->evaluator = NativeEvaluator::create();
+        $this->logger = $logger ?: new TriggerErrorLogger();
+    }
+
+    public static function create()
+    {
+        return new self();
     }
 
     public function getBooleanValue($flagKey, $defaultValue, array $context = array())

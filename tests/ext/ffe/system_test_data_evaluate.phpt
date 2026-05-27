@@ -63,10 +63,7 @@ if (count($caseFiles) === 0) {
     throw new \RuntimeException('no evaluation-case fixture files found under ' . $fixtureRoot);
 }
 
-$client = \DDTrace\FeatureFlags\Client::createWithDependencies(
-    \DDTrace\FeatureFlags\Internal\NativeEvaluator::create(),
-    new FfeFixtureLogger()
-);
+$client = new \DDTrace\FeatureFlags\Client(new FfeFixtureLogger());
 
 $caseCount = 0;
 $failures = array();

@@ -934,6 +934,7 @@ zend_class_entry *ddtrace_ce_root_span_data;
 HashTable dd_root_span_data_duplicated_properties_table;
 #endif
 zend_class_entry *ddtrace_ce_span_stack;
+static zend_class_entry *ddtrace_ce_ffe_result;
 zend_object_handlers ddtrace_span_data_handlers;
 zend_object_handlers ddtrace_inferred_span_data_handlers;
 zend_object_handlers ddtrace_root_span_data_handlers;
@@ -1578,6 +1579,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
+    ddtrace_ce_ffe_result = register_class_DDTrace_FfeResult();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
     ddtrace_ce_span_event = register_class_DDTrace_SpanEvent(php_json_serializable_ce);
     ddtrace_ce_exception_span_event = register_class_DDTrace_ExceptionSpanEvent(ddtrace_ce_span_event);
@@ -2973,6 +2975,16 @@ PHP_FUNCTION(DDTrace_Testing_ffe_load_config) {
     RETURN_BOOL(ddog_ffe_load_config(dd_zend_string_to_CharSlice(json)));
 }
 
+static void ddtrace_ffe_update_nullable_string_property(zval *object, const char *name, size_t name_len, zend_string *value) {
+    if (value == NULL) {
+        zend_update_property_null(ddtrace_ce_ffe_result, Z_OBJ_P(object), name, name_len);
+        return;
+    }
+
+    zend_update_property_stringl(ddtrace_ce_ffe_result, Z_OBJ_P(object), name, name_len, ZSTR_VAL(value), ZSTR_LEN(value));
+    zend_string_release(value);
+}
+
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zend_string *flag_key;
     zend_long type_id_zl;
@@ -2981,7 +2993,6 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     int32_t type_id;
     struct ddog_FfeAttribute *c_attrs = NULL;
     size_t attrs_count = 0;
-    ddog_CharSlice targeting_key_slice = (ddog_CharSlice){0};
     HashTable *attributes;
     size_t idx = 0;
     zend_string *key;
@@ -2996,9 +3007,6 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ZEND_PARSE_PARAMETERS_END();
 
     type_id = (int32_t) type_id_zl;
-    if (targeting_key != NULL) {
-        targeting_key_slice = dd_zend_string_to_CharSlice(targeting_key);
-    }
     attributes = Z_ARRVAL_P(attrs_zv);
     attrs_count = zend_hash_num_elements(attributes);
 
@@ -3043,7 +3051,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     result = ddog_ffe_evaluate(
         dd_zend_string_to_CharSlice(flag_key),
         type_id,
-        targeting_key_slice,
+        dd_zend_string_to_CharSlice(targeting_key),
         c_attrs,
         attrs_count
     );
@@ -3055,25 +3063,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         RETURN_NULL();
     }
 
-    array_init(return_value);
-    if (result.value_json) {
-        add_assoc_str(return_value, "value_json", result.value_json);
-    } else {
-        add_assoc_null(return_value, "value_json");
-    }
-    if (result.variant) {
-        add_assoc_str(return_value, "variant", result.variant);
-    } else {
-        add_assoc_null(return_value, "variant");
-    }
-    if (result.allocation_key) {
-        add_assoc_str(return_value, "allocation_key", result.allocation_key);
-    } else {
-        add_assoc_null(return_value, "allocation_key");
-    }
-    add_assoc_long(return_value, "reason", result.reason);
-    add_assoc_long(return_value, "error_code", result.error_code);
-    add_assoc_bool(return_value, "do_log", result.do_log);
+    object_init_ex(return_value, ddtrace_ce_ffe_result);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), result.value_json);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), result.variant);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), result.allocation_key);
+    zend_update_property_long(ddtrace_ce_ffe_result, Z_OBJ_P(return_value), ZEND_STRL("reason"), result.reason);
+    zend_update_property_long(ddtrace_ce_ffe_result, Z_OBJ_P(return_value), ZEND_STRL("errorCode"), result.error_code);
+    zend_update_property_bool(ddtrace_ce_ffe_result, Z_OBJ_P(return_value), ZEND_STRL("doLog"), result.do_log);
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {

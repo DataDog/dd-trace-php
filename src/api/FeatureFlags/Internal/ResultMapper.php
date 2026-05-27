@@ -24,7 +24,7 @@ final class ResultMapper
     const BRIDGE_ERROR_GENERAL = 7;
 
     /**
-     * @param array<string, mixed>|EvaluationDetails|null $rawResult
+     * @param array<string, mixed>|object|null $rawResult
      * @param string $expectedType One of EvaluationType::*.
      * @param mixed $defaultValue
      * @return EvaluationDetails
@@ -33,10 +33,6 @@ final class ResultMapper
     {
         if (!EvaluationType::isValid($expectedType)) {
             throw new \InvalidArgumentException('Unknown feature flag value type: ' . (string) $expectedType);
-        }
-
-        if ($rawResult instanceof EvaluationDetails) {
-            return $rawResult;
         }
 
         if ($rawResult === null) {
@@ -49,7 +45,7 @@ final class ResultMapper
             );
         }
 
-        if (!is_array($rawResult)) {
+        if (!is_array($rawResult) && !is_object($rawResult)) {
             return $this->errorDetails(
                 $defaultValue,
                 $expectedType,
@@ -103,7 +99,7 @@ final class ResultMapper
         );
     }
 
-    private function defaultDetails($defaultValue, $expectedType, $reason, array $rawResult)
+    private function defaultDetails($defaultValue, $expectedType, $reason, $rawResult)
     {
         return new EvaluationDetails(
             $defaultValue,
@@ -138,10 +134,10 @@ final class ResultMapper
         );
     }
 
-    private function decodeValue(array $rawResult, $expectedType, &$decoded)
+    private function decodeValue($rawResult, $expectedType, &$decoded)
     {
-        if (array_key_exists('value', $rawResult)) {
-            $value = $rawResult['value'];
+        if ($this->has($rawResult, 'value')) {
+            $value = $this->read($rawResult, array('value'), null);
         } else {
             $valueJson = $this->read($rawResult, array('value_json', 'valueJson'), null);
             if (!is_string($valueJson) || $valueJson === '') {
@@ -161,14 +157,14 @@ final class ResultMapper
         return null;
     }
 
-    private function isDefaultReturn(array $rawResult, $reason)
+    private function isDefaultReturn($rawResult, $reason)
     {
         if ($reason !== EvaluationReason::DEFAULT_REASON && $reason !== EvaluationReason::DISABLED) {
             return false;
         }
 
-        if (array_key_exists('value', $rawResult)) {
-            return $rawResult['value'] === null;
+        if ($this->has($rawResult, 'value')) {
+            return $this->read($rawResult, array('value'), null) === null;
         }
 
         $valueJson = $this->read($rawResult, array('value_json', 'valueJson'), null);
@@ -266,51 +262,74 @@ final class ResultMapper
         }
     }
 
-    private function exposureData(array $rawResult)
+    private function exposureData($rawResult)
     {
         $exposureData = $this->readArray($rawResult, array('exposure_data', 'exposureData'));
 
-        if (array_key_exists('allocation_key', $rawResult)) {
-            $exposureData['allocationKey'] = $rawResult['allocation_key'];
+        if ($this->hasAny($rawResult, array('allocation_key', 'allocationKey'))) {
+            $exposureData['allocationKey'] = $this->read($rawResult, array('allocation_key', 'allocationKey'), null);
         }
 
-        if (array_key_exists('do_log', $rawResult)) {
-            $exposureData['doLog'] = (bool) $rawResult['do_log'];
+        if ($this->hasAny($rawResult, array('do_log', 'doLog'))) {
+            $exposureData['doLog'] = (bool) $this->read($rawResult, array('do_log', 'doLog'), false);
         }
 
         return $exposureData;
     }
 
-    private function providerState(array $rawResult)
+    private function providerState($rawResult)
     {
         $providerState = $this->readArray($rawResult, array('provider_state', 'providerState'));
 
-        if (array_key_exists('has_config', $rawResult)) {
-            $providerState['hasConfig'] = (bool) $rawResult['has_config'];
+        if ($this->hasAny($rawResult, array('has_config', 'hasConfig'))) {
+            $providerState['hasConfig'] = (bool) $this->read($rawResult, array('has_config', 'hasConfig'), false);
         }
 
-        if (array_key_exists('config_version', $rawResult)) {
-            $providerState['configVersion'] = $rawResult['config_version'];
+        if ($this->hasAny($rawResult, array('config_version', 'configVersion'))) {
+            $providerState['configVersion'] = $this->read($rawResult, array('config_version', 'configVersion'), null);
         }
 
         return $providerState;
     }
 
-    private function readArray(array $rawResult, array $keys)
+    private function readArray($rawResult, array $keys)
     {
         $value = $this->read($rawResult, $keys, array());
 
         return is_array($value) ? $value : array();
     }
 
-    private function read(array $rawResult, array $keys, $default)
+    private function read($rawResult, array $keys, $default)
     {
         foreach ($keys as $key) {
-            if (array_key_exists($key, $rawResult)) {
+            if (is_array($rawResult) && array_key_exists($key, $rawResult)) {
                 return $rawResult[$key];
+            }
+            if (is_object($rawResult) && property_exists($rawResult, $key)) {
+                return $rawResult->$key;
             }
         }
 
         return $default;
+    }
+
+    private function hasAny($rawResult, array $keys)
+    {
+        foreach ($keys as $key) {
+            if ($this->has($rawResult, $key)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function has($rawResult, $key)
+    {
+        if (is_array($rawResult)) {
+            return array_key_exists($key, $rawResult);
+        }
+
+        return is_object($rawResult) && property_exists($rawResult, $key);
     }
 }

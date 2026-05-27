@@ -43,7 +43,7 @@ final class NativeEvaluator implements Evaluator
             $this->normalizeAttributes($attributes)
         );
 
-        if (is_array($rawResult)) {
+        if (is_array($rawResult) || is_object($rawResult)) {
             $rawResult = $this->withProviderState($rawResult);
         }
 
@@ -80,7 +80,7 @@ final class NativeEvaluator implements Evaluator
         return $normalized;
     }
 
-    private function withProviderState(array $rawResult)
+    private function withProviderState($rawResult)
     {
         $hasConfig = \DDTrace\ffe_has_config();
         $configVersion = \DDTrace\ffe_config_version();
@@ -94,17 +94,33 @@ final class NativeEvaluator implements Evaluator
             'reason' => $hasConfig ? 'metrics_delivery_pending' : 'configuration_missing',
         );
 
-        if (isset($rawResult['provider_state']) && is_array($rawResult['provider_state'])) {
-            $providerState = array_merge($providerState, $rawResult['provider_state']);
+        if (is_array($rawResult)) {
+            if (isset($rawResult['provider_state']) && is_array($rawResult['provider_state'])) {
+                $providerState = array_merge($providerState, $rawResult['provider_state']);
+            }
+
+            if (!$hasConfig) {
+                $rawResult['error_message'] = self::WARNING_MESSAGE;
+            }
+
+            $rawResult['provider_state'] = $providerState;
+            $rawResult['has_config'] = $hasConfig;
+            $rawResult['config_version'] = $configVersion;
+
+            return $rawResult;
+        }
+
+        if (isset($rawResult->providerState) && is_array($rawResult->providerState)) {
+            $providerState = array_merge($providerState, $rawResult->providerState);
         }
 
         if (!$hasConfig) {
-            $rawResult['error_message'] = self::WARNING_MESSAGE;
+            $rawResult->errorMessage = self::WARNING_MESSAGE;
         }
 
-        $rawResult['provider_state'] = $providerState;
-        $rawResult['has_config'] = $hasConfig;
-        $rawResult['config_version'] = $configVersion;
+        $rawResult->providerState = $providerState;
+        $rawResult->hasConfig = $hasConfig;
+        $rawResult->configVersion = $configVersion;
 
         return $rawResult;
     }

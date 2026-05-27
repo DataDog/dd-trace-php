@@ -30,7 +30,7 @@ final class ClientTest extends TestCase
             ->setSuccess('float.flag', 3.5)
             ->setSuccess('object.flag', array('enabled' => true));
 
-        $client = Client::createWithDependencies($evaluator, new RecordingLogger());
+        $client = $this->clientForEvaluator($evaluator, new RecordingLogger());
 
         $this->assertTrue($client->getBooleanValue('bool.flag', false));
         $this->assertSame('blue', $client->getStringValue('string.flag', 'red'));
@@ -52,7 +52,7 @@ final class ClientTest extends TestCase
             array('runtime' => 'test', 'hasConfig' => true)
         );
 
-        $client = Client::createWithDependencies($evaluator, new RecordingLogger());
+        $client = $this->clientForEvaluator($evaluator, new RecordingLogger());
 
         $details = $client->getBooleanDetails('checkout-redesign', false);
 
@@ -70,7 +70,7 @@ final class ClientTest extends TestCase
         $evaluator = new ClientTestEvaluator();
         $evaluator->setSuccess('flag.context', 'on');
 
-        $client = Client::createWithDependencies($evaluator, new RecordingLogger());
+        $client = $this->clientForEvaluator($evaluator, new RecordingLogger());
         $client->getStringValue('flag.context', 'off', array(
             'targetingKey' => 123,
             'attributes' => array(
@@ -98,7 +98,7 @@ final class ClientTest extends TestCase
     public function testUnavailableRuntimeReturnsDefaultWithProviderNotReadyDetailsAndWarning()
     {
         $logger = new RecordingLogger();
-        $client = Client::createWithDependencies(null, $logger);
+        $client = new Client($logger);
 
         $value = $client->getBooleanValue('checkout-redesign', true);
         $details = $client->getStringDetails('checkout-copy', 'fallback');
@@ -125,7 +125,7 @@ final class ClientTest extends TestCase
     public function testWarningIsEmittedOncePerClientNotOncePerEvaluation()
     {
         $logger = new RecordingLogger();
-        $client = Client::createWithDependencies(null, $logger);
+        $client = new Client($logger);
 
         $client->getBooleanValue('flag-1', false);
         $client->getBooleanValue('flag-2', false);
@@ -139,7 +139,7 @@ final class ClientTest extends TestCase
      */
     public function testTypedMethodsRejectInvalidDefaults($method, $defaultValue)
     {
-        $client = Client::createWithDependencies(new ClientTestEvaluator(), new RecordingLogger());
+        $client = $this->clientForEvaluator(new ClientTestEvaluator(), new RecordingLogger());
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -154,6 +154,16 @@ final class ClientTest extends TestCase
             'integer' => array('getIntegerDetails', 1.2),
             'float' => array('getFloatDetails', '1.2'),
         );
+    }
+
+    private function clientForEvaluator(Evaluator $evaluator, LoggerInterface $logger)
+    {
+        $client = new Client($logger);
+        (function () use ($evaluator) {
+            $this->evaluator = $evaluator;
+        })->call($client);
+
+        return $client;
     }
 }
 

@@ -53,6 +53,19 @@ namespace DDTrace {
      */
     const FFE_OBJECT = UNKNOWN;
 
+    final class FfeResult {
+        public ?string $valueJson = null;
+        public ?string $variant = null;
+        public ?string $allocationKey = null;
+        public int $reason = 0;
+        public int $errorCode = 0;
+        public bool $doLog = false;
+        public array $providerState = [];
+        public ?string $errorMessage = null;
+        public ?bool $hasConfig = null;
+        public ?int $configVersion = null;
+    }
+
     class SpanEvent implements \JsonSerializable {
         /**
          * SpanEvent constructor.
@@ -883,11 +896,11 @@ namespace DDTrace {
      * @param int $expectedType One of the DDTrace\FFE_* constants.
      * @param string|null $targetingKey The targeting key for evaluation context.
      * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
-     * @return array|null Associative array with keys: value_json, variant, allocation_key, reason, error_code, do_log. Null only if evaluation engine is unavailable.
+     * @return FfeResult|null Object with the native evaluation result fields. Null only if evaluation engine is unavailable.
      *
      * @internal Used by the Datadog feature flag client.
      */
-    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?array {}
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?FfeResult {}
 
     /**
      * Check if FFE (Feature Flag Evaluation) configuration is loaded.

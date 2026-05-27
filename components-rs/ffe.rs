@@ -1,4 +1,4 @@
-use crate::bytes::{init_zend_string, OwnedZendString};
+use crate::bytes::OwnedZendString;
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
@@ -207,25 +207,22 @@ fn parse_attributes(
 
 fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) -> FfeResult {
     match assignment {
-        Ok(assignment) => FfeResult {
-            value_json: Some(string_to_zend_string(assignment_value_to_json(
-                &assignment.value,
-            ))),
-            variant: Some(string_to_zend_string(
-                assignment.variation_key.as_str().to_string(),
-            )),
-            allocation_key: Some(string_to_zend_string(
-                assignment.allocation_key.as_str().to_string(),
-            )),
-            reason: match assignment.reason {
-                AssignmentReason::Static => REASON_STATIC,
-                AssignmentReason::TargetingMatch => REASON_TARGETING_MATCH,
-                AssignmentReason::Split => REASON_SPLIT,
-            },
-            error_code: ERROR_NONE,
-            do_log: assignment.do_log,
-            valid: true,
-        },
+        Ok(assignment) => {
+            let value_json = assignment_value_to_json(&assignment.value);
+            FfeResult {
+                value_json: Some(value_json.as_str().into()),
+                variant: Some(assignment.variation_key.as_str().into()),
+                allocation_key: Some(assignment.allocation_key.as_str().into()),
+                reason: match assignment.reason {
+                    AssignmentReason::Static => REASON_STATIC,
+                    AssignmentReason::TargetingMatch => REASON_TARGETING_MATCH,
+                    AssignmentReason::Split => REASON_SPLIT,
+                },
+                error_code: ERROR_NONE,
+                do_log: assignment.do_log,
+                valid: true,
+            }
+        }
         Err(error) => {
             let (error_code, reason) = match &error {
                 EvaluationError::TypeMismatch { .. } => (ERROR_TYPE_MISMATCH, REASON_ERROR),
@@ -240,7 +237,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
             };
 
             FfeResult {
-                value_json: Some(string_to_zend_string("null".to_string())),
+                value_json: Some("null".into()),
                 variant: None,
                 allocation_key: None,
                 reason,
@@ -274,10 +271,6 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
         AssignmentValue::Boolean(value) => value.to_string(),
         AssignmentValue::Json { raw, .. } => raw.get().to_string(),
     }
-}
-
-fn string_to_zend_string(value: String) -> OwnedZendString {
-    init_zend_string(value.as_bytes())
 }
 
 #[cfg(test)]
