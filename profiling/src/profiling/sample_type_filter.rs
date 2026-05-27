@@ -3,6 +3,7 @@ use crate::profiling::{SampleValues, ValueType};
 
 const MAX_SAMPLE_TYPES: usize = 25;
 
+#[derive(Clone)]
 pub struct SampleTypeFilter {
     sample_types: Vec<ValueType>,
     sample_types_mask: [bool; MAX_SAMPLE_TYPES],

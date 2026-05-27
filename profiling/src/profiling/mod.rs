@@ -326,6 +326,9 @@ struct TimeCollector {
     live_heap_tracker: Arc<HeapTracker>,
     /// See Profiler::live_heap_tracker_count.
     live_heap_tracker_count: Arc<AtomicUsize>,
+    /// Used to build correctly-positioned sample_values for heap-live samples
+    /// without duplicating the type-string → index mapping.
+    sample_types_filter: SampleTypeFilter,
 }
 
 impl TimeCollector {
@@ -354,17 +357,11 @@ impl TimeCollector {
             .collect();
 
         for tracked in snapshot {
-            // Build sample_values with only heap-live-samples and heap-live-size set
-            let sample_values: Vec<i64> = tracked
-                .key
-                .sample_types
-                .iter()
-                .map(|st| match st.r#type {
-                    "heap-live-samples" => 1,
-                    "heap-live-size" => tracked.allocation_size,
-                    _ => 0,
-                })
-                .collect();
+            let sample_values = self.sample_types_filter.filter(SampleValues {
+                heap_live_samples: 1,
+                heap_live_size: tracked.allocation_size,
+                ..Default::default()
+            });
 
             let message = SampleMessage {
                 key: Arc::clone(&tracked.key),
@@ -866,6 +863,7 @@ impl Profiler {
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let live_heap_tracker = Arc::new(DashMap::with_hasher(BuildHasherDefault::default()));
         let live_heap_tracker_count = Arc::new(AtomicUsize::new(0));
+        let sample_types_filter = SampleTypeFilter::new(system_settings);
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
@@ -874,6 +872,7 @@ impl Profiler {
             upload_period: UPLOAD_PERIOD,
             live_heap_tracker: live_heap_tracker.clone(),
             live_heap_tracker_count: live_heap_tracker_count.clone(),
+            sample_types_filter: sample_types_filter.clone(),
         };
 
         // SAFETY: this is set to a noop version if ddtrace wasn't found, and
@@ -896,7 +895,6 @@ impl Profiler {
             process_tags,
         );
 
-        let sample_types_filter = SampleTypeFilter::new(system_settings);
         Profiler {
             fork_barrier,
             interrupt_manager,
