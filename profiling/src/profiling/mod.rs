@@ -1276,7 +1276,7 @@ impl Profiler {
                 // Pre-clone Arcs before try_send consumes `message`, but only
                 // insert into the tracker after a successful send to avoid
                 // phantom entries when the channel is full.
-                let tracked = if self.is_heap_live_enabled() {
+                let tracked = if self.is_heap_live_enabled() && !ptr.is_null() {
                     Some(LiveHeapSample {
                         key: Arc::clone(&message.key),
                         frames: Arc::clone(&message.value.frames),
