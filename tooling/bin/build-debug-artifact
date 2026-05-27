@@ -133,7 +133,10 @@ fi
 
 # ─── Build cache management ───────────────────────────────────────────────────
 CACHE_VOLUME="ddtrace-build-cache"
-CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}"
+# The persistent build cache contains copied source files under tmp/build_extension.
+# Keep sibling worktrees from reusing stale copied headers for the same PHP target.
+CACHE_SOURCE_KEY="$(printf '%s' "$REPO_ROOT" | cksum | awk '{print $1}')"
+CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-${CACHE_SOURCE_KEY}"
 CACHE_TAG_LABEL="ddtrace.build.target"
 
 if docker volume inspect "$CACHE_VOLUME" &>/dev/null; then

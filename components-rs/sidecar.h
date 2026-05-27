@@ -298,6 +298,39 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
                                                  ddog_QueueId queue_id,
                                                  struct ddog_DebuggerPayload *payload);
 
+/**
+ * Send structured FFE exposure events to the sidecar. The sidecar owns
+ * deduplication, JSON serialization, and Agent EVP delivery. This function is
+ * caller-driven; shared libdatadog evaluator calls do not log unless an SDK
+ * explicitly sends this action.
+ *
+ * # Safety
+ * `context` and every element in `exposures` must contain valid UTF-8
+ * `CharSlice` values. Empty `exposures` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTransport **transport,
+                                                     const struct ddog_InstanceId *instance_id,
+                                                     const ddog_QueueId *queue_id,
+                                                     const struct ddog_FfeTelemetryContext *context,
+                                                     struct ddog_Slice_FfeExposure exposures);
+
+/**
+ * Send structured FFE evaluation metric events to the sidecar. The sidecar
+ * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
+ * function is caller-driven so SDKs with existing host-language hooks can
+ * safely coexist until they explicitly migrate.
+ *
+ * # Safety
+ * `endpoint`, `context`, and every element in `metrics` must contain valid
+ * UTF-8 `CharSlice` values. Empty `endpoint` or `metrics` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_evaluation_metrics(struct ddog_SidecarTransport **transport,
+                                                         const struct ddog_InstanceId *instance_id,
+                                                         const ddog_QueueId *queue_id,
+                                                         ddog_CharSlice endpoint,
+                                                         const struct ddog_FfeTelemetryContext *context,
+                                                         struct ddog_Slice_FfeEvaluationMetric metrics);
+
 ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
                                                        const struct ddog_InstanceId *instance_id,
                                                        ddog_QueueId queue_id,
@@ -326,33 +359,6 @@ ddog_CharSlice ddog_sidecar_dump(struct ddog_SidecarTransport **transport);
  * Retrieves the current statistics of the sidecar.
  */
 ddog_CharSlice ddog_sidecar_stats(struct ddog_SidecarTransport **transport);
-
-/**
- * Forward a single FFE (Feature Flag Evaluation) exposure batch payload to
- * the sidecar. The sidecar asynchronously POSTs it to the agent EVP proxy
- * at `/evp_proxy/v2/api/v2/exposures`.
- *
- * A null or empty `payload` is a no-op.
- */
-ddog_MaybeError ddog_sidecar_send_ffe_exposures(struct ddog_SidecarTransport **transport,
-                                                const struct ddog_InstanceId *instance_id,
-                                                const ddog_QueueId *queue_id,
-                                                ddog_CharSlice payload);
-
-/**
- * Forward a single FFE evaluation-metrics batch payload (OTLP/protobuf,
- * encoded by the PHP-side `OtlpMetricEncoder`) to the sidecar. The sidecar
- * asynchronously POSTs it as `application/x-protobuf` to the configured
- * OTLP HTTP metrics intake (`endpoint` argument, typically the value of
- * `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`).
- *
- * A null/empty `endpoint` or `payload` is a no-op.
- */
-ddog_MaybeError ddog_sidecar_send_ffe_metrics(struct ddog_SidecarTransport **transport,
-                                              const struct ddog_InstanceId *instance_id,
-                                              const ddog_QueueId *queue_id,
-                                              ddog_CharSlice endpoint,
-                                              ddog_ByteSlice payload);
 
 /**
  * Send a DogStatsD "count" metric.

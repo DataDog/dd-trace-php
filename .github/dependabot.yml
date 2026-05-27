@@ -9,8 +9,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    cooldown:
-      default-days: 2
+    allow:
+      - dependency-name: "tests/FeatureFlags/ffe-system-test-data"
 
   - package-ecosystem: "github-actions"
     directory: "/"

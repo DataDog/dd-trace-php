@@ -18,6 +18,7 @@
 #include "serializer.h"
 #include "remote_config.h"
 #include "process_tags.h"
+#include "span.h"
 #ifndef _WIN32
 #include "coms.h"
 #endif
@@ -27,6 +28,51 @@ ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
 ddog_Endpoint *ddtrace_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
+
+#define DDTRACE_FFE_EXPOSURE_BUFFER_LIMIT 1000
+
+typedef struct {
+    uint64_t timestamp_ms;
+    zend_string *flag_key;
+    zend_string *subject_id;
+    zend_string *subject_attributes_json;
+    zend_string *allocation_key;
+    zend_string *variant;
+} ddtrace_ffe_exposure;
+
+static void ddtrace_ffe_release_exposure(ddtrace_ffe_exposure *exposure) {
+    if (!exposure) {
+        return;
+    }
+    if (exposure->flag_key) {
+        zend_string_release(exposure->flag_key);
+    }
+    if (exposure->subject_id) {
+        zend_string_release(exposure->subject_id);
+    }
+    if (exposure->subject_attributes_json) {
+        zend_string_release(exposure->subject_attributes_json);
+    }
+    if (exposure->allocation_key) {
+        zend_string_release(exposure->allocation_key);
+    }
+    if (exposure->variant) {
+        zend_string_release(exposure->variant);
+    }
+}
+
+void ddtrace_ffe_clear_exposures(void) {
+    ddtrace_ffe_exposure *buffer = (ddtrace_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
+    for (size_t i = 0; i < DDTRACE_G(ffe_exposure_buffer_len); i++) {
+        ddtrace_ffe_release_exposure(&buffer[i]);
+    }
+    if (buffer) {
+        efree(buffer);
+    }
+    DDTRACE_G(ffe_exposure_buffer) = NULL;
+    DDTRACE_G(ffe_exposure_buffer_len) = 0;
+    DDTRACE_G(ffe_exposure_buffer_cap) = 0;
+}
 
 // Best-effort pointer for the signal handler (SIGTERM/SIGINT). Set to the first
 // per-thread connection; never cleared until MSHUTDOWN. Not atomic: concurrent
@@ -675,36 +721,94 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
     ddog_Vec_Tag_drop(vec);
 }
 
-bool ddtrace_sidecar_send_ffe_exposures(zend_string *payload_json) {
-    if (!DDTRACE_G(sidecar) || payload_json == NULL || ZSTR_LEN(payload_json) == 0) {
-        return false;
+void ddtrace_ffe_record_exposure(
+    const char *flag_key,
+    size_t flag_key_len,
+    const char *targeting_key,
+    size_t targeting_key_len,
+    zend_string *subject_attributes_json,
+    const char *allocation_key,
+    const char *variant
+) {
+    if (!flag_key || flag_key_len == 0 || !allocation_key || !variant || variant[0] == '\0') {
+        return;
     }
-    return ddtrace_ffi_try(
-        "Failed sending FFE exposure batch to sidecar",
-        ddog_sidecar_send_ffe_exposures(
-            &DDTRACE_G(sidecar),
-            ddtrace_sidecar_instance_id,
-            &DDTRACE_G(sidecar_queue_id),
-            dd_zend_string_to_CharSlice(payload_json)));
+
+    if (DDTRACE_G(ffe_exposure_buffer_len) >= DDTRACE_FFE_EXPOSURE_BUFFER_LIMIT) {
+        return;
+    }
+
+    if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
+        size_t new_cap = DDTRACE_G(ffe_exposure_buffer_cap) == 0 ? 8 : DDTRACE_G(ffe_exposure_buffer_cap) * 2;
+        if (new_cap > DDTRACE_FFE_EXPOSURE_BUFFER_LIMIT) {
+            new_cap = DDTRACE_FFE_EXPOSURE_BUFFER_LIMIT;
+        }
+        DDTRACE_G(ffe_exposure_buffer) = safe_erealloc(
+            DDTRACE_G(ffe_exposure_buffer),
+            new_cap,
+            sizeof(ddtrace_ffe_exposure),
+            0
+        );
+        DDTRACE_G(ffe_exposure_buffer_cap) = new_cap;
+    }
+
+    ddtrace_ffe_exposure *buffer = (ddtrace_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
+    ddtrace_ffe_exposure *exposure = &buffer[DDTRACE_G(ffe_exposure_buffer_len)++];
+    exposure->timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000;
+    exposure->flag_key = zend_string_init(flag_key, flag_key_len, 0);
+    exposure->subject_id = zend_string_init(targeting_key ? targeting_key : "", targeting_key ? targeting_key_len : 0, 0);
+    exposure->subject_attributes_json = subject_attributes_json ? zend_string_copy(subject_attributes_json) : zend_string_init("{}", sizeof("{}") - 1, 0);
+    exposure->allocation_key = zend_string_init(allocation_key, strlen(allocation_key), 0);
+    exposure->variant = zend_string_init(variant, strlen(variant), 0);
 }
 
-bool ddtrace_sidecar_send_ffe_metrics(zend_string *endpoint, zend_string *payload_bytes) {
-    if (!DDTRACE_G(sidecar) || endpoint == NULL || ZSTR_LEN(endpoint) == 0
-        || payload_bytes == NULL || ZSTR_LEN(payload_bytes) == 0) {
+bool ddtrace_ffe_flush_exposures(void) {
+    size_t exposure_count = DDTRACE_G(ffe_exposure_buffer_len);
+    ddtrace_ffe_exposure *buffer = (ddtrace_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
+
+    if (exposure_count == 0 || !buffer) {
         return false;
     }
-    ddog_ByteSlice payload = {
-        .ptr = (const uint8_t *) ZSTR_VAL(payload_bytes),
-        .len = ZSTR_LEN(payload_bytes),
+
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        ddtrace_ffe_clear_exposures();
+        return false;
+    }
+
+    ddog_FfeExposure *ffi_exposures = safe_emalloc(exposure_count, sizeof(ddog_FfeExposure), 0);
+    for (size_t i = 0; i < exposure_count; i++) {
+        ffi_exposures[i] = (ddog_FfeExposure) {
+            .timestamp_ms = buffer[i].timestamp_ms,
+            .flag_key = dd_zend_string_to_CharSlice(buffer[i].flag_key),
+            .subject_id = dd_zend_string_to_CharSlice(buffer[i].subject_id),
+            .subject_attributes_json = dd_zend_string_to_CharSlice(buffer[i].subject_attributes_json),
+            .allocation_key = dd_zend_string_to_CharSlice(buffer[i].allocation_key),
+            .variant = dd_zend_string_to_CharSlice(buffer[i].variant),
+        };
+    }
+
+    ddog_FfeTelemetryContext context = {
+        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
+        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
     };
-    return ddtrace_ffi_try(
-        "Failed sending FFE metrics batch to sidecar",
-        ddog_sidecar_send_ffe_metrics(
+    ddog_Slice_FfeExposure exposure_slice = {
+        .ptr = ffi_exposures,
+        .len = exposure_count,
+    };
+
+    bool flushed = ddtrace_ffi_try(
+        "Failed sending FFE exposure batch to sidecar",
+        ddog_sidecar_send_ffe_exposure_batch(
             &DDTRACE_G(sidecar),
             ddtrace_sidecar_instance_id,
             &DDTRACE_G(sidecar_queue_id),
-            dd_zend_string_to_CharSlice(endpoint),
-            payload));
+            &context,
+            exposure_slice));
+
+    efree(ffi_exposures);
+    ddtrace_ffe_clear_exposures();
+    return flushed;
 }
 
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags) {

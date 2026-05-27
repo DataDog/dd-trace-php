@@ -96,25 +96,6 @@ typedef struct ddog_Slice_CChar {
  */
 typedef struct ddog_Slice_CChar ddog_CharSlice;
 
-typedef struct ddog_Slice_U8 {
-  /**
-   * Should be non-null and suitably aligned for the underlying type. It is
-   * allowed but not recommended for the pointer to be null when the len is
-   * zero.
-   */
-  const uint8_t *ptr;
-  /**
-   * The number of bytes that `.ptr` points to. Must be less than or equal
-   * to [isize::MAX].
-   */
-  uintptr_t len;
-} ddog_Slice_U8;
-
-/**
- * Use to represent arbitrary binary byte slices (e.g. encoded protobuf).
- */
-typedef struct ddog_Slice_U8 ddog_ByteSlice;
-
 typedef enum ddog_Option_Error_Tag {
   DDOG_OPTION_ERROR_SOME_ERROR,
   DDOG_OPTION_ERROR_NONE_ERROR,
@@ -529,6 +510,16 @@ typedef struct ddog_Tag {
 
 typedef struct _zend_string *ddog_OwnedZendString;
 
+struct ddog_FfeResult {
+  ddog_OwnedZendString value_json;
+  ddog_OwnedZendString variant;
+  ddog_OwnedZendString allocation_key;
+  int32_t reason;
+  int32_t error_code;
+  bool do_log;
+  bool valid;
+};
+
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
                                                          enum ddog_DynamicConfigUpdateMode mode);
@@ -714,9 +705,9 @@ typedef struct ddog_Vec_DebuggerPayload {
 typedef uint64_t ddog_QueueId;
 
 typedef struct ddog_FfeAttribute {
-  const char *key;
+  ddog_CharSlice key;
   int32_t value_type;
-  const char *string_value;
+  ddog_CharSlice string_value;
   double number_value;
   bool bool_value;
 } ddog_FfeAttribute;
@@ -1231,6 +1222,61 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_top_level;
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
+
+typedef struct ddog_FfeTelemetryContext {
+  ddog_CharSlice service;
+  ddog_CharSlice env;
+  ddog_CharSlice version;
+} ddog_FfeTelemetryContext;
+
+typedef struct ddog_FfeExposure {
+  uint64_t timestamp_ms;
+  ddog_CharSlice flag_key;
+  ddog_CharSlice subject_id;
+  /**
+   * UTF-8 JSON object. Empty, invalid, or non-object JSON is serialized as
+   * an empty subject attribute object.
+   */
+  ddog_CharSlice subject_attributes_json;
+  ddog_CharSlice allocation_key;
+  ddog_CharSlice variant;
+} ddog_FfeExposure;
+
+typedef struct ddog_Slice_FfeExposure {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeExposure *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeExposure;
+
+typedef struct ddog_FfeEvaluationMetric {
+  ddog_CharSlice flag_key;
+  ddog_CharSlice variant;
+  ddog_CharSlice reason;
+  ddog_CharSlice error_type;
+  ddog_CharSlice allocation_key;
+} ddog_FfeEvaluationMetric;
+
+typedef struct ddog_Slice_FfeEvaluationMetric {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeEvaluationMetric *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeEvaluationMetric;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,

@@ -8,20 +8,13 @@ use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
-use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
 {
-    public function testCreateBuildsDefaultRemoteConfigBackedClient()
-    {
-        $this->assertInstanceOf(Client::class, Client::create());
-    }
-
     public function testValueMethodsReturnEvaluatedValues()
     {
         $evaluator = new ClientTestEvaluator();
@@ -32,7 +25,7 @@ final class ClientTest extends TestCase
             ->setSuccess('float.flag', 3.5)
             ->setSuccess('object.flag', array('enabled' => true));
 
-        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
+        $client = $this->clientForEvaluator($evaluator, new RecordingLogger());
 
         $this->assertTrue($client->getBooleanValue('bool.flag', false));
         $this->assertSame('blue', $client->getStringValue('string.flag', 'red'));
@@ -54,7 +47,7 @@ final class ClientTest extends TestCase
             array('runtime' => 'test', 'hasConfig' => true)
         );
 
-        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
+        $client = $this->clientForEvaluator($evaluator, new RecordingLogger());
 
         $details = $client->getBooleanDetails('checkout-redesign', false);
 
@@ -72,7 +65,7 @@ final class ClientTest extends TestCase
         $evaluator = new ClientTestEvaluator();
         $evaluator->setSuccess('flag.context', 'on');
 
-        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
+        $client = $this->clientForEvaluator($evaluator, new RecordingLogger());
         $client->getStringValue('flag.context', 'off', array(
             'targetingKey' => 123,
             'attributes' => array(
@@ -97,65 +90,10 @@ final class ClientTest extends TestCase
         ), $calls[0]['attributes']);
     }
 
-    public function testEvaluationCompletedHookReceivesNormalizedContextAndDetails()
-    {
-        $evaluator = new ClientTestEvaluator();
-        $evaluator->setSuccess(
-            'flag.completed',
-            true,
-            EvaluationReason::SPLIT,
-            'treatment',
-            array('owner' => 'ffe'),
-            array('allocationKey' => 'alloc-1', 'doLog' => true)
-        );
-        $hook = new RecordingEvaluationCompletedHook();
-
-        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter(), $hook);
-        $details = $client->getBooleanDetails('flag.completed', false, array(
-            'targetingKey' => '',
-            'attributes' => array(
-                'plan' => 'pro',
-                'age' => 41,
-                'nested' => array('drop'),
-            ),
-        ));
-
-        $evaluations = $hook->evaluations();
-        $this->assertCount(1, $evaluations);
-        $evaluation = $evaluations[0];
-
-        $this->assertSame('flag.completed', $evaluation->getFlagKey());
-        $this->assertSame(EvaluationType::BOOLEAN, $evaluation->getValueType());
-        $this->assertFalse($evaluation->getDefaultValue());
-        $this->assertSame('', $evaluation->getTargetingKey());
-        $this->assertSame(array('plan' => 'pro', 'age' => 41), $evaluation->getAttributes());
-        $this->assertSame($details->getValue(), $evaluation->getValue());
-        $this->assertSame(EvaluationReason::SPLIT, $evaluation->getReason());
-        $this->assertSame('treatment', $evaluation->getVariant());
-        $this->assertNull($evaluation->getErrorCode());
-        $this->assertNull($evaluation->getErrorMessage());
-        $this->assertSame('alloc-1', $evaluation->getAllocationKey());
-        $this->assertTrue($evaluation->shouldLogExposure());
-    }
-
-    public function testEvaluationCompletedHookFailureDoesNotChangeEvaluationResult()
-    {
-        $evaluator = new ClientTestEvaluator();
-        $evaluator->setSuccess('flag.completed.failure', 'on');
-
-        $client = Client::createWithDependencies(
-            $evaluator,
-            new RecordingWarningEmitter(),
-            new ThrowingEvaluationCompletedHook()
-        );
-
-        $this->assertSame('on', $client->getStringValue('flag.completed.failure', 'off'));
-    }
-
     public function testUnavailableRuntimeReturnsDefaultWithProviderNotReadyDetailsAndWarning()
     {
-        $warnings = new RecordingWarningEmitter();
-        $client = Client::createWithDependencies(null, $warnings);
+        $logger = new RecordingLogger();
+        $client = new Client($logger);
 
         $value = $client->getBooleanValue('checkout-redesign', true);
         $details = $client->getStringDetails('checkout-copy', 'fallback');
@@ -176,19 +114,19 @@ final class ClientTest extends TestCase
             'configuration_missing',
             'runtime_unavailable',
         ), true));
-        $this->assertSame(array($details->getErrorMessage()), $warnings->warnings());
+        $this->assertSame(array($details->getErrorMessage()), $logger->warnings());
     }
 
     public function testWarningIsEmittedOncePerClientNotOncePerEvaluation()
     {
-        $warnings = new RecordingWarningEmitter();
-        $client = Client::createWithDependencies(null, $warnings);
+        $logger = new RecordingLogger();
+        $client = new Client($logger);
 
         $client->getBooleanValue('flag-1', false);
         $client->getBooleanValue('flag-2', false);
         $client->getStringDetails('flag-3', 'fallback');
 
-        $this->assertCount(1, $warnings->warnings());
+        $this->assertCount(1, $logger->warnings());
     }
 
     /**
@@ -196,7 +134,7 @@ final class ClientTest extends TestCase
      */
     public function testTypedMethodsRejectInvalidDefaults($method, $defaultValue)
     {
-        $client = Client::createWithDependencies(new ClientTestEvaluator(), new RecordingWarningEmitter());
+        $client = $this->clientForEvaluator(new ClientTestEvaluator(), new RecordingLogger());
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -211,6 +149,16 @@ final class ClientTest extends TestCase
             'integer' => array('getIntegerDetails', 1.2),
             'float' => array('getFloatDetails', '1.2'),
         );
+    }
+
+    private function clientForEvaluator(Evaluator $evaluator, LoggerInterface $logger)
+    {
+        $client = new Client($logger);
+        (function () use ($evaluator) {
+            $this->evaluator = $evaluator;
+        })->call($client);
+
+        return $client;
     }
 }
 
@@ -291,40 +239,30 @@ final class ClientTestEvaluator implements Evaluator
     }
 }
 
-final class RecordingWarningEmitter implements WarningEmitter
+final class RecordingLogger implements LoggerInterface
 {
     private $warnings = array();
 
-    public function warning($message)
+    public function debug($message, array $context = array())
+    {
+    }
+
+    public function warning($message, array $context = array())
     {
         $this->warnings[] = $message;
+    }
+
+    public function error($message, array $context = array())
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
     }
 
     public function warnings()
     {
         return $this->warnings;
-    }
-}
-
-final class RecordingEvaluationCompletedHook implements EvaluationCompletedHook
-{
-    private $evaluations = array();
-
-    public function evaluationCompleted(EvaluationCompleted $evaluation)
-    {
-        $this->evaluations[] = $evaluation;
-    }
-
-    public function evaluations()
-    {
-        return $this->evaluations;
-    }
-}
-
-final class ThrowingEvaluationCompletedHook implements EvaluationCompletedHook
-{
-    public function evaluationCompleted(EvaluationCompleted $evaluation)
-    {
-        throw new \RuntimeException('hook failed');
     }
 }

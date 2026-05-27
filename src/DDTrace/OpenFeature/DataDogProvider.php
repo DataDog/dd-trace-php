@@ -8,10 +8,8 @@ use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
-use DDTrace\FeatureFlags\Internal\Exposure\ExposureHook;
-use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
-use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\TriggerErrorLogger;
 use OpenFeature\implementation\provider\AbstractProvider;
 use OpenFeature\implementation\provider\ResolutionDetailsBuilder;
 use OpenFeature\implementation\provider\ResolutionError;
@@ -26,35 +24,10 @@ final class DataDogProvider extends AbstractProvider
     protected static string $NAME = 'Datadog';
 
     private FeatureFlagsClient $client;
-    private WarningEmitter $warningEmitter;
-    private bool $warnedAboutNonProductionRuntime = false;
 
-    public function __construct()
+    public function __construct(?LoggerInterface $logger = null)
     {
-        $this->client = FeatureFlagsClient::createWithDependencies(
-            null,
-            new NoopWarningEmitter(),
-            ExposureHook::createDefault()
-        );
-        $this->warningEmitter = new TriggerErrorWarningEmitter();
-    }
-
-    /**
-     * @internal Tests and Datadog-owned bridge adapters only.
-     */
-    public static function createWithDependencies(
-        ?FeatureFlagsClient $client = null,
-        ?WarningEmitter $warningEmitter = null
-    ): self {
-        $provider = new self();
-        if ($client !== null) {
-            $provider->client = $client;
-        }
-        if ($warningEmitter !== null) {
-            $provider->warningEmitter = $warningEmitter;
-        }
-
-        return $provider;
+        $this->client = new FeatureFlagsClient($logger ?: new TriggerErrorLogger());
     }
 
     public function resolveBooleanValue(
@@ -107,7 +80,6 @@ final class DataDogProvider extends AbstractProvider
         ?EvaluationContext $context
     ): ResolutionDetailsInterface {
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $this->normalizeContext($context));
-        $this->warnIfNonProductionRuntime($details);
 
         $builder = (new ResolutionDetailsBuilder())
             ->withValue($details->getValue())
@@ -168,26 +140,6 @@ final class DataDogProvider extends AbstractProvider
             'targetingKey' => $context->getTargetingKey(),
             'attributes' => $attributes,
         ];
-    }
-
-    private function warnIfNonProductionRuntime(EvaluationDetails $details): void
-    {
-        if ($this->warnedAboutNonProductionRuntime) {
-            return;
-        }
-
-        $providerState = $details->getProviderState();
-        if (!array_key_exists('productionRuntime', $providerState) || $providerState['productionRuntime'] !== false) {
-            return;
-        }
-
-        $message = $details->getErrorMessage();
-        if (!is_string($message) || $message === '') {
-            $message = 'Datadog-backed PHP OpenFeature evaluation is not fully enabled yet.';
-        }
-
-        $this->warningEmitter->warning($message);
-        $this->warnedAboutNonProductionRuntime = true;
     }
 
     private function mapReason(string $reason): string
