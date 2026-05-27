@@ -1273,30 +1273,35 @@ impl Profiler {
 
                 let message = self.prepare_sample_message(frames, sample_values, labels, timestamp);
 
-                // Track allocation for heap live profiling if enabled.
-                // Samples will be emitted in batch at profile export time.
-                // Arc::clone the frames/labels out of the message so the tracker
-                // and the in-flight sample share one allocation each.
-                if self.is_heap_live_enabled() {
-                    let tracked = LiveHeapSample {
+                // Pre-clone Arcs before try_send consumes `message`, but only
+                // insert into the tracker after a successful send to avoid
+                // phantom entries when the channel is full.
+                let tracked = if self.is_heap_live_enabled() {
+                    Some(LiveHeapSample {
                         key: Arc::clone(&message.key),
                         frames: Arc::clone(&message.value.frames),
                         labels: Arc::clone(&message.value.labels),
                         allocation_size: alloc_size,
-                    };
-                    if self.track_allocation(ptr as usize, tracked) {
-                        trace!(
-                            "Tracked allocation at {:#x} ({} bytes) for batched heap-live emission",
-                            ptr as usize,
-                            alloc_size
-                        );
-                    }
-                }
+                    })
+                } else {
+                    None
+                };
 
                 match self.message_sender.try_send(ProfilerMessage::Sample(message)) {
-                    Ok(_) => trace!(
-                        "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
-                    ),
+                    Ok(_) => {
+                        trace!(
+                            "Sent stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, {alloc_samples} allocations, and {interrupt_count} time interrupts to profiler."
+                        );
+                        if let Some(tracked) = tracked {
+                            if self.track_allocation(ptr as usize, tracked) {
+                                trace!(
+                                    "Tracked allocation at {:#x} ({} bytes) for batched heap-live emission",
+                                    ptr as usize,
+                                    alloc_size
+                                );
+                            }
+                        }
+                    }
                     Err(err) => warn!(
                         "Failed to send stack sample of {depth} frames, {n_labels} labels, {alloc_size} bytes allocated, and {alloc_samples} allocations to profiler: {err}"
                     ),
