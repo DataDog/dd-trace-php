@@ -379,9 +379,17 @@ impl TimeCollector {
 
         trace!("Collecting {tracker_len} batched heap-live samples");
 
-        for entry in self.live_heap_tracker.iter() {
-            let tracked = entry.value();
+        // Snapshot into a Vec before processing: each shard lock is held only
+        // for the duration of the Arc::clone calls, not for handle_sample_message.
+        // This prevents concurrent efree calls on PHP threads from stalling on
+        // shards that the TimeCollector is reading during a full export iteration.
+        let snapshot: Vec<LiveHeapSample> = self
+            .live_heap_tracker
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect();
 
+        for tracked in snapshot {
             // Build sample_values with only heap-live-samples and heap-live-size set
             let sample_values: Vec<i64> = tracked
                 .key
