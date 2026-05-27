@@ -312,6 +312,9 @@ ARG RUST_NIGHTLY_VERSION="-2025-06-13"
 # Mount a cache into /rust/cargo if you want to pre-fetch packages or something
 ENV CARGO_HOME=/rust/cargo
 ENV RUSTUP_HOME=/rust/rustup
+
+# Using minimal and adding additional components avoids the HTML docs, which
+# are unnecessary bloat.
 RUN mkdir -p -v "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && chmod -R 777 "${CARGO_HOME}" "${RUSTUP_HOME}" \
     && MARCH=$(uname -m) \
