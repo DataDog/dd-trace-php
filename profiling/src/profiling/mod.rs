@@ -42,7 +42,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::hash::{BuildHasher, Hash, Hasher};
 use std::num::NonZeroI64;
-use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicPtr, AtomicU32, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -347,6 +347,9 @@ pub struct Profiler {
     /// Wrapped in Arc to share with TimeCollector for batched sample emission.
     /// Uses a fast pointer hasher since addresses are already well-distributed.
     live_heap_tracker: Arc<HeapTracker>,
+    /// Cached entry count for live_heap_tracker. A single Relaxed load replaces
+    /// the 16 shard read-locks that DashMap::len() acquires per sampled allocation.
+    live_heap_tracker_count: Arc<AtomicUsize>,
 }
 
 struct TimeCollector {
@@ -357,6 +360,8 @@ struct TimeCollector {
     upload_period: Duration,
     /// Shared tracker for batched heap-live sample emission at export time.
     live_heap_tracker: Arc<HeapTracker>,
+    /// See Profiler::live_heap_tracker_count.
+    live_heap_tracker_count: Arc<AtomicUsize>,
 }
 
 impl TimeCollector {
@@ -367,7 +372,7 @@ impl TimeCollector {
         profiles: &mut HashMap<Arc<ProfileIndex>, InternalProfile>,
         started_at: &WallTime,
     ) {
-        let tracker_len = self.live_heap_tracker.len();
+        let tracker_len = self.live_heap_tracker_count.load(Ordering::Relaxed);
         if tracker_len == 0 {
             return;
         }
@@ -888,6 +893,7 @@ impl Profiler {
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
         let (upload_sender, upload_receiver) = crossbeam_channel::bounded(UPLOAD_CHANNEL_CAPACITY);
         let live_heap_tracker = Arc::new(DashMap::with_hasher(PointerHasherBuilder));
+        let live_heap_tracker_count = Arc::new(AtomicUsize::new(0));
         let time_collector = TimeCollector {
             fork_barrier: fork_barrier.clone(),
             interrupt_manager: interrupt_manager.clone(),
@@ -895,6 +901,7 @@ impl Profiler {
             upload_sender: upload_sender.clone(),
             upload_period: UPLOAD_PERIOD,
             live_heap_tracker: live_heap_tracker.clone(),
+            live_heap_tracker_count: live_heap_tracker_count.clone(),
         };
 
         // SAFETY: this is set to a noop version if ddtrace wasn't found, and
@@ -935,6 +942,7 @@ impl Profiler {
             sample_types_filter,
             system_settings: AtomicPtr::new(system_settings as *const _ as *mut _),
             live_heap_tracker,
+            live_heap_tracker_count,
         }
     }
 
@@ -991,21 +999,28 @@ impl Profiler {
     /// Track an allocation for live heap profiling.
     /// Returns true if tracked, false if tracking is disabled or limit reached.
     pub(crate) fn track_allocation(&self, ptr: usize, sample: LiveHeapSample) -> bool {
-        // Best-effort cap: in ZTS the len() check and insert race, so the map
-        // can briefly exceed LIVE_HEAP_TRACKER_MAX_SIZE.
-        if self.live_heap_tracker.len() >= LIVE_HEAP_TRACKER_MAX_SIZE {
+        // Best-effort cap: in ZTS the count check and insert still race, so
+        // the map can briefly exceed LIVE_HEAP_TRACKER_MAX_SIZE. A single
+        // Relaxed load is equivalent correctness-wise to the former
+        // DashMap::len() but avoids 16 shard read-locks per sampled alloc.
+        if self.live_heap_tracker_count.load(Ordering::Relaxed) >= LIVE_HEAP_TRACKER_MAX_SIZE {
             return false;
         }
 
-        self.live_heap_tracker.insert(ptr, sample);
+        let old = self.live_heap_tracker.insert(ptr, sample);
+        if old.is_none() {
+            self.live_heap_tracker_count.fetch_add(1, Ordering::Relaxed);
+        }
         true
     }
 
     /// Untrack an allocation. Returns the sample if it was tracked.
     pub(crate) fn untrack_allocation(&self, ptr: usize) -> Option<LiveHeapSample> {
-        self.live_heap_tracker
-            .remove(&ptr)
-            .map(|(_, sample)| sample)
+        let result = self.live_heap_tracker.remove(&ptr).map(|(_, sample)| sample);
+        if result.is_some() {
+            self.live_heap_tracker_count.fetch_sub(1, Ordering::Relaxed);
+        }
+        result
     }
 
     pub fn send_sample(
@@ -1140,6 +1155,7 @@ impl Profiler {
 
             // Clear live heap tracker to avoid stale entries from parent process
             profiler.live_heap_tracker.clear();
+            profiler.live_heap_tracker_count.store(0, Ordering::Relaxed);
 
             // But we're not 100% sure everything is safe to drop, notably the
             // join handles, so we leak the rest.
