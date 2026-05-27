@@ -2986,10 +2986,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     size_t idx = 0;
     zend_string *key;
     zval *value;
-    struct ddog_FfeResult *result;
-    const char *value_json;
-    const char *variant;
-    const char *allocation_key;
+    struct ddog_FfeResult result;
 
     ZEND_PARSE_PARAMETERS_START(4, 4)
         Z_PARAM_STR(flag_key)
@@ -3054,35 +3051,29 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         efree(c_attrs);
     }
 
-    if (!result) {
+    if (!result.valid) {
         RETURN_NULL();
     }
 
-    value_json = ddog_ffe_result_value(result);
-    variant = ddog_ffe_result_variant(result);
-    allocation_key = ddog_ffe_result_allocation_key(result);
-
     array_init(return_value);
-    if (value_json) {
-        add_assoc_string(return_value, "value_json", (char *) value_json);
+    if (result.value_json) {
+        add_assoc_str(return_value, "value_json", result.value_json);
     } else {
         add_assoc_null(return_value, "value_json");
     }
-    if (variant) {
-        add_assoc_string(return_value, "variant", (char *) variant);
+    if (result.variant) {
+        add_assoc_str(return_value, "variant", result.variant);
     } else {
         add_assoc_null(return_value, "variant");
     }
-    if (allocation_key) {
-        add_assoc_string(return_value, "allocation_key", (char *) allocation_key);
+    if (result.allocation_key) {
+        add_assoc_str(return_value, "allocation_key", result.allocation_key);
     } else {
         add_assoc_null(return_value, "allocation_key");
     }
-    add_assoc_long(return_value, "reason", ddog_ffe_result_reason(result));
-    add_assoc_long(return_value, "error_code", ddog_ffe_result_error_code(result));
-    add_assoc_bool(return_value, "do_log", ddog_ffe_result_do_log(result));
-
-    ddog_ffe_free_result(result);
+    add_assoc_long(return_value, "reason", result.reason);
+    add_assoc_long(return_value, "error_code", result.error_code);
+    add_assoc_bool(return_value, "do_log", result.do_log);
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {

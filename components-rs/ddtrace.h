@@ -67,25 +67,11 @@ bool ddog_ffe_has_config(void);
 
 uint64_t ddog_ffe_config_version(void);
 
-struct ddog_FfeResult *ddog_ffe_evaluate(ddog_CharSlice flag_key,
-                                         int32_t expected_type,
-                                         ddog_CharSlice targeting_key,
-                                         const struct ddog_FfeAttribute *attributes,
-                                         uintptr_t attributes_count);
-
-const char *ddog_ffe_result_value(const struct ddog_FfeResult *result);
-
-const char *ddog_ffe_result_variant(const struct ddog_FfeResult *result);
-
-const char *ddog_ffe_result_allocation_key(const struct ddog_FfeResult *result);
-
-int32_t ddog_ffe_result_reason(const struct ddog_FfeResult *result);
-
-int32_t ddog_ffe_result_error_code(const struct ddog_FfeResult *result);
-
-bool ddog_ffe_result_do_log(const struct ddog_FfeResult *result);
-
-void ddog_ffe_free_result(struct ddog_FfeResult *result);
+struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
+                                        int32_t expected_type,
+                                        ddog_CharSlice targeting_key,
+                                        const struct ddog_FfeAttribute *attributes,
+                                        uintptr_t attributes_count);
 
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 

@@ -510,6 +510,16 @@ typedef struct ddog_Tag {
 
 typedef struct _zend_string *ddog_OwnedZendString;
 
+struct ddog_FfeResult {
+  ddog_OwnedZendString value_json;
+  ddog_OwnedZendString variant;
+  ddog_OwnedZendString allocation_key;
+  int32_t reason;
+  int32_t error_code;
+  bool do_log;
+  bool valid;
+};
+
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
                                                          enum ddog_DynamicConfigUpdateMode mode);

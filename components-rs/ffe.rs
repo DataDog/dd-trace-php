@@ -1,3 +1,4 @@
+use crate::bytes::{init_zend_string, OwnedZendString};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
@@ -5,7 +6,6 @@ use datadog_ffe::rules_based::{
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ffi::{c_char, CString};
 use std::sync::Arc;
 
 struct FfeState {
@@ -90,13 +90,15 @@ const TYPE_FLOAT: i32 = 2;
 const TYPE_BOOLEAN: i32 = 3;
 const TYPE_OBJECT: i32 = 4;
 
+#[repr(C)]
 pub struct FfeResult {
-    pub value_json: CString,
-    pub variant: Option<CString>,
-    pub allocation_key: Option<CString>,
+    pub value_json: Option<OwnedZendString>,
+    pub variant: Option<OwnedZendString>,
+    pub allocation_key: Option<OwnedZendString>,
     pub reason: i32,
     pub error_code: i32,
     pub do_log: bool,
+    pub valid: bool,
 }
 
 #[repr(C)]
@@ -115,14 +117,14 @@ pub extern "C" fn ddog_ffe_evaluate(
     targeting_key: CharSlice<'_>,
     attributes: *const FfeAttribute<'_>,
     attributes_count: usize,
-) -> *mut FfeResult {
+) -> FfeResult {
     if flag_key.as_raw_parts().0.is_null() {
-        return std::ptr::null_mut();
+        return invalid_result();
     }
 
     let flag_key = match flag_key.try_to_utf8() {
         Ok(flag_key) => flag_key,
-        Err(_) => return std::ptr::null_mut(),
+        Err(_) => return invalid_result(),
     };
 
     let expected_type = match expected_type {
@@ -131,7 +133,7 @@ pub extern "C" fn ddog_ffe_evaluate(
         TYPE_FLOAT => ExpectedFlagType::Float,
         TYPE_BOOLEAN => ExpectedFlagType::Boolean,
         TYPE_OBJECT => ExpectedFlagType::Object,
-        _ => return std::ptr::null_mut(),
+        _ => return invalid_result(),
     };
 
     let targeting_key = if targeting_key.as_raw_parts().0.is_null() {
@@ -156,77 +158,8 @@ pub extern "C" fn ddog_ffe_evaluate(
             ffe::now(),
         );
 
-        Box::into_raw(Box::new(result_from_assignment(assignment)))
+        result_from_assignment(assignment)
     })
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_ffe_result_value(result: *const FfeResult) -> *const c_char {
-    if result.is_null() {
-        return std::ptr::null();
-    }
-
-    unsafe { &*result }.value_json.as_ptr()
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_ffe_result_variant(result: *const FfeResult) -> *const c_char {
-    if result.is_null() {
-        return std::ptr::null();
-    }
-
-    unsafe { &*result }
-        .variant
-        .as_ref()
-        .map(|value| value.as_ptr())
-        .unwrap_or(std::ptr::null())
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_ffe_result_allocation_key(result: *const FfeResult) -> *const c_char {
-    if result.is_null() {
-        return std::ptr::null();
-    }
-
-    unsafe { &*result }
-        .allocation_key
-        .as_ref()
-        .map(|value| value.as_ptr())
-        .unwrap_or(std::ptr::null())
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_ffe_result_reason(result: *const FfeResult) -> i32 {
-    if result.is_null() {
-        return REASON_ERROR;
-    }
-
-    unsafe { &*result }.reason
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_ffe_result_error_code(result: *const FfeResult) -> i32 {
-    if result.is_null() {
-        return ERROR_GENERAL;
-    }
-
-    unsafe { &*result }.error_code
-}
-
-#[no_mangle]
-pub extern "C" fn ddog_ffe_result_do_log(result: *const FfeResult) -> bool {
-    if result.is_null() {
-        return false;
-    }
-
-    unsafe { &*result }.do_log
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ddog_ffe_free_result(result: *mut FfeResult) {
-    if !result.is_null() {
-        drop(Box::from_raw(result));
-    }
 }
 
 fn parse_attributes(
@@ -275,11 +208,13 @@ fn parse_attributes(
 fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) -> FfeResult {
     match assignment {
         Ok(assignment) => FfeResult {
-            value_json: string_to_cstring(assignment_value_to_json(&assignment.value)),
-            variant: Some(string_to_cstring(
+            value_json: Some(string_to_zend_string(assignment_value_to_json(
+                &assignment.value,
+            ))),
+            variant: Some(string_to_zend_string(
                 assignment.variation_key.as_str().to_string(),
             )),
-            allocation_key: Some(string_to_cstring(
+            allocation_key: Some(string_to_zend_string(
                 assignment.allocation_key.as_str().to_string(),
             )),
             reason: match assignment.reason {
@@ -289,6 +224,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
             },
             error_code: ERROR_NONE,
             do_log: assignment.do_log,
+            valid: true,
         },
         Err(error) => {
             let (error_code, reason) = match &error {
@@ -304,14 +240,27 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
             };
 
             FfeResult {
-                value_json: string_to_cstring("null".to_string()),
+                value_json: Some(string_to_zend_string("null".to_string())),
                 variant: None,
                 allocation_key: None,
                 reason,
                 error_code,
                 do_log: false,
+                valid: true,
             }
         }
+    }
+}
+
+fn invalid_result() -> FfeResult {
+    FfeResult {
+        value_json: None,
+        variant: None,
+        allocation_key: None,
+        reason: REASON_ERROR,
+        error_code: ERROR_GENERAL,
+        do_log: false,
+        valid: false,
     }
 }
 
@@ -327,14 +276,72 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
     }
 }
 
-fn string_to_cstring(value: String) -> CString {
-    CString::new(value).unwrap_or_default()
+fn string_to_zend_string(value: String) -> OwnedZendString {
+    init_zend_string(value.as_bytes())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::ffi::CStr;
+    use crate::bytes::ZendString;
+    use std::alloc::{alloc_zeroed, dealloc, Layout};
+    use std::ffi::CString;
+    use std::mem;
+    use std::ptr;
+    use std::ptr::NonNull;
+    use std::sync::Once;
+
+    static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
+
+    fn setup_zend_string_functions() {
+        INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {
+            crate::bytes::ddog_init_span_func(
+                test_free_zend_string,
+                test_addref_zend_string,
+                test_init_zend_string,
+            );
+        });
+    }
+
+    extern "C" fn test_addref_zend_string(value: &mut ZendString) {
+        value.refcount = value.refcount.saturating_add(1);
+    }
+
+    extern "C" fn test_init_zend_string(value: CharSlice<'_>) -> OwnedZendString {
+        let bytes = value.as_bytes();
+        let layout = zend_string_layout(bytes.len());
+        let raw = unsafe { alloc_zeroed(layout) as *mut ZendString };
+        let raw = NonNull::new(raw).expect("test allocation should succeed");
+
+        unsafe {
+            let zend_string = raw.as_ptr();
+            (*zend_string).refcount = 1;
+            (*zend_string).type_info = 0;
+            (*zend_string).h = 0;
+            (*zend_string).len = bytes.len();
+            ptr::copy_nonoverlapping(bytes.as_ptr(), (*zend_string).val.as_mut_ptr(), bytes.len());
+            *(*zend_string).val.as_mut_ptr().add(bytes.len()) = 0;
+        }
+
+        OwnedZendString(raw)
+    }
+
+    extern "C" fn test_free_zend_string(value: OwnedZendString) {
+        unsafe {
+            let raw = value.0.as_ptr();
+            let layout = zend_string_layout((*raw).len);
+            dealloc(raw as *mut u8, layout);
+        }
+        mem::forget(value);
+    }
+
+    fn zend_string_layout(len: usize) -> Layout {
+        Layout::from_size_align(
+            mem::size_of::<ZendString>() + len,
+            mem::align_of::<ZendString>(),
+        )
+        .expect("test zend_string layout should be valid")
+    }
 
     fn char_slice(value: &CString) -> CharSlice<'_> {
         unsafe { CharSlice::from_raw_parts(value.as_ptr(), value.as_bytes().len()) }
@@ -390,6 +397,7 @@ mod tests {
 
     #[test]
     fn empty_targeting_key_is_not_dropped() {
+        setup_zend_string_functions();
         clear_config();
         let config =
             CString::new(EMPTY_TARGETING_KEY_CONFIG).expect("test fixture is valid cstring");
@@ -405,19 +413,14 @@ mod tests {
             0,
         );
 
-        assert!(!result.is_null());
-        unsafe {
-            assert_eq!((*result).reason, REASON_SPLIT);
-            assert_eq!((*result).error_code, ERROR_NONE);
-            assert_eq!((*result).do_log, true);
-            assert_eq!(
-                CStr::from_ptr(ddog_ffe_result_value(result))
-                    .to_str()
-                    .unwrap(),
-                r#""empty-targeting-key""#
-            );
-            ddog_ffe_free_result(result);
-        }
+        assert!(result.valid);
+        assert_eq!(result.reason, REASON_SPLIT);
+        assert_eq!(result.error_code, ERROR_NONE);
+        assert_eq!(result.do_log, true);
+        assert_eq!(
+            std::str::from_utf8(result.value_json.as_ref().unwrap().as_ref()).unwrap(),
+            r#""empty-targeting-key""#
+        );
         clear_config();
     }
 
