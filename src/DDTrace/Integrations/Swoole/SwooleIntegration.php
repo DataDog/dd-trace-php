@@ -68,6 +68,14 @@ class SwooleIntegration extends Integration
                     $rootSpan->meta["http.useragent"] = $headers["user-agent"];
                 }
 
+                // Unconditionally collect security-testing headers (APPSEC-62412)
+                if (isset($headers['x-datadog-endpoint-scan'])) {
+                    $rootSpan->meta['http.request.headers.x-datadog-endpoint-scan'] = $headers['x-datadog-endpoint-scan'];
+                }
+                if (isset($headers['x-datadog-security-test'])) {
+                    $rootSpan->meta['http.request.headers.x-datadog-security-test'] = $headers['x-datadog-security-test'];
+                }
+
                 if (!empty(\dd_trace_env_config('DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED'))) {
                     $rawContent = $request->rawContent();
                     if ($rawContent) {
