@@ -576,6 +576,7 @@ fn apple_linker_flags() {
     const ALLOWED_UNDEFINED_SYMBOLS: &[&str] = &[
         // Zend memory allocator
         "___zend_malloc",
+        "___zend_strdup",
         "__efree",
         "__emalloc",
         "__emalloc_40",
