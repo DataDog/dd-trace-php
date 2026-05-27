@@ -82,9 +82,7 @@ pub mod allocation_ge84;
 pub mod allocation_le83;
 
 /// Default sampling interval in bytes (4 MiB).
-// SAFETY: value is > 0.
-pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 =
-    unsafe { NonZero::new_unchecked(1024 * 4096) };
+pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 = NonZero::new(1024 * 4096).unwrap();
 
 /// Sampling distance feed into poison sampling algo. This must be > 0.
 pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
