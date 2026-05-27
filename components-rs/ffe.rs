@@ -2,9 +2,10 @@ use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
+use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, CString};
 use std::sync::Arc;
 
 struct FfeState {
@@ -36,12 +37,12 @@ pub fn clear_config() {
 }
 
 #[no_mangle]
-pub extern "C" fn ddog_ffe_load_config(json: *const c_char) -> bool {
-    if json.is_null() {
+pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
+    if json.as_raw_parts().0.is_null() {
         return false;
     }
 
-    let json = match unsafe { CStr::from_ptr(json) }.to_str() {
+    let json = match json.try_to_utf8() {
         Ok(json) => json,
         Err(_) => return false,
     };
@@ -99,27 +100,27 @@ pub struct FfeResult {
 }
 
 #[repr(C)]
-pub struct FfeAttribute {
-    pub key: *const c_char,
+pub struct FfeAttribute<'a> {
+    pub key: CharSlice<'a>,
     pub value_type: i32,
-    pub string_value: *const c_char,
+    pub string_value: CharSlice<'a>,
     pub number_value: f64,
     pub bool_value: bool,
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_evaluate(
-    flag_key: *const c_char,
+    flag_key: CharSlice<'_>,
     expected_type: i32,
-    targeting_key: *const c_char,
-    attributes: *const FfeAttribute,
+    targeting_key: CharSlice<'_>,
+    attributes: *const FfeAttribute<'_>,
     attributes_count: usize,
 ) -> *mut FfeResult {
-    if flag_key.is_null() {
+    if flag_key.as_raw_parts().0.is_null() {
         return std::ptr::null_mut();
     }
 
-    let flag_key = match unsafe { CStr::from_ptr(flag_key) }.to_str() {
+    let flag_key = match flag_key.try_to_utf8() {
         Ok(flag_key) => flag_key,
         Err(_) => return std::ptr::null_mut(),
     };
@@ -133,10 +134,10 @@ pub extern "C" fn ddog_ffe_evaluate(
         _ => return std::ptr::null_mut(),
     };
 
-    let targeting_key = if targeting_key.is_null() {
+    let targeting_key = if targeting_key.as_raw_parts().0.is_null() {
         None
     } else {
-        match unsafe { CStr::from_ptr(targeting_key) }.to_str() {
+        match targeting_key.try_to_utf8() {
             Ok(targeting_key) => Some(Str::from(targeting_key)),
             _ => None,
         }
@@ -229,7 +230,7 @@ pub unsafe extern "C" fn ddog_ffe_free_result(result: *mut FfeResult) {
 }
 
 fn parse_attributes(
-    attributes: *const FfeAttribute,
+    attributes: *const FfeAttribute<'_>,
     attributes_count: usize,
 ) -> HashMap<Str, Attribute> {
     let mut parsed = HashMap::new();
@@ -240,22 +241,22 @@ fn parse_attributes(
 
     let attributes = unsafe { std::slice::from_raw_parts(attributes, attributes_count) };
     for attribute in attributes {
-        if attribute.key.is_null() {
+        if attribute.key.as_raw_parts().0.is_null() {
             continue;
         }
 
-        let key = match unsafe { CStr::from_ptr(attribute.key) }.to_str() {
+        let key = match attribute.key.try_to_utf8() {
             Ok(key) => key,
             Err(_) => continue,
         };
 
         let value = match attribute.value_type {
             ATTR_TYPE_STRING => {
-                if attribute.string_value.is_null() {
+                if attribute.string_value.as_raw_parts().0.is_null() {
                     continue;
                 }
 
-                match unsafe { CStr::from_ptr(attribute.string_value) }.to_str() {
+                match attribute.string_value.try_to_utf8() {
                     Ok(value) => Attribute::from(value),
                     Err(_) => continue,
                 }
@@ -333,6 +334,11 @@ fn string_to_cstring(value: String) -> CString {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::CStr;
+
+    fn char_slice(value: &CString) -> CharSlice<'_> {
+        unsafe { CharSlice::from_raw_parts(value.as_ptr(), value.as_bytes().len()) }
+    }
 
     const EMPTY_CONFIG: &str = r#"{
         "createdAt": "2026-05-22T00:00:00.000Z",
@@ -345,7 +351,7 @@ mod tests {
 
     fn load_empty_config() -> bool {
         let json = CString::new(EMPTY_CONFIG).expect("test fixture is valid cstring");
-        ddog_ffe_load_config(json.as_ptr())
+        ddog_ffe_load_config(char_slice(&json))
     }
 
     const EMPTY_TARGETING_KEY_CONFIG: &str = r#"{
@@ -387,15 +393,14 @@ mod tests {
         clear_config();
         let config =
             CString::new(EMPTY_TARGETING_KEY_CONFIG).expect("test fixture is valid cstring");
-        assert!(ddog_ffe_load_config(config.as_ptr()));
+        assert!(ddog_ffe_load_config(char_slice(&config)));
 
         let flag_key =
             CString::new("empty.targeting.shard.flag").expect("test flag key is valid cstring");
-        let targeting_key = CString::new("").expect("empty string is a valid cstring");
         let result = ddog_ffe_evaluate(
-            flag_key.as_ptr(),
+            char_slice(&flag_key),
             TYPE_STRING,
-            targeting_key.as_ptr(),
+            CharSlice::from(""),
             std::ptr::null(),
             0,
         );

@@ -19,6 +19,12 @@
 #include "git.h"
 #include "threads.h"
 
+#define DDTRACE_FFE_TYPE_STRING 0
+#define DDTRACE_FFE_TYPE_INT 1
+#define DDTRACE_FFE_TYPE_FLOAT 2
+#define DDTRACE_FFE_TYPE_BOOL 3
+#define DDTRACE_FFE_TYPE_OBJECT 4
+
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
 extern zend_class_entry *ddtrace_ce_inferred_span_data;

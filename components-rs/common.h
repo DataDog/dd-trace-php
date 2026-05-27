@@ -695,9 +695,9 @@ typedef struct ddog_Vec_DebuggerPayload {
 typedef uint64_t ddog_QueueId;
 
 typedef struct ddog_FfeAttribute {
-  const char *key;
+  ddog_CharSlice key;
   int32_t value_type;
-  const char *string_value;
+  ddog_CharSlice string_value;
   double number_value;
   bool bool_value;
 } ddog_FfeAttribute;

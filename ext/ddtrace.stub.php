@@ -23,6 +23,36 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_STRING
+     */
+    const FFE_STRING = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_INT
+     */
+    const FFE_INT = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_FLOAT
+     */
+    const FFE_FLOAT = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_BOOL
+     */
+    const FFE_BOOL = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_OBJECT
+     */
+    const FFE_OBJECT = UNKNOWN;
+
     class SpanEvent implements \JsonSerializable {
         /**
          * SpanEvent constructor.
@@ -850,7 +880,7 @@ namespace DDTrace {
      * Evaluate a feature flag using the stored UFC configuration.
      *
      * @param string $flagKey The flag key to evaluate.
-     * @param int $expectedType The expected flag type (0=string, 1=int, 2=float, 3=bool, 4=object).
+     * @param int $expectedType One of the DDTrace\FFE_* constants.
      * @param string|null $targetingKey The targeting key for evaluation context.
      * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
      * @return array|null Associative array with keys: value_json, variant, allocation_key, reason, error_code, do_log. Null only if evaluation engine is unavailable.

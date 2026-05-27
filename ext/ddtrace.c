@@ -2964,28 +2964,24 @@ PHP_FUNCTION(DDTrace_ffe_config_version) {
 }
 
 PHP_FUNCTION(DDTrace_Testing_ffe_load_config) {
-    char *json;
-    size_t json_len;
+    zend_string *json;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_STRING(json, json_len)
+        Z_PARAM_STR(json)
     ZEND_PARSE_PARAMETERS_END();
 
-    UNUSED(json_len);
-    RETURN_BOOL(ddog_ffe_load_config(json));
+    RETURN_BOOL(ddog_ffe_load_config(dd_zend_string_to_CharSlice(json)));
 }
 
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
-    char *flag_key;
-    size_t flag_key_len;
+    zend_string *flag_key;
     zend_long type_id_zl;
-    char *targeting_key = NULL;
-    size_t targeting_key_len = 0;
+    zend_string *targeting_key = NULL;
     zval *attrs_zv;
     int32_t type_id;
     struct ddog_FfeAttribute *c_attrs = NULL;
     size_t attrs_count = 0;
-    const char *tk = NULL;
+    ddog_CharSlice targeting_key_slice = (ddog_CharSlice){0};
     HashTable *attributes;
     size_t idx = 0;
     zend_string *key;
@@ -2996,16 +2992,16 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     const char *allocation_key;
 
     ZEND_PARSE_PARAMETERS_START(4, 4)
-        Z_PARAM_STRING(flag_key, flag_key_len)
+        Z_PARAM_STR(flag_key)
         Z_PARAM_LONG(type_id_zl)
-        Z_PARAM_STRING_OR_NULL(targeting_key, targeting_key_len)
+        Z_PARAM_STR_OR_NULL(targeting_key)
         Z_PARAM_ARRAY(attrs_zv)
     ZEND_PARSE_PARAMETERS_END();
 
-    UNUSED(flag_key_len);
-
     type_id = (int32_t) type_id_zl;
-    tk = targeting_key != NULL ? targeting_key : NULL;
+    if (targeting_key != NULL) {
+        targeting_key_slice = dd_zend_string_to_CharSlice(targeting_key);
+    }
     attributes = Z_ARRVAL_P(attrs_zv);
     attrs_count = zend_hash_num_elements(attributes);
 
@@ -3016,11 +3012,11 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
                 continue;
             }
 
-            c_attrs[idx].key = ZSTR_VAL(key);
+            c_attrs[idx].key = dd_zend_string_to_CharSlice(key);
             switch (Z_TYPE_P(value)) {
                 case IS_STRING:
                     c_attrs[idx].value_type = 0;
-                    c_attrs[idx].string_value = Z_STRVAL_P(value);
+                    c_attrs[idx].string_value = dd_zend_string_to_CharSlice(Z_STR_P(value));
                     break;
                 case IS_LONG:
                     c_attrs[idx].value_type = 1;
@@ -3047,8 +3043,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         attrs_count = idx;
     }
 
-    ddtrace_process_remote_config_now();
-    result = ddog_ffe_evaluate(flag_key, type_id, tk, c_attrs, attrs_count);
+    result = ddog_ffe_evaluate(
+        dd_zend_string_to_CharSlice(flag_key),
+        type_id,
+        targeting_key_slice,
+        c_attrs,
+        attrs_count
+    );
     if (c_attrs) {
         efree(c_attrs);
     }

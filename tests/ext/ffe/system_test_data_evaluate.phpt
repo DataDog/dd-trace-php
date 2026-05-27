@@ -21,10 +21,23 @@ $fixtureRoot = $root . '/tests/FeatureFlags/ffe-system-test-data';
 
 require_feature_flag_api($root);
 
-final class FfeFixtureWarningEmitter implements \DDTrace\FeatureFlags\Internal\WarningEmitter
+final class FfeFixtureLogger implements \DDTrace\Log\LoggerInterface
 {
-    public function warning($message)
+    public function debug($message, array $context = array())
     {
+    }
+
+    public function warning($message, array $context = array())
+    {
+    }
+
+    public function error($message, array $context = array())
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return false;
     }
 }
 
@@ -51,8 +64,8 @@ if (count($caseFiles) === 0) {
 }
 
 $client = \DDTrace\FeatureFlags\Client::createWithDependencies(
-    new \DDTrace\FeatureFlags\Internal\NativeEvaluator(),
-    new FfeFixtureWarningEmitter()
+    \DDTrace\FeatureFlags\Internal\NativeEvaluator::create(),
+    new FfeFixtureLogger()
 );
 
 $caseCount = 0;
@@ -84,6 +97,18 @@ show('failures', count($failures));
 
 function require_feature_flag_api($root)
 {
+    $logRoot = $root . '/src/api/Log';
+    foreach (array(
+        'LoggerInterface',
+        'LogLevel',
+        'AbstractLogger',
+        'NullLogger',
+        'InterpolateTrait',
+        'TriggerErrorLogger',
+    ) as $classFile) {
+        require_once $logRoot . '/' . $classFile . '.php';
+    }
+
     $apiRoot = $root . '/src/api/FeatureFlags';
     foreach (array(
         'EvaluationType',
@@ -97,11 +122,8 @@ function require_feature_flag_api($root)
     $internalRoot = $apiRoot . '/Internal';
     foreach (array(
         'Evaluator',
-        'WarningEmitter',
         'ResultMapper',
-        'RemoteConfigClient',
         'UnavailableEvaluator',
-        'TriggerErrorWarningEmitter',
         'NativeEvaluator',
     ) as $classFile) {
         require_once $internalRoot . '/' . $classFile . '.php';

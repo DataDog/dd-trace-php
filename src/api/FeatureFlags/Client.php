@@ -4,21 +4,21 @@ namespace DDTrace\FeatureFlags;
 
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
-use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\TriggerErrorLogger;
 
 final class Client
 {
     private $evaluator;
-    private $warningEmitter;
+    private $logger;
     private $warnedAboutNonProductionRuntime = false;
 
     private function __construct(
         Evaluator $evaluator,
-        WarningEmitter $warningEmitter
+        LoggerInterface $logger
     ) {
         $this->evaluator = $evaluator;
-        $this->warningEmitter = $warningEmitter;
+        $this->logger = $logger;
     }
 
     public static function create()
@@ -31,19 +31,19 @@ final class Client
      */
     public static function createWithDependencies(
         $evaluator = null,
-        $warningEmitter = null
+        $logger = null
     ) {
         if ($evaluator !== null && !$evaluator instanceof Evaluator) {
             throw new \InvalidArgumentException('Expected an Evaluator instance');
         }
 
-        if ($warningEmitter !== null && !$warningEmitter instanceof WarningEmitter) {
-            throw new \InvalidArgumentException('Expected a WarningEmitter instance');
+        if ($logger !== null && !$logger instanceof LoggerInterface) {
+            throw new \InvalidArgumentException('Expected a LoggerInterface instance');
         }
 
         return new self(
-            $evaluator ?: NativeEvaluator::createOrUnavailable(),
-            $warningEmitter ?: new TriggerErrorWarningEmitter()
+            $evaluator ?: NativeEvaluator::create(),
+            $logger ?: new TriggerErrorLogger()
         );
     }
 
@@ -147,10 +147,10 @@ final class Client
 
         $message = $details->getErrorMessage();
         if (!is_string($message) || $message === '') {
-            $message = 'Datadog-backed PHP feature flag evaluation is not fully enabled yet.';
+            $message = 'Datadog-backed PHP feature flag evaluation is running without exposure and metric reporting in this milestone.';
         }
 
-        $this->warningEmitter->warning($message);
+        $this->logger->warning($message);
         $this->warnedAboutNonProductionRuntime = true;
     }
 

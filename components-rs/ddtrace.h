@@ -61,15 +61,15 @@ int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
 
-bool ddog_ffe_load_config(const char *json);
+bool ddog_ffe_load_config(ddog_CharSlice json);
 
 bool ddog_ffe_has_config(void);
 
 uint64_t ddog_ffe_config_version(void);
 
-struct ddog_FfeResult *ddog_ffe_evaluate(const char *flag_key,
+struct ddog_FfeResult *ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                          int32_t expected_type,
-                                         const char *targeting_key,
+                                         ddog_CharSlice targeting_key,
                                          const struct ddog_FfeAttribute *attributes,
                                          uintptr_t attributes_count);
 

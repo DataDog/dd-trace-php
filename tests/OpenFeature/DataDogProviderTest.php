@@ -11,9 +11,10 @@ use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
-use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LogLevel;
+use DDTrace\Log\NullLogger;
 use DDTrace\OpenFeature\DataDogProvider;
 use OpenFeature\implementation\flags\Attributes;
 use OpenFeature\implementation\flags\EvaluationContext;
@@ -100,8 +101,8 @@ final class DataDogProviderTest extends TestCase
 
     public function testUnavailableRuntimeReturnsDefaultDetailsAndOneWarning(): void
     {
-        $warnings = new OpenFeatureRecordingWarningEmitter();
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies(null, $warnings));
+        $logger = new OpenFeatureRecordingLogger();
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies(null, $logger));
 
         $value = $client->getBooleanValue('checkout.enabled', true);
         $details = $client->getStringDetails('checkout.copy', 'fallback');
@@ -114,23 +115,23 @@ final class DataDogProviderTest extends TestCase
             NativeEvaluator::WARNING_MESSAGE,
             UnavailableEvaluator::WARNING_MESSAGE,
         ]);
-        self::assertSame([$details->getError()->getResolutionErrorMessage()], $warnings->warnings());
+        self::assertSame([$details->getError()->getResolutionErrorMessage()], $logger->warnings());
     }
 
     public function testProviderWarningIsEmittedOncePerProvider(): void
     {
-        $warnings = new OpenFeatureRecordingWarningEmitter();
+        $logger = new OpenFeatureRecordingLogger();
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator
             ->setUnavailable('first.flag', true, 'temporary unavailable')
             ->setUnavailable('second.flag', true, 'temporary unavailable');
 
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator), $warnings));
+        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator), $logger));
 
         $client->getBooleanValue('first.flag', false);
         $client->getBooleanValue('second.flag', false);
 
-        self::assertSame(['temporary unavailable'], $warnings->warnings());
+        self::assertSame(['temporary unavailable'], $logger->warnings());
     }
 
     public function testProviderErrorsMapToOpenFeatureDetails(): void
@@ -162,7 +163,7 @@ final class DataDogProviderTest extends TestCase
 
     private function clientForEvaluator(Evaluator $evaluator): FeatureFlagsClient
     {
-        return FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter());
+        return FeatureFlagsClient::createWithDependencies($evaluator, new NullLogger(LogLevel::EMERGENCY));
     }
 
     private function openFeatureClientFor(DataDogProvider $provider)
@@ -305,14 +306,27 @@ final class OpenFeatureTestEvaluator implements Evaluator
     }
 }
 
-final class OpenFeatureRecordingWarningEmitter implements WarningEmitter
+final class OpenFeatureRecordingLogger implements LoggerInterface
 {
     /** @var string[] */
     private array $warnings = [];
 
-    public function warning($message)
+    public function debug($message, array $context = [])
+    {
+    }
+
+    public function warning($message, array $context = [])
     {
         $this->warnings[] = $message;
+    }
+
+    public function error($message, array $context = [])
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
     }
 
     /**

@@ -10,7 +10,7 @@ use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
@@ -30,7 +30,7 @@ final class ClientTest extends TestCase
             ->setSuccess('float.flag', 3.5)
             ->setSuccess('object.flag', array('enabled' => true));
 
-        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
+        $client = Client::createWithDependencies($evaluator, new RecordingLogger());
 
         $this->assertTrue($client->getBooleanValue('bool.flag', false));
         $this->assertSame('blue', $client->getStringValue('string.flag', 'red'));
@@ -52,7 +52,7 @@ final class ClientTest extends TestCase
             array('runtime' => 'test', 'hasConfig' => true)
         );
 
-        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
+        $client = Client::createWithDependencies($evaluator, new RecordingLogger());
 
         $details = $client->getBooleanDetails('checkout-redesign', false);
 
@@ -70,7 +70,7 @@ final class ClientTest extends TestCase
         $evaluator = new ClientTestEvaluator();
         $evaluator->setSuccess('flag.context', 'on');
 
-        $client = Client::createWithDependencies($evaluator, new RecordingWarningEmitter());
+        $client = Client::createWithDependencies($evaluator, new RecordingLogger());
         $client->getStringValue('flag.context', 'off', array(
             'targetingKey' => 123,
             'attributes' => array(
@@ -97,8 +97,8 @@ final class ClientTest extends TestCase
 
     public function testUnavailableRuntimeReturnsDefaultWithProviderNotReadyDetailsAndWarning()
     {
-        $warnings = new RecordingWarningEmitter();
-        $client = Client::createWithDependencies(null, $warnings);
+        $logger = new RecordingLogger();
+        $client = Client::createWithDependencies(null, $logger);
 
         $value = $client->getBooleanValue('checkout-redesign', true);
         $details = $client->getStringDetails('checkout-copy', 'fallback');
@@ -119,19 +119,19 @@ final class ClientTest extends TestCase
             'configuration_missing',
             'runtime_unavailable',
         ), true));
-        $this->assertSame(array($details->getErrorMessage()), $warnings->warnings());
+        $this->assertSame(array($details->getErrorMessage()), $logger->warnings());
     }
 
     public function testWarningIsEmittedOncePerClientNotOncePerEvaluation()
     {
-        $warnings = new RecordingWarningEmitter();
-        $client = Client::createWithDependencies(null, $warnings);
+        $logger = new RecordingLogger();
+        $client = Client::createWithDependencies(null, $logger);
 
         $client->getBooleanValue('flag-1', false);
         $client->getBooleanValue('flag-2', false);
         $client->getStringDetails('flag-3', 'fallback');
 
-        $this->assertCount(1, $warnings->warnings());
+        $this->assertCount(1, $logger->warnings());
     }
 
     /**
@@ -139,7 +139,7 @@ final class ClientTest extends TestCase
      */
     public function testTypedMethodsRejectInvalidDefaults($method, $defaultValue)
     {
-        $client = Client::createWithDependencies(new ClientTestEvaluator(), new RecordingWarningEmitter());
+        $client = Client::createWithDependencies(new ClientTestEvaluator(), new RecordingLogger());
 
         $this->expectException(\InvalidArgumentException::class);
 
@@ -234,13 +234,26 @@ final class ClientTestEvaluator implements Evaluator
     }
 }
 
-final class RecordingWarningEmitter implements WarningEmitter
+final class RecordingLogger implements LoggerInterface
 {
     private $warnings = array();
 
-    public function warning($message)
+    public function debug($message, array $context = array())
+    {
+    }
+
+    public function warning($message, array $context = array())
     {
         $this->warnings[] = $message;
+    }
+
+    public function error($message, array $context = array())
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
     }
 
     public function warnings()

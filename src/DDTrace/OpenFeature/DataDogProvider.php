@@ -8,9 +8,10 @@ use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
-use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
-use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LogLevel;
+use DDTrace\Log\NullLogger;
+use DDTrace\Log\TriggerErrorLogger;
 use OpenFeature\implementation\provider\AbstractProvider;
 use OpenFeature\implementation\provider\ResolutionDetailsBuilder;
 use OpenFeature\implementation\provider\ResolutionError;
@@ -25,13 +26,16 @@ final class DataDogProvider extends AbstractProvider
     protected static string $NAME = 'Datadog';
 
     private FeatureFlagsClient $client;
-    private WarningEmitter $warningEmitter;
+    private LoggerInterface $warningLogger;
     private bool $warnedAboutNonProductionRuntime = false;
 
-    public function __construct()
+    public function __construct(?FeatureFlagsClient $client = null, ?LoggerInterface $logger = null)
     {
-        $this->client = FeatureFlagsClient::createWithDependencies(null, new NoopWarningEmitter());
-        $this->warningEmitter = new TriggerErrorWarningEmitter();
+        $this->client = $client ?: FeatureFlagsClient::createWithDependencies(
+            null,
+            new NullLogger(LogLevel::EMERGENCY)
+        );
+        $this->warningLogger = $logger ?: new TriggerErrorLogger();
     }
 
     /**
@@ -39,17 +43,9 @@ final class DataDogProvider extends AbstractProvider
      */
     public static function createWithDependencies(
         ?FeatureFlagsClient $client = null,
-        ?WarningEmitter $warningEmitter = null
+        ?LoggerInterface $logger = null
     ): self {
-        $provider = new self();
-        if ($client !== null) {
-            $provider->client = $client;
-        }
-        if ($warningEmitter !== null) {
-            $provider->warningEmitter = $warningEmitter;
-        }
-
-        return $provider;
+        return new self($client, $logger);
     }
 
     public function resolveBooleanValue(
@@ -178,10 +174,10 @@ final class DataDogProvider extends AbstractProvider
 
         $message = $details->getErrorMessage();
         if (!is_string($message) || $message === '') {
-            $message = 'Datadog-backed PHP OpenFeature evaluation is not fully enabled yet.';
+            $message = 'Datadog-backed PHP OpenFeature evaluation is running without exposure and metric reporting in this milestone.';
         }
 
-        $this->warningEmitter->warning($message);
+        $this->warningLogger->warning($message);
         $this->warnedAboutNonProductionRuntime = true;
     }
 
