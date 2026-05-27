@@ -85,10 +85,10 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.5.0"
+        phpVersion: "8.5.6"
         vsVersion: "vs17"
-        phpTarGzUrl: https://downloads.php.net/~daniels/php-8.5.0RC3.tar.gz
-        phpSha256Hash: "937e544d72ee1eb28d2190cadaadf8e5e8d7d8c365b5c1f6a99b4f979a1f3a1b"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.5.6.tar.gz
+        phpSha256Hash: "169aaa21c2834b38df8e39169f43bc5bea8d4059a816cfbc59be08fc2bae60cd"
 
   php-8.4:
     image: datadog/dd-trace-ci:php-8.4_windows
@@ -97,10 +97,10 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.4.1"
+        phpVersion: "8.4.21"
         vsVersion: "vs17"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.4.1.tar.gz
-        phpSha256Hash: "c3d1ce4157463ea43004289c01172deb54ce9c5894d8722f4e805461bf9feaec"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.4.21.tar.gz
+        phpSha256Hash: "db96ee0a8e5ee7b73a4913a2aeddc162ba2ef16cd34b9347b5b9a6150e1f8e48"
 
   php-8.3:
     image: datadog/dd-trace-ci:php-8.3_windows
@@ -109,10 +109,10 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.3.9"
+        phpVersion: "8.3.31"
         vsVersion: "vs16"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.3.9.tar.gz
-        phpSha256Hash: "f484dec6ee005c83f899af02fc021e1bc3b1d7b3f143ca062ef66b0fcee96566"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.3.31.tar.gz
+        phpSha256Hash: "4e7baaf0a690e954a20e7ced3dd633ce8cb8094e2b6b612a55e703ecbbdcbf4f"
 
   php-8.2:
     image: datadog/dd-trace-ci:php-8.2_windows
@@ -121,10 +121,10 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.2.21"
+        phpVersion: "8.2.31"
         vsVersion: "vs16"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.2.21.tar.gz
-        phpSha256Hash: "0c6323699309a4d2e71057f01bc071b199f240973c349287b667a3ab36a496c6"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.2.31.tar.gz
+        phpSha256Hash: "083c2f61cc5f527eb293c4c468a91af46a9678785957e023b2796a9db290d870"
 
   php-8.1:
     image: datadog/dd-trace-ci:php-8.1_windows
@@ -133,10 +133,10 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.1.29"
+        phpVersion: "8.1.32"
         vsVersion: "vs16"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.1.29.tar.gz
-        phpSha256Hash: "8b2609bf1d3173aa38269a9af21532c65f730aadd3051f9aae011eea9e246de5"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.1.32.tar.gz
+        phpSha256Hash: "4846836d1de27dbd28e89180f073531087029a77e98e8e019b7b2eddbdb1baff"
 
   php-8.0:
     image: datadog/dd-trace-ci:php-8.0_windows
@@ -145,10 +145,10 @@ services:
         - windows/amd64
       context: .
       args:
-        phpVersion: "8.0.28"
+        phpVersion: "8.0.30"
         vsVersion: "vs16"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.0.28.tar.gz
-        phpSha256Hash: "7432184eae01e4e8e39f03f80e8ec0ca2c8bfebc56e9a7b983541ca8805df22f"
+        phpTarGzUrl: https://www.php.net/distributions/php-8.0.30.tar.gz
+        phpSha256Hash: "449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c"
 
   php-7.4:
     image: datadog/dd-trace-ci:php-7.4_windows
