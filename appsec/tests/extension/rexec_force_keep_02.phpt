@@ -33,4 +33,5 @@ Array
 (
     [%s] => %d
     [_dd.appsec.enabled] => 1
+    [_dd.appsec.waf.duration_ext] => %f
 )

@@ -27,6 +27,9 @@ $ecrLoginSnippet = <<<'EOT'
 EOT;
 ?>
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+  MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   CI_REGISTRY_USER:
     value: ""
     description: "Your docker hub username"
@@ -59,7 +62,7 @@ stages:
 
 .docker_push_job:
   stage: docker-build
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   before_script:
 <?php echo $ecrLoginSnippet, "\n"; ?>
 <?php dockerhub_login() ?>
@@ -71,8 +74,13 @@ stages:
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
   variables:
     KUBERNETES_CPU_REQUEST: 3
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_CPU_LIMIT: 3
+    KUBERNETES_MEMORY_REQUEST: 6Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 3Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 3Gi
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
@@ -96,7 +104,7 @@ stages:
 
 .appsec_integration_tests:
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with java pre-installed?
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with java pre-installed?
   tags: [ "docker-in-docker:amd64" ]
   variables:
     KUBERNETES_CPU_REQUEST: 8
@@ -121,12 +129,12 @@ stages:
         TERM=dumb ./gradlew loadCaches --info
       fi
 
-      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan $HELPER_RUST_FLAG
+      TERM=dumb ./gradlew $targets --info -Pbuildscan --scan -PcheckCoreDumps $HELPER_RUST_FLAG
       TERM=dumb ./gradlew saveCaches --info
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"
     - find appsec/tests/integration/build/test-results -name "*.xml" -exec cp --parents '{}' "${CI_PROJECT_DIR}/artifacts/" \;
-    - .gitlab/upload-junit-to-datadog.sh "test.source.file:appsec/"
+    - .gitlab/silent-upload-junit-to-datadog.sh "test.source.file:appsec/"
   artifacts:
     reports:
       junit: "artifacts/**/test-results/**/TEST-*.xml"
@@ -185,12 +193,10 @@ stages:
           - test7.4-release
           - test8.1-release
           - test8.3-debug
-          - test8.4-release-zts
-          - test8.5-release-musl
 
 "helper-rust build and test":
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   interruptible: true
   rules:
@@ -225,7 +231,7 @@ stages:
 
 "helper-rust code coverage":
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   interruptible: true
   rules:
@@ -277,7 +283,15 @@ stages:
     - |
       echo "Uploading helper-rust unit test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
+        echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
+        exit 75
+      fi
+      CODECOV_TOKEN=$(echo "$VAULT_OUTPUT" | jq -r .data.data.token)
+      if [ -z "$CODECOV_TOKEN" ] || [ "$CODECOV_TOKEN" = "null" ]; then
+        echo "ERROR: CODECOV_TOKEN empty/null after vault fetch; exiting 75 so GitLab auto-retries"
+        exit 75
+      fi
       codecov -t "$CODECOV_TOKEN" -n helper-rust-unit -F helper-rust-unit -v -f appsec/helper-rust/coverage-unit.lcov
   artifacts:
     paths:
@@ -291,7 +305,7 @@ stages:
 
 "helper-rust integration coverage":
   stage: test
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   interruptible: true
   rules:
@@ -337,7 +351,7 @@ stages:
       # Build helper-rust with coverage instrumentation
       TERM=dumb ./gradlew buildHelperRustWithCoverage --info -Pbuildscan --scan
       # Run integration tests with coverage-instrumented binary
-      TERM=dumb ./gradlew test8.3-debug --info -Pbuildscan --scan -PuseHelperRustCoverage
+      TERM=dumb ./gradlew test8.3-debug --info -Pbuildscan --scan -PcheckCoreDumps -PuseHelperRustCoverage
       # Generate coverage report from profraw files
       TERM=dumb ./gradlew generateHelperRustIntegrationCoverage --info -Pbuildscan --scan
       TERM=dumb ./gradlew saveCaches --info
@@ -348,7 +362,15 @@ stages:
     - |
       echo "Uploading helper-rust integration test coverage to codecov"
       cd "$CI_PROJECT_DIR"
-      CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
+      if ! VAULT_OUTPUT=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov); then
+        echo "ERROR: vault unreachable while fetching CODECOV_TOKEN; exiting 75 so GitLab auto-retries (see default retry.exit_codes in generate-common.php)"
+        exit 75
+      fi
+      CODECOV_TOKEN=$(echo "$VAULT_OUTPUT" | jq -r .data.data.token)
+      if [ -z "$CODECOV_TOKEN" ] || [ "$CODECOV_TOKEN" = "null" ]; then
+        echo "ERROR: CODECOV_TOKEN empty/null after vault fetch; exiting 75 so GitLab auto-retries"
+        exit 75
+      fi
       codecov -t "$CODECOV_TOKEN" -n helper-rust-integration -F helper-rust-integration -v -f appsec/helper-rust/coverage-integration.lcov
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts"

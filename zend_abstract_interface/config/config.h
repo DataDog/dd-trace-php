@@ -20,7 +20,7 @@ typedef uint16_t zai_config_id;
 
 #define ZAI_CONFIG_ENTRIES_COUNT_MAX 300
 #define ZAI_CONFIG_NAMES_COUNT_MAX 4
-#define ZAI_CONFIG_NAME_BUFSIZ 60
+#define ZAI_CONFIG_NAME_BUFSIZ 72
 
 #define ZAI_CONFIG_ENTRY(_id, _name, _type, default, ...)                          \
     {                                                                              \
@@ -103,6 +103,7 @@ void zai_config_replace_runtime_config(zai_config_id id, zval *value);
 
 extern uint16_t zai_config_memoized_entries_count;
 extern zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+extern bool zai_config_first_rinit_done;
 
 // assertions + error_zal
 // If caller wants to return to userland: Caller must refcount++ & dtor

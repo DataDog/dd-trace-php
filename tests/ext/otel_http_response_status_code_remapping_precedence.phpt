@@ -2,13 +2,14 @@
 http.response.status_code takes precedence over http.status_code
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 $span = \DDTrace\start_span();
 $span->metrics['http.response.status_code'] = 300;
 $span->meta['http.status_code'] = 302;
 \DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

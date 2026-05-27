@@ -53,6 +53,7 @@ class SyntheticsTest extends WebFrameworkTestCase
                 'http.method' => 'GET',
                 'http.url' => 'http://localhost/index.php',
                 'http.status_code' => '200',
+                'span.kind' => 'server',
                 '_dd.origin' => 'synthetics-browser',
             ])->withExactMetrics([
                 '_sampling_priority_v1' => 1,

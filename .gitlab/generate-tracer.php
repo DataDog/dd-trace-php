@@ -67,14 +67,13 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
         ARCH: *arch_targets
   variables:
     host_os: linux-gnu
-    SHARED: "1"
     WITH_ASAN: "0"
     CARGO_HOME: "/rust/cargo/"
     SWITCH_PHP_VERSION: "debug"
@@ -140,7 +139,7 @@ stages:
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
-    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED 0"
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
 
     # Run extension tests
     docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
@@ -187,7 +186,7 @@ stages:
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-6
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
   timeout: 60m
   interruptible: true
   rules:
@@ -204,6 +203,8 @@ stages:
     DATADOG_HAVE_DEV_ENV: 1
     HTTPBIN_HOSTNAME: httpbin-integration
     HTTPBIN_PORT: 8080
+    RUST_BACKTRACE: 1
+<?php sidecar_logs(); ?>
   before_script:
 <?php before_script_steps(true) ?>
     - .gitlab/wait-for-service-ready.sh
@@ -213,7 +214,6 @@ stages:
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
-<?php sidecar_logs(); ?>
 
 <?php
 foreach ($asan_minor_major_targets as $major_minor):
@@ -311,6 +311,7 @@ foreach ($asan_minor_major_targets as $major_minor):
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests/php-tests.xml"
+    ASAN_OPTIONS: "abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1:detect_stack_use_after_return=0"
   script:
     - mkdir -p "${CI_PROJECT_DIR}/tmp/build_extension/artifacts/tests"
     - make test_c_observer
@@ -484,10 +485,26 @@ foreach ($all_minor_major_targets as $major_minor):
     REPORT_EXIT_STATUS: "1"
     TEST_PHP_JUNIT: "${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     SKIP_ONLINE_TESTS: "1"
+    WAIT_FOR: test-agent:9126
+<?php if (version_compare($major_minor, "7.4", ">=")): ?>
+    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_CPU_LIMIT: 8
+    KUBERNETES_MEMORY_REQUEST: 7Gi
+    KUBERNETES_MEMORY_LIMIT: 7Gi
+<?php else: ?>
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_CPU_LIMIT: 1
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 4Gi
+<?php endif; ?>
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 1Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 1Gi
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
-<?php sidecar_logs(); ?>
   timeout: 40m
   retry:
     max: 2
@@ -597,7 +614,7 @@ foreach ($services as $part => $service) {
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
-<?php if (str_contains($target, "kafk")): ?>
+<?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
 <?php endif; ?>

@@ -78,6 +78,9 @@ ext/openssl/tests/openssl_peer_fingerprint_basic.phpt
 ext/openssl/tests/openssl_x509_checkpurpose_basic.phpt
 ext/openssl/tests/peer_verification.phpt
 ext/openssl/tests/san_peer_matching.phpt
+ext/openssl/tests/sni_server.phpt
+ext/openssl/tests/sni_server_key_cert.phpt
+ext/openssl/tests/bug74796.phpt
 ext/openssl/tests/session_meta_capture.phpt
 ext/openssl/tests/session_meta_capture_tlsv13.phpt
 ext/openssl/tests/stream_crypto_flags_001.phpt
@@ -126,6 +129,7 @@ ext/readline/tests/libedit_callback_handler_remove_001.phpt
 ext/simplexml/tests/bug51615.phpt
 ext/soap/tests/bugs/bug77088.phpt
 ext/soap/tests/soap_qname_crash.phpt
+ext/sockets/tests/gh21161.phpt
 ext/sockets/tests/socket_create_listen-nobind.phpt
 ext/sockets/tests/socket_import_stream-4.phpt
 ext/spl/tests/bug40091.phpt

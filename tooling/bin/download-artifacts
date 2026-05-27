@@ -1,0 +1,807 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Download CI artifacts from GitLab jobs.
+ *
+ * Uses ext-curl with curl_multi for parallel API requests and downloads.
+ * Supports multiple --preset keys downloaded concurrently.
+ *
+ * Examples:
+ *   download-artifacts-curl.php --preset ssi-amd64
+ *   download-artifacts-curl.php --preset datadog-setup ssi-amd64 ssi-aarch64
+ *   download-artifacts-curl.php --job-name "compile extension: debug [8.3]" --pipeline 12345
+ *   download-artifacts-curl.php --job-id 98765
+ */
+
+if (PHP_VERSION_ID < 70000) {
+    fwrite(STDERR, "Error: PHP 7.0+ is required (running " . PHP_VERSION . ")\n");
+    exit(1);
+}
+if (!extension_loaded('curl')) {
+    fwrite(STDERR, "Error: ext-curl is required\n");
+    exit(1);
+}
+
+const GITLAB_HOST = 'https://gitlab.ddbuild.io';
+const PROJECT_ID = 355;
+const API_BASE = GITLAB_HOST . '/api/v4';
+
+const PRESET_JOBS = [
+    'datadog-setup'          => 'datadog-setup.php',
+    'ssi-amd64'              => 'package loader: [amd64]',
+    'ssi-aarch64'            => 'package loader: [arm64]',
+    'extension-amd64-gnu'    => 'package extension: [amd64, x86_64-unknown-linux-gnu]',
+    'extension-aarch64-gnu'  => 'package extension: [arm64, aarch64-unknown-linux-gnu]',
+    'extension-amd64-musl'   => 'package extension: [amd64, x86_64-alpine-linux-musl]',
+    'extension-aarch64-musl' => 'package extension: [arm64, aarch64-alpine-linux-musl]',
+    'extension-windows'      => 'package extension windows',
+    'extension-asan'         => 'package extension asan',
+    'link-tracing-amd64-gnu'    => 'link tracing extension: [amd64, x86_64-unknown-linux-gnu]',
+    'link-tracing-aarch64-gnu'  => 'link tracing extension: [arm64, aarch64-unknown-linux-gnu]',
+    'link-tracing-amd64-musl'   => 'link tracing extension: [amd64, x86_64-alpine-linux-musl]',
+    'link-tracing-aarch64-musl' => 'link tracing extension: [arm64, aarch64-alpine-linux-musl]',
+    'appsec-helper-cpp-amd64'   => 'compile appsec helper: [amd64]',
+    'appsec-helper-cpp-aarch64' => 'compile appsec helper: [arm64]',
+    'appsec-helper-rust-amd64'  => 'compile appsec helper rust: [amd64]',
+    'appsec-helper-rust-aarch64'=> 'compile appsec helper rust: [arm64]',
+];
+
+const PIPELINE_DISCOVERY_TIMEOUT = 300;
+const MAX_CHILD_DEPTH = 3;
+
+// ---------------------------------------------------------------------------
+// curl helpers
+// ---------------------------------------------------------------------------
+
+function make_curl(string $token, string $url, array $opts = []) {
+    $ch = curl_init($url);
+    curl_setopt_array($ch, array(
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER     => array("PRIVATE-TOKEN: $token", "Accept: application/json"),
+        CURLOPT_TIMEOUT        => 30,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HEADER         => true,
+    ));
+    foreach ($opts as $k => $v) {
+        curl_setopt($ch, $k, $v);
+    }
+    return $ch;
+}
+
+/**
+ * Parse status and headers from a curl response that includes headers.
+ */
+function parse_curl_response($ch, string $raw): array {
+    $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    $status     = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headers    = substr($raw, 0, $headerSize);
+    $body       = substr($raw, $headerSize);
+    return array($status, $body, $headers);
+}
+
+/**
+ * Execute a batch of curl handles in parallel. Returns results keyed the
+ * same as the input array.
+ *
+ * Each result: ['status' => int, 'body' => string, 'headers' => string, 'error' => string]
+ */
+function curl_multi_run(array $handles): array {
+    $mh = curl_multi_init();
+    foreach ($handles as $ch) {
+        curl_multi_add_handle($mh, $ch);
+    }
+    do {
+        $status = curl_multi_exec($mh, $running);
+        if ($running > 0) {
+            curl_multi_select($mh);
+        }
+    } while ($running > 0);
+
+    $results = array();
+    foreach ($handles as $key => $ch) {
+        $raw = curl_multi_getcontent($ch);
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $httpCode   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $results[$key] = array(
+            'status'  => $httpCode,
+            'body'    => substr($raw, $headerSize),
+            'headers' => substr($raw, 0, $headerSize),
+            'error'   => curl_error($ch),
+        );
+        curl_multi_remove_handle($mh, $ch);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
+    }
+    if (PHP_VERSION_ID < 80000) { curl_multi_close($mh); }
+    return $results;
+}
+
+/**
+ * Fetch multiple URLs in parallel. Returns [key => decoded_json_or_null].
+ */
+function multi_json_get(string $token, array $urls): array {
+    $handles = array();
+    foreach ($urls as $key => $url) {
+        $handles[$key] = make_curl($token, $url);
+    }
+    $raw = curl_multi_run($handles);
+    $out = array();
+    foreach ($raw as $key => $r) {
+        if ($r['status'] === 401 || $r['status'] === 403) {
+            fwrite(STDERR, "Error: auth failed ({$r['status']}): {$r['body']}\n");
+            exit(1);
+        }
+        if ($r['status'] >= 400 || $r['error']) {
+            $out[$key] = null;
+            continue;
+        }
+        $out[$key] = json_decode($r['body'], true);
+    }
+    return $out;
+}
+
+// ---------------------------------------------------------------------------
+// Paginated fetching (with parallel remaining-page fetch)
+// ---------------------------------------------------------------------------
+
+/**
+ * Single-URL paginated GET. Fetches page 1, reads x-total-pages, then
+ * fetches remaining pages in parallel.
+ */
+function paginated_get(string $token, string $path, array $params = []): array {
+    $params['per_page'] = 100;
+    $params['page'] = 1;
+    $url = API_BASE . $path . '?' . http_build_query($params);
+
+    $ch = make_curl($token, $url);
+    $raw = curl_exec($ch);
+    if ($raw === false) {
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
+        return array();
+    }
+    list($status, $body, $headers) = parse_curl_response($ch, $raw);
+    if (PHP_VERSION_ID < 80000) { curl_close($ch); }
+
+    if ($status === 401 || $status === 403) {
+        fwrite(STDERR, "Error: auth failed ($status): $body\n");
+        exit(1);
+    }
+    if ($status >= 400) {
+        return array();
+    }
+
+    $firstPage = json_decode($body, true);
+    if (!is_array($firstPage) || count($firstPage) === 0) {
+        return array();
+    }
+
+    $totalPages = 1;
+    if (preg_match('/x-total-pages:\s*(\d+)/i', $headers, $m)) {
+        $totalPages = (int)$m[1];
+    }
+    if ($totalPages <= 1) {
+        return $firstPage;
+    }
+
+    // Fetch remaining pages in parallel
+    $handles = array();
+    for ($p = 2; $p <= $totalPages; $p++) {
+        $params['page'] = $p;
+        $pageUrl = API_BASE . $path . '?' . http_build_query($params);
+        $handles[$p] = make_curl($token, $pageUrl);
+    }
+    $results = curl_multi_run($handles);
+
+    $allItems = $firstPage;
+    for ($p = 2; $p <= $totalPages; $p++) {
+        $r = $results[$p];
+        if ($r['status'] >= 400 || $r['error']) {
+            continue;
+        }
+        $data = json_decode($r['body'], true);
+        if (is_array($data)) {
+            foreach ($data as $item) {
+                $allItems[] = $item;
+            }
+        }
+    }
+    return $allItems;
+}
+
+/**
+ * Fetch page 1 of multiple paginated endpoints in parallel, then fetch
+ * all remaining pages in a second parallel batch.
+ */
+function multi_paginated_get(string $token, array $pathParamsList): array {
+    // pathParamsList: [ key => ['path' => ..., 'params' => [...]], ... ]
+    // Returns: [ key => [items...], ... ]
+
+    // 1) Fetch page 1 of all endpoints in parallel
+    $page1Handles = array();
+    foreach ($pathParamsList as $key => $pp) {
+        $params = isset($pp['params']) ? $pp['params'] : array();
+        $params['per_page'] = 100;
+        $params['page'] = 1;
+        $url = API_BASE . $pp['path'] . '?' . http_build_query($params);
+        $page1Handles[$key] = make_curl($token, $url);
+    }
+    $page1Results = curl_multi_run($page1Handles);
+
+    $allResults = array();
+    $morePages = array(); // [arbitrary_key => ['key' => origKey, 'path' => ..., 'params' => ..., 'page' => int]]
+
+    foreach ($pathParamsList as $key => $pp) {
+        $r = $page1Results[$key];
+        if ($r['status'] === 401 || $r['status'] === 403) {
+            fwrite(STDERR, "Error: auth failed ({$r['status']}): {$r['body']}\n");
+            exit(1);
+        }
+        if ($r['status'] >= 400 || $r['error']) {
+            $allResults[$key] = array();
+            continue;
+        }
+        $data = json_decode($r['body'], true);
+        if (!is_array($data)) {
+            $allResults[$key] = array();
+            continue;
+        }
+        $allResults[$key] = $data;
+
+        $totalPages = 1;
+        if (preg_match('/x-total-pages:\s*(\d+)/i', $r['headers'], $m)) {
+            $totalPages = (int)$m[1];
+        }
+        $params = isset($pp['params']) ? $pp['params'] : array();
+        $params['per_page'] = 100;
+        for ($p = 2; $p <= $totalPages; $p++) {
+            $morePages[] = array('key' => $key, 'path' => $pp['path'], 'params' => $params, 'page' => $p);
+        }
+    }
+
+    if (count($morePages) === 0) {
+        return $allResults;
+    }
+
+    // 2) Fetch all remaining pages in parallel
+    $handles = array();
+    foreach ($morePages as $idx => $mp) {
+        $params = $mp['params'];
+        $params['page'] = $mp['page'];
+        $url = API_BASE . $mp['path'] . '?' . http_build_query($params);
+        $handles[$idx] = make_curl($token, $url);
+    }
+    $pageResults = curl_multi_run($handles);
+
+    foreach ($morePages as $idx => $mp) {
+        $r = $pageResults[$idx];
+        if ($r['status'] >= 400 || $r['error']) {
+            continue;
+        }
+        $data = json_decode($r['body'], true);
+        if (is_array($data)) {
+            foreach ($data as $item) {
+                $allResults[$mp['key']][] = $item;
+            }
+        }
+    }
+
+    return $allResults;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline / job discovery
+// ---------------------------------------------------------------------------
+
+function resolve_sha(string $ref): string {
+    $output = array();
+    $code = 0;
+    exec('git rev-parse ' . escapeshellarg($ref) . ' 2>&1', $output, $code);
+    if ($code !== 0) {
+        fwrite(STDERR, "Error: git rev-parse $ref failed: " . implode("\n", $output) . "\n");
+        exit(1);
+    }
+    return trim($output[0]);
+}
+
+function discover_root_pipeline(string $token, string $sha): int {
+    $deadline = time() + PIPELINE_DISCOVERY_TIMEOUT;
+    $url = API_BASE . '/projects/' . PROJECT_ID . '/pipelines?' . http_build_query(array('sha' => $sha, 'per_page' => 20));
+    while (true) {
+        $ch = make_curl($token, $url);
+        $raw = curl_exec($ch);
+        if ($raw === false) {
+            if (PHP_VERSION_ID < 80000) { curl_close($ch); }
+            fwrite(STDERR, "Error: network error querying pipelines for $sha\n");
+            exit(1);
+        }
+        list($status, $body, ) = parse_curl_response($ch, $raw);
+        if (PHP_VERSION_ID < 80000) { curl_close($ch); }
+
+        if ($status >= 400) {
+            fwrite(STDERR, "Error: HTTP $status querying pipelines for $sha\n");
+            exit(1);
+        }
+        $data = json_decode($body, true);
+        if (is_array($data) && count($data) > 0) {
+            usort($data, function ($a, $b) {
+                return ($b['updated_at'] ?? '') <=> ($a['updated_at'] ?? '');
+            });
+            $best = $data[0];
+            echo "Found pipeline {$best['id']} (status: " . ($best['status'] ?? '?') . ")\n";
+            return $best['id'];
+        }
+        if (time() >= $deadline) {
+            fwrite(STDERR, "Error: no pipeline for $sha within " . PIPELINE_DISCOVERY_TIMEOUT . "s\n");
+            exit(1);
+        }
+        $wait = min(15, $deadline - time());
+        if ($wait > 0) {
+            echo "Waiting for pipeline (" . substr($sha, 0, 12) . ")...\n";
+            sleep($wait);
+        }
+    }
+}
+
+/**
+ * BFS over child pipelines — each depth level fetched in parallel.
+ */
+function get_all_pipeline_ids(string $token, int $rootId): array {
+    $allIds = array($rootId);
+    $frontier = array($rootId);
+
+    for ($depth = 0; $depth < MAX_CHILD_DEPTH; $depth++) {
+        if (count($frontier) === 0) {
+            break;
+        }
+        $urls = array();
+        foreach ($frontier as $pid) {
+            $urls[$pid] = API_BASE . '/projects/' . PROJECT_ID . "/pipelines/$pid/bridges?" . http_build_query(array('per_page' => 100));
+        }
+        $results = multi_json_get($token, $urls);
+
+        $nextFrontier = array();
+        foreach ($results as $bridges) {
+            if (!is_array($bridges)) {
+                continue;
+            }
+            foreach ($bridges as $b) {
+                $ds = isset($b['downstream_pipeline']) ? $b['downstream_pipeline'] : null;
+                if ($ds && isset($ds['id']) && (isset($ds['project_id']) && $ds['project_id'] === PROJECT_ID)) {
+                    $nextFrontier[] = $ds['id'];
+                }
+            }
+        }
+        foreach ($nextFrontier as $id) {
+            $allIds[] = $id;
+        }
+        $frontier = $nextFrontier;
+    }
+    return $allIds;
+}
+
+/**
+ * Fetch jobs from all pipelines using multi_paginated_get.
+ */
+function fetch_all_jobs(string $token, array $pipelineIds): array {
+    $pathParams = array();
+    foreach ($pipelineIds as $pid) {
+        $pathParams[$pid] = array('path' => '/projects/' . PROJECT_ID . "/pipelines/$pid/jobs");
+    }
+    $perPipeline = multi_paginated_get($token, $pathParams);
+
+    $allJobs = array();
+    foreach ($perPipeline as $jobs) {
+        foreach ($jobs as $job) {
+            $allJobs[] = $job;
+        }
+    }
+    return $allJobs;
+}
+
+// ---------------------------------------------------------------------------
+// Artifact download (parallel via curl_multi)
+// ---------------------------------------------------------------------------
+
+/**
+ * Download and extract artifacts for multiple jobs concurrently.
+ *
+ * $targets: array of ['job_id' => int, 'name' => string]
+ */
+function download_artifacts_parallel(string $token, array $targets, string $outputDir) {
+    if (count($targets) === 0) {
+        return;
+    }
+
+    // Prepare temp files and curl handles
+    $mh = curl_multi_init();
+    $infos = array(); // keyed by index
+    foreach ($targets as $idx => $t) {
+        $url = API_BASE . '/projects/' . PROJECT_ID . "/jobs/{$t['job_id']}/artifacts";
+        $tmpFile = tempnam(sys_get_temp_dir(), 'ci-dl-');
+        $fp = fopen($tmpFile, 'wb');
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, array(
+            CURLOPT_HTTPHEADER     => array("PRIVATE-TOKEN: $token"),
+            CURLOPT_TIMEOUT        => 600,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_FILE           => $fp,
+            CURLOPT_HEADER         => false,
+        ));
+        curl_multi_add_handle($mh, $ch);
+        $infos[$idx] = array(
+            'ch'      => $ch,
+            'fp'      => $fp,
+            'tmpFile' => $tmpFile,
+            'name'    => $t['name'],
+            'job_id'  => $t['job_id'],
+        );
+    }
+
+    echo sprintf("Downloading %d artifact(s)...\n", count($targets));
+
+    do {
+        curl_multi_exec($mh, $running);
+        if ($running > 0) {
+            curl_multi_select($mh);
+        }
+    } while ($running > 0);
+
+    // Collect results
+    $ok = array();
+    foreach ($infos as $idx => $info) {
+        $status = curl_getinfo($info['ch'], CURLINFO_HTTP_CODE);
+        $error  = curl_error($info['ch']);
+        $size   = curl_getinfo($info['ch'], CURLINFO_SIZE_DOWNLOAD);
+        fclose($info['fp']);
+        curl_multi_remove_handle($mh, $info['ch']);
+        if (PHP_VERSION_ID < 80000) { curl_close($info['ch']); }
+
+        if ($error || $status >= 400) {
+            fwrite(STDERR, "  Error: " . ($error ? $error : "HTTP $status") . " for '{$info['name']}' (job {$info['job_id']})\n");
+            @unlink($info['tmpFile']);
+            continue;
+        }
+        echo sprintf("  Downloaded '%s': %.1f MB\n", $info['name'], $size / 1e6);
+        $ok[] = array('tmpFile' => $info['tmpFile'], 'name' => $info['name']);
+    }
+    if (PHP_VERSION_ID < 80000) { curl_multi_close($mh); }
+
+    // Extract all
+    foreach ($ok as $item) {
+        extract_zip($item['tmpFile'], $outputDir, $item['name']);
+        @unlink($item['tmpFile']);
+    }
+}
+
+function extract_zip(string $zipPath, string $outputDir, string $label = '') {
+    $tmpDir = sys_get_temp_dir() . '/ci-extract-' . getmypid() . '-' . mt_rand();
+    mkdir($tmpDir, 0755, true);
+
+    $code = 0;
+    $output = array();
+    exec('unzip -o ' . escapeshellarg($zipPath) . ' -d ' . escapeshellarg($tmpDir) . ' 2>&1', $output, $code);
+    if ($code !== 0) {
+        fwrite(STDERR, "  Error: unzip failed for '$label': " . implode("\n", $output) . "\n");
+        exec('rm -rf ' . escapeshellarg($tmpDir));
+        return;
+    }
+
+    $files = array();
+    list_files_recursive($tmpDir, '', $files);
+
+    // Strip common leading directory
+    $prefix = '';
+    if (count($files) > 0) {
+        $parts = array_map(function ($f) { return explode('/', $f); }, $files);
+        $firstDir = isset($parts[0][0]) ? $parts[0][0] : '';
+        if ($firstDir !== '' && count($parts[0]) > 1) {
+            $allSame = true;
+            foreach ($parts as $p) {
+                if (count($p) <= 1 || $p[0] !== $firstDir) {
+                    $allSame = false;
+                    break;
+                }
+            }
+            if ($allSame) {
+                $prefix = $firstDir . '/';
+            }
+        }
+    }
+
+    if (!is_dir($outputDir)) {
+        mkdir($outputDir, 0755, true);
+    }
+
+    $fileList = array();
+    foreach ($files as $file) {
+        $stripped = $prefix !== '' ? substr($file, strlen($prefix)) : $file;
+        $destPath = rtrim($outputDir, '/') . '/' . $stripped;
+        $destDir = dirname($destPath);
+        if (!is_dir($destDir)) {
+            mkdir($destDir, 0755, true);
+        }
+        $src = "$tmpDir/$file";
+        if (!@rename($src, $destPath)) {
+            if (!copy($src, $destPath)) {
+                fwrite(STDERR, "  Error: failed to move $src to $destPath\n");
+                continue;
+            }
+            unlink($src);
+        }
+        $fileList[] = $stripped;
+    }
+
+    $show = implode(', ', array_slice($fileList, 0, 5));
+    if (count($fileList) > 5) {
+        $show .= sprintf(', ... (%d total)', count($fileList));
+    }
+    echo "  Extracted [$label]: $show\n";
+
+    exec('rm -rf ' . escapeshellarg($tmpDir));
+}
+
+function list_files_recursive(string $baseDir, string $relPath, array &$files) {
+    $dir = $relPath === '' ? $baseDir : "$baseDir/$relPath";
+    $entries = scandir($dir);
+    foreach ($entries as $entry) {
+        if ($entry === '.' || $entry === '..') {
+            continue;
+        }
+        $rel = $relPath === '' ? $entry : "$relPath/$entry";
+        if (is_dir("$baseDir/$rel")) {
+            list_files_recursive($baseDir, $rel, $files);
+        } else {
+            $files[] = $rel;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CLI
+// ---------------------------------------------------------------------------
+
+function usage() {
+    $presets = array_keys(PRESET_JOBS);
+    sort($presets);
+    $presetList = implode(', ', $presets);
+    fwrite(STDERR, <<<USAGE
+Download CI artifacts from GitLab jobs (curl version).
+
+Usage: download-artifacts-curl.php [OPTIONS]
+
+Options (exactly one required):
+  --preset KEY [KEY ...]  Download preset artifact(s) (concurrent)
+  --job-name NAME         Download artifacts from a job matched by name
+  --job-id ID             Download artifacts directly by job ID
+  --list-presets          List preset keys and exit
+
+Pipeline source (at most one):
+  --pipeline ID       Pipeline ID to search for jobs
+  --commit REF        Git ref to resolve to a SHA (default: HEAD)
+
+Other:
+  -o, --output-dir DIR  Output directory (default: .)
+  -h, --help            Show this help message
+
+Available presets: $presetList
+
+USAGE
+    );
+    exit(1);
+}
+
+function parse_args(array $argv): array {
+    $args = array(
+        'preset'       => null,  // array of keys or null
+        'job_name'     => null,
+        'job_id'       => null,
+        'list_presets' => false,
+        'pipeline'     => null,
+        'commit'       => null,
+        'output_dir'   => '.',
+    );
+
+    $i = 1;
+    $argc = count($argv);
+
+    $requireArg = function (string $flag) use ($argv, &$i, $argc): string {
+        if (++$i >= $argc) {
+            fwrite(STDERR, "Error: $flag requires an argument\n");
+            usage();
+        }
+        return $argv[$i];
+    };
+
+    while ($i < $argc) {
+        $arg = $argv[$i];
+        switch ($arg) {
+            case '--preset':
+                // Consume all following non-flag arguments
+                $keys = array();
+                while ($i + 1 < $argc && isset($argv[$i + 1][0]) && $argv[$i + 1][0] !== '-') {
+                    $i++;
+                    $keys[] = $argv[$i];
+                }
+                if (count($keys) === 0) {
+                    fwrite(STDERR, "Error: --preset requires at least one key\n");
+                    usage();
+                }
+                $args['preset'] = $keys;
+                break;
+            case '--job-name':
+                $args['job_name'] = $requireArg('--job-name');
+                break;
+            case '--job-id':
+                $val = $requireArg('--job-id');
+                if (!ctype_digit($val)) {
+                    fwrite(STDERR, "Error: --job-id requires an integer\n");
+                    exit(1);
+                }
+                $args['job_id'] = (int)$val;
+                break;
+            case '--list-presets':
+                $args['list_presets'] = true;
+                break;
+            case '--pipeline':
+                $val = $requireArg('--pipeline');
+                if (!ctype_digit($val)) {
+                    fwrite(STDERR, "Error: --pipeline requires an integer\n");
+                    exit(1);
+                }
+                $args['pipeline'] = (int)$val;
+                break;
+            case '--commit':
+                $args['commit'] = $requireArg('--commit');
+                break;
+            case '-o':
+            case '--output-dir':
+                $args['output_dir'] = $requireArg($arg);
+                break;
+            case '-h':
+            case '--help':
+                usage();
+            default:
+                fwrite(STDERR, "Error: unknown option '$arg'\n");
+                usage();
+        }
+        $i++;
+    }
+
+    $whatCount = ($args['preset'] !== null ? 1 : 0)
+        + ($args['job_name'] !== null ? 1 : 0)
+        + ($args['job_id'] !== null ? 1 : 0)
+        + ($args['list_presets'] ? 1 : 0);
+    if ($whatCount === 0) {
+        fwrite(STDERR, "Error: one of --preset, --job-name, --job-id, or --list-presets is required\n");
+        usage();
+    }
+    if ($whatCount > 1) {
+        fwrite(STDERR, "Error: --preset, --job-name, --job-id, and --list-presets are mutually exclusive\n");
+        usage();
+    }
+    if ($args['pipeline'] !== null && $args['commit'] !== null) {
+        fwrite(STDERR, "Error: --pipeline and --commit are mutually exclusive\n");
+        usage();
+    }
+
+    return $args;
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+function main(array $argv) {
+    $args = parse_args($argv);
+
+    if ($args['list_presets']) {
+        echo "Available preset keys:\n";
+        $jobs = PRESET_JOBS;
+        ksort($jobs);
+        foreach ($jobs as $key => $jobName) {
+            printf("  %-30s -> %s\n", $key, $jobName);
+        }
+        return;
+    }
+
+    $token = trim(getenv('GITLAB_PERSONAL_ACCESS_TOKEN') ?: '');
+    if ($token === '') {
+        fwrite(STDERR, "Error: GITLAB_PERSONAL_ACCESS_TOKEN not set\n");
+        exit(1);
+    }
+
+    $outputDir = $args['output_dir'];
+    $tTotal = microtime(true);
+
+    // --job-id: direct download, no pipeline discovery
+    if ($args['job_id'] !== null) {
+        $data = multi_json_get($token, array(
+            'job' => API_BASE . '/projects/' . PROJECT_ID . "/jobs/{$args['job_id']}",
+        ));
+        $job = $data['job'];
+        if (!$job) {
+            fwrite(STDERR, "Error: could not fetch job {$args['job_id']}\n");
+            exit(1);
+        }
+        $name = isset($job['name']) ? $job['name'] : "job-{$args['job_id']}";
+        download_artifacts_parallel($token, array(array('job_id' => $args['job_id'], 'name' => $name)), $outputDir);
+        printf("Total: %.1fs\n", microtime(true) - $tTotal);
+        return;
+    }
+
+    // Discover pipelines
+    if ($args['pipeline'] !== null) {
+        $rootId = $args['pipeline'];
+        echo "Using pipeline $rootId\n";
+    } else {
+        $ref = $args['commit'] !== null ? $args['commit'] : 'HEAD';
+        $sha = resolve_sha($ref);
+        echo "Resolved $ref -> $sha\n";
+        $rootId = discover_root_pipeline($token, $sha);
+    }
+
+    $t0 = microtime(true);
+    $pipelineIds = get_all_pipeline_ids($token, $rootId);
+    printf("Found %d pipeline(s) in %.1fs\n", count($pipelineIds), microtime(true) - $t0);
+
+    // Fetch all jobs
+    $t0 = microtime(true);
+    $allJobs = fetch_all_jobs($token, $pipelineIds);
+    printf("Fetched %d jobs in %.1fs\n", count($allJobs), microtime(true) - $t0);
+
+    // Resolve targets
+    $targets = array();
+
+    if ($args['preset'] !== null) {
+        foreach ($args['preset'] as $key) {
+            if (!isset(PRESET_JOBS[$key])) {
+                $available = array_keys(PRESET_JOBS);
+                sort($available);
+                fwrite(STDERR, "Error: unknown preset '$key'. Available: " . implode(', ', $available) . "\n");
+                exit(1);
+            }
+            $name = PRESET_JOBS[$key];
+            $matches = array_values(array_filter($allJobs, function ($j) use ($name) {
+                return (isset($j['name']) ? $j['name'] : '') === $name;
+            }));
+            if (count($matches) === 0) {
+                fwrite(STDERR, "Warning: preset '$key' (job '$name') not found\n");
+                continue;
+            }
+            usort($matches, function ($a, $b) { return $b['id'] <=> $a['id']; });
+            $targets[] = array('job_id' => $matches[0]['id'], 'name' => $name);
+        }
+    } elseif ($args['job_name'] !== null) {
+        $pattern = $args['job_name'];
+        $matches = array_values(array_filter($allJobs, function ($j) use ($pattern) {
+            return strpos(isset($j['name']) ? $j['name'] : '', $pattern) !== false;
+        }));
+        if (count($matches) === 0) {
+            fwrite(STDERR, "Error: no job matching '$pattern'\n");
+            exit(1);
+        }
+        if (count($matches) > 1) {
+            echo "Multiple jobs match '$pattern':\n";
+            foreach ($matches as $j) {
+                echo "  [{$j['id']}] {$j['name']} (" . (isset($j['status']) ? $j['status'] : '?') . ")\n";
+            }
+            fwrite(STDERR, "Use exact name or --job-id.\n");
+            exit(1);
+        }
+        $targets[] = array('job_id' => $matches[0]['id'], 'name' => $matches[0]['name']);
+    }
+
+    if (count($targets) === 0) {
+        fwrite(STDERR, "No matching jobs found.\n");
+        exit(1);
+    }
+
+    // Download all targets in parallel
+    $t0 = microtime(true);
+    download_artifacts_parallel($token, $targets, $outputDir);
+    printf("Downloads completed in %.1fs\n", microtime(true) - $t0);
+    printf("Total: %.1fs\n", microtime(true) - $tTotal);
+}
+
+main($argv);

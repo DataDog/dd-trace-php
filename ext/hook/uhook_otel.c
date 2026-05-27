@@ -91,20 +91,22 @@ static bool dd_uhook_begin(zend_ulong invocation, zend_execute_data *execute_dat
             if (strkey) {
                 uint32_t num_args = fbc->common.num_args;
                 // As per zend_handle_named_arg()
-                if (EXPECTED(fbc->type == ZEND_USER_FUNCTION)
-                    || EXPECTED(fbc->common.fn_flags & ZEND_ACC_USER_ARG_INFO)) {
-                    for (uint32_t i = 0; i < num_args; i++) {
-                        zend_arg_info *arg_info = &fbc->op_array.arg_info[i];
-                        if (zend_string_equals(strkey, arg_info->name)) {
-                            arg_offset = i;
-                            found = true;
-                        }
-                    }
-                } else {
+#if PHP_VERSION_ID < 80600
+                if (UNEXPECTED(fbc->type != ZEND_USER_FUNCTION) && EXPECTED((fbc->common.fn_flags & ZEND_ACC_USER_ARG_INFO == 0))) {
                     for (uint32_t i = 0; i < num_args; i++) {
                         zend_internal_arg_info *arg_info = &fbc->internal_function.arg_info[i];
                         size_t len = strlen(arg_info->name);
                         if (zend_string_equals_cstr(strkey, arg_info->name, len)) {
+                            arg_offset = i;
+                            found = true;
+                        }
+                    }
+                } else
+#endif
+                {
+                    for (uint32_t i = 0; i < num_args; i++) {
+                        zend_arg_info *arg_info = &fbc->op_array.arg_info[i];
+                        if (zend_string_equals(strkey, arg_info->name)) {
                             arg_offset = i;
                             found = true;
                         }

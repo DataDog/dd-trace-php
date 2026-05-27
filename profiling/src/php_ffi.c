@@ -233,9 +233,9 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
 }
 
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
-                                               void* (*_malloc)(size_t),
-                                               void  (*_free)(void*),
-                                               void* (*_realloc)(void*, size_t)) {
+                                               ddog_php_prof_zend_mm_malloc _malloc,
+                                               ddog_php_prof_zend_mm_free _free,
+                                               ddog_php_prof_zend_mm_realloc _realloc) {
     zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {
@@ -387,6 +387,11 @@ uintptr_t *ddog_php_prof_function_run_time_cache(zend_function const *func) {
 }
 
 #if CFG_STACK_WALKING_TESTS
+zend_execute_data *ddog_test_zend_generator_check_placeholder_frame(zend_execute_data *ptr) {
+    // Tests do not construct real generator placeholder frames; pass through.
+    return ptr;
+}
+
 uintptr_t *ddog_test_php_prof_function_run_time_cache(zend_function const *func) {
 #if CFG_RUN_TIME_CACHE
     if (_ignore_run_time_cache) return NULL;

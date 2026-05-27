@@ -191,6 +191,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(INT, DD_TRACE_AGENT_CONNECT_TIMEOUT, DD_CFG_EXPSTR(DD_TRACE_AGENT_CONNECT_TIMEOUT_VAL),             \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1", .ini_change = ddtrace_reseed_seed_change)                      \
+    CONFIG(BOOL, DD_TRACE_SECURE_RANDOM, "false")                                                             \
     CONFIG(BOOL, DD_LOG_BACKTRACE, "false")                                                                    \
     CONFIG(BOOL, DD_CRASHTRACKING_ENABLED, DD_CRASHTRACKING_ENABLED_DEFAULT)                                   \
     CONFIG(BOOL, DD_TRACE_GENERATE_ROOT_SPAN, "true", .ini_change = ddtrace_span_alter_root_span_config)       \
@@ -204,6 +205,8 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_INTERVAL, DD_CFG_EXPSTR(DD_TRACE_AGENT_FLUSH_INTERVAL_VAL),               \
            .ini_change = zai_config_system_ini_change)                                                         \
     CONFIG(INT, DD_TELEMETRY_HEARTBEAT_INTERVAL, "60", .ini_change = zai_config_system_ini_change)             \
+    CONFIG(INT, DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL, "86400",                                            \
+           .ini_change = zai_config_system_ini_change)                                                        \
     CONFIG(INT, DD_TRACE_AGENT_FLUSH_AFTER_N_REQUESTS, "0")                                                    \
     CONFIG(INT, DD_TRACE_SHUTDOWN_TIMEOUT, "5000", .ini_change = zai_config_system_ini_change)                 \
     CONFIG(BOOL, DD_TRACE_STARTUP_LOGS, "true")                                                                \
@@ -240,6 +243,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(BOOL, DD_INTEGRATION_METRICS_ENABLED, "true",                                                       \
            .env_config_fallback = ddtrace_conf_otel_metrics_exporter)                                          \
     CONFIG(BOOL, DD_METRICS_OTEL_ENABLED, "false")                                                             \
+    CONFIG(BOOL, DD_LOGS_OTEL_ENABLED, "false")                                                                \
     CONFIG(BOOL, DD_TRACE_OTEL_ENABLED, "false")                                                               \
     CONFIG(STRING, DD_TRACE_LOG_FILE, "", .ini_change = zai_config_system_ini_change)                          \
     CONFIG(STRING, DD_TRACE_LOG_LEVEL, "error", .ini_change = ddtrace_alter_dd_trace_log_level,                \
@@ -264,6 +268,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(BOOL, DD_APM_TRACING_ENABLED, "true")                                                               \
     CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTED_TYPES, "", .ini_change = zai_config_system_ini_change)     \
+    CONFIG(SET, DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS, "", .ini_change = zai_config_system_ini_change) \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_ITEMS, "64")                                                              \
     CONFIG(INT, DD_TRACE_BAGGAGE_MAX_BYTES, "8192")                                                            \
     CONFIG(BOOL, DD_TRACE_INFERRED_PROXY_SERVICES_ENABLED, "false")                                            \
@@ -274,6 +279,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ENABLED, "false")                                                  \
     CONFIG(BOOL, DD_TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT, "false")                               \
     CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")                                       \
+    CONFIG(BOOL, DD_TRACE_STATS_COMPUTATION_ENABLED, "false")                                                  \
     DD_INTEGRATIONS
 
 #ifndef _WIN32

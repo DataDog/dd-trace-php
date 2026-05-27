@@ -48,13 +48,13 @@ $build_platforms = [
 $asan_build_platforms = [
     [
         "triplet" => "x86_64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-6",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-7",
         "arch" => "amd64",
         "host_os" => "linux-gnu",
     ],
     [
         "triplet" => "aarch64-unknown-linux-gnu",
-        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-6",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_bookworm-7",
         "arch" => "arm64",
         "host_os" => "linux-gnu",
     ]
@@ -89,7 +89,13 @@ stages:
   - release
 
 variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
   CARGO_HOME: "${CI_PROJECT_DIR}/.cache/cargo"
+
+  # One pipeline injection package size ratchet
+  OCI_PACKAGE_MAX_SIZE_BYTES: 150_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 210_000_000
 
 include:
   - local: .gitlab/one-pipeline.locked.yml
@@ -315,7 +321,7 @@ if ($suffix == "-alpine") {
 
 "pecl build":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-7"
   tags: [ "arch:amd64" ]
   needs: [ "prepare code" ]
   script:
@@ -365,7 +371,7 @@ foreach ($build_platforms as $platform) {
 <?php foreach ($arch_targets as $arch): ?>
 "aggregate tracing extension: [<?= $arch ?>]":
   stage: tracing
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-7.4_bookworm-7"
   tags: [ "arch:amd64" ]
   script: ls ./
   variables:
@@ -783,7 +789,7 @@ endforeach;
 
 .randomized_tests:
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal # TODO: use a proper docker image with make, php and git pre-installed
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with make, php and git pre-installed
   variables:
     KUBERNETES_CPU_REQUEST: 7
     KUBERNETES_MEMORY_REQUEST: 30Gi
@@ -857,7 +863,7 @@ endforeach;
 
 "installer tests":
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
@@ -901,11 +907,11 @@ endforeach;
   script:
     - php datadog-setup.php --php-bin all --file $(ls packages/dd-library-php-*-x86_64-linux-gnu.tar.gz)
     - sed -i 's/datadog.trace.sources_path/\;datadog.trace.sources_path/' /etc/php/8.1/cli/conf.d/98-ddtrace.ini
-    - DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
+    - DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.cli_enabled=1" $(find tests/ext -type d)
 
 "framework test":
   stage: verify
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:24.0.4-gbi-focal
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   variables:
     KUBERNETES_CPU_REQUEST: 2
@@ -1003,8 +1009,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apk add --no-cache ca-certificates # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
-    - apk add curl ${INSTALL_PACKAGES:-}
+    - apk add --no-cache ca-certificates || exit 75 # see https://support.circleci.com/hc/en-us/articles/360016505753-Resolve-Certificate-Signed-By-Unknown-Authority-error-in-Alpine-images?flash_digest=39b76521a337cecacac0cc10cb28f3747bb5fc6a
+    - apk add curl ${INSTALL_PACKAGES:-} || exit 75
 
 "verify centos":
   extends: .verify_job
@@ -1046,8 +1052,8 @@ endforeach;
         echo "yum update failed (attempt $i/3), retrying in 5 seconds..."
         sleep 5
         if [ $i -eq 3 ]; then
-          echo "yum update failed after 3 attempts, exiting"
-          exit 1
+          echo "yum update failed after 3 attempts, signaling retry (exit 75)"
+          exit 75
         fi
       done
 
@@ -1071,8 +1077,8 @@ endforeach;
 <?php dockerhub_login() ?>
     - mkdir build
     - mv packages build
-    - apt update
-    - apt-get install -y curl
+    - apt-get update || exit 75
+    - apt-get install -y curl || exit 75
 
 <?php foreach ([["8.1", "arm64", "aarch64"], ["7.0", "amd64", "x86_64"]] as [$major_minor, $arch, $pkgprefix]): ?>
 "verify .tar.gz: [<?= $arch ?>]":
@@ -1127,12 +1133,28 @@ endforeach;
     mkdir build
     move packages build
   script:
-    - Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')) # chocolatey install
+    - |
+      $maxAttempts = 3
+      for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+          try {
+              Set-ExecutionPolicy Bypass -Scope Process -Force
+              [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+              Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+              break
+          } catch {
+              Write-Host "Chocolatey install attempt $attempt/$maxAttempts failed: $_"
+              if ($attempt -eq $maxAttempts) {
+                  Write-Host "Infrastructure failure: Chocolatey download failed after $maxAttempts attempts, signaling retry (exit 75)"
+                  exit 75
+              }
+              Start-Sleep -Seconds 15
+          }
+      }
     - .\dockerfiles\verify_packages\verify_windows.ps1
 
 "pecl tests":
   stage: verify
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-6"
+  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_VERSION}_bookworm-7"
   tags: [ "arch:amd64" ]
   services:
     - !reference [.services, request-replayer]
@@ -1154,7 +1176,7 @@ endforeach;
     - pecl install datadog_trace.tgz
     - echo "extension=ddtrace.so" | sudo tee $(php -i | awk -F"=> " '/Scan this dir for additional .ini files/ {print $2}')/ddtrace.ini
     - php --ri=ddtrace
-    - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
+    - TERM=dumb HTTPBIN_HOSTNAME=httpbin-integration HTTPBIN_PORT=8080 DATADOG_HAVE_DEV_ENV=1 DD_TRACE_GIT_METADATA_ENABLED=0 pecl run-tests --showdiff --ini=" -d datadog.trace.sources_path=" -p datadog_trace
   after_script:
     - mkdir artifacts
     - find $(pecl config-get test_dir) -type f -name '*.diff' -exec cp --parents '{}' artifacts \;
@@ -1267,14 +1289,58 @@ endforeach;
         - APPSEC_API_SECURITY
         - APPSEC_API_SECURITY_RC
         - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_RUNTIME_ACTIVATION
         - INTEGRATIONS
         - CROSSED_TRACING_LIBRARIES
   script:
     - ./run.sh $TESTSUITE
 
-"System Tests: [tracer-release]":
+"System Tests: [php-fpm-8.5, default]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.5 php
+  script:
+    - ./run.sh
+
+"System Tests: [php-fpm-8.5]":
+  extends: .system_tests
+  variables:
+    BUILD_SH_ARGS: -w php-fpm-8.5 php
+  parallel:
+    matrix:
+      - TESTSUITE:
+        - APPSEC_API_SECURITY
+        - APPSEC_API_SECURITY_RC
+        - APPSEC_API_SECURITY_NO_RESPONSE_BODY
+        - APPSEC_RUNTIME_ACTIVATION
+        - INTEGRATIONS
+        - CROSSED_TRACING_LIBRARIES
+  script:
+    - ./run.sh $TESTSUITE
+
+<?php
+$system_tests_weblogs = [
+    "apache-mod-7.0", "apache-mod-7.0-zts",
+    "apache-mod-7.1", "apache-mod-7.1-zts",
+    "apache-mod-7.2", "apache-mod-7.2-zts",
+    "apache-mod-7.3", "apache-mod-7.3-zts",
+    "apache-mod-7.4", "apache-mod-7.4-zts",
+    "apache-mod-8.0", "apache-mod-8.0-zts",
+    "apache-mod-8.1", "apache-mod-8.1-zts",
+    "apache-mod-8.2", "apache-mod-8.2-zts",
+    "php-fpm-7.0", "php-fpm-7.1", "php-fpm-7.2", "php-fpm-7.3", "php-fpm-7.4",
+    "php-fpm-8.0", "php-fpm-8.1", "php-fpm-8.2", "php-fpm-8.5",
+];
+?>
+<?php foreach ($system_tests_weblogs as $weblog): ?>
+"System Tests: [<?= $weblog ?>, tracer-release]":
   extends: .system_tests
   timeout: 4h
+  variables:
+    BUILD_SH_ARGS: -w <?= $weblog ?> php
+    # Expand the DinD loopback volume to avoid running out of disk space.
+    # See https://datadoghq.atlassian.net/wiki/spaces/K8S/pages/2874901299/How+to+use+Micro+VMs#DinD-in-CI
+    DOCKER_LOOPBACK_SIZE: 50G
   rules:
     - if: $CI_COMMIT_REF_NAME == "master"
       when: on_success
@@ -1288,6 +1354,7 @@ endforeach;
     - SCENARIOS=$(PYTHONPATH=. venv/bin/python utils/scripts/compute-workflow-parameters.py php -g tracer_release -f json | python3 -c "import sys,json;d=json.load(sys.stdin);s=set();[s.update(v['scenarios']) for v in d.values() if isinstance(v,dict) and 'scenarios' in v];print(' '.join(sorted(s)))")
     - FAILED=""; for S in $SCENARIOS; do echo "=== Running $S ==="; ./run.sh $S || FAILED="$FAILED $S"; done; if [ -n "$FAILED" ]; then echo "Failed scenarios:$FAILED"; exit 1; fi
 
+<?php endforeach; ?>
 "System Tests: [parametric]":
   extends: .system_tests
   variables:
@@ -1303,7 +1370,7 @@ endforeach;
   variables:
     VALGRIND: false
     ARCH: "<?= $arch ?>"
-    CONTAINER_SUFFIX: bookworm-6
+    CONTAINER_SUFFIX: bookworm-7
   needs:
     - job: "package loader: [<?= $arch ?>]"
       artifacts: true

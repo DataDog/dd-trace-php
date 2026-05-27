@@ -2,9 +2,11 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
+use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use ReflectionMethod;
 use function DDTrace\close_span;
 use function DDTrace\start_trace_span;
 
@@ -415,11 +417,11 @@ final class PDOTest extends IntegrationTestCase
 
     public function testPDOStatementOk()
     {
-        $query = "SELECT * FROM tests WHERE id = ?";
+        $query = "SELECT * FROM tests WHERE id = :param";
         $traces = $this->isolateTracer(function () use ($query) {
             $pdo = $this->pdoInstance();
             $stmt = $pdo->prepare($query);
-            $stmt->execute([1]);
+            $stmt->execute(["param" => 1]);
             $results = $stmt->fetchAll();
             $this->assertEquals('Tom', $results[0]['name']);
             $stmt->closeCursor();
@@ -906,5 +908,34 @@ final class PDOTest extends IntegrationTestCase
         }
 
         return $tags;
+    }
+
+    /**
+     * @dataProvider dsnDbNameCases
+     */
+    public function testParseDsnDbNameQuoteHandling($dsn, $expectedDbName)
+    {
+        $method = new ReflectionMethod(PDOIntegration::class, 'parseDsn');
+        $method->setAccessible(true);
+        $tags = $method->invoke(null, $dsn);
+
+        if ($expectedDbName === null) {
+            $this->assertArrayNotHasKey(Tag::DB_NAME, $tags);
+        } else {
+            $this->assertSame($expectedDbName, $tags[Tag::DB_NAME]);
+        }
+    }
+
+    public function dsnDbNameCases()
+    {
+        return [
+            'unquoted dbname'                   => ['pgsql:host=h;dbname=milk',    'milk'],
+            'paired single quotes stripped'     => ["pgsql:host=h;dbname='milk'",  'milk'],
+            'double quotes preserved as-is'     => ['pgsql:host=h;dbname="milk"',  '"milk"'],
+            'unpaired leading quote preserved'  => ["pgsql:host=h;dbname='milk",   "'milk"],
+            'unpaired trailing quote preserved' => ["pgsql:host=h;dbname=milk'",   "milk'"],
+            'empty quoted dbname omitted'       => ["pgsql:host=h;dbname=''",      null],
+            'database= alias also stripped'     => ["mysql:host=h;database='foo'", 'foo'],
+        ];
     }
 }

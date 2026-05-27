@@ -12,6 +12,7 @@
 #include "../compatibility.h"
 #include "../ddtrace.h"
 #include "../span.h"
+#include "../sidecar.h"
 #include "exec_integration_arginfo.h"
 
 #if PHP_VERSION_ID < 80000
@@ -260,6 +261,27 @@ PHP_FUNCTION(DDTrace_Integrations_Exec_proc_get_pid) {
     php_process_handle *proc_h = Z_RES_P(zres)->ptr;
     RETURN_LONG((long)proc_h->child);
 }
+PHP_FUNCTION(DDTrace_Integrations_Exec_proc_inject_session_ids) {
+    zval *env_zv;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_ARRAY_EX(env_zv, 0, 1)
+    ZEND_PARSE_PARAMETERS_END();
+
+    zend_array *env = Z_ARR_P(env_zv);
+
+    zval zv;
+    ZVAL_STRINGL(&zv, (char *)ddtrace_formatted_session_id, sizeof(ddtrace_formatted_session_id));
+    zend_hash_str_update(env, "_DD_PARENT_PHP_SESSION_ID", sizeof("_DD_PARENT_PHP_SESSION_ID") - 1, &zv);
+
+    if (ddtrace_is_empty_session_id(ddtrace_formatted_root_session_id)) {
+        ZVAL_STRINGL(&zv, (char *)ddtrace_formatted_session_id, sizeof(ddtrace_formatted_session_id));
+    } else {
+        ZVAL_STRINGL(&zv, (char *)ddtrace_formatted_root_session_id, sizeof(ddtrace_formatted_root_session_id));
+    }
+    zend_hash_str_update(env, "_DD_ROOT_PHP_SESSION_ID", sizeof("_DD_ROOT_PHP_SESSION_ID") - 1, &zv);
+}
+
 PHP_FUNCTION(DDTrace_Integrations_Exec_test_rshutdown) {
     if (zend_parse_parameters_none() != SUCCESS) {
         return;

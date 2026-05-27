@@ -58,7 +58,7 @@ for ($i = 0; $i < 100; ++$i) {
                         }
 
                         var_dump(array_values(array_filter($cfg, function ($c) {
-                            return in_array($c["name"], ['service', 'env', 'dynamic_instrumentation.enabled', 'trace.spans_limit', 'trace.generate_root_span']);
+                            return in_array($c["name"], ['DD_SERVICE', 'DD_ENV', 'DD_DYNAMIC_INSTRUMENTATION_ENABLED', 'DD_TRACE_SPANS_LIMIT', 'DD_TRACE_GENERATE_ROOT_SPAN']);
                         })));
                         break 3;
                     }
@@ -81,7 +81,7 @@ array(5) {
   [0]=>
   array(5) {
     ["name"]=>
-    string(3) "env"
+    string(6) "DD_ENV"
     ["value"]=>
     string(21) "env_from_local_config"
     ["origin"]=>
@@ -94,7 +94,7 @@ array(5) {
   [1]=>
   array(5) {
     ["name"]=>
-    string(7) "service"
+    string(10) "DD_SERVICE"
     ["value"]=>
     string(25) "service_from_local_config"
     ["origin"]=>
@@ -107,7 +107,7 @@ array(5) {
   [2]=>
   array(5) {
     ["name"]=>
-    string(24) "trace.generate_root_span"
+    string(27) "DD_TRACE_GENERATE_ROOT_SPAN"
     ["value"]=>
     string(4) "true"
     ["origin"]=>
@@ -120,7 +120,7 @@ array(5) {
   [3]=>
   array(5) {
     ["name"]=>
-    string(17) "trace.spans_limit"
+    string(20) "DD_TRACE_SPANS_LIMIT"
     ["value"]=>
     string(2) "42"
     ["origin"]=>
@@ -133,7 +133,7 @@ array(5) {
   [4]=>
   array(5) {
     ["name"]=>
-    string(31) "dynamic_instrumentation.enabled"
+    string(34) "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
     ["value"]=>
     string(4) "true"
     ["origin"]=>

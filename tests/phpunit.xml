@@ -95,6 +95,7 @@
             <file>./OpenTelemetry/Integration/InteroperabilityTest.php</file>
             <file>./OpenTelemetry/Integration/InternalTelemetryTest.php</file>
             <file>./OpenTelemetry/Integration/MetricsTest.php</file>
+            <file>./OpenTelemetry/Integration/LogsTest.php</file>
         </testsuite>
         <testsuite name="slim-312-test">
             <directory>./Integrations/Slim/V3_12</directory>
@@ -122,6 +123,10 @@
         <testsuite name="symfony-62-test">
             <directory>./Integrations/Symfony/V6_2</directory>
             <directory>./Integrations/CLI/Symfony/V6_2</directory>
+        </testsuite>
+        <testsuite name="symfony-73-test">
+            <directory>./Integrations/Symfony/V7_3</directory>
+            <directory>./Integrations/CLI/Symfony/V7_3</directory>
         </testsuite>
         <testsuite name="symfony-latest-test">
             <directory>./Integrations/Symfony/Latest</directory>

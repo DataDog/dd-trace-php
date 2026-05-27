@@ -4,6 +4,7 @@ If peer.service is already set by the user, honor it
 DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function foo() { }
 function bar() { }
@@ -23,7 +24,7 @@ DDTrace\trace_function("bar", function (\DDTrace\SpanData $span) {
 foo();
 bar();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 array(2) {

@@ -20,7 +20,7 @@ sca_test.inc
 --EXPECT--
 array(5) {
   ["name"]=>
-  string(18) "appsec.sca_enabled"
+  string(21) "DD_APPSEC_SCA_ENABLED"
   ["value"]=>
   string(4) "true"
   ["origin"]=>

@@ -99,8 +99,10 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     x(usleep) \
     x(time_nanosleep) \
 
+// Beware of uppercase names. class/function tables are lowercase keys!
 #define BLOCKMETH(x) \
-    x(PDO, connect) \
+    x(pdo, __construct) \
+    x(pdo, connect) \
     x(mysqli, __construct) \
     x(mysqli, real_connect)
 

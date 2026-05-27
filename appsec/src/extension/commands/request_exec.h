@@ -13,6 +13,7 @@
 
 struct req_exec_opts {
     zend_string *nullable rasp_rule;
+    zend_string *nullable rule_variant;
     zend_string *nullable subctx_id;
     bool subctx_last_call;
 };

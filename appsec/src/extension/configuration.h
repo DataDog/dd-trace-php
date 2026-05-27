@@ -28,7 +28,11 @@ extern bool runtime_config_first_init;
 
 #define DD_BASE(path) "/opt/datadog-php/" path
 
+#if PHP_VERSION_ID >= 80400
+#define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
+#else
 #define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "false"
+#endif
 
 // clang-format off
 #define DD_CONFIGURATION_GENERAL \
@@ -116,7 +120,7 @@ typedef enum { DD_CONFIGURATION } dd_config_id;
         zai_config_memoized_entries[DDAPPSEC_CONFIG_##name].decoded_value)
 #define CONFIG(type, name, ...)                                                \
     type(get_##name, *zai_config_get_value(DDAPPSEC_CONFIG_##name))            \
-        SYSCFG(type, name)
+        SYSCFG(type, name, __VA_ARGS__)
 DD_CONFIGURATION
 #undef CONFIG
 #undef SYSCFG

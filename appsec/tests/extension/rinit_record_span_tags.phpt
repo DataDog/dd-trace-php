@@ -70,6 +70,7 @@ Array
     [runtime-id] => %s
     [http.url] => https://localhost:8888/foo
     [http.method] => GET
+    [span.kind] => server
     [http.useragent] => my user agent
 )
 rinit
@@ -96,12 +97,14 @@ Array
     [http.useragent] => my user agent
     [rshutdown_tag] => rshutdown_value
     [runtime-id] => %s
+    [span.kind] => server
 )
 metrics:
 Array
 (
     [%s] => %d
     [_dd.appsec.enabled] => 1
+    [_dd.appsec.waf.duration_ext] => %f
     [_sampling_priority_v1] => 1
     [php.compilation.total_time_ms] => %f
     [php.memory.peak_real_usage_bytes] => %f

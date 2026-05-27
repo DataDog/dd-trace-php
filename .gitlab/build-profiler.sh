@@ -17,7 +17,13 @@ fi
 #  /usr/lib/llvm20/lib/clang/20/include/arm_neon.h:6374:25: error: incompatible constant for this __builtin_neon function
 # etc.
 if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then
-    ln -sf ../lib/llvm17/bin/clang /usr/bin/clang
+    ln -sf ../lib/llvm19/bin/clang /usr/bin/clang
+fi
+
+# On CentOS 7 aarch64, clang's resource dir isn't on the default include path,
+# causing bindgen to fail with "stddef.h not found".
+if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then
+    export BINDGEN_EXTRA_CLANG_ARGS="-I$(clang --print-resource-dir)/include"
 fi
 
 set -u

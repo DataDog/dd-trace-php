@@ -283,6 +283,8 @@ static void dd_init_crashtracker() {
             .resolve_frames = DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
             .optional_unix_socket_filename = socket_path,
             .additional_files = {0},
+            .collect_all_threads = true,
+            .max_threads = 0, // uses libdatadog default, which is 256
         },
         .metadata = ddtrace_setup_crashtracking_metadata(&tags),
     };
@@ -363,7 +365,7 @@ static int dd_call_prev_handler(bool flush) {
     }
 
     if (flush) {
-        ddog_sidecar_flush_traces(&ddtrace_sidecar);
+        ddog_sidecar_flush(&ddtrace_sidecar_for_signal, (ddog_SidecarFlushOptions){.traces_and_stats = true});
     }
 
     if (prev_handler == SIG_DFL) {
@@ -403,7 +405,7 @@ static void dd_sigint_sigterm_handler(int sig, siginfo_t *si, void *uc) {
     memcpy(&dd_signal_data.si, si, sizeof(*si));
     dd_signal_data.uc = uc;
 
-    if (ddtrace_sidecar) {
+    if (ddtrace_sidecar_for_signal) {
         // Spawn a thread using clone() to perform sidecar cleanup asynchronously to avoid async unsafeness in the signal handler
         void *stack_top = dd_signal_async_stack + dd_signal_async_stack_size;
         int flags = CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD;

@@ -140,6 +140,8 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     uint32_t baggage_malformed_count;
     uint32_t baggage_max_item_count;
     uint32_t baggage_max_byte_count;
+    uint32_t baggage_extract_max_item_count;
+    uint32_t baggage_extract_max_byte_count;
     uint32_t closed_spans_count;
     uint32_t dropped_spans_count;
     int64_t compile_time_microseconds;
@@ -149,10 +151,12 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     zend_reference *curl_multi_injecting_spans;
 
     char *cgroup_file;
+    ddog_SidecarTransport *sidecar;
     ddog_QueueId sidecar_queue_id;
     MUTEX_T sidecar_universal_service_tags_mutex;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
+    bool remote_config_writing; // true while RC WRITE mode INI update is in progress
     ddog_AgentInfoReader *agent_info_reader;
     dd_capture_arena debugger_capture_arena;
     ddog_Vec_DebuggerPayload exception_debugger_buffer;
@@ -166,6 +170,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     bool request_initialized;
     HashTable telemetry_spans_created_per_integration;
     ddog_SidecarActionsBuffer *telemetry_buffer;
+    ddog_SidecarActionsBuffer *metrics_buffer;
 
     bool asm_event_emitted;
 
@@ -199,8 +204,10 @@ ZEND_END_MODULE_GLOBALS(ddtrace)
 #  endif
 extern TSRM_TLS void *ATTR_TLS_GLOBAL_DYNAMIC TSRMLS_CACHE;
 #  define DDTRACE_G(v) ZEND_TSRMG(ddtrace_globals_id, zend_ddtrace_globals *, v)
+#  define DDTRACE_GLOBALS_PTR() TSRMG_BULK_STATIC(ddtrace_globals_id, zend_ddtrace_globals *)
 #else
 #  define DDTRACE_G(v) (ddtrace_globals.v)
+#  define DDTRACE_GLOBALS_PTR() (&ddtrace_globals)
 #endif
 
 #define PHP_DDTRACE_EXTNAME "ddtrace"

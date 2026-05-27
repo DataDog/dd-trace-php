@@ -22,6 +22,7 @@
 #include <Zend/zend_exceptions.h>
 #include <Zend/zend_string.h>
 #include <ext/hash/php_hash.h>
+#include <stdatomic.h>
 
 static THREAD_LOCAL_ON_ZTS user_collection_mode _user_mode = user_mode_disabled;
 static THREAD_LOCAL_ON_ZTS user_collection_mode _user_mode_rc =
@@ -302,10 +303,14 @@ bool dd_parse_user_collection_mode(
     } else { // If the value is disabled or an unknown value, we disable user ID
              // collection
 
-        if (!get_global_DD_APPSEC_TESTING()) {
-            mlog_g(dd_log_warning, "Unknown user collection mode: %.*s",
-                (int)value.len, value.ptr);
+        if (!dd_string_equals_lc(value.ptr, value.len, ZEND_STRL("disabled"))) {
+            static _Atomic(bool) logged;
+            if (atomic_compare_exchange_strong(&logged, &(bool){0}, 1)) {
+                mlog(dd_log_warning, "Unknown user collection mode: %.*s",
+                    (int)value.len, value.ptr);
+            }
         }
+
         _user_mode = user_mode_disabled;
     }
 

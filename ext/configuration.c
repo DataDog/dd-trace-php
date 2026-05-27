@@ -176,7 +176,8 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
 #define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
     static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
         UNUSED(old_value, new_value); \
-        if (!DDTRACE_G(remote_config_state)) {  \
+        /* When RC writes, bypass the check for ddog_remote_config_alter_dynamic_config */ \
+        if (!DDTRACE_G(remote_config_state) || DDTRACE_G(remote_config_writing)) {  \
             return true; \
         } \
         return ddog_remote_config_alter_dynamic_config(DDTRACE_G(remote_config_state), DDOG_CHARSLICE_C(config), zend_string_copy(new_str)); \

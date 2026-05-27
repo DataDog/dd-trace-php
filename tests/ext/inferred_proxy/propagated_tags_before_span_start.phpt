@@ -30,6 +30,7 @@ DD_TRACE_DEBUG_PRNG_SEED=42
 foo=bar
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 DDTrace\consume_distributed_tracing_headers([
     "traceparent" => "00-0000000000000000000000000000002a-0000000000000001-01",
@@ -39,7 +40,7 @@ DDTrace\consume_distributed_tracing_headers([
 $parent = \DDTrace\start_span(0.120);
 \DDTrace\close_span();
 
-echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
+echo json_encode(dd_clean_spans(), JSON_PRETTY_PRINT);
 ?>
 --EXPECTF--
 [
@@ -62,6 +63,7 @@ echo json_encode(dd_trace_serialize_closed_spans(), JSON_PRETTY_PRINT);
             "http.status_code": "200",
             "http.url": "http:\/\/localhost:8888\/foo",
             "runtime-id": "%s",
+            "span.kind": "server",
             "version": "1.0"
         },
         "metrics": {

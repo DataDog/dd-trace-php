@@ -51,12 +51,12 @@ class ExecIntegration extends Integration
             'popen',
             self::preHookShell('popen'),
             static function (HookData $hook) {
-                /** @var SpanData $span */
-                $span = $hook->data;
-                if (!$span) {
+                if (!isset($hook->data)) {
                     return;
                 }
 
+                /** @var SpanData $span */
+                $span = $hook->data;
                 if ($hook->exception) {
                     $span->exception = $hook->exception;
                 } elseif (!is_resource($hook->returned)) {
@@ -84,6 +84,11 @@ class ExecIntegration extends Integration
             static function (HookData $hook) {
                 if (count($hook->args) == 0) {
                     return;
+                }
+
+                if (count($hook->args) >= 5 && is_array($hook->args[4])) {
+                    proc_inject_session_ids($hook->args[4]);
+                    $hook->overrideArguments($hook->args);
                 }
 
                 $arg = $hook->args[0];
@@ -205,6 +210,7 @@ class ExecIntegration extends Integration
         'system'     => 1,
         'passthru'   => 1,
         'shell_exec' => null,
+        'popen'      => null,
     ];
 
     private static function preHookShell($variant)
@@ -243,12 +249,12 @@ class ExecIntegration extends Integration
     private static function postHookShell($variant)
     {
         return static function (HookData $hook) use ($variant) {
-            /** @var SpanData $span */
-            $span = $hook->data;
-            if (!$span) {
+            if (!isset($hook->data)) {
                 return;
             }
 
+            /** @var SpanData $span */
+            $span = $hook->data;
             $retCodeArg = self::RET_CODE_ARGNUM[$variant];
 
             if ($hook->exception) {

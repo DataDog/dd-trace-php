@@ -36,7 +36,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                     'laravel.request',
                     'Laravel',
                     'web',
-                    'App\Http\Controllers\RouteCachingController@unnamed unnamed_route'
+                    'App\Http\Controllers\RouteCachingController@unnamed unnamed-route'
                 )
                     ->withExactTags([
                         'laravel.route.name' => 'unnamed_route',
@@ -84,7 +84,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                     'laravel.request',
                     'Laravel',
                     'web',
-                    'App\Http\Controllers\RouteCachingController@unnamed unnamed_route'
+                    'App\Http\Controllers\RouteCachingController@unnamed unnamed-route'
                 )
                     ->withExactTags([
                         'laravel.route.name' => 'unnamed_route',

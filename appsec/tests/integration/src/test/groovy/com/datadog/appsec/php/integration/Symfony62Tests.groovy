@@ -79,6 +79,9 @@ class Symfony62Tests {
         assert span.meta."_dd.appsec.events.users.login.failure.auto.mode" == 'identification'
         assert span.meta."appsec.events.users.login.failure.usr.exists" == 'false'
         assert span.metrics._sampling_priority_v1 == 2.0d
+        // The Symfony integration extracts the attempted username from the session;
+        // '_username=aa' is stored as _security.last_username before authenticate() is called.
+        assert span.meta."appsec.events.users.login.failure.usr.login" == 'aa'
     }
 
     @Test
@@ -117,6 +120,31 @@ class Symfony62Tests {
 
     @Test
     @Order(8)
+    void 'http route for locale route'() {
+        HttpRequest req = container.buildReq('/caminho-dinamico/someValue').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 403
+            assert re.body().contains('blocked')
+        }
+
+        Span span = trace.first()
+        assert span.meta."http.route" == '/caminho-dinamico/{param01}'
+    }
+
+    @Test
+    @Order(9)
+    void 'http route for utf8 route'() {
+        HttpRequest req = container.buildReq('/café/espresso').GET().build()
+        def trace = container.traceFromRequest(req, ofString()) { HttpResponse<String> re ->
+            assert re.statusCode() == 200
+        }
+
+        Span span = trace.first()
+        assert span.meta."http.route" == '/café/{item}'
+    }
+
+    @Test
+    @Order(10)
     void 'symfony http route disabled'() {
         try {
             def res = CONTAINER.execInContainer(

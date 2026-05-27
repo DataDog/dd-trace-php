@@ -1,7 +1,10 @@
 --TEST--
 The background sender informs about changes to the agent sample rate
 --SKIPIF--
-<?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) die('skip timing sensitive test - valgrind is too slow');
+?>
 --ENV--
 DD_TRACE_LOG_LEVEL=info,startup=off
 DD_AGENT_HOST=request-replayer

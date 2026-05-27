@@ -128,6 +128,8 @@ class PDOIntegration extends Integration
 
             PDOIntegration::injectDBIntegration($instance, $hook, true);
             PDOIntegration::handleRasp($instance, $span);
+
+            $span->resource = PDOIntegration::useQuestionMarkPlaceholders($span->resource);
         }, static function (HookData $hook) {
             $pdo = $hook->returned;
             ObjectKVStore::propagate($hook->instance, $pdo, PDOIntegration::CONNECTION_TAGS_KEY);
@@ -170,6 +172,8 @@ class PDOIntegration extends Integration
                 PDOIntegration::setCommonSpanInfo($instance, $span);
                 PDOIntegration::addTraceAnalyticsIfEnabled($span);
                 PDOIntegration::detectError($instance, $span);
+
+                $span->resource = PDOIntegration::useQuestionMarkPlaceholders($span->resource);
             }
         );
 
@@ -243,6 +247,10 @@ REGEX;
             $tags[Tag::DB_SYSTEM] = $dbSystem;
             $tags[Tag::DB_TYPE] = $dbSystem;  // db.type is DD equivalent to db.system in OpenTelemetry, used for SQL spans obfuscation
 
+            // Match libpq: strip paired wrapping single quotes from dbname (APMS-19464).
+            if (strlen($db) >= 2 && $db[0] === "'" && substr($db, -1) === "'") {
+                $db = substr($db, 1, -1);
+            }
             if ($db !== "") {
                 $tags[Tag::DB_NAME] = $db;
             }
@@ -350,6 +358,18 @@ REGEX;
             'server.db.statement' => $span->resource,
             'server.db.system' => $storedConnectionInfo[Tag::DB_SYSTEM],
         );
-        \datadog\appsec\push_addresses($addresses, "sqli");
+        \datadog\appsec\push_addresses($addresses, "sql_injection");
+    }
+
+    public static function useQuestionMarkPlaceholders($query)
+    {
+        // Avoid 
+        if (\strlen($query) > 10000) {
+            return $query;
+        }
+
+        // Regex according to rules from pdo_sql_parser.re
+        // This \Z(*COMMIT) prevents catastrophic backtracking after the last match
+        return \preg_replace('((?:[^/:\'"-]++|/\*(*COMMIT)([^*]++|\*++[^/])*+\*/|--.*+(*SKIP)(*F)|"(*COMMIT)(?:""|[^"]++)*+"|\'(*COMMIT)(?:\'\'|[^\']++)*+\'|.|\Z(*COMMIT))+?\K:[a-zA-Z0-9_]+)s', "?", $query);
     }
 }

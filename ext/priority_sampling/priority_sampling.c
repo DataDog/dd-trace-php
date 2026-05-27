@@ -66,29 +66,30 @@ static void dd_update_decision_maker_tag(ddtrace_root_span_data *root_span,
 static void dd_update_knuth_sampling_rate_tag(ddtrace_root_span_data *root_span, double sample_rate) {
     zend_array *meta = ddtrace_property_array(&root_span->property_meta);
 
-    // Round to 6 decimal places at integer level to avoid IEEE 754 precision issues,
-    // then format with fixed-point notation (never scientific notation).
-    double rounded = floor(sample_rate * 1e6 + 0.5) / 1e6;
     char buf[32];
-    snprintf(buf, sizeof(buf), "%.6f", rounded);
+#if PHP_VERSION_ID < 80100
+    int is_negative;
+#else
+    bool is_negative;
+#endif
+    size_t len;
+    php_conv_fp('F', sample_rate, false, 6, '.', &is_negative, buf, &len); // F for fixed point vs scientific notation
 
-    // Strip trailing zeros and optional decimal point
-    size_t len = strlen(buf);
     while (len > 1 && buf[len - 1] == '0') {
-        buf[--len] = '\0';
+        --len;
     }
     if (len > 1 && buf[len - 1] == '.') {
-        buf[--len] = '\0';
+        --len;
     }
 
     // Skip update if already set to the same value
     zval *existing = zend_hash_str_find(meta, ZEND_STRL("_dd.p.ksr"));
-    if (existing && Z_TYPE_P(existing) == IS_STRING && strcmp(Z_STRVAL_P(existing), buf) == 0) {
+    if (existing && Z_TYPE_P(existing) == IS_STRING && zend_string_equals_cstr(Z_STR_P(existing), buf, len) == 0) {
         return;
     }
 
     zval ksr;
-    ZVAL_STRING(&ksr, buf);
+    ZVAL_STRINGL(&ksr, buf, len);
     zend_hash_str_update(meta, ZEND_STRL("_dd.p.ksr"), &ksr);
     zend_hash_str_add_empty_element(ddtrace_property_array(&root_span->property_propagated_tags), ZEND_STRL("_dd.p.ksr"));
 }
@@ -267,7 +268,7 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
 
     if (is_trace_root || zval_get_long(&span->property_propagated_sampling_priority) == DDTRACE_PRIORITY_SAMPLING_UNKNOWN) {
         // when we sample, we need to fetch the env first
-        ddtrace_check_agent_info_env();
+        ddtrace_apply_agent_info();
 
         double default_sample_rate = get_DD_TRACE_SAMPLE_RATE();
         sample_rate = default_sample_rate >= 0 ? default_sample_rate : 1;

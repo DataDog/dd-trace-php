@@ -14,6 +14,8 @@ if (version_compare(PHP_VERSION, '7.4.0', '>='))
 --FILE--
 <?php
 
+include __DIR__ . '/sandbox/dd_dumper.inc';
+
 function test() {
     throw new \Exception;
 }
@@ -25,7 +27,7 @@ DDTrace\trace_function("test", function($span) {
 try {
     test();
 } catch (Exception $e) {
-    var_dump(dd_trace_serialize_closed_spans());
+    var_dump(dd_clean_spans());
 }
 
 DDTrace\trace_function("test", function($span) {
@@ -35,7 +37,7 @@ DDTrace\trace_function("test", function($span) {
 try {
     test();
 } catch (Exception $e) {
-    var_dump(dd_trace_serialize_closed_spans());
+    var_dump(dd_clean_spans());
 }
 
 DDTrace\trace_function("test", function($span) {
@@ -45,7 +47,7 @@ DDTrace\trace_function("test", function($span) {
 try {
     test();
 } catch (Exception $e) {
-    var_dump(dd_trace_serialize_closed_spans());
+    var_dump(dd_clean_spans());
 }
 
 ?>

@@ -8,16 +8,17 @@
 #include "ddappsec.h"
 #include "dddefs.h"
 #include "ddtrace.h"
+#include "duration_acc.h"
 #include "entity_body.h"
 #include "helper_process.h"
 #include "logging.h"
 #include "php_compat.h"
 #include "php_helpers.h"
 #include "php_objects.h"
-#include "rasp.h"
 #include "request_abort.h"
 #include "string_helpers.h"
 #include "tags.h"
+#include "telemetry.h"
 
 #include <SAPI.h>
 #include <Zend/zend_exceptions.h>
@@ -193,6 +194,8 @@ static zend_array *nullable _do_request_begin(
 
     dd_tags_rinit();
 
+    dd_telemetry_rinit();
+
     zend_string *nullable rbe = NULL;
     if (rbe_zv) {
         rbe = _get_entity_as_string(rbe_zv);
@@ -226,11 +229,15 @@ static zend_array *nullable _do_request_begin(
             conn, &(struct config_sync_data){.rem_cfg_path = _last_rem_cfg_path,
                       .telemetry_settings = dd_trace_get_telemetry_rc_info()});
         if (res == dd_success && DDAPPSEC_G(active)) {
+            struct timespec start = dd_monotime_start();
             res = dd_request_init(conn, &req_info);
+            dd_duration_waf_ext_account(&start);
         }
     } else if (DDAPPSEC_G(active)) {
         // request_init
+        struct timespec start = dd_monotime_start();
         res = dd_request_init(conn, &req_info);
+        dd_duration_waf_ext_account(&start);
     }
 
     if (rbe) {
@@ -331,7 +338,9 @@ static void _do_request_finish_php(bool ignore_verdict)
             .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
         };
 
+        struct timespec shutdown_start = dd_monotime_start();
         int res = dd_request_shutdown(conn, &ctx);
+        dd_duration_waf_ext_account(&shutdown_start);
         if (res == dd_network) {
             mlog_g(dd_log_info,
                 "request_shutdown failed with dd_network; closing "
@@ -349,9 +358,9 @@ static void _do_request_finish_php(bool ignore_verdict)
 
     if (DDAPPSEC_G(active) && _cur_req_span) {
         dd_tags_add_tags(_cur_req_span, NULL);
+        dd_duration_flush_metrics(_cur_req_span);
     }
     dd_tags_rshutdown();
-    dd_rasp_req_finish();
 
     _reset_globals();
 
@@ -379,7 +388,9 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
             .api_sec_samp_key = _calc_sampling_key(_cur_req_span, status_code),
         };
 
+        struct timespec shutdown_start = dd_monotime_start();
         int res = dd_request_shutdown(conn, &ctx);
+        dd_duration_waf_ext_account(&shutdown_start);
         if (res == dd_network) {
             mlog_g(dd_log_info,
                 "request_shutdown failed with dd_network; closing "
@@ -397,8 +408,8 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
 
     if (DDAPPSEC_G(active) && _cur_req_span) {
         dd_tags_add_tags(_cur_req_span, superglob_equiv);
+        dd_duration_flush_metrics(_cur_req_span);
     }
-    dd_rasp_req_finish();
 
     zend_array *spec = dd_req_lifecycle_abort(
         REQUEST_STAGE_REQUEST_END, verdict, &ctx.req_info.block_params);
@@ -434,7 +445,7 @@ static void _reset_globals(void)
     _shutdown_done_on_commit = false;
     _request_blocked = false;
     dd_tags_rshutdown();
-    dd_rasp_reset_globals();
+    dd_duration_reset_globals();
 }
 
 static zend_string *nullable _extract_ip_from_autoglobal(void)

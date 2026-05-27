@@ -1,4 +1,1 @@
-when@dev:
-    _errors:
-        resource: '@FrameworkBundle/Resources/config/routing/errors.xml'
-        prefix: /_error
+# Error routing is registered automatically by FrameworkBundle in Symfony 8+

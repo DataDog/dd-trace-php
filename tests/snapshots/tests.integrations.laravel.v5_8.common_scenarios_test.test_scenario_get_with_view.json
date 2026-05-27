@@ -2,7 +2,7 @@
   {
     "name": "laravel.request",
     "service": "laravel_test_app",
-    "resource": "App\\Http\\Controllers\\CommonSpecsController@simple_view unnamed_route",
+    "resource": "App\\Http\\Controllers\\CommonSpecsController@simple_view simple_view",
     "trace_id": 0,
     "span_id": 1,
     "parent_id": 12604606052329515364,

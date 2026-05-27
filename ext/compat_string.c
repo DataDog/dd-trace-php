@@ -84,7 +84,8 @@ try_again:
         case IS_STRING:
             return zend_string_copy(Z_STR_P(op));
 
-            EMPTY_SWITCH_DEFAULT_CASE()
+        default:
+            ZEND_UNREACHABLE();
     }
 }
 

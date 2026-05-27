@@ -18,11 +18,13 @@ $spans = dd_trace_serialize_closed_spans();
 var_dump($spans[0]['meta']);
 ?>
 --EXPECTF--
-array(3) {
+array(4) {
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["_dd.tags.process"]=>
+  string(%d) "%s"
   ["runtime-id"]=>
   string(36) "%s"
 }

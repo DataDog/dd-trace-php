@@ -48,7 +48,7 @@ for ($i = 0; $i < 300; ++$i) {
                     if ($json["request_type"] == "app-client-configuration-change") {
                         $cfg = $json["payload"]["configuration"];
                         print_r(array_values(array_filter($cfg, function ($c) {
-                            return $c["origin"] == "env_var" && $c["name"] != "trace.sources_path" && $c["name"] != "trace.sidecar_trace_sender";
+                            return $c["origin"] == "env_var" && $c["name"] != "DD_TRACE_SOURCES_PATH" && $c["name"] != "DD_TRACE_SIDECAR_TRACE_SENDER";
                         })));
                         var_dump(count(array_filter($cfg, function ($c) {
                             return $c["origin"] == "default";
@@ -74,7 +74,7 @@ Array
 (
     [0] => Array
         (
-            [name] => trace.agent_url
+            [name] => DD_TRACE_AGENT_URL
             [value] => file://%s/config-telemetry.out
             [origin] => env_var
             [config_id] => 
@@ -83,7 +83,7 @@ Array
 
     [1] => Array
         (
-            [name] => instrumentation_telemetry_enabled
+            [name] => DD_INSTRUMENTATION_TELEMETRY_ENABLED
             [value] => 1
             [origin] => env_var
             [config_id] => 
@@ -92,7 +92,7 @@ Array
 
     [2] => Array
         (
-            [name] => trace.ignore_agent_sampling_rates
+            [name] => DD_TRACE_IGNORE_AGENT_SAMPLING_RATES
             [value] => 1
             [origin] => env_var
             [config_id] => 
@@ -101,7 +101,7 @@ Array
 
     [3] => Array
         (
-            [name] => trace.generate_root_span
+            [name] => DD_TRACE_GENERATE_ROOT_SPAN
             [value] => 0
             [origin] => env_var
             [config_id] => 
@@ -110,7 +110,7 @@ Array
 
     [4] => Array
         (
-            [name] => trace.git_metadata_enabled
+            [name] => DD_TRACE_GIT_METADATA_ENABLED
             [value] => 0
             [origin] => env_var
             [config_id] => 
@@ -119,7 +119,7 @@ Array
 
     [5] => Array
         (
-            [name] => experimental_propagate_process_tags_enabled
+            [name] => DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
             [value] => 0
             [origin] => env_var
             [config_id] => 

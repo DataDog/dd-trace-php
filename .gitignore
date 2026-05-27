@@ -1,6 +1,6 @@
 **/vendor
 !/ext/vendor
-tmp/build_extension/
+tmp/
 composer.lock*
 **/core*
 .DS_Store
@@ -70,3 +70,4 @@ cookies.txt
 tests/tested_versions
 .gitlab/*-gen.yml
 .gitlab-ci-local/
+/.claude/settings.local.json

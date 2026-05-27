@@ -2,6 +2,7 @@
 DDTrace\add_global_tag() on all sorts of spans
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 DDTrace\add_global_tag("alone", ($_ = "n") . "o");
 DDTrace\add_global_tag("cubs", ($_ = "n") . "o");
@@ -22,7 +23,7 @@ test("arg");
 
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

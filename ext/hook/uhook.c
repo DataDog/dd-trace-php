@@ -985,6 +985,8 @@ ZEND_METHOD(DDTrace_HookData, overrideArguments) {
             ZVAL_NEW_REF(&zv, val);
             Z_DELREF_P(&zv); // we'll copy it right below
             val = &zv;
+        } else if (Z_ISREF_P(val) && !(i < (int)func->common.num_args && func->common.arg_info && (ZEND_ARG_SEND_MODE(&func->common.arg_info[i]) & (ZEND_SEND_BY_REF | ZEND_SEND_PREFER_REF)))) {
+            val = Z_REFVAL_P(val);
         }
 #if PHP_VERSION_ID < 80000
         // While the observer API, triggers immediately after args passing, on PHP 7 the interceptor only triggers after all args have been parsed

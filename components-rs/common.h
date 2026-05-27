@@ -268,36 +268,13 @@ typedef struct _zend_string _zend_string;
 
 #define ddog_LOG_ONCE (1 << 3)
 
+/**
+ * Number of gRPC status-code keys checked by the stats aggregation (must match
+ * `GRPC_STATUS_CODE_FIELD` in libdd-trace-stats/src/span_concentrator/aggregation.rs).
+ */
+#define ddog_PHP_GRPC_KEY_COUNT 4
+
 #define ddog_MultiTargetFetcher_DEFAULT_CLIENTS_LIMIT 100
-
-typedef enum ddog_ConfigurationOrigin {
-  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
-  DDOG_CONFIGURATION_ORIGIN_CODE,
-  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
-  DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
-  DDOG_CONFIGURATION_ORIGIN_CALCULATED,
-} ddog_ConfigurationOrigin;
-
-typedef enum ddog_DynamicConfigUpdateMode {
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
-  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
-} ddog_DynamicConfigUpdateMode;
-
-typedef enum ddog_EvaluateAt {
-  DDOG_EVALUATE_AT_ENTRY,
-  DDOG_EVALUATE_AT_EXIT,
-} ddog_EvaluateAt;
-
-typedef enum ddog_InBodyLocation {
-  DDOG_IN_BODY_LOCATION_NONE,
-  DDOG_IN_BODY_LOCATION_START,
-  DDOG_IN_BODY_LOCATION_END,
-} ddog_InBodyLocation;
 
 typedef enum ddog_Log {
   DDOG_LOG_ERROR = 1,
@@ -313,12 +290,74 @@ typedef enum ddog_Log {
   DDOG_LOG_HOOK_TRACE = (5 | (4 << 4)),
 } ddog_Log;
 
+typedef enum ddog_DynamicConfigUpdateMode {
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_READ_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE,
+  DDOG_DYNAMIC_CONFIG_UPDATE_MODE_RESTORE,
+} ddog_DynamicConfigUpdateMode;
+
+typedef enum ddog_InBodyLocation {
+  DDOG_IN_BODY_LOCATION_NONE,
+  DDOG_IN_BODY_LOCATION_START,
+  DDOG_IN_BODY_LOCATION_END,
+} ddog_InBodyLocation;
+
+typedef enum ddog_EvaluateAt {
+  DDOG_EVALUATE_AT_ENTRY,
+  DDOG_EVALUATE_AT_EXIT,
+} ddog_EvaluateAt;
+
 typedef enum ddog_MetricKind {
   DDOG_METRIC_KIND_COUNT,
   DDOG_METRIC_KIND_GAUGE,
   DDOG_METRIC_KIND_HISTOGRAM,
   DDOG_METRIC_KIND_DISTRIBUTION,
 } ddog_MetricKind;
+
+typedef enum ddog_SpanProbeTarget {
+  DDOG_SPAN_PROBE_TARGET_ACTIVE,
+  DDOG_SPAN_PROBE_TARGET_ROOT,
+} ddog_SpanProbeTarget;
+
+typedef enum ddog_ProbeStatus {
+  DDOG_PROBE_STATUS_RECEIVED,
+  DDOG_PROBE_STATUS_INSTALLED,
+  DDOG_PROBE_STATUS_EMITTING,
+  DDOG_PROBE_STATUS_ERROR,
+  DDOG_PROBE_STATUS_BLOCKED,
+  DDOG_PROBE_STATUS_WARNING,
+} ddog_ProbeStatus;
+
+typedef enum ddog_Method {
+  DDOG_METHOD_GET = 0,
+  DDOG_METHOD_POST = 1,
+  DDOG_METHOD_PUT = 2,
+  DDOG_METHOD_DELETE = 3,
+  DDOG_METHOD_PATCH = 4,
+  DDOG_METHOD_HEAD = 5,
+  DDOG_METHOD_OPTIONS = 6,
+  DDOG_METHOD_TRACE = 7,
+  DDOG_METHOD_CONNECT = 8,
+  DDOG_METHOD_OTHER = 9,
+} ddog_Method;
+
+typedef enum ddog_ConfigurationOrigin {
+  DDOG_CONFIGURATION_ORIGIN_ENV_VAR,
+  DDOG_CONFIGURATION_ORIGIN_CODE,
+  DDOG_CONFIGURATION_ORIGIN_DD_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_REMOTE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_DEFAULT,
+  DDOG_CONFIGURATION_ORIGIN_LOCAL_STABLE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_FLEET_STABLE_CONFIG,
+  DDOG_CONFIGURATION_ORIGIN_CALCULATED,
+} ddog_ConfigurationOrigin;
+
+typedef enum ddog_MetricType {
+  DDOG_METRIC_TYPE_GAUGE,
+  DDOG_METRIC_TYPE_COUNT,
+  DDOG_METRIC_TYPE_DISTRIBUTION,
+} ddog_MetricType;
 
 typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_TRACERS,
@@ -334,20 +373,17 @@ typedef enum ddog_MetricNamespace {
   DDOG_METRIC_NAMESPACE_SIDECAR,
 } ddog_MetricNamespace;
 
-typedef enum ddog_MetricType {
-  DDOG_METRIC_TYPE_GAUGE,
-  DDOG_METRIC_TYPE_COUNT,
-  DDOG_METRIC_TYPE_DISTRIBUTION,
-} ddog_MetricType;
-
-typedef enum ddog_ProbeStatus {
-  DDOG_PROBE_STATUS_RECEIVED,
-  DDOG_PROBE_STATUS_INSTALLED,
-  DDOG_PROBE_STATUS_EMITTING,
-  DDOG_PROBE_STATUS_ERROR,
-  DDOG_PROBE_STATUS_BLOCKED,
-  DDOG_PROBE_STATUS_WARNING,
-} ddog_ProbeStatus;
+typedef enum ddog_RemoteConfigProduct {
+  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_CONFIG,
+  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_TASK,
+  DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
+  DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
+  DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+} ddog_RemoteConfigProduct;
 
 typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_ACTIVATION = 1,
@@ -393,25 +429,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_MULTICONFIG = 45,
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
 } ddog_RemoteConfigCapabilities;
 
-typedef enum ddog_RemoteConfigProduct {
-  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_CONFIG,
-  DDOG_REMOTE_CONFIG_PRODUCT_AGENT_TASK,
-  DDOG_REMOTE_CONFIG_PRODUCT_APM_TRACING,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DATA,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_DD,
-  DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
-  DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
-  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
-} ddog_RemoteConfigProduct;
-
-typedef enum ddog_SpanProbeTarget {
-  DDOG_SPAN_PROBE_TARGET_ACTIVE,
-  DDOG_SPAN_PROBE_TARGET_ROOT,
-} ddog_SpanProbeTarget;
+typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
 
 typedef struct ddog_DebuggerPayload ddog_DebuggerPayload;
 
@@ -441,6 +463,20 @@ typedef struct ddog_SidecarActionsBuffer ddog_SidecarActionsBuffer;
  * It is a blocking transport (all operations block the current thread).
  */
 typedef struct ddog_SidecarTransport ddog_SidecarTransport;
+
+/**
+ * Opaque shared-memory span stats concentrator exposed to C.
+ *
+ * Always heap-allocated (as a `Box`) — C holds a raw pointer and must pass it back to
+ * `ddog_span_concentrator_drop` to free.
+ *
+ * When `inner` is `None` this is a *virtual* concentrator: the SHM has not been created by the
+ * sidecar yet, but peer-tag keys and span-kinds from `DESIRED_CONFIG` are still available so the
+ * C callback can run eligibility checks and extract peer tags.  A virtual concentrator is always
+ * considered stale (`needs_refresh` returns `true`) so it will be upgraded to a real one on the
+ * next call once the SHM becomes available.
+ */
+typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -552,12 +588,20 @@ typedef struct ddog_CaptureConfiguration {
   uint32_t max_field_count;
 } ddog_CaptureConfiguration;
 
+typedef struct ddog_CaptureExpression {
+  ddog_CharSlice name;
+  const struct ddog_ProbeValue *expr;
+  const struct ddog_CaptureConfiguration *capture;
+} ddog_CaptureExpression;
+
 typedef struct ddog_LogProbe {
   const struct ddog_DslString *segments;
   const struct ddog_ProbeCondition *when;
   const struct ddog_CaptureConfiguration *capture;
   bool capture_snapshot;
   uint32_t sampling_snapshots_per_second;
+  const struct ddog_CaptureExpression *capture_expressions;
+  uintptr_t capture_expressions_num;
 } ddog_LogProbe;
 
 typedef struct ddog_SpanProbeTag {
@@ -635,7 +679,95 @@ typedef struct ddog_Vec_DebuggerPayload {
  */
 typedef uint64_t ddog_QueueId;
 
+/**
+ * A (key, value) pair for peer-service tags, borrowed from PHP/concentrator memory.
+ */
+typedef struct ddog_PhpPeerTag {
+  /**
+   * Key string — borrows from the concentrator's `peer_tag_keys` Vec<String>.
+   */
+  ddog_CharSlice key;
+  /**
+   * Value string — borrows from PHP span meta memory.
+   */
+  ddog_CharSlice value;
+} ddog_PhpPeerTag;
+
+/**
+ * Flat representation of a PHP span's stats-relevant fields, filled by C code in one call.
+ *
+ * All `CharSlice` fields borrow from PHP memory (or from the concentrator for peer-tag keys) and
+ * must remain valid for the duration of `ddog_span_concentrator_add_php_span`.
+ *
+ * For absent optional strings pass an empty slice (ptr may be non-null with len == 0).
+ * For absent optional `f64` values pass `f64::NAN`.
+ */
+typedef struct ddog_PhpSpanStats {
+  ddog_CharSlice service;
+  ddog_CharSlice resource;
+  ddog_CharSlice name;
+  ddog_CharSlice type;
+  int64_t start;
+  int64_t duration;
+  bool is_error;
+  bool is_trace_root;
+  bool is_measured;
+  bool has_top_level;
+  bool is_partial_snapshot;
+  ddog_CharSlice span_kind;
+  ddog_CharSlice http_status_code;
+  ddog_CharSlice http_method;
+  ddog_CharSlice http_endpoint;
+  ddog_CharSlice http_route;
+  ddog_CharSlice origin;
+  /**
+   * Value of the `_dd.svc_src` meta tag; empty slice when absent.
+   */
+  ddog_CharSlice service_source;
+  /**
+   * gRPC meta values in order: rpc.grpc.status_code, grpc.code, rpc.grpc.status.code,
+   * grpc.status.code.  Empty slice = absent.
+   */
+  ddog_CharSlice grpc_meta[ddog_PHP_GRPC_KEY_COUNT];
+  /**
+   * Same gRPC keys but from metrics (NaN = absent).
+   */
+  double grpc_metrics[ddog_PHP_GRPC_KEY_COUNT];
+  /**
+   * Number of (key,value) pairs in `peer_tags`.
+   */
+  uintptr_t peer_tags_count;
+  /**
+   * Pointer to an array of `peer_tags_count` `PhpPeerTag` pairs.
+   * May be null when `peer_tags_count == 0`.
+   */
+  const struct ddog_PhpPeerTag *peer_tags;
+} ddog_PhpSpanStats;
+
 typedef struct ddog_HashMap_ShmCacheKey__ShmCache ddog_ShmCacheMap;
+
+/**
+ * Fast path: exact-key lookup into a root span.  Returns null when the key is absent.
+ */
+typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
+                                            const char *key,
+                                            uintptr_t key_len,
+                                            uintptr_t *out_len);
+
+/**
+ * Per-entry callback passed to `RootMetaIterFn`.  Return `false` to stop iteration early.
+ */
+typedef bool (*ddog_MetaEntryCb)(void *iter_ctx,
+                                 const char *key,
+                                 uintptr_t key_len,
+                                 const char *val,
+                                 uintptr_t val_len);
+
+/**
+ * Slow-path meta iterator.  `NULL` when no regex-key filter entries are present.
+ * Iterates all string meta entries, calling `cb` for each; stops when `cb` returns `false`.
+ */
+typedef void (*ddog_RootMetaIterFn)(const void *ctx, void *iter_ctx, ddog_MetaEntryCb cb);
 
 /**
  * A 128-bit (16 byte) buffer containing the UUID.
@@ -780,17 +912,17 @@ typedef struct ddog_DebuggerValue ddog_DebuggerValue;
 
 #define ddog_EVALUATOR_RESULT_REDACTED (const void*)-2
 
-typedef enum ddog_DebuggerType {
-  DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
-  DDOG_DEBUGGER_TYPE_SNAPSHOTS,
-  DDOG_DEBUGGER_TYPE_LOGS,
-} ddog_DebuggerType;
-
 typedef enum ddog_FieldType {
   DDOG_FIELD_TYPE_STATIC,
   DDOG_FIELD_TYPE_ARG,
   DDOG_FIELD_TYPE_LOCAL,
 } ddog_FieldType;
+
+typedef enum ddog_DebuggerType {
+  DDOG_DEBUGGER_TYPE_DIAGNOSTICS,
+  DDOG_DEBUGGER_TYPE_SNAPSHOTS,
+  DDOG_DEBUGGER_TYPE_LOGS,
+} ddog_DebuggerType;
 
 typedef struct ddog_Entry ddog_Entry;
 
@@ -920,16 +1052,6 @@ typedef struct ddog_OwnedCharSlice {
   void (*free)(ddog_CharSlice);
 } ddog_OwnedCharSlice;
 
-typedef enum ddog_LogLevel {
-  DDOG_LOG_LEVEL_ERROR,
-  DDOG_LOG_LEVEL_WARN,
-  DDOG_LOG_LEVEL_DEBUG,
-} ddog_LogLevel;
-
-typedef enum ddog_TelemetryWorkerBuilderBoolProperty {
-  DDOG_TELEMETRY_WORKER_BUILDER_BOOL_PROPERTY_CONFIG_TELEMETRY_DEBUG_LOGGING_ENABLED,
-} ddog_TelemetryWorkerBuilderBoolProperty;
-
 typedef enum ddog_TelemetryWorkerBuilderEndpointProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_ENDPOINT_PROPERTY_CONFIG_ENDPOINT,
 } ddog_TelemetryWorkerBuilderEndpointProperty;
@@ -946,7 +1068,20 @@ typedef enum ddog_TelemetryWorkerBuilderStrProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_KERNEL_RELEASE,
   DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_KERNEL_VERSION,
   DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_RUNTIME_ID,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_SESSION_ID,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_PARENT_SESSION_ID,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_ROOT_SESSION_ID,
 } ddog_TelemetryWorkerBuilderStrProperty;
+
+typedef enum ddog_TelemetryWorkerBuilderBoolProperty {
+  DDOG_TELEMETRY_WORKER_BUILDER_BOOL_PROPERTY_CONFIG_TELEMETRY_DEBUG_LOGGING_ENABLED,
+} ddog_TelemetryWorkerBuilderBoolProperty;
+
+typedef enum ddog_LogLevel {
+  DDOG_LOG_LEVEL_ERROR,
+  DDOG_LOG_LEVEL_WARN,
+  DDOG_LOG_LEVEL_DEBUG,
+} ddog_LogLevel;
 
 typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
 
@@ -1007,21 +1142,6 @@ typedef enum ddog_DynamicInstrumentationConfigState {
   DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_NOT_SET,
 } ddog_DynamicInstrumentationConfigState;
 
-typedef enum ddog_Method {
-  DDOG_METHOD_GET = 0,
-  DDOG_METHOD_POST = 1,
-  DDOG_METHOD_PUT = 2,
-  DDOG_METHOD_DELETE = 3,
-  DDOG_METHOD_PATCH = 4,
-  DDOG_METHOD_HEAD = 5,
-  DDOG_METHOD_OPTIONS = 6,
-  DDOG_METHOD_TRACE = 7,
-  DDOG_METHOD_CONNECT = 8,
-  DDOG_METHOD_OTHER = 9,
-} ddog_Method;
-
-typedef struct ddog_AgentInfoReader ddog_AgentInfoReader;
-
 typedef struct ddog_AgentRemoteConfigReader ddog_AgentRemoteConfigReader;
 
 typedef struct ddog_AgentRemoteConfigWriter_ShmHandle ddog_AgentRemoteConfigWriter_ShmHandle;
@@ -1053,6 +1173,11 @@ typedef struct ddog_ShmHandle ddog_ShmHandle;
 typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
+
+typedef struct ddog_SidecarFlushOptions {
+  bool traces_and_stats;
+  bool telemetry;
+} ddog_SidecarFlushOptions;
 
 typedef struct ddog_TracerHeaderTags {
   ddog_CharSlice lang;
@@ -1099,37 +1224,25 @@ typedef struct ddog_SenderParameters {
   ddog_CharSlice url;
 } ddog_SenderParameters;
 
-typedef enum ddog_crasht_BuildIdType {
-  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
-  DDOG_CRASHT_BUILD_ID_TYPE_GO,
-  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
-  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
-} ddog_crasht_BuildIdType;
-
 /**
- * Result type for runtime callback registration
+ * Stacktrace collection occurs in the context of a crashing process.
+ * If the stack is sufficiently corruputed, it is possible (but unlikely),
+ * for stack trace collection itself to crash.
+ * We recommend fully enabling stacktrace collection, but having an environment
+ * variable to allow downgrading the collector.
  */
-typedef enum ddog_crasht_CallbackResult {
-  DDOG_CRASHT_CALLBACK_RESULT_OK,
-  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
-} ddog_crasht_CallbackResult;
-
-typedef enum ddog_crasht_DemangleOptions {
-  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
-  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
-} ddog_crasht_DemangleOptions;
-
-typedef enum ddog_crasht_ErrorKind {
-  DDOG_CRASHT_ERROR_KIND_PANIC,
-  DDOG_CRASHT_ERROR_KIND_UNHANDLED_EXCEPTION,
-  DDOG_CRASHT_ERROR_KIND_UNIX_SIGNAL,
-} ddog_crasht_ErrorKind;
-
-typedef enum ddog_crasht_FileType {
-  DDOG_CRASHT_FILE_TYPE_APK,
-  DDOG_CRASHT_FILE_TYPE_ELF,
-  DDOG_CRASHT_FILE_TYPE_PE,
-} ddog_crasht_FileType;
+typedef enum ddog_crasht_StacktraceCollection {
+  DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
+  /**
+   * This option uses `backtrace::resolve_frame_unsynchronized()` to gather symbol information
+   * and also unwind inlined functions. Enabling this feature will not only provide symbolic
+   * details, but may also yield additional or less stack frames compared to other
+   * configurations.
+   */
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
+  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
+} ddog_crasht_StacktraceCollection;
 
 /**
  * This enum represents operations a the tracked library might be engaged in.
@@ -1153,6 +1266,12 @@ typedef enum ddog_crasht_OpTypes {
    */
   DDOG_CRASHT_OP_TYPES_SIZE,
 } ddog_crasht_OpTypes;
+
+typedef enum ddog_crasht_ErrorKind {
+  DDOG_CRASHT_ERROR_KIND_PANIC,
+  DDOG_CRASHT_ERROR_KIND_UNHANDLED_EXCEPTION,
+  DDOG_CRASHT_ERROR_KIND_UNIX_SIGNAL,
+} ddog_crasht_ErrorKind;
 
 /**
  * See https://man7.org/linux/man-pages/man2/sigaction.2.html
@@ -1226,25 +1345,31 @@ typedef enum ddog_crasht_SignalNames {
   DDOG_CRASHT_SIGNAL_NAMES_UNKNOWN,
 } ddog_crasht_SignalNames;
 
+typedef enum ddog_crasht_BuildIdType {
+  DDOG_CRASHT_BUILD_ID_TYPE_GNU,
+  DDOG_CRASHT_BUILD_ID_TYPE_GO,
+  DDOG_CRASHT_BUILD_ID_TYPE_PDB,
+  DDOG_CRASHT_BUILD_ID_TYPE_SHA1,
+} ddog_crasht_BuildIdType;
+
+typedef enum ddog_crasht_FileType {
+  DDOG_CRASHT_FILE_TYPE_APK,
+  DDOG_CRASHT_FILE_TYPE_ELF,
+  DDOG_CRASHT_FILE_TYPE_PE,
+} ddog_crasht_FileType;
+
+typedef enum ddog_crasht_DemangleOptions {
+  DDOG_CRASHT_DEMANGLE_OPTIONS_COMPLETE,
+  DDOG_CRASHT_DEMANGLE_OPTIONS_NAME_ONLY,
+} ddog_crasht_DemangleOptions;
+
 /**
- * Stacktrace collection occurs in the context of a crashing process.
- * If the stack is sufficiently corruputed, it is possible (but unlikely),
- * for stack trace collection itself to crash.
- * We recommend fully enabling stacktrace collection, but having an environment
- * variable to allow downgrading the collector.
+ * Result type for runtime callback registration
  */
-typedef enum ddog_crasht_StacktraceCollection {
-  DDOG_CRASHT_STACKTRACE_COLLECTION_DISABLED,
-  DDOG_CRASHT_STACKTRACE_COLLECTION_WITHOUT_SYMBOLS,
-  /**
-   * This option uses `backtrace::resolve_frame_unsynchronized()` to gather symbol information
-   * and also unwind inlined functions. Enabling this feature will not only provide symbolic
-   * details, but may also yield additional or less stack frames compared to other
-   * configurations.
-   */
-  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_INPROCESS_SYMBOLS,
-  DDOG_CRASHT_STACKTRACE_COLLECTION_ENABLED_WITH_SYMBOLS_IN_RECEIVER,
-} ddog_crasht_StacktraceCollection;
+typedef enum ddog_crasht_CallbackResult {
+  DDOG_CRASHT_CALLBACK_RESULT_OK,
+  DDOG_CRASHT_CALLBACK_RESULT_ERROR,
+} ddog_crasht_CallbackResult;
 
 typedef struct ddog_crasht_CrashInfo ddog_crasht_CrashInfo;
 
@@ -1310,6 +1435,11 @@ typedef struct ddog_crasht_Slice_I32 {
 
 typedef struct ddog_crasht_Config {
   struct ddog_crasht_Slice_CharSlice additional_files;
+  /**
+   * If true, the receiver will collect stack traces for all threads in the crashing process
+   * (not just the crashing thread) using ptrace-based remote unwinding.
+   */
+  bool collect_all_threads;
   bool create_alt_stack;
   bool demangle_names;
   /**
@@ -1317,6 +1447,11 @@ typedef struct ddog_crasht_Config {
    * If None, the crashtracker will infer the agent host from env variables.
    */
   struct ddog_crasht_EndpointConfig endpoint;
+  /**
+   * Maximum number of non-crashing threads to collect when `collect_all_threads` is true.
+   * If 0, uses the default (`libdd_crashtracker::default_max_threads()`).
+   */
+  uintptr_t max_threads;
   /**
    * Optional filename for a unix domain socket if the receiver is used asynchonously
    */

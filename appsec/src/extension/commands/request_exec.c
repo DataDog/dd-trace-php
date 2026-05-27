@@ -17,6 +17,7 @@
 struct ctx {
     struct req_info req_info; // dd_command_proc_resp_verd_span_data expect it
     zend_string *nullable rasp_rule;
+    zend_string *nullable rule_variant;
     zend_string *nullable subctx_id;
     bool subctx_last_call;
     zend_array *nonnull data;
@@ -39,6 +40,7 @@ dd_result dd_request_exec(dd_conn *nonnull conn, zend_array *nonnull data,
 {
     struct ctx ctx = {.data = data,
         .rasp_rule = opts->rasp_rule,
+        .rule_variant = opts->rule_variant,
         .subctx_id = opts->subctx_id,
         .subctx_last_call = opts->subctx_last_call};
 
@@ -57,8 +59,10 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     dd_mpack_limits limits = dd_mpack_def_limits;
     dd_mpack_write_array_lim(w, ctx->data, &limits);
 
-    size_t num_map_elems =
-        (ctx->rasp_rule != NULL) + (ctx->subctx_id != NULL) * 2;
+    bool has_rule_variant =
+        ctx->rule_variant != NULL && ZSTR_LEN(ctx->rule_variant) > 0;
+    size_t num_map_elems = (ctx->rasp_rule != NULL) + has_rule_variant +
+                           (ctx->subctx_id != NULL) * 2;
     mpack_start_map(w, num_map_elems);
 
     if (dd_mpack_limits_reached(&limits)) {
@@ -68,6 +72,11 @@ static dd_result _pack_command(mpack_writer_t *nonnull w, void *nonnull _ctx)
     if (ctx->rasp_rule != NULL) {
         dd_mpack_write_lstr(w, "rasp_rule");
         dd_mpack_write_zstr(w, ctx->rasp_rule);
+    }
+
+    if (has_rule_variant) {
+        dd_mpack_write_lstr(w, "rule_variant");
+        dd_mpack_write_zstr(w, ctx->rule_variant);
     }
 
     if (ctx->subctx_id != NULL) {

@@ -14,7 +14,8 @@
       "http.method": "GET",
       "http.status_code": "404",
       "http.url": "http://localhost/does_not_exist?key=value&<redacted>",
-      "runtime-id": "143d2b36-2082-43af-b61f-f60b9133ac91"
+      "runtime-id": "143d2b36-2082-43af-b61f-f60b9133ac91",
+      "span.kind": "server"
     },
     "metrics": {
       "_sampling_priority_v1": 1.0

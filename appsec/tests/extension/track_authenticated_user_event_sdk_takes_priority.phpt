@@ -9,7 +9,7 @@ DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE=ident
 <?php
 
 use function datadog\appsec\testing\root_span_get_meta;
-use function datadog\appsec\track_authenticated_user_event_automated;
+use function datadog\appsec\internal\track_authenticated_user_event_automated;
 use function datadog\appsec\track_authenticated_user_event;
 
 include __DIR__ . '/inc/ddtrace_version.php';
@@ -17,6 +17,7 @@ include __DIR__ . '/inc/ddtrace_version.php';
 ddtrace_version_at_least('0.79.0');
 
 track_authenticated_user_event_automated(
+    'test',
     "automatedID"
 );
 track_authenticated_user_event(

@@ -347,6 +347,13 @@
         "default": ""
       }
     ],
+    "DD_DYNAMIC_INSTRUMENTATION_REDACTION_EXCLUDED_IDENTIFIERS": [
+      {
+        "implementation": "C",
+        "type": "array",
+        "default": ""
+      }
+    ],
     "DD_ENV": [
       {
         "implementation": "A",
@@ -429,6 +436,13 @@
         "implementation": "A",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_LOGS_OTEL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_LOG_BACKTRACE": [
@@ -635,6 +649,13 @@
         "implementation": "A",
         "type": "map",
         "default": ""
+      }
+    ],
+    "DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "86400"
       }
     ],
     "DD_TELEMETRY_HEARTBEAT_INTERVAL": [
@@ -2181,6 +2202,13 @@
         "default": "glob"
       }
     ],
+    "DD_TRACE_SECURE_RANDOM": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_TRACE_SHUTDOWN_TIMEOUT": [
       {
         "implementation": "A",
@@ -2289,6 +2317,13 @@
         "implementation": "C",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_TRACE_STATS_COMPUTATION_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_TRACE_STRIPE_ANALYTICS_ENABLED": [

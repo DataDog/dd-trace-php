@@ -248,5 +248,5 @@ array(6) {
 [true]
 "
   ["process_tags"]=>
-  NULL
+  string(%d) "%s"
 }

@@ -99,7 +99,69 @@ function windows_git_setup_with_packages() {
 <?php
 }
 
+// When LIBDATADOG_OVERRIDE_SHA is set in the environment (injected by generate-templates
+// on a libdatadog CI schedule run), capture the entire generated YAML and burn the
+// literal SHA into the before_script of every compilation job.  On normal CI runs the
+// env var is absent and the YAML is emitted unchanged with zero overhead.
+$_libdatadog_sha = getenv('LIBDATADOG_OVERRIDE_SHA') ?: '';
+ob_start();
+register_shutdown_function(function () use ($_libdatadog_sha) {
+    $yaml = ob_get_clean();
+
+    if ($_libdatadog_sha === '') {
+        echo $yaml;
+        return;
+    }
+
+    $step  = <<<STEP
+    - git config --global --add safe.directory "\${CI_PROJECT_DIR}/libdatadog"
+    - git -C libdatadog fetch --depth=1 origin "$_libdatadog_sha" 2>&1
+    - git -C libdatadog checkout FETCH_HEAD
+STEP;
+
+    // Scripts whose presence in a job block means the job compiles Rust from libdatadog.
+    $compile_scripts = [
+        'compile_extension.sh',
+        'build-sidecar.sh',
+        'build-tracing.sh',
+        'build-tracing-asan.sh',
+        'build-profiler.sh',
+    ];
+
+    // Split into top-level YAML blocks (each starts at column 0).
+    $blocks = preg_split('/(?=^[^\s])/m', $yaml, -1, PREG_SPLIT_NO_EMPTY);
+
+    $result = '';
+    foreach ($blocks as $block) {
+        $needs_override = false;
+        foreach ($compile_scripts as $script) {
+            if (str_contains($block, $script)) {
+                $needs_override = true;
+                break;
+            }
+        }
+
+        if ($needs_override) {
+            if (preg_match('/^  before_script:/m', $block)) {
+                // Prepend to an existing before_script list.
+                $block = preg_replace('/^  before_script:/m', "  before_script:\n$step", $block, 1);
+            } elseif (preg_match('/^  script:/m', $block)) {
+                // No before_script — create one immediately before script:.
+                $block = preg_replace('/^  script:/m', "  before_script:\n$step\n  script:", $block, 1);
+            }
+        }
+
+        $result .= $block;
+    }
+
+    echo $result;
+});
+
 ?>
+variables:
+  FF_ENABLE_BASH_EXIT_CODE_CHECK: "true"
+  FF_USE_NEW_BASH_EVAL_STRATEGY: "true"
+
 default:
   retry:
     max: 2
@@ -111,6 +173,9 @@ default:
       - api_failure
       - stuck_or_timeout_failure
       - job_execution_timeout
+    exit_codes:
+      - 75
+      - 128
 
 .all_targets: &all_minor_major_targets
 <?php
@@ -156,6 +221,10 @@ foreach ($arch_targets as $arch_target) {
       DD_POOL_TRACE_CHECK_FAILURES: true
       DD_DISABLE_ERROR_RESPONSES: true
       SNAPSHOT_REGEX_PLACEHOLDERS: 'path:/\S+/dd-trace-php(?=/),httpbin:(?<=//)httpbin-integration:8080'
+      KUBERNETES_SERVICE_CPU_REQUEST: 1
+      KUBERNETES_SERVICE_CPU_LIMIT: 1
+      KUBERNETES_SERVICE_MEMORY_REQUEST: 512Mi
+      KUBERNETES_SERVICE_MEMORY_LIMIT: 512Mi
 
   request-replayer:
     name: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-request-replayer-2.0

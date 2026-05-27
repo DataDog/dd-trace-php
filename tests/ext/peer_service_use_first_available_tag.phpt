@@ -4,6 +4,7 @@ Use the first available tag from peerServiceSources to set peer.service
 DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED=true
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function foo() { }
 function bar() { }
@@ -29,7 +30,7 @@ foo(); // db.instance is set, so peer.service is set to db1
 bar(); // db.instance is set, so peer.service is set to db1
 baz(); // db.instance is not set, and net.peer.name is set, so peer.service is set to db1.example.com
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
