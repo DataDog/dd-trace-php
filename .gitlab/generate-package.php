@@ -1187,7 +1187,7 @@ endforeach;
 
 "min install tests":
   stage: verify
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.0-shared-ext
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.0-shared-ext-8
   tags: [ "arch:amd64" ]
   variables:
     MAX_TEST_PARALLELISM: 8
