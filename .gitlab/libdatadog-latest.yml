@@ -211,10 +211,10 @@ stages:
         # Install Claude (nvm — no root required)
         if ! command -v claude &>/dev/null; then
           export NVM_DIR="${HOME}/.nvm"
-          curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - 2>&1
-          . "${NVM_DIR}/nvm.sh"
-          nvm install --lts --no-progress 2>&1
-          npm install -g @anthropic-ai/claude-code 2>&1
+          curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash - >/dev/null 2>&1
+          . "${NVM_DIR}/nvm.sh" >/dev/null 2>&1
+          nvm install --lts --no-progress >/dev/null 2>&1
+          npm install -g @anthropic-ai/claude-code >/dev/null 2>&1
         fi
 
         AI_GATEWAY_TOKEN=$(_vault_jwt rapid-ai-platform) || {
