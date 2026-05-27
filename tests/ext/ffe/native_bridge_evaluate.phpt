@@ -63,6 +63,26 @@ $config = <<<'JSON'
         "doLog": true
       }]
     },
+    "numeric.attribute.flag": {
+      "key": "numeric.attribute.flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "numeric-key": {"key": "numeric-key", "value": "numeric-attribute-name"}
+      },
+      "allocations": [{
+        "key": "alloc-numeric-attribute",
+        "rules": [{
+          "conditions": [{
+            "attribute": "1234",
+            "operator": "ONE_OF",
+            "value": ["numeric-match"]
+          }]
+        }],
+        "splits": [{"variationKey": "numeric-key", "shards": []}],
+        "doLog": true
+      }]
+    },
     "bad.flag": {
       "key": "bad.flag",
       "enabled": true,
@@ -96,6 +116,9 @@ show('object_success_metadata', array(
     'error_code' => $object->errorCode,
     'do_log' => $object->doLog,
 ));
+show('numeric_attribute_key', \DDTrace\ffe_evaluate('numeric.attribute.flag', 0, 'user-1', array(
+    '1234' => 'numeric-match',
+)));
 show('empty_targeting_key', \DDTrace\ffe_evaluate('empty.targeting.shard.flag', 0, '', array()));
 show('missing', \DDTrace\ffe_evaluate('missing.flag', 0, 'user-1', array()));
 show('type_mismatch', \DDTrace\ffe_evaluate('string.flag', 3, 'user-1', array()));
@@ -109,6 +132,7 @@ has_config_after=true
 success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 object_success_value={"enabled":true,"threshold":2}
 object_success_metadata={"variant":"json-a","allocation_key":"alloc-json","reason":0,"error_code":0,"do_log":true}
+numeric_attribute_key={"valueJson":"\"numeric-attribute-name\"","variant":"numeric-key","allocationKey":"alloc-numeric-attribute","reason":2,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 empty_targeting_key={"valueJson":"\"empty-targeting-key\"","variant":"empty-target","allocationKey":"alloc-empty-targeting-key","reason":3,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 missing={"valueJson":"null","variant":null,"allocationKey":null,"reason":1,"errorCode":3,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 type_mismatch={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":1,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}

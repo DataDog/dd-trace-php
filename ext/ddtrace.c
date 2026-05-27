@@ -2992,9 +2992,11 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zval *attrs_zv;
     int32_t type_id;
     struct ddog_FfeAttribute *c_attrs = NULL;
+    zend_string **owned_attr_keys = NULL;
     size_t attrs_count = 0;
     HashTable *attributes;
     size_t idx = 0;
+    zend_ulong num_key;
     zend_string *key;
     zval *value;
     struct ddog_FfeResult result;
@@ -3012,12 +3014,19 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
 
     if (attrs_count > 0) {
         c_attrs = ecalloc(attrs_count, sizeof(struct ddog_FfeAttribute));
-        ZEND_HASH_FOREACH_STR_KEY_VAL(attributes, key, value) {
-            if (!key || idx >= attrs_count) {
+        owned_attr_keys = ecalloc(attrs_count, sizeof(zend_string *));
+        ZEND_HASH_FOREACH_KEY_VAL(attributes, num_key, key, value) {
+            zend_string *owned_key = NULL;
+
+            if (idx >= attrs_count) {
                 continue;
             }
 
-            c_attrs[idx].key = dd_zend_string_to_CharSlice(key);
+            if (!key) {
+                owned_key = zend_long_to_str((zend_long) num_key);
+                key = owned_key;
+            }
+
             switch (Z_TYPE_P(value)) {
                 case IS_STRING:
                     c_attrs[idx].value_type = 0;
@@ -3040,9 +3049,14 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
                     c_attrs[idx].bool_value = false;
                     break;
                 default:
+                    if (owned_key) {
+                        zend_string_release(owned_key);
+                    }
                     continue;
             }
 
+            c_attrs[idx].key = dd_zend_string_to_CharSlice(key);
+            owned_attr_keys[idx] = owned_key;
             idx++;
         } ZEND_HASH_FOREACH_END();
         attrs_count = idx;
@@ -3057,6 +3071,14 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     );
     if (c_attrs) {
         efree(c_attrs);
+    }
+    if (owned_attr_keys) {
+        for (size_t i = 0; i < attrs_count; i++) {
+            if (owned_attr_keys[i]) {
+                zend_string_release(owned_attr_keys[i]);
+            }
+        }
+        efree(owned_attr_keys);
     }
 
     if (!result.valid) {

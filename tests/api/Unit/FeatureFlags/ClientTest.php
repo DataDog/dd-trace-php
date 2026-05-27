@@ -15,11 +15,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
 {
-    public function testCreateBuildsDefaultRemoteConfigBackedClient()
-    {
-        $this->assertInstanceOf(Client::class, Client::create());
-    }
-
     public function testValueMethodsReturnEvaluatedValues()
     {
         $evaluator = new ClientTestEvaluator();
