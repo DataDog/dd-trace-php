@@ -396,7 +396,7 @@ void zai_config_ini_rinit(void) {
 
 #if ZTS
     // Skip during preloading, in that case EG(ini_directives) is the actual source of truth (NTS-like)
-    if (env_to_ini_name && !inis_synchronized && zai_config_first_rinit_done) {
+    if (env_to_ini_name && !inis_synchronized && zai_config_first_rinit_done && !in_startup) {
         for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
             zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
             if (!memoized->original_on_modify) {
@@ -405,6 +405,8 @@ void zai_config_ini_rinit(void) {
                     zend_ini_entry *source = memoized->ini_entries[n],
                                    *ini = zend_hash_find_ptr(EG(ini_directives), source->name);
                     // On ZTS INIs must be not shared between threads (otherwise: refcount race conditions). Hence we dup them rather than just copy.
+                    ZEND_ASSERT(ini && source);
+                    ZEND_ASSERT(ini != source && "ZTS INI sync must not run against the global INI table");
                     if (ini->modified) {
                         bool identical_orig = ini->orig_value == ini->value;
                         zend_string_release(ini->orig_value);
