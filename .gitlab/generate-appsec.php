@@ -53,7 +53,7 @@ stages:
   before_script:
 <?php unset_dd_runner_env_vars() ?>
     - git config --global --add safe.directory "$(pwd)/appsec/third_party/libddwaf"
-    - sudo apt install -y clang-tidy-17 libc++-17-dev libc++abi-17-dev
+    - sudo apt install -y clang-tidy-20 libc++-20-dev libc++abi-20-dev
     - mkdir -p appsec/build boost-cache boost-cache
   cache:
     - key: "appsec boost cache"
@@ -408,7 +408,7 @@ stages:
       sudo cp -v vault /usr/local/bin
       cd -
       sudo sed -i 's|http://deb.debian.org/debian|http://archive.debian.org/debian|g; s|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' /etc/apt/sources.list
-      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-17 clang-17
+      sudo apt-get update && sudo apt-get install -y jq gcovr llvm-20 clang-20
 
       echo "Installing codecov"
 
@@ -428,7 +428,7 @@ stages:
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=ON \
         -DDD_APPSEC_TESTING=ON -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
-        -DCMAKE_C_COMPILER=/usr/bin/clang-17 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-17 \
+        -DCMAKE_C_COMPILER=/usr/bin/clang-20 -DCMAKE_CXX_COMPILER=/usr/bin/clang++-20 \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache"
     - |
@@ -442,8 +442,8 @@ stages:
         ./appsec/build/tests/helper/ddappsec_helper_test
     - |
       cd /tmp/cov-ext
-      llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-      llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
+      llvm-profdata-20 merge -sparse *.profraw -o default.profdata
+      llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/ddappsec.so \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR"/appsec/build/coverage-ext.lcov
       echo "Uploading extension coverage to codecov"
@@ -451,8 +451,8 @@ stages:
       codecov -t "$CODECOV_TOKEN" -n appsec-extension -v -f appsec/build/coverage-ext.lcov
     - |
       cd /tmp/cov-helper
-      llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-      llvm-cov-17 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
+      llvm-profdata-20 merge -sparse *.profraw -o default.profdata
+      llvm-cov-20 export "$CI_PROJECT_DIR"/appsec/build/tests/helper/ddappsec_helper_test \
         -format=lcov -instr-profile=default.profdata \
         > "$CI_PROJECT_DIR/appsec/build/coverage-helper.lcov"
       echo "Uploading helper coverage to codecov"
@@ -522,15 +522,15 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 10Gi
     ARCH: amd64
   script:
-    - sudo apt install -y clang-format-17
+    - sudo apt install -y clang-format-20
     - cd appsec/build
     - |
       cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_ENABLE_COVERAGE=OFF \
         -DDD_APPSEC_TESTING=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" \
         -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
-        -DCLANG_TIDY=/usr/bin/run-clang-tidy-17 \
-        -DCLANG_FORMAT=/usr/bin/clang-format-17
+        -DCLANG_TIDY=/usr/bin/run-clang-tidy-20 \
+        -DCLANG_FORMAT=/usr/bin/clang-format-20
     - make -j 4 extension ddappsec-helper
     - make format tidy
 
@@ -555,7 +555,7 @@ stages:
         -DASAN_BUILD" -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
         -DCMAKE_MODULE_LINKER_FLAGS="-fsanitize=address -fsanitize=leak" \
         -DBOOST_CACHE_PREFIX="$CI_PROJECT_DIR/boost-cache" \
-        -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+        -DCLANG_TIDY=/usr/bin/run-clang-tidy-20
     - make -j 4 ddappsec_helper_test
     - cd ../..; ./appsec/build/tests/helper/ddappsec_helper_test
 
@@ -581,7 +581,7 @@ stages:
 #    - cd -
 #
 #    - cd appsec/build
-#    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DBOOST_CACHE_PREFIX=/boost-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-17
+#    - cmake .. -DCMAKE_BUILD_TYPE=Debug -DDD_APPSEC_BUILD_EXTENSION=OFF -DCMAKE_CXX_FLAGS="-stdlib=libc++" -DCMAKE_CXX_LINK_FLAGS="-stdlib=libc++" -DFUZZER_ARCHIVE_PATH=$fuzzer -DBOOST_CACHE_PREFIX=/boost-cache -DCLANG_TIDY=/usr/bin/run-clang-tidy-20
 #    - make -j 4 ddappsec_helper_fuzzer corpus_generator
 #    - cd ..
 #    - mkdir -p tests/fuzzer/{corpus,results,logs}
@@ -602,9 +602,9 @@ stages:
 #    - LLVM_PROFILE_FILE=body.profraw ./build/tests/fuzzer/ddappsec_helper_fuzzer --log_level=off --fuzz-mode=body -max_total_time=60 -rss_limit_mb=4096 -artifact_prefix=tests/fuzzer/results/ tests/fuzzer/corpus/
 #
 #    - '# Generate coverage'
-#    - llvm-profdata-17 merge -sparse *.profraw -o default.profdata
-#    - llvm-cov-17 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
-#    - llvm-cov-17 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
+#    - llvm-profdata-20 merge -sparse *.profraw -o default.profdata
+#    - llvm-cov-20 show build/tests/fuzzer/ddappsec_helper_fuzzer -instr-profile=default.profdata -ignore-filename-regex="(tests|third_party|build)" -format=html > fuzzer-coverage.html
+#    - llvm-cov-20 report -instr-profile default.profdata build/tests/fuzzer/ddappsec_helper_fuzzer -ignore-filename-regex="(tests|third_party|build)" -show-region-summary=false
 #  artifacts:
 #    paths:
 #     - appsec/fuzzer-coverage.html
