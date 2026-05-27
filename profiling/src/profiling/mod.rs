@@ -1339,11 +1339,12 @@ impl Profiler {
 
     /// Called when memory is freed. Removes the allocation from tracking. The next profile export
     /// will not include this allocation in the heap-live samples.
+    ///
+    /// # Precondition
+    /// Caller must have verified that heap-live profiling is enabled (i.e. checked
+    /// `HEAP_LIVE_ENABLED` before calling this).
     pub(crate) fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
-        // Bail out early if heap-live tracking is disabled to avoid DashMap lookup overhead
-        if !self.is_heap_live_enabled() {
-            return;
-        }
+        debug_assert!(self.is_heap_live_enabled());
 
         if let Some(sample) = self.untrack_allocation(ptr as usize) {
             trace!(
@@ -1357,10 +1358,12 @@ impl Profiler {
 
     /// Called when a tracked allocation is reallocated in place. Keeps heap-live samples current
     /// without changing the original allocation stack attached to the tracked pointer.
+    ///
+    /// # Precondition
+    /// Caller must have verified that heap-live profiling is enabled (i.e. checked
+    /// `HEAP_LIVE_ENABLED` before calling this).
     pub(crate) fn update_allocation_size(&self, ptr: *mut std::ffi::c_void, len: i64) {
-        if !self.is_heap_live_enabled() {
-            return;
-        }
+        debug_assert!(self.is_heap_live_enabled());
 
         if let Some(mut sample) = self.live_heap_tracker.get_mut(&(ptr as usize)) {
             let previous_size = sample.allocation_size;
