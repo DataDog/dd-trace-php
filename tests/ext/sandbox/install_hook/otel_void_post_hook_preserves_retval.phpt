@@ -1,5 +1,10 @@
 --TEST--
 OpenTelemetry hook polyfill: post hook with `: void` return type must not overwrite the function's return value
+--SKIPIF--
+<?php
+if (PHP_VERSION_ID < 80000) die('skip OpenTelemetry hook polyfill is only registered on PHP 8.0+');
+if (!function_exists('OpenTelemetry\\Instrumentation\\hook')) die('skip OpenTelemetry\\Instrumentation\\hook polyfill not registered');
+?>
 --INI--
 datadog.trace.generate_root_span=0
 --ENV--
