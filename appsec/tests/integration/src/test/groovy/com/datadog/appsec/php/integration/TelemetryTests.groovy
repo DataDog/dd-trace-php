@@ -62,6 +62,17 @@ class TelemetryTests {
                    export  DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1;
                    php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')
         assert res.exitCode == 0
+
+        // Wait for the helper/sidecar to fully connect and flush its initial waf.init
+        // telemetry before releasing any test. Without this, a slow sidecar startup
+        // exhausts the first test's 60s polling window before any metric arrives,
+        // causing all 9 ordered tests to fail in sequence.
+        log.info('Waiting for sidecar to emit waf.init telemetry (up to 60s)...')
+        TelemetryHelpers.waitForMetrics(CONTAINER, 60) { List<TelemetryHelpers.GenerateMetrics> messages ->
+            def allSeries = messages.collectMany { it.series }
+            allSeries.any { it.name == 'waf.init' }
+        }
+        log.info('Sidecar telemetry ready — waf.init received.')
     }
 
     /**
@@ -118,7 +129,9 @@ class TelemetryTests {
         TelemetryHelpers.Metric workerCount
 
 
-        TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
+        // 60s: @BeforeAll may have consumed the first waf.init batch (10s metric interval),
+        // so this test needs enough headroom to catch the next emission cycle.
+        TelemetryHelpers.waitForMetrics(CONTAINER, 60) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
             def useRust = System.getProperty('USE_HELPER_RUST') != null
