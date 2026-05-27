@@ -2975,14 +2975,46 @@ PHP_FUNCTION(DDTrace_Testing_ffe_load_config) {
     RETURN_BOOL(ddog_ffe_load_config(dd_zend_string_to_CharSlice(json)));
 }
 
+static void ddtrace_ffe_update_property(zval *object, const char *name, size_t name_len, zval *value) {
+    zend_string *property_name = zend_string_init(name, name_len, 0);
+    zend_update_property_ex(ddtrace_ce_ffe_result, Z_OBJ_P(object), property_name, value);
+    zend_string_release(property_name);
+}
+
 static void ddtrace_ffe_update_nullable_string_property(zval *object, const char *name, size_t name_len, zend_string *value) {
+    zval property_value;
+
     if (value == NULL) {
-        zend_update_property_null(ddtrace_ce_ffe_result, Z_OBJ_P(object), name, name_len);
+        ZVAL_NULL(&property_value);
+        ddtrace_ffe_update_property(object, name, name_len, &property_value);
         return;
     }
 
-    zend_update_property_stringl(ddtrace_ce_ffe_result, Z_OBJ_P(object), name, name_len, ZSTR_VAL(value), ZSTR_LEN(value));
-    zend_string_release(value);
+    ZVAL_STR(&property_value, value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+    zval_ptr_dtor(&property_value);
+}
+
+static void ddtrace_ffe_update_long_property(zval *object, const char *name, size_t name_len, zend_long value) {
+    zval property_value;
+
+    ZVAL_LONG(&property_value, value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+}
+
+static void ddtrace_ffe_update_bool_property(zval *object, const char *name, size_t name_len, bool value) {
+    zval property_value;
+
+    ZVAL_BOOL(&property_value, value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+}
+
+static void ddtrace_ffe_update_empty_array_property(zval *object, const char *name, size_t name_len) {
+    zval property_value;
+
+    array_init(&property_value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+    zval_ptr_dtor(&property_value);
 }
 
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
@@ -3089,9 +3121,10 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), result.value_json);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), result.variant);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), result.allocation_key);
-    zend_update_property_long(ddtrace_ce_ffe_result, Z_OBJ_P(return_value), ZEND_STRL("reason"), result.reason);
-    zend_update_property_long(ddtrace_ce_ffe_result, Z_OBJ_P(return_value), ZEND_STRL("errorCode"), result.error_code);
-    zend_update_property_bool(ddtrace_ce_ffe_result, Z_OBJ_P(return_value), ZEND_STRL("doLog"), result.do_log);
+    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), result.reason);
+    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
+    ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
+    ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {
