@@ -242,9 +242,9 @@ void ddog_php_prof_copy_long_into_zval(zval *dest, long num) {
 }
 
 void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
-                                               void* (*_malloc)(size_t),
-                                               void  (*_free)(void*),
-                                               void* (*_realloc)(void*, size_t)) {
+                                               ddog_php_prof_zend_mm_malloc _malloc,
+                                               ddog_php_prof_zend_mm_free _free,
+                                               ddog_php_prof_zend_mm_realloc _realloc) {
     zend_mm_set_custom_handlers(heap, _malloc, _free, _realloc);
 #if PHP_VERSION_ID < 70300
     if (!_malloc && !_free && !_realloc) {

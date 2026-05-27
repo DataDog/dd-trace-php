@@ -77,7 +77,7 @@ static zend_op_array *_dd_compile_file(zend_file_handle *file_handle, int type) 
     zend_op_array *res;
     uint64_t start = zend_hrtime();
     res = _prev_compile_file(file_handle, type);
-    DDTRACE_G(compile_time_microseconds) += (int64_t)(zend_hrtime() - start);
+    DDTRACE_G(compile_time_microseconds) += (int64_t)((zend_hrtime() - start) / 1000);
     return res;
 }
 
