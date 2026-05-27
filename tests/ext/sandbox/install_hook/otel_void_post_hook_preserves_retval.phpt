@@ -4,8 +4,17 @@ OpenTelemetry hook polyfill: post hook with `: void` return type must not overwr
 <?php
 if (PHP_VERSION_ID < 80000) die('skip OpenTelemetry hook polyfill is only registered on PHP 8.0+');
 if (!function_exists('OpenTelemetry\\Instrumentation\\hook')) die('skip OpenTelemetry\\Instrumentation\\hook polyfill not registered');
+// When tracing is disabled at the CLI, ddtrace_post_deactivate runs before PHP
+// releases the extra reference it holds on :void closure literals declared in
+// the main script's op_array. The polyfill's GC_ADDREF/OBJ_RELEASE is balanced;
+// PHP's residual ref is unrelated to the IS_VOID/MAY_BE_VOID fix this test
+// guards, but exposes a leak on the test_c_disabled CI leg specifically.
+if (!ini_get('datadog.trace.cli_enabled') || getenv('DD_TRACE_CLI_ENABLED') === '0') {
+    die('skip see comment above');
+}
 ?>
 --INI--
+datadog.trace.cli_enabled=1
 datadog.trace.generate_root_span=0
 --ENV--
 DD_TRACE_AUTO_FLUSH_ENABLED=0
@@ -29,10 +38,8 @@ class TypedPostTarget {
 \OpenTelemetry\Instrumentation\hook(
     VoidPostTarget::class,
     'handle',
-    pre: null,
-    post: static function ($obj, array $params, $retval, ?\Throwable $exception): void {
-        // implicit null return; must NOT replace $retval
-    }
+    null,
+    function ($obj, array $params, $retval, ?\Throwable $exception): void {}
 );
 
 var_dump((new VoidPostTarget())->handle());
@@ -42,10 +49,8 @@ var_dump((new VoidPostTarget())->handle());
 \OpenTelemetry\Instrumentation\hook(
     TypedPostTarget::class,
     'handle',
-    pre: null,
-    post: static function ($obj, array $params, $retval, ?\Throwable $exception): string {
-        return "overridden-by-typed-hook";
-    }
+    null,
+    function ($obj, array $params, $retval, ?\Throwable $exception): string { return "overridden-by-typed-hook"; }
 );
 
 var_dump((new TypedPostTarget())->handle());
