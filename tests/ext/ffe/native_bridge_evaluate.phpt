@@ -63,6 +63,26 @@ $config = <<<'JSON'
         "doLog": true
       }]
     },
+    "numeric.attribute.flag": {
+      "key": "numeric.attribute.flag",
+      "enabled": true,
+      "variationType": "STRING",
+      "variations": {
+        "numeric-key": {"key": "numeric-key", "value": "numeric-attribute-name"}
+      },
+      "allocations": [{
+        "key": "alloc-numeric-attribute",
+        "rules": [{
+          "conditions": [{
+            "attribute": "1234",
+            "operator": "ONE_OF",
+            "value": ["numeric-match"]
+          }]
+        }],
+        "splits": [{"variationKey": "numeric-key", "shards": []}],
+        "doLog": true
+      }]
+    },
     "bad.flag": {
       "key": "bad.flag",
       "enabled": true,
@@ -88,14 +108,17 @@ show('success', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array(
     'ignored' => array('drop'),
 )));
 $object = \DDTrace\ffe_evaluate('object.flag', 4, 'user-1', array());
-show('object_success_value', json_decode($object['value_json'], true));
+show('object_success_value', json_decode($object->valueJson, true));
 show('object_success_metadata', array(
-    'variant' => $object['variant'],
-    'allocation_key' => $object['allocation_key'],
-    'reason' => $object['reason'],
-    'error_code' => $object['error_code'],
-    'do_log' => $object['do_log'],
+    'variant' => $object->variant,
+    'allocation_key' => $object->allocationKey,
+    'reason' => $object->reason,
+    'error_code' => $object->errorCode,
+    'do_log' => $object->doLog,
 ));
+show('numeric_attribute_key', \DDTrace\ffe_evaluate('numeric.attribute.flag', 0, 'user-1', array(
+    '1234' => 'numeric-match',
+)));
 show('empty_targeting_key', \DDTrace\ffe_evaluate('empty.targeting.shard.flag', 0, '', array()));
 show('missing', \DDTrace\ffe_evaluate('missing.flag', 0, 'user-1', array()));
 show('type_mismatch', \DDTrace\ffe_evaluate('string.flag', 3, 'user-1', array()));
@@ -103,13 +126,14 @@ show('parse_error', \DDTrace\ffe_evaluate('bad.flag', 0, 'user-1', array()));
 ?>
 --EXPECT--
 has_config_before=false
-provider_not_ready={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":6,"do_log":false}
+provider_not_ready={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":6,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 load=true
 has_config_after=true
-success={"value_json":"\"blue\"","variant":"blue","allocation_key":"alloc-string","reason":0,"error_code":0,"do_log":true}
+success={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 object_success_value={"enabled":true,"threshold":2}
 object_success_metadata={"variant":"json-a","allocation_key":"alloc-json","reason":0,"error_code":0,"do_log":true}
-empty_targeting_key={"value_json":"\"empty-targeting-key\"","variant":"empty-target","allocation_key":"alloc-empty-targeting-key","reason":3,"error_code":0,"do_log":true}
-missing={"value_json":"null","variant":null,"allocation_key":null,"reason":1,"error_code":3,"do_log":false}
-type_mismatch={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":1,"do_log":false}
-parse_error={"value_json":"null","variant":null,"allocation_key":null,"reason":5,"error_code":2,"do_log":false}
+numeric_attribute_key={"valueJson":"\"numeric-attribute-name\"","variant":"numeric-key","allocationKey":"alloc-numeric-attribute","reason":2,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+empty_targeting_key={"valueJson":"\"empty-targeting-key\"","variant":"empty-target","allocationKey":"alloc-empty-targeting-key","reason":3,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+missing={"valueJson":"null","variant":null,"allocationKey":null,"reason":1,"errorCode":3,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+type_mismatch={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":1,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+parse_error={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":2,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}

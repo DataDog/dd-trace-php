@@ -19,6 +19,12 @@
 #include "git.h"
 #include "threads.h"
 
+#define DDTRACE_FFE_TYPE_STRING 0
+#define DDTRACE_FFE_TYPE_INT 1
+#define DDTRACE_FFE_TYPE_FLOAT 2
+#define DDTRACE_FFE_TYPE_BOOL 3
+#define DDTRACE_FFE_TYPE_OBJECT 4
+
 extern zend_module_entry ddtrace_module_entry;
 extern zend_class_entry *ddtrace_ce_span_data;
 extern zend_class_entry *ddtrace_ce_inferred_span_data;
@@ -155,6 +161,9 @@ ZEND_BEGIN_MODULE_GLOBALS(ddtrace)
     ddog_SidecarTransport *sidecar;
     ddog_QueueId sidecar_queue_id;
     MUTEX_T sidecar_universal_service_tags_mutex;
+    void *ffe_metric_buffer;
+    size_t ffe_metric_buffer_len;
+    size_t ffe_metric_buffer_cap;
     ddog_AgentRemoteConfigReader *agent_config_reader;
     ddog_RemoteConfigState *remote_config_state;
     bool remote_config_writing; // true while RC WRITE mode INI update is in progress

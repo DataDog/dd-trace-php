@@ -6,40 +6,29 @@ use DDTrace\FeatureFlags\EvaluationType;
 
 final class NativeEvaluator implements Evaluator
 {
-    const WARNING_MESSAGE = 'Datadog-backed PHP feature flag evaluation is not fully production-ready yet.';
+    const WARNING_MESSAGE = 'Datadog-backed PHP feature flag evaluation has no Remote Configuration data loaded for this request. Returning default values.';
 
     private $mapper;
-    private $unavailableEvaluator;
-    private $remoteConfig;
+    private $recordMetrics;
 
-    public function __construct($mapper = null, $unavailableEvaluator = null, $remoteConfig = null)
+    private function __construct($mapper = null, $recordMetrics = true)
     {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
         }
 
-        if ($unavailableEvaluator !== null && !$unavailableEvaluator instanceof Evaluator) {
-            throw new \InvalidArgumentException('Expected an Evaluator instance');
-        }
-
-        if ($remoteConfig !== null && !$remoteConfig instanceof RemoteConfigClient) {
-            throw new \InvalidArgumentException('Expected a RemoteConfigClient instance');
-        }
-
         $this->mapper = $mapper ?: new ResultMapper();
-        $this->unavailableEvaluator = $unavailableEvaluator ?: new UnavailableEvaluator();
-        $this->remoteConfig = $remoteConfig ?: new RemoteConfigClient();
+        $this->recordMetrics = (bool) $recordMetrics;
     }
 
     public static function isAvailable()
     {
-        return function_exists('DDTrace\\ffe_evaluate')
-            && RemoteConfigClient::isAvailable();
+        return function_exists('DDTrace\\ffe_evaluate');
     }
 
-    public static function createOrUnavailable()
+    public static function create($recordMetrics = true)
     {
-        return self::isAvailable() ? new self() : new UnavailableEvaluator();
+        return self::isAvailable() ? new self(null, $recordMetrics) : new UnavailableEvaluator();
     }
 
     public function evaluate(
@@ -49,24 +38,15 @@ final class NativeEvaluator implements Evaluator
         $targetingKey = null,
         array $attributes = array()
     ) {
-        if (!self::isAvailable()) {
-            return $this->unavailableEvaluator->evaluate(
-                $flagKey,
-                $expectedType,
-                $defaultValue,
-                $targetingKey,
-                $attributes
-            );
-        }
-
         $rawResult = \DDTrace\ffe_evaluate(
             $flagKey,
             $this->typeId($expectedType),
             $targetingKey,
-            $this->normalizeAttributes($attributes)
+            $this->normalizeAttributes($attributes),
+            $this->recordMetrics
         );
 
-        if (is_array($rawResult)) {
+        if (is_array($rawResult) || is_object($rawResult)) {
             $rawResult = $this->withProviderState($rawResult);
         }
 
@@ -77,15 +57,15 @@ final class NativeEvaluator implements Evaluator
     {
         switch ($expectedType) {
             case EvaluationType::STRING:
-                return 0;
+                return \DDTrace\FFE_STRING;
             case EvaluationType::INTEGER:
-                return 1;
+                return \DDTrace\FFE_INT;
             case EvaluationType::FLOAT:
-                return 2;
+                return \DDTrace\FFE_FLOAT;
             case EvaluationType::BOOLEAN:
-                return 3;
+                return \DDTrace\FFE_BOOL;
             case EvaluationType::OBJECT:
-                return 4;
+                return \DDTrace\FFE_OBJECT;
         }
 
         throw new \InvalidArgumentException('Unknown feature flag value type: ' . (string) $expectedType);
@@ -103,10 +83,10 @@ final class NativeEvaluator implements Evaluator
         return $normalized;
     }
 
-    private function withProviderState(array $rawResult)
+    private function withProviderState($rawResult)
     {
-        $hasConfig = $this->remoteConfig->hasConfig();
-        $configVersion = $this->remoteConfig->configVersion();
+        $hasConfig = \DDTrace\ffe_has_config();
+        $configVersion = \DDTrace\ffe_config_version();
 
         $providerState = array(
             'ready' => $hasConfig,
@@ -117,17 +97,33 @@ final class NativeEvaluator implements Evaluator
             'reason' => $hasConfig ? 'metrics_delivery_pending' : 'configuration_missing',
         );
 
-        if (isset($rawResult['provider_state']) && is_array($rawResult['provider_state'])) {
-            $providerState = array_merge($providerState, $rawResult['provider_state']);
+        if (is_array($rawResult)) {
+            if (isset($rawResult['provider_state']) && is_array($rawResult['provider_state'])) {
+                $providerState = array_merge($providerState, $rawResult['provider_state']);
+            }
+
+            if (!$hasConfig) {
+                $rawResult['error_message'] = self::WARNING_MESSAGE;
+            }
+
+            $rawResult['provider_state'] = $providerState;
+            $rawResult['has_config'] = $hasConfig;
+            $rawResult['config_version'] = $configVersion;
+
+            return $rawResult;
+        }
+
+        if (isset($rawResult->providerState) && is_array($rawResult->providerState)) {
+            $providerState = array_merge($providerState, $rawResult->providerState);
         }
 
         if (!$hasConfig) {
-            $rawResult['error_message'] = self::WARNING_MESSAGE;
+            $rawResult->errorMessage = self::WARNING_MESSAGE;
         }
 
-        $rawResult['provider_state'] = $providerState;
-        $rawResult['has_config'] = $hasConfig;
-        $rawResult['config_version'] = $configVersion;
+        $rawResult->providerState = $providerState;
+        $rawResult->hasConfig = $hasConfig;
+        $rawResult->configVersion = $configVersion;
 
         return $rawResult;
     }

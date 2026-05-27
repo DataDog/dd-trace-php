@@ -2,109 +2,101 @@
 
 namespace DDTrace\FeatureFlags;
 
-use DDTrace\FeatureFlags\Internal\DefaultEvaluationCompletedHook;
-use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
-use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
-use DDTrace\FeatureFlags\Internal\NoopEvaluationCompletedHook;
-use DDTrace\FeatureFlags\Internal\TriggerErrorWarningEmitter;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\TriggerErrorLogger;
 
 final class Client
 {
     private $evaluator;
-    private $warningEmitter;
-    private $evaluationCompletedHook;
+    private $logger;
     private $warnedAboutNonProductionRuntime = false;
 
-    private function __construct(
-        Evaluator $evaluator,
-        WarningEmitter $warningEmitter,
-        EvaluationCompletedHook $evaluationCompletedHook
-    ) {
-        $this->evaluator = $evaluator;
-        $this->warningEmitter = $warningEmitter;
-        $this->evaluationCompletedHook = $evaluationCompletedHook;
-    }
-
-    public static function create()
+    public function __construct($logger = null)
     {
-        return self::createWithDependencies(null, null, DefaultEvaluationCompletedHook::create());
+        if ($logger !== null && !$logger instanceof LoggerInterface) {
+            throw new \InvalidArgumentException('Expected a LoggerInterface instance');
+        }
+
+        $this->evaluator = NativeEvaluator::create();
+        $this->logger = $logger ?: new TriggerErrorLogger();
     }
 
     /**
-     * @internal Tests and Datadog-owned bridge adapters only.
+     * @return bool
      */
-    public static function createWithDependencies(
-        $evaluator = null,
-        $warningEmitter = null,
-        $evaluationCompletedHook = null
-    ) {
-        if ($evaluator !== null && !$evaluator instanceof Evaluator) {
-            throw new \InvalidArgumentException('Expected an Evaluator instance');
-        }
-
-        if ($warningEmitter !== null && !$warningEmitter instanceof WarningEmitter) {
-            throw new \InvalidArgumentException('Expected a WarningEmitter instance');
-        }
-
-        if ($evaluationCompletedHook !== null && !$evaluationCompletedHook instanceof EvaluationCompletedHook) {
-            throw new \InvalidArgumentException('Expected an EvaluationCompletedHook instance');
-        }
-
-        return new self(
-            $evaluator ?: NativeEvaluator::createOrUnavailable(),
-            $warningEmitter ?: new TriggerErrorWarningEmitter(),
-            $evaluationCompletedHook ?: new NoopEvaluationCompletedHook()
-        );
-    }
-
     public function getBooleanValue($flagKey, $defaultValue, array $context = array())
     {
         return $this->getBooleanDetails($flagKey, $defaultValue, $context)->getValue();
     }
 
+    /**
+     * @return string
+     */
     public function getStringValue($flagKey, $defaultValue, array $context = array())
     {
         return $this->getStringDetails($flagKey, $defaultValue, $context)->getValue();
     }
 
+    /**
+     * @return int
+     */
     public function getIntegerValue($flagKey, $defaultValue, array $context = array())
     {
         return $this->getIntegerDetails($flagKey, $defaultValue, $context)->getValue();
     }
 
+    /**
+     * @return float
+     */
     public function getFloatValue($flagKey, $defaultValue, array $context = array())
     {
         return $this->getFloatDetails($flagKey, $defaultValue, $context)->getValue();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getObjectValue($flagKey, array $defaultValue, array $context = array())
     {
         return $this->getObjectDetails($flagKey, $defaultValue, $context)->getValue();
     }
 
+    /**
+     * @return EvaluationDetails
+     */
     public function getBooleanDetails($flagKey, $defaultValue, array $context = array())
     {
         return $this->evaluate($flagKey, EvaluationType::BOOLEAN, $this->expectBoolean($defaultValue), $context);
     }
 
+    /**
+     * @return EvaluationDetails
+     */
     public function getStringDetails($flagKey, $defaultValue, array $context = array())
     {
         return $this->evaluate($flagKey, EvaluationType::STRING, $this->expectString($defaultValue), $context);
     }
 
+    /**
+     * @return EvaluationDetails
+     */
     public function getIntegerDetails($flagKey, $defaultValue, array $context = array())
     {
         return $this->evaluate($flagKey, EvaluationType::INTEGER, $this->expectInteger($defaultValue), $context);
     }
 
+    /**
+     * @return EvaluationDetails
+     */
     public function getFloatDetails($flagKey, $defaultValue, array $context = array())
     {
         return $this->evaluate($flagKey, EvaluationType::FLOAT, $this->expectFloat($defaultValue), $context);
     }
 
+    /**
+     * @return EvaluationDetails
+     */
     public function getObjectDetails($flagKey, array $defaultValue, array $context = array())
     {
         return $this->evaluate($flagKey, EvaluationType::OBJECT, $defaultValue, $context);
@@ -124,25 +116,8 @@ final class Client
         );
 
         $this->warnIfNonProductionRuntime($details);
-        $this->evaluationCompleted(new EvaluationCompleted(
-            $flagKey,
-            $expectedType,
-            $defaultValue,
-            $targetingKey,
-            $attributes,
-            $details
-        ));
 
         return $details;
-    }
-
-    private function evaluationCompleted(EvaluationCompleted $evaluation)
-    {
-        try {
-            $this->evaluationCompletedHook->evaluationCompleted($evaluation);
-        } catch (\Throwable $throwable) {
-            // Internal exposure/metric hooks must never affect flag evaluation results.
-        }
     }
 
     private function normalizeContext(array $context)
@@ -177,10 +152,10 @@ final class Client
 
         $message = $details->getErrorMessage();
         if (!is_string($message) || $message === '') {
-            $message = 'Datadog-backed PHP feature flag evaluation is not fully enabled yet.';
+            $message = 'Datadog-backed PHP feature flag evaluation is running without exposure and metric reporting in this milestone.';
         }
 
-        $this->warningEmitter->warning($message);
+        $this->logger->warning($message);
         $this->warnedAboutNonProductionRuntime = true;
     }
 

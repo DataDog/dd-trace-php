@@ -23,6 +23,49 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_STRING
+     */
+    const FFE_STRING = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_INT
+     */
+    const FFE_INT = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_FLOAT
+     */
+    const FFE_FLOAT = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_BOOL
+     */
+    const FFE_BOOL = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_OBJECT
+     */
+    const FFE_OBJECT = UNKNOWN;
+
+    final class FfeResult {
+        public ?string $valueJson = null;
+        public ?string $variant = null;
+        public ?string $allocationKey = null;
+        public int $reason = 0;
+        public int $errorCode = 0;
+        public bool $doLog = false;
+        public array $providerState = [];
+        public ?string $errorMessage = null;
+        public ?bool $hasConfig = null;
+        public ?int $configVersion = null;
+    }
+
     class SpanEvent implements \JsonSerializable {
         /**
          * SpanEvent constructor.
@@ -806,40 +849,6 @@ namespace DDTrace {
     function dogstatsd_set(string $metric, int $value, array $tags = []): void {}
 
     /**
-     * @internal Datadog-owned bridge adapters only — used by
-     * `DDTrace\FeatureFlags\Internal\Exposure\SidecarExposureTransport`.
-     *
-     * Forward an FFE (Feature Flag Evaluation) exposure batch payload to the
-     * libdatadog sidecar. The sidecar asynchronously POSTs the JSON batch to
-     * the agent EVP proxy at `/evp_proxy/v2/api/v2/exposures`.
-     *
-     * Fire-and-forget: the sidecar handles retries/backoff. An empty payload
-     * is a no-op.
-     *
-     * @param string $payloadJson Server-side batched exposure JSON envelope.
-     * @return bool true if enqueued for sidecar dispatch, false otherwise.
-     */
-    function send_ffe_exposures(string $payloadJson): bool {}
-
-    /**
-     * @internal Datadog-owned bridge adapters only — used by
-     * `DDTrace\FeatureFlags\Internal\Metric\SidecarOtlpMetricsTransport`.
-     *
-     * Forward an FFE evaluation-metrics batch payload (OTLP/protobuf, encoded
-     * by the PHP-side `OtlpMetricEncoder`) to the libdatadog sidecar. The
-     * sidecar asynchronously POSTs it as `application/x-protobuf` to the
-     * configured OTLP HTTP metrics intake (typically the value of
-     * `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`).
-     *
-     * Fire-and-forget. Empty endpoint or payload is a no-op.
-     *
-     * @param string $endpoint     OTLP HTTP metrics endpoint URL.
-     * @param string $payloadBytes Encoded OTLP/protobuf payload bytes.
-     * @return bool true if enqueued for sidecar dispatch, false otherwise.
-     */
-    function send_ffe_metrics(string $endpoint, string $payloadBytes): bool {}
-
-    /**
      * Store data tied to a resource. Behaves like a weakmap, i.e. data is freed when the associated resource is freed.
      *
      * @param resource $resource Some resource
@@ -884,14 +893,14 @@ namespace DDTrace {
      * Evaluate a feature flag using the stored UFC configuration.
      *
      * @param string $flagKey The flag key to evaluate.
-     * @param int $expectedType The expected flag type (0=string, 1=int, 2=float, 3=bool, 4=object).
+     * @param int $expectedType One of the DDTrace\FFE_* constants.
      * @param string|null $targetingKey The targeting key for evaluation context.
      * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
-     * @return array|null Associative array with keys: value_json, variant, allocation_key, reason, error_code, do_log. Null only if evaluation engine is unavailable.
+     * @return FfeResult|null Object with the native evaluation result fields. Null only if evaluation engine is unavailable.
      *
      * @internal Used by the Datadog feature flag client.
      */
-    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?array {}
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true): ?FfeResult {}
 
     /**
      * Check if FFE (Feature Flag Evaluation) configuration is loaded.
@@ -1051,6 +1060,24 @@ namespace DDTrace\Internal {
      * @internal
      */
     function handle_fork(): void {}
+
+    /**
+     * Record a Feature Flag Evaluation metric event in native request-local
+     * memory. The batch is flushed to the shared sidecar during request
+     * shutdown; PHP does not aggregate, encode OTLP, or perform transport.
+     *
+     * @internal
+     */
+    function record_ffe_evaluation_metric(string $flagKey, ?string $variant, ?string $reason, ?string $errorType, ?string $allocationKey): bool {}
+
+    /**
+     * Flush request-local Feature Flag Evaluation metric events to the shared
+     * sidecar. Intended for long-lived integration test servers; normal PHP
+     * requests flush during request shutdown.
+     *
+     * @internal
+     */
+    function flush_ffe_evaluation_metrics(): bool {}
 
 }
 

@@ -2,7 +2,6 @@
 
 namespace DDTrace\Tests\Api\Unit\FeatureFlags;
 
-use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
@@ -204,16 +203,28 @@ final class ResultMapperTest extends TestCase
         );
     }
 
-    public function testExistingEvaluationDetailsPassThrough()
+    public function testMapsObjectBridgeResultToEvaluationDetails()
     {
-        $existing = new EvaluationDetails(
-            'kept',
-            EvaluationType::STRING,
-            EvaluationReason::DEFAULT_REASON
+        $rawResult = new \stdClass();
+        $rawResult->valueJson = '"green"';
+        $rawResult->variant = 'variant-b';
+        $rawResult->allocationKey = 'alloc-2';
+        $rawResult->reason = ResultMapper::BRIDGE_REASON_SPLIT;
+        $rawResult->errorCode = ResultMapper::BRIDGE_ERROR_NONE;
+        $rawResult->doLog = true;
+        $rawResult->providerState = array('ready' => true);
+        $rawResult->hasConfig = true;
+        $rawResult->configVersion = 43;
+
+        $details = (new ResultMapper())->map($rawResult, EvaluationType::STRING, 'fallback');
+
+        $this->assertSame('green', $details->getValue());
+        $this->assertSame(EvaluationReason::SPLIT, $details->getReason());
+        $this->assertSame('variant-b', $details->getVariant());
+        $this->assertSame(array('allocationKey' => 'alloc-2', 'doLog' => true), $details->getExposureData());
+        $this->assertSame(
+            array('ready' => true, 'hasConfig' => true, 'configVersion' => 43),
+            $details->getProviderState()
         );
-
-        $details = (new ResultMapper())->map($existing, EvaluationType::STRING, 'fallback');
-
-        $this->assertSame($existing, $details);
     }
 }

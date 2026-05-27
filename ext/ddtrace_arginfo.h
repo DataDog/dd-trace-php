@@ -1,5 +1,5 @@
 /* This is a generated file, edit ddtrace.stub.php instead.
- * Stub hash: b7ca6da3e6dff3aa5fdb4bf9ea0811b3456030fc */
+ * Stub hash: 8d552cbb5a25472ccb510275ab86276a29e85d7a */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_trace_method, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, className, IS_STRING, 0)
@@ -153,15 +153,6 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_dogstatsd_set arginfo_DDTrace_dogstatsd_count
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_send_ffe_exposures, 0, 1, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, payloadJson, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_send_ffe_metrics, 0, 2, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, endpoint, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO(0, payloadBytes, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_resource_weak_store, 0, 3, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, resource, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, key, IS_STRING, 0)
@@ -185,11 +176,12 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_flush_endpoints arginfo_DDTrace_flush
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_evaluate, 0, 4, IS_ARRAY, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_ffe_evaluate, 0, 4, DDTrace\\FfeResult, 1)
 	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, expectedType, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recordMetric, _IS_BOOL, 0, "true")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_has_config, 0, 0, _IS_BOOL, 0)
@@ -252,6 +244,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_add_span_flag, 
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_handle_fork arginfo_DDTrace_flush
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, 5, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, variant, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, reason, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, errorType, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_v2_track_user_login_success, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, login, IS_STRING, 0)
@@ -415,8 +418,6 @@ ZEND_FUNCTION(DDTrace_dogstatsd_distribution);
 ZEND_FUNCTION(DDTrace_dogstatsd_gauge);
 ZEND_FUNCTION(DDTrace_dogstatsd_histogram);
 ZEND_FUNCTION(DDTrace_dogstatsd_set);
-ZEND_FUNCTION(DDTrace_send_ffe_exposures);
-ZEND_FUNCTION(DDTrace_send_ffe_metrics);
 ZEND_FUNCTION(DDTrace_resource_weak_store);
 ZEND_FUNCTION(DDTrace_resource_weak_get);
 ZEND_FUNCTION(DDTrace_are_endpoints_collected);
@@ -439,6 +440,8 @@ ZEND_FUNCTION(DDTrace_Testing_emit_asm_event);
 ZEND_FUNCTION(DDTrace_Testing_normalize_tag_value);
 ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
+ZEND_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric);
+ZEND_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_success);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_failure);
 ZEND_FUNCTION(dd_trace_env_config);
@@ -516,8 +519,6 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_gauge"), zif_DDTrace_dogstatsd_gauge, arginfo_DDTrace_dogstatsd_gauge, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_histogram"), zif_DDTrace_dogstatsd_histogram, arginfo_DDTrace_dogstatsd_histogram, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "dogstatsd_set"), zif_DDTrace_dogstatsd_set, arginfo_DDTrace_dogstatsd_set, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "send_ffe_exposures"), zif_DDTrace_send_ffe_exposures, arginfo_DDTrace_send_ffe_exposures, 0, NULL, NULL)
-	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "send_ffe_metrics"), zif_DDTrace_send_ffe_metrics, arginfo_DDTrace_send_ffe_metrics, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "resource_weak_store"), zif_DDTrace_resource_weak_store, arginfo_DDTrace_resource_weak_store, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "resource_weak_get"), zif_DDTrace_resource_weak_get, arginfo_DDTrace_resource_weak_get, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace", "are_endpoints_collected"), zif_DDTrace_are_endpoints_collected, arginfo_DDTrace_are_endpoints_collected, 0, NULL, NULL)
@@ -540,6 +541,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "normalize_tag_value"), zif_DDTrace_Testing_normalize_tag_value, arginfo_DDTrace_Testing_normalize_tag_value, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "add_span_flag"), zif_DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_evaluation_metric"), zif_DDTrace_Internal_record_ffe_evaluation_metric, arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "flush_ffe_evaluation_metrics"), zif_DDTrace_Internal_flush_ffe_evaluation_metrics, arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_success"), zif_datadog_appsec_v2_track_user_login_success, arginfo_datadog_appsec_v2_track_user_login_success, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_failure"), zif_datadog_appsec_v2_track_user_login_failure, arginfo_datadog_appsec_v2_track_user_login_failure, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)
@@ -606,6 +609,11 @@ static void register_ddtrace_symbols(int module_number)
 	REGISTER_LONG_CONSTANT("DDTrace\\DBM_PROPAGATION_DISABLED", DD_TRACE_DBM_PROPAGATION_DISABLED, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DDTrace\\DBM_PROPAGATION_SERVICE", DD_TRACE_DBM_PROPAGATION_SERVICE, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DDTrace\\DBM_PROPAGATION_FULL", DD_TRACE_DBM_PROPAGATION_FULL, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\FFE_STRING", DDTRACE_FFE_TYPE_STRING, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\FFE_INT", DDTRACE_FFE_TYPE_INT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\FFE_FLOAT", DDTRACE_FFE_TYPE_FLOAT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\FFE_BOOL", DDTRACE_FFE_TYPE_BOOL, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("DDTrace\\FFE_OBJECT", DDTRACE_FFE_TYPE_OBJECT, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DDTrace\\Internal\\SPAN_FLAG_OPENTELEMETRY", DDTRACE_SPAN_FLAG_OPENTELEMETRY, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DDTrace\\Internal\\SPAN_FLAG_OPENTRACING", DDTRACE_SPAN_FLAG_OPENTRACING, CONST_PERSISTENT);
 	REGISTER_STRING_CONSTANT("DD_TRACE_VERSION", PHP_DDTRACE_VERSION, CONST_PERSISTENT);
@@ -615,6 +623,76 @@ static void register_ddtrace_symbols(int module_number)
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_USER_REJECT", PRIORITY_SAMPLING_USER_REJECT, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNKNOWN", DDTRACE_PRIORITY_SAMPLING_UNKNOWN, CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("DD_TRACE_PRIORITY_SAMPLING_UNSET", DDTRACE_PRIORITY_SAMPLING_UNSET, CONST_PERSISTENT);
+}
+
+static zend_class_entry *register_class_DDTrace_FfeResult(void)
+{
+	zend_class_entry ce, *class_entry;
+
+	INIT_NS_CLASS_ENTRY(ce, "DDTrace", "FfeResult", NULL);
+	class_entry = zend_register_internal_class_with_flags(&ce, NULL, ZEND_ACC_FINAL);
+
+	zval property_valueJson_default_value;
+	ZVAL_NULL(&property_valueJson_default_value);
+	zend_string *property_valueJson_name = zend_string_init("valueJson", sizeof("valueJson") - 1, true);
+	zend_declare_typed_property(class_entry, property_valueJson_name, &property_valueJson_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
+	zend_string_release_ex(property_valueJson_name, true);
+
+	zval property_variant_default_value;
+	ZVAL_NULL(&property_variant_default_value);
+	zend_string *property_variant_name = zend_string_init("variant", sizeof("variant") - 1, true);
+	zend_declare_typed_property(class_entry, property_variant_name, &property_variant_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
+	zend_string_release_ex(property_variant_name, true);
+
+	zval property_allocationKey_default_value;
+	ZVAL_NULL(&property_allocationKey_default_value);
+	zend_string *property_allocationKey_name = zend_string_init("allocationKey", sizeof("allocationKey") - 1, true);
+	zend_declare_typed_property(class_entry, property_allocationKey_name, &property_allocationKey_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
+	zend_string_release_ex(property_allocationKey_name, true);
+
+	zval property_reason_default_value;
+	ZVAL_LONG(&property_reason_default_value, 0);
+	zend_string *property_reason_name = zend_string_init("reason", sizeof("reason") - 1, true);
+	zend_declare_typed_property(class_entry, property_reason_name, &property_reason_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release_ex(property_reason_name, true);
+
+	zval property_errorCode_default_value;
+	ZVAL_LONG(&property_errorCode_default_value, 0);
+	zend_string *property_errorCode_name = zend_string_init("errorCode", sizeof("errorCode") - 1, true);
+	zend_declare_typed_property(class_entry, property_errorCode_name, &property_errorCode_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release_ex(property_errorCode_name, true);
+
+	zval property_doLog_default_value;
+	ZVAL_FALSE(&property_doLog_default_value);
+	zend_string *property_doLog_name = zend_string_init("doLog", sizeof("doLog") - 1, true);
+	zend_declare_typed_property(class_entry, property_doLog_name, &property_doLog_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL));
+	zend_string_release_ex(property_doLog_name, true);
+
+	zval property_providerState_default_value;
+	ZVAL_EMPTY_ARRAY(&property_providerState_default_value);
+	zend_string *property_providerState_name = zend_string_init("providerState", sizeof("providerState") - 1, true);
+	zend_declare_typed_property(class_entry, property_providerState_name, &property_providerState_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_ARRAY));
+	zend_string_release_ex(property_providerState_name, true);
+
+	zval property_errorMessage_default_value;
+	ZVAL_NULL(&property_errorMessage_default_value);
+	zend_string *property_errorMessage_name = zend_string_init("errorMessage", sizeof("errorMessage") - 1, true);
+	zend_declare_typed_property(class_entry, property_errorMessage_name, &property_errorMessage_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_STRING|MAY_BE_NULL));
+	zend_string_release_ex(property_errorMessage_name, true);
+
+	zval property_hasConfig_default_value;
+	ZVAL_NULL(&property_hasConfig_default_value);
+	zend_string *property_hasConfig_name = zend_string_init("hasConfig", sizeof("hasConfig") - 1, true);
+	zend_declare_typed_property(class_entry, property_hasConfig_name, &property_hasConfig_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_BOOL|MAY_BE_NULL));
+	zend_string_release_ex(property_hasConfig_name, true);
+
+	zval property_configVersion_default_value;
+	ZVAL_NULL(&property_configVersion_default_value);
+	zend_string *property_configVersion_name = zend_string_init("configVersion", sizeof("configVersion") - 1, true);
+	zend_declare_typed_property(class_entry, property_configVersion_name, &property_configVersion_default_value, ZEND_ACC_PUBLIC, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG|MAY_BE_NULL));
+	zend_string_release_ex(property_configVersion_name, true);
+
+	return class_entry;
 }
 
 static zend_class_entry *register_class_DDTrace_SpanEvent(zend_class_entry *class_entry_JsonSerializable)

@@ -4,18 +4,16 @@ declare(strict_types=1);
 
 namespace DDTrace\Tests\OpenFeature {
 
-use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\EvaluationCompleted;
-use DDTrace\FeatureFlags\Internal\EvaluationCompletedHook;
 use DDTrace\FeatureFlags\Internal\NativeEvaluator;
-use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
 use DDTrace\FeatureFlags\Internal\UnavailableEvaluator;
-use DDTrace\FeatureFlags\Internal\WarningEmitter;
+use DDTrace\Log\LoggerInterface;
+use DDTrace\Log\LogLevel;
+use DDTrace\Log\NullLogger;
 use DDTrace\OpenFeature\DataDogProvider;
 use OpenFeature\implementation\flags\Attributes;
 use OpenFeature\implementation\flags\EvaluationContext;
@@ -43,7 +41,7 @@ final class DataDogProviderTest extends TestCase
             ->setSuccess('float.flag', 3.5)
             ->setSuccess('object.flag', ['enabled' => true]);
 
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
 
         self::assertTrue($client->getBooleanValue('bool.flag', false));
         self::assertSame('blue', $client->getStringValue('string.flag', 'red'));
@@ -64,7 +62,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setSuccess('static.flag', 'value', EvaluationReason::STATIC_REASON);
 
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
         $details = $client->getStringDetails('static.flag', 'fallback');
 
         self::assertSame(EvaluationReason::STATIC_REASON, $details->getReason());
@@ -75,7 +73,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setSuccess('context.flag', 'on');
 
-        $provider = DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator));
+        $provider = $this->providerForEvaluator($evaluator);
         $provider->resolveStringValue('context.flag', 'off', new EvaluationContext(
             'user-123',
             new Attributes([
@@ -100,52 +98,10 @@ final class DataDogProviderTest extends TestCase
         ], $calls[0]['attributes']);
     }
 
-    public function testOpenFeatureBridgeUsesSharedEvaluationCompletedHook(): void
-    {
-        $evaluator = new OpenFeatureTestEvaluator();
-        $evaluator->setSuccess(
-            'openfeature.completed',
-            true,
-            EvaluationReason::TARGETING_MATCH,
-            'enabled',
-            ['owner' => 'ffe'],
-            ['allocationKey' => 'alloc-openfeature', 'doLog' => true]
-        );
-        $hook = new OpenFeatureRecordingEvaluationCompletedHook();
-        $featureFlagsClient = FeatureFlagsClient::createWithDependencies(
-            $evaluator,
-            new NoopWarningEmitter(),
-            $hook
-        );
-        $provider = DataDogProvider::createWithDependencies($featureFlagsClient);
-
-        $details = $provider->resolveBooleanValue('openfeature.completed', false, new EvaluationContext(
-            '',
-            new Attributes([
-                'plan' => 'pro',
-                'nested' => ['drop'],
-            ])
-        ));
-
-        self::assertTrue($details->getValue());
-
-        $evaluations = $hook->evaluations();
-        self::assertCount(1, $evaluations);
-        $evaluation = $evaluations[0];
-        self::assertSame('openfeature.completed', $evaluation->getFlagKey());
-        self::assertSame(EvaluationType::BOOLEAN, $evaluation->getValueType());
-        self::assertSame('', $evaluation->getTargetingKey());
-        self::assertSame(['plan' => 'pro'], $evaluation->getAttributes());
-        self::assertSame(EvaluationReason::TARGETING_MATCH, $evaluation->getReason());
-        self::assertSame('enabled', $evaluation->getVariant());
-        self::assertSame('alloc-openfeature', $evaluation->getAllocationKey());
-        self::assertTrue($evaluation->shouldLogExposure());
-    }
-
     public function testUnavailableRuntimeReturnsDefaultDetailsAndOneWarning(): void
     {
-        $warnings = new OpenFeatureRecordingWarningEmitter();
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies(null, $warnings));
+        $logger = new OpenFeatureRecordingLogger();
+        $client = $this->openFeatureClientFor(new DataDogProvider($logger));
 
         $value = $client->getBooleanValue('checkout.enabled', true);
         $details = $client->getStringDetails('checkout.copy', 'fallback');
@@ -158,23 +114,23 @@ final class DataDogProviderTest extends TestCase
             NativeEvaluator::WARNING_MESSAGE,
             UnavailableEvaluator::WARNING_MESSAGE,
         ]);
-        self::assertSame([$details->getError()->getResolutionErrorMessage()], $warnings->warnings());
+        self::assertSame([$details->getError()->getResolutionErrorMessage()], $logger->warnings());
     }
 
     public function testProviderWarningIsEmittedOncePerProvider(): void
     {
-        $warnings = new OpenFeatureRecordingWarningEmitter();
+        $logger = new OpenFeatureRecordingLogger();
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator
             ->setUnavailable('first.flag', true, 'temporary unavailable')
             ->setUnavailable('second.flag', true, 'temporary unavailable');
 
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator), $warnings));
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator, $logger));
 
         $client->getBooleanValue('first.flag', false);
         $client->getBooleanValue('second.flag', false);
 
-        self::assertSame(['temporary unavailable'], $warnings->warnings());
+        self::assertSame(['temporary unavailable'], $logger->warnings());
     }
 
     public function testProviderErrorsMapToOpenFeatureDetails(): void
@@ -182,7 +138,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setFlagNotFound('missing.flag');
 
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
         $details = $client->getStringDetails('missing.flag', 'fallback');
 
         self::assertSame('fallback', $details->getValue());
@@ -196,7 +152,7 @@ final class DataDogProviderTest extends TestCase
         $evaluator = new OpenFeatureTestEvaluator();
         $evaluator->setSuccess('integer.flag', 'not-an-int');
 
-        $client = $this->openFeatureClientFor(DataDogProvider::createWithDependencies($this->clientForEvaluator($evaluator)));
+        $client = $this->openFeatureClientFor($this->providerForEvaluator($evaluator));
         $details = $client->getIntegerDetails('integer.flag', 7);
 
         self::assertSame(7, $details->getValue());
@@ -204,31 +160,9 @@ final class DataDogProviderTest extends TestCase
         self::assertSame(EvaluationErrorCode::TYPE_MISMATCH, $details->getError()->getResolutionErrorCode()->getValue());
     }
 
-    private function clientForEvaluator(Evaluator $evaluator): FeatureFlagsClient
+    private function providerForEvaluator(Evaluator $evaluator, ?LoggerInterface $logger = null): DataDogProvider
     {
-        return FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter());
-    }
-
-    public function testDatadogMetricHookIsAlwaysPresentEvenAfterUserSetHooks(): void
-    {
-        $provider = new DataDogProvider();
-        $userHook = new class implements \OpenFeature\interfaces\hooks\Hook {
-            public function before(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): ?\OpenFeature\interfaces\flags\EvaluationContext { return null; }
-            public function after(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\provider\ResolutionDetails $details, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
-            public function error(\OpenFeature\interfaces\hooks\HookContext $context, \Throwable $error, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
-            public function finally(\OpenFeature\interfaces\hooks\HookContext $context, \OpenFeature\interfaces\hooks\HookHints $hints): void {}
-            public function supportsFlagValueType(string $flagValueType): bool { return true; }
-        };
-
-        // Calling setHooks() on AbstractProvider REPLACES the hook list. The
-        // Datadog metric hook MUST still run after a user does this — otherwise
-        // we silently lose feature_flag.evaluations on the OpenFeature path.
-        $provider->setHooks([$userHook]);
-
-        $hooks = $provider->getHooks();
-        self::assertCount(2, $hooks, 'expected DD metric hook + user hook');
-        self::assertInstanceOf(\DDTrace\OpenFeature\EvalMetricsHook::class, $hooks[0]);
-        self::assertSame($userHook, $hooks[1]);
+        return DataDogProvider::createWithDependencies($evaluator, $logger ?: new NullLogger(LogLevel::EMERGENCY));
     }
 
     private function openFeatureClientFor(DataDogProvider $provider)
@@ -252,19 +186,13 @@ final class OpenFeatureTestEvaluator implements Evaluator
         string $flagKey,
         mixed $value,
         string $reason = EvaluationReason::STATIC_REASON,
-        ?string $variant = null,
-        array $metadata = [],
-        array $exposureData = []
+        ?string $variant = null
     ): self {
         $this->details[$flagKey] = new EvaluationDetails(
             $value,
             $this->typeForValue($value),
             $reason,
-            $variant,
-            null,
-            null,
-            $metadata,
-            $exposureData
+            $variant
         );
 
         return $this;
@@ -377,14 +305,27 @@ final class OpenFeatureTestEvaluator implements Evaluator
     }
 }
 
-final class OpenFeatureRecordingWarningEmitter implements WarningEmitter
+final class OpenFeatureRecordingLogger implements LoggerInterface
 {
     /** @var string[] */
     private array $warnings = [];
 
-    public function warning($message)
+    public function debug($message, array $context = [])
+    {
+    }
+
+    public function warning($message, array $context = [])
     {
         $this->warnings[] = $message;
+    }
+
+    public function error($message, array $context = [])
+    {
+    }
+
+    public function isLevelActive($level)
+    {
+        return true;
     }
 
     /**
@@ -393,25 +334,6 @@ final class OpenFeatureRecordingWarningEmitter implements WarningEmitter
     public function warnings(): array
     {
         return $this->warnings;
-    }
-}
-
-final class OpenFeatureRecordingEvaluationCompletedHook implements EvaluationCompletedHook
-{
-    /** @var list<EvaluationCompleted> */
-    private array $evaluations = [];
-
-    public function evaluationCompleted(EvaluationCompleted $evaluation)
-    {
-        $this->evaluations[] = $evaluation;
-    }
-
-    /**
-     * @return list<EvaluationCompleted>
-     */
-    public function evaluations(): array
-    {
-        return $this->evaluations;
     }
 }
 }

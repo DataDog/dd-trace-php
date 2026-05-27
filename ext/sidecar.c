@@ -28,6 +28,75 @@ ddog_Endpoint *ddtrace_endpoint;
 ddog_Endpoint *dogstatsd_endpoint; // always set when ddtrace_endpoint is set
 struct ddog_InstanceId *ddtrace_sidecar_instance_id;
 
+#define DDTRACE_FFE_METRIC_BUFFER_LIMIT 1000
+
+typedef struct {
+    zend_string *flag_key;
+    zend_string *variant;
+    zend_string *reason;
+    zend_string *error_type;
+    zend_string *allocation_key;
+} ddtrace_ffe_metric;
+
+static void ddtrace_ffe_release_metric(ddtrace_ffe_metric *metric) {
+    if (!metric) {
+        return;
+    }
+    if (metric->flag_key) {
+        zend_string_release(metric->flag_key);
+    }
+    if (metric->variant) {
+        zend_string_release(metric->variant);
+    }
+    if (metric->reason) {
+        zend_string_release(metric->reason);
+    }
+    if (metric->error_type) {
+        zend_string_release(metric->error_type);
+    }
+    if (metric->allocation_key) {
+        zend_string_release(metric->allocation_key);
+    }
+}
+
+static void ddtrace_ffe_clear_evaluation_metrics(void) {
+    ddtrace_ffe_metric *buffer = (ddtrace_ffe_metric *) DDTRACE_G(ffe_metric_buffer);
+    for (size_t i = 0; i < DDTRACE_G(ffe_metric_buffer_len); i++) {
+        ddtrace_ffe_release_metric(&buffer[i]);
+    }
+    if (buffer) {
+        efree(buffer);
+    }
+    DDTRACE_G(ffe_metric_buffer) = NULL;
+    DDTRACE_G(ffe_metric_buffer_len) = 0;
+    DDTRACE_G(ffe_metric_buffer_cap) = 0;
+}
+
+static zend_string *ddtrace_ffe_otlp_metrics_endpoint(void) {
+    const char *metrics_endpoint = getenv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT");
+    if (metrics_endpoint && metrics_endpoint[0] != '\0') {
+        return zend_string_init(metrics_endpoint, strlen(metrics_endpoint), 0);
+    }
+
+    const char *base_endpoint = getenv("OTEL_EXPORTER_OTLP_ENDPOINT");
+    if (base_endpoint && base_endpoint[0] != '\0') {
+        size_t base_len = strlen(base_endpoint);
+        while (base_len > 0 && base_endpoint[base_len - 1] == '/') {
+            base_len--;
+        }
+
+        const char suffix[] = "/v1/metrics";
+        size_t suffix_len = sizeof(suffix) - 1;
+        zend_string *endpoint = zend_string_alloc(base_len + suffix_len, 0);
+        memcpy(ZSTR_VAL(endpoint), base_endpoint, base_len);
+        memcpy(ZSTR_VAL(endpoint) + base_len, suffix, suffix_len);
+        ZSTR_VAL(endpoint)[base_len + suffix_len] = '\0';
+        return endpoint;
+    }
+
+    return zend_string_init(ZEND_STRL("http://localhost:4318/v1/metrics"), 0);
+}
+
 // Best-effort pointer for the signal handler (SIGTERM/SIGINT). Set to the first
 // per-thread connection; never cleared until MSHUTDOWN. Not atomic: concurrent
 // shutdown is already a best-effort race for signal handlers, so atomicity of
@@ -675,36 +744,100 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
     ddog_Vec_Tag_drop(vec);
 }
 
-bool ddtrace_sidecar_send_ffe_exposures(zend_string *payload_json) {
-    if (!DDTRACE_G(sidecar) || payload_json == NULL || ZSTR_LEN(payload_json) == 0) {
+bool ddtrace_ffe_record_evaluation_metric(
+    const char *flag_key,
+    size_t flag_key_len,
+    const char *variant,
+    size_t variant_len,
+    const char *reason,
+    size_t reason_len,
+    const char *error_type,
+    size_t error_type_len,
+    const char *allocation_key,
+    size_t allocation_key_len
+) {
+    if (!get_DD_METRICS_OTEL_ENABLED() || !flag_key || flag_key_len == 0) {
         return false;
     }
-    return ddtrace_ffi_try(
-        "Failed sending FFE exposure batch to sidecar",
-        ddog_sidecar_send_ffe_exposures(
-            &DDTRACE_G(sidecar),
-            ddtrace_sidecar_instance_id,
-            &DDTRACE_G(sidecar_queue_id),
-            dd_zend_string_to_CharSlice(payload_json)));
+
+    if (DDTRACE_G(ffe_metric_buffer_len) >= DDTRACE_FFE_METRIC_BUFFER_LIMIT) {
+        return false;
+    }
+
+    if (DDTRACE_G(ffe_metric_buffer_len) == DDTRACE_G(ffe_metric_buffer_cap)) {
+        size_t new_cap = DDTRACE_G(ffe_metric_buffer_cap) == 0 ? 8 : DDTRACE_G(ffe_metric_buffer_cap) * 2;
+        if (new_cap > DDTRACE_FFE_METRIC_BUFFER_LIMIT) {
+            new_cap = DDTRACE_FFE_METRIC_BUFFER_LIMIT;
+        }
+        DDTRACE_G(ffe_metric_buffer) = safe_erealloc(
+            DDTRACE_G(ffe_metric_buffer),
+            new_cap,
+            sizeof(ddtrace_ffe_metric),
+            0
+        );
+        DDTRACE_G(ffe_metric_buffer_cap) = new_cap;
+    }
+
+    ddtrace_ffe_metric *buffer = (ddtrace_ffe_metric *) DDTRACE_G(ffe_metric_buffer);
+    ddtrace_ffe_metric *metric = &buffer[DDTRACE_G(ffe_metric_buffer_len)++];
+    metric->flag_key = zend_string_init(flag_key, flag_key_len, 0);
+    metric->variant = zend_string_init(variant ? variant : "", variant ? variant_len : 0, 0);
+    metric->reason = zend_string_init(reason ? reason : "", reason ? reason_len : 0, 0);
+    metric->error_type = zend_string_init(error_type ? error_type : "", error_type ? error_type_len : 0, 0);
+    metric->allocation_key = zend_string_init(allocation_key ? allocation_key : "", allocation_key ? allocation_key_len : 0, 0);
+
+    return true;
 }
 
-bool ddtrace_sidecar_send_ffe_metrics(zend_string *endpoint, zend_string *payload_bytes) {
-    if (!DDTRACE_G(sidecar) || endpoint == NULL || ZSTR_LEN(endpoint) == 0
-        || payload_bytes == NULL || ZSTR_LEN(payload_bytes) == 0) {
+bool ddtrace_ffe_flush_evaluation_metrics(void) {
+    size_t metric_count = DDTRACE_G(ffe_metric_buffer_len);
+    ddtrace_ffe_metric *buffer = (ddtrace_ffe_metric *) DDTRACE_G(ffe_metric_buffer);
+
+    if (metric_count == 0 || !buffer) {
         return false;
     }
-    ddog_ByteSlice payload = {
-        .ptr = (const uint8_t *) ZSTR_VAL(payload_bytes),
-        .len = ZSTR_LEN(payload_bytes),
+
+    if (!DDTRACE_G(sidecar) || !ddtrace_sidecar_instance_id || !DDTRACE_G(sidecar_queue_id)) {
+        ddtrace_ffe_clear_evaluation_metrics();
+        return false;
+    }
+
+    zend_string *endpoint = ddtrace_ffe_otlp_metrics_endpoint();
+    ddog_FfeEvaluationMetric *ffi_metrics = safe_emalloc(metric_count, sizeof(ddog_FfeEvaluationMetric), 0);
+    for (size_t i = 0; i < metric_count; i++) {
+        ffi_metrics[i] = (ddog_FfeEvaluationMetric) {
+            .flag_key = dd_zend_string_to_CharSlice(buffer[i].flag_key),
+            .variant = dd_zend_string_to_CharSlice(buffer[i].variant),
+            .reason = dd_zend_string_to_CharSlice(buffer[i].reason),
+            .error_type = dd_zend_string_to_CharSlice(buffer[i].error_type),
+            .allocation_key = dd_zend_string_to_CharSlice(buffer[i].allocation_key),
+        };
+    }
+
+    ddog_FfeTelemetryContext context = {
+        .service = dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+        .env = dd_zend_string_to_CharSlice(get_DD_ENV()),
+        .version = dd_zend_string_to_CharSlice(get_DD_VERSION()),
     };
-    return ddtrace_ffi_try(
+    ddog_Slice_FfeEvaluationMetric metric_slice = {
+        .ptr = ffi_metrics,
+        .len = metric_count,
+    };
+
+    bool flushed = ddtrace_ffi_try(
         "Failed sending FFE metrics batch to sidecar",
-        ddog_sidecar_send_ffe_metrics(
+        ddog_sidecar_send_ffe_evaluation_metrics(
             &DDTRACE_G(sidecar),
             ddtrace_sidecar_instance_id,
             &DDTRACE_G(sidecar_queue_id),
             dd_zend_string_to_CharSlice(endpoint),
-            payload));
+            &context,
+            metric_slice));
+
+    efree(ffi_metrics);
+    zend_string_release(endpoint);
+    ddtrace_ffe_clear_evaluation_metrics();
+    return flushed;
 }
 
 void ddtrace_sidecar_dogstatsd_distribution(zend_string *metric, double value, zval *tags) {

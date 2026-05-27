@@ -59,51 +59,81 @@ final class EvaluationDetails
         $this->providerState = $providerState;
     }
 
+    /**
+     * @return mixed
+     */
     public function getValue()
     {
         return $this->value;
     }
 
+    /**
+     * @return string One of EvaluationType::*.
+     */
     public function getValueType()
     {
         return $this->valueType;
     }
 
+    /**
+     * @return string One of EvaluationReason::*.
+     */
     public function getReason()
     {
         return $this->reason;
     }
 
+    /**
+     * @return string|null
+     */
     public function getVariant()
     {
         return $this->variant;
     }
 
+    /**
+     * @return string|null One of EvaluationErrorCode::* or null on success.
+     */
     public function getErrorCode()
     {
         return $this->errorCode;
     }
 
+    /**
+     * @return string|null
+     */
     public function getErrorMessage()
     {
         return $this->errorMessage;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getFlagMetadata()
     {
         return $this->flagMetadata;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getExposureData()
     {
         return $this->exposureData;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getProviderState()
     {
         return $this->providerState;
     }
 
+    /**
+     * @return bool
+     */
     public function isError()
     {
         return $this->errorCode !== null;

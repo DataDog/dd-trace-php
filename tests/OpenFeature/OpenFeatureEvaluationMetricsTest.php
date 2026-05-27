@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace DDTrace\Tests\OpenFeature {
 
-use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
-use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricTransport;
-use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricWriter;
-use DDTrace\FeatureFlags\Internal\NoopWarningEmitter;
+use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
 use DDTrace\OpenFeature\DataDogProvider;
 use OpenFeature\implementation\flags\Attributes;
 use OpenFeature\implementation\flags\EvaluationContext;
@@ -20,17 +17,15 @@ use OpenFeature\OpenFeatureAPI;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Verifies the PHP 8 OpenFeature path records `feature_flag.evaluations`
- * through the OpenFeature `after`/`error` hook surface (matching dd-trace-go/js/java/dotnet),
- * and that the Client-layer `EvaluationCompletedHook` does NOT also record
- * (no double-counting on the OpenFeature path).
+ * Verifies the PHP 8 OpenFeature path records `feature_flag.evaluations` from
+ * provider-owned EvaluationDetails. Native metric recording is disabled for the
+ * OpenFeature evaluator path, so the provider records exactly once per evaluation.
  */
-final class EvalMetricsHookTest extends TestCase
+final class OpenFeatureEvaluationMetricsTest extends TestCase
 {
-    public function testRecordsMetricThroughOpenFeatureAfterHookOnSuccess(): void
+    public function testRecordsMetricThroughProviderOnSuccess(): void
     {
-        $transport = new EvalMetricsRecordingTransport();
-        $writer = new EvaluationMetricWriter($transport, 'checkout-service');
+        $recorder = new EvalMetricsRecordingRecorder();
         $evaluator = new OpenFeatureMetricEvaluator();
         $evaluator->setSuccess(
             'flag.allocation',
@@ -41,76 +36,61 @@ final class EvalMetricsHookTest extends TestCase
         );
 
         $provider = DataDogProvider::createWithDependencies(
-            FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter()),
+            $evaluator,
             null,
-            $writer
+            $recorder
         );
         $client = $this->openFeatureClientFor($provider);
 
         $client->getStringValue('flag.allocation', 'red');
 
-        $writer->flush();
-        $payloads = $transport->payloads();
-        self::assertCount(1, $payloads);
-        self::assertCount(1, $payloads[0]['points']);
-
-        $point = $payloads[0]['points'][0];
-        self::assertSame(1, $point['count']);
+        $calls = $recorder->calls();
+        self::assertCount(1, $calls);
         self::assertSame([
-            'feature_flag.key' => 'flag.allocation',
-            'feature_flag.result.variant' => 'on',
-            'feature_flag.result.reason' => 'targeting_match',
-            'feature_flag.result.allocation_key' => 'allocation-3baabb3c',
-        ], $point['attributes']);
+            'flagKey' => 'flag.allocation',
+            'variant' => 'on',
+            'reason' => EvaluationReason::TARGETING_MATCH,
+            'errorCode' => null,
+            'allocationKey' => 'allocation-3baabb3c',
+        ], $calls[0]);
     }
 
-    public function testRecordsMetricThroughOpenFeatureErrorHookOnTypeMismatch(): void
+    public function testRecordsMetricThroughProviderOnTypeMismatch(): void
     {
-        $transport = new EvalMetricsRecordingTransport();
-        $writer = new EvaluationMetricWriter($transport, 'checkout-service');
+        $recorder = new EvalMetricsRecordingRecorder();
         $evaluator = new OpenFeatureMetricEvaluator();
-        // Provider returns a string, but client asks for integer — SDK throws
-        // InvalidResolutionValueError and our `error` hook fires.
+        // Provider resolves a type mismatch before returning to the OpenFeature
+        // SDK, so no separate PHP OpenFeature hook is needed for this case.
         $evaluator->setSuccess('flag.mismatch', 'not-an-int', EvaluationReason::STATIC_REASON);
 
         $provider = DataDogProvider::createWithDependencies(
-            FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter()),
+            $evaluator,
             null,
-            $writer
+            $recorder
         );
         $client = $this->openFeatureClientFor($provider);
 
         $details = $client->getIntegerDetails('flag.mismatch', 7);
         self::assertSame(EvaluationErrorCode::TYPE_MISMATCH, $details->getError()->getResolutionErrorCode()->getValue());
 
-        $writer->flush();
-        $payloads = $transport->payloads();
-        self::assertCount(1, $payloads);
-        $points = $payloads[0]['points'];
+        $calls = $recorder->calls();
 
-        // The DD Client returns a type-mismatch EvaluationDetails before the
-        // SDK validator runs, so the `after` hook records it with reason=error
-        // and error.type=type_mismatch. (The SDK then ALSO throws and our `error`
-        // hook fires once more if `after` returns without exception — verify that
-        // metric was recorded the expected number of times.)
-        self::assertGreaterThanOrEqual(1, count($points));
-        $attrs = $points[0]['attributes'];
-        self::assertSame('flag.mismatch', $attrs['feature_flag.key']);
-        self::assertSame('error', $attrs['feature_flag.result.reason']);
-        self::assertSame('type_mismatch', $attrs['error.type']);
+        self::assertCount(1, $calls);
+        self::assertSame('flag.mismatch', $calls[0]['flagKey']);
+        self::assertSame(EvaluationReason::ERROR, $calls[0]['reason']);
+        self::assertSame(EvaluationErrorCode::TYPE_MISMATCH, $calls[0]['errorCode']);
     }
 
-    public function testOpenFeaturePathDoesNotDoubleCountWithClientHook(): void
+    public function testOpenFeaturePathRecordsOncePerEvaluation(): void
     {
-        $transport = new EvalMetricsRecordingTransport();
-        $writer = new EvaluationMetricWriter($transport, 'checkout-service');
+        $recorder = new EvalMetricsRecordingRecorder();
         $evaluator = new OpenFeatureMetricEvaluator();
         $evaluator->setSuccess('flag.basic', 'value', EvaluationReason::STATIC_REASON, 'v1');
 
         $provider = DataDogProvider::createWithDependencies(
-            FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter()),
+            $evaluator,
             null,
-            $writer
+            $recorder
         );
         $client = $this->openFeatureClientFor($provider);
 
@@ -118,21 +98,14 @@ final class EvalMetricsHookTest extends TestCase
         $client->getStringValue('flag.basic', 'default');
         $client->getStringValue('flag.basic', 'default');
 
-        $writer->flush();
-        $payloads = $transport->payloads();
-        self::assertCount(1, $payloads);
-        $points = $payloads[0]['points'];
-        self::assertCount(1, $points);
-        // Three evaluations, exactly three counts on the single series — proves
-        // OpenFeature path records once per evaluation (no double-counting from
-        // the DD Client-layer composite, which is constructed without the metric hook).
-        self::assertSame(3, $points[0]['count']);
+        // Three evaluations, exactly three recorder calls. Aggregation happens
+        // natively in the sidecar, not in PHP.
+        self::assertCount(3, $recorder->calls());
     }
 
     public function testSupportsAllFlagValueTypes(): void
     {
-        $transport = new EvalMetricsRecordingTransport();
-        $writer = new EvaluationMetricWriter($transport, 'svc');
+        $recorder = new EvalMetricsRecordingRecorder();
         $evaluator = new OpenFeatureMetricEvaluator();
         $evaluator
             ->setSuccess('b', true, EvaluationReason::STATIC_REASON)
@@ -142,9 +115,9 @@ final class EvalMetricsHookTest extends TestCase
             ->setSuccess('o', ['k' => 'v'], EvaluationReason::STATIC_REASON);
 
         $provider = DataDogProvider::createWithDependencies(
-            FeatureFlagsClient::createWithDependencies($evaluator, new NoopWarningEmitter()),
+            $evaluator,
             null,
-            $writer
+            $recorder
         );
         $client = $this->openFeatureClientFor($provider);
 
@@ -154,9 +127,7 @@ final class EvalMetricsHookTest extends TestCase
         $client->getFloatValue('f', 0.0);
         $client->getObjectValue('o', []);
 
-        $writer->flush();
-        $points = $transport->payloads()[0]['points'];
-        self::assertCount(5, $points, 'Hook records for every supported flag value type');
+        self::assertCount(5, $recorder->calls(), 'Recorder records for every supported flag value type');
     }
 
     private function openFeatureClientFor(DataDogProvider $provider)
@@ -167,25 +138,25 @@ final class EvalMetricsHookTest extends TestCase
     }
 }
 
-final class EvalMetricsRecordingTransport implements EvaluationMetricTransport
+final class EvalMetricsRecordingRecorder
 {
-    private $sent;
-    private $payloads = array();
+    private $calls = array();
 
-    public function __construct($sent = true)
+    public function __invoke(EvaluationMetric $metric)
     {
-        $this->sent = $sent;
+        $this->calls[] = array(
+            'flagKey' => $metric->getFlagKey(),
+            'variant' => $metric->getVariant(),
+            'reason' => $metric->getReason(),
+            'errorCode' => $metric->getErrorCode(),
+            'allocationKey' => $metric->getAllocationKey(),
+        );
+        return true;
     }
 
-    public function send($serviceName, array $points)
+    public function calls()
     {
-        $this->payloads[] = ['serviceName' => $serviceName, 'points' => $points];
-        return $this->sent;
-    }
-
-    public function payloads()
-    {
-        return $this->payloads;
+        return $this->calls;
     }
 }
 

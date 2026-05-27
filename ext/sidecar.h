@@ -72,8 +72,8 @@ void ddtrace_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *ta
 void ddtrace_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags);
 void ddtrace_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags);
 
-bool ddtrace_sidecar_send_ffe_exposures(zend_string *payload_json);
-bool ddtrace_sidecar_send_ffe_metrics(zend_string *endpoint, zend_string *payload_bytes);
+bool ddtrace_ffe_record_evaluation_metric(const char *flag_key, size_t flag_key_len, const char *variant, size_t variant_len, const char *reason, size_t reason_len, const char *error_type, size_t error_type_len, const char *allocation_key, size_t allocation_key_len);
+bool ddtrace_ffe_flush_evaluation_metrics(void);
 
 bool ddtrace_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str);
 
