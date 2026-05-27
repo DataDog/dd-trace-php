@@ -140,6 +140,7 @@ enum ddtrace_sidecar_connection_mode {
     CONFIG(BOOL, DD_TRACE_DB_CLIENT_SPLIT_BY_INSTANCE, "false")                                                \
     CONFIG(BOOL, DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN, "false")                                                \
     CONFIG(BOOL, DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST, "false")                                                 \
+    CONFIG(BOOL, DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED, "true")                                            \
     CONFIG(BOOL, DD_EXCEPTION_REPLAY_ENABLED, "false", .ini_change = ddtrace_alter_DD_EXCEPTION_REPLAY_ENABLED) \
     CONFIG(INT, DD_EXCEPTION_REPLAY_CAPTURE_MAX_FRAMES, "-1")                                                  \
     CONFIG(INT, DD_EXCEPTION_REPLAY_CAPTURE_INTERVAL_SECONDS, "3600")                                          \

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\PHPRedis;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\DatabaseIntegrationHelper;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
@@ -35,15 +36,10 @@ class PHPRedisIntegration extends Integration
 
     public static function init(): int
     {
-        $traceConnectOpen = function (SpanData $span, $args) {
-            Integration::handleOrphan($span);
-
+        $connectHook = static function (HookData $hook) {
+            $args = $hook->args;
+            $instance = $hook->instance;
             $hostOrUDS = (isset($args[0]) && \is_string($args[0])) ? $args[0] : PHPRedisIntegration::DEFAULT_HOST;
-            $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
-            $span->meta[Tag::TARGET_PORT] = isset($args[1]) && \is_numeric($args[1]) ?
-                $args[1] :
-                PHPRedisIntegration::DEFAULT_PORT;
-            $span->meta[Tag::SPAN_KIND] = 'client';
 
             // While we would have access to Redis::getHost() from the instance to retrieve it later, we compute the
             // service name here and store in the instance for later because of the following reasons:
@@ -51,78 +47,80 @@ class PHPRedisIntegration extends Integration
             //   - in case of connection error, the Redis::host value is not set and we would not have access to it
             //     during callbacks, meaning that we would have to use two different ways to extract the name: args or
             //     Redis::getHost() depending on when we are interested in such information.
-            ObjectKVStore::put($this, PHPRedisIntegration::KEY_HOST, $hostOrUDS);
+            // Always store metadata so data command spans have out.host
+            ObjectKVStore::put($instance, PHPRedisIntegration::KEY_HOST, $hostOrUDS);
 
-            PHPRedisIntegration::enrichSpan($span, $this, 'Redis');
+            if (!\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+
+            $span = $hook->span();
+            Integration::handleOrphan($span);
+            $span->meta[Tag::TARGET_HOST] = $hostOrUDS;
+            $span->meta[Tag::TARGET_PORT] = isset($args[1]) && \is_numeric($args[1])
+                ? $args[1]
+                : PHPRedisIntegration::DEFAULT_PORT;
+            $span->meta[Tag::SPAN_KIND] = 'client';
+            PHPRedisIntegration::enrichSpan($span, $instance, 'Redis');
         };
-        \DDTrace\trace_method('Redis', 'connect', $traceConnectOpen);
-        \DDTrace\trace_method('Redis', 'pconnect', $traceConnectOpen);
-        \DDTrace\trace_method('Redis', 'open', $traceConnectOpen);
-        \DDTrace\trace_method('Redis', 'popen', $traceConnectOpen);
+        \DDTrace\install_hook('Redis::connect', $connectHook);
+        \DDTrace\install_hook('Redis::pconnect', $connectHook);
+        \DDTrace\install_hook('Redis::open', $connectHook);
+        \DDTrace\install_hook('Redis::popen', $connectHook);
 
-        $traceNewCluster = function (SpanData $span, $args) {
+        \DDTrace\install_hook('RedisCluster::__construct', static function (HookData $hook) {
+            PHPRedisIntegration::storeClusterMeta($hook->instance, $hook->args);
+
+            if (!\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+
+            $span = $hook->span();
             Integration::handleOrphan($span);
 
-            if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
-                $firstHostOrUDS = $args[1][0];
-            } else {
-                $seeds = \ini_get('redis.clusters.seeds');
-                if (!empty($seeds)) {
-                    $clusters = [];
-                    parse_str($seeds, $clusters);
-                    if (array_key_exists($args[0], $clusters) && !empty($clusters[$args[0]])) {
-                        $firstHostOrUDS = $clusters[$args[0]][0];
-                    }
-                }
-            }
-            if (empty($firstHostOrUDS)) {
-                $firstHostOrUDS = PHPRedisIntegration::DEFAULT_HOST;
-            }
-
-            $configuredClusterName = isset($args[0]) && \is_string($args[0]) ? $args[0] : null;
-            ObjectKVStore::put($this, PHPRedisIntegration::KEY_CLUSTER_NAME, $configuredClusterName);
+            $firstHostOrUDS = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS)
+                ?? PHPRedisIntegration::DEFAULT_HOST;
+            $firstConfiguredHost = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_FIRST_HOST)
+                ?? PHPRedisIntegration::DEFAULT_HOST;
 
             $url = parse_url($firstHostOrUDS);
-            $firstConfiguredHost = is_array($url) && isset($url["host"]) ?
-                $url["host"] :
-                PHPRedisIntegration::DEFAULT_HOST;
             $span->meta[Tag::TARGET_HOST] = $firstConfiguredHost;
-            $span->meta[Tag::TARGET_PORT] = is_array($url) && isset($url["port"]) ?
-                $url["port"] :
-                PHPRedisIntegration::DEFAULT_PORT;
-            ObjectKVStore::put($this, PHPRedisIntegration::KEY_FIRST_HOST, $firstConfiguredHost);
-            ObjectKVStore::put($this, PHPRedisIntegration::KEY_FIRST_HOST_OR_UDS, $firstHostOrUDS);
+            $span->meta[Tag::TARGET_PORT] = is_array($url) && isset($url["port"])
+                ? $url["port"]
+                : PHPRedisIntegration::DEFAULT_PORT;
 
-            PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster');
-        };
-        \DDTrace\trace_method('RedisCluster', '__construct', $traceNewCluster);
+            PHPRedisIntegration::enrichSpan($span, $hook->instance, 'RedisCluster');
+        });
 
-        self::traceMethodNoArgs('close');
-        self::traceMethodNoArgs('auth');
-        self::traceMethodNoArgs('ping');
-        self::traceMethodNoArgs('echo');
-        self::traceMethodNoArgs('bgRewriteAOF');
-        self::traceMethodNoArgs('bgSave');
-        self::traceMethodNoArgs('flushAll');
-        self::traceMethodNoArgs('flushDb');
-        self::traceMethodNoArgs('save');
+        self::installLifecycleHookNoArgs('close');
+        self::installLifecycleHookNoArgs('auth');
+        self::installLifecycleHookNoArgs('ping');
+        self::installLifecycleHookNoArgs('echo');
+        self::installLifecycleHookNoArgs('bgRewriteAOF');
+        self::installLifecycleHookNoArgs('bgSave');
+        self::installLifecycleHookNoArgs('flushAll');
+        self::installLifecycleHookNoArgs('flushDb');
+        self::installLifecycleHookNoArgs('save');
         // We do not trace arguments of restore as they are binary
-        self::traceMethodNoArgs('restore');
+        self::installLifecycleHookNoArgs('restore');
 
-        \DDTrace\trace_method('Redis', 'select', function (SpanData $span, $args) {
+        \DDTrace\install_hook('Redis::select', static function (HookData $hook) {
+            if (!\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+            $span = $hook->span();
             Integration::handleOrphan($span);
-
-            PHPRedisIntegration::enrichSpan($span, $this, 'Redis');
+            PHPRedisIntegration::enrichSpan($span, $hook->instance, 'Redis');
+            $args = $hook->args;
             if (isset($args[0]) && \is_numeric($args[0])) {
                 $span->meta['db.index'] = $args[0];
             }
-
-            $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
+            $host = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
 
-        self::traceMethodAsCommand('swapdb');
+        self::installLifecycleHookAsCommand('swapdb');
 
         self::traceMethodAsCommand('append');
         self::traceMethodAsCommand('decr');
@@ -278,18 +276,18 @@ class PHPRedisIntegration extends Integration
         self::traceMethodAsCommand('eval');
         self::traceMethodAsCommand('evalSha');
         self::traceMethodAsCommand('script');
-        self::traceMethodAsCommand('getLastError');
-        self::traceMethodAsCommand('clearLastError');
-        self::traceMethodAsCommand('_unserialize');
-        self::traceMethodAsCommand('_serialize');
+        self::installLifecycleHookAsCommand('getLastError');
+        self::installLifecycleHookAsCommand('clearLastError');
+        self::installLifecycleHookAsCommand('_unserialize');
+        self::installLifecycleHookAsCommand('_serialize');
 
         // Introspection
-        self::traceMethodAsCommand('isConnected');
-        self::traceMethodAsCommand('getHost');
-        self::traceMethodAsCommand('getPort');
-        self::traceMethodAsCommand('getDbNum');
-        self::traceMethodAsCommand('getTimeout');
-        self::traceMethodAsCommand('getReadTimeout');
+        self::installLifecycleHookAsCommand('isConnected');
+        self::installLifecycleHookAsCommand('getHost');
+        self::installLifecycleHookAsCommand('getPort');
+        self::installLifecycleHookAsCommand('getDbNum');
+        self::installLifecycleHookAsCommand('getTimeout');
+        self::installLifecycleHookAsCommand('getReadTimeout');
 
         // Geocoding
         self::traceMethodAsCommand('geoAdd');
@@ -353,60 +351,100 @@ class PHPRedisIntegration extends Integration
         }
     }
 
-    public static function traceMethodNoArgs($method)
+    private static function installLifecycleHookNoArgs($method)
     {
-        \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
+        \DDTrace\install_hook('Redis::' . $method, static function (HookData $hook) use ($method) {
+            if (!\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+            $span = $hook->span();
             Integration::handleOrphan($span);
-
-            PHPRedisIntegration::enrichSpan($span, $this, 'Redis', $method);
-
-            $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
+            PHPRedisIntegration::enrichSpan($span, $hook->instance, 'Redis', $method);
+            $host = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
-        \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
+        \DDTrace\install_hook('RedisCluster::' . $method, static function (HookData $hook) use ($method) {
+            if (!\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+            $span = $hook->span();
             Integration::handleOrphan($span);
-
-            PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
-            if ($clusterName = ObjectKVStore::get($this, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
+            PHPRedisIntegration::enrichSpan($span, $hook->instance, 'RedisCluster', $method);
+            if ($clusterName = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
                 $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_CLUSTER_NAME] = $clusterName;
-            } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
+            } elseif ($firstHost = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_FIRST_HOST)) {
                 $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
             }
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
     }
 
-    public static function traceMethodAsCommand($method)
+    public static function installLifecycleHookAsCommand($method)
     {
-        \DDTrace\trace_method('Redis', $method, function (SpanData $span, $args) use ($method) {
+        self::traceMethodAsCommand($method, true);
+    }
+
+    public static function traceMethodAsCommand($method, $isLifeCycle = false)
+    {
+        \DDTrace\install_hook('Redis::' . $method, static function (HookData $hook) use ($method, $isLifeCycle) {
+            if ($isLifeCycle && !\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+            $span = $hook->span();
             Integration::handleOrphan($span);
-
-            PHPRedisIntegration::enrichSpan($span, $this, 'Redis', $method);
-            $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
-            // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
-            $span->meta[Tag::REDIS_RAW_COMMAND]
-                = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
-
-            $host = ObjectKVStore::get($this, PHPRedisIntegration::KEY_HOST);
+            PHPRedisIntegration::enrichSpan($span, $hook->instance, 'Redis', $method);
+            $normalizedArgs = PHPRedisIntegration::normalizeArgs($hook->args);
+            $span->meta[Tag::REDIS_RAW_COMMAND] = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
+            $host = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_HOST);
             $span->meta[Tag::TARGET_HOST] = $host;
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
-        \DDTrace\trace_method('RedisCluster', $method, function (SpanData $span, $args) use ($method) {
+        \DDTrace\install_hook('RedisCluster::' . $method, static function (HookData $hook) use ($method, $isLifeCycle) {
+            if ($isLifeCycle && !\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+            $span = $hook->span();
             Integration::handleOrphan($span);
-
-            PHPRedisIntegration::enrichSpan($span, $this, 'RedisCluster', $method);
-            $normalizedArgs = PHPRedisIntegration::normalizeArgs($args);
-            // Obfuscable methods: see https://github.com/DataDog/datadog-agent/blob/master/pkg/trace/obfuscate/redis.go
-            $span->meta[Tag::REDIS_RAW_COMMAND]
-                = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
-            if ($clusterName = ObjectKVStore::get($this, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
+            PHPRedisIntegration::enrichSpan($span, $hook->instance, 'RedisCluster', $method);
+            $normalizedArgs = PHPRedisIntegration::normalizeArgs($hook->args);
+            $span->meta[Tag::REDIS_RAW_COMMAND] = empty($normalizedArgs) ? $method : ($method . ' ' . $normalizedArgs);
+            if ($clusterName = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_CLUSTER_NAME)) {
                 $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_CLUSTER_NAME] = $clusterName;
-            } elseif ($firstHost = ObjectKVStore::get($this, PHPRedisIntegration::KEY_FIRST_HOST)) {
+            } elseif ($firstHost = ObjectKVStore::get($hook->instance, PHPRedisIntegration::KEY_FIRST_HOST)) {
                 $span->meta[PHPRedisIntegration::INTERNAL_ONLY_TAG_FIRST_HOST] = $firstHost;
             }
             $span->peerServiceSources = DatabaseIntegrationHelper::PEER_SERVICE_SOURCES;
         });
+    }
+
+    public static function storeClusterMeta($instance, $args)
+    {
+        if (isset($args[1]) && \is_array($args[1]) && !empty($args[1])) {
+            $firstHostOrUDS = $args[1][0];
+        } else {
+            $seeds = \ini_get('redis.clusters.seeds');
+            if (!empty($seeds)) {
+                $clusters = [];
+                parse_str($seeds, $clusters);
+                if (array_key_exists($args[0], $clusters) && !empty($clusters[$args[0]])) {
+                    $firstHostOrUDS = $clusters[$args[0]][0];
+                }
+            }
+        }
+        if (empty($firstHostOrUDS)) {
+            $firstHostOrUDS = self::DEFAULT_HOST;
+        }
+
+        $configuredClusterName = isset($args[0]) && \is_string($args[0]) ? $args[0] : null;
+        ObjectKVStore::put($instance, self::KEY_CLUSTER_NAME, $configuredClusterName);
+
+        $url = parse_url($firstHostOrUDS);
+        $firstConfiguredHost = is_array($url) && isset($url["host"])
+            ? $url["host"]
+            : self::DEFAULT_HOST;
+        ObjectKVStore::put($instance, self::KEY_FIRST_HOST, $firstConfiguredHost);
+        ObjectKVStore::put($instance, self::KEY_FIRST_HOST_OR_UDS, $firstHostOrUDS);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace DDTrace\Integrations\Predis;
 
+use DDTrace\HookData;
 use DDTrace\Integrations\Integration;
 use DDTrace\SpanData;
 use DDTrace\Tag;
@@ -27,25 +28,49 @@ class PredisIntegration extends Integration
      */
     public static function init(): int
     {
-        \DDTrace\trace_method('Predis\Client', '__construct', function (SpanData $span, $args) {
+        // __construct: always store connection metadata (needed for executeCommand tags),
+        // but only create a span when lifecycle commands are enabled
+        \DDTrace\install_hook(
+            'Predis\Client::__construct',
+            // Prehook: create span before constructor runs (so it covers the entire execution)
+            static function (HookData $hook) {
+                if (\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                    $hook->span(); // Create span now, before constructor body runs
+                    $hook->data = true;
+                }
+            },
+            // Posthook: constructor has completed, safe to call getConnection()
+            static function (HookData $hook) {
+                PredisIntegration::storeConnectionMetaAndService($hook->instance, $hook->args);
+
+                if (!isset($hook->data)) {
+                    return;
+                }
+
+                $span = $hook->span();
+                Integration::handleOrphan($span);
+                $span->name = 'Predis.Client.__construct';
+                $span->type = Type::REDIS;
+                $span->resource = 'Predis.Client.__construct';
+                PredisIntegration::setMetaAndServiceFromConnection($hook->instance, $span);
+            }
+        );
+
+        // connect: lifecycle-only span
+        \DDTrace\install_hook('Predis\Client::connect', static function (HookData $hook) {
+            if (!\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                return;
+            }
+
+            $span = $hook->span();
             Integration::handleOrphan($span);
-
-            $span->name = 'Predis.Client.__construct';
-            $span->type = Type::REDIS;
-            $span->resource = 'Predis.Client.__construct';
-            PredisIntegration::storeConnectionMetaAndService($this, $args);
-            PredisIntegration::setMetaAndServiceFromConnection($this, $span);
-        });
-
-        \DDTrace\trace_method('Predis\Client', 'connect', function (SpanData $span, $args) {
-            Integration::handleOrphan($span);
-
             $span->name = 'Predis.Client.connect';
             $span->type = Type::REDIS;
             $span->resource = 'Predis.Client.connect';
-            PredisIntegration::setMetaAndServiceFromConnection($this, $span);
+            PredisIntegration::setMetaAndServiceFromConnection($hook->instance, $span);
         });
 
+        // executeCommand: always traced (data command)
         \DDTrace\trace_method('Predis\Client', 'executeCommand', function (SpanData $span, $args) {
             Integration::handleOrphan($span);
 
@@ -54,8 +79,6 @@ class PredisIntegration extends Integration
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             PredisIntegration::addTraceAnalyticsIfEnabled($span);
 
-            // We default resource name to 'Predis.Client.executeCommand', but if we are able below to extract the query
-            // then we replace it with the query
             $span->resource = 'Predis.Client.executeCommand';
 
             if (\count($args) == 0) {
@@ -71,6 +94,7 @@ class PredisIntegration extends Integration
             $span->meta['redis.raw_command'] = $query;
         });
 
+        // executeRaw: always traced (data command)
         \DDTrace\trace_method('Predis\Client', 'executeRaw', function (SpanData $span, $args) {
             Integration::handleOrphan($span);
 
@@ -79,8 +103,6 @@ class PredisIntegration extends Integration
             PredisIntegration::setMetaAndServiceFromConnection($this, $span);
             PredisIntegration::addTraceAnalyticsIfEnabled($span);
 
-            // We default resource name to 'Predis.Client.executeRaw', but if we are able below to extract the query
-            // then we replace it with the query
             $span->resource = 'Predis.Client.executeRaw';
 
             if (\count($args) == 0) {
@@ -93,24 +115,28 @@ class PredisIntegration extends Integration
             $span->meta['redis.raw_command'] = $query;
         });
 
-        \DDTrace\trace_method(
-            'Predis\Pipeline\Pipeline',
-            'executePipeline',
-            [
-                'prehook' => function (SpanData $span, $args) {
-                    Integration::handleOrphan($span);
+        // executePipeline: lifecycle-only span
+        \DDTrace\install_hook(
+            'Predis\Pipeline\Pipeline::executePipeline',
+            static function (HookData $hook) {
+                if (!\dd_trace_env_config("DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED")) {
+                    return;
+                }
 
-                    $span->name = 'Predis.Pipeline.executePipeline';
-                    $span->resource = $span->name;
-                    $span->type = Type::REDIS;
-                    PredisIntegration::setMetaAndServiceFromConnection($this->getClient(), $span);
-                    if (\count($args) < 2) {
-                        return;
-                    }
-                    $commands = $args[1];
-                    $span->meta['redis.pipeline_length'] = count($commands);
-                },
-            ]
+                $span = $hook->span();
+                Integration::handleOrphan($span);
+                $span->name = 'Predis.Pipeline.executePipeline';
+                $span->resource = $span->name;
+                $span->type = Type::REDIS;
+                // getClient() is on the Pipeline instance
+                PredisIntegration::setMetaAndServiceFromConnection($hook->instance->getClient(), $span);
+                $args = $hook->args;
+                if (\count($args) < 2) {
+                    return;
+                }
+                $commands = $args[1];
+                $span->meta['redis.pipeline_length'] = count($commands);
+            }
         );
 
         return Integration::LOADED;

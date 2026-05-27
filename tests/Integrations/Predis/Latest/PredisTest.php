@@ -25,6 +25,7 @@ class PredisTest extends IntegrationTestCase
             'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED',
         ]);
         parent::ddSetUp();
     }
@@ -35,6 +36,7 @@ class PredisTest extends IntegrationTestCase
             'DD_TRACE_REDIS_CLIENT_SPLIT_BY_HOST',
             'DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED',
             'DD_SERVICE',
+            'DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED',
         ]);
         parent::ddTearDown();
     }
@@ -381,6 +383,48 @@ class PredisTest extends IntegrationTestCase
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'configured_service', 'redis', 'Predis.Client.connect')
                 ->withExactTags($this->baseTags()),
+        ]);
+    }
+
+    public function testLifecycleCommandsDisabledPredis()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED=false']);
+
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client(["host" => $this->host]);
+            $client->set('lc_key', 'lc_value');
+            $this->assertSame('lc_value', $client->get('lc_key'));
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'redis', 'SET lc_key lc_value')
+                ->withExactTags(array_merge([], $this->baseTags(), [
+                    'redis.raw_command' => 'SET lc_key lc_value',
+                    'redis.args_length' => '3',
+                ])),
+            SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'redis', 'GET lc_key')
+                ->withExactTags(array_merge([], $this->baseTags(), [
+                    'redis.raw_command' => 'GET lc_key',
+                    'redis.args_length' => '2',
+                ])),
+        ]);
+    }
+
+    public function testLifecycleCommandsDisabledPreservesHostMetadataPredis()
+    {
+        $this->putEnvAndReloadConfig(['DD_TRACE_REDIS_LIFECYCLE_COMMANDS_ENABLED=false']);
+
+        $traces = $this->isolateTracer(function () {
+            $client = new \Predis\Client(["host" => $this->host]);
+            $client->set('meta_key', 'meta_value');
+        });
+
+        $this->assertFlameGraph($traces, [
+            SpanAssertion::build('Predis.Client.executeCommand', 'redis', 'redis', 'SET meta_key meta_value')
+                ->withExactTags(array_merge([], $this->baseTags(), [
+                    'redis.raw_command' => 'SET meta_key meta_value',
+                    'redis.args_length' => '3',
+                ])),
         ]);
     }
 
