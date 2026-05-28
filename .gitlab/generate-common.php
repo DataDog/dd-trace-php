@@ -115,8 +115,8 @@ register_shutdown_function(function () use ($_libdatadog_sha) {
 
     $step  = <<<STEP
     - git config --global --add safe.directory "\${CI_PROJECT_DIR}/libdatadog"
-    - git -C libdatadog fetch --depth=1 origin "$_libdatadog_sha" 2>&1
-    - git -C libdatadog checkout FETCH_HEAD
+    - (cd libdatadog; git fetch --depth=1 origin "$_libdatadog_sha" 2>&1)
+    - (cd libdatadog; git checkout FETCH_HEAD)
 STEP;
 
     // Scripts whose presence in a job block means the job compiles Rust from libdatadog.
