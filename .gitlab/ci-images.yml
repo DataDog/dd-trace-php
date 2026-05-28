@@ -322,7 +322,7 @@ Buster:
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
-Windows Base Images:
+"Windows 1: Base Images":
   extends: .windows_image_build
   parallel:
     matrix:
@@ -332,7 +332,7 @@ Windows Base Images:
         - "vs16-base"
         - "vs17-base"
 
-Windows Tool Images:
+"Windows 2: Tool Images":
   extends: .windows_image_build
   parallel:
     matrix:
@@ -342,10 +342,8 @@ Windows Tool Images:
         - "vs16"
         - "vs17"
 
-Windows PHP Images:
+"Windows 3: PHP Images":
   extends: .windows_image_build
-  needs:
-    - job: "Windows Tool Images"
   parallel:
     matrix:
       - WINDOWS_IMAGE_TARGETS:
