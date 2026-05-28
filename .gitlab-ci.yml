@@ -8,9 +8,7 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   # Only clone libdatadog submodule by default
   GIT_SUBMODULE_PATHS: libdatadog
-  RELIABILITY_ENV_BRANCH:
-    value: "master"
-    description: "Run a specific datadog-reliability-env branch downstream"
+  RELIABILITY_ENV_BRANCH: "master"
   SYSTEM_TESTS_LIBRARY: php
 
 include:
@@ -118,12 +116,11 @@ package-trigger:
         job: "generate-templates"
       - local: .gitlab/benchmarks.yml
     strategy: depend
-    forward:
-      pipeline_variables: true
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/libddwaf-rust appsec/third_party/msgpack-c
     NIGHTLY_BUILD: $NIGHTLY_BUILD
+    RELIABILITY_ENV_BRANCH: $RELIABILITY_ENV_BRANCH
 
 # Runs after the full CI completes.  Triggered in two situations:
 #   1. Scheduled libdatadog CI run (SCHEDULED_LIBDATADOG_LATEST=true)
