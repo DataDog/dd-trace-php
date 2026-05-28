@@ -68,16 +68,18 @@ class SwooleIntegration extends Integration
                     $rootSpan->meta["http.useragent"] = $headers["user-agent"];
                 }
 
-                $rawContent = $request->rawContent();
-                if ($rawContent) {
-                    // The raw content will always be populated if the request is a POST request, independent of the
-                    // Content-Type header.
-                    // However, it may not be json-decodable
-                    $postFields = json_decode($rawContent, true);
-                    if (is_null($postFields)) {
-                        // Fallback to the post fields, which is an array
-                        // This array is not always populated, depending on the Content-Type header
-                        $postFields = $request->post;
+                if (!empty(\dd_trace_env_config('DD_TRACE_HTTP_POST_DATA_PARAM_ALLOWED'))) {
+                    $rawContent = $request->rawContent();
+                    if ($rawContent) {
+                        // The raw content will always be populated if the request is a POST request, independent of
+                        // the Content-Type header.
+                        // However, it may not be json-decodable
+                        $postFields = json_decode($rawContent, true);
+                        if (is_null($postFields)) {
+                            // Fallback to the post fields, which is an array
+                            // This array is not always populated, depending on the Content-Type header
+                            $postFields = $request->post;
+                        }
                     }
                 }
                 if (!empty($postFields)) {
