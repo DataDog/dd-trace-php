@@ -44,6 +44,7 @@ JSON;
 
 show('load', \DDTrace\Testing\ffe_load_config($config));
 show('evaluation_without_native_metric', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array(), false));
+show('missing_flag_without_native_metric', \DDTrace\ffe_evaluate('missing.flag', 0, 'user-1', array(), false));
 ?>
 --EXPECT--
 native_recorder_exists=true
@@ -53,3 +54,4 @@ old_exposure_forwarder_exists=false
 recorded=true
 load=true
 evaluation_without_native_metric={"valueJson":"\"blue\"","variant":"blue","allocationKey":"alloc-string","reason":0,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+missing_flag_without_native_metric={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":3,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}

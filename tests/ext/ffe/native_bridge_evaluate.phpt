@@ -134,6 +134,6 @@ object_success_value={"enabled":true,"threshold":2}
 object_success_metadata={"variant":"json-a","allocation_key":"alloc-json","reason":0,"error_code":0,"do_log":true}
 numeric_attribute_key={"valueJson":"\"numeric-attribute-name\"","variant":"numeric-key","allocationKey":"alloc-numeric-attribute","reason":2,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 empty_targeting_key={"valueJson":"\"empty-targeting-key\"","variant":"empty-target","allocationKey":"alloc-empty-targeting-key","reason":3,"errorCode":0,"doLog":true,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
-missing={"valueJson":"null","variant":null,"allocationKey":null,"reason":1,"errorCode":3,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
+missing={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":3,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 type_mismatch={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":1,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 parse_error={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":2,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}

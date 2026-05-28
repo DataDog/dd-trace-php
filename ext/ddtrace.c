@@ -525,7 +525,11 @@ static void ddtrace_activate(void) {
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
-    if (!ddtrace_disable && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
+    if (!ddtrace_disable && (
+        get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() ||
+        get_global_DD_TRACE_SIDECAR_TRACE_SENDER() ||
+        get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
+    )) {
         ddtrace_sidecar_ensure_active();
     }
 
@@ -3052,6 +3056,10 @@ static const char *ddtrace_ffe_error_name(int32_t error_code) {
     }
 }
 
+static int32_t ddtrace_ffe_effective_reason(int32_t reason, int32_t error_code) {
+    return error_code == 0 ? reason : 5;
+}
+
 static void ddtrace_ffe_record_evaluation_metric_result(
     zend_string *flag_key,
     zend_string *variant,
@@ -3059,7 +3067,7 @@ static void ddtrace_ffe_record_evaluation_metric_result(
     int32_t reason,
     int32_t error_code
 ) {
-    const char *reason_name = ddtrace_ffe_reason_name(reason);
+    const char *reason_name = ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(reason, error_code));
     const char *error_name = ddtrace_ffe_error_name(error_code);
     ddtrace_ffe_record_evaluation_metric(
         ZSTR_VAL(flag_key),
@@ -3260,7 +3268,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), result.value_json);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), result.variant);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), result.allocation_key);
-    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), result.reason);
+    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
