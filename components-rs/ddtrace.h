@@ -61,18 +61,6 @@ int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
 
-bool ddog_ffe_load_config(ddog_CharSlice json);
-
-bool ddog_ffe_has_config(void);
-
-uint64_t ddog_ffe_config_version(void);
-
-struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
-                                        int32_t expected_type,
-                                        ddog_CharSlice targeting_key,
-                                        const struct ddog_FfeAttribute *attributes,
-                                        uintptr_t attributes_count);
-
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 
 void ddog_free_normalized_tag_value(const char *ptr);
@@ -117,6 +105,18 @@ void ddog_agent_info_json_free(char *ptr);
  * `reader` must be a valid pointer to an `AgentInfoReader`.
  */
 void ddog_apply_agent_info_concentrator_config(struct ddog_AgentInfoReader *reader);
+
+bool ddog_ffe_load_config(ddog_CharSlice json);
+
+bool ddog_ffe_has_config(void);
+
+uint64_t ddog_ffe_config_version(void);
+
+struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
+                                        int32_t expected_type,
+                                        ddog_CharSlice targeting_key,
+                                        const struct ddog_FfeAttribute *attributes,
+                                        uintptr_t attributes_count);
 
 bool ddog_shall_log(enum ddog_Log category);
 

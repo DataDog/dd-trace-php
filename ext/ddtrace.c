@@ -3156,6 +3156,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zval *value;
     struct ddog_FfeResult result;
     zend_bool record_metric = true;
+    zend_string *value_json;
+    zend_string *variant;
+    zend_string *allocation_key;
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
         Z_PARAM_STR(flag_key)
@@ -3255,19 +3258,23 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         RETURN_NULL();
     }
 
+    value_json = result.value_json;
+    variant = result.variant;
+    allocation_key = result.allocation_key;
+
     if (record_metric) {
         ddtrace_ffe_record_evaluation_metric_result(
             flag_key,
-            result.variant,
-            result.allocation_key,
+            variant,
+            allocation_key,
             result.reason,
             result.error_code);
     }
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), result.value_json);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), result.variant);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), result.allocation_key);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), variant);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), allocation_key);
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
