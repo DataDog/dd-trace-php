@@ -657,3 +657,52 @@ stages:
 
       print("libxml2 version is up to date.")
       EOF
+
+# APMSP-3303: Security investigation — probe whether the ambient IAM credentials
+# available to a job on the docker-in-docker:amd64 K8s runner can read from the
+# shared GitLab runner S3 cache bucket, including prefixes belonging to other
+# projects. This is a read-only probe (no writes). The job is allowed to fail;
+# the exit code and output are the signal.
+"s3-cache-access-probe (APMSP-3303)":
+  stage: test
+  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: [ "docker-in-docker:amd64" ]
+  allow_failure: true
+  rules:
+    - when: manual
+  variables:
+    KUBERNETES_CPU_REQUEST: 1
+    KUBERNETES_MEMORY_REQUEST: 1Gi
+    KUBERNETES_MEMORY_LIMIT: 2Gi
+    GIT_STRATEGY: none
+  script:
+    - apt-get update -qq && apt-get install -y -qq awscli curl
+    - |
+      echo "=== Ambient credential source ==="
+      # Is there an IRSA web-identity token in the environment?
+      if [ -n "${AWS_WEB_IDENTITY_TOKEN_FILE:-}" ]; then
+        echo "IRSA token present: $AWS_WEB_IDENTITY_TOKEN_FILE"
+        echo "AWS_ROLE_ARN: ${AWS_ROLE_ARN:-<unset>}"
+      else
+        echo "No AWS_WEB_IDENTITY_TOKEN_FILE — checking IMDS"
+        TOKEN=$(curl -sf -X PUT "http://169.254.169.254/latest/api/token" \
+          -H "X-aws-ec2-metadata-token-ttl-seconds: 10" 2>&1) \
+          && echo "IMDS reachable (IMDSv2 token obtained)" \
+          || echo "IMDS not reachable: $TOKEN"
+      fi
+    - |
+      echo "=== Caller identity ==="
+      aws sts get-caller-identity 2>&1 || echo "(get-caller-identity failed)"
+    - |
+      BUCKET=dd-gitlab-runner-cache-build-stable
+      OWN_PREFIX=355      # DataDog/apm-reliability/dd-trace-php
+      FOREIGN_PREFIX=304  # DataDog/apm-reliability/dd-trace-java
+
+      echo "=== ListObjectsV2 on own prefix ($OWN_PREFIX/) ==="
+      aws s3 ls "s3://${BUCKET}/${OWN_PREFIX}/" --recursive --summarize 2>&1 | head -20 || true
+
+      echo "=== ListObjectsV2 on foreign prefix ($FOREIGN_PREFIX/) ==="
+      aws s3 ls "s3://${BUCKET}/${FOREIGN_PREFIX}/" --recursive --summarize 2>&1 | head -20 || true
+
+      echo "=== ListBucket (bucket root) ==="
+      aws s3 ls "s3://${BUCKET}/" 2>&1 | head -20 || true
