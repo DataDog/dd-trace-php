@@ -1,4 +1,4 @@
-use crate::bytes::OwnedZendString;
+use crate::bytes::{OwnedZendString, ZendString};
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
@@ -6,6 +6,7 @@ use datadog_ffe::rules_based::{
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 struct FfeState {
@@ -92,9 +93,9 @@ const TYPE_OBJECT: i32 = 4;
 
 #[repr(C)]
 pub struct FfeResult {
-    pub value_json: Option<OwnedZendString>,
-    pub variant: Option<OwnedZendString>,
-    pub allocation_key: Option<OwnedZendString>,
+    pub value_json: Option<NonNull<ZendString>>,
+    pub variant: Option<NonNull<ZendString>>,
+    pub allocation_key: Option<NonNull<ZendString>>,
     pub reason: i32,
     pub error_code: i32,
     pub do_log: bool,
@@ -210,9 +211,9 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
         Ok(assignment) => {
             let value_json = assignment_value_to_json(&assignment.value);
             FfeResult {
-                value_json: Some(value_json.as_str().into()),
-                variant: Some(assignment.variation_key.as_str().into()),
-                allocation_key: Some(assignment.allocation_key.as_str().into()),
+                value_json: result_string(value_json.as_str().into()),
+                variant: result_string(assignment.variation_key.as_str().into()),
+                allocation_key: result_string(assignment.allocation_key.as_str().into()),
                 reason: match assignment.reason {
                     AssignmentReason::Static => REASON_STATIC,
                     AssignmentReason::TargetingMatch => REASON_TARGETING_MATCH,
@@ -237,7 +238,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
             };
 
             FfeResult {
-                value_json: Some("null".into()),
+                value_json: result_string("null".into()),
                 variant: None,
                 allocation_key: None,
                 reason,
@@ -247,6 +248,12 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
             }
         }
     }
+}
+
+fn result_string(value: OwnedZendString) -> Option<NonNull<ZendString>> {
+    let ptr = value.0;
+    std::mem::forget(value);
+    Some(ptr)
 }
 
 fn invalid_result() -> FfeResult {
@@ -410,8 +417,9 @@ mod tests {
         assert_eq!(result.reason, REASON_SPLIT);
         assert_eq!(result.error_code, ERROR_NONE);
         assert_eq!(result.do_log, true);
+        let value_json = unsafe { result.value_json.unwrap().as_ref() };
         assert_eq!(
-            std::str::from_utf8(result.value_json.as_ref().unwrap().as_ref()).unwrap(),
+            std::str::from_utf8(value_json.as_ref()).unwrap(),
             r#""empty-targeting-key""#
         );
         clear_config();

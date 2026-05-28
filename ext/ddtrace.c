@@ -3070,6 +3070,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zend_string *key;
     zval *value;
     struct ddog_FfeResult result;
+    zend_string *value_json;
+    zend_string *variant;
+    zend_string *allocation_key;
 
     ZEND_PARSE_PARAMETERS_START(4, 4)
         Z_PARAM_STR(flag_key)
@@ -3156,7 +3159,11 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         RETURN_NULL();
     }
 
-    if (result.do_log && result.allocation_key && result.variant) {
+    value_json = result.value_json;
+    variant = result.variant;
+    allocation_key = result.allocation_key;
+
+    if (result.do_log && allocation_key && variant) {
         zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
         ddtrace_ffe_record_exposure(
             ZSTR_VAL(flag_key),
@@ -3164,16 +3171,16 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
             targeting_key ? ZSTR_VAL(targeting_key) : NULL,
             targeting_key ? ZSTR_LEN(targeting_key) : 0,
             subject_attributes_json,
-            ZSTR_VAL(result.allocation_key),
-            ZSTR_VAL(result.variant)
+            ZSTR_VAL(allocation_key),
+            ZSTR_VAL(variant)
         );
         zend_string_release(subject_attributes_json);
     }
 
     object_init_ex(return_value, ddtrace_ce_ffe_result);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), result.value_json);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), result.variant);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), result.allocation_key);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), variant);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), allocation_key);
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), result.reason);
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
