@@ -6,7 +6,6 @@ export DATADOG_SITE="datadoghq.com"
 export DD_ENV="ci"
 export DD_SERVICE="${DD_SERVICE:-dd-trace-php-tests}"
 export VAULT_SECRET_PATH="kv/k8s/gitlab-runner/dd-trace-php/datadoghq-api-key"
-export VAULT_VERSION="1.20.0"
 
 # Parse arguments for tags (e.g., component:tracer test.type:unit)
 TAGS="${*}"
@@ -20,7 +19,6 @@ fi
 arch="$(uname -m)"
 case "${arch}" in
   x86_64)
-    vault_arch="amd64"
     datadog_ci_arch="x64"
     ;;
   aarch64|arm64)
@@ -34,7 +32,7 @@ case "${arch}" in
 esac
 
 # Detect package manager and install dependencies
-echo "Installing required dependencies (curl, jq, nodejs, npm, unzip)..."
+echo "Installing required dependencies (curl, jq, nodejs, npm)..."
 
 is_alpine=false
 if command -v apk &> /dev/null; then
@@ -63,7 +61,7 @@ elif command -v apt-get &> /dev/null; then
 
   echo "Installing packages individually..."
   # Install packages one by one, continue if some fail
-  for pkg in curl jq unzip nodejs npm; do
+  for pkg in curl jq nodejs npm; do
     if ! command -v $pkg &> /dev/null; then
       echo "Installing $pkg..."
       $use_sudo apt-get install -y $pkg || echo "Warning: Failed to install $pkg, continuing..."
@@ -88,43 +86,11 @@ fi
 
 echo "Dependencies installed successfully"
 
-# Install Vault if not already available
-if ! command -v vault &> /dev/null; then
-  echo "Installing Vault CLI..."
-
-  vault_path="/tmp/vault"
-  vault_zip="${vault_path}.zip"
-
-  echo "Downloading Vault ${VAULT_VERSION} for ${vault_arch}..."
-  if ! curl -L --fail "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_${vault_arch}.zip" \
-      --output "${vault_zip}"; then
-    echo "Warning: Failed to download Vault. Skipping JUnit upload." >&2
-    exit 0
-  fi
-
-  echo "Extracting Vault..."
-  if ! unzip -o -q "${vault_zip}" -d /tmp; then
-    echo "Warning: Failed to extract Vault. Skipping JUnit upload." >&2
-    exit 0
-  fi
-
-  chmod +x "${vault_path}"
-  rm -f "${vault_zip}"
-
-  echo "Vault installed successfully"
-fi
-
 # Fetch DATADOG_API_KEY from Vault if not already set
 if [[ -z "${DATADOG_API_KEY:-}" ]]; then
   echo "DATADOG_API_KEY not set, attempting to fetch from Vault..."
-
-  # Use the downloaded vault binary if it exists, otherwise use system vault
-  vault_cmd="vault"
-  if [ -f "/tmp/vault" ]; then
-    vault_cmd="/tmp/vault"
-  fi
-
-  DATADOG_API_KEY="$("${vault_cmd}" kv get --format=json "${VAULT_SECRET_PATH}" | jq -r '.data.data.key')" || {
+  vault_secret_api_path="${VAULT_SECRET_PATH#kv/}"
+  DATADOG_API_KEY="$(curl -sf -H "X-Vault-Token:${VAULT_TOKEN}" "${VAULT_ADDR}/v1/kv/data/${vault_secret_api_path}" | jq -r '.data.data.key')" || {
     echo "Warning: Failed to fetch DATADOG_API_KEY from Vault. Skipping JUnit upload." >&2
     exit 0
   }
