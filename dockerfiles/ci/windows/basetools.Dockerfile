@@ -20,3 +20,6 @@ ARG sdkVersion
 RUN powershell "cd /tmp; Invoke-WebRequest https://github.com/php/php-sdk-binary-tools/archive/refs/tags/php-sdk-%sdkVersion%.zip -OutFile php-sdk.zip; Expand-Archive php-sdk.zip; move php-sdk\php-sdk-binary-tools-php-sdk-%sdkVersion% /php-sdk; Remove-Item php-sdk; Remove-Item php-sdk.zip"
 
 WORKDIR /php-sdk
+
+ADD check-phpsdk.bat /tmp/check-phpsdk.bat
+RUN phpsdk-%vsVersion%-x64.bat -t /tmp/check-phpsdk.bat
