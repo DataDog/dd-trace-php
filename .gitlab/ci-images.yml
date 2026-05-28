@@ -135,3 +135,63 @@ Buster:
     - cd dockerfiles/ci/buster
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
+
+.windows_image_build:
+  stage: ci-build
+  rules:
+    - when: manual
+      allow_failure: true
+  needs: []
+  tags: ["windows-v2:2019"]
+  timeout: 6h
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
+  script: |
+    cd dockerfiles\ci\windows
+    $env:CI_REGISTRY_TOKEN | docker login -u "$env:CI_REGISTRY_USER" --password-stdin "$env:CI_REGISTRY"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    foreach ($target in ($env:WINDOWS_IMAGE_TARGETS -split ' ')) {
+      if ([string]::IsNullOrWhiteSpace($target)) { continue }
+      docker buildx bake --no-cache --pull --push "$target"
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+Windows Base Images:
+  extends: .windows_image_build
+  parallel:
+    matrix:
+      - WINDOWS_IMAGE_TARGETS:
+        - "vc14-base"
+        - "vc15-base"
+        - "vs16-base"
+        - "vs17-base"
+
+Windows Tool Images:
+  extends: .windows_image_build
+  parallel:
+    matrix:
+      - WINDOWS_IMAGE_TARGETS:
+        - "vc14"
+        - "vc15"
+        - "vs16"
+        - "vs17"
+
+Windows PHP Images:
+  extends: .windows_image_build
+  needs:
+    - job: "Windows Tool Images"
+  parallel:
+    matrix:
+      - WINDOWS_IMAGE_TARGETS:
+        - "php-8.5"
+        - "php-8.4"
+        - "php-8.3"
+        - "php-8.2"
+        - "php-8.1"
+        - "php-8.0"
+        - "php-7.4"
+        - "php-7.3"
+        - "php-7.2"
+        - "php-7.1"
+        - "php-7.0"
