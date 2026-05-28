@@ -196,9 +196,28 @@ Buster:
     $env:CI_REGISTRY_TOKEN | docker login -u "$env:CI_REGISTRY_USER" --password-stdin "$env:CI_REGISTRY"
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+    docker version
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    docker buildx version
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    $bakeHelp = docker buildx bake --help 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host $bakeHelp
+      exit $LASTEXITCODE
+    }
+    $supportsNoCache = $bakeHelp -match "(^|\s)--no-cache(\s|,)"
+
     foreach ($target in ($env:WINDOWS_IMAGE_TARGETS -split ' ')) {
       if ([string]::IsNullOrWhiteSpace($target)) { continue }
-      docker buildx bake --no-cache --pull --push "$target"
+      $bakeArgs = @("bake", "--pull", "--push")
+      if ($supportsNoCache) {
+        $bakeArgs += "--no-cache"
+      } else {
+        Write-Host "docker buildx bake does not support --no-cache on this runner; building $target with cache."
+      }
+      $bakeArgs += "$target"
+      docker buildx @bakeArgs
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
