@@ -676,7 +676,11 @@ stages:
     KUBERNETES_MEMORY_LIMIT: 2Gi
     GIT_STRATEGY: none
   script:
-    - apt-get update -qq && apt-get install -y -qq awscli curl
+    - |
+      curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+      unzip -q awscliv2.zip
+      ./aws/install --quiet
+      aws --version
     - |
       echo "=== Ambient credential source ==="
       # Is there an IRSA web-identity token in the environment?
