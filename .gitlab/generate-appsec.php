@@ -701,12 +701,20 @@ stages:
       BUCKET=dd-gitlab-runner-cache-build-stable
       OWN_PREFIX=355      # DataDog/apm-reliability/dd-trace-php
       FOREIGN_PREFIX=304  # DataDog/apm-reliability/dd-trace-java
+      # Probe key: lives outside the runner/{token}/project/{id}/… namespace
+      # that real cache entries use, so it cannot overwrite anything real.
+      PROBE_KEY=apmsp-3303-security-probe/do-not-use.txt
 
-      echo "=== ListObjectsV2 on own prefix ($OWN_PREFIX/) ==="
-      aws s3 ls "s3://${BUCKET}/${OWN_PREFIX}/" --recursive --summarize 2>&1 | head -20 || true
+      echo "=== HeadObject (s3:GetObject) on own prefix ==="
+      aws s3api head-object --bucket "$BUCKET" --key "${OWN_PREFIX}/${PROBE_KEY}" 2>&1 || true
 
-      echo "=== ListObjectsV2 on foreign prefix ($FOREIGN_PREFIX/) ==="
-      aws s3 ls "s3://${BUCKET}/${FOREIGN_PREFIX}/" --recursive --summarize 2>&1 | head -20 || true
+      echo "=== HeadObject (s3:GetObject) on foreign prefix ==="
+      aws s3api head-object --bucket "$BUCKET" --key "${FOREIGN_PREFIX}/${PROBE_KEY}" 2>&1 || true
 
-      echo "=== ListBucket (bucket root) ==="
-      aws s3 ls "s3://${BUCKET}/" 2>&1 | head -20 || true
+      echo "=== PutObject on own prefix ==="
+      echo "apmsp-3303 probe" | \
+        aws s3api put-object --bucket "$BUCKET" --key "${OWN_PREFIX}/${PROBE_KEY}" --body /dev/stdin 2>&1 || true
+
+      echo "=== PutObject on foreign prefix ==="
+      echo "apmsp-3303 probe" | \
+        aws s3api put-object --bucket "$BUCKET" --key "${FOREIGN_PREFIX}/${PROBE_KEY}" --body /dev/stdin 2>&1 || true
