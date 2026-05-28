@@ -1328,6 +1328,12 @@ test_distributed_tracing_coverage:
 test_metrics: global_test_run_dependencies
 	$(call run_tests,--testsuite=metrics $(TESTS))
 
+test_featureflags: global_test_run_dependencies tests/OpenFeature/composer.lock-php$(PHP_MAJOR_MINOR)
+	$(eval FEATUREFLAGS_TEST_EXTRA_INI := $(TEST_EXTRA_INI))
+	$(eval TEST_EXTRA_INI=$(FEATUREFLAGS_TEST_EXTRA_INI) -d auto_prepend_file=$(PWD)/tests/OpenFeature/vendor/autoload.php)
+	$(call run_tests,--testsuite=featureflags $(TESTS))
+	$(eval TEST_EXTRA_INI=$(FEATUREFLAGS_TEST_EXTRA_INI))
+
 benchmarks_run_dependencies: global_test_run_dependencies tests/Frameworks/Symfony/Version_5_2/composer.lock-php$(PHP_MAJOR_MINOR) tests/Frameworks/Laravel/Version_10_x/composer.lock-php$(PHP_MAJOR_MINOR) tests/Benchmarks/composer.lock-php$(PHP_MAJOR_MINOR)
 	php tests/Frameworks/Symfony/Version_5_2/bin/console cache:clear --no-warmup --env=prod
 

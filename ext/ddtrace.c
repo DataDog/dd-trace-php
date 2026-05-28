@@ -934,6 +934,7 @@ zend_class_entry *ddtrace_ce_root_span_data;
 HashTable dd_root_span_data_duplicated_properties_table;
 #endif
 zend_class_entry *ddtrace_ce_span_stack;
+static zend_class_entry *ddtrace_ce_ffe_result;
 zend_object_handlers ddtrace_span_data_handlers;
 zend_object_handlers ddtrace_inferred_span_data_handlers;
 zend_object_handlers ddtrace_root_span_data_handlers;
@@ -1578,6 +1579,7 @@ static PHP_MINIT_FUNCTION(ddtrace) {
     dd_register_span_data_ce();
     dd_register_fatal_error_ce();
     ddtrace_ce_integration = register_class_DDTrace_Integration();
+    ddtrace_ce_ffe_result = register_class_DDTrace_FfeResult();
     ddtrace_ce_span_link = register_class_DDTrace_SpanLink(php_json_serializable_ce);
     ddtrace_ce_span_event = register_class_DDTrace_SpanEvent(php_json_serializable_ce);
     ddtrace_ce_exception_span_event = register_class_DDTrace_ExceptionSpanEvent(ddtrace_ce_span_event);
@@ -2949,6 +2951,180 @@ PHP_FUNCTION(DDTrace_flush_endpoints) {
 
     ddtrace_ffi_try("Failed flushing endpoint telemetry buffer",
         ddog_sidecar_telemetry_filter_flush(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), ddtrace_telemetry_buffer(), ddtrace_telemetry_cache(), service_name, env_name));
+}
+
+PHP_FUNCTION(DDTrace_ffe_has_config) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_BOOL(ddog_ffe_has_config());
+}
+
+PHP_FUNCTION(DDTrace_ffe_config_version) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_LONG((zend_long) ddog_ffe_config_version());
+}
+
+PHP_FUNCTION(DDTrace_Testing_ffe_load_config) {
+    zend_string *json;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+        Z_PARAM_STR(json)
+    ZEND_PARSE_PARAMETERS_END();
+
+    RETURN_BOOL(ddog_ffe_load_config(dd_zend_string_to_CharSlice(json)));
+}
+
+static void ddtrace_ffe_update_property(zval *object, const char *name, size_t name_len, zval *value) {
+    zend_string *property_name = zend_string_init(name, name_len, 0);
+    zend_update_property_ex(ddtrace_ce_ffe_result, Z_OBJ_P(object), property_name, value);
+    zend_string_release(property_name);
+}
+
+static void ddtrace_ffe_update_nullable_string_property(zval *object, const char *name, size_t name_len, zend_string *value) {
+    zval property_value;
+
+    if (value == NULL) {
+        ZVAL_NULL(&property_value);
+        ddtrace_ffe_update_property(object, name, name_len, &property_value);
+        return;
+    }
+
+    ZVAL_STR(&property_value, value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+    zval_ptr_dtor(&property_value);
+}
+
+static void ddtrace_ffe_update_long_property(zval *object, const char *name, size_t name_len, zend_long value) {
+    zval property_value;
+
+    ZVAL_LONG(&property_value, value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+}
+
+static void ddtrace_ffe_update_bool_property(zval *object, const char *name, size_t name_len, bool value) {
+    zval property_value;
+
+    ZVAL_BOOL(&property_value, value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+}
+
+static void ddtrace_ffe_update_empty_array_property(zval *object, const char *name, size_t name_len) {
+    zval property_value;
+
+    array_init(&property_value);
+    ddtrace_ffe_update_property(object, name, name_len, &property_value);
+    zval_ptr_dtor(&property_value);
+}
+
+PHP_FUNCTION(DDTrace_ffe_evaluate) {
+    zend_string *flag_key;
+    zend_long type_id_zl;
+    zend_string *targeting_key = NULL;
+    zval *attrs_zv;
+    int32_t type_id;
+    struct ddog_FfeAttribute *c_attrs = NULL;
+    zend_string **owned_attr_keys = NULL;
+    size_t attrs_count = 0;
+    HashTable *attributes;
+    size_t idx = 0;
+    zend_ulong num_key;
+    zend_string *key;
+    zval *value;
+    struct ddog_FfeResult result;
+
+    ZEND_PARSE_PARAMETERS_START(4, 4)
+        Z_PARAM_STR(flag_key)
+        Z_PARAM_LONG(type_id_zl)
+        Z_PARAM_STR_OR_NULL(targeting_key)
+        Z_PARAM_ARRAY(attrs_zv)
+    ZEND_PARSE_PARAMETERS_END();
+
+    type_id = (int32_t) type_id_zl;
+    attributes = Z_ARRVAL_P(attrs_zv);
+    attrs_count = zend_hash_num_elements(attributes);
+
+    if (attrs_count > 0) {
+        c_attrs = ecalloc(attrs_count, sizeof(struct ddog_FfeAttribute));
+        owned_attr_keys = ecalloc(attrs_count, sizeof(zend_string *));
+        ZEND_HASH_FOREACH_KEY_VAL(attributes, num_key, key, value) {
+            zend_string *owned_key = NULL;
+
+            if (idx >= attrs_count) {
+                continue;
+            }
+
+            if (!key) {
+                owned_key = zend_long_to_str((zend_long) num_key);
+                key = owned_key;
+            }
+
+            switch (Z_TYPE_P(value)) {
+                case IS_STRING:
+                    c_attrs[idx].value_type = 0;
+                    c_attrs[idx].string_value = dd_zend_string_to_CharSlice(Z_STR_P(value));
+                    break;
+                case IS_LONG:
+                    c_attrs[idx].value_type = 1;
+                    c_attrs[idx].number_value = (double) Z_LVAL_P(value);
+                    break;
+                case IS_DOUBLE:
+                    c_attrs[idx].value_type = 1;
+                    c_attrs[idx].number_value = Z_DVAL_P(value);
+                    break;
+                case IS_TRUE:
+                    c_attrs[idx].value_type = 2;
+                    c_attrs[idx].bool_value = true;
+                    break;
+                case IS_FALSE:
+                    c_attrs[idx].value_type = 2;
+                    c_attrs[idx].bool_value = false;
+                    break;
+                default:
+                    if (owned_key) {
+                        zend_string_release(owned_key);
+                    }
+                    continue;
+            }
+
+            c_attrs[idx].key = dd_zend_string_to_CharSlice(key);
+            owned_attr_keys[idx] = owned_key;
+            idx++;
+        } ZEND_HASH_FOREACH_END();
+        attrs_count = idx;
+    }
+
+    result = ddog_ffe_evaluate(
+        dd_zend_string_to_CharSlice(flag_key),
+        type_id,
+        dd_zend_string_to_CharSlice(targeting_key),
+        c_attrs,
+        attrs_count
+    );
+    if (c_attrs) {
+        efree(c_attrs);
+    }
+    if (owned_attr_keys) {
+        for (size_t i = 0; i < attrs_count; i++) {
+            if (owned_attr_keys[i]) {
+                zend_string_release(owned_attr_keys[i]);
+            }
+        }
+        efree(owned_attr_keys);
+    }
+
+    if (!result.valid) {
+        RETURN_NULL();
+    }
+
+    object_init_ex(return_value, ddtrace_ce_ffe_result);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), result.value_json);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), result.variant);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), result.allocation_key);
+    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), result.reason);
+    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
+    ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
+    ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
 }
 
 PHP_FUNCTION(dd_trace_send_traces_via_thread) {

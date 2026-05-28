@@ -61,6 +61,18 @@ int posix_spawn_file_actions_addchdir_np(void *file_actions, const char *path);
 
 uint64_t dd_fnv1a_64(const uint8_t *data, uintptr_t len);
 
+bool ddog_ffe_load_config(ddog_CharSlice json);
+
+bool ddog_ffe_has_config(void);
+
+uint64_t ddog_ffe_config_version(void);
+
+struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
+                                        int32_t expected_type,
+                                        ddog_CharSlice targeting_key,
+                                        const struct ddog_FfeAttribute *attributes,
+                                        uintptr_t attributes_count);
+
 const char *ddog_normalize_process_tag_value(ddog_CharSlice tag_value);
 
 void ddog_free_normalized_tag_value(const char *ptr);
@@ -118,9 +130,7 @@ void ddog_reset_logger(void);
 
 uint32_t ddog_get_logs_count(ddog_CharSlice level);
 
-void ddog_init_remote_config(bool live_debugging_enabled,
-                             bool appsec_activation,
-                             bool appsec_config);
+void ddog_init_remote_config(struct ddog_DdogRemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
                                                              bool di_enabled);

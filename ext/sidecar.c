@@ -381,7 +381,8 @@ bool ddtrace_sidecar_should_enable(bool *appsec_activation, bool *appsec_config)
     bool enable_sidecar = ddtrace_sidecar_maybe_enable_appsec(appsec_activation, appsec_config);
     if (!enable_sidecar) {
         enable_sidecar = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() ||
-                       get_global_DD_TRACE_SIDECAR_TRACE_SENDER();
+                       get_global_DD_TRACE_SIDECAR_TRACE_SENDER() ||
+                       get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
     }
     return enable_sidecar;
 }
@@ -390,7 +391,12 @@ void ddtrace_sidecar_setup(bool appsec_activation, bool appsec_config) {
     ddtrace_set_non_resettable_sidecar_globals();
     ddtrace_set_resettable_sidecar_globals();
 
-    ddog_init_remote_config(get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(), appsec_activation, appsec_config);
+    ddog_init_remote_config((struct ddog_DdogRemoteConfigFlags){
+        .live_debugging_enabled = get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED(),
+        .appsec_activation = appsec_activation,
+        .appsec_config = appsec_config,
+        .ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED(),
+    });
 
     zend_long mode = get_global_DD_TRACE_SIDECAR_CONNECTION_MODE();
 
