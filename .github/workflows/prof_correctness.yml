@@ -8,6 +8,8 @@ on:
 jobs:
   prof-correctness:
     runs-on: ubuntu-24.04
+    env:
+      LLVM_VERSION: "20"
     strategy:
       fail-fast: false
       matrix:
@@ -43,20 +45,34 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'profiling/rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Build profiler
         run: |
           codename="$(lsb_release -cs)"
           curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-20 main" | sudo tee /etc/apt/sources.list.d/llvm.list
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${LLVM_VERSION} main" | sudo tee /etc/apt/sources.list.d/llvm.list
           sudo apt-get update
-          sudo apt-get install -y clang-20 lld-20
-          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
-          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
-          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-20 100
+          llvm18_packages="$(dpkg-query -W -f='${binary:Package}\n' \
+            '*clang*18*' '*llvm*18*' '*lld*18*' '*libomp*18*' \
+            '*libc++*18*' '*libc++abi*18*' '*mlir*18*' '*flang*18*' \
+            '*bolt*18*' '*polly*18*' 2>/dev/null || true)"
+          if [ -n "$llvm18_packages" ]; then
+            sudo apt-get purge -y $llvm18_packages
+            sudo apt-get autoremove -y
+          fi
+          sudo apt-get install -y clang-${LLVM_VERSION} lld-${LLVM_VERSION} llvm-${LLVM_VERSION}-dev libclang-${LLVM_VERSION}-dev libclang-rt-${LLVM_VERSION}-dev
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-${LLVM_VERSION} 100
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-${LLVM_VERSION} 100
+          sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-${LLVM_VERSION} 100
+          export CC=clang-${LLVM_VERSION}
+          export CXX=clang++-${LLVM_VERSION}
+          export LLVM_CONFIG_PATH=/usr/bin/llvm-config-${LLVM_VERSION}
+          export LIBCLANG_PATH=/usr/lib/llvm-${LLVM_VERSION}/lib
+          export LD_LIBRARY_PATH="${LIBCLANG_PATH}:${LD_LIBRARY_PATH:-}"
           clang --version
           ld.lld --version
+          "$LLVM_CONFIG_PATH" --version
           cd profiling
           version_number=$(awk -F' = ' '$1 == "channel" { gsub(/"/, "", $2); print $2 }' rust-toolchain.toml)
           curl https://sh.rustup.rs -sSf | sh -s -- --profile minimal -y --default-toolchain "$version_number"
@@ -71,7 +87,7 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
+          key: ${{ runner.os }}-cargo-llvm-${{ env.LLVM_VERSION }}-${{ hashFiles('**/Cargo.lock', 'profiling/rust-toolchain.toml') }}-${{ matrix.php-version }}-${{ matrix.phpts }}
 
       - name: Run no profile test
         run: |
