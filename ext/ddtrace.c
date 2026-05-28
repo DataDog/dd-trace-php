@@ -525,7 +525,11 @@ static void ddtrace_activate(void) {
     pthread_once(&dd_activate_once_control, dd_activate_once);
     zai_config_rinit();
 
-    if (!ddtrace_disable && (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() || get_global_DD_TRACE_SIDECAR_TRACE_SENDER())) {
+    if (!ddtrace_disable && (
+        get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED() ||
+        get_global_DD_TRACE_SIDECAR_TRACE_SENDER() ||
+        get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
+    )) {
         ddtrace_sidecar_ensure_active();
     }
 
