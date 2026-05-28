@@ -198,26 +198,36 @@ Buster:
 
     docker version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-    docker buildx version
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    $bakeHelp = docker buildx bake --help 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) {
-      Write-Host $bakeHelp
-      exit $LASTEXITCODE
+    docker compose version
+    if ($LASTEXITCODE -eq 0) {
+      $compose = @("docker", "compose")
+    } elseif (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+      docker-compose version
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      $compose = @("docker-compose")
+    } else {
+      Write-Host "ERROR: neither docker compose nor docker-compose is available on this runner."
+      exit 1
     }
-    $supportsNoCache = $bakeHelp -match "(^|\s)--no-cache(\s|,)"
+
+    function Invoke-Compose {
+      param([string[]]$Arguments)
+      if ($compose.Count -eq 2) {
+        & $compose[0] $compose[1] @Arguments
+      } else {
+        & $compose[0] @Arguments
+      }
+    }
 
     foreach ($target in ($env:WINDOWS_IMAGE_TARGETS -split ' ')) {
       if ([string]::IsNullOrWhiteSpace($target)) { continue }
-      $bakeArgs = @("bake", "--pull", "--push")
-      if ($supportsNoCache) {
-        $bakeArgs += "--no-cache"
-      } else {
-        Write-Host "docker buildx bake does not support --no-cache on this runner; building $target with cache."
-      }
-      $bakeArgs += "$target"
-      docker buildx @bakeArgs
+      Write-Host "Building Windows CI image target $target..."
+      Invoke-Compose -Arguments @("build", "--pull", "--no-cache", "$target")
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      Write-Host "Pushing Windows CI image target $target..."
+      Invoke-Compose -Arguments @("push", "$target")
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
