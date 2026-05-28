@@ -187,7 +187,7 @@ static void dd_uhook_end(zend_ulong invocation, zend_execute_data *execute_data,
 
     if (!Z_ISUNDEF(rv)) {
         const zend_function *func = zend_get_closure_method_def(def->end);
-        if (func->common.fn_flags & ZEND_ACC_HAS_RETURN_TYPE && (ZEND_TYPE_PURE_MASK(func->common.arg_info[-1].type) & IS_VOID) == 0) {
+        if (func->common.fn_flags & ZEND_ACC_HAS_RETURN_TYPE && (ZEND_TYPE_PURE_MASK(func->common.arg_info[-1].type) & MAY_BE_VOID) == 0) {
             zval_ptr_dtor(retval);
             ZVAL_COPY_VALUE(retval, &rv);
         } else {
