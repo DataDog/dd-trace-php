@@ -55,6 +55,9 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
+#define DD_TAG_HTTP_REQH_ENDPOINT_SCAN "http.request.headers.x-datadog-endpoint-scan"
+#define DD_TAG_HTTP_REQH_SECURITY_TEST "http.request.headers.x-datadog-security-test"
+
 extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str span_type,
                                                zai_str resource);
@@ -692,6 +695,32 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
     }
 
     if (data->server) {
+        // Security-testing headers (APPSEC-62412): collected unconditionally
+        // here so they are present even when the AppSec extension is not loaded.
+        // The AppSec extension also collects them via _relevant_basic_headers
+        // in appsec/src/extension/tags.c.
+#define DD_UNCONDITIONAL_SERVER_HEADER(server_key, tag) \
+        { server_key, sizeof(server_key) - 1, tag, sizeof(tag) - 1 }
+        static const struct {
+            const char *server_key; size_t server_len;
+            const char *tag;        size_t tag_len;
+        } sec_headers[] = {
+            DD_UNCONDITIONAL_SERVER_HEADER("HTTP_X_DATADOG_ENDPOINT_SCAN", DD_TAG_HTTP_REQH_ENDPOINT_SCAN),
+            DD_UNCONDITIONAL_SERVER_HEADER("HTTP_X_DATADOG_SECURITY_TEST", DD_TAG_HTTP_REQH_SECURITY_TEST),
+        };
+#undef DD_UNCONDITIONAL_SERVER_HEADER
+        for (size_t i = 0; i < sizeof(sec_headers) / sizeof(*sec_headers); i++) {
+            zval *hval = zend_hash_str_find(data->server, sec_headers[i].server_key, sec_headers[i].server_len);
+            if (hval) {
+                ZVAL_DEREF(hval);
+                if (Z_TYPE_P(hval) == IS_STRING) {
+                    zval zv;
+                    ZVAL_STR_COPY(&zv, Z_STR_P(hval));
+                    zend_hash_str_add_new(meta, sec_headers[i].tag, sec_headers[i].tag_len, &zv);
+                }
+            }
+        }
+
         zend_string *headername;
         zval *headerval;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(data->server, headername, headerval) {
@@ -1834,8 +1863,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.dm", true);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.ksr", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.tid", true);
-        transfer_meta_data(rust_span, serialized_inferred_span, "http.request.headers.x-datadog-endpoint-scan", false);
-        transfer_meta_data(rust_span, serialized_inferred_span, "http.request.headers.x-datadog-security-test", false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_ENDPOINT_SCAN, false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_SECURITY_TEST, false);
 
         ddog_set_span_error(serialized_inferred_span, ddog_get_span_error(rust_span));
     }
