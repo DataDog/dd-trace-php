@@ -49,6 +49,7 @@ static THREAD_LOCAL_ON_ZTS zend_object *nullable _cur_req_span;
 static THREAD_LOCAL_ON_ZTS zend_array *nullable _superglob_equiv;
 static THREAD_LOCAL_ON_ZTS zend_string *nullable _client_ip;
 static THREAD_LOCAL_ON_ZTS zval _blocking_function;
+static THREAD_LOCAL_ON_ZTS bool _between_init_shutdown_msgs;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
@@ -186,6 +187,17 @@ static bool _rem_cfg_path_changed(bool ignore_empty /* called from rinit */)
     return true;
 }
 
+// Whether the result of dd_request_init means the helper has entered its
+// in-request (inner) loop and a request_shutdown will follow for this request.
+// The helper enters the inner loop for any WAF verdict (clean, record, block or
+// redirect); only a communication failure or other error leaves it in the outer
+// loop with no matching shutdown.
+static bool _req_init_started_request(dd_result res)
+{
+    return res == dd_success || res == dd_should_record ||
+           res == dd_should_block || res == dd_should_redirect;
+}
+
 static zend_array *nullable _do_request_begin(
     zval *nullable rbe_zv /* needs free */)
 {
@@ -231,12 +243,18 @@ static zend_array *nullable _do_request_begin(
         if (res == dd_success && DDAPPSEC_G(active)) {
             struct timespec start = dd_monotime_start();
             res = dd_request_init(conn, &req_info);
+            if (_req_init_started_request(res)) {
+                _between_init_shutdown_msgs = true;
+            }
             dd_duration_waf_ext_account(&start);
         }
     } else if (DDAPPSEC_G(active)) {
         // request_init
         struct timespec start = dd_monotime_start();
         res = dd_request_init(conn, &req_info);
+        if (_req_init_started_request(res)) {
+            _between_init_shutdown_msgs = true;
+        }
         dd_duration_waf_ext_account(&start);
     }
 
@@ -442,6 +460,7 @@ static void _reset_globals(void)
     }
     ZVAL_UNDEF(&_blocking_function);
 
+    _between_init_shutdown_msgs = false;
     _shutdown_done_on_commit = false;
     _request_blocked = false;
     dd_tags_rshutdown();
@@ -471,6 +490,8 @@ static void _set_cur_span(zend_object *nullable span)
         GC_ADDREF(_cur_req_span);
     }
 }
+
+bool dd_req_lifecycle_is_active(void) { return _between_init_shutdown_msgs; }
 
 zend_object *nullable dd_req_lifecycle_get_cur_span(void)
 {
@@ -581,6 +602,7 @@ static zend_array *nullable _response_commit(
     }
 
     _shutdown_done_on_commit = true;
+    _between_init_shutdown_msgs = false;
 
     return res;
 }
