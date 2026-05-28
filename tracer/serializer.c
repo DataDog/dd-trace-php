@@ -692,30 +692,6 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
     }
 
     if (data->server) {
-        // Unconditionally collect security-testing headers (APPSEC-62412)
-        static const struct {
-            const char *server_key; size_t server_len;
-            const char *tag;        size_t tag_len;
-        } sec_headers[] = {
-            { "HTTP_X_DATADOG_ENDPOINT_SCAN", sizeof("HTTP_X_DATADOG_ENDPOINT_SCAN") - 1,
-              "http.request.headers.x-datadog-endpoint-scan",
-              sizeof("http.request.headers.x-datadog-endpoint-scan") - 1 },
-            { "HTTP_X_DATADOG_SECURITY_TEST", sizeof("HTTP_X_DATADOG_SECURITY_TEST") - 1,
-              "http.request.headers.x-datadog-security-test",
-              sizeof("http.request.headers.x-datadog-security-test") - 1 },
-        };
-        for (size_t i = 0; i < sizeof(sec_headers) / sizeof(*sec_headers); i++) {
-            zval *hval = zend_hash_str_find(data->server, sec_headers[i].server_key, sec_headers[i].server_len);
-            if (hval) {
-                ZVAL_DEREF(hval);
-                if (Z_TYPE_P(hval) == IS_STRING) {
-                    zval zv;
-                    ZVAL_STR_COPY(&zv, Z_STR_P(hval));
-                    zend_hash_str_add_new(meta, sec_headers[i].tag, sec_headers[i].tag_len, &zv);
-                }
-            }
-        }
-
         zend_string *headername;
         zval *headerval;
         ZEND_HASH_FOREACH_STR_KEY_VAL_IND(data->server, headername, headerval) {

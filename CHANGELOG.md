@@ -9,7 +9,6 @@ Changelog for older versions can be found in our [release page](https://github.c
 
 ## Tracer
 ### Added
-- Unconditionally collect `x-datadog-endpoint-scan` and `x-datadog-security-test` HTTP request headers as span tags on HTTP entry spans, independent of `DD_TRACE_HEADER_TAGS` and AppSec enablement (APPSEC-62412)
 - Add support for OpenTelemetry logs (`DD_LOGS_OTEL_ENABLED=true`, disabled by default) #3748
 
 ### Changed
