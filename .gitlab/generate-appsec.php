@@ -711,10 +711,10 @@ stages:
       echo "=== HeadObject (s3:GetObject) on foreign prefix ==="
       aws s3api head-object --bucket "$BUCKET" --key "${FOREIGN_PREFIX}/${PROBE_KEY}" 2>&1 || true
 
+      echo "apmsp-3303 probe" > /tmp/probe.txt
+
       echo "=== PutObject on own prefix ==="
-      echo "apmsp-3303 probe" | \
-        aws s3api put-object --bucket "$BUCKET" --key "${OWN_PREFIX}/${PROBE_KEY}" --body /dev/stdin 2>&1 || true
+      aws s3api put-object --bucket "$BUCKET" --key "${OWN_PREFIX}/${PROBE_KEY}" --body /tmp/probe.txt 2>&1 || true
 
       echo "=== PutObject on foreign prefix ==="
-      echo "apmsp-3303 probe" | \
-        aws s3api put-object --bucket "$BUCKET" --key "${FOREIGN_PREFIX}/${PROBE_KEY}" --body /dev/stdin 2>&1 || true
+      aws s3api put-object --bucket "$BUCKET" --key "${FOREIGN_PREFIX}/${PROBE_KEY}" --body /tmp/probe.txt 2>&1 || true
