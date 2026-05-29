@@ -200,26 +200,6 @@ Buster:
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $targets = @{
-      "vc14-base" = @{
-        Image = "datadog/dd-trace-ci:windows-base-vc14"
-        Dockerfile = "vc14.Dockerfile"
-        BuildArgs = @()
-      }
-      "vc15-base" = @{
-        Image = "datadog/dd-trace-ci:windows-base-vc15"
-        Dockerfile = "vc15.Dockerfile"
-        BuildArgs = @()
-      }
-      "vs16-base" = @{
-        Image = "datadog/dd-trace-ci:windows-base-vs16"
-        Dockerfile = "vs16.Dockerfile"
-        BuildArgs = @()
-      }
-      "vs17-base" = @{
-        Image = "datadog/dd-trace-ci:windows-base-vs17"
-        Dockerfile = "vs17.Dockerfile"
-        BuildArgs = @()
-      }
       "vc14" = @{
         Image = "datadog/dd-trace-ci:windows-vc14"
         Dockerfile = "basetools.Dockerfile"
@@ -322,17 +302,7 @@ Buster:
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
-"Windows 1: Base Images":
-  extends: .windows_image_build
-  parallel:
-    matrix:
-      - WINDOWS_IMAGE_TARGETS:
-        - "vc14-base"
-        - "vc15-base"
-        - "vs16-base"
-        - "vs17-base"
-
-"Windows 2: Tool Images":
+"Windows 1: Tool Images":
   extends: .windows_image_build
   parallel:
     matrix:
@@ -342,7 +312,7 @@ Buster:
         - "vs16"
         - "vs17"
 
-"Windows 3: PHP Images":
+"Windows 2: PHP Images":
   extends: .windows_image_build
   parallel:
     matrix:
