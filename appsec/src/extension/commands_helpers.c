@@ -179,7 +179,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
                 "Response message for %.*s does not have the expected form",
                 NAME_L);
 
-            return dd_error;
+            return dd_network;
         }
         if (res != dd_success && res != dd_should_block &&
             res != dd_should_redirect && res != dd_should_record) {
