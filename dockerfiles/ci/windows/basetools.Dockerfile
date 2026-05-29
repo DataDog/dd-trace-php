@@ -20,5 +20,7 @@ ARG sdkVersion
 RUN powershell "cd /tmp; Invoke-WebRequest https://github.com/php/php-sdk-binary-tools/archive/refs/tags/php-sdk-%sdkVersion%.zip -OutFile php-sdk.zip; Expand-Archive php-sdk.zip; move php-sdk\php-sdk-binary-tools-php-sdk-%sdkVersion% /php-sdk; Remove-Item php-sdk; Remove-Item php-sdk.zip"
 # Older PHP SDK tags expect Apache indexes to prefix package links with /.
 RUN powershell "$config = 'C:\php-sdk\lib\php\libsdk\SDK\Config.php'; $text = [IO.File]::ReadAllText($config).Replace(',/packages-', ',>packages-'); if ($text.Contains(',/packages-')) { throw 'Failed to patch PHP SDK dependency series regex' }; [IO.File]::WriteAllText($config, $text, [System.Text.Encoding]::ASCII)"
+# The PHP downloads CDN rejects the SDK's user-agent for some reason.
+RUN powershell "$fileOps = 'C:\php-sdk\lib\php\libsdk\SDK\FileOps.php'; $text = [IO.File]::ReadAllText($fileOps); $text = $text -replace '(?m)^\s*curl_setopt\(\$ch, CURLOPT_USERAGENT, Config::getSdkUserAgentName\(\)\);\r?\n?', ''; if ($text.Contains('CURLOPT_USERAGENT')) { throw 'Failed to remove PHP SDK curl user-agent' }; [IO.File]::WriteAllText($fileOps, $text, [System.Text.Encoding]::ASCII)"
 
 WORKDIR /php-sdk
