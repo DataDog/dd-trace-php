@@ -32,8 +32,6 @@ CentOS:
         - php-7.4
         - php-7.3
         - php-7.2
-        - php-7.1
-        - php-7.0
   script:
     - cd dockerfiles/ci/centos/7
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
@@ -63,8 +61,6 @@ Alpine:
         - 7.4-alpine
         - 7.3-alpine
         - 7.2-alpine
-        - 7.1-alpine
-        - 7.0-alpine
   script:
     - cd dockerfiles/ci/alpine_compile_extension
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
@@ -97,8 +93,6 @@ Bookworm:
         - php-7.4-shared-ext
         - php-7.3
         - php-7.2
-        - php-7.1
-        - php-7.0
         MAKE_JOBS: ["2"]
   script:
     - cd dockerfiles/ci/bookworm
@@ -129,8 +123,6 @@ Buster:
         - php-7.4-shared-ext
         - php-7.3
         - php-7.2
-        - php-7.1
-        - php-7.0
   script:
     - cd dockerfiles/ci/buster
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
@@ -248,7 +240,7 @@ Buster:
       "php-8.0" = @{
         Image = "datadog/dd-trace-ci:php-8.0_windows"
         Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=8.0.30", "vsVersion=vs16", "phpTarGzUrl=https://www.php.net/distributions/php-8.0.30.tar.gz", "phpSha256Hash=449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80")
+        BuildArgs = @("phpVersion=8.0.30", "vsVersion=vs16", "phpTarGzUrl=https://www.php.net/distributions/php-8.0.30.tar.gz", "phpSha256Hash=449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c")
       }
       "php-7.4" = @{
         Image = "datadog/dd-trace-ci:php-7.4_windows"
@@ -307,7 +299,6 @@ Buster:
   parallel:
     matrix:
       - WINDOWS_IMAGE_TARGETS:
-        - "vc14"
         - "vc15"
         - "vs16"
         - "vs17"
@@ -326,5 +317,3 @@ Buster:
         - "php-7.4"
         - "php-7.3"
         - "php-7.2"
-        - "php-7.1"
-        - "php-7.0"
