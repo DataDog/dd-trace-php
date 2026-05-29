@@ -49,7 +49,8 @@ class DatabaseIntegrationHelper
             $peerService = $span->meta['peer.service'] ?? '';
 
             // Inject base hash into span tags if enabled
-            if (\dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")) {
+            if (\dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")
+                || $propagationMode == \DDTrace\DBM_PROPAGATION_DYNAMIC_SERVICE) {
                 $baseHash = \DDTrace\System\process_tags_base_hash();
                 if ($baseHash !== null) {
                     $span->meta[Tag::PROPAGATED_HASH] = $baseHash;
@@ -140,7 +141,8 @@ class DatabaseIntegrationHelper
         }
 
         // Inject base hash into SQL comment if enabled
-        if (\dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")) {
+        if (\dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")
+            || $mode == \DDTrace\DBM_PROPAGATION_DYNAMIC_SERVICE) {
             $baseHash = \DDTrace\System\process_tags_base_hash();
             if ($baseHash !== null) {
                 $tags["ddsh"] = $baseHash;

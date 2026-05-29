@@ -12,7 +12,7 @@ void datadog_config_first_rinit();
 extern bool runtime_config_first_init;
 extern zai_config_entry datadog_config_entries[];
 
-enum datadog_sidecar_connection_mode {
+enum ddtrace_sidecar_connection_mode {
     DD_TRACE_SIDECAR_CONNECTION_MODE_AUTO = 0,       // Default: try subprocess, fallback to thread
     DD_TRACE_SIDECAR_CONNECTION_MODE_SUBPROCESS = 1, // Force subprocess only
     DD_TRACE_SIDECAR_CONNECTION_MODE_THREAD = 2,     // Force thread only

@@ -25,6 +25,12 @@ namespace DDTrace {
 
     /**
      * @var int
+     * @cvalue DD_TRACE_DBM_PROPAGATION_DYNAMIC_SERVICE
+     */
+    const DBM_PROPAGATION_DYNAMIC_SERVICE = UNKNOWN;
+
+    /**
+     * @var int
      * @cvalue DDTRACE_FFE_TYPE_STRING
      */
     const FFE_STRING = UNKNOWN;
