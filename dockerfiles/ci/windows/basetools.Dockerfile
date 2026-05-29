@@ -18,5 +18,7 @@ RUN powershell "[Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';C:\P
 
 ARG sdkVersion
 RUN powershell "cd /tmp; Invoke-WebRequest https://github.com/php/php-sdk-binary-tools/archive/refs/tags/php-sdk-%sdkVersion%.zip -OutFile php-sdk.zip; Expand-Archive php-sdk.zip; move php-sdk\php-sdk-binary-tools-php-sdk-%sdkVersion% /php-sdk; Remove-Item php-sdk; Remove-Item php-sdk.zip"
+# Older PHP SDK tags expect Apache indexes to prefix package links with /.
+RUN powershell "$config = 'C:\php-sdk\lib\php\libsdk\SDK\Config.php'; $text = [IO.File]::ReadAllText($config).Replace(',/packages-', ',>packages-'); if ($text.Contains(',/packages-')) { throw 'Failed to patch PHP SDK dependency series regex' }; [IO.File]::WriteAllText($config, $text, [System.Text.Encoding]::ASCII)"
 
 WORKDIR /php-sdk
