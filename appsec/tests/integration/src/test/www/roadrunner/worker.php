@@ -19,6 +19,7 @@ $router->addRoute('/', new \App\HomePageHandler());
 $router->addRoute('/json', new \App\JsonHandler());
 $router->addRoute('/xml', new \App\XmlHandler());
 $router->addRoute('/post-respond-lfi', new \App\PostRespondLfiHandler());
+$router->addRoute('/post-respond-track-user', new \App\PostRespondTrackUserHandler());
 
 while ($req = $httpWorker->waitRequest()) {
     /** @var \Spiral\RoadRunner\Http\Request $req */

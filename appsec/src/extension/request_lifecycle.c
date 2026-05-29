@@ -283,7 +283,39 @@ static zend_array *nullable _do_request_begin(
     return spec;
 }
 
+static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force);
+
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
+{
+    // temporarily remove the memory limit to avoid bailouts
+    // and as a safety net do a try-catch
+    __auto_type orig_mem_limit = PG(memory_limit);
+    zend_set_memory_limit((size_t)Z_L(-1) >> 1);
+
+    zend_try {
+        _do_req_lifecycle_rshutdown(ignore_verdict, force);
+    } zend_catch {
+        if (PG(last_error_message)) {
+            mlog_g(dd_log_error,
+                "Bailout in request shutdown; disconnecting from helper: %s",
+                ZSTR_VAL(PG(last_error_message)));
+        } else {
+            mlog_g(dd_log_error,
+                "Bailout in request shutdown; disconnecting from helper");
+        }
+        _reset_globals();
+        dd_helper_close_conn(); // note: not completely bailout-safe,
+                                // but should be fine with the raised mem limit
+    } zend_end_try();
+
+    __auto_type res = zend_set_memory_limit(orig_mem_limit);
+    if (res == FAILURE) {
+        mlog(dd_log_error,
+            "Failed to restore memory limit in request shutdown");
+    }
+}
+
+static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         mlog_g(dd_log_debug, "Skipping all request shutdown actions because "
@@ -437,6 +469,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     return spec;
 }
 
+// Should be bailout-safe -- means, in particular, no emalloc allocations
 static void _reset_globals(void)
 {
     _set_cur_span(NULL);
@@ -491,7 +524,10 @@ static void _set_cur_span(zend_object *nullable span)
     }
 }
 
-bool dd_req_lifecycle_is_active(void) { return _between_init_shutdown_msgs; }
+bool dd_req_lifecycle_is_active(void)
+{
+    return _between_init_shutdown_msgs && DDAPPSEC_G(active);
+}
 
 zend_object *nullable dd_req_lifecycle_get_cur_span(void)
 {

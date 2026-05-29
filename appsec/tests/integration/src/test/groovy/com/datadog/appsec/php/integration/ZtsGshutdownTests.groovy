@@ -2,6 +2,7 @@ package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.docker.LogFile
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIf
@@ -63,9 +64,8 @@ class ZtsGshutdownTests {
 
     @Test
     void 'no crash during GSHUTDOWN when MaxConnectionsPerChild 1 triggers ZTS worker lifecycle'() {
-        long errorLogOffset = (CONTAINER.execInContainer('sh', '-c',
-                'stat -c %s /tmp/logs/apache2/error.log 2>/dev/null || echo 0')
-                .stdout.trim() as long)
+        LogFile errorLog = new LogFile(CONTAINER, 'apache2/error.log')
+        errorLog.markEndPos()
 
         ExecResult backupResult = CONTAINER.execInContainer('sh', '-c',
                 'cp /etc/apache2/mods-enabled/mpm_event.conf /etc/apache2/mods-enabled/mpm_event.conf.bak_zts')
@@ -111,13 +111,11 @@ class ZtsGshutdownTests {
             // Additionally check Apache's error.log for crashes that generate SIGABRT
             // before a core dump can be written (e.g. Rust allocator panics on
             // poisoned memory).
-            ExecResult logCheck = CONTAINER.execInContainer('sh', '-c',
-                    "tail -c +${errorLogOffset + 1} /tmp/logs/apache2/error.log")
-            String errorLog = logCheck.stdout ?: ''
-            assert !errorLog.contains('exit signal Aborted'):
-                    "Apache worker exited via SIGABRT during GSHUTDOWN:\n" + errorLog
-            assert !errorLog.contains('exit signal Segmentation'):
-                    "Apache worker segfaulted during GSHUTDOWN:\n" + errorLog
+            String errorLogText = errorLog.getTextSinceMark()
+            assert !errorLogText.contains('exit signal Aborted'):
+                    "Apache worker exited via SIGABRT during GSHUTDOWN:\n" + errorLogText
+            assert !errorLogText.contains('exit signal Segmentation'):
+                    "Apache worker segfaulted during GSHUTDOWN:\n" + errorLogText
         } finally {
             CONTAINER.execInContainer('sh', '-c',
                     'cp /etc/apache2/mods-enabled/mpm_event.conf.bak_zts' +
