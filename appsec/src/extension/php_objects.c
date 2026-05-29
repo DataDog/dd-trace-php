@@ -30,7 +30,7 @@ dd_result dd_phpobj_reg_funcs(const zend_function_entry *entries)
     if (res == FAILURE) {
         return dd_error;
     }
-    zend_llist_add_element(&_function_entry_arrays, (const void *)&entries);
+    zend_llist_add_element(&_function_entry_arrays, (void *)&entries);
     return dd_success;
 }
 
