@@ -1,10 +1,7 @@
 #pragma once
 
-// php_compat.h must precede attributes.h: attributes.h defines `nonnull` as
-// _Nonnull (empty on GCC), which breaks PHP 8.4+'s __has_attribute(nonnull) in
-// zend_portability.h.
 #include "attributes.h"
-#include "php_compat.h" // NOLINT(llvm-include-order)
+#include "php_compat.h"
 #include <time.h>
 
 static inline struct timespec dd_monotime_start(void)

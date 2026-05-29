@@ -6,6 +6,10 @@
 #ifndef DD_ATTRIBUTES_H
 #define DD_ATTRIBUTES_H
 
+// PHP 8.4+ uses __has_attribute(nonnull) in zend_portability.h. This header
+// defines nonnull below, so Zend must see that check before our shorthand exists.
+#include <zend.h>
+
 #ifndef __has_feature
 #    define __has_feature(x) 0
 #endif
