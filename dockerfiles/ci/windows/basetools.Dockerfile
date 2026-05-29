@@ -1,11 +1,5 @@
 ARG vsVersion
 FROM datadog/dd-trace-ci:windows-base-$vsVersion
-ARG vsVersion
-ARG sdkVersion
-
-ADD check-phpsdk.bat /tmp/check-phpsdk.bat
-RUN powershell "cd /tmp; Invoke-WebRequest https://github.com/php/php-sdk-binary-tools/archive/refs/tags/php-sdk-%sdkVersion%.zip -OutFile php-sdk.zip; Expand-Archive php-sdk.zip; move php-sdk\php-sdk-binary-tools-php-sdk-%sdkVersion% /php-sdk; Remove-Item php-sdk; Remove-Item php-sdk.zip"
-RUN C:\php-sdk\phpsdk-%vsVersion%-x64.bat -t /tmp/check-phpsdk.bat
 
 RUN powershell.exe "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; $Env:chocolateyVersion = '0.10.15'; $Env:chocolateyUseWindowsCompression = 'false'; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1')); ''"
 
@@ -20,6 +14,9 @@ RUN choco install -y llvm
 
 RUN powershell "[Environment]::SetEnvironmentVariable('PATH', $env:PATH + ';C:\Program Files\NASM;C:\Program Files\CMake\bin', 'Machine')"
 
-WORKDIR /php-sdk
+# initial setup
 
-RUN phpsdk-%vsVersion%-x64.bat -t /tmp/check-phpsdk.bat
+ARG sdkVersion
+RUN powershell "cd /tmp; Invoke-WebRequest https://github.com/php/php-sdk-binary-tools/archive/refs/tags/php-sdk-%sdkVersion%.zip -OutFile php-sdk.zip; Expand-Archive php-sdk.zip; move php-sdk\php-sdk-binary-tools-php-sdk-%sdkVersion% /php-sdk; Remove-Item php-sdk; Remove-Item php-sdk.zip"
+
+WORKDIR /php-sdk
