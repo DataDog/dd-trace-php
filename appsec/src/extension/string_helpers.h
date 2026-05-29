@@ -1,8 +1,8 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
 #include "attributes.h"
@@ -12,10 +12,10 @@
 
 #define STR_FOR_FMT(a) ((a) != NULL ? (a) : "(null)")
 
-#define STR_CONS_EQ(str, len, cons) \
+#define STR_CONS_EQ(str, len, cons)                                            \
     (sizeof("" cons) - 1 == len && memcmp(str, cons, len) == 0)
 
-#define STR_STARTS_WITH_CONS(str, len, cons) \
+#define STR_STARTS_WITH_CONS(str, len, cons)                                   \
     (sizeof("" cons) - 1 <= len && memcmp(str, cons, sizeof(cons) - 1) == 0)
 
 #define LSTRLEN(str) (sizeof(str "") - 1)

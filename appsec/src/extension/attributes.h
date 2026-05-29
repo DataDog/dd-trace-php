@@ -1,32 +1,32 @@
 // Unless explicitly stated otherwise all files in this repository are
 // dual-licensed under the Apache-2.0 License or BSD-3-Clause License.
 //
-// This product includes software developed at Datadog (https://www.datadoghq.com/).
-// Copyright 2021 Datadog, Inc.
+// This product includes software developed at Datadog
+// (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #ifndef DD_ATTRIBUTES_H
 #define DD_ATTRIBUTES_H
 
 #ifndef __has_feature
-# define __has_feature(x) 0
+#    define __has_feature(x) 0
 #endif
 
 #if !__has_feature(nullability)
-# ifndef _Nullable
-#  define _Nullable
-# endif
-# ifndef _Nonnull
-#  define _Nonnull
-# endif
-# ifndef _Null_unspecified
-#  define _Null_unspecified
-# endif
+#    ifndef _Nullable
+#        define _Nullable
+#    endif
+#    ifndef _Nonnull
+#        define _Nonnull
+#    endif
+#    ifndef _Null_unspecified
+#        define _Null_unspecified
+#    endif
 #endif
 
 #if defined(__has_attribute) && __has_attribute(format)
-#define ATTR_FORMAT(fmt_idx, first_arg_idx)                                    \
-    __attribute__((format(printf, fmt_idx, first_arg_idx)))
+#    define ATTR_FORMAT(fmt_idx, first_arg_idx)                                \
+        __attribute__((format(printf, fmt_idx, first_arg_idx)))
 #elif
-#define ATTR_FORMAT(fmt_idx, first_arg_idx)
+#    define ATTR_FORMAT(fmt_idx, first_arg_idx)
 #endif
 
 // see also zend_always_inline
@@ -69,9 +69,9 @@
 #endif
 
 #if defined(__GNUC__) && (__GNUC__ > 3 || __GNUC__ == 3 && __GNUC_MINOR__ > 0)
-# define may_alias __attribute((__may_alias__))
+#    define may_alias __attribute((__may_alias__))
 #else
-# define may_alias
+#    define may_alias
 #endif
 
 #define nonnull _Nonnull
@@ -79,13 +79,13 @@
 #define unspecnull _Null_unspecified
 
 #ifdef __cplusplus
-#define EXTERN_C extern "C"
-#define EXTERN_C_BEGIN extern "C" {
-#define EXTERN_C_END }
+#    define EXTERN_C extern "C"
+#    define EXTERN_C_BEGIN extern "C" {
+#    define EXTERN_C_END }
 #else
-#define EXTERN_C
-#define EXTERN_C_BEGIN
-#define EXTERN_C_END
+#    define EXTERN_C
+#    define EXTERN_C_BEGIN
+#    define EXTERN_C_END
 #endif
 
 #define PACKED __attribute__((__packed__))

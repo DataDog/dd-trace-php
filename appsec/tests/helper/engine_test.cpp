@@ -279,14 +279,15 @@ TEST(EngineTest, WafDefaultActions)
 
     auto listener = std::make_unique<mock::listener>();
     EXPECT_CALL(*listener, call(_, _, _))
-        .WillRepeatedly(Invoke([](dds::parameter_view &data, dds::event &event_,
-                                   const dds::network::request_exec_options
-                                       &options) -> void {
-            event_.actions.push_back({dds::action_type::redirect, {}});
-            event_.actions.push_back({dds::action_type::block, {}});
-            event_.actions.push_back({dds::action_type::stack_trace, {}});
-            event_.actions.push_back({dds::action_type::extract_schema, {}});
-        }));
+        .WillRepeatedly(Invoke(
+            [](dds::parameter_view &data, dds::event &event_,
+                const dds::network::request_exec_options &options) -> void {
+                event_.actions.push_back({dds::action_type::redirect, {}});
+                event_.actions.push_back({dds::action_type::block, {}});
+                event_.actions.push_back({dds::action_type::stack_trace, {}});
+                event_.actions.push_back(
+                    {dds::action_type::extract_schema, {}});
+            }));
 
     auto sub = std::make_unique<mock::subscriber>();
     EXPECT_CALL(*sub, get_listener()).WillOnce(Invoke([&]() {
