@@ -139,7 +139,7 @@ static zend_always_inline void _gc_try_delref(zend_refcounted_h *rc)
 #    define ZEND_HASH_FOREACH_FROM(_ht, indirect, _from)                       \
         do {                                                                   \
             Bucket *_p = (_ht)->arData + _from;                                \
-            Bucket *_end = _p + (_ht)->nNumUsed;                               \
+            Bucket *_end = (_ht)->arData + (_ht)->nNumUsed;                    \
             for (; _p != _end; _p++) {                                         \
                 zval *_z = &_p->val;                                           \
                 if (indirect && Z_TYPE_P(_z) == IS_INDIRECT) {                 \
