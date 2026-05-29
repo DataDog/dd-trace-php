@@ -23,6 +23,49 @@ namespace DDTrace {
      */
     const DBM_PROPAGATION_FULL = UNKNOWN;
 
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_STRING
+     */
+    const FFE_STRING = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_INT
+     */
+    const FFE_INT = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_FLOAT
+     */
+    const FFE_FLOAT = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_BOOL
+     */
+    const FFE_BOOL = UNKNOWN;
+
+    /**
+     * @var int
+     * @cvalue DDTRACE_FFE_TYPE_OBJECT
+     */
+    const FFE_OBJECT = UNKNOWN;
+
+    final class FfeResult {
+        public ?string $valueJson = null;
+        public ?string $variant = null;
+        public ?string $allocationKey = null;
+        public int $reason = 0;
+        public int $errorCode = 0;
+        public bool $doLog = false;
+        public array $providerState = [];
+        public ?string $errorMessage = null;
+        public ?bool $hasConfig = null;
+        public ?int $configVersion = null;
+    }
+
     class SpanEvent implements \JsonSerializable {
         /**
          * SpanEvent constructor.
@@ -845,6 +888,38 @@ namespace DDTrace {
      * Call this once after batching all add_endpoint() calls.
      */
     function flush_endpoints(): void {}
+
+    /**
+     * Evaluate a feature flag using the stored UFC configuration.
+     *
+     * @param string $flagKey The flag key to evaluate.
+     * @param int $expectedType One of the DDTrace\FFE_* constants.
+     * @param string|null $targetingKey The targeting key for evaluation context.
+     * @param array $attributes Flat key-value map of evaluation context attributes (string keys, primitive values).
+     * @return FfeResult|null Object with the native evaluation result fields. Null only if evaluation engine is unavailable.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?FfeResult {}
+
+    /**
+     * Check if FFE (Feature Flag Evaluation) configuration is loaded.
+     *
+     * @return bool True if a flag configuration has been loaded.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_has_config(): bool {}
+
+    /**
+     * Return the current FFE configuration version counter.
+     *
+     * @return int Monotonically-increasing version counter.
+     *
+     * @internal Used by the Datadog feature flag client.
+     */
+    function ffe_config_version(): int {}
+
 }
 
 namespace DDTrace\System {
@@ -925,6 +1000,16 @@ namespace DDTrace\UserRequest {
 
 namespace DDTrace\Testing {
     /**
+     * Load a UFC JSON configuration string into the FFE engine.
+     *
+     * @param string $json UFC JSON configuration string.
+     * @return bool True if the configuration was parsed and loaded successfully.
+     *
+     * @internal Used by extension tests only.
+     */
+    function ffe_load_config(string $json): bool {}
+
+    /**
      * Overrides PHP's default error handling.
      *
      * @param string $message Error message
@@ -975,6 +1060,7 @@ namespace DDTrace\Internal {
      * @internal
      */
     function handle_fork(): void {}
+
 }
 
 namespace datadog\appsec\v2 {

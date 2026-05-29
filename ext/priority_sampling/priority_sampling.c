@@ -331,6 +331,12 @@ static void dd_decide_on_sampling(ddtrace_root_span_data *span) {
         sample_rate = result.sampling_rate;
     }
 
+    if (sample_rate > 1) {
+        sample_rate = 1;
+    } else if (sample_rate < 0) {
+        sample_rate = 0;
+    }
+
     // this must be stable on re-evaluation
     bool sampling = (span->trace_id.low * KNUTH_FACTOR) <= (sample_rate * MAX_TRACE_ID);
     bool limited = false;

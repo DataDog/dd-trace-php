@@ -87,6 +87,14 @@
                     "create-lockfile": false
                 }
             },
+            "openfeature": {
+                "require": {
+                    "open-feature/sdk": "^2.1"
+                },
+                "scenario-options": {
+                    "create-lockfile": false
+                }
+            },
             "opentelemetry1": {
                 "require": {
                     "open-telemetry/sdk": "@stable",

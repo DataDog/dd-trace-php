@@ -3,6 +3,9 @@ name: Profiling ASAN Tests
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   prof-asan:
     name: PHP ${{ matrix.php-version }} ${{ matrix.php-build }} (${{ matrix.runner }})
@@ -20,7 +23,7 @@ jobs:
     container:
       image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-8
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
-      options: --user root --privileged
+      options: --user root
 
     steps:
       - name: Checkout

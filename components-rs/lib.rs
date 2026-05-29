@@ -4,6 +4,7 @@
 #![allow(static_mut_refs)] // remove with move to Rust 2024 edition
 
 pub mod agent_info;
+pub mod ffe;
 pub mod log;
 pub mod remote_config;
 pub mod sidecar;
@@ -189,13 +190,13 @@ pub unsafe extern "C" fn posix_spawn_file_actions_addchdir_np(
         *mut libc::c_void,
         std::option::Option<extern "C" fn(*mut libc::c_void, *const libc::c_char) -> libc::c_int>,
     >(libc::dlsym(
-        null_mut(),
+        libc::RTLD_NEXT,
         c"posix_spawn_file_actions_addchdir_np".as_ptr(),
     ));
     if let Some(sym) = sym {
         sym(file_actions, path)
     } else {
-        -libc::ENOSYS
+        libc::ENOSYS
     }
 }
 

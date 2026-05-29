@@ -1548,7 +1548,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         }
     }
 
-    bool is_first_span = ddog_get_trace_size(trace) == 0;
+    uintptr_t rust_span_index = ddog_get_trace_size(trace);
+    bool is_first_span = rust_span_index == 0;
     ddog_SpanBytes *rust_span = ddog_trace_new_span(trace);
 
     ddog_set_span_trace_id(rust_span, span->root->trace_id.low);
@@ -1834,6 +1835,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
 
     if (inferred_span) {
         ddog_SpanBytes *serialized_inferred_span = ddtrace_serialize_span_to_rust_span(inferred_span, trace);
+        rust_span = ddog_get_span(trace, rust_span_index);
 
         transfer_metrics_data(rust_span, serialized_inferred_span, "_dd.agent_psr", true);
         transfer_metrics_data(rust_span, serialized_inferred_span, "_dd.rule_psr", true);

@@ -8,9 +8,11 @@
             "vendor/bin/classpreloader compile --config=../../src/bridge/_files_api.php --output=../../src/bridge/_generated_api.php",
             "vendor/bin/classpreloader compile --config=../../src/bridge/_files_tracer.php --output=../../src/bridge/_generated_tracer.php",
             "vendor/bin/classpreloader compile --config=../../src/bridge/_files_opentelemetry.php --output=../../src/bridge/_generated_opentelemetry.php",
+            "vendor/bin/classpreloader compile --config=../../src/bridge/_files_openfeature.php --output=../../src/bridge/_generated_openfeature.php",
             "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_api.php",
             "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_tracer.php",
-            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_opentelemetry.php"
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_opentelemetry.php",
+            "sed -i \"s/'[^']\\+bridge\\/\\.\\./__DIR__ . '\\/../g;s/\\s*\\(^\\|\\s\\)\\/\\/.*//g;s/\\/\\*\\([^*]\\|\\*[^/]\\)*\\*\\///g;/\\/\\*/,/\\*\\//d;/^\\s*$/d\" ../../src/bridge/_generated_openfeature.php"
         ],
         "verify": "php -r 'require \"../../src/bridge/_files_api.php\"; require \"../../src/bridge/_files_tracer.php\";'"
     }

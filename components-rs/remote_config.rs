@@ -1,4 +1,5 @@
 use crate::sidecar::MaybeShmLimiter;
+use datadog_ffe::rules_based::Configuration;
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
 use datadog_live_debugger_ffi::data::Probe;
@@ -116,13 +117,28 @@ pub struct LiveDebuggerState {
     pub di_enabled: bool,
 }
 
+/// Flags selecting which Remote Config products/capabilities to subscribe to.
+///
+/// Passed as a single C-ABI struct so call sites can use designated initializers
+/// and name the flags, instead of a positional sequence of bool args.
+#[repr(C)]
+pub struct DdogRemoteConfigFlags {
+    pub live_debugging_enabled: bool,
+    pub appsec_activation: bool,
+    pub appsec_config: bool,
+    pub ffe_enabled: bool,
+}
+
 #[no_mangle]
 #[allow(static_mut_refs)]
-pub unsafe extern "C" fn ddog_init_remote_config(
-    live_debugging_enabled: bool,
-    appsec_activation: bool,
-    appsec_config: bool,
-) {
+pub unsafe extern "C" fn ddog_init_remote_config(flags: DdogRemoteConfigFlags) {
+    let DdogRemoteConfigFlags {
+        live_debugging_enabled,
+        appsec_activation,
+        appsec_config,
+        ffe_enabled,
+    } = flags;
+
     DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::ApmTracing);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingCustomTags);
     DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingEnabled);
@@ -137,6 +153,11 @@ pub unsafe extern "C" fn ddog_init_remote_config(
 
     if appsec_activation {
         DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmActivation);
+    }
+
+    if ffe_enabled {
+        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::FfeFlags);
+        DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::FfeFlagConfigurationRules);
     }
 
     if live_debugging_enabled {
@@ -377,6 +398,10 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                         );
                     }
                 }
+                RemoteConfigData::FfeFlags(ufc) => {
+                    debug!("Received FFE flags configuration");
+                    crate::ffe::store_config(Configuration::from_server_response(ufc));
+                }
                 RemoteConfigData::Ignored(_) => (),
                 RemoteConfigData::TracerFlareConfig(_) => {}
                 RemoteConfigData::TracerFlareTask(_) => {}
@@ -401,6 +426,10 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                             );
                         }
                     }
+                }
+                RemoteConfigProduct::FfeFlags => {
+                    debug!("FFE flags configuration removed");
+                    crate::ffe::clear_config();
                 }
                 _ => (),
             },
