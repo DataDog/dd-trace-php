@@ -19,7 +19,8 @@ constexpr int max_round_decompression = 100;
 size_t estimate_compressed_size(size_t in_len)
 {
     // NOLINTBEGIN(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-    return (((size_t)((double)in_len * (double)1.015)) + 10 + 8 + 4 + 1);
+    return static_cast<size_t>(static_cast<double>(in_len) * 1.015) + 10 + 8 +
+           4 + 1;
     // NOLINTEND(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
 }
 } // namespace
@@ -31,7 +32,7 @@ std::optional<std::string> compress(const std::string &text)
     std::string ret_string;
     z_stream strm = {};
 
-    if (text.length() == 0) {
+    if (text.empty()) {
         return std::nullopt;
     }
 
@@ -69,7 +70,7 @@ std::optional<std::string> uncompress(const std::string &compressed)
     size_t capacity;
     z_stream strm = {};
 
-    if (compressed.length() < 1 || Z_OK != inflateInit2(&strm, encoding)) {
+    if (compressed.empty() || Z_OK != inflateInit2(&strm, encoding)) {
         return std::nullopt;
     }
 

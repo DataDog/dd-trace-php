@@ -9,6 +9,7 @@
 #include "parameter_view.hpp"
 #include "std_logging.hpp"
 #include <base64.h>
+#include <concepts>
 #include <ddwaf.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/prettywriter.h>
@@ -90,10 +91,12 @@ std::string parameter_to_json(const parameter_view &pv)
     return {};
 }
 
+namespace {
+
 // TODO: we should limit the recursion
-template <typename T, typename = std::enable_if_t<std::disjunction_v<
-                          std::is_same<rapidjson::Document, std::decay_t<T>>,
-                          std::is_same<rapidjson::Value, std::decay_t<T>>>>>
+template <typename T>
+    requires(std::same_as<rapidjson::Document, std::decay_t<T>> ||
+             std::same_as<rapidjson::Value, std::decay_t<T>>)
 // NOLINTNEXTLINE(misc-no-recursion)
 void json_to_object(ddwaf_object *object, T &doc)
 {
@@ -110,7 +113,9 @@ void json_to_object(ddwaf_object *object, T &doc)
             ddwaf_object element;
             json_to_object(&element, kv.value);
 
-            std::string_view const key = kv.name.GetString();
+            std::string_view const key{
+                kv.name.GetString(), kv.name.GetStringLength()};
+            // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
             ddwaf_object_map_addl(object, key.data(), key.length(), &element);
         }
         break;
@@ -126,7 +131,8 @@ void json_to_object(ddwaf_object *object, T &doc)
         break;
     }
     case rapidjson::kStringType: {
-        std::string_view const str = doc.GetString();
+        std::string_view const str{doc.GetString(), doc.GetStringLength()};
+        // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
         ddwaf_object_stringl(object, str.data(), str.size());
         break;
     }
@@ -147,6 +153,8 @@ void json_to_object(ddwaf_object *object, T &doc)
     }
 }
 
+} // namespace
+
 dds::parameter json_to_parameter(const rapidjson::Value &value)
 {
     dds::parameter obj;
@@ -157,7 +165,7 @@ dds::parameter json_to_parameter(const rapidjson::Value &value)
 dds::parameter json_to_parameter(std::string_view json)
 {
     rapidjson::Document doc;
-    rapidjson::ParseResult const result = doc.Parse(json.data());
+    rapidjson::ParseResult const result = doc.Parse(json.data(), json.size());
     if (result.IsError()) {
         throw parsing_error("invalid json object: "s +
                             rapidjson::GetParseError_En(result.Code()));
@@ -170,7 +178,7 @@ json_helper::get_field_of_type(const rapidjson::Value &parent_field,
     std::string_view key, rapidjson::Type type)
 {
     rapidjson::Value::ConstMemberIterator const output_itr =
-        parent_field.FindMember(key.data());
+        parent_field.FindMember(rapidjson::StringRef(key.data(), key.size()));
 
     if (output_itr == parent_field.MemberEnd()) {
         SPDLOG_DEBUG("Field {} not found", key);
@@ -206,7 +214,8 @@ json_helper::get_field_of_type(
 bool json_helper::field_exists(
     const rapidjson::Value &parent_field, std::string_view key)
 {
-    return parent_field.FindMember(key.data()) != parent_field.MemberEnd();
+    return parent_field.FindMember(rapidjson::StringRef(
+               key.data(), key.size())) != parent_field.MemberEnd();
 }
 
 bool json_helper::field_exists(

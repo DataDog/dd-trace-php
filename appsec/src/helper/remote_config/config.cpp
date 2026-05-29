@@ -42,7 +42,7 @@ config config::from_line(std::string_view line)
     // base64 decode rc_path (no padding):
     std::string rc_path = base64_decode(rc_path_encoded);
 
-    return {std::string{shm_path}, std::move(rc_path)};
+    return {.shm_path = std::string{shm_path}, .rc_path = std::move(rc_path)};
 }
 
 mapped_memory config::read() const

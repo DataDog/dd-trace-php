@@ -101,7 +101,7 @@ acceptor::acceptor(const std::string_view &sv)
 
 void acceptor::set_accept_timeout(std::chrono::seconds timeout)
 {
-    struct timeval tv = {timeout.count(), 0};
+    struct timeval tv = {.tv_sec = timeout.count(), .tv_usec = 0};
     int const res =
         setsockopt(sock_.get(), SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     if (res == -1) {
@@ -114,7 +114,7 @@ std::unique_ptr<base_socket> acceptor::accept()
     struct sockaddr_un addr{};
     socklen_t len = sizeof(addr);
 
-    int s =
+    const int s =
         // NOLINTNEXTLINE
         ::accept(sock_.get(), reinterpret_cast<struct sockaddr *>(&addr), &len);
     if (s == -1) {
