@@ -856,6 +856,10 @@ void ddtrace_sidecar_activate(void) {
 }
 
 void ddtrace_sidecar_rinit(void) {
+    if (!DDTRACE_G(sidecar) && ddtrace_endpoint) {
+        ddtrace_sidecar_ensure_active();
+    }
+
     if (get_DD_TRACE_GIT_METADATA_ENABLED()) {
         zval git_object;
         ZVAL_UNDEF(&git_object);
