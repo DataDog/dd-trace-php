@@ -19,7 +19,7 @@
 #endif
 
 static const size_t MAX_DEPTH_READING = 32;
-#define MAX_RECURSION_DEPTH 50 // arbitrary limit to prevent stack overflow
+enum { MAX_RECURSION_DEPTH = 50 }; // arbitrary limit to prevent stack overflow
 
 static THREAD_LOCAL_ON_ZTS bool data_truncated_ = false;
 

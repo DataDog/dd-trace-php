@@ -70,6 +70,7 @@ msgpack::object const &convert<dds::parameter>::operator()(
     msgpack::object const &o, dds::parameter &v) const
 {
     v = msgpack_to_param(o);
+    // NOLINTNEXTLINE(bugprone-return-const-ref-from-parameter)
     return o;
 }
 

@@ -1101,14 +1101,8 @@ buildRunInDockerTask(
                     echo 'Found profraw files:'
                     ls -la *.profraw
 
-                    # Detect the architecture-specific toolchain path
-                    ARCH=\$(uname -m)
-                    if [ "\$ARCH" = "aarch64" ]; then
-                        RUST_TARGET="aarch64-unknown-linux-gnu"
-                    else
-                        RUST_TARGET="x86_64-unknown-linux-gnu"
-                    fi
-                    LLVM_TOOLS="/root/.rustup/toolchains/1.84.1-\${RUST_TARGET}/lib/rustlib/\${RUST_TARGET}/bin"
+                    RUST_TARGET_LIBDIR="\$(rustc --print target-libdir)"
+                    LLVM_TOOLS="\${RUST_TARGET_LIBDIR%/lib}/bin"
 
                     \${LLVM_TOOLS}/llvm-profdata merge -sparse *.profraw -o merged.profdata
                     \${LLVM_TOOLS}/llvm-cov export \\

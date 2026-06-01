@@ -76,7 +76,7 @@ endif()
 FetchContent_Declare(
     spdlog
     GIT_REPOSITORY https://github.com/gabime/spdlog.git
-    GIT_TAG 5fd32e1a70871e2f6a52734e36bc33cb7ac022a5)
+    GIT_TAG 79524ddd08a4ec981b7fea76afd08ee05f83755d)
 FetchContent_MakeAvailable(spdlog)
 set_target_properties(spdlog PROPERTIES POSITION_INDEPENDENT_CODE 1)
 

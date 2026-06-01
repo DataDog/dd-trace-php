@@ -44,7 +44,7 @@ void engine_listener::on_update(const config &config)
     }
 
     auto &aggregator = it->second;
-    if (to_commit_.find(aggregator.get()) == to_commit_.end()) {
+    if (!to_commit_.contains(aggregator.get())) {
         aggregator->init(&ruleset_.GetAllocator());
         to_commit_.emplace(aggregator.get());
     }
@@ -62,7 +62,7 @@ void engine_listener::on_unapply(const config &config)
     }
 
     auto &aggregator = it->second;
-    if (to_commit_.find(aggregator.get()) == to_commit_.end()) {
+    if (!to_commit_.contains(aggregator.get())) {
         aggregator->init(&ruleset_.GetAllocator());
         to_commit_.emplace(aggregator.get());
     }
@@ -77,7 +77,7 @@ void engine_listener::commit()
     }
 
     for (auto &[product, aggregator] : aggregators_) {
-        if (to_commit_.find(aggregator.get()) != to_commit_.end()) {
+        if (to_commit_.contains(aggregator.get())) {
             aggregator->aggregate(ruleset_);
         }
     }

@@ -1,5 +1,4 @@
 Component,Origin,License,Copyright
-file,Dockerfile_buster,MIT,"Docker, Inc."
 file,docker-php-ext-configure,MIT,"Docker, Inc."
 file,docker-php-ext-enable,MIT,"Docker, Inc."
 file,docker-php-ext-install,MIT,"Docker, Inc."

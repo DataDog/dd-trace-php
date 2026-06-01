@@ -53,9 +53,9 @@ namespace dds {
 
 namespace {
 struct def_rules_file {
-    std::atomic<std::string *> stored_file{};
+    std::atomic<std::string *> stored_file;
 
-    def_rules_file() = default;
+    def_rules_file() : stored_file(nullptr) {}
     def_rules_file(const def_rules_file &) = delete;
     def_rules_file(def_rules_file &&) = delete;
     def_rules_file &operator=(const def_rules_file &) = delete;
