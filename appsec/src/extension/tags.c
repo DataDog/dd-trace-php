@@ -305,8 +305,6 @@ static void _init_relevant_headers(void)
     ADD_RELEVANT_BASIC_HEADER("content-type");
     ADD_RELEVANT_BASIC_HEADER("user-agent");
     ADD_RELEVANT_BASIC_HEADER("accept");
-    ADD_RELEVANT_BASIC_HEADER("x-datadog-endpoint-scan");
-    ADD_RELEVANT_BASIC_HEADER("x-datadog-security-test");
 
     ADD_RELEVANT_HEADER("x-forwarded-for");
     ADD_RELEVANT_HEADER("x-client-ip");
