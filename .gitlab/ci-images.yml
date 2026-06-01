@@ -32,6 +32,8 @@ CentOS:
         - php-7.4
         - php-7.3
         - php-7.2
+        - php-7.1
+        - php-7.0
   script:
     - cd dockerfiles/ci/centos/7
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
@@ -61,6 +63,8 @@ Alpine:
         - 7.4-alpine
         - 7.3-alpine
         - 7.2-alpine
+        - 7.1-alpine
+        - 7.0-alpine
   script:
     - cd dockerfiles/ci/alpine_compile_extension
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
@@ -93,6 +97,8 @@ Bookworm:
         - php-7.4-shared-ext
         - php-7.3
         - php-7.2
+        - php-7.1
+        - php-7.0
         MAKE_JOBS: ["2"]
   script:
     - cd dockerfiles/ci/bookworm
