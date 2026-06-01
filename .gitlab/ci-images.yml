@@ -156,6 +156,12 @@ Bookworm:
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     Write-Host "Git setup complete."
 
+    # Download docker-compose to the workspace.
+    Write-Host "Downloading docker-compose..."
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $dockerCompose = "$PWD\docker-compose.exe"
+    Start-BitsTransfer -Source "https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-windows-x86_64.exe" -Destination $dockerCompose
+
     cd dockerfiles\ci\windows
 
     $env:DOCKER_CONFIG = Join-Path $env:CI_PROJECT_DIR ".docker"
@@ -168,91 +174,18 @@ Bookworm:
     docker version
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-    $targets = @{
-      "vc15" = @{
-        Image = "datadog/dd-trace-ci:windows-vc15"
-        Dockerfile = "basetools.Dockerfile"
-        BuildArgs = @("vsVersion=vc15", "sdkVersion=2.2.0")
-      }
-      "vs16" = @{
-        Image = "datadog/dd-trace-ci:windows-vs16"
-        Dockerfile = "basetools.Dockerfile"
-        BuildArgs = @("vsVersion=vs16", "sdkVersion=2.2.0")
-      }
-      "vs17" = @{
-        Image = "datadog/dd-trace-ci:windows-vs17"
-        Dockerfile = "basetools.Dockerfile"
-        BuildArgs = @("vsVersion=vs17", "sdkVersion=2.3.0")
-      }
-      "php-8.5" = @{
-        Image = "datadog/dd-trace-ci:php-8.5_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=8.5.6", "vsVersion=vs17", "phpTarGzUrl=https://www.php.net/distributions/php-8.5.6.tar.gz", "phpSha256Hash=169aaa21c2834b38df8e39169f43bc5bea8d4059a816cfbc59be08fc2bae60cd")
-      }
-      "php-8.4" = @{
-        Image = "datadog/dd-trace-ci:php-8.4_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=8.4.21", "vsVersion=vs17", "phpTarGzUrl=https://www.php.net/distributions/php-8.4.21.tar.gz", "phpSha256Hash=db96ee0a8e5ee7b73a4913a2aeddc162ba2ef16cd34b9347b5b9a6150e1f8e48")
-      }
-      "php-8.3" = @{
-        Image = "datadog/dd-trace-ci:php-8.3_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=8.3.31", "vsVersion=vs16", "phpTarGzUrl=https://www.php.net/distributions/php-8.3.31.tar.gz", "phpSha256Hash=4e7baaf0a690e954a20e7ced3dd633ce8cb8094e2b6b612a55e703ecbbdcbf4f")
-      }
-      "php-8.2" = @{
-        Image = "datadog/dd-trace-ci:php-8.2_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=8.2.31", "vsVersion=vs16", "phpTarGzUrl=https://www.php.net/distributions/php-8.2.31.tar.gz", "phpSha256Hash=083c2f61cc5f527eb293c4c468a91af46a9678785957e023b2796a9db290d870")
-      }
-      "php-8.1" = @{
-        Image = "datadog/dd-trace-ci:php-8.1_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=8.1.32", "vsVersion=vs16", "phpTarGzUrl=https://www.php.net/distributions/php-8.1.32.tar.gz", "phpSha256Hash=4846836d1de27dbd28e89180f073531087029a77e98e8e019b7b2eddbdb1baff")
-      }
-      "php-8.0" = @{
-        Image = "datadog/dd-trace-ci:php-8.0_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=8.0.30", "vsVersion=vs16", "phpTarGzUrl=https://www.php.net/distributions/php-8.0.30.tar.gz", "phpSha256Hash=449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c")
-      }
-      "php-7.4" = @{
-        Image = "datadog/dd-trace-ci:php-7.4_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=7.4.33", "vsVersion=vc15", "phpTarGzUrl=https://www.php.net/distributions/php-7.4.33.tar.gz", "phpSha256Hash=5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e")
-      }
-      "php-7.3" = @{
-        Image = "datadog/dd-trace-ci:php-7.3_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=7.3.33", "vsVersion=vc15", "phpTarGzUrl=https://www.php.net/distributions/php-7.3.33.tar.gz", "phpSha256Hash=9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8")
-      }
-      "php-7.2" = @{
-        Image = "datadog/dd-trace-ci:php-7.2_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=7.2.34", "vsVersion=vc15", "phpTarGzUrl=https://www.php.net/distributions/php-7.2.34.tar.gz", "phpSha256Hash=8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78")
-      }
-    }
+    & $dockerCompose version
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     foreach ($target in ($env:WINDOWS_IMAGE_TARGETS -split ' ')) {
       if ([string]::IsNullOrWhiteSpace($target)) { continue }
-      if (-not $targets.ContainsKey($target)) {
-        Write-Host "ERROR: unknown Windows CI image target $target."
-        exit 1
-      }
-
-      $config = $targets[$target]
-      $image = $config["Image"]
-      $dockerfile = $config["Dockerfile"]
-      $buildCommand = @("build", "--pull", "--no-cache", "-t", "$image", "-f", "$dockerfile")
-      foreach ($buildArg in $config["BuildArgs"]) {
-        $buildCommand += @("--build-arg", "$buildArg")
-      }
-      $buildCommand += "."
 
       Write-Host "Building Windows CI image target $target..."
-      docker @buildCommand
+      & $dockerCompose build --pull --no-cache $target
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       Write-Host "Pushing Windows CI image target $target..."
-      docker push "$image"
+      & $dockerCompose push $target
       if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 

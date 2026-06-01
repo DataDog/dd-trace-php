@@ -2934,7 +2934,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-library-config"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "libc 0.2.177",
