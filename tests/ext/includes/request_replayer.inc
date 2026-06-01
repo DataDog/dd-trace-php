@@ -32,6 +32,14 @@ class RequestReplayer
      */
     public $maxIteration;
 
+    /**
+     * @var float Wall-clock seconds before a wait loop gives up and emits diagnostic.
+     * Iteration-count alone is unreliable under valgrind where each iteration takes
+     * 10-20x longer than nominal; without a wall-clock cap the process is killed by
+     * run-tests.php's external per-test timeout before our diagnostic can fire.
+     */
+    public $maxWallTimeSeconds;
+
     public function __construct()
     {
         $this->endpoint = sprintf(
@@ -45,6 +53,7 @@ class RequestReplayer
             : 50000;
 
         $this->maxIteration = 500;
+        $this->maxWallTimeSeconds = 60.0;
     }
 
     public function waitForFlush()
@@ -55,9 +64,11 @@ class RequestReplayer
     public function waitForRequest($matcher)
     {
         $i = 0;
+        $start = microtime(true);
         do {
-            if ($i++ == $this->maxIteration) {
-                $this->diagnosticDump('/replay', 'waitForRequest', $i - 1);
+            $elapsed = microtime(true) - $start;
+            if ($i++ == $this->maxIteration || $elapsed > $this->maxWallTimeSeconds) {
+                $this->diagnosticDump('/replay', 'waitForRequest', $i - 1, $elapsed);
                 throw new Exception("wait for replay timeout");
             }
             usleep($this->flushInterval);
@@ -76,9 +87,11 @@ class RequestReplayer
     public function waitForRcRequest($matcher)
     {
         $i = 0;
+        $start = microtime(true);
         do {
-            if ($i++ == $this->maxIteration) {
-                $this->diagnosticDump('/replay-rc-requests', 'waitForRcRequest', $i - 1);
+            $elapsed = microtime(true) - $start;
+            if ($i++ == $this->maxIteration || $elapsed > $this->maxWallTimeSeconds) {
+                $this->diagnosticDump('/replay-rc-requests', 'waitForRcRequest', $i - 1, $elapsed);
                 throw new Exception("wait for replay timeout");
             }
             usleep($this->flushInterval);
@@ -97,9 +110,11 @@ class RequestReplayer
     public function waitForDataAndReplay($ignoreTelemetry = true)
     {
         $i = 0;
+        $start = microtime(true);
         do {
-            if ($i++ == $this->maxIteration) {
-                $this->diagnosticDump('/replay', 'waitForDataAndReplay', $i - 1);
+            $elapsed = microtime(true) - $start;
+            if ($i++ == $this->maxIteration || $elapsed > $this->maxWallTimeSeconds) {
+                $this->diagnosticDump('/replay', 'waitForDataAndReplay', $i - 1, $elapsed);
                 throw new Exception("wait for replay timeout");
             }
             usleep($this->flushInterval);
@@ -139,9 +154,11 @@ class RequestReplayer
     public function waitForStats($matcher = null)
     {
         $i = 0;
+        $start = microtime(true);
         do {
-            if ($i++ == $this->maxIteration) {
-                $this->diagnosticDump('/replay-stats', 'waitForStats', $i - 1);
+            $elapsed = microtime(true) - $start;
+            if ($i++ == $this->maxIteration || $elapsed > $this->maxWallTimeSeconds) {
+                $this->diagnosticDump('/replay-stats', 'waitForStats', $i - 1, $elapsed);
                 throw new Exception("wait for stats timeout");
             }
             usleep($this->flushInterval);
@@ -183,7 +200,7 @@ class RequestReplayer
      * cross-checks against the same endpoint without the token, so we can tell if
      * the data we were waiting for landed in a different session bucket.
      */
-    private function diagnosticDump($path, $caller, $attempts)
+    private function diagnosticDump($path, $caller, $attempts, $elapsed = null)
     {
         $token = ini_get("datadog.trace.agent_test_session_token");
         $url = $this->endpoint . $path;
@@ -198,7 +215,8 @@ class RequestReplayer
         $statusNoToken = self::parseStatus($http_response_header ?? null);
         $lenNoToken = is_string($bodyNoToken) ? strlen($bodyNoToken) : -1;
 
-        echo "[RR-DIAG] $caller timeout after $attempts attempts; token=" . var_export($token, true) . "\n";
+        $elapsedStr = $elapsed !== null ? sprintf(" elapsed=%.2fs", $elapsed) : "";
+        echo "[RR-DIAG] $caller timeout after $attempts attempts$elapsedStr; token=" . var_export($token, true) . "\n";
         echo "[RR-DIAG]   $path with token:    status=" . var_export($statusToken, true) . " body_len=$lenToken\n";
         echo "[RR-DIAG]   $path without token: status=" . var_export($statusNoToken, true) . " body_len=$lenNoToken\n";
     }
