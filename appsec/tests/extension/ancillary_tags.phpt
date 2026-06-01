@@ -38,8 +38,6 @@ HTTP_X_APPGW_TRACE_ID=appgvtraceid
 HTTP_X_SIGSCI_REQUESTID=sigscirequestid
 HTTP_X_SIGSCI_TAGS=sigscitags
 HTTP_AKAMAI_USER_RISK=akamaiuserisk
-HTTP_X_DATADOG_ENDPOINT_SCAN=endpoint-scan-uuid
-HTTP_X_DATADOG_SECURITY_TEST=security-test-uuid
 REMOTE_ADDR=7.7.7.12
 HTTPS=on
 --GET--
@@ -100,8 +98,6 @@ Array
     [http.request.headers.x-client-ip] => 7.7.7.7
     [http.request.headers.x-cloud-trace-context] => cloudtracecontext
     [http.request.headers.x-cluster-client-ip] => 7.7.7.9
-    [http.request.headers.x-datadog-endpoint-scan] => endpoint-scan-uuid
-    [http.request.headers.x-datadog-security-test] => security-test-uuid
     [http.request.headers.x-forwarded] => for="foo"
     [http.request.headers.x-forwarded-for] => 7.7.7.6,10.0.0.1
     [http.request.headers.x-real-ip] => 7.7.7.8
@@ -128,8 +124,6 @@ Array
     [http.request.headers.x-amzn-trace-id] => amazontraceid
     [http.request.headers.x-appgw-trace-id] => appgvtraceid
     [http.request.headers.x-cloud-trace-context] => cloudtracecontext
-    [http.request.headers.x-datadog-endpoint-scan] => endpoint-scan-uuid
-    [http.request.headers.x-datadog-security-test] => security-test-uuid
     [http.request.headers.x-sigsci-requestid] => sigscirequestid
     [http.request.headers.x-sigsci-tags] => sigscitags
     [http.response.headers.content-encoding] => foobar
