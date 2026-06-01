@@ -2870,7 +2870,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3127,7 +3127,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-obfuscation"
-version = "3.0.0"
+version = "3.1.0"
 dependencies = [
  "anyhow",
  "criterion",
@@ -3158,7 +3158,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3185,7 +3185,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
