@@ -696,9 +696,7 @@ static void dd_set_entrypoint_root_span_props(struct superglob_equiv *data, ddtr
 
     if (data->server) {
         // Security-testing headers (APPSEC-62412): collected unconditionally
-        // here so they are present even when the AppSec extension is not loaded.
-        // The AppSec extension also collects them via _relevant_basic_headers
-        // in appsec/src/extension/tags.c.
+        // regardless of DD_TRACE_HEADER_TAGS or AppSec being enabled.
 #define DD_UNCONDITIONAL_SERVER_HEADER(server_key, tag) \
         { server_key, sizeof(server_key) - 1, tag, sizeof(tag) - 1 }
         static const struct {
