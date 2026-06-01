@@ -169,11 +169,6 @@ Bookworm:
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     $targets = @{
-      "vc14" = @{
-        Image = "datadog/dd-trace-ci:windows-vc14"
-        Dockerfile = "basetools.Dockerfile"
-        BuildArgs = @("vsVersion=vc14", "sdkVersion=2.1.10")
-      }
       "vc15" = @{
         Image = "datadog/dd-trace-ci:windows-vc15"
         Dockerfile = "basetools.Dockerfile"
@@ -233,16 +228,6 @@ Bookworm:
         Image = "datadog/dd-trace-ci:php-7.2_windows"
         Dockerfile = "Dockerfile"
         BuildArgs = @("phpVersion=7.2.34", "vsVersion=vc15", "phpTarGzUrl=https://www.php.net/distributions/php-7.2.34.tar.gz", "phpSha256Hash=8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78")
-      }
-      "php-7.1" = @{
-        Image = "datadog/dd-trace-ci:php-7.1_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=7.1.33", "vsVersion=vc14", "phpTarGzUrl=https://www.php.net/distributions/php-7.1.33.tar.gz", "phpSha256Hash=0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2")
-      }
-      "php-7.0" = @{
-        Image = "datadog/dd-trace-ci:php-7.0_windows"
-        Dockerfile = "Dockerfile"
-        BuildArgs = @("phpVersion=7.0.33", "vsVersion=vc14", "phpTarGzUrl=https://www.php.net/distributions/php-7.0.33.tar.gz", "phpSha256Hash=d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a")
       }
     }
 

@@ -2,14 +2,6 @@ version: '3.7'
 
 services:
 
-  vc14-base:
-    image: datadog/dd-trace-ci:windows-base-vc14
-    build:
-      platforms:
-        - windows/amd64
-      context: .
-      dockerfile: vc14.Dockerfile
-
   vc15-base:
     image: datadog/dd-trace-ci:windows-base-vc15
     build:
@@ -33,17 +25,6 @@ services:
         - windows/amd64
       context: .
       dockerfile: vs17.Dockerfile
-
-  vc14:
-    image: datadog/dd-trace-ci:windows-vc14
-    build:
-      platforms:
-        - windows/amd64
-      context: .
-      dockerfile: basetools.Dockerfile
-      args:
-        vsVersion: "vc14"
-        sdkVersion: "2.1.10"
 
   vc15:
     image: datadog/dd-trace-ci:windows-vc15
@@ -185,27 +166,3 @@ services:
         vsVersion: "vc15"
         phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
         phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
-
-  php-7.1:
-    image: datadog/dd-trace-ci:php-7.1_windows
-    build:
-      platforms:
-        - windows/amd64
-      context: .
-      args:
-        phpVersion: "7.1.33"
-        vsVersion: "vc14"
-        phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
-        phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
-
-  php-7.0:
-    image: datadog/dd-trace-ci:php-7.0_windows
-    build:
-      platforms:
-        - windows/amd64
-      context: .
-      args:
-        phpVersion: "7.0.33"
-        vsVersion: "vc14"
-        phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
-        phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
