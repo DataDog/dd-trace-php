@@ -709,15 +709,13 @@ void ddtrace_sidecar_dogstatsd_count(zend_string *metric, zend_long value, zval 
 }
 
 void ddtrace_ffe_record_exposure(
-    const char *flag_key,
-    size_t flag_key_len,
-    const char *targeting_key,
-    size_t targeting_key_len,
+    zend_string *flag_key,
+    zend_string *targeting_key,
     zend_string *subject_attributes_json,
-    const char *allocation_key,
-    const char *variant
+    zend_string *allocation_key,
+    zend_string *variant
 ) {
-    if (!flag_key || flag_key_len == 0 || !allocation_key || !variant || variant[0] == '\0') {
+    if (ZSTR_LEN(flag_key) == 0 || ZSTR_LEN(variant) == 0) {
         return;
     }
 
@@ -742,11 +740,11 @@ void ddtrace_ffe_record_exposure(
     ddtrace_ffe_exposure *buffer = (ddtrace_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
     ddtrace_ffe_exposure *exposure = &buffer[DDTRACE_G(ffe_exposure_buffer_len)++];
     exposure->timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000;
-    exposure->flag_key = zend_string_init(flag_key, flag_key_len, 0);
-    exposure->subject_id = zend_string_init(targeting_key ? targeting_key : "", targeting_key ? targeting_key_len : 0, 0);
-    exposure->subject_attributes_json = subject_attributes_json ? zend_string_copy(subject_attributes_json) : zend_string_init("{}", sizeof("{}") - 1, 0);
-    exposure->allocation_key = zend_string_init(allocation_key, strlen(allocation_key), 0);
-    exposure->variant = zend_string_init(variant, strlen(variant), 0);
+    exposure->flag_key = zend_string_copy(flag_key);
+    exposure->subject_id = targeting_key ? zend_string_copy(targeting_key) : zend_string_init("", 0, 0);
+    exposure->subject_attributes_json = zend_string_copy(subject_attributes_json);
+    exposure->allocation_key = zend_string_copy(allocation_key);
+    exposure->variant = zend_string_copy(variant);
 }
 
 bool ddtrace_ffe_flush_exposures(void) {

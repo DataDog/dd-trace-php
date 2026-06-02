@@ -3166,13 +3166,11 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     if (result.do_log && allocation_key && variant) {
         zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
         ddtrace_ffe_record_exposure(
-            ZSTR_VAL(flag_key),
-            ZSTR_LEN(flag_key),
-            targeting_key ? ZSTR_VAL(targeting_key) : NULL,
-            targeting_key ? ZSTR_LEN(targeting_key) : 0,
+            flag_key,
+            targeting_key,
             subject_attributes_json,
-            ZSTR_VAL(allocation_key),
-            ZSTR_VAL(variant)
+            allocation_key,
+            variant
         );
         zend_string_release(subject_attributes_json);
     }
