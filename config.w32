@@ -54,6 +54,7 @@ if (PHP_DDTRACE != 'no') {
 	DDTRACE_TRACER_SOURCES += " engine_api.c";
 	DDTRACE_TRACER_SOURCES += " engine_hooks.c";
 	DDTRACE_TRACER_SOURCES += " exception_serialize.c";
+	DDTRACE_TRACER_SOURCES += " ffe.c";
 	DDTRACE_TRACER_SOURCES += " functions.c";
 	DDTRACE_TRACER_SOURCES += " git_metadata.c";
 	DDTRACE_TRACER_SOURCES += " handlers_curl" + (version < 800 ? "_php7" : "") + ".c";

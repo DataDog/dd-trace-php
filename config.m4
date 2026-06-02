@@ -210,6 +210,7 @@ if test "$PHP_DDTRACE" != "no"; then
     tracer/engine_api.c \
     tracer/engine_hooks.c \
     tracer/exception_serialize.c \
+    tracer/ffe.c \
     tracer/functions.c \
     tracer/git_metadata.c \
     tracer/handlers_exception.c \

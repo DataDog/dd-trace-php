@@ -69,10 +69,6 @@ void datadog_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *t
 
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str);
 
-void datadog_ffe_record_exposure(zend_string *flag_key, zend_string *targeting_key, zend_string *subject_attributes_json, zend_string *allocation_key, zend_string *variant);
-bool datadog_ffe_flush_exposures(void);
-void datadog_ffe_clear_exposures(void);
-
 ddog_crasht_Metadata datadog_setup_crashtracking_metadata(ddog_Vec_Tag *tags);
 
 #endif // DATADOG_SIDECAR_H
