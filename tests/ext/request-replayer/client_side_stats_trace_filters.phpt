@@ -157,22 +157,6 @@ foreach ($secondFlushTraces as $req) {
         }
     }
 }
-// Diagnostic dump: snapshot the agent_info as seen extension-side. If the filter
-// rules aren't present here, the sidecar never propagated them to the extension
-// (regardless of what the agent_info /info endpoint returned).
-try {
-    $ai = dd_trace_internal_fn('get_agent_info');
-    $aiSnap = is_array($ai) ? [
-        'filter_tags'       => $ai['filter_tags']       ?? null,
-        'filter_tags_regex' => $ai['filter_tags_regex'] ?? null,
-        'ignore_resources'  => $ai['ignore_resources']  ?? null,
-        'client_drop_p0s'   => $ai['client_drop_p0s']   ?? null,
-    ] : $ai;
-    echo "[FILTER-DIAG] agent_info_view: " . json_encode($aiSnap) . "\n";
-} catch (\Throwable $e) {
-    echo "[FILTER-DIAG] agent_info_view: (threw: " . $e->getMessage() . ")\n";
-}
-
 ksort($namesInTraces);
 foreach (array_keys($namesInTraces) as $n) {
     echo "in traces: $n\n";
@@ -216,7 +200,6 @@ if (empty($ops)) {
     }
 }
 ?>
---EXPECTF--
-[FILTER-DIAG] agent_info_view: %s
+--EXPECT--
 in traces: op.pass
 in stats: op.pass

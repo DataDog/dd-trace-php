@@ -125,7 +125,6 @@ function await_probe_installation($trigger, $num = 1) {
 
     $last_id = \DDtrace\install_hook("_dummy", function () {});
     $ret = $trigger();
-    $expected = $num;
     $start = microtime(true);
     // Wall-clock cap alongside iteration cap so this fires before run-tests.php's
     // external per-test timeout under valgrind-stretched iterations.
@@ -146,18 +145,6 @@ function await_probe_installation($trigger, $num = 1) {
         }
         $last_id = $id;
     }
-
-    // Probe install incomplete after the budget. Emit a diagnostic dump showing
-    // which RC configs (if any) are loaded extension-side and how long we waited.
-    $elapsed = microtime(true) - $start;
-    $loaded = null;
-    try {
-        $loaded = dd_trace_internal_fn('get_loaded_remote_configs');
-    } catch (\Throwable $e) {
-        $loaded = "(get_loaded_remote_configs threw: " . $e->getMessage() . ")";
-    }
-    echo "[PROBE-DIAG] await_probe_installation incomplete: iters=$i elapsed=" . round($elapsed, 2) . "s expected_num=$expected remaining_num=$num\n";
-    echo "[PROBE-DIAG]   loaded_remote_configs=" . (is_array($loaded) ? json_encode($loaded) : var_export($loaded, true)) . "\n";
 
     return $ret;
 }
