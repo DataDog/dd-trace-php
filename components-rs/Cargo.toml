@@ -1,5 +1,5 @@
 [package]
-name = "ddtrace-php"
+name = "datadog-php"
 version = "0.0.1" # version number doesn't matter thanks to us statically linking
 edition = "2021"
 

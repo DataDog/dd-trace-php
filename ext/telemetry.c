@@ -1,150 +1,83 @@
 #include "components-rs/sidecar.h"
-#include "ddtrace.h"
+#include "datadog.h"
+#include "ffi_utils.h"
+#include <tracer/tracer_api.h>
 #ifndef _WIN32
 #include <stdatomic.h>
 #else
 #include <components/atomic_win32_polyfill.h>
 #endif
-#include "configuration.h"
-#include "integrations/integrations.h"
+#include <tracer/configuration.h>
 #include <hook/hook.h>
-#include <components-rs/ddtrace.h>
+#include <components-rs/datadog.h>
 #include "telemetry.h"
-#include "serializer.h"
 #include "sidecar.h"
 #include <string.h>
 
-ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 // These globals are set by the SSI loader
-DDTRACE_PUBLIC bool ddtrace_loaded_by_ssi = false;
-DDTRACE_PUBLIC bool ddtrace_ssi_forced_injection_enabled = false;
-
-zend_long dd_composer_hook_id;
-ddog_QueueId dd_bgs_queued_id;
+DATADOG_PUBLIC bool datadog_loaded_by_ssi = false;
+DATADOG_PUBLIC bool datadog_ssi_forced_injection_enabled = false;
 
 static void dd_commit_metrics(void);
 
-ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void) {
-    if (DDTRACE_G(telemetry_buffer)) {
-        return DDTRACE_G(telemetry_buffer);
+ddog_SidecarActionsBuffer *datadog_telemetry_buffer(void) {
+    if (DATADOG_G(telemetry_buffer)) {
+        return DATADOG_G(telemetry_buffer);
     }
-    return DDTRACE_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
+    return DATADOG_G(telemetry_buffer) = ddog_sidecar_telemetry_buffer_alloc();
 }
 
-ddog_ShmCacheMap *ddtrace_telemetry_cache(void) {
-    if (DDTRACE_G(telemetry_cache)) {
-        return DDTRACE_G(telemetry_cache);
+ddog_ShmCacheMap *datadog_telemetry_cache(void) {
+    if (DATADOG_G(telemetry_cache)) {
+        return DATADOG_G(telemetry_cache);
     }
-    return DDTRACE_G(telemetry_cache) = ddog_sidecar_telemetry_cache_new();
+    return DATADOG_G(telemetry_cache) = ddog_sidecar_telemetry_cache_new();
 }
 
-void ddtrace_integration_error_telemetryf(ddog_Log source, const char *format, ...) {
-    va_list va, va2;
-    va_start(va, format);
-    char buf[0x100];
-    ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
-    va_copy(va2, va);
-    int len = vsnprintf(buf, sizeof(buf), format, va2);
-    va_end(va2);
-    if (len > (int)sizeof(buf)) {
-        char *msg = malloc(len + 1);
-        len = vsnprintf(msg, len + 1, format, va);
-        ddog_sidecar_telemetry_add_integration_log_buffer(source, buffer, (ddog_CharSlice){ .ptr = msg, .len = (uintptr_t)len });
-        free(msg);
-    } else {
-        ddog_sidecar_telemetry_add_integration_log_buffer(source, buffer, (ddog_CharSlice){ .ptr = buf, .len = (uintptr_t)len });
-    }
-    va_end(va);
+void datadog_telemetry_rinit(void) {
+    zend_hash_init(&DATADOG_G(otel_config_telemetry), 8, unused, ZVAL_PTR_DTOR, 0);
 }
 
-const char *ddtrace_telemetry_redact_file(const char *file) {
-#ifdef _WIN32
-#define SEPARATOR_CHAR "\\"
-#else
-#define SEPARATOR_CHAR "/"
-#endif
-    const char *redacted_substring = strstr(file, SEPARATOR_CHAR "DDTrace");
-    if (redacted_substring != NULL) {
-        return redacted_substring;
-    } else {
-        // Should not happen but will serve as a gate keepers
-        const char *php_file_name = strrchr(file, SEPARATOR_CHAR[0]);
-        if (php_file_name) {
-            return php_file_name;
-        }
-        return "";
-    }
-}
-
-static bool dd_check_for_composer_autoloader(zend_ulong invocation, zend_execute_data *execute_data, void *auxiliary, void *dynamic) {
-    UNUSED(invocation, auxiliary, dynamic);
-
-    ddog_CharSlice composer_path = dd_zend_string_to_CharSlice(execute_data->func->op_array.filename);
-    if (!DDTRACE_G(sidecar) // if sidecar connection was broken, let's skip immediately
-        || ddtrace_detect_composer_installed_json(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), composer_path)) {
-        zai_hook_remove((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_composer_hook_id);
-    }
-    return true;
-}
-
-void ddtrace_telemetry_first_init(void) {
-    dd_composer_hook_id = zai_hook_install((zai_str)ZAI_STR_EMPTY, (zai_str)ZAI_STR_EMPTY, dd_check_for_composer_autoloader, NULL, ZAI_HOOK_AUX_UNUSED, 0);
-}
-
-void ddtrace_telemetry_rinit(void) {
-    zend_hash_init(&DDTRACE_G(telemetry_spans_created_per_integration), 8, unused, NULL, 0);
-    zend_hash_init(&DDTRACE_G(otel_config_telemetry), 8, unused, ZVAL_PTR_DTOR, 0);
-    DDTRACE_G(baggage_extract_count) = 0;
-    DDTRACE_G(baggage_inject_count) = 0;
-    DDTRACE_G(baggage_malformed_count) = 0;
-    DDTRACE_G(baggage_max_item_count) = 0;
-    DDTRACE_G(baggage_max_byte_count) = 0;
-    DDTRACE_G(baggage_extract_max_item_count) = 0;
-    DDTRACE_G(baggage_extract_max_byte_count) = 0;
-}
-
-void ddtrace_telemetry_rshutdown(void) {
-    zend_hash_destroy(&DDTRACE_G(telemetry_spans_created_per_integration));
-    zend_hash_destroy(&DDTRACE_G(otel_config_telemetry));
+void datadog_telemetry_rshutdown(void) {
+    zend_hash_destroy(&DATADOG_G(otel_config_telemetry));
 }
 
 // Register in the sidecar services not bound to the request lifetime
-void ddtrace_telemetry_register_services(ddog_SidecarTransport **sidecar) {
-    if (!dd_bgs_queued_id) {
-        dd_bgs_queued_id = ddog_sidecar_queueId_generate();
-    }
-
-    ddog_sidecar_telemetry_register_metric(sidecar, DDOG_CHARSLICE_C("trace_api.requests"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_register_metric(sidecar, DDOG_CHARSLICE_C("trace_api.responses"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_register_metric(sidecar, DDOG_CHARSLICE_C("trace_api.errors"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-
-    // FIXME: it seems we must call "enqueue_actions" (even with an empty list of actions) for things to work properly
-    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
-    ddtrace_ffi_try("Failed flushing background sender telemetry buffer",
-                    ddog_sidecar_telemetry_buffer_flush(sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
+void datadog_telemetry_register_services(ddog_SidecarTransport **sidecar) {
+#ifdef DDTRACE
+    ddtrace_telemetry_register_services(sidecar);
+#endif
 }
 
-void ddtrace_telemetry_lifecycle_end() {
-    if (!DDTRACE_G(sidecar) || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
+void datadog_telemetry_lifecycle_end() {
+    if (!DATADOG_G(sidecar) || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
         return;
     }
 
-    ddtrace_ffi_try("Failed ending sidecar lifecycle",
-                    ddog_sidecar_lifecycle_end(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id)));
+    datadog_ffi_try("Failed ending sidecar lifecycle",
+                    ddog_sidecar_lifecycle_end(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id)));
 }
 
-void ddtrace_telemetry_finalize() {
-    if (!DDTRACE_G(last_service_name) || !DDTRACE_G(last_env_name)) {
+void datadog_telemetry_finalize() {
+    if (!DATADOG_G(last_service_name) || !DATADOG_G(last_env_name)) {
         LOG(WARN, "No telemetry submission can happen without service/env");
         return;
     }
 
-    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_service_name));
-    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DDTRACE_G(last_env_name));
+    ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DATADOG_G(last_service_name));
+    ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DATADOG_G(last_env_name));
 
-    ddog_SidecarActionsBuffer *buffer = ddtrace_telemetry_buffer();
-    DDTRACE_G(telemetry_buffer) = NULL;
+    ddog_SidecarActionsBuffer *buffer = datadog_telemetry_buffer();
+
+#ifdef DDTRACE
+    // Must be called before clearing telemetry_buffer so ddtrace_telemetry_finalize
+    // uses the same buffer (via datadog_telemetry_buffer()) that we'll flush below.
+    ddtrace_telemetry_finalize();
+#endif
+
+    DATADOG_G(telemetry_buffer) = NULL;
 
     zend_module_entry *module;
     char module_name[261] = { 'e', 'x', 't', '-' };
@@ -158,7 +91,7 @@ void ddtrace_telemetry_finalize() {
                                                     (ddog_CharSlice) {.len = strlen(version), .ptr = version});
     } ZEND_HASH_FOREACH_END();
 
-    if (!ddog_sidecar_telemetry_config_sent(ddtrace_telemetry_cache(), service_name, env_name)) {
+    if (!ddog_sidecar_telemetry_config_sent(datadog_telemetry_cache(), service_name, env_name)) {
         for (uint16_t i = 0; i < zai_config_memoized_entries_count; i++) {
             zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
             zend_ini_entry *ini = cfg->ini_entries[0];
@@ -191,10 +124,10 @@ void ddtrace_telemetry_finalize() {
         }
 
         // Send extra internal configuration
-        ddog_CharSlice instrumentation_source = ddtrace_loaded_by_ssi ? DDOG_CHARSLICE_C("ssi") : DDOG_CHARSLICE_C("manual");
+        ddog_CharSlice instrumentation_source = datadog_loaded_by_ssi ? DDOG_CHARSLICE_C("ssi") : DDOG_CHARSLICE_C("manual");
         ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("instrumentation_source"), instrumentation_source, DDOG_CONFIGURATION_ORIGIN_DEFAULT, DDOG_CHARSLICE_C(""));
 
-        ddog_CharSlice ssi_forced = ddtrace_ssi_forced_injection_enabled ? DDOG_CHARSLICE_C("True") : DDOG_CHARSLICE_C("False");
+        ddog_CharSlice ssi_forced = datadog_ssi_forced_injection_enabled ? DDOG_CHARSLICE_C("True") : DDOG_CHARSLICE_C("False");
         ddog_sidecar_telemetry_enqueueConfig_buffer(buffer, DDOG_CHARSLICE_C("ssi_forced_injection_enabled"), ssi_forced, DDOG_CONFIGURATION_ORIGIN_ENV_VAR, DDOG_CHARSLICE_C(""));
 
         char *injection_enabled = getenv("DD_INJECTION_ENABLED");
@@ -205,7 +138,7 @@ void ddtrace_telemetry_finalize() {
         // Send OTel configuration telemetry
         zend_string *config_name;
         zval *config_value;
-        ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(otel_config_telemetry), config_name, config_value) {
+        ZEND_HASH_FOREACH_STR_KEY_VAL(&DATADOG_G(otel_config_telemetry), config_name, config_value) {
             if (config_name && Z_TYPE_P(config_value) == IS_STRING) {
                 ddog_CharSlice name = dd_zend_string_to_CharSlice(config_name);
                 ddog_CharSlice value = dd_zend_string_to_CharSlice(Z_STR_P(config_value));
@@ -215,40 +148,8 @@ void ddtrace_telemetry_finalize() {
         } ZEND_HASH_FOREACH_END();
     }
 
-    // Send information about explicitly disabled integrations
-    for (size_t i = 0; i < ddtrace_integrations_len; ++i) {
-        ddtrace_integration *integration = &ddtrace_integrations[i];
-        if (!integration->is_enabled()) {
-            ddog_CharSlice integration_name = (ddog_CharSlice) {.len = integration->name_len, .ptr = integration->name_lcase};
-            ddog_sidecar_telemetry_addIntegration_buffer(buffer, integration_name, DDOG_CHARSLICE_C(""), false);
-        }
-    }
-
-    // Telemetry metrics
-    ddog_CharSlice metric_name = DDOG_CHARSLICE_C("spans_created");
-    ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), metric_name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    zend_string *integration_name;
-    zval *metric_value;
-    ZEND_HASH_FOREACH_STR_KEY_VAL(&DDTRACE_G(telemetry_spans_created_per_integration), integration_name, metric_value) {
-        zai_string tags = zai_string_concat3((zai_str)ZAI_STRL("integration_name:"), (zai_str)ZAI_STR_FROM_ZSTR(integration_name), (zai_str)ZAI_STRING_EMPTY);
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, metric_name, Z_DVAL_P(metric_value), dd_zai_string_to_CharSlice(tags));
-        zai_string_destroy(&tags);
-    } ZEND_HASH_FOREACH_END();
-
-    ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), DDOG_CHARSLICE_C("context_header_style.extracted"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.extracted"), DDTRACE_G(baggage_extract_count), DDOG_CHARSLICE_C("header_style:baggage"));
-    ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), DDOG_CHARSLICE_C("context_header_style.injected"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.injected"), DDTRACE_G(baggage_inject_count), DDOG_CHARSLICE_C("header_style:baggage"));
-    ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), DDOG_CHARSLICE_C("context_header.truncated"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_item_exceeded"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_byte_count_exceeded"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_extract_max_item_count), DDOG_CHARSLICE_C("truncation_reason:baggage_extract_item_exceeded"));
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header.truncated"), DDTRACE_G(baggage_extract_max_byte_count), DDOG_CHARSLICE_C("truncation_reason:baggage_extract_byte_exceeded"));
-    ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), DDOG_CHARSLICE_C("context_header_style.malformed"), DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_TRACERS);
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("context_header_style.malformed"), DDTRACE_G(baggage_malformed_count), DDOG_CHARSLICE_C("header_style:baggage"));
-
-    metric_name = DDOG_CHARSLICE_C("logs_created");
-    ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), metric_name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_GENERAL);
+    ddog_CharSlice metric_name = DDOG_CHARSLICE_C("logs_created");
+    ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), metric_name, DDOG_METRIC_TYPE_COUNT, DDOG_METRIC_NAMESPACE_GENERAL);
     static struct {
         ddog_CharSlice level;
         ddog_CharSlice tags;
@@ -268,177 +169,36 @@ void ddtrace_telemetry_finalize() {
 
     dd_commit_metrics();
 
-    ddtrace_ffi_try("Failed flushing filtered telemetry buffer",
-        ddog_sidecar_telemetry_filter_flush(&DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), buffer, ddtrace_telemetry_cache(), service_name, env_name));
+    datadog_ffi_try("Failed flushing filtered telemetry buffer",
+        ddog_sidecar_telemetry_filter_flush(&DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), buffer, datadog_telemetry_cache(), service_name, env_name));
 
     ddog_sidecar_telemetry_buffer_drop(buffer);
-
-    // Flush any accumulated BGS (background sender) metrics if enough time has passed.
-    ddtrace_telemetry_flush_bgs_metrics_if_due(DDTRACE_GLOBALS_PTR());
 }
 
-void ddtrace_telemetry_notify_integration(const char *name, size_t name_len) {
-    ddtrace_telemetry_notify_integration_version(name, name_len, "", 0);
-}
 
-void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_len, const char *version, size_t version_len) {
-    if (DDTRACE_G(sidecar) && get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
-        ddog_CharSlice integration = (ddog_CharSlice) {.len = name_len, .ptr = name};
-        ddog_CharSlice ver = (ddog_CharSlice) {.len = version_len, .ptr = version};
-        ddog_sidecar_telemetry_addIntegration_buffer(ddtrace_telemetry_buffer(), integration, ver, true);
-    }
-}
-
-void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span) {
-    zval *component = NULL;
-    if (Z_TYPE(span->property_meta) == IS_ARRAY) {
-        component = zend_hash_str_find(Z_ARRVAL(span->property_meta), ZEND_STRL("component"));
-    }
-
-    zend_string *integration = NULL;
-    if (component && Z_TYPE_P(component) == IS_STRING) {
-        integration = zend_string_copy(Z_STR_P(component));
-    } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTELEMETRY) {
-        integration = zend_string_init(ZEND_STRL("otel"), 0);
-    } else if (span->flags & DDTRACE_SPAN_FLAG_OPENTRACING) {
-        integration = zend_string_init(ZEND_STRL("opentracing"), 0);
-    } else {
-        // Fallback value when the span has not been created by an integration, nor OpenTelemetry/OpenTracing (i.e. \DDTrace\span_start())
-        integration = zend_string_init(ZEND_STRL("datadog"), 0);
-    }
-
-    zval *current = zend_hash_find(&DDTRACE_G(telemetry_spans_created_per_integration), integration);
-    if (current) {
-        ++Z_DVAL_P(current);
-    } else {
-        zval counter;
-        ZVAL_DOUBLE(&counter, 1.0);
-        zend_hash_add(&DDTRACE_G(telemetry_spans_created_per_integration), integration, &counter);
-    }
-
-    zend_string_release(integration);
-}
-
-// Process-global atomic accumulators for background-sender metrics.
-// Written by the BGS thread (coms.c) without any lock; drained by a PHP request
-// thread in ddtrace_telemetry_flush_bgs_metrics_if_due().
-static _Atomic(int) bgs_metric_requests = 0;
-static _Atomic(int) bgs_metric_responses_1xx = 0;
-static _Atomic(int) bgs_metric_responses_2xx = 0;
-static _Atomic(int) bgs_metric_responses_3xx = 0;
-static _Atomic(int) bgs_metric_responses_4xx = 0;
-static _Atomic(int) bgs_metric_responses_5xx = 0;
-static _Atomic(int) bgs_metric_errors_timeout = 0;
-static _Atomic(int) bgs_metric_errors_network = 0;
-static _Atomic(int) bgs_metric_errors_status_code = 0;
-// Timestamp (nanoseconds) of the last flush; used to rate-limit to one flush per interval.
-static _Atomic(uint64_t) bgs_metrics_last_flush_ns = 0;
-
-void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics) {
-    // Pure atomic accumulation — never touches the sidecar.
-    if (!metrics.requests) {
-        return;
-    }
-    atomic_fetch_add(&bgs_metric_requests, metrics.requests);
-    atomic_fetch_add(&bgs_metric_responses_1xx, metrics.responses_1xx);
-    atomic_fetch_add(&bgs_metric_responses_2xx, metrics.responses_2xx);
-    atomic_fetch_add(&bgs_metric_responses_3xx, metrics.responses_3xx);
-    atomic_fetch_add(&bgs_metric_responses_4xx, metrics.responses_4xx);
-    atomic_fetch_add(&bgs_metric_responses_5xx, metrics.responses_5xx);
-    atomic_fetch_add(&bgs_metric_errors_timeout, metrics.errors_timeout);
-    atomic_fetch_add(&bgs_metric_errors_network, metrics.errors_network);
-    atomic_fetch_add(&bgs_metric_errors_status_code, metrics.errors_status_code);
-}
-
-void ddtrace_telemetry_flush_bgs_metrics_if_due(zend_ddtrace_globals *ddtrace_globals) {
-    if (!ddtrace_globals->sidecar || !get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
-        return;
-    }
-
-    // Rate-limit: flush at most once per agent flush interval.
-    uint64_t now_ns = ddtrace_nanoseconds_realtime();
-    uint64_t last = atomic_load(&bgs_metrics_last_flush_ns);
-    uint64_t interval_ns = (uint64_t)get_global_DD_TRACE_AGENT_FLUSH_INTERVAL() * 1000000ULL;
-    if (now_ns - last < interval_ns) {
-        return;
-    }
-    // CAS ensures only one thread flushes per interval.
-    if (!atomic_compare_exchange_strong(&bgs_metrics_last_flush_ns, &last, now_ns)) {
-        return;
-    }
-
-    int requests = atomic_exchange(&bgs_metric_requests, 0);
-    if (!requests) {
-        return;
-    }
-
-    ddog_SidecarActionsBuffer *buffer = ddog_sidecar_telemetry_buffer_alloc();
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.requests"), requests, DDOG_CHARSLICE_C(""));
-
-    int v;
-    if ((v = atomic_exchange(&bgs_metric_responses_1xx, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), v, DDOG_CHARSLICE_C("status_code:1xx"));
-    }
-    if ((v = atomic_exchange(&bgs_metric_responses_2xx, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), v, DDOG_CHARSLICE_C("status_code:2xx"));
-    }
-    if ((v = atomic_exchange(&bgs_metric_responses_3xx, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), v, DDOG_CHARSLICE_C("status_code:3xx"));
-    }
-    if ((v = atomic_exchange(&bgs_metric_responses_4xx, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), v, DDOG_CHARSLICE_C("status_code:4xx"));
-    }
-    if ((v = atomic_exchange(&bgs_metric_responses_5xx, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.responses"), v, DDOG_CHARSLICE_C("status_code:5xx"));
-    }
-    if ((v = atomic_exchange(&bgs_metric_errors_timeout, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), v, DDOG_CHARSLICE_C("type:timeout"));
-    }
-    if ((v = atomic_exchange(&bgs_metric_errors_network, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), v, DDOG_CHARSLICE_C("type:network"));
-    }
-    if ((v = atomic_exchange(&bgs_metric_errors_status_code, 0))) {
-        ddog_sidecar_telemetry_add_span_metric_point_buffer(buffer, DDOG_CHARSLICE_C("trace_api.errors"), v, DDOG_CHARSLICE_C("type:status_code"));
-    }
-
-    ddtrace_ffi_try("Failed flushing background sender metrics",
-                    ddog_sidecar_telemetry_buffer_flush(&ddtrace_globals->sidecar, ddtrace_sidecar_instance_id, &dd_bgs_queued_id, buffer));
-}
-
-void ddtrace_telemetry_flush_bgs_metrics_final(zend_ddtrace_globals *ddtrace_globals) {
-    if (!ddtrace_sidecar_instance_id) {
-        return;
-    }
-    // Bypass the time gate so any remaining metrics are sent before the transport
-    // is dropped in GSHUTDOWN.  Setting last_flush_ns to 0 makes the time check in
-    // _if_due always pass; the CAS inside still prevents a concurrent double-flush.
-    atomic_store(&bgs_metrics_last_flush_ns, 0);
-    ddtrace_telemetry_flush_bgs_metrics_if_due(ddtrace_globals);
-}
-
-DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns) {
-    if (!DDTRACE_G(sidecar)) {
+DATADOG_PUBLIC void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns) {
+    if (!DATADOG_G(sidecar)) {
         return;
     }
     ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
-    ddog_sidecar_telemetry_register_metric(&DDTRACE_G(sidecar), metric_name, type, ns);
+    ddog_sidecar_telemetry_register_metric(&DATADOG_G(sidecar), metric_name, type, ns);
 }
 
-DDTRACE_PUBLIC bool ddtrace_metric_add_point(zend_string *name, double value, zend_string *tags) {
-    if (!DDTRACE_G(metrics_buffer)) {
-        DDTRACE_G(metrics_buffer) = ddog_sidecar_telemetry_buffer_alloc();
+DATADOG_PUBLIC bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags) {
+    if (!DATADOG_G(metrics_buffer)) {
+        DATADOG_G(metrics_buffer) = ddog_sidecar_telemetry_buffer_alloc();
     }
     ddog_CharSlice metric_name = dd_zend_string_to_CharSlice(name);
     ddog_CharSlice tags_slice = dd_zend_string_to_CharSlice(tags);
-    ddog_sidecar_telemetry_add_span_metric_point_buffer(DDTRACE_G(metrics_buffer), metric_name, value, tags_slice);
+    ddog_sidecar_telemetry_add_span_metric_point_buffer(DATADOG_G(metrics_buffer), metric_name, value, tags_slice);
     return true;
 }
 
 static void dd_commit_metrics() {
-    if (!DDTRACE_G(metrics_buffer)) {
+    if (!DATADOG_G(metrics_buffer)) {
         return;
     }
     ddog_sidecar_telemetry_buffer_flush(
-        &DDTRACE_G(sidecar), ddtrace_sidecar_instance_id, &DDTRACE_G(sidecar_queue_id), DDTRACE_G(metrics_buffer));
-    DDTRACE_G(metrics_buffer) = NULL;
+        &DATADOG_G(sidecar), datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), DATADOG_G(metrics_buffer));
+    DATADOG_G(metrics_buffer) = NULL;
 }

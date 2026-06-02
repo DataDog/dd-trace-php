@@ -121,7 +121,7 @@ typedef enum {
     DDTRACE_METRIC_NAMESPACE_SIDECAR,
 } ddtrace_metric_ns;
 
-extern void (*nullable ddtrace_metric_register_buffer)(
+extern void (*nullable datadog_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
-extern bool (*nullable ddtrace_metric_add_point)(
+extern bool (*nullable datadog_metric_add_point)(
     zend_string *nonnull name, double value, zend_string *nonnull tags);

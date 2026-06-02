@@ -31,38 +31,38 @@ pub use libdd_telemetry_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_runtime_id: Uuid = Uuid::nil();
+pub static mut datadog_runtime_id: Uuid = Uuid::nil();
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_session_id: Uuid = Uuid::nil();
+pub static mut datadog_session_id: Uuid = Uuid::nil();
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_formatted_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_session_id: [u8; 36] = [0u8; 36];
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_formatted_root_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_root_session_id: [u8; 36] = [0u8; 36];
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_formatted_parent_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_parent_session_id: [u8; 36] = [0u8; 36];
 
 /// # Safety
 /// Must be called from a single-threaded context, such as MINIT or first rinit.
 #[no_mangle]
-pub unsafe extern "C" fn ddtrace_generate_runtime_id() {
-    ddtrace_runtime_id = Uuid::new_v4();
+pub unsafe extern "C" fn datadog_generate_runtime_id() {
+    datadog_runtime_id = Uuid::new_v4();
 }
 
 /// # Safety
 /// Must be called from a single-threaded context, such as MINIT.
 #[no_mangle]
-pub unsafe extern "C" fn ddtrace_generate_session_id() {
-    ddtrace_session_id = Uuid::new_v4();
-    ddtrace_runtime_id = ddtrace_session_id;
-    ddtrace_session_id.as_hyphenated().encode_lower(&mut ddtrace_formatted_session_id);
+pub unsafe extern "C" fn datadog_generate_session_id() {
+    datadog_session_id = Uuid::new_v4();
+    datadog_runtime_id = datadog_session_id;
+    datadog_session_id.as_hyphenated().encode_lower(&mut datadog_formatted_session_id);
 
     unsafe fn set(name: &str, value: &mut [u8; 36], force: bool) {
         if let Ok(str) = std::env::var(name) {
@@ -74,18 +74,18 @@ pub unsafe extern "C" fn ddtrace_generate_session_id() {
                 }
             }
         }
-        std::env::set_var(name, OsStr::from_encoded_bytes_unchecked(&ddtrace_formatted_session_id));
+        std::env::set_var(name, OsStr::from_encoded_bytes_unchecked(&datadog_formatted_session_id));
     }
 
-    set("_DD_PARENT_PHP_SESSION_ID", &mut ddtrace_formatted_parent_session_id, true);
-    set("_DD_ROOT_PHP_SESSION_ID", &mut ddtrace_formatted_root_session_id, false);
+    set("_DD_PARENT_PHP_SESSION_ID", &mut datadog_formatted_parent_session_id, true);
+    set("_DD_ROOT_PHP_SESSION_ID", &mut datadog_formatted_root_session_id, false);
 }
 
 #[no_mangle]
-pub extern "C" fn ddtrace_format_runtime_id(buf: &mut [u8; 36]) {
-    // Safety: ddtrace_runtime_id is only supposed to be mutated from single-
+pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
+    // Safety: datadog_runtime_id is only supposed to be mutated from single-
     // threaded contexts, so reads should always be safe.
-    unsafe { ddtrace_runtime_id.as_hyphenated().encode_lower(buf) };
+    unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
 #[must_use]
@@ -121,7 +121,7 @@ pub unsafe extern "C" fn ddtrace_drop_rust_string(input: *mut c_char, len: usize
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddtrace_parse_agent_url(
+pub unsafe extern "C" fn datadog_parse_agent_url(
     url: CharSlice,
 ) -> std::option::Option<Box<Endpoint>> {
     parse_uri(url.to_utf8_lossy().as_ref())
@@ -148,7 +148,7 @@ pub unsafe extern "C" fn ddtrace_parse_agent_url(
 
 #[no_mangle]
 #[cfg(unix)]
-pub unsafe extern "C" fn ddtrace_endpoint_as_crashtracker_config(
+pub unsafe extern "C" fn datadog_endpoint_as_crashtracker_config(
     endpoint: &Endpoint,
     callback: unsafe extern "C" fn(EndpointConfig<'_>, *mut std::ffi::c_void),
     userdata: *mut std::ffi::c_void,

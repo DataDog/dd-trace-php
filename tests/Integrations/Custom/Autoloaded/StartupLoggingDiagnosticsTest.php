@@ -22,12 +22,14 @@ final class StartupLoggingDiagnosticsTest extends WebFrameworkTestCase
         return array_merge(parent::getEnvs(), [
             'DD_TRACE_DEBUG' => true, // Startup logs only show in debug mode
             'DD_AGENT_HOST' => 'invalid_host', // Will fail diagnostic check
+            'DD_TRACE_SOURCES_PATH' => '/foo/invalid.php', // Will fail diagnostic check
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false', // Prevent sidecar errors from polluting the error log
         ]);
     }
 
-    protected function ddSetUp()
+    public static function ddSetUpBeforeClass()
     {
-        parent::ddSetUp();
+        parent::ddSetUpBeforeClass();
 
         // clear out any previous logs
         $log = self::getAppErrorLog();

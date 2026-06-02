@@ -28,6 +28,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED' => '*',
             'DD_TRACE_DEBUG' => 'true',
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
         ]);
     }
 

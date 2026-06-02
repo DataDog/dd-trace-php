@@ -1,14 +1,11 @@
 #include "remote_config.h"
-#include "ddtrace.h"
+#include "datadog.h"
+#include "ffi_utils.h"
 #include "sidecar.h"
-#include "hook/uhook.h"
-#include "span.h"
 #include <zai_string/string.h>
-#include <components-rs/sidecar.h>
 #include <components/log/log.h>
-#include <hook/hook.h>
 #include "threads.h"
-#include "live_debugger.h"
+#include <tracer/tracer_api.h>
 #ifndef _WIN32
 #include <signal.h>
 #endif
@@ -19,55 +16,55 @@
 #define zend_vm_interrupt zai_vm_interrupt
 #endif
 
-ZEND_EXTERN_MODULE_GLOBALS(ddtrace);
+ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 static void (*dd_prev_interrupt_function)(zend_execute_data *execute_data);
 static void dd_vm_interrupt(zend_execute_data *execute_data) {
     if (dd_prev_interrupt_function) {
         dd_prev_interrupt_function(execute_data);
     }
-    if (DDTRACE_G(remote_config_state) && DDTRACE_G(reread_remote_configuration)) {
+    if (DATADOG_G(remote_config_state) && DATADOG_G(reread_remote_configuration)) {
         LOG(INFO, "Rereading remote configurations after interrupt");
-        DDTRACE_G(reread_remote_configuration) = 0;
-        ddog_process_remote_configs(DDTRACE_G(remote_config_state));
+        DATADOG_G(reread_remote_configuration) = 0;
+        ddog_process_remote_configs(DATADOG_G(remote_config_state));
     }
 }
 
 // We need this exported to call it via CreateRemoteThread on Windows
-DDTRACE_PUBLIC void ddtrace_set_all_thread_vm_interrupt(void) {
+DATADOG_PUBLIC void datadog_set_all_thread_vm_interrupt(void) {
     // broadcast interrupt to all threads on ZTS
 #if ZTS
-    tsrm_mutex_lock(ddtrace_threads_mutex);
+    tsrm_mutex_lock(datadog_threads_mutex);
 
     void *TSRMLS_CACHE; // EG() accesses a variable named TSRMLS_CACHE. Make use of variable shadowing in scopes...
-    ZEND_HASH_FOREACH_PTR(&ddtrace_tls_bases, TSRMLS_CACHE) {
+    ZEND_HASH_FOREACH_PTR(&datadog_tls_bases, TSRMLS_CACHE) {
 #endif
 #if PHP_VERSION_ID >= 80200
         zend_atomic_bool_store_ex(&EG(vm_interrupt), 1);
 #elif PHP_VERSION_ID >= 70100
         EG(vm_interrupt) = 1;
 #else
-        DDTRACE_G(zai_vm_interrupt) = 1;
+        DATADOG_G(zai_vm_interrupt) = 1;
 #endif
-        DDTRACE_G(reread_remote_configuration) = 1;
+        DATADOG_G(reread_remote_configuration) = 1;
 #if ZTS
     } ZEND_HASH_FOREACH_END();
 
-    tsrm_mutex_unlock(ddtrace_threads_mutex);
+    tsrm_mutex_unlock(datadog_threads_mutex);
 #endif
 }
 
-void ddtrace_check_for_new_config_now(void) {
-    if (DDTRACE_G(remote_config_state) && !DDTRACE_G(reread_remote_configuration) && ddog_process_remote_configs(DDTRACE_G(remote_config_state))) {
+void datadog_check_for_new_config_now(void) {
+    if (DATADOG_G(remote_config_state) && !DATADOG_G(reread_remote_configuration) && ddog_process_remote_configs(DATADOG_G(remote_config_state))) {
         // If we blocked the signal, notify the other threads too
-        ddtrace_set_all_thread_vm_interrupt();
+        datadog_set_all_thread_vm_interrupt();
     }
 }
 
 #ifndef _WIN32
 static void dd_sigvtalarm_handler(int signal, siginfo_t *siginfo, void *ctx) {
     UNUSED(signal, siginfo, ctx);
-    ddtrace_set_all_thread_vm_interrupt();
+    datadog_set_all_thread_vm_interrupt();
 }
 #endif
 
@@ -99,16 +96,16 @@ static zend_string *dd_dynamic_configuration_update(ddog_CharSlice config, zend_
         }
     } else {
         ZEND_ASSERT(mode == DDOG_DYNAMIC_CONFIG_UPDATE_MODE_WRITE);
-        DDTRACE_G(remote_config_writing) = true;
+        DATADOG_G(remote_config_writing) = true;
         zend_alter_ini_entry(name, value, ZEND_INI_USER, ZEND_INI_STAGE_RUNTIME);
-        DDTRACE_G(remote_config_writing) = false;
+        DATADOG_G(remote_config_writing) = false;
         zend_string_release(value);
     }
     zend_string_release(name);
     return ret;
 }
 
-void ddtrace_minit_remote_config(void) {
+void datadog_minit_remote_config(void) {
     ddog_setup_remote_config(dd_dynamic_configuration_update, &ddtrace_live_debugger_setup);
     dd_prev_interrupt_function = zend_interrupt_function;
     zend_interrupt_function = dd_vm_interrupt;
@@ -121,7 +118,7 @@ void ddtrace_minit_remote_config(void) {
 #endif
 }
 
-void ddtrace_mshutdown_remote_config(void) {
+void datadog_mshutdown_remote_config(void) {
 #ifndef _WIN32
     struct sigaction act = {0};
     act.sa_handler = SIG_IGN;
@@ -129,12 +126,10 @@ void ddtrace_mshutdown_remote_config(void) {
 #endif
 }
 
-void ddtrace_rinit_remote_config(void) {
-    zend_hash_init(&DDTRACE_G(active_rc_hooks), 8, NULL, NULL, 0);
-    DDTRACE_G(reread_remote_configuration) = 0;
+void datadog_rinit_remote_config(void) {
+    DATADOG_G(reread_remote_configuration) = 0;
 }
 
-void ddtrace_rshutdown_remote_config(void) {
-    ddog_rshutdown_remote_config(DDTRACE_G(remote_config_state));
-    zend_hash_destroy(&DDTRACE_G(active_rc_hooks));
+void datadog_rshutdown_remote_config(void) {
+    ddog_rshutdown_remote_config(DATADOG_G(remote_config_state));
 }

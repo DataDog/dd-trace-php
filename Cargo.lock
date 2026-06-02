@@ -1282,6 +1282,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "datadog-php"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "cbindgen 0.27.0",
+ "const-str",
+ "datadog-ffe",
+ "datadog-ipc",
+ "datadog-live-debugger",
+ "datadog-live-debugger-ffi",
+ "datadog-remote-config",
+ "datadog-sidecar",
+ "datadog-sidecar-ffi",
+ "env_logger 0.10.2",
+ "hashbrown 0.15.2",
+ "http",
+ "itertools 0.11.0",
+ "lazy_static",
+ "libc 0.2.177",
+ "libdd-common",
+ "libdd-common-ffi",
+ "libdd-crashtracker-ffi",
+ "libdd-data-pipeline",
+ "libdd-library-config-ffi",
+ "libdd-telemetry",
+ "libdd-telemetry-ffi",
+ "libdd-tinybytes",
+ "libdd-trace-stats",
+ "libdd-trace-utils",
+ "log",
+ "paste",
+ "regex",
+ "regex-automata",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "simd-json",
+ "spawn_worker",
+ "tempfile",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+ "uuid",
+ "zwohash",
+]
+
+[[package]]
 name = "datadog-php-profiling"
 version = "0.0.0"
 dependencies = [
@@ -1441,54 +1489,6 @@ version = "0.0.1"
 dependencies = [
  "quote",
  "syn 2.0.96",
-]
-
-[[package]]
-name = "ddtrace-php"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "bincode",
- "cbindgen 0.27.0",
- "const-str",
- "datadog-ffe",
- "datadog-ipc",
- "datadog-live-debugger",
- "datadog-live-debugger-ffi",
- "datadog-remote-config",
- "datadog-sidecar",
- "datadog-sidecar-ffi",
- "env_logger 0.10.2",
- "hashbrown 0.15.2",
- "http",
- "itertools 0.11.0",
- "lazy_static",
- "libc 0.2.177",
- "libdd-common",
- "libdd-common-ffi",
- "libdd-crashtracker-ffi",
- "libdd-data-pipeline",
- "libdd-library-config-ffi",
- "libdd-telemetry",
- "libdd-telemetry-ffi",
- "libdd-tinybytes",
- "libdd-trace-stats",
- "libdd-trace-utils",
- "log",
- "paste",
- "regex",
- "regex-automata",
- "serde",
- "serde_json",
- "serde_with",
- "simd-json",
- "spawn_worker",
- "tempfile",
- "tracing",
- "tracing-core",
- "tracing-subscriber",
- "uuid",
- "zwohash",
 ]
 
 [[package]]

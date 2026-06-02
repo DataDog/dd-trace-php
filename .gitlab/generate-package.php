@@ -434,7 +434,7 @@ foreach ($build_platforms as $platform) {
       policy: pull  # `cache cargo deps` is used to update/push the cache
   artifacts:
     paths:
-      - "libddtrace_php_*.*"
+      - "libdatadog_php_*.*"
 <?php
 }
 ?>

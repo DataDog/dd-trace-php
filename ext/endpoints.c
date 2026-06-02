@@ -1,0 +1,103 @@
+#include "endpoints.h"
+#include "configuration.h"
+#include "datadog.h"
+
+ZEND_EXTERN_MODULE_GLOBALS(datadog);
+
+#define DEFAULT_DOGSTATSD_UDS_PATH "/var/run/datadog/dsd.socket"
+#define DEFAULT_AGENT_UDS_PATH "/var/run/datadog/apm.socket"
+
+#define HOST_V6_FORMAT_STR "http://[%s]:%u"
+#define HOST_V4_FORMAT_STR "http://%s:%u"
+
+char *datadog_agent_url(void) {
+    zend_string *url = get_global_DD_TRACE_AGENT_URL();
+    if (ZSTR_LEN(url) > 0) {
+        char *dup = zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url) + 1);
+
+        // mess around with backslashes to support our test cases providing something like "file://C:\dir\test.out"
+        const char *fileprefix = "file://";
+        if (strncmp(ZSTR_VAL(url), fileprefix, strlen(fileprefix)) == 0 && strchr(ZSTR_VAL(url), '\\')) {
+            for (size_t i = strlen(fileprefix); i < ZSTR_LEN(url); ++i) {
+                if (dup[i] == '\\') {
+                    dup[i] = '/';
+                }
+            }
+        }
+
+        return dup;
+    }
+
+    zend_string *hostname = get_global_DD_AGENT_HOST();
+    if (ZSTR_LEN(hostname) > 7 && strncmp(ZSTR_VAL(hostname), "unix://", 7) == 0) {
+        return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
+    }
+
+    if (ZSTR_LEN(hostname) > 0 && zai_config_memoized_entries[DATADOG_CONFIG_DD_AGENT_HOST].name_index != ZAI_CONFIG_ORIGIN_DEFAULT) {
+        bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
+
+        int64_t port = get_global_DD_TRACE_AGENT_PORT();
+        if (port <= 0 || port > 65535) {
+            port = 8126;
+        }
+        char *formatted_url;
+        asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
+        return formatted_url;
+    }
+
+    if (access(DEFAULT_AGENT_UDS_PATH, F_OK) == SUCCESS) {
+        return zend_strndup(ZEND_STRL("unix://" DEFAULT_AGENT_UDS_PATH));
+    }
+
+    int64_t port = get_global_DD_TRACE_AGENT_PORT();
+    if (port <= 0 || port > 65535) {
+        port = 8126;
+    }
+    char *formatted_url;
+    asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port);
+    return formatted_url;
+}
+
+char *datadog_dogstatsd_url(void) {
+    zend_string *url = get_DD_DOGSTATSD_URL();
+    if (ZSTR_LEN(url) > 0 && zai_config_memoized_entries[DATADOG_CONFIG_DD_DOGSTATSD_URL].name_index != ZAI_CONFIG_ORIGIN_DEFAULT) {
+        return zend_strndup(ZSTR_VAL(url), ZSTR_LEN(url) + 1);
+    }
+
+    zend_string *hostname = get_DD_DOGSTATSD_HOST();
+    if (ZSTR_LEN(hostname) == 0 || zai_config_memoized_entries[DATADOG_CONFIG_DD_DOGSTATSD_HOST].name_index == ZAI_CONFIG_ORIGIN_DEFAULT) {
+        if (zai_config_memoized_entries[DATADOG_CONFIG_DD_AGENT_HOST].name_index == ZAI_CONFIG_ORIGIN_DEFAULT) {
+            hostname = ZSTR_EMPTY_ALLOC();
+        } else {
+            hostname = get_global_DD_AGENT_HOST();
+        }
+    }
+
+    if (ZSTR_LEN(hostname) > 7 && strncmp(ZSTR_VAL(hostname), "unix://", 7) == 0) {
+        return zend_strndup(ZSTR_VAL(hostname), ZSTR_LEN(hostname));
+    }
+
+    if (ZSTR_LEN(hostname) > 0) {
+        bool isIPv6 = memchr(ZSTR_VAL(hostname), ':', ZSTR_LEN(hostname));
+
+        int port = get_DD_DOGSTATSD_PORT();
+        if (port <= 0 || port > 65535) {
+            port = 8125;
+        }
+        char *formatted_url;
+        asprintf(&formatted_url, isIPv6 ? HOST_V6_FORMAT_STR : HOST_V4_FORMAT_STR, ZSTR_VAL(hostname), (uint32_t)port);
+        return formatted_url;
+    }
+
+    if (access(DEFAULT_DOGSTATSD_UDS_PATH, F_OK) == SUCCESS) {
+        return zend_strndup(ZEND_STRL("unix://" DEFAULT_DOGSTATSD_UDS_PATH));
+    }
+
+    int64_t port = get_global_DD_TRACE_AGENT_PORT();
+    if (port <= 0 || port > 65535 || zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_AGENT_PORT].name_index == ZAI_CONFIG_ORIGIN_DEFAULT) {
+        port = 8125;
+    }
+    char *formatted_url;
+    asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port);
+    return formatted_url;
+}
