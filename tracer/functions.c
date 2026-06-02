@@ -6,6 +6,7 @@
 #include "auto_flush.h"
 #include "code_origins.h"
 #include "engine_hooks.h"
+#include "ffe.h"
 #include "handlers_exception.h"
 #include "memory_limit.h"
 #include "random.h"

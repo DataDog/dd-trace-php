@@ -67,9 +67,6 @@ void datadog_sidecar_dogstatsd_gauge(zend_string *metric, double value, zval *ta
 void datadog_sidecar_dogstatsd_histogram(zend_string *metric, double value, zval *tags);
 void datadog_sidecar_dogstatsd_set(zend_string *metric, zend_long value, zval *tags);
 
-bool datadog_ffe_record_evaluation_metric(const char *flag_key, size_t flag_key_len, const char *variant, size_t variant_len, const char *reason, size_t reason_len, const char *error_type, size_t error_type_len, const char *allocation_key, size_t allocation_key_len);
-bool datadog_ffe_flush_evaluation_metrics(void);
-
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str);
 
 ddog_crasht_Metadata datadog_setup_crashtracking_metadata(ddog_Vec_Tag *tags);
