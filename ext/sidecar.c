@@ -41,21 +41,11 @@ typedef struct {
 } ddtrace_ffe_exposure;
 
 static void ddtrace_ffe_release_exposure(ddtrace_ffe_exposure *exposure) {
-    if (exposure->flag_key) {
-        zend_string_release(exposure->flag_key);
-    }
-    if (exposure->subject_id) {
-        zend_string_release(exposure->subject_id);
-    }
-    if (exposure->subject_attributes_json) {
-        zend_string_release(exposure->subject_attributes_json);
-    }
-    if (exposure->allocation_key) {
-        zend_string_release(exposure->allocation_key);
-    }
-    if (exposure->variant) {
-        zend_string_release(exposure->variant);
-    }
+    zend_string_release(exposure->flag_key);
+    zend_string_release(exposure->subject_id);
+    zend_string_release(exposure->subject_attributes_json);
+    zend_string_release(exposure->allocation_key);
+    zend_string_release(exposure->variant);
 }
 
 void ddtrace_ffe_clear_exposures(void) {
