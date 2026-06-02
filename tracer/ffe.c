@@ -76,7 +76,7 @@ void ddtrace_ffe_record_exposure(
     dd_ffe_exposure *exposure = &buffer[DDTRACE_G(ffe_exposure_buffer_len)++];
     exposure->timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000;
     exposure->flag_key = zend_string_copy(flag_key);
-    exposure->subject_id = targeting_key ? zend_string_copy(targeting_key) : zend_string_init("", 0, 0);
+    exposure->subject_id = targeting_key ? zend_string_copy(targeting_key) : ZSTR_EMPTY_ALLOC();
     exposure->subject_attributes_json = zend_string_copy(subject_attributes_json);
     exposure->allocation_key = zend_string_copy(allocation_key);
     exposure->variant = zend_string_copy(variant);
