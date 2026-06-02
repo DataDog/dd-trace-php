@@ -1643,22 +1643,6 @@ static void ddtrace_ffe_update_empty_array_property(zval *object, const char *na
     zval_ptr_dtor(&property_value);
 }
 
-static void ddtrace_ffe_refresh_remote_config(void) {
-    if (!DATADOG_G(remote_config_state)) {
-        return;
-    }
-
-    if (DATADOG_G(reread_remote_configuration)) {
-        DATADOG_G(reread_remote_configuration) = 0;
-        ddog_process_remote_configs(DATADOG_G(remote_config_state));
-        return;
-    }
-
-    if (!ddog_ffe_has_config()) {
-        datadog_check_for_new_config_now();
-    }
-}
-
 PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zend_string *flag_key;
     zend_long type_id_zl;
@@ -1686,7 +1670,6 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ZEND_PARSE_PARAMETERS_END();
 
     type_id = (int32_t) type_id_zl;
-    ddtrace_ffe_refresh_remote_config();
     attributes = Z_ARRVAL_P(attrs_zv);
     attrs_count = zend_hash_num_elements(attributes);
 
