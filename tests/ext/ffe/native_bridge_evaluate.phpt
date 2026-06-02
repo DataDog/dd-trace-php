@@ -7,7 +7,8 @@ function show($label, $value) {
 }
 
 show('has_config_before', \DDTrace\ffe_has_config());
-show('native_exposure_flush_exists', function_exists('DDTrace\\Internal\\flush_ffe_exposures'));
+show('native_exposure_flush_exists', function_exists('DDTrace\\Testing\\flush_ffe_exposures'));
+show('internal_exposure_flush_exists', function_exists('DDTrace\\Internal\\flush_ffe_exposures'));
 show('old_exposure_forwarder_exists', function_exists('DDTrace\\send_ffe_exposures'));
 show('provider_not_ready', \DDTrace\ffe_evaluate('string.flag', 0, 'user-1', array()));
 
@@ -129,6 +130,7 @@ show('parse_error', \DDTrace\ffe_evaluate('bad.flag', 0, 'user-1', array()));
 --EXPECT--
 has_config_before=false
 native_exposure_flush_exists=true
+internal_exposure_flush_exists=false
 old_exposure_forwarder_exists=false
 provider_not_ready={"valueJson":"null","variant":null,"allocationKey":null,"reason":5,"errorCode":6,"doLog":false,"providerState":[],"errorMessage":null,"hasConfig":null,"configVersion":null}
 load=true

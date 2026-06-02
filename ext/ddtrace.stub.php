@@ -1010,6 +1010,13 @@ namespace DDTrace\Testing {
     function ffe_load_config(string $json): bool {}
 
     /**
+     * Flushes native FFE exposure batches for integration tests.
+     *
+     * @internal Used by extension tests only.
+     */
+    function flush_ffe_exposures(): bool {}
+
+    /**
      * Overrides PHP's default error handling.
      *
      * @param string $message Error message
@@ -1060,13 +1067,6 @@ namespace DDTrace\Internal {
      * @internal
      */
     function handle_fork(): void {}
-
-    /**
-     * Flushes native FFE exposure batches for integration tests.
-     *
-     * @internal
-     */
-    function flush_ffe_exposures(): bool {}
 
 }
 

@@ -2776,7 +2776,7 @@ PHP_FUNCTION(DDTrace_Internal_handle_fork) {
     dd_internal_handle_fork();
 }
 
-PHP_FUNCTION(DDTrace_Internal_flush_ffe_exposures) {
+PHP_FUNCTION(DDTrace_Testing_flush_ffe_exposures) {
     ZEND_PARSE_PARAMETERS_NONE();
 
     RETURN_BOOL(ddtrace_ffe_flush_exposures());
