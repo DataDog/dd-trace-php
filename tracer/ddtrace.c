@@ -46,6 +46,7 @@
 #endif
 #include "distributed_tracing_headers.h"
 #include "engine_hooks.h"
+#include "ffe.h"
 #include "handlers_internal.h"
 #include "inferred_proxy_headers.h"
 #include "integrations/exec_integration.h"
@@ -605,6 +606,8 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         DDTRACE_G(active_stack) = NULL;
     }
 
+    ddtrace_ffe_flush_exposures();
+
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
 }
@@ -727,4 +730,3 @@ void dd_prepare_for_new_trace(void) {
     DDTRACE_G(traces_group_id) = ddtrace_coms_next_group_id();
 #endif
 }
-
