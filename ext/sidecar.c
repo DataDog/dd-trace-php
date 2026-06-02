@@ -16,7 +16,6 @@
 #include "string_utils.h"
 #include "target_metadata.h"
 #include "ffi_utils.h"
-#include <tracer/configuration.h>
 #include <tracer/tracer_api.h>
 #ifndef _WIN32
 #include <tracer/coms.h>

@@ -1249,6 +1249,28 @@ typedef struct ddog_Slice_FfeEvaluationMetric {
   uintptr_t len;
 } ddog_Slice_FfeEvaluationMetric;
 
+typedef struct ddog_FfeExposure {
+  uint64_t timestamp_ms;
+  ddog_CharSlice flag_key;
+  ddog_CharSlice subject_id;
+  ddog_CharSlice subject_attributes_json;
+  ddog_CharSlice allocation_key;
+  ddog_CharSlice variant;
+} ddog_FfeExposure;
+
+typedef struct ddog_Slice_FfeExposure {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed to point to read-only memory if `len` is zero.
+   */
+  const struct ddog_FfeExposure *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to `isize::MAX`.
+   */
+  uintptr_t len;
+} ddog_Slice_FfeExposure;
+
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.

@@ -315,6 +315,22 @@ ddog_MaybeError ddog_sidecar_send_ffe_evaluation_metrics(struct ddog_SidecarTran
                                                          const struct ddog_FfeTelemetryContext *context,
                                                          struct ddog_Slice_FfeEvaluationMetric metrics);
 
+/**
+ * Send structured FFE exposure events to the sidecar. The sidecar owns
+ * deduplication, JSON serialization, and Agent EVP delivery. This function is
+ * caller-driven; shared libdatadog evaluator calls do not log unless an SDK
+ * explicitly sends this action.
+ *
+ * # Safety
+ * `context` and every element in `exposures` must contain valid UTF-8
+ * `CharSlice` values. Empty `exposures` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTransport **transport,
+                                                     const struct ddog_InstanceId *instance_id,
+                                                     const ddog_QueueId *queue_id,
+                                                     const struct ddog_FfeTelemetryContext *context,
+                                                     struct ddog_Slice_FfeExposure exposures);
+
 ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
                                                        const struct ddog_InstanceId *instance_id,
                                                        ddog_QueueId queue_id,

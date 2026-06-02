@@ -1379,6 +1379,12 @@ PHP_FUNCTION(DDTrace_Internal_handle_fork) {
     datadog_internal_handle_fork();
 }
 
+PHP_FUNCTION(DDTrace_Testing_flush_ffe_exposures) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_BOOL(ddtrace_ffe_flush_exposures());
+}
+
 PHP_FUNCTION(DDTrace_dogstatsd_count) {
     zend_string *metric;
     zend_long value;
@@ -1647,6 +1653,16 @@ static void ddtrace_ffe_record_evaluation_metric_result(
         allocation_key ? ZSTR_LEN(allocation_key) : 0);
 }
 
+static zend_string *ddtrace_ffe_attributes_json(zval *attrs_zv) {
+    smart_str buf = {0};
+    zai_json_encode(&buf, attrs_zv, 0);
+    if (!buf.s) {
+        return zend_string_init("{}", sizeof("{}") - 1, 0);
+    }
+    smart_str_0(&buf);
+    return smart_str_extract(&buf);
+}
+
 static void ddtrace_ffe_update_property(zval *object, const char *name, size_t name_len, zval *value) {
     zend_string *property_name = zend_string_init(name, name_len, 0);
     zend_update_property_ex(ddtrace_ce_ffe_result, Z_OBJ_P(object), property_name, value);
@@ -1705,6 +1721,9 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zval *value;
     struct ddog_FfeResult result;
     zend_bool record_metric = true;
+    zend_string *value_json;
+    zend_string *variant;
+    zend_string *allocation_key;
 
     ZEND_PARSE_PARAMETERS_START(4, 5)
         Z_PARAM_STR(flag_key)
@@ -1803,19 +1822,35 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
         RETURN_NULL();
     }
 
+    value_json = result.value_json;
+    variant = result.variant;
+    allocation_key = result.allocation_key;
+
     if (record_metric) {
         ddtrace_ffe_record_evaluation_metric_result(
             flag_key,
-            result.variant,
-            result.allocation_key,
+            variant,
+            allocation_key,
             result.reason,
             result.error_code);
     }
 
+    if (result.do_log && allocation_key && variant) {
+        zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
+        ddtrace_ffe_record_exposure(
+            flag_key,
+            targeting_key,
+            subject_attributes_json,
+            allocation_key,
+            variant
+        );
+        zend_string_release(subject_attributes_json);
+    }
+
     object_init_ex(return_value, ddtrace_ce_ffe_result);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), result.value_json);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), result.variant);
-    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), result.allocation_key);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), variant);
+    ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), allocation_key);
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);

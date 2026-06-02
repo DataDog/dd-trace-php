@@ -92,6 +92,10 @@ typedef struct {
 
     HashTable resource_weak_storage;
     dtor_func_t resource_dtor_func;
+
+    void *ffe_exposure_buffer;
+    size_t ffe_exposure_buffer_len;
+    size_t ffe_exposure_buffer_cap;
 } ddtrace_globals;
 
 #define DDTRACE_G(v) (DATADOG_G(ddtrace).v)
