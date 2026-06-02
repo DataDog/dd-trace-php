@@ -1190,8 +1190,11 @@ dependencies = [
  "derive_more",
  "faststr",
  "libdd-common",
+ "libdd-trace-protobuf",
  "log",
+ "lru",
  "md5",
+ "prost",
  "pyo3",
  "semver",
  "serde",
@@ -1407,6 +1410,7 @@ dependencies = [
  "bincode",
  "chrono",
  "console-subscriber",
+ "datadog-ffe",
  "datadog-ipc",
  "datadog-ipc-macros",
  "datadog-live-debugger",
@@ -1427,10 +1431,8 @@ dependencies = [
  "libdd-dogstatsd-client",
  "libdd-telemetry",
  "libdd-tinybytes",
- "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
- "lru",
  "manual_future",
  "memory-stats",
  "microseh",
@@ -2761,7 +2763,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3191,7 +3193,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "5.0.0"
+version = "6.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",

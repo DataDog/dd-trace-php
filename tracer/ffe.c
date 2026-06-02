@@ -20,9 +20,9 @@ typedef struct {
     zend_string *subject_attributes_json;
     zend_string *allocation_key;
     zend_string *variant;
-} datadog_ffe_exposure;
+} dd_ffe_exposure;
 
-static void datadog_ffe_release_exposure(datadog_ffe_exposure *exposure) {
+static void dd_ffe_release_exposure(dd_ffe_exposure *exposure) {
     zend_string_release(exposure->flag_key);
     zend_string_release(exposure->subject_id);
     zend_string_release(exposure->subject_attributes_json);
@@ -30,20 +30,20 @@ static void datadog_ffe_release_exposure(datadog_ffe_exposure *exposure) {
     zend_string_release(exposure->variant);
 }
 
-static void datadog_ffe_clear_exposures(void) {
-    datadog_ffe_exposure *buffer = (datadog_ffe_exposure *) DATADOG_G(ffe_exposure_buffer);
-    for (size_t i = 0; i < DATADOG_G(ffe_exposure_buffer_len); i++) {
-        datadog_ffe_release_exposure(&buffer[i]);
+static void dd_ffe_clear_exposures(void) {
+    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
+    for (size_t i = 0; i < DDTRACE_G(ffe_exposure_buffer_len); i++) {
+        dd_ffe_release_exposure(&buffer[i]);
     }
     if (buffer) {
         efree(buffer);
     }
-    DATADOG_G(ffe_exposure_buffer) = NULL;
-    DATADOG_G(ffe_exposure_buffer_len) = 0;
-    DATADOG_G(ffe_exposure_buffer_cap) = 0;
+    DDTRACE_G(ffe_exposure_buffer) = NULL;
+    DDTRACE_G(ffe_exposure_buffer_len) = 0;
+    DDTRACE_G(ffe_exposure_buffer_cap) = 0;
 }
 
-void datadog_ffe_record_exposure(
+void ddtrace_ffe_record_exposure(
     zend_string *flag_key,
     zend_string *targeting_key,
     zend_string *subject_attributes_json,
@@ -54,26 +54,26 @@ void datadog_ffe_record_exposure(
         return;
     }
 
-    if (DATADOG_G(ffe_exposure_buffer_len) >= DATADOG_FFE_EXPOSURE_BUFFER_LIMIT) {
+    if (DDTRACE_G(ffe_exposure_buffer_len) >= DATADOG_FFE_EXPOSURE_BUFFER_LIMIT) {
         return;
     }
 
-    if (DATADOG_G(ffe_exposure_buffer_len) == DATADOG_G(ffe_exposure_buffer_cap)) {
-        size_t new_cap = DATADOG_G(ffe_exposure_buffer_cap) == 0 ? 8 : DATADOG_G(ffe_exposure_buffer_cap) * 2;
+    if (DDTRACE_G(ffe_exposure_buffer_len) == DDTRACE_G(ffe_exposure_buffer_cap)) {
+        size_t new_cap = DDTRACE_G(ffe_exposure_buffer_cap) == 0 ? 8 : DDTRACE_G(ffe_exposure_buffer_cap) * 2;
         if (new_cap > DATADOG_FFE_EXPOSURE_BUFFER_LIMIT) {
             new_cap = DATADOG_FFE_EXPOSURE_BUFFER_LIMIT;
         }
-        DATADOG_G(ffe_exposure_buffer) = safe_erealloc(
-            DATADOG_G(ffe_exposure_buffer),
+        DDTRACE_G(ffe_exposure_buffer) = safe_erealloc(
+            DDTRACE_G(ffe_exposure_buffer),
             new_cap,
-            sizeof(datadog_ffe_exposure),
+            sizeof(dd_ffe_exposure),
             0
         );
-        DATADOG_G(ffe_exposure_buffer_cap) = new_cap;
+        DDTRACE_G(ffe_exposure_buffer_cap) = new_cap;
     }
 
-    datadog_ffe_exposure *buffer = (datadog_ffe_exposure *) DATADOG_G(ffe_exposure_buffer);
-    datadog_ffe_exposure *exposure = &buffer[DATADOG_G(ffe_exposure_buffer_len)++];
+    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
+    dd_ffe_exposure *exposure = &buffer[DDTRACE_G(ffe_exposure_buffer_len)++];
     exposure->timestamp_ms = ddtrace_nanoseconds_realtime() / 1000000;
     exposure->flag_key = zend_string_copy(flag_key);
     exposure->subject_id = targeting_key ? zend_string_copy(targeting_key) : zend_string_init("", 0, 0);
@@ -82,16 +82,16 @@ void datadog_ffe_record_exposure(
     exposure->variant = zend_string_copy(variant);
 }
 
-bool datadog_ffe_flush_exposures(void) {
-    size_t exposure_count = DATADOG_G(ffe_exposure_buffer_len);
-    datadog_ffe_exposure *buffer = (datadog_ffe_exposure *) DATADOG_G(ffe_exposure_buffer);
+bool ddtrace_ffe_flush_exposures(void) {
+    size_t exposure_count = DDTRACE_G(ffe_exposure_buffer_len);
+    dd_ffe_exposure *buffer = (dd_ffe_exposure *) DDTRACE_G(ffe_exposure_buffer);
 
     if (exposure_count == 0 || !buffer) {
         return false;
     }
 
     if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
-        datadog_ffe_clear_exposures();
+        dd_ffe_clear_exposures();
         return false;
     }
 
@@ -127,6 +127,6 @@ bool datadog_ffe_flush_exposures(void) {
             exposure_slice));
 
     efree(ffi_exposures);
-    datadog_ffe_clear_exposures();
+    dd_ffe_clear_exposures();
     return flushed;
 }

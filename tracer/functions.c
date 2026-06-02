@@ -1382,7 +1382,7 @@ PHP_FUNCTION(DDTrace_Internal_handle_fork) {
 PHP_FUNCTION(DDTrace_Testing_flush_ffe_exposures) {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    RETURN_BOOL(datadog_ffe_flush_exposures());
+    RETURN_BOOL(ddtrace_ffe_flush_exposures());
 }
 
 PHP_FUNCTION(DDTrace_dogstatsd_count) {
@@ -1769,7 +1769,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
 
     if (result.do_log && allocation_key && variant) {
         zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
-        datadog_ffe_record_exposure(
+        ddtrace_ffe_record_exposure(
             flag_key,
             targeting_key,
             subject_attributes_json,
