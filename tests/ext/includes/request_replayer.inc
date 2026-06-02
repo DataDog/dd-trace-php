@@ -200,25 +200,60 @@ class RequestReplayer
      * cross-checks against the same endpoint without the token, so we can tell if
      * the data we were waiting for landed in a different session bucket.
      */
+    /**
+     * Summarise a JSON-decoded /replay response by URI to spot data that's there
+     * but filtered out by the test's logic (e.g. telemetry vs trace).
+     */
+    private static function summariseUris($body)
+    {
+        if (!is_string($body) || $body === '') {
+            return '(empty body)';
+        }
+        $decoded = json_decode($body, true);
+        if (!is_array($decoded)) {
+            return '(non-array body)';
+        }
+        if (count($decoded) === 0) {
+            return '(empty array)';
+        }
+        $counts = [];
+        foreach ($decoded as $entry) {
+            $uri = is_array($entry) && isset($entry['uri']) ? $entry['uri'] : '(no uri)';
+            $counts[$uri] = ($counts[$uri] ?? 0) + 1;
+        }
+        ksort($counts);
+        $parts = [];
+        foreach ($counts as $u => $c) {
+            $parts[] = "$u=$c";
+        }
+        return implode(', ', $parts);
+    }
+
     private function diagnosticDump($path, $caller, $attempts, $elapsed = null)
     {
         $token = ini_get("datadog.trace.agent_test_session_token");
         $url = $this->endpoint . $path;
 
+        $t0 = microtime(true);
         $bodyToken = @file_get_contents($url, false, stream_context_create([
             "http" => ["header" => "X-Datadog-Test-Session-Token: $token"],
         ]));
+        $tTokenMs = (microtime(true) - $t0) * 1000;
         $statusToken = self::parseStatus($http_response_header ?? null);
         $lenToken = is_string($bodyToken) ? strlen($bodyToken) : -1;
+        $urisToken = self::summariseUris($bodyToken);
 
+        $t1 = microtime(true);
         $bodyNoToken = @file_get_contents($url, false, stream_context_create([]));
+        $tNoTokenMs = (microtime(true) - $t1) * 1000;
         $statusNoToken = self::parseStatus($http_response_header ?? null);
         $lenNoToken = is_string($bodyNoToken) ? strlen($bodyNoToken) : -1;
 
         $elapsedStr = $elapsed !== null ? sprintf(" elapsed=%.2fs", $elapsed) : "";
         echo "[RR-DIAG] $caller timeout after $attempts attempts$elapsedStr; token=" . var_export($token, true) . "\n";
-        echo "[RR-DIAG]   $path with token:    status=" . var_export($statusToken, true) . " body_len=$lenToken\n";
-        echo "[RR-DIAG]   $path without token: status=" . var_export($statusNoToken, true) . " body_len=$lenNoToken\n";
+        echo "[RR-DIAG]   $path with token:    status=" . var_export($statusToken, true) . " body_len=$lenToken fetch_ms=" . round($tTokenMs, 1) . "\n";
+        echo "[RR-DIAG]   $path with token uris: $urisToken\n";
+        echo "[RR-DIAG]   $path without token: status=" . var_export($statusNoToken, true) . " body_len=$lenNoToken fetch_ms=" . round($tNoTokenMs, 1) . "\n";
     }
 
     public function clearDumpedData()
