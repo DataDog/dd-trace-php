@@ -5,10 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "attributes.h"
 #include "configuration.h"
 #include "php_helpers.h"
 #include <stdbool.h>
-#include "attributes.h"
 
 /* log levels - the first argument to the mlog helper
  * The lower the number, the higher the priority */
@@ -35,8 +35,9 @@ static inline dd_log_level_t dd_log_level(void)
     if (!_dd_log_config_ready) {
         return dd_log_warning;
     }
-    return (dd_log_level_t)(runtime_config_first_init ? get_DD_APPSEC_LOG_LEVEL()
-                                                      : get_global_DD_APPSEC_LOG_LEVEL());
+    return (dd_log_level_t)(runtime_config_first_init
+                                ? get_DD_APPSEC_LOG_LEVEL()
+                                : get_global_DD_APPSEC_LOG_LEVEL());
 }
 
 void dd_log_startup_before_cfg(void);

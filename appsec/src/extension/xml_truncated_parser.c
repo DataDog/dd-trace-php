@@ -18,7 +18,7 @@
 #include <zend_API.h>
 // clang-format on
 
-#define STACK_INITIAL_CAPACITY 16
+enum { STACK_INITIAL_CAPACITY = 16 };
 typedef struct {
     zval **items;
     size_t size;
@@ -453,7 +453,8 @@ static void _sax_start_element_ns(void *user_ctx, const xmlChar *localname,
 
         for (int i = 0; i < nb_attributes; i++) {
             // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-            memcpy(&attr, &attributes[(ptrdiff_t)i * 5], sizeof(attr));
+            memcpy(&attr, (const void *)&attributes[(ptrdiff_t)i * 5],
+                sizeof(attr));
 
             // Build qualified attribute name with @ prefix
             zend_string *prefixed_name =

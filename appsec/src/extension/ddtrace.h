@@ -5,9 +5,9 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "attributes.h"
 #include <stdbool.h>
 #include <zend.h>
-#include "attributes.h"
 
 static const int PRIORITY_SAMPLING_AUTO_KEEP = 1;
 static const int PRIORITY_SAMPLING_AUTO_REJECT = 0;
@@ -123,5 +123,5 @@ typedef enum {
 
 extern void (*nullable ddtrace_metric_register_buffer)(
     zend_string *nonnull name, ddtrace_metric_type type, ddtrace_metric_ns ns);
-extern bool (*nullable ddtrace_metric_add_point)(zend_string *nonnull name,
-    double value, zend_string *nonnull tags);
+extern bool (*nullable ddtrace_metric_add_point)(
+    zend_string *nonnull name, double value, zend_string *nonnull tags);

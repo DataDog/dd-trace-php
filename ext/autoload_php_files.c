@@ -132,6 +132,10 @@ static void dd_load_file(const char *file) {
     zend_string *sources_path = get_global_DD_TRACE_SOURCES_PATH();
     unsigned int class_start = ZSTR_LEN(sources_path) + 1;
     size_t path_len = snprintf(path, sizeof(path), "%s/%s.php", ZSTR_VAL(sources_path), file);
+    if (path_len >= sizeof(path)) {
+        return;
+    }
+
     for (unsigned int i = class_start; i < path_len; ++i) {
         if (path[i] == '\\') {
             path[i] = '/';
@@ -158,6 +162,10 @@ static void dd_load_files(const char *files_file) {
     zend_string *sources_path = get_global_DD_TRACE_SOURCES_PATH();
     int class_start = ZSTR_LEN(sources_path) + 1;
     size_t path_len = snprintf(path, sizeof(path), "%s/%s.php", ZSTR_VAL(sources_path), files_file);
+    if (path_len >= sizeof(path)) {
+        return;
+    }
+
     for (unsigned int i = class_start; i < path_len; ++i) {
         if (path[i] == '\\') {
             path[i] = '/';

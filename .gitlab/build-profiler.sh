@@ -10,16 +10,6 @@ if [ -d '/opt/rh/devtoolset-7' ] ; then
     set -eo pipefail
 fi
 
-# With clang 20, bindgen fails on aarch64:
-#  /usr/lib/llvm20/lib/clang/20/include/arm_vector_types.h:20:9: error: unknown type name '__mfp8'
-#  /usr/lib/llvm20/lib/clang/20/include/arm_vector_types.h:93:24: error: Neon vector size must be 64 or 128 bits
-#  /usr/lib/llvm20/lib/clang/20/include/arm_vector_types.h:94:24: error: Neon vector size must be 64 or 128 bits
-#  /usr/lib/llvm20/lib/clang/20/include/arm_neon.h:6374:25: error: incompatible constant for this __builtin_neon function
-# etc.
-if [ -f /sbin/apk ] && [ $(uname -m) = "aarch64" ]; then
-    ln -sf ../lib/llvm19/bin/clang /usr/bin/clang
-fi
-
 # On CentOS 7 aarch64, clang's resource dir isn't on the default include path,
 # causing bindgen to fail with "stddef.h not found".
 if [ -d '/opt/rh/devtoolset-7' ] && [ "$(uname -m)" = "aarch64" ]; then

@@ -1,8 +1,8 @@
 #pragma once
 
-#include <php.h>
 #include "attributes.h"
 #include "request_abort.h"
+#include <php.h>
 
 struct req_info {
     const char *nullable command_name; // for logging
