@@ -479,9 +479,9 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 typedef struct ddog_FfeResult {
-  struct _zend_string *value_json;
-  struct _zend_string *variant;
-  struct _zend_string *allocation_key;
+  _zend_string * value_json;
+  _zend_string * variant;
+  _zend_string * allocation_key;
   int32_t reason;
   int32_t error_code;
   bool do_log;
@@ -502,12 +502,12 @@ typedef struct ddog_FfeAttribute {
  * Passed as a single C-ABI struct so call sites can use designated initializers
  * and name the flags, instead of a positional sequence of bool args.
  */
-typedef struct ddog_DdogRemoteConfigFlags {
+typedef struct ddog_RemoteConfigFlags {
   bool live_debugging_enabled;
   bool appsec_activation;
   bool appsec_config;
   bool ffe_enabled;
-} ddog_DdogRemoteConfigFlags;
+} ddog_RemoteConfigFlags;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -1231,10 +1231,6 @@ typedef struct ddog_FfeExposure {
   uint64_t timestamp_ms;
   ddog_CharSlice flag_key;
   ddog_CharSlice subject_id;
-  /**
-   * UTF-8 JSON object. Empty, invalid, or non-object JSON is serialized as
-   * an empty subject attribute object.
-   */
   ddog_CharSlice subject_attributes_json;
   ddog_CharSlice allocation_key;
   ddog_CharSlice variant;
@@ -1243,13 +1239,12 @@ typedef struct ddog_FfeExposure {
 typedef struct ddog_Slice_FfeExposure {
   /**
    * Should be non-null and suitably aligned for the underlying type. It is
-   * allowed but not recommended for the pointer to be null when the len is
-   * zero.
+   * allowed to point to read-only memory if `len` is zero.
    */
   const struct ddog_FfeExposure *ptr;
   /**
    * The number of elements (not bytes) that `.ptr` points to. Must be less
-   * than or equal to [isize::MAX].
+   * than or equal to `isize::MAX`.
    */
   uintptr_t len;
 } ddog_Slice_FfeExposure;

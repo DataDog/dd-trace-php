@@ -18,61 +18,72 @@ if (PHP_DDTRACE != 'no') {
 	var version = PHP_VERSION * 100 + PHP_MINOR_VERSION;
 
 	var DDTRACE_EXT_SOURCES = "agent_info.c";
-	DDTRACE_EXT_SOURCES += " arrays.c";
-	DDTRACE_EXT_SOURCES += " asm_event.c";
-	DDTRACE_EXT_SOURCES += " auto_flush.c";
-	DDTRACE_EXT_SOURCES += " autoload_php_files.c";
-	DDTRACE_EXT_SOURCES += " code_origins.c";
-	DDTRACE_EXT_SOURCES += " collect_backtrace.c";
-	DDTRACE_EXT_SOURCES += " compat_string.c";
 	DDTRACE_EXT_SOURCES += " configuration.c";
-	DDTRACE_EXT_SOURCES += " distributed_tracing_headers.c";
-	DDTRACE_EXT_SOURCES += " ddshared.c";
-	DDTRACE_EXT_SOURCES += " dogstatsd.c";
-	DDTRACE_EXT_SOURCES += " endpoint_guessing.c";
-	DDTRACE_EXT_SOURCES += " engine_api.c";
-	DDTRACE_EXT_SOURCES += " engine_hooks.c";
-	DDTRACE_EXT_SOURCES += " exception_serialize.c";
+	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
+	DDTRACE_EXT_SOURCES += " endpoints.c";
 	DDTRACE_EXT_SOURCES += " excluded_modules.c";
 	DDTRACE_EXT_SOURCES += " git.c";
 	DDTRACE_EXT_SOURCES += " handlers_api.c";
-	DDTRACE_EXT_SOURCES += " handlers_curl" + (version < 800 ? "_php7" : "") + ".c";
-	DDTRACE_EXT_SOURCES += " handlers_exception.c";
-	DDTRACE_EXT_SOURCES += " handlers_httpstreams.c";
-	DDTRACE_EXT_SOURCES += " handlers_internal.c";
-	DDTRACE_EXT_SOURCES += " handlers_kafka.c";
 	DDTRACE_EXT_SOURCES += " handlers_pcntl.c";
-	DDTRACE_EXT_SOURCES += " inferred_proxy_headers.c";
-	DDTRACE_EXT_SOURCES += " ip_extraction.c";
-	DDTRACE_EXT_SOURCES += " standalone_limiter.c";
-	DDTRACE_EXT_SOURCES += " live_debugger.c";
 	DDTRACE_EXT_SOURCES += " logging.c";
-	DDTRACE_EXT_SOURCES += " memory_limit.c";
 	DDTRACE_EXT_SOURCES += " otel_config.c";
+	DDTRACE_EXT_SOURCES += " phpinfo.c";
 	DDTRACE_EXT_SOURCES += " process_tags.c";
-	DDTRACE_EXT_SOURCES += " profiling.c";
-	DDTRACE_EXT_SOURCES += " random.c";
 	DDTRACE_EXT_SOURCES += " remote_config.c";
-	DDTRACE_EXT_SOURCES += " serializer.c";
 	DDTRACE_EXT_SOURCES += " sidecar.c";
-	DDTRACE_EXT_SOURCES += " span.c";
-	DDTRACE_EXT_SOURCES += " span_stats.c";
 	DDTRACE_EXT_SOURCES += " startup_logging.c";
+	DDTRACE_EXT_SOURCES += " string_utils.c";
+	DDTRACE_EXT_SOURCES += " target_metadata.c";
 	DDTRACE_EXT_SOURCES += " telemetry.c";
-	DDTRACE_EXT_SOURCES += " trace_source.c";
-	DDTRACE_EXT_SOURCES += " trace_filter.c";
 	DDTRACE_EXT_SOURCES += " threads.c";
-	DDTRACE_EXT_SOURCES += " user_request.c";
-	DDTRACE_EXT_SOURCES += " weak_resources.c";
-	DDTRACE_EXT_SOURCES += " crashtracking_windows.c";
 	if (version >= 800 && version < 802) {
-		DDTRACE_EXT_SOURCES += " weakrefs.c";
-	}
-	if (version >= 801) {
-		DDTRACE_EXT_SOURCES += " handlers_fiber.c";
+		DDTRACE_EXT_SOURCES += " patch_zend_call_known_function.c";
 	}
 	if (version < 703 || version == 803) {
 		DDTRACE_EXT_SOURCES += " zend_hrtime.c";
+	}
+
+	var DDTRACE_TRACER_SOURCES = "ddtrace.c";
+	DDTRACE_TRACER_SOURCES += " asm_event.c";
+	DDTRACE_TRACER_SOURCES += " auto_flush.c";
+	DDTRACE_TRACER_SOURCES += " autoload_php_files.c";
+	DDTRACE_TRACER_SOURCES += " code_origins.c";
+	DDTRACE_TRACER_SOURCES += " collect_backtrace.c";
+	DDTRACE_TRACER_SOURCES += " distributed_tracing_headers.c";
+	DDTRACE_TRACER_SOURCES += " endpoint_guessing.c";
+	DDTRACE_TRACER_SOURCES += " engine_api.c";
+	DDTRACE_TRACER_SOURCES += " engine_hooks.c";
+	DDTRACE_TRACER_SOURCES += " exception_serialize.c";
+	DDTRACE_TRACER_SOURCES += " functions.c";
+	DDTRACE_TRACER_SOURCES += " git_metadata.c";
+	DDTRACE_TRACER_SOURCES += " handlers_curl" + (version < 800 ? "_php7" : "") + ".c";
+	DDTRACE_TRACER_SOURCES += " handlers_exception.c";
+	DDTRACE_TRACER_SOURCES += " handlers_httpstreams.c";
+	DDTRACE_TRACER_SOURCES += " handlers_internal.c";
+	DDTRACE_TRACER_SOURCES += " handlers_kafka.c";
+	DDTRACE_TRACER_SOURCES += " inferred_proxy_headers.c";
+	DDTRACE_TRACER_SOURCES += " ip_extraction.c";
+	DDTRACE_TRACER_SOURCES += " live_debugger.c";
+	DDTRACE_TRACER_SOURCES += " memory_limit.c";
+	DDTRACE_TRACER_SOURCES += " tracer_otel_config.c";
+	DDTRACE_TRACER_SOURCES += " profiling.c";
+	DDTRACE_TRACER_SOURCES += " random.c";
+	DDTRACE_TRACER_SOURCES += " rule_matching.c";
+	DDTRACE_TRACER_SOURCES += " serializer.c";
+	DDTRACE_TRACER_SOURCES += " span.c";
+	DDTRACE_TRACER_SOURCES += " span_stats.c";
+	DDTRACE_TRACER_SOURCES += " standalone_limiter.c";
+	DDTRACE_TRACER_SOURCES += " trace_filter.c";
+	DDTRACE_TRACER_SOURCES += " trace_source.c";
+	DDTRACE_TRACER_SOURCES += " tracer_startup_logging.c";
+	DDTRACE_TRACER_SOURCES += " tracer_telemetry.c";
+	DDTRACE_TRACER_SOURCES += " user_request.c";
+	DDTRACE_TRACER_SOURCES += " weak_resources.c";
+	if (version >= 800 && version < 802) {
+		DDTRACE_TRACER_SOURCES += " weakrefs.c";
+	}
+	if (version >= 801) {
+		DDTRACE_TRACER_SOURCES += " handlers_fiber.c";
 	}
 
 	var DDTRACE_HOOK_SOURCES = "uhook.c uhook_legacy.c";
@@ -83,9 +94,8 @@ if (PHP_DDTRACE != 'no') {
 	var zai_dirname = configure_module_dirname + "/zend_abstract_interface";
 	var components_dirname = configure_module_dirname + "/components";
 
-	EXTENSION('ddtrace', "ext\\ddtrace.c");
+	EXTENSION('ddtrace', "ext\\datadog.c");
 	ADD_FLAG("CFLAGS_DDTRACE", " /I " + configure_module_dirname + " ");
-	ADD_FLAG("CFLAGS_DDTRACE", " /I " + configure_module_dirname + "/ext ");
 	// ADD_FLAG("CFLAGS_DDTRACE", " /I " + configure_module_dirname + "/src/dogstatsd ");
 	ADD_FLAG("CFLAGS_DDTRACE", " /I " + zai_dirname + " ");
 
@@ -96,12 +106,15 @@ if (PHP_DDTRACE != 'no') {
 		ADD_FLAG("CFLAGS_DDTRACE", " /Zc:preprocessor ");
 	}
 
+	ADD_FLAG("CFLAGS_DDTRACE", " /DDDTRACE ");
+
 	ADD_SOURCES(configure_module_dirname + "/ext", DDTRACE_EXT_SOURCES, "ddtrace");
-	ADD_SOURCES(configure_module_dirname + "/ext/hook", DDTRACE_HOOK_SOURCES, "ddtrace");
-	ADD_SOURCES(configure_module_dirname + "/ext/integrations", "exec_integration.c integrations.c", "ddtrace");
-	ADD_SOURCES(configure_module_dirname + "/ext/limiter", "limiter.c", "ddtrace");
-	ADD_SOURCES(configure_module_dirname + "/ext/priority_sampling", "priority_sampling.c", "ddtrace");
-	ADD_SOURCES(configure_module_dirname + "/ext/tracer_tag_propagation", "tracer_tag_propagation.c", "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer", DDTRACE_TRACER_SOURCES, "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer/hook", DDTRACE_HOOK_SOURCES, "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer/integrations", "exec_integration.c integrations.c", "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer/limiter", "limiter.c", "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer/priority_sampling", "priority_sampling.c", "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer/tracer_tag_propagation", "tracer_tag_propagation.c", "ddtrace");
 
 	ADD_SOURCES(zai_dirname + "/config", "config.c config_decode.c config_ini.c config_stable_file.c config_runtime.c", "ddtrace");
 	ADD_SOURCES(zai_dirname + "/env", "env.c", "ddtrace");
@@ -121,8 +134,8 @@ if (PHP_DDTRACE != 'no') {
 		ADD_SOURCES(zai_dirname + "/interceptor/php8", "interceptor.c resolver" + (version < 802 ? "_pre-8_2" : "") + ".c", "ddtrace");
 	}
 
-	ADD_SOURCES(configure_module_dirname + "/ext/vendor/mpack", "mpack.c", "ddtrace");
-	ADD_SOURCES(configure_module_dirname + "/ext/vendor/mt19937", "mt19937-64.c", "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mpack", "mpack.c", "ddtrace");
+	ADD_SOURCES(configure_module_dirname + "/tracer/vendor/mt19937", "mt19937-64.c", "ddtrace");
 	// ADD_SOURCES(configure_module_dirname + "/src/dogstatsd", "client.c", "ddtrace");
 
 	ADD_SOURCES(components_dirname + "/log", "log.c", "ddtrace");
@@ -151,7 +164,7 @@ if (PHP_DDTRACE != 'no') {
 
 	var rust_files = recursivelySearchRustFiles(configure_module_dirname + "/libdatadog").concat(recursivelySearchRustFiles(configure_module_dirname + "/components-rs"));
 
-	var cargo_lib = "$(BUILD_DIR)/target/" + ddtrace_cargo_profile + "/ddtrace_php.lib";
+	var cargo_lib = "$(BUILD_DIR)/target/" + ddtrace_cargo_profile + "/datadog_php.lib";
 
 	var fragment = configure_module_dirname + "/Makefile.frag.w32";
 	frag_out = FSO.CreateTextFile(fragment, true);
@@ -166,7 +179,7 @@ if (PHP_DDTRACE != 'no') {
 	// Not supported yet on Windows: --cfg tokio_unstable --cfg tokio_taskdump
 	frag_out.WriteLine("!endif");
 	frag_out.WriteLine(cargo_lib + ": " + rust_files.join(" "));
-	var build_cargo = "\t$(CARGO) build --package ddtrace-php " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
+	var build_cargo = "\t$(CARGO) build --package datadog-php " + (ddtrace_cargo_profile == "release" ? "--profile tracer-release" : "");
 	if (configure_module_dirname.match(/^[A-Z]:/)) {
 		frag_out.WriteLine(build_cargo);
 	} else {
@@ -183,9 +196,9 @@ if (PHP_DDTRACE != 'no') {
 	var defpath = configure_module_dirname + "/ddtrace.def";
 	deffile = FSO.CreateTextFile(defpath, true);
 	deffile.WriteLine("EXPORTS");
-	var contents = FSO.OpenTextFile(configure_module_dirname + "/ddtrace.sym", 1).ReadAll();
+	var contents = FSO.OpenTextFile(configure_module_dirname + "/datadog.sym", 1).ReadAll();
 	contents = contents.replace(/ddog_crashtracker_entry_point\s*/, ""); // unix-only symbol
-    contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/ddtrace-windows.sym", 1).ReadAll();
+    contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/datadog-windows.sym", 1).ReadAll();
 	if (!PHP_DDTRACE_SHARED) {
 		contents = contents.replace(/get_module\s*/, "");
 	}
