@@ -1,6 +1,7 @@
 #include <ext/datadog.h>
 #include <Zend/zend_extensions.h>
 
+#ifdef DDTRACE
 // Primary lifecycle
 int ddtrace_startup(zend_extension *extension);
 void ddtrace_shutdown(zend_extension *extension);
@@ -29,8 +30,14 @@ void ddtrace_telemetry_register_services(ddog_SidecarTransport **sidecar);
 void ddtrace_telemetry_finalize(void);
 
 // Other
+ddtrace_span_data *ddtrace_active_span(void);
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags);
+extern ddog_LiveDebuggerSetup ddtrace_live_debugger_setup;
+#endif
+
+// Miscellaneous stuff with fallback functions
 #ifdef DDTRACE
+ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(void);
 void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, zend_string **env, zend_string **version);
 #else
 static inline void ddtrace_populate_span_data(ddtrace_span_data *span, zend_string **service, zend_string **env, zend_string **version) {
@@ -38,14 +45,7 @@ static inline void ddtrace_populate_span_data(ddtrace_span_data *span, zend_stri
     *env = NULL;
     *version = NULL;
 }
-#endif
-extern ddog_LiveDebuggerSetup ddtrace_live_debugger_setup;
 
-ddtrace_span_data *ddtrace_active_span(void);
-
-#ifdef DDTRACE
-ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(void);
-#else
 static inline ddog_DynamicInstrumentationConfigState ddtrace_dynamic_instrumentation_state(void) {
     return DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_DISABLED;
 }
