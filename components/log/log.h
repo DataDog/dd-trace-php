@@ -1,7 +1,8 @@
 #ifndef COMPONENT_LOG_H
 #define COMPONENT_LOG_H
 
-#include "../../components-rs/ddtrace.h"
+#include <components-rs/common.h>
+#include <components-rs/datadog.h>
 
 #ifndef _WIN32
 extern __thread ddog_Log _ddog_log_source_value;

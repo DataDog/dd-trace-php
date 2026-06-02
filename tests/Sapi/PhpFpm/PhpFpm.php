@@ -105,6 +105,7 @@ final class PhpFpm implements Sapi
 
         $this->configFile = sys_get_temp_dir() . uniqid('/www-conf-', true);
         $this->logFile = fopen($logPath, "a+");
+        fseek($this->logFile, 0, SEEK_END);
 
         // This gets logged to phpunit_error.log (check CircleCI artifacts)
         error_log("[php-fpm] Generated config file '{$this->configFile}'");
@@ -158,6 +159,11 @@ final class PhpFpm implements Sapi
         }
 
         return false;
+    }
+
+    public function getProcessPid()
+    {
+        return $this->process ? $this->process->getPid() : null;
     }
 
     public function stop()

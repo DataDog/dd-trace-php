@@ -47,7 +47,7 @@ $root->resource = "GET /test";
 $root->service = "stats-test-service";
 \DDTrace\close_span();
 
-dd_trace_internal_fn('synchronous_flush');
+dd_trace_internal_fn('synchronous_flush', 5000);
 $rr->waitForDataAndReplay();
 
 // The request-replayer stores the msgpack-decoded body as JSON, with OkSummary/ErrorSummary

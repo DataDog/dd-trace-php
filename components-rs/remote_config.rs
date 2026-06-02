@@ -54,11 +54,11 @@ static mut DYNAMIC_CONFIG_UPDATE: Option<DynamicConfigUpdate> = None;
 
 type VecRemoteConfigProduct = libdd_common_ffi::Vec<RemoteConfigProduct>;
 #[no_mangle]
-pub static mut DDTRACE_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = libdd_common_ffi::Vec::new();
+pub static mut DATADOG_REMOTE_CONFIG_PRODUCTS: VecRemoteConfigProduct = libdd_common_ffi::Vec::new();
 
 type VecRemoteConfigCapabilities = libdd_common_ffi::Vec<RemoteConfigCapabilities>;
 #[no_mangle]
-pub static mut DDTRACE_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities =
+pub static mut DATADOG_REMOTE_CONFIG_CAPABILITIES: VecRemoteConfigCapabilities =
     libdd_common_ffi::Vec::new();
 
 struct ActiveDynamicConfig {
@@ -122,7 +122,7 @@ pub struct LiveDebuggerState {
 /// Passed as a single C-ABI struct so call sites can use designated initializers
 /// and name the flags, instead of a positional sequence of bool args.
 #[repr(C)]
-pub struct DdogRemoteConfigFlags {
+pub struct RemoteConfigFlags {
     pub live_debugging_enabled: bool,
     pub appsec_activation: bool,
     pub appsec_config: bool,
@@ -131,43 +131,46 @@ pub struct DdogRemoteConfigFlags {
 
 #[no_mangle]
 #[allow(static_mut_refs)]
-pub unsafe extern "C" fn ddog_init_remote_config(flags: DdogRemoteConfigFlags) {
-    let DdogRemoteConfigFlags {
+pub unsafe extern "C" fn ddog_init_remote_config(flags: RemoteConfigFlags) {
+    let RemoteConfigFlags {
         live_debugging_enabled,
         appsec_activation,
         appsec_config,
         ffe_enabled,
     } = flags;
 
-    DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::ApmTracing);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingCustomTags);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingEnabled);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingHttpHeaderTags);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingLogsInjection);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingMulticonfig);
+    mem::take(&mut DATADOG_REMOTE_CONFIG_PRODUCTS);
+    mem::take(&mut DATADOG_REMOTE_CONFIG_CAPABILITIES);
 
-    DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
-    DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
+    DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::ApmTracing);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingCustomTags);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingEnabled);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingHttpHeaderTags);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingLogsInjection);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRate);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingSampleRules);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::ApmTracingMulticonfig);
+
+    DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmFeatures);
+    DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmAutoUserInstrumMode);
 
     if appsec_activation {
-        DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmActivation);
+        DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::AsmActivation);
     }
 
     if ffe_enabled {
-        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::FfeFlags);
-        DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::FfeFlagConfigurationRules);
+        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::FfeFlags);
+        DATADOG_REMOTE_CONFIG_CAPABILITIES.push(RemoteConfigCapabilities::FfeFlagConfigurationRules);
     }
 
     if live_debugging_enabled {
-        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::LiveDebugger)
+        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::LiveDebugger)
     }
 
     if appsec_config {
-        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmData);
-        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmDD);
-        DDTRACE_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::Asm);
+        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmData);
+        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::AsmDD);
+        DATADOG_REMOTE_CONFIG_PRODUCTS.push(RemoteConfigProduct::Asm);
         [
             RemoteConfigCapabilities::AsmIpBlocking,
             RemoteConfigCapabilities::AsmDdRules,
@@ -191,7 +194,7 @@ pub unsafe extern "C" fn ddog_init_remote_config(flags: DdogRemoteConfigFlags) {
             RemoteConfigCapabilities::AsmCustomDataScanners,
         ]
         .iter()
-        .for_each(|c| DDTRACE_REMOTE_CONFIG_CAPABILITIES.push(*c));
+        .for_each(|c| DATADOG_REMOTE_CONFIG_CAPABILITIES.push(*c));
     }
 }
 

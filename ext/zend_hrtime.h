@@ -1,5 +1,5 @@
-#ifndef DD_HRTIME_H
-#define DD_HRTIME_H
+#ifndef DATADOG_HRTIME_H
+#define DATADOG_HRTIME_H
 
 #include <main/php_version.h>
 #include <Zend/zend_portability.h>
@@ -42,7 +42,7 @@ extern mach_timebase_info_data_t zend_hrtime_timerlib_info;
 
 typedef uint64_t zend_hrtime_t;
 
-void ddtrace_startup_hrtime(void);
+void datadog_startup_hrtime(void);
 
 static zend_always_inline zend_hrtime_t zend_hrtime(void)
 {
@@ -69,4 +69,4 @@ static zend_always_inline zend_hrtime_t zend_hrtime(void)
 #else
 #include <Zend/zend_hrtime.h>
 #endif
-#endif /* DD_HRTIME_H */
+#endif /* DATADOG_HRTIME_H */

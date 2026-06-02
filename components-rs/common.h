@@ -479,9 +479,9 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
 typedef struct ddog_FfeResult {
-  struct _zend_string *value_json;
-  struct _zend_string *variant;
-  struct _zend_string *allocation_key;
+  _zend_string * value_json;
+  _zend_string * variant;
+  _zend_string * allocation_key;
   int32_t reason;
   int32_t error_code;
   bool do_log;
@@ -502,12 +502,12 @@ typedef struct ddog_FfeAttribute {
  * Passed as a single C-ABI struct so call sites can use designated initializers
  * and name the flags, instead of a positional sequence of bool args.
  */
-typedef struct ddog_DdogRemoteConfigFlags {
+typedef struct ddog_RemoteConfigFlags {
   bool live_debugging_enabled;
   bool appsec_activation;
   bool appsec_config;
   bool ffe_enabled;
-} ddog_DdogRemoteConfigFlags;
+} ddog_RemoteConfigFlags;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,

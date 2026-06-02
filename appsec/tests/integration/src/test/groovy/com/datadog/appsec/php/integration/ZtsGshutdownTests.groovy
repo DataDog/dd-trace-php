@@ -56,6 +56,7 @@ class ZtsGshutdownTests {
             )
             .withEnv('DD_CRASHTRACKING_ENABLED', '0')
             .withEnv('DD_INSTRUMENTATION_TELEMETRY_ENABLED', '0')
+            .withEnv('DD_TRACE_SIDECAR_TRACE_SENDER', '0')
 
     static void main(String[] args) {
         InspectContainerHelper.run(CONTAINER)
