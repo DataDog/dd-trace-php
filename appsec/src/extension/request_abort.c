@@ -94,6 +94,15 @@ static void _emit_error(const char *format, ...);
 static zend_string *nonnull _get_json_blocking_template(void);
 static zend_string *nonnull _get_html_blocking_template(void);
 
+static zend_string *nonnull _get_empty_blocking_template(void)
+{
+    if (zend_empty_string != NULL) {
+        return zend_empty_string;
+    }
+
+    return zend_string_init("", 0, 0);
+}
+
 static inline bool _is_valid_redirect_code(int code)
 {
     return code >= 300 && code < 400; // NOLINT
@@ -540,7 +549,8 @@ static void _force_destroy_output_handlers(void)
 
     if (OG(handlers).elements) {
         php_output_handler **handler;
-        while ((handler = zend_stack_top(&OG(handlers)))) {
+        while (
+            (handler = (php_output_handler **)zend_stack_top(&OG(handlers)))) {
             php_output_handler_free(handler);
             zend_stack_del_top(&OG(handlers));
         }
@@ -667,9 +677,9 @@ static void _run_rshutdowns(void)
 
     mlog_g(dd_log_debug, "Running remaining extensions' RSHUTDOWN");
     for (zend_hash_internal_pointer_end_ex(&module_registry, &pos);
-         (module = zend_hash_get_current_data_ptr_ex(&module_registry, &pos)) !=
-         NULL;
-         zend_hash_move_backwards_ex(&module_registry, &pos)) {
+        (module = zend_hash_get_current_data_ptr_ex(&module_registry, &pos)) !=
+        NULL;
+        zend_hash_move_backwards_ex(&module_registry, &pos)) {
         if (!found_ddappsec && strcmp("ddappsec", module->name) == 0) {
             found_ddappsec = true;
             continue;
@@ -809,7 +819,7 @@ static zend_string *nonnull _get_json_blocking_template(void)
         // * if the template file is not found, return an empty template
         // * if the template file is empty, return the default
         if (!body_error_json) {
-            return zend_empty_string;
+            return _get_empty_blocking_template();
         }
         if (ZSTR_LEN(body_error_json) == 0) {
             zend_string_release(body_error_json);
@@ -830,7 +840,7 @@ static zend_string *nonnull _get_html_blocking_template(void)
         zend_string *nullable body_error_html =
             _read_file_contents(ZSTR_VAL(html_template_file));
         if (!body_error_html) {
-            return zend_empty_string;
+            return _get_empty_blocking_template();
         }
         if (ZSTR_LEN(body_error_html) == 0) {
             zend_string_release(body_error_html);

@@ -216,7 +216,9 @@ void format_waf_result(
             const parameter_view actions_pv{*actions};
             for (const auto &action : actions_pv) {
                 dds::action a{
-                    parse_action_type_string(std::string(action.key())), {}};
+                    .type = parse_action_type_string(std::string(action.key())),
+                    .parameters = {},
+                };
                 for (const auto &parameter : action) {
                     std::string value;
                     // As of libddwaf 1.28.0, status_code and grpc_status_code
@@ -689,7 +691,8 @@ void instance::listener::call(dds::parameter_view &data, event &event,
     switch (code) {
     case DDWAF_MATCH:
         rule_triggered_ = true;
-        return format_waf_result(actions, events, event);
+        format_waf_result(actions, events, event);
+        return;
     case DDWAF_ERR_INTERNAL:
         waf_run_error_ = true;
         throw internal_error();

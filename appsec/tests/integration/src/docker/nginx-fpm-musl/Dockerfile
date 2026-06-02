@@ -18,7 +18,7 @@ ENV CARGO_HOME=/usr/local/cargo \
     LIBCLANG_PATH=/usr/lib
 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
-    sh -s -- -y --default-toolchain 1.84.1 --no-modify-path && \
+    sh -s -- -y --default-toolchain 1.87.0 --no-modify-path && \
     chmod -R 777 /usr/local/cargo /usr/local/rustup && \
     ln -sf /usr/local/cargo/bin/{cargo,rustc} /usr/local/bin/ && \
     rustup toolchain install nightly-$(uname -m)-unknown-linux-musl && \

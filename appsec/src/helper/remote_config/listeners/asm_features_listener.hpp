@@ -17,7 +17,7 @@ class asm_features_listener : public listener_base {
 public:
     explicit asm_features_listener(
         std::shared_ptr<dds::service_config> service_config)
-        : service_config_(std::move(service_config)){};
+        : service_config_(std::move(service_config)) {};
 
     void init() override;
     void on_update(const config &config) override;

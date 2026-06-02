@@ -192,7 +192,7 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
         return true;
     }
     for (const char *end = ct + ct_len, *c = psemi + 1;
-         c < end - LSTRLEN("charset=utf-8") + 1; c++) {
+        c < end - LSTRLEN("charset=utf-8") + 1; c++) {
         if (tolower(*c) == 'c' && tolower(*(c + 1)) == 'h' &&
             tolower(*(c + 2)) == 'a' && tolower(*(c + 3)) == 'r' &&
             tolower(*(c + 4)) == 's' && tolower(*(c + 5)) == 'e' && // NOLINT
@@ -214,7 +214,7 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
     return true;
 }
 
-#define MAX_XML_DEPTH 30
+enum { MAX_XML_DEPTH = 30 };
 static zval _convert_xml(const char *nonnull entity, size_t entity_len,
     const char *nonnull content_type, size_t content_type_len)
 {
@@ -244,7 +244,7 @@ PHP_FUNCTION(datadog_appsec_convert_xml)
 PHP_FUNCTION(datadog_appsec_convert_json)
 {
     zend_string *entity;
-#define MAX_DEPTH_DEFAULT 30
+    enum { MAX_DEPTH_DEFAULT = 30 };
     zend_long max_depth = MAX_DEPTH_DEFAULT;
     ZEND_PARSE_PARAMETERS_START(1, 2) // NOLINT
     Z_PARAM_STR(entity)

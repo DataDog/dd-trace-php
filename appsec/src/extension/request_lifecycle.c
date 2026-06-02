@@ -52,7 +52,7 @@ static THREAD_LOCAL_ON_ZTS zval _blocking_function;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
-#define MAX_LENGTH_OF_REM_CFG_PATH 31
+enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
