@@ -1936,6 +1936,7 @@ static PHP_RSHUTDOWN_FUNCTION(ddtrace) {
         ddtrace_rshutdown_remote_config();
     }
 
+    // CLI scripts have one request lifetime, so long-running scripts flush exposure batches only on exit.
     ddtrace_ffe_flush_exposures();
 
     if (!ddtrace_disable) {
