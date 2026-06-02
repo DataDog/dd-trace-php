@@ -41,9 +41,6 @@ typedef struct {
 } ddtrace_ffe_exposure;
 
 static void ddtrace_ffe_release_exposure(ddtrace_ffe_exposure *exposure) {
-    if (!exposure) {
-        return;
-    }
     if (exposure->flag_key) {
         zend_string_release(exposure->flag_key);
     }
