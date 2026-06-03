@@ -7,7 +7,7 @@
 #else
 #include <components/atomic_win32_polyfill.h>
 #endif
-#include <tracer/configuration.h>
+#include "configuration.h"
 #include <hook/hook.h>
 #include <components-rs/datadog.h>
 #include "telemetry.h"

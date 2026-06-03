@@ -15,6 +15,7 @@ void ddtrace_minit_early(int module_number);
 void ddtrace_minit_late(void);
 void ddtrace_mshutdown(void);
 void ddtrace_first_rinit(void);
+void ddtrace_rinit_early(void);
 void ddtrace_rinit(void);
 void ddtrace_rshutdown(bool fast_shutdown);
 void ddtrace_post_deactivate(void);
@@ -33,6 +34,8 @@ void ddtrace_telemetry_finalize(void);
 ddtrace_span_data *ddtrace_active_span(void);
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags);
 extern ddog_LiveDebuggerSetup ddtrace_live_debugger_setup;
+void ddtrace_live_debugger_rinit(void);
+void ddtrace_live_debugger_rshutdown(void);
 #endif
 
 // Miscellaneous stuff with fallback functions
