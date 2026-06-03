@@ -19,7 +19,7 @@ namespace dds {
 template <typename T> class rate_limiter {
 public:
     explicit rate_limiter(uint32_t max_per_second)
-        : max_per_second_(max_per_second){};
+        : max_per_second_(max_per_second) {};
     bool allow()
     {
         SPDLOG_TRACE("rate_limiter: allow() called");

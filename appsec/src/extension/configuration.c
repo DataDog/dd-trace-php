@@ -175,7 +175,7 @@ static void _register_testing_objects(void);
 bool dd_config_minit(int module_number)
 {
     if (!zai_config_minit(config_entries,
-            (sizeof config_entries / sizeof *config_entries),
+            (sizeof(config_entries) / sizeof(*config_entries)),
             dd_ini_env_to_ini_name, module_number)) {
         mlog(dd_log_fatal, "Unable to load configuration.");
         return false;
@@ -210,7 +210,7 @@ static PHP_FUNCTION(datadog_appsec_testing_zai_config_get_value)
         RETURN_FALSE;
     }
 
-    unsigned entries = sizeof config_entries / sizeof *config_entries;
+    unsigned entries = sizeof(config_entries) / sizeof(*config_entries);
     for (unsigned i = 0; i < entries; i++) {
         if (strcmp(ZSTR_VAL(key), config_entries[i].name.ptr) == 0) {
             RETURN_ZVAL(zai_config_get_value(config_entries[i].id),
@@ -228,7 +228,7 @@ static PHP_FUNCTION(datadog_appsec_testing_zai_config_get_global_value)
         RETURN_FALSE;
     }
 
-    unsigned entries = sizeof config_entries / sizeof *config_entries;
+    unsigned entries = sizeof(config_entries) / sizeof(*config_entries);
     for (unsigned i = 0; i < entries; i++) {
         if (strcmp(ZSTR_VAL(key), config_entries[i].name.ptr) == 0) {
             zval *value = &zai_config_memoized_entries[config_entries[i].id]

@@ -25,6 +25,9 @@ $rr = new RequestReplayer();
 $get_sampling = function() use ($rr) {
     $root = json_decode($rr->waitForDataAndReplay()["body"], true);
     $spans = $root["chunks"][0]["spans"] ?? $root[0];
+    // Ensure the BGS has finished processing the HTTP response (writing agent rates to SHM)
+    // before the caller changes the mock response.
+    dd_trace_internal_fn("synchronous_flush");
     return $spans[0]["metrics"]["_sampling_priority_v1"];
 };
 

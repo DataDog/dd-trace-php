@@ -21,7 +21,8 @@ extern "C" {
  * @param max_depth Maximum recursion depth for nested structures
  * @return zval containing parsed data, or NULL zval on failure
  */
-zval dd_parse_json_truncated(const char* json_data, size_t json_len, int max_depth);
+zval dd_parse_json_truncated(
+    const char *json_data, size_t json_len, int max_depth);
 
 #ifdef __cplusplus
 }

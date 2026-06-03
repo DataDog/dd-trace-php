@@ -1,6 +1,6 @@
 The base image should be built and published first, before other jobs run.
 
-The images are versioned, unlike the buster image. This so that when you are
+The images are versioned. This so that when you are
 working on the next version of the image, you don't have to worry about
 breaking master; you only have to worry about other people also working on
 the next version. Version numbers are maintained in .env, and the

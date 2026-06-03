@@ -1,10 +1,13 @@
-#ifndef DD_GIT_H
-#define DD_GIT_H
+#ifndef DATADOG_GIT_H
+#define DATADOG_GIT_H
 #include <Zend/zend_types.h>
 #include <stdbool.h>
 
-void ddtrace_inject_git_metadata(zval *git_metadata_zv);
-void ddtrace_git_metadata_dtor(zval *val);
-void ddtrace_clean_git_object(void);
+// Returns git strings for the current request, caching on first call.
+// Output strings are borrowed (owned by DATADOG_G, caller must not release).
+// Returns true if at least one string is non-NULL.
+bool datadog_get_git_metadata(zend_string **out_commit, zend_string **out_repo);
+void datadog_git_rshutdown(void);
+void datadog_git_metadata_dtor(zval *val);
 
-#endif // DD_GIT_H
+#endif // DATADOG_GIT_H

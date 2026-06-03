@@ -35,10 +35,10 @@ std::unique_ptr<network::base_acceptor> acceptor_from_config(
     const config::config &cfg)
 {
     std::string_view const sock_path{cfg.socket_file_path()};
-    if (sock_path.size() >= 4 && sock_path.substr(0, 3) == "fd:") {
+    if (sock_path.size() >= 4 && sock_path.starts_with("fd:")) {
         auto rest{sock_path.substr(3)};
         int const fd = std::stoi(std::string{rest}); // can throw
-        struct stat statbuf {};
+        struct stat statbuf{};
         int const res = fstat(fd, &statbuf);
         if (res == -1 || !S_ISSOCK(statbuf.st_mode)) {
             throw std::invalid_argument{

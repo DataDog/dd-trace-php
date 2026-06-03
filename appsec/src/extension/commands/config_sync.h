@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "../network.h"
 #include "../ddtrace.h"
+#include "../network.h"
 
 struct config_sync_data {
     char *nullable rem_cfg_path;

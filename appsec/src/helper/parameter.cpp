@@ -84,6 +84,7 @@ parameter parameter::string(std::string_view str) noexcept
     length_type const length =
         str.length() <= max_length ? str.length() : max_length;
     ddwaf_object obj;
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
     ddwaf_object_stringl(&obj, str.data(), length);
     return parameter{obj};
 }
@@ -124,6 +125,7 @@ bool parameter::add(std::string_view name, parameter &&entry) noexcept
 {
     length_type const length =
         name.length() <= max_length ? name.length() : max_length;
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
     if (!ddwaf_object_map_addl(this, name.data(), length, entry)) {
         return false;
     }

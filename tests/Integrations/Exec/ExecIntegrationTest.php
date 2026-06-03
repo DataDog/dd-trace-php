@@ -621,7 +621,7 @@ class ExecIntegrationTest extends IntegrationTestCase
     public function testShellExecInheritsSessionIds()
     {
         // For shell functions (no explicit env), subprocesses inherit the process
-        // environment. ddtrace_generate_session_id() sets _DD_PARENT_PHP_SESSION_ID
+        // environment. datadog_generate_session_id() sets _DD_PARENT_PHP_SESSION_ID
         // and _DD_ROOT_PHP_SESSION_ID in the process env at startup, so they are
         // always available to child processes without any extra injection.
         $expectedParent = (string)getenv('_DD_PARENT_PHP_SESSION_ID');

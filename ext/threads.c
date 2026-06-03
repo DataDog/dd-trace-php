@@ -6,7 +6,7 @@
 #undef zend_signal_globals_id
 #undef zend_signal_globals_offset
 #undef zend_signal_handler_unblock
-#include "ddtrace.h"
+#include "datadog.h"
 
 #if ZTS
 
@@ -24,13 +24,13 @@ __attribute__((weak)) size_t zend_signal_globals_offset;
 __attribute__((weak)) void zend_signal_handler_unblock(void);
 #endif
 
-HashTable ddtrace_tls_bases; // map thread id to TSRMLS_CACHE
-MUTEX_T ddtrace_threads_mutex = NULL;
+HashTable datadog_tls_bases; // map thread id to TSRMLS_CACHE
+MUTEX_T datadog_threads_mutex = NULL;
 
-void ddtrace_thread_ginit() {
-    if (!ddtrace_threads_mutex) {
-        ddtrace_threads_mutex = tsrm_mutex_alloc();
-        zend_hash_init(&ddtrace_tls_bases, 8, NULL, NULL, 1);
+void datadog_thread_ginit() {
+    if (!datadog_threads_mutex) {
+        datadog_threads_mutex = tsrm_mutex_alloc();
+        zend_hash_init(&datadog_tls_bases, 8, NULL, NULL, 1);
     }
 
 #ifdef ZEND_SIGNALS
@@ -39,11 +39,11 @@ void ddtrace_thread_ginit() {
         HANDLE_BLOCK_INTERRUPTIONS();
     }
 #endif
-    tsrm_mutex_lock(ddtrace_threads_mutex);
+    tsrm_mutex_lock(datadog_threads_mutex);
 
-    zend_hash_index_add_new_ptr(&ddtrace_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id(), TSRMLS_CACHE);
+    zend_hash_index_add_new_ptr(&datadog_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id(), TSRMLS_CACHE);
 
-    tsrm_mutex_unlock(ddtrace_threads_mutex);
+    tsrm_mutex_unlock(datadog_threads_mutex);
 #ifdef ZEND_SIGNALS
     if (zend_signal_globals_id) {
         HANDLE_UNBLOCK_INTERRUPTIONS();
@@ -51,29 +51,29 @@ void ddtrace_thread_ginit() {
 #endif
 }
 
-void ddtrace_thread_gshutdown() {
-    if (ddtrace_threads_mutex) {
+void datadog_thread_gshutdown() {
+    if (datadog_threads_mutex) {
 #ifdef ZEND_SIGNALS
         // avoid deadlocks due to signal handlers accessing this
         if (zend_signal_globals_id) {
             HANDLE_BLOCK_INTERRUPTIONS();
         }
 #endif
-        tsrm_mutex_lock(ddtrace_threads_mutex);
+        tsrm_mutex_lock(datadog_threads_mutex);
 
-        zend_hash_index_del(&ddtrace_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id());
+        zend_hash_index_del(&datadog_tls_bases, (zend_ulong)(uintptr_t)tsrm_thread_id());
 
-        tsrm_mutex_unlock(ddtrace_threads_mutex);
+        tsrm_mutex_unlock(datadog_threads_mutex);
 #ifdef ZEND_SIGNALS
         if (zend_signal_globals_id) {
             HANDLE_UNBLOCK_INTERRUPTIONS();
         }
 #endif
 
-        if (zend_hash_num_elements(&ddtrace_tls_bases) == 0) {
-            tsrm_mutex_free(ddtrace_threads_mutex);
-            ddtrace_threads_mutex = NULL;
-            zend_hash_destroy(&ddtrace_tls_bases);
+        if (zend_hash_num_elements(&datadog_tls_bases) == 0) {
+            tsrm_mutex_free(datadog_threads_mutex);
+            datadog_threads_mutex = NULL;
+            zend_hash_destroy(&datadog_tls_bases);
         }
     }
 }

@@ -72,20 +72,19 @@ services:
   # --- Alpine ---
   '8.0-alpine': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_alpine' }
   # --- Bookworm ---
-  '7.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_bookworm-7' }
-  '7.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_bookworm-7' }
-  '7.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_bookworm-7' }
-  '7.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_bookworm-7' }
-  '7.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_bookworm-7' }
-  '7.4-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext-6' }
-  '8.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_bookworm-7' }
-  '8.0-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext-6' }
-  '8.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_bookworm-7' }
-  '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-7' }
-  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-7' }
-  '8.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_bookworm-7' }
-  '8.5-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.5_bookworm-7' }
-  'php-master-buster': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-master_buster' }
+  '7.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_bookworm-8' }
+  '7.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_bookworm-8' }
+  '7.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.2_bookworm-8' }
+  '7.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.3_bookworm-8' }
+  '7.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4_bookworm-8' }
+  '7.4-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.4-shared-ext-8' }
+  '8.0-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0_bookworm-8' }
+  '8.0-bookworm-shared-ext': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.0-shared-ext-8' }
+  '8.1-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.1_bookworm-8' }
+  '8.2-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.2_bookworm-8' }
+  '8.3-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.3_bookworm-8' }
+  '8.4-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.4_bookworm-8' }
+  '8.5-bookworm': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-8.5_bookworm-8' }
   # --- CentOS 6 ---
   '7.0-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.0_centos-7' }
   '7.1-centos7': { <<: *linux_php_service, image: 'datadog/dd-trace-ci:php-7.1_centos-7' }

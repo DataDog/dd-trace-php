@@ -4,6 +4,7 @@ namespace DDTrace\Tests\Integrations\Custom\Autoloaded;
 
 use DDTrace\Tests\Common\WebFrameworkTestCase;
 use DDTrace\Tests\Frameworks\Util\Request\GetSpec;
+use DDTrace\Tests\WebServer;
 
 /**
  * Integration test for thread-based sidecar connection with PHP-FPM
@@ -26,6 +27,14 @@ final class SidecarThreadModeTest extends WebFrameworkTestCase
             'DD_TRACE_SIDECAR_CONNECTION_MODE' => 'thread',
             'DD_TRACE_DEBUG' => '0',
         ]);
+    }
+
+    protected static function configureWebServer(WebServer $server)
+    {
+        // FPM pool env[...] directives only reach worker processes, not the master.
+        // The master needs the connection mode at MINIT time so it starts the
+        // sidecar listener thread before workers fork.
+        $server->setPhpFpmMasterIni(['datadog.trace.sidecar_connection_mode' => 'thread']);
     }
 
     public function testThreadModeTracesAreSubmitted()

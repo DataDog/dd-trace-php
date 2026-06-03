@@ -1204,8 +1204,11 @@ dependencies = [
  "derive_more",
  "faststr",
  "libdd-common",
+ "libdd-trace-protobuf",
  "log",
+ "lru",
  "md5",
+ "prost",
  "pyo3",
  "semver",
  "serde",
@@ -1296,6 +1299,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "datadog-php"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "cbindgen 0.27.0",
+ "const-str",
+ "datadog-ffe",
+ "datadog-ipc",
+ "datadog-live-debugger",
+ "datadog-live-debugger-ffi",
+ "datadog-remote-config",
+ "datadog-sidecar",
+ "datadog-sidecar-ffi",
+ "env_logger 0.10.2",
+ "hashbrown 0.15.2",
+ "http",
+ "itertools 0.11.0",
+ "lazy_static",
+ "libc 0.2.177",
+ "libdd-common",
+ "libdd-common-ffi",
+ "libdd-crashtracker-ffi",
+ "libdd-data-pipeline",
+ "libdd-library-config-ffi",
+ "libdd-telemetry",
+ "libdd-telemetry-ffi",
+ "libdd-tinybytes",
+ "libdd-trace-stats",
+ "libdd-trace-utils",
+ "log",
+ "paste",
+ "regex",
+ "regex-automata",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "simd-json",
+ "spawn_worker",
+ "tempfile",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+ "uuid",
+ "zwohash",
+]
+
+[[package]]
 name = "datadog-php-profiling"
 version = "0.0.0"
 dependencies = [
@@ -1374,6 +1425,7 @@ dependencies = [
  "bincode",
  "chrono",
  "console-subscriber",
+ "datadog-ffe",
  "datadog-ipc",
  "datadog-ipc-macros",
  "datadog-live-debugger",
@@ -1394,7 +1446,6 @@ dependencies = [
  "libdd-dogstatsd-client",
  "libdd-telemetry",
  "libdd-tinybytes",
- "libdd-trace-protobuf",
  "libdd-trace-stats",
  "libdd-trace-utils",
  "manual_future",
@@ -1456,53 +1507,6 @@ version = "0.0.1"
 dependencies = [
  "quote",
  "syn 2.0.96",
-]
-
-[[package]]
-name = "ddtrace-php"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "bincode",
- "cbindgen 0.27.0",
- "const-str",
- "datadog-ipc",
- "datadog-live-debugger",
- "datadog-live-debugger-ffi",
- "datadog-remote-config",
- "datadog-sidecar",
- "datadog-sidecar-ffi",
- "env_logger 0.10.2",
- "hashbrown 0.15.2",
- "http",
- "itertools 0.11.0",
- "lazy_static",
- "libc 0.2.177",
- "libdd-common",
- "libdd-common-ffi",
- "libdd-crashtracker-ffi",
- "libdd-data-pipeline",
- "libdd-library-config-ffi",
- "libdd-telemetry",
- "libdd-telemetry-ffi",
- "libdd-tinybytes",
- "libdd-trace-stats",
- "libdd-trace-utils",
- "log",
- "paste",
- "regex",
- "regex-automata",
- "serde",
- "serde_json",
- "serde_with",
- "simd-json",
- "spawn_worker",
- "tempfile",
- "tracing",
- "tracing-core",
- "tracing-subscriber",
- "uuid",
- "zwohash",
 ]
 
 [[package]]
@@ -2096,6 +2100,11 @@ name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
+dependencies = [
+ "allocator-api2",
+ "equivalent",
+ "foldhash 0.2.0",
+]
 
 [[package]]
 name = "hdrhistogram"
@@ -2769,7 +2778,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-common"
-version = "4.1.0"
+version = "4.2.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -2884,7 +2893,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-data-pipeline"
-version = "4.0.0"
+version = "5.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -2948,7 +2957,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-library-config"
-version = "1.1.0"
+version = "2.0.0"
 dependencies = [
  "anyhow",
  "libc 0.2.177",
@@ -3141,7 +3150,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-obfuscation"
-version = "3.0.0"
+version = "3.1.0"
 dependencies = [
  "anyhow",
  "criterion",
@@ -3172,7 +3181,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-stats"
-version = "3.0.0"
+version = "4.0.0"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -3199,7 +3208,7 @@ dependencies = [
 
 [[package]]
 name = "libdd-trace-utils"
-version = "4.0.0"
+version = "6.0.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3299,6 +3308,15 @@ checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
 dependencies = [
  "serde",
  "value-bag",
+]
+
+[[package]]
+name = "lru"
+version = "0.16.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
+dependencies = [
+ "hashbrown 0.16.1",
 ]
 
 [[package]]

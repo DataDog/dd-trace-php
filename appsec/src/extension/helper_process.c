@@ -5,7 +5,7 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
 // NOLINTNEXTLINE(misc-header-include-cycle)
-#include <components-rs/ddtrace.h>
+#include <components-rs/datadog.h>
 #include <libgen.h>
 #include <limits.h>
 #include <php.h>

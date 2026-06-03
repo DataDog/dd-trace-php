@@ -14,10 +14,10 @@
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
-uint8_t *ddtrace_runtime_id = NULL;
+uint8_t *datadog_runtime_id = NULL;
 
-static void locate_ddtrace_runtime_id(const zend_extension *extension) {
-    ddtrace_runtime_id = DL_FETCH_SYMBOL(extension->handle, "ddtrace_runtime_id");
+static void locate_datadog_runtime_id(const zend_extension *extension) {
+    datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
 }
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
@@ -28,9 +28,9 @@ static void locate_ddtrace_get_profiling_context(const zend_extension *extension
     }
 }
 
-static void locate_ddtrace_process_tags_get_serialized(const zend_extension *extension) {
+static void locate_datadog_process_tags_get_serialized(const zend_extension *extension) {
     zend_string *(*get_process_tags)(void) =
-        DL_FETCH_SYMBOL(extension->handle, "ddtrace_process_tags_get_serialized");
+        DL_FETCH_SYMBOL(extension->handle, "datadog_process_tags_get_serialized");
     if (EXPECTED(get_process_tags)) {
         datadog_php_profiling_get_process_tags_serialized = get_process_tags;
     }
@@ -163,8 +163,8 @@ void datadog_php_profiling_startup(zend_extension *extension) {
         const zend_extension *maybe_ddtrace = (zend_extension *)item->data;
         if (maybe_ddtrace != extension && is_ddtrace_extension(maybe_ddtrace)) {
             locate_ddtrace_get_profiling_context(maybe_ddtrace);
-            locate_ddtrace_runtime_id(maybe_ddtrace);
-            locate_ddtrace_process_tags_get_serialized(maybe_ddtrace);
+            locate_datadog_runtime_id(maybe_ddtrace);
+            locate_datadog_process_tags_get_serialized(maybe_ddtrace);
             break;
         }
     }
