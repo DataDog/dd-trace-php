@@ -501,6 +501,10 @@ final class SpanChecker
                     }
                 }
             }
+            // Ignore _dd.svc_src unless explicitly tested (RFC: Service Override Source Attribution)
+            if (!isset($expectedTags['_dd.svc_src'])) {
+                unset($filtered['_dd.svc_src']);
+            }
             foreach ($expectedTags as $tagName => $tagValue) {
                 TestCase::assertArrayHasKey(
                     $tagName,
