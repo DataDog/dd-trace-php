@@ -16,7 +16,7 @@ mach_timebase_info_data_t zend_hrtime_timerlib_info = {
 };
 #endif
 
-void ddtrace_startup_hrtime(void){
+void datadog_startup_hrtime(void){
 #if ZEND_HRTIME_PLATFORM_WINDOWS
     LARGE_INTEGER tf = {0};
     if (QueryPerformanceFrequency(&tf) || 0 != tf.QuadPart) {

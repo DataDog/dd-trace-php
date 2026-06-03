@@ -1,32 +1,31 @@
 #include "startup_logging.h"
+#include <tracer/tracer_startup_logging.h>
 
 #include <SAPI.h>
 #include <Zend/zend_API.h>
 #include <Zend/zend_smart_str.h>
 #include <json/json.h>
-#include <php.h>
-#include <stdbool.h>
 #include <time.h>
 
 #include <ext/standard/info.h>
 
 #ifndef _WIN32
 #include <curl/curl.h>
-#include "coms.h"
+#include <tracer/coms.h>
 #endif
 
-#include "auto_flush.h"
 #include "configuration.h"
-#include "excluded_modules.h"
+#include "endpoints.h"
+#include "telemetry.h"
+#include <ext/excluded_modules.h>
 #include "ext/version.h"
-#include "integrations/integrations.h"
 #include <components/log/log.h>
+
+#include "startup_logging_helpers.h"
 
 #define ISO_8601_LEN (20 + 1)  // +1 for terminating null-character
 
-extern bool ddtrace_loaded_by_ssi;
-
-static void _dd_get_time(char *buf) {
+static void dd_get_time(char *buf) {
     time_t now = time(NULL);
     struct tm *tm = gmtime(&now);
     if (tm) {
@@ -36,173 +35,41 @@ static void _dd_get_time(char *buf) {
     }
 }
 
-static void _dd_add_assoc_string(HashTable *ht, const char *name, size_t name_len, const char *str) {
-    zval value;
-    size_t str_len = str ? strlen(str) : 0;
-    if (str_len > 0) {
-        ZVAL_STRINGL(&value, str, str_len);
-    } else {
-        ZVAL_NULL(&value);
-    }
-    zend_hash_str_update(ht, name, name_len, &value);
-}
 
-static void _dd_add_assoc_string_free(HashTable *ht, const char *name, size_t name_len, char *str) {
-    _dd_add_assoc_string(ht, name, name_len, (const char *)str);
-    free(str);
-}
-
-static void _dd_add_assoc_array(HashTable *ht, const char *name, size_t name_len, zend_array *array) {
-    zval value;
-    ZVAL_ARR(&value, array);
-    zend_hash_str_update(ht, name, name_len, &value);
-}
-
-static void _dd_add_assoc_zstring(HashTable *ht, const char *name, size_t name_len, zend_string *str) {
-    zval value;
-    if (ZSTR_LEN(str) == 0) {
-        zend_string_release(str);
-        ZVAL_NULL(&value);
-    } else {
-        ZVAL_STR(&value, str);
-    }
-    zend_hash_str_update(ht, name, name_len, &value);
-}
-
-static void _dd_add_assoc_bool(HashTable *ht, const char *name, size_t name_len, bool v) {
-    zval value;
-    ZVAL_BOOL(&value, v);
-    zend_hash_str_update(ht, name, name_len, &value);
-}
-
-static void _dd_add_assoc_double(HashTable *ht, const char *name, size_t name_len, double num) {
-    zval value;
-    ZVAL_DOUBLE(&value, num);
-    zend_hash_str_update(ht, name, name_len, &value);
-}
-
-static char *_dd_get_ini(const char *name, size_t name_len) { return zend_ini_string((char *)name, name_len, 0); }
-
-static bool _dd_ini_is_set(const char *name, size_t name_len) {
-    const char *ini = _dd_get_ini(name, name_len);
-    return ini && (strcmp(ini, "") != 0);
-}
-
-// Modified version of zend_ini_parse_bool()
-// @see https://github.com/php/php-src/blob/28b4761/Zend/zend_ini.c#L493-L502
-static bool _dd_parse_bool(const char *name, size_t name_len) {
-    const char *ini = _dd_get_ini(name, name_len);
-    size_t ini_len = strlen(ini);
-    if ((ini_len == 4 && strcasecmp(ini, "true") == 0) || (ini_len == 3 && strcasecmp(ini, "yes") == 0) ||
-        (ini_len == 2 && strcasecmp(ini, "on") == 0)) {
-        return 1;
-    } else {
-        return atoi(ini) != 0;
-    }
-}
-
-static zend_array *_dd_array_copy(zend_array *array) {
-    if (!(GC_FLAGS(array) & IS_ARRAY_IMMUTABLE)) {
-        GC_ADDREF(array);
-        return array;
-    }
-
-    // If it's not duplicated, it may crash later e.g. in json encoding.
-    return zend_array_dup(array);
-}
-
-static zend_string *_dd_implode_keys(zend_array *array) {
-    smart_str imploded = {0};
-    zend_string *key;
-    ZEND_HASH_FOREACH_STR_KEY(array, key) {
-        if (imploded.a != 0) {
-            smart_str_appendc(&imploded, ',');
-        }
-        smart_str_append(&imploded, key);
-    }
-    ZEND_HASH_FOREACH_END();
-    smart_str_0(&imploded);
-    return imploded.s ? imploded.s : ZSTR_EMPTY_ALLOC();
-}
-
-static void _dd_get_startup_config(HashTable *ht) {
+static void dd_get_startup_config(HashTable *ht) {
     // Cross-language tracer values
     char time[ISO_8601_LEN];
-    _dd_get_time(time);
-    _dd_add_assoc_string(ht, ZEND_STRL("date"), time);
+    dd_get_time(time);
+    dd_add_assoc_string(ht, ZEND_STRL("date"), time);
 
-    _dd_add_assoc_zstring(ht, ZEND_STRL("os_name"), php_get_uname('a'));
-    _dd_add_assoc_zstring(ht, ZEND_STRL("os_version"), php_get_uname('r'));
-    _dd_add_assoc_string(ht, ZEND_STRL("version"), PHP_DDTRACE_VERSION);
-    _dd_add_assoc_string(ht, ZEND_STRL("lang"), "php");
-    _dd_add_assoc_string(ht, ZEND_STRL("lang_version"), PHP_VERSION);
-    _dd_add_assoc_zstring(ht, ZEND_STRL("env"), zend_string_copy(get_DD_ENV()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("enabled"), !_dd_parse_bool(ZEND_STRL("ddtrace.disable")));
-    _dd_add_assoc_zstring(ht, ZEND_STRL("service"), zend_string_copy(get_DD_SERVICE()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("enabled_cli"), get_DD_TRACE_CLI_ENABLED());
+    dd_add_assoc_zstring(ht, ZEND_STRL("os_name"), php_get_uname('a'));
+    dd_add_assoc_zstring(ht, ZEND_STRL("os_version"), php_get_uname('r'));
+    dd_add_assoc_string(ht, ZEND_STRL("version"), PHP_DDTRACE_VERSION);
+    dd_add_assoc_string(ht, ZEND_STRL("lang"), "php");
+    dd_add_assoc_string(ht, ZEND_STRL("lang_version"), PHP_VERSION);
+    dd_add_assoc_zstring(ht, ZEND_STRL("env"), zend_string_copy(get_DD_ENV()));
+    dd_add_assoc_bool(ht, ZEND_STRL("enabled"), !dd_parse_bool(ZEND_STRL("ddtrace.disable")));
+    dd_add_assoc_zstring(ht, ZEND_STRL("service"), zend_string_copy(get_DD_SERVICE()));
+    dd_add_assoc_bool(ht, ZEND_STRL("enabled_cli"), get_DD_TRACE_CLI_ENABLED());
+    dd_add_assoc_string_free(ht, ZEND_STRL("agent_url"), datadog_agent_url());
 
-    _dd_add_assoc_string_free(ht, ZEND_STRL("agent_url"), ddtrace_agent_url());
 
-    _dd_add_assoc_bool(ht, ZEND_STRL("debug"), get_DD_TRACE_DEBUG());
-    _dd_add_assoc_bool(ht, ZEND_STRL("analytics_enabled"), get_DD_TRACE_ANALYTICS_ENABLED());
-    _dd_add_assoc_double(ht, ZEND_STRL("sample_rate"), get_DD_TRACE_SAMPLE_RATE());
-    _dd_add_assoc_array(ht, ZEND_STRL("sampling_rules"), _dd_array_copy(get_DD_TRACE_SAMPLING_RULES()));
-    // TODO Add integration-specific config: integration_<integration>_analytics_enabled,
-    // integration_<integration>_sample_rate, integrations_loaded
-    _dd_add_assoc_array(ht, ZEND_STRL("tags"), _dd_array_copy(get_DD_TAGS()));
-    _dd_add_assoc_array(ht, ZEND_STRL("service_mapping"), _dd_array_copy(get_DD_SERVICE_MAPPING()));
-    // "log_injection_enabled" N/A for PHP
-    // "runtime_metrics_enabled" N/A for PHP
-    // "configuration_file" N/A for PHP
-    // "vm" N/A for PHP
-    // "partial_flushing_enabled" N/A for PHP
-    _dd_add_assoc_bool(ht, ZEND_STRL("distributed_tracing_enabled"), get_DD_DISTRIBUTED_TRACING());
-    // "logs_correlation_enabled" N/A for PHP
-    // "profiling_enabled" N/A for PHP
-    _dd_add_assoc_zstring(ht, ZEND_STRL("dd_version"), zend_string_copy(get_DD_VERSION()));
-    // "health_metrics_enabled" N/A for PHP
-    _dd_add_assoc_zstring(ht, ZEND_STRL("architecture"), php_get_uname('m'));
-    _dd_add_assoc_bool(ht, ZEND_STRL("instrumentation_telemetry_enabled"), get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED());
-
-    // PHP-specific values
-    _dd_add_assoc_string(ht, ZEND_STRL("sapi"), sapi_module.name);
-    _dd_add_assoc_zstring(ht, ZEND_STRL("datadog.trace.sources_path"),
-                          zend_string_copy(get_DD_TRACE_SOURCES_PATH()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_configured"), _dd_ini_is_set(ZEND_STRL("open_basedir")));
-    _dd_add_assoc_zstring(ht, ZEND_STRL("uri_fragment_regex"),
-                          _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_FRAGMENT_REGEX()));
-    _dd_add_assoc_zstring(ht, ZEND_STRL("uri_mapping_incoming"),
-                          _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_MAPPING_INCOMING()));
-    _dd_add_assoc_zstring(ht, ZEND_STRL("uri_mapping_outgoing"),
-                          _dd_implode_keys(get_DD_TRACE_RESOURCE_URI_MAPPING_OUTGOING()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("auto_flush_enabled"), get_DD_TRACE_AUTO_FLUSH_ENABLED());
-    _dd_add_assoc_bool(ht, ZEND_STRL("generate_root_span"), get_DD_TRACE_GENERATE_ROOT_SPAN());
-    _dd_add_assoc_bool(ht, ZEND_STRL("http_client_split_by_domain"), get_DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN());
-    _dd_add_assoc_bool(ht, ZEND_STRL("measure_compile_time"), get_DD_TRACE_MEASURE_COMPILE_TIME());
-    _dd_add_assoc_bool(ht, ZEND_STRL("report_hostname_on_root_span"), get_DD_TRACE_REPORT_HOSTNAME());
-    _dd_add_assoc_zstring(ht, ZEND_STRL("traced_internal_functions"),
-                          _dd_implode_keys(get_DD_TRACE_TRACED_INTERNAL_FUNCTIONS()));
-    _dd_add_assoc_bool(ht, ZEND_STRL("enabled_from_env"), get_DD_TRACE_ENABLED());
-    _dd_add_assoc_string(ht, ZEND_STRL("opcache.file_cache"), _dd_get_ini(ZEND_STRL("opcache.file_cache")));
-    _dd_add_assoc_bool(ht, ZEND_STRL("sidecar_trace_sender"), get_global_DD_TRACE_SIDECAR_TRACE_SENDER());
-    _dd_add_assoc_bool(ht, ZEND_STRL("dynamic_instrumentation_enabled"), get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED());
-    _dd_add_assoc_bool(ht, ZEND_STRL("exception_replay_enabled"), get_global_DD_EXCEPTION_REPLAY_ENABLED());
-
-    _dd_add_assoc_bool(ht, ZEND_STRL("loaded_by_ssi"), ddtrace_loaded_by_ssi);
+    dd_add_assoc_bool(ht, ZEND_STRL("debug"), get_DD_TRACE_DEBUG());
 }
 
+// TODO replace with a rust-based implementation
 #ifndef _WIN32
-static size_t _dd_curl_write_noop(void *ptr, size_t size, size_t nmemb, void *userdata) {
+static size_t dd_curl_write_noop(void *ptr, size_t size, size_t nmemb, void *userdata) {
     UNUSED(ptr, userdata);
     return size * nmemb;
 }
 
-static size_t _dd_check_for_agent_error(char *error, bool quick) {
+static size_t dd_check_for_agent_error(char *error, bool quick) {
     CURL *curl = curl_easy_init();
     ddtrace_curl_set_hostname(curl);
     if (quick) {
-        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, DDTRACE_AGENT_QUICK_TIMEOUT);
-        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, DDTRACE_AGENT_QUICK_CONNECT_TIMEOUT);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, DATADOG_AGENT_QUICK_TIMEOUT);
+        curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, DATADOG_AGENT_QUICK_CONNECT_TIMEOUT);
     } else {
         ddtrace_curl_set_timeout(curl);
         ddtrace_curl_set_connect_timeout(curl);
@@ -216,7 +83,7 @@ static size_t _dd_check_for_agent_error(char *error, bool quick) {
     const char *body = "[]";
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, (long)strlen(body));
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _dd_curl_write_noop);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, dd_curl_write_noop);
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error);
     error[0] = 0;
 
@@ -233,68 +100,41 @@ static size_t _dd_check_for_agent_error(char *error, bool quick) {
 }
 #endif
 
-static bool _dd_file_exists(const char *file) {
-    if (!strlen(file)) {
-        return false;
-    }
-    return (VCWD_ACCESS(file, R_OK) == 0);
-}
-
-static bool _dd_open_basedir_allowed(const char *file) { return (php_check_open_basedir_ex(file, 0) != -1); }
-
 static void dd_check_for_excluded_module(HashTable *ht, zend_module_entry *module) {
-    char error[DDTRACE_EXCLUDED_MODULES_ERROR_MAX_LEN + 1];
+    char error[DATADOG_EXCLUDED_MODULES_ERROR_MAX_LEN + 1];
 
-    if (module && module->name && module->version && ddtrace_is_excluded_module(module, error)) {
+    if (module && module->name && module->version && datadog_is_excluded_module(module, error)) {
         char key[64];
         size_t key_len;
 
         key_len = snprintf(key, sizeof(key) - 1, "incompatible module %s", module->name);
-        _dd_add_assoc_string(ht, key, key_len, error);
+        dd_add_assoc_string(ht, key, key_len, error);
     }
 }
 
 /* Supported zval types for diagnostics: string, bool, null
- * To support other types, update:
- *     - ddtrace.c:_dd_info_diagnostics_table(); PHP info output
- *     - _dd_print_values_to_log(); Debug log output
+ * To support other types, update phpinfo.c:_dd_info_diagnostics_table();
  */
-void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
-    // Cross-language tracer values
+void datadog_startup_diagnostics(HashTable *ht, bool quick) {
+#ifdef DDTRACE
+    ddtrace_startup_diagnostics(ht, quick);
+#endif
 #ifndef _WIN32
     char agent_error[CURL_ERROR_SIZE];
-    if (_dd_check_for_agent_error(agent_error, quick)) {
-        _dd_add_assoc_string(ht, ZEND_STRL("agent_error"), agent_error);
+    if (dd_check_for_agent_error(agent_error, quick)) {
+        dd_add_assoc_string(ht, ZEND_STRL("agent_error"), agent_error);
     }
 #endif
-    //_dd_add_assoc_string(ht, ZEND_STRL("sampling_rules_error"), ""); // TODO Parse at C level
-    //_dd_add_assoc_string(ht, ZEND_STRL("service_mapping_error"), ""); // TODO Parse at C level
+    //dd_add_assoc_string(ht, ZEND_STRL("service_mapping_error"), ""); // TODO Parse at C level
 
-    // PHP-specific values
-    const char *sources = ZSTR_VAL(get_DD_TRACE_SOURCES_PATH());
-    bool sources_exist = _dd_file_exists(sources);
-    if (!sources_exist) {
-        _dd_add_assoc_bool(ht, ZEND_STRL("datadog.trace.sources_path_reachable"), sources_exist);
-    } else {
-        bool sources_allowed = _dd_open_basedir_allowed(sources);
-        if (!sources_allowed) {
-            _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_sources_allowed"), sources_allowed);
-        }
-    }
-
-    bool container_allowed = _dd_open_basedir_allowed("/proc/self/cgroup");
-    if (!container_allowed) {
-        _dd_add_assoc_bool(ht, ZEND_STRL("open_basedir_container_tagging_allowed"), container_allowed);
-    }
-
-    //_dd_add_assoc_string(ht, ZEND_STRL("uri_fragment_regex_error"), ""); // TODO Parse at C level
-    //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_incoming_error"), ""); // TODO Parse at C level
-    //_dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_outgoing_error"), ""); // TODO Parse at C level
+    //dd_add_assoc_string(ht, ZEND_STRL("uri_fragment_regex_error"), ""); // TODO Parse at C level
+    //dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_incoming_error"), ""); // TODO Parse at C level
+    //dd_add_assoc_string(ht, ZEND_STRL("uri_mapping_outgoing_error"), ""); // TODO Parse at C level
 
     // opcache.file_cache was added in PHP 7.0
-    const char *opcache_file_cache = _dd_get_ini(ZEND_STRL("opcache.file_cache"));
+    const char *opcache_file_cache = dd_get_ini(ZEND_STRL("opcache.file_cache"));
     if (opcache_file_cache && opcache_file_cache[0]) {
-        _dd_add_assoc_string(ht, ZEND_STRL("opcache_file_cache_set"),
+        dd_add_assoc_string(ht, ZEND_STRL("opcache_file_cache_set"),
                              "The opcache.file_cache INI setting is set. This setting can cause unexpected behavior "
                              "with the PHP tracer due to a bug in OPcache: https://bugs.php.net/bug.php?id=79825");
     }
@@ -302,43 +142,47 @@ void ddtrace_startup_diagnostics(HashTable *ht, bool quick) {
     for (uint16_t i = 0; i < zai_config_memoized_entries_count; ++i) {
         zai_config_memoized_entry *cfg = &zai_config_memoized_entries[i];
         // DD_TRACE_LOGS_ENABLED would be the proper name, but for compatibility with other tracers, we also support DD_LOGS_INJECTION officially
-        if (cfg->name_index > 0 && i != DDTRACE_CONFIG_DD_TRACE_LOGS_ENABLED) {
+        if (cfg->name_index > 0 && i != DATADOG_CONFIG_DD_TRACE_LOGS_ENABLED) {
             zai_config_name *old_name = &cfg->names[cfg->name_index];
             zend_string *message = zend_strpprintf(0, "'%s=%s' is deprecated, use %s instead.", old_name->ptr,
                                                    ZSTR_VAL(cfg->ini_entries[0]->value), cfg->names[0].ptr);
-            _dd_add_assoc_zstring(ht, old_name->ptr, old_name->len, message);
+            dd_add_assoc_zstring(ht, old_name->ptr, old_name->len, message);
         }
     }
 
-    if (ddtrace_has_excluded_module == true) {
+    if (datadog_has_excluded_module == true) {
         zend_module_entry *module;
         ZEND_HASH_FOREACH_PTR(&module_registry, module) { dd_check_for_excluded_module(ht, module); }
         ZEND_HASH_FOREACH_END();
     }
 }
 
-static void _dd_serialize_json(HashTable *ht, smart_str *buf, int options) {
+static void dd_serialize_json(HashTable *ht, smart_str *buf, int options) {
     zval zv;
     ZVAL_ARR(&zv, ht);
     zai_json_encode(buf, &zv, options);
     smart_str_0(buf);
 }
 
-void ddtrace_startup_logging_json(smart_str *buf, int options) {
+void datadog_startup_logging_json(smart_str *buf, int options) {
     HashTable *ht;
     ALLOC_HASHTABLE(ht);
-    zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(ht, DATADOG_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
 
-    _dd_get_startup_config(ht);
-    ddtrace_startup_diagnostics(ht, false);
+    dd_get_startup_config(ht);
+#ifdef DDTRACE
+    ddtrace_populate_startup_config(ht);
+#endif
+    dd_add_assoc_bool(ht, ZEND_STRL("loaded_by_ssi"), datadog_loaded_by_ssi);
+    datadog_startup_diagnostics(ht, false);
 
-    _dd_serialize_json(ht, buf, options);
+    dd_serialize_json(ht, buf, options);
 
     zend_hash_destroy(ht);
     FREE_HASHTABLE(ht);
 }
 
-static void _dd_print_values_to_log(HashTable *ht, void (*log)(const char *format, ...)) {
+static void dd_print_values_to_log(HashTable *ht, void (*log)(const char *format, ...)) {
     zend_string *key;
     zval *val;
     ZEND_HASH_FOREACH_STR_KEY_VAL_IND(ht, key, val) {
@@ -363,31 +207,37 @@ static void _dd_print_values_to_log(HashTable *ht, void (*log)(const char *forma
     ZEND_HASH_FOREACH_END();
 }
 
+static void dd_print_startup_logs(void (*log)(const char *format, ...)) {
+    HashTable *ht;
+    ALLOC_HASHTABLE(ht);
+    zend_hash_init(ht, DATADOG_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
+
+    datadog_startup_diagnostics(ht, true);
+    dd_get_startup_config(ht);
+#ifdef DDTRACE
+    ddtrace_populate_startup_config(ht);
+#endif
+    dd_add_assoc_bool(ht, ZEND_STRL("loaded_by_ssi"), datadog_loaded_by_ssi);
+    dd_print_values_to_log(ht, log);
+
+    smart_str buf = {0};
+    dd_serialize_json(ht, &buf, 0);
+    log("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
+    log("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
+        "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
+        "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
+
+#ifdef DDTRACE
+    ddtrace_startup_logging_extra(log);
+#endif
+
+    smart_str_free(&buf);
+
+    zend_hash_destroy(ht);
+    FREE_HASHTABLE(ht);
+}
+
 // Only show startup logs on the first request
-void ddtrace_startup_logging_first_rinit(void) {
-    LOGEV(STARTUP, {
-        HashTable *ht;
-        ALLOC_HASHTABLE(ht);
-        zend_hash_init(ht, DDTRACE_STARTUP_STAT_COUNT, NULL, ZVAL_PTR_DTOR, 0);
-
-        ddtrace_startup_diagnostics(ht, true);
-        _dd_print_values_to_log(ht, log);
-        _dd_get_startup_config(ht);
-
-        smart_str buf = {0};
-        _dd_serialize_json(ht, &buf, 0);
-        log("DATADOG TRACER CONFIGURATION - %s", ZSTR_VAL(buf.s));
-        log("For additional diagnostic checks such as Agent connectivity, see the 'ddtrace' section of a phpinfo() "
-            "page. Alternatively set DD_TRACE_DEBUG=Error,Startup to add diagnostic checks to the error logs on the first request "
-            "of a new PHP process. Set DD_TRACE_STARTUP_LOGS=0 to disable this tracer configuration message.");
-
-        if (get_DD_OPENAI_LOGS_ENABLED()) {
-            log("Note that DD_OPENAI_LOGS_ENABLED=1 may be changed or removed in any release.");
-        }
-
-        smart_str_free(&buf);
-
-        zend_hash_destroy(ht);
-        FREE_HASHTABLE(ht);
-    })
+void datadog_startup_logging_first_rinit(void) {
+    LOGEV(STARTUP, dd_print_startup_logs(log);)
 }

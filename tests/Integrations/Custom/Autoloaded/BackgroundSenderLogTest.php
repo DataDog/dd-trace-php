@@ -24,20 +24,10 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
     protected static function getEnvs()
     {
         return array_merge(parent::getEnvs(), [
-            'DD_TRACE_SIDECAR_TRACE_SENDER' => false,
-            'DD_TRACE_DEBUG_CURL_OUTPUT' => true,
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
+            'DD_TRACE_DEBUG_CURL_OUTPUT' => 'true',
             'DD_TRACE_AGENT_FLUSH_INTERVAL' => self::BGS_FLUSH_INTERVAL_MS,
         ]);
-    }
-
-    protected function ddSetUp()
-    {
-        parent::ddSetUp();
-
-        // clear out any previous logs
-        $log = self::getAppErrorLog();
-        @\unlink($log);
-        \touch($log);
     }
 
     protected static function getInis()
@@ -45,6 +35,19 @@ final class BackgroundSenderLogTest extends WebFrameworkTestCase
         return array_merge(parent::getInis(), [
             'error_log' => self::getAppErrorLog(),
         ]);
+    }
+
+    protected function ddSetUp()
+    {
+        parent::ddSetUp();
+
+        // Truncate (not unlink) so the existing fd in datadog_error_log_fd still works.
+        // Unlinking creates a new inode that the already-open fd does not point to.
+        $log = self::getAppErrorLog();
+        @\file_put_contents($log, '');
+        if (!\file_exists($log)) {
+            \touch($log);
+        }
     }
 
     public function testScenario()

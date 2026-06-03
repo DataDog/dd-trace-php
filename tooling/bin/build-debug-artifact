@@ -115,7 +115,7 @@ case "$php_version" in
 esac
 
 # ─── Docker image selection ───────────────────────────────────────────────────
-BOOKWORM_VERSION=6
+BOOKWORM_VERSION=8
 if [[ "$libc" == "musl" ]]; then
     DOCKER_IMAGE="datadog/dd-trace-ci:php-compile-extension-alpine-${php_version}"
 else
@@ -133,7 +133,10 @@ fi
 
 # ─── Build cache management ───────────────────────────────────────────────────
 CACHE_VOLUME="ddtrace-build-cache"
-CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}"
+# The persistent build cache contains copied source files under tmp/build_extension.
+# Keep sibling worktrees from reusing stale copied headers for the same PHP target.
+CACHE_SOURCE_KEY="$(printf '%s' "$REPO_ROOT" | cksum | awk '{print $1}')"
+CACHE_TAG="${libc}-${arch}-${php_version}-${thread_safety}-${CACHE_SOURCE_KEY}"
 CACHE_TAG_LABEL="ddtrace.build.target"
 
 if docker volume inspect "$CACHE_VOLUME" &>/dev/null; then
@@ -200,8 +203,8 @@ fi
 echo "Building ddtrace ${php_version} ${thread_safety} [${libc}/${arch}]..."
 echo "Image: ${DOCKER_IMAGE}"
 
-TMP_OUT=$(mktemp -d)
-TMP_PKG=$(mktemp -d)
+TMP_OUT=$(mktemp -d "${OUTPUT_DIR%/}/.build-debug-artifact-out.XXXXXX")
+TMP_PKG=$(mktemp -d "${OUTPUT_DIR%/}/.build-debug-artifact-pkg.XXXXXX")
 trap 'rm -rf "$TMP_OUT" "$TMP_PKG"' EXIT
 
 # ─── Build script construction ────────────────────────────────────────────────
@@ -244,7 +247,7 @@ cp tmp/build_extension/modules/ddtrace.so /output/ddtrace.so")"
 
 if [[ "$BUILD_PROFILER" == "1" ]]; then
     PROFILER_SCRIPT="$(_preamble "if [ -f /sbin/apk ] && [ \$(uname -m) = 'aarch64' ]; then
-    ln -sf ../lib/llvm19/bin/clang /usr/bin/clang
+    ln -sf ../lib/llvm20/bin/clang /usr/bin/clang
 fi
 (cd profiling && CARGO_TARGET_DIR=${HOME_DIR}/tmp/build_profiler cargo build --profile dev)
 cp ${HOME_DIR}/tmp/build_profiler/debug/libdatadog_php_profiling.so /output/datadog-profiling${EXT_SUFFIX}.so")"

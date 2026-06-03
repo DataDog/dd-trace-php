@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include "zai_string/string.h"
 #include "attributes.h"
+#include "zai_string/string.h"
 #include <zend.h>
 
 typedef enum _user_collection_mode {
@@ -17,7 +17,7 @@ typedef enum _user_collection_mode {
 } user_collection_mode;
 
 typedef enum _user_event {
-    user_event_none  = 0,
+    user_event_none = 0,
     user_event_login_success,
     user_event_login_failure
 } user_event;

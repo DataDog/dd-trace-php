@@ -21,17 +21,17 @@ add_custom_target(libdatadog_stamp
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.version")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../ddtrace.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
+    COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
-    DEPENDS ${CMAKE_SOURCE_DIR}/../ddtrace.sym
+    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
     VERBATIM
 )
 elseif(APPLE)
-set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.sym")
+set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/datadog_exports.sym")
 add_custom_target(ddtrace_exports
-    COMMAND bash -c "sed 's/^/_/' '${CMAKE_SOURCE_DIR}'/../ddtrace.sym > '${EXPORTS_FILE}'"
+    COMMAND bash -c "sed 's/^/_/' '${CMAKE_SOURCE_DIR}'/../datadog.sym > '${EXPORTS_FILE}'"
     BYPRODUCT ${EXPORTS_FILE}
-    DEPENDS ${CMAKE_SOURCE_DIR}/../ddtrace.sym
+    DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
     VERBATIM
 )
 endif()
@@ -68,5 +68,5 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
 else()
     set(CARGO_BUILD_LOCATION ${CMAKE_BINARY_DIR}/components_rs/release)
 endif()
-set_property(TARGET components_rs PROPERTY IMPORTED_LOCATION ${CARGO_BUILD_LOCATION}/libddtrace_php.a)
+set_property(TARGET components_rs PROPERTY IMPORTED_LOCATION ${CARGO_BUILD_LOCATION}/libdatadog_php.a)
 add_dependencies(components_rs components_rs_proj)

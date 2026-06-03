@@ -1,12 +1,13 @@
-#ifndef DD_COMPATIBILITY_H
-#define DD_COMPATIBILITY_H
+#ifndef DATADOG_COMPATIBILITY_H
+#define DATADOG_COMPATIBILITY_H
 
 #include <stdbool.h>
 #include <php.h>
+#include <zend_abstract_interface/tsrmls_cache.h>
 #include <Zend/zend_closures.h>
 #include <Zend/zend_smart_str.h>
 
-#include "ext/standard/base64.h"
+#include <ext/standard/base64.h>
 
 #if !defined(ZEND_ASSERT)
 #if ZEND_DEBUG
@@ -91,7 +92,7 @@ static zend_always_inline void dd_get_closure_to_fcc(zval *closure, zend_fcall_i
 #endif
 }
 
-static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
+static inline zval *datadog_assign_variable(zval *variable_ptr, zval *value) {
 #if PHP_VERSION_ID < 70400
     return zend_assign_to_variable(variable_ptr, value, IS_TMP_VAR);
 #else
@@ -108,7 +109,7 @@ static inline zval *ddtrace_assign_variable(zval *variable_ptr, zval *value) {
 #define Z_EXTRA_P(z) Z_NEXT_P(z)
 
 #undef zval_get_long
-#define zval_get_long ddtrace_zval_get_long
+#define zval_get_long datadog_zval_get_long
 static inline zend_long zval_get_long(zval *op) {
     if (Z_ISUNDEF_P(op)) {
         return 0;
@@ -594,16 +595,16 @@ static zend_always_inline bool zend_string_starts_with(const zend_string *str, c
 #define zend_string_starts_with_literal(str, prefix) \
     zend_string_starts_with_cstr(str, prefix, strlen(prefix))
 
-static inline zend_string *ddtrace_vstrpprintf(size_t max_len, const char *format, va_list ap)
+static inline zend_string *datadog_vstrpprintf(size_t max_len, const char *format, va_list ap)
 {
     zend_string *str = zend_vstrpprintf(max_len, format, ap);
     return zend_string_realloc(str, ZSTR_LEN(str), 0);
 }
 
 #undef zend_vstrpprintf
-#define zend_vstrpprintf ddtrace_vstrpprintf
+#define zend_vstrpprintf datadog_vstrpprintf
 
-static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format, ...)
+static inline zend_string *datadog_strpprintf(size_t max_len, const char *format, ...)
 {
     va_list arg;
     zend_string *str;
@@ -615,11 +616,13 @@ static inline zend_string *ddtrace_strpprintf(size_t max_len, const char *format
 }
 
 #undef zend_strpprintf
-#define zend_strpprintf ddtrace_strpprintf
+#define zend_strpprintf datadog_strpprintf
 
 #define ZEND_HASH_ELEMENT(ht, idx) (&ht->arData[idx].val)
 #define ZEND_HASH_MAP_FOREACH_PTR ZEND_HASH_FOREACH_PTR
 #define ZEND_HASH_MAP_FOREACH_STR_KEY_VAL ZEND_HASH_FOREACH_STR_KEY_VAL
+
+const char *zend_memnistr(const char *haystack, const char *needle, size_t needle_len, const char *end);
 
 #if PHP_VERSION_ID >= 80000
 #define zend_weakrefs_hash_add zend_weakrefs_hash_add_fallback
@@ -769,21 +772,17 @@ enum {
 #endif
     ZEND_STR__LAST
 };
-extern zend_string *ddtrace_known_strings[ZEND_STR__LAST];
+extern zend_string *datadog_known_strings[ZEND_STR__LAST];
 
 #undef ZSTR_KNOWN
 #if PHP_VERSION_ID >= 70200
-#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : zend_known_strings[idx])
+#define ZSTR_KNOWN(idx) (idx < 0 ? datadog_known_strings[-1 - idx] : zend_known_strings[idx])
 #elif PHP_VERSION_ID >= 70100
-#define ZSTR_KNOWN(idx) (idx < 0 ? ddtrace_known_strings[-1 - idx] : CG(known_strings)[idx])
+#define ZSTR_KNOWN(idx) (idx < 0 ? datadog_known_strings[-1 - idx] : CG(known_strings)[idx])
 #else
-#define ZSTR_KNOWN(idx) ddtrace_known_strings[idx]
+#define ZSTR_KNOWN(idx) datadog_known_strings[idx]
 #endif
 
 #endif
 
-#if PHP_VERSION_ID < 80200
-const char *zend_memnistr(const char *haystack, const char *needle, size_t needle_len, const char *end);
-#endif
-
-#endif  // DD_COMPATIBILITY_H
+#endif  // DATADOG_COMPATIBILITY_H

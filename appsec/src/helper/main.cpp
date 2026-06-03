@@ -104,7 +104,7 @@ bool ensure_unique_abstract_socket(std::string_view socket_path)
         return false;
     }
 
-    struct sockaddr_un addr {};
+    struct sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     addr.sun_path[0] = '\0';
 

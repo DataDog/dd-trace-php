@@ -298,6 +298,22 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
                                                  ddog_QueueId queue_id,
                                                  struct ddog_DebuggerPayload *payload);
 
+/**
+ * Send structured FFE exposure events to the sidecar. The sidecar owns
+ * deduplication, JSON serialization, and Agent EVP delivery. This function is
+ * caller-driven; shared libdatadog evaluator calls do not log unless an SDK
+ * explicitly sends this action.
+ *
+ * # Safety
+ * `context` and every element in `exposures` must contain valid UTF-8
+ * `CharSlice` values. Empty `exposures` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTransport **transport,
+                                                     const struct ddog_InstanceId *instance_id,
+                                                     const ddog_QueueId *queue_id,
+                                                     const struct ddog_FfeTelemetryContext *context,
+                                                     struct ddog_Slice_FfeExposure exposures);
+
 ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
                                                        const struct ddog_InstanceId *instance_id,
                                                        ddog_QueueId queue_id,
@@ -441,8 +457,21 @@ ddog_SpanBytes *ddog_trace_new_span_with_capacities(ddog_TraceBytes *trace,
                                                     uintptr_t meta_size,
                                                     uintptr_t metrics_size);
 
+/**
+ * The returned slice is an owned allocation that must be properly freed using
+ * [`ddog_free_charslice`].
+ */
 ddog_CharSlice ddog_span_debug_log(const ddog_SpanBytes *span);
 
+/**
+ * Frees an owned [`CharSlice`]. Note that some functions of this API return borrowed slices that
+ * must NOT be freed. Only a few selected functions return slices that must be freed, and this is
+ * mentioned explicitly in their documentation.
+ *
+ * # Safety
+ *
+ * `slice` must be an owned char slice that has been returned by one of the functions of this API.
+ */
 void ddog_free_charslice(ddog_CharSlice slice);
 
 void ddog_set_span_service(ddog_SpanBytes *span, ddog_CharSlice slice);
@@ -493,6 +522,10 @@ ddog_CharSlice ddog_get_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
 
 bool ddog_has_span_meta(ddog_SpanBytes *span, ddog_CharSlice key);
 
+/**
+ * The return value is an owned array of slices (`Box<[CharSlice]>`) that must be freed explicitly
+ * through [`ddog_span_free_keys_ptr`].
+ */
 ddog_CharSlice *ddog_span_meta_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
 
 void ddog_add_span_metrics(ddog_SpanBytes *span, ddog_CharSlice key, double val);
@@ -513,8 +546,18 @@ ddog_CharSlice ddog_get_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice ke
 
 bool ddog_has_span_meta_struct(ddog_SpanBytes *span, ddog_CharSlice key);
 
+/**
+ * The return value is an array of slices (`Box<[CharSlice]>`) that must be freed explicitly
+ * through [`ddog_span_free_keys_ptr`].
+ */
 ddog_CharSlice *ddog_span_meta_struct_get_keys(ddog_SpanBytes *span, uintptr_t *out_count);
 
+/**
+ * # Safety
+ *
+ * `keys_ptr` must have been returned by one of the `ddog_xxx_get_keys()` functions, and must not
+ * have been already freed.
+ */
 void ddog_span_free_keys_ptr(ddog_CharSlice *keys_ptr, uintptr_t count);
 
 ddog_SpanLinkBytes *ddog_span_new_link(ddog_SpanBytes *span);
@@ -547,6 +590,10 @@ void ddog_add_event_attributes_int(ddog_SpanEventBytes *event, ddog_CharSlice ke
 
 void ddog_add_event_attributes_float(ddog_SpanEventBytes *event, ddog_CharSlice key, double val);
 
+/**
+ * The returned slice is an owned allocation that must be properly freed using
+ * [`ddog_free_charslice`].
+ */
 ddog_CharSlice ddog_serialize_trace_into_charslice(ddog_TraceBytes *trace);
 
 #endif  /* DDOG_SIDECAR_H */

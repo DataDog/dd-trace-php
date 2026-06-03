@@ -217,7 +217,7 @@ static int _dd_log_level_from_str(const char *nullable log_level)
         goto err;
     }
 
-    size_t len = strlen((const char *)log_level);
+    size_t len = strlen(log_level);
     if (dd_string_equals_lc(log_level, len, ZEND_STRL("off"))) {
         return dd_log_off;
     }
@@ -415,7 +415,10 @@ static void _format_time(
     char *buf, size_t buf_size, struct timespec *time, int precision)
 {
     struct tm tm = {0};
-    gmtime_r(&time->tv_sec, &tm);
+    if (gmtime_r(&time->tv_sec, &tm) == NULL) {
+        *buf = '\0';
+        return;
+    }
     size_t len = strftime(buf, buf_size, "%FT%T", &tm);
     size_t left_size = buf_size - len;
     if (UNEXPECTED(left_size > buf_size)) {

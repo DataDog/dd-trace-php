@@ -131,7 +131,9 @@ function generate_garbage()
     return $garbage;
 }
 
-$minFunctionArgs = [];
+$minFunctionArgs = [
+    'DDTrace\ffe_evaluate' => 4,
+];
 
 function call_function(ReflectionFunction $function)
 {

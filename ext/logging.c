@@ -1,12 +1,13 @@
 #include "logging.h"
-#include "sidecar.h"
 
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 
+#include "ffi_utils.h"
 #include "configuration.h"
+#include <components-rs/datadog.h>
 #include <main/SAPI.h>
 
 #ifndef _WIN32
@@ -24,7 +25,7 @@ static void dd_log_set_level(bool debug) {
         }
     } else if (runtime_config_first_init) {
         ddog_set_log_level(dd_zend_string_to_CharSlice(get_DD_TRACE_LOG_LEVEL()), once);
-    } else if (zend_string_equals_literal_ci(Z_STR(zai_config_memoized_entries[DDTRACE_CONFIG_DD_TRACE_LOG_LEVEL].decoded_value), "error")) {
+    } else if (zend_string_equals_literal_ci(Z_STR(zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_LOG_LEVEL].decoded_value), "error")) {
         ddog_set_error_log_level(once); // optimized handling without parsing
     } else {
         ddog_set_log_level(dd_zend_string_to_CharSlice(get_global_DD_TRACE_LOG_LEVEL()), once);
@@ -32,14 +33,14 @@ static void dd_log_set_level(bool debug) {
 }
 
 // We need to ensure that logging is initialized (i.e. set) at least once per thread.
-void ddtrace_log_ginit(void) {
+void datadog_log_ginit(void) {
     dd_log_set_level(get_global_DD_TRACE_DEBUG());
 }
 
-_Atomic(int) ddtrace_error_log_fd = -1;
-_Atomic(uintmax_t) dd_error_log_fd_rotated = 0;
+_Atomic(int) datadog_error_log_fd = -1;
+static _Atomic(uintmax_t) dd_error_log_fd_rotated = 0;
 
-void ddtrace_log_minit(void) {
+void datadog_log_minit(void) {
     if (ZSTR_LEN(get_global_DD_TRACE_LOG_FILE())) {
         int fd = VCWD_OPEN_MODE(ZSTR_VAL(get_global_DD_TRACE_LOG_FILE()), O_RDWR | O_APPEND, 0666);
         if (fd < 0) {
@@ -52,18 +53,18 @@ void ddtrace_log_minit(void) {
             fchmod(fd, 0666); // ignore umask
 #endif
         }
-        atomic_store(&ddtrace_error_log_fd, fd);
+        atomic_store(&datadog_error_log_fd, fd);
 
         time_t now;
         time(&now);
         atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
     }
 
-    // no need to call dd_log_set_level here, ddtrace_config_minit() inits the debug config
+    // no need to call dd_log_set_level here, datadog_config_minit() inits the debug config
 }
 
-void ddtrace_log_rinit(char *error_log) {
-    if (atomic_load(&ddtrace_error_log_fd) != -1) {
+void datadog_log_rinit(char *error_log) {
+    if (atomic_load(&datadog_error_log_fd) != -1) {
         return;
     }
 
@@ -87,13 +88,13 @@ void ddtrace_log_rinit(char *error_log) {
     time(&now);
     atomic_store(&dd_error_log_fd_rotated, (uintmax_t) now);
     int expected = -1;
-    if (!atomic_compare_exchange_strong_int(&ddtrace_error_log_fd, &expected, desired)) {
+    if (!atomic_compare_exchange_strong_int(&datadog_error_log_fd, &expected, desired)) {
         // if it didn't exchange, then we need to free it
         close(desired);
     }
 }
 
-int ddtrace_get_fd_path(int fd, char *buf) {
+int datadog_get_fd_path(int fd, char *buf) {
 #ifdef _WIN32
     intptr_t handle = _get_osfhandle(fd);
     if (handle == INVALID_HANDLE_VALUE) {
@@ -113,15 +114,15 @@ int ddtrace_get_fd_path(int fd, char *buf) {
 #endif
 }
 
-void ddtrace_log_mshutdown(void) {
-    int error_log_fd = atomic_load(&ddtrace_error_log_fd);
-    atomic_store(&ddtrace_error_log_fd, -1);
+void datadog_log_mshutdown(void) {
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
+    atomic_store(&datadog_error_log_fd, -1);
     if (error_log_fd != -1) {
         close(error_log_fd);
     }
 }
 
-int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
+int datadog_log_with_time(int fd, const char *msg, int msg_len) {
     // todo: we only need 20-ish for the main part, but how much for the timezone?
     // Wish PHP printed -hhmm or +hhmm instead of the name
     char *msgbuf = malloc(msg_len + 70);
@@ -144,7 +145,7 @@ int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
     uintmax_t last_check = atomic_exchange(&dd_error_log_fd_rotated, (uintmax_t) now);
     if (last_check < (uintmax_t)now - 60) { // 1x/min
         char pathbuf[MAXPATHLEN];
-        if (ddtrace_get_fd_path(fd, pathbuf) >= 0) {
+        if (datadog_get_fd_path(fd, pathbuf) >= 0) {
             int new_fd = VCWD_OPEN_MODE(pathbuf, O_RDWR | O_APPEND, 0666);
             if (new_fd < 0) {
                 // Retry with CREAT to only apply fchmod() on CREAT
@@ -164,10 +165,10 @@ int ddtrace_log_with_time(int fd, const char *msg, int msg_len) {
     return ret;
 }
 
-#undef ddtrace_bgs_logf
-int ddtrace_bgs_logf(const char *fmt, ...) {
+#undef datadog_signal_safe_logf
+int datadog_signal_safe_logf(const char *fmt, ...) {
     int ret = 0;
-    int error_log_fd = atomic_load(&ddtrace_error_log_fd);
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
     if (error_log_fd != -1) {
         va_list args, args_copy;
         va_start(args, fmt);
@@ -180,7 +181,7 @@ int ddtrace_bgs_logf(const char *fmt, ...) {
         vsnprintf(msgbuf, needed_len, fmt, args);
         va_end(args);
 
-        ret = ddtrace_log_with_time(error_log_fd, msgbuf, needed_len);
+        ret = datadog_log_with_time(error_log_fd, msgbuf, needed_len);
 
         free(msgbuf);
     }
@@ -188,11 +189,11 @@ int ddtrace_bgs_logf(const char *fmt, ...) {
     return ret;
 }
 
-static void ddtrace_log_callback(ddog_CharSlice msg) {
+static void dd_log_callback(ddog_CharSlice msg) {
     char *message = (char*)msg.ptr;
-    int error_log_fd = atomic_load(&ddtrace_error_log_fd);
+    int error_log_fd = atomic_load(&datadog_error_log_fd);
     if (error_log_fd != -1) {
-        ddtrace_log_with_time(error_log_fd, message, (int)msg.len);
+        datadog_log_with_time(error_log_fd, message, (int)msg.len);
     } else {
         // Temporarily disable user abort to prevent zend_bailout() from being
         // called inside php_log_err(). This callback is invoked from Rust while
@@ -221,11 +222,11 @@ static void ddtrace_log_callback(ddog_CharSlice msg) {
 }
 
 
-void ddtrace_log_init(void) {
-    ddog_log_callback = ddtrace_log_callback;
+void datadog_log_init(void) {
+    ddog_log_callback = dd_log_callback;
 }
 
-bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str) {
+bool datadog_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
 
     dd_log_set_level(Z_TYPE_P(new_value) == IS_TRUE);
@@ -233,7 +234,7 @@ bool ddtrace_alter_dd_trace_debug(zval *old_value, zval *new_value, zend_string 
     return true;
 }
 
-bool ddtrace_alter_dd_trace_log_level(zval *old_value, zval *new_value, zend_string *new_str) {
+bool datadog_alter_dd_trace_log_level(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
     if (runtime_config_first_init ? get_DD_TRACE_DEBUG() : get_global_DD_TRACE_DEBUG()) {
         return true;

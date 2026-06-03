@@ -15,7 +15,7 @@
 
 zai_env_result zai_sapi_getenv(zai_str name, zai_env_buffer *buf) {
     ZAI_ASSERT(buf && "zai_sapi_getenv: buf must be non-NULL");
-    ZAI_ASSERT((PG(modules_activated) | PG(during_request_startup)) && "zai_sapi_getenv: must be called during or after RINIT");
+    ZAI_ASSERT((PG(modules_activated) || PG(during_request_startup)) && "zai_sapi_getenv: must be called during or after RINIT");
 
     // Optimize for the happy-path where the caller has valid inputs. On every
     // request, every config is likely to check for a sapi-provided env var,

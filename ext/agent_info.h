@@ -1,10 +1,10 @@
-#ifndef DD_AGENT_INFO_H
-#define DD_AGENT_INFO_H
+#ifndef DATADOG_AGENT_INFO_H
+#define DATADOG_AGENT_INFO_H
 
 #include <stddef.h>
 #include "Zend/zend_types.h"
 
-void ddtrace_agent_info_rinit(void);
-void ddtrace_apply_agent_info(void);
+void datadog_agent_info_rinit(void);
+void datadog_apply_agent_info(void);
 
-#endif // DD_AGENT_INFO_H
+#endif // DATADOG_AGENT_INFO_H
