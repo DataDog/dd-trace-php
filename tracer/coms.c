@@ -956,7 +956,7 @@ static void dd_curl_set_headers(struct _writer_loop_data_t *writer, size_t trace
     dd_curl_reset_headers(writer);
 
     curl_easy_setopt(writer->curl, CURLOPT_HTTPHEADER, headers);
-    writer->headers = headers;
+    atomic_store(&writer->headers, headers);
 }
 
 static size_t dd_curl_writefunc(char *ptr, size_t size, size_t nmemb, void *s) {
