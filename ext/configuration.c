@@ -13,6 +13,8 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #include <tracer/configuration_dependencies.h>
 
+static bool ddtrace_alter_DD_TRACE_HEADER_TAGS(zval *old_value, zval *new_value, zend_string *new_str);
+
 #define DD_TO_DATADOG_INC 5 /* "DD" expanded to "datadog" */
 
 #define APPLY_0(...)
@@ -135,6 +137,28 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
     ini_name->ptr[ini_name->len] = '\0';
 }
 
+// Security-testing headers (APPSEC-62412) are injected permanently into
+// DD_TRACE_HEADER_TAGS so they ride the existing header-tags loop in
+// dd_add_header_to_meta with zero extra per-request overhead.
+static void dd_ensure_security_testing_headers(zend_array *ht) {
+    zval empty;
+    ZVAL_EMPTY_STRING(&empty);
+    zend_hash_str_add(ht, ZEND_STRL("x-datadog-endpoint-scan"), &empty);
+    zend_hash_str_add(ht, ZEND_STRL("x-datadog-security-test"), &empty);
+}
+
+static bool ddtrace_alter_DD_TRACE_HEADER_TAGS(zval *old_value, zval *new_value, zend_string *new_str) {
+    UNUSED(old_value);
+    if (DATADOG_G(remote_config_state) && !DATADOG_G(remote_config_writing)) {
+        if (!ddog_remote_config_alter_dynamic_config(DATADOG_G(remote_config_state),
+                DDOG_CHARSLICE_C("datadog.trace.header_tags"), zend_string_copy(new_str))) {
+            return false;
+        }
+    }
+    dd_ensure_security_testing_headers(Z_ARR_P(new_value));
+    return true;
+}
+
 bool datadog_config_minit(int module_number) {
     if (!zai_config_minit(datadog_config_entries, (sizeof datadog_config_entries / sizeof *datadog_config_entries), dd_ini_env_to_ini_name,
                           module_number)) {
@@ -147,6 +171,8 @@ bool datadog_config_minit(int module_number) {
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
     // arduous way of accessing the decoded_value directly from zai_config_memoized_entries.
     zai_config_first_time_rinit(false);
+    dd_ensure_security_testing_headers(
+        Z_ARR(zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_HEADER_TAGS].decoded_value));
 
     datadog_alter_dd_trace_debug(NULL, &zai_config_memoized_entries[DATADOG_CONFIG_DD_TRACE_DEBUG].decoded_value, NULL);
     datadog_log_ginit();
