@@ -195,6 +195,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice session_id,
                                                 const struct ddog_Endpoint *agent_endpoint,
                                                 const struct ddog_Endpoint *dogstatsd_endpoint,
+                                                const struct ddog_Endpoint *otlp_metrics_endpoint,
                                                 ddog_CharSlice language,
                                                 ddog_CharSlice language_version,
                                                 ddog_CharSlice tracer_version,
@@ -305,13 +306,12 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
  * safely coexist until they explicitly migrate.
  *
  * # Safety
- * `endpoint`, `context`, and every element in `metrics` must contain valid
- * UTF-8 `CharSlice` values. Empty `endpoint` or `metrics` is a no-op.
+ * `context` and every element in `metrics` must contain valid UTF-8
+ * `CharSlice` values. Empty `metrics` is a no-op.
  */
 ddog_MaybeError ddog_sidecar_send_ffe_evaluation_metrics(struct ddog_SidecarTransport **transport,
                                                          const struct ddog_InstanceId *instance_id,
                                                          const ddog_QueueId *queue_id,
-                                                         ddog_CharSlice endpoint,
                                                          const struct ddog_FfeTelemetryContext *context,
                                                          struct ddog_Slice_FfeEvaluationMetric metrics);
 

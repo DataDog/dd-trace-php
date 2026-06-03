@@ -7,7 +7,6 @@
 #include <ext/configuration.h>
 #include <ext/datadog.h>
 #include <ext/ffi_utils.h>
-#include <ext/otel_config.h>
 #include <ext/sidecar.h>
 #include <php.h>
 #include <string.h>
@@ -68,10 +67,6 @@ static void datadog_ffe_clear_evaluation_metrics(void) {
     DATADOG_G(ffe_metric_buffer_cap) = 0;
 }
 
-static zend_string *datadog_ffe_otlp_metrics_endpoint(void) {
-    return datadog_otel_metrics_endpoint(false);
-}
-
 bool datadog_ffe_record_evaluation_metric(
     const char *flag_key,
     size_t flag_key_len,
@@ -130,7 +125,6 @@ bool datadog_ffe_flush_evaluation_metrics(void) {
         return false;
     }
 
-    zend_string *endpoint = datadog_ffe_otlp_metrics_endpoint();
     ddog_FfeEvaluationMetric *ffi_metrics = safe_emalloc(metric_count, sizeof(ddog_FfeEvaluationMetric), 0);
     for (size_t i = 0; i < metric_count; i++) {
         ffi_metrics[i] = (ddog_FfeEvaluationMetric) {
@@ -158,12 +152,10 @@ bool datadog_ffe_flush_evaluation_metrics(void) {
             &DATADOG_G(sidecar),
             datadog_sidecar_instance_id,
             &DATADOG_G(sidecar_queue_id),
-            dd_zend_string_to_CharSlice(endpoint),
             &context,
             metric_slice));
 
     efree(ffi_metrics);
-    zend_string_release(endpoint);
     datadog_ffe_clear_evaluation_metrics();
     return flushed;
 }

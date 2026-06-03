@@ -2,6 +2,9 @@
 #include <env/env.h>
 #include "datadog.h"
 #include "endpoints.h"
+#include <components-rs/common.h>
+#include <components-rs/datadog.h>
+#include <ext/ffi_utils.h>
 #include <components/log/log.h>
 #include <ext/sidecar.h>
 #include <ext/telemetry.h>
@@ -191,69 +194,53 @@ static zend_string *datadog_otel_build_http_metrics_endpoint(const char *scheme,
     return endpoint;
 }
 
-static zend_string *datadog_otel_build_unix_metrics_endpoint(const char *socket_path, size_t socket_path_len, const char *request_path, size_t request_path_len) {
-    const char prefix[] = "unix://";
-    const char hex[] = "0123456789abcdef";
-    size_t prefix_len = sizeof(prefix) - 1;
-    zend_string *endpoint = zend_string_alloc(prefix_len + socket_path_len * 2 + request_path_len, 0);
-    char *cursor = ZSTR_VAL(endpoint);
-
-    memcpy(cursor, prefix, prefix_len);
-    cursor += prefix_len;
-    for (size_t i = 0; i < socket_path_len; i++) {
-        unsigned char byte = (unsigned char) socket_path[i];
-        *cursor++ = hex[byte >> 4];
-        *cursor++ = hex[byte & 0x0f];
-    }
-    memcpy(cursor, request_path, request_path_len);
-    cursor += request_path_len;
-    *cursor = '\0';
-
-    return endpoint;
-}
-
-static zend_string *datadog_otel_normalize_unix_metrics_endpoint(const char *endpoint, size_t endpoint_len, bool append_metrics_path) {
+static ddog_Endpoint *datadog_otel_unix_metrics_endpoint(const char *endpoint, size_t endpoint_len, bool append_metrics_path) {
     const char unix_scheme[] = "unix://";
     size_t unix_scheme_len = sizeof(unix_scheme) - 1;
     const char metrics_path[] = "/v1/metrics";
     size_t metrics_path_len = sizeof(metrics_path) - 1;
 
     if (endpoint_len <= unix_scheme_len || memcmp(endpoint, unix_scheme, unix_scheme_len) != 0) {
-        return append_metrics_path
-            ? datadog_otel_append_metrics_path(endpoint, endpoint_len)
-            : zend_string_init(endpoint, endpoint_len, 0);
+        return NULL;
     }
 
     const char *socket_path = endpoint + unix_scheme_len;
     size_t socket_path_len = endpoint_len - unix_scheme_len;
-    const char *request_path = "";
-    size_t request_path_len = 0;
 
-    if (append_metrics_path) {
-        request_path = metrics_path;
-        request_path_len = metrics_path_len;
-    } else if (socket_path_len > metrics_path_len && memcmp(socket_path + socket_path_len - metrics_path_len, metrics_path, metrics_path_len) == 0) {
+    if (!append_metrics_path && socket_path_len > metrics_path_len && memcmp(socket_path + socket_path_len - metrics_path_len, metrics_path, metrics_path_len) == 0) {
         socket_path_len -= metrics_path_len;
-        request_path = metrics_path;
-        request_path_len = metrics_path_len;
     }
 
     if (socket_path_len > 0 && socket_path[0] == '/') {
-        return datadog_otel_build_unix_metrics_endpoint(socket_path, socket_path_len, request_path, request_path_len);
+        return datadog_otel_metrics_endpoint_from_unix_socket((ddog_CharSlice){
+            .ptr = socket_path,
+            .len = socket_path_len,
+        });
     }
 
-    return append_metrics_path
-        ? datadog_otel_append_metrics_path(endpoint, endpoint_len)
-        : zend_string_init(endpoint, endpoint_len, 0);
+    return NULL;
 }
 
-static zend_string *datadog_otel_metrics_endpoint_from_agent_url(const char *agent_url, size_t agent_url_len) {
-    const char unix_scheme[] = "unix://";
-    size_t unix_scheme_len = sizeof(unix_scheme) - 1;
+static ddog_Endpoint *datadog_otel_endpoint_from_url(const char *endpoint, size_t endpoint_len, bool append_metrics_path) {
+    ddog_Endpoint *unix_endpoint = datadog_otel_unix_metrics_endpoint(endpoint, endpoint_len, append_metrics_path);
+    if (unix_endpoint) {
+        return unix_endpoint;
+    }
+
+    zend_string *endpoint_url = append_metrics_path
+        ? datadog_otel_append_metrics_path(endpoint, endpoint_len)
+        : zend_string_init(endpoint, endpoint_len, 0);
+    ddog_Endpoint *parsed_endpoint = ddog_endpoint_from_url(dd_zend_string_to_CharSlice(endpoint_url));
+    zend_string_release(endpoint_url);
+    return parsed_endpoint;
+}
+
+static ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(const char *agent_url, size_t agent_url_len) {
     zend_string *agent_scheme = NULL;
 
-    if (agent_url_len > unix_scheme_len && memcmp(agent_url, unix_scheme, unix_scheme_len) == 0) {
-        return datadog_otel_normalize_unix_metrics_endpoint(agent_url, agent_url_len, true);
+    ddog_Endpoint *unix_endpoint = datadog_otel_unix_metrics_endpoint(agent_url, agent_url_len, true);
+    if (unix_endpoint) {
+        return unix_endpoint;
     }
 
     php_url *parsed = php_url_parse(agent_url);
@@ -274,7 +261,9 @@ static zend_string *datadog_otel_metrics_endpoint_from_agent_url(const char *age
                 zend_string_release(agent_scheme);
             }
             php_url_free(parsed);
-            return endpoint;
+            ddog_Endpoint *parsed_endpoint = ddog_endpoint_from_url(dd_zend_string_to_CharSlice(endpoint));
+            zend_string_release(endpoint);
+            return parsed_endpoint;
         }
 #else
         if (parsed->scheme) {
@@ -292,7 +281,9 @@ static zend_string *datadog_otel_metrics_endpoint_from_agent_url(const char *age
                 zend_string_release(agent_scheme);
             }
             php_url_free(parsed);
-            return endpoint;
+            ddog_Endpoint *parsed_endpoint = ddog_endpoint_from_url(dd_zend_string_to_CharSlice(endpoint));
+            zend_string_release(endpoint);
+            return parsed_endpoint;
         }
 #endif
         if (agent_scheme) {
@@ -301,21 +292,28 @@ static zend_string *datadog_otel_metrics_endpoint_from_agent_url(const char *age
         php_url_free(parsed);
     }
 
-    return datadog_otel_build_http_metrics_endpoint(NULL, 0, NULL, 0);
+    zend_string *endpoint = datadog_otel_build_http_metrics_endpoint(NULL, 0, NULL, 0);
+    ddog_Endpoint *parsed_endpoint = ddog_endpoint_from_url(dd_zend_string_to_CharSlice(endpoint));
+    zend_string_release(endpoint);
+    return parsed_endpoint;
 }
 
-zend_string *datadog_otel_metrics_endpoint(bool pre_rinit) {
+ddog_Endpoint *datadog_otel_metrics_endpoint(bool pre_rinit) {
     ZAI_ENV_BUFFER_INIT(endpoint, ZAI_ENV_MAX_BUFSIZ);
     if (datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"), &endpoint, pre_rinit) && endpoint.ptr[0]) {
-        return datadog_otel_normalize_unix_metrics_endpoint(endpoint.ptr, strlen(endpoint.ptr), false);
+        return datadog_otel_endpoint_from_url(endpoint.ptr, strlen(endpoint.ptr), false);
     }
 
     if (datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_ENDPOINT"), &endpoint, pre_rinit) && endpoint.ptr[0]) {
-        return datadog_otel_normalize_unix_metrics_endpoint(endpoint.ptr, strlen(endpoint.ptr), true);
+        return datadog_otel_endpoint_from_url(endpoint.ptr, strlen(endpoint.ptr), true);
+    }
+
+    if (datadog_get_otel_value((zai_str)ZAI_STRL("DD_TRACE_AGENT_URL"), &endpoint, pre_rinit) && endpoint.ptr[0]) {
+        return datadog_otel_metrics_endpoint_from_agent_url(endpoint.ptr, strlen(endpoint.ptr));
     }
 
     char *agent_url = datadog_agent_url();
-    zend_string *metrics_endpoint = datadog_otel_metrics_endpoint_from_agent_url(agent_url, strlen(agent_url));
+    ddog_Endpoint *metrics_endpoint = datadog_otel_metrics_endpoint_from_agent_url(agent_url, strlen(agent_url));
     free(agent_url);
     return metrics_endpoint;
 }

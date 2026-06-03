@@ -147,6 +147,30 @@ pub unsafe extern "C" fn datadog_parse_agent_url(
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_unix_socket(
+    socket_path: CharSlice,
+) -> std::option::Option<Box<Endpoint>> {
+    #[cfg(unix)]
+    {
+        let socket_path = socket_path.to_utf8_lossy();
+        let uri = libdd_common::connector::uds::socket_path_to_uri(std::path::Path::new(
+            socket_path.as_ref(),
+        ))
+        .ok()?;
+        let mut parts = uri.into_parts();
+        parts.path_and_query = Some(PathAndQuery::from_static("/v1/metrics"));
+        Uri::from_parts(parts)
+            .ok()
+            .map(|url| Box::new(Endpoint::from_url(url)))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = socket_path;
+        None
+    }
+}
+
+#[no_mangle]
 #[cfg(unix)]
 pub unsafe extern "C" fn datadog_endpoint_as_crashtracker_config(
     endpoint: &Endpoint,
