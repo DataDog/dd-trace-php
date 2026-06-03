@@ -19,12 +19,34 @@ function show($label, $value) {
     echo $label . '=' . json_encode($value, JSON_UNESCAPED_SLASHES) . "\n";
 }
 
-function header_value($request, $name) {
-    foreach ($request['headers'] ?? [] as $headerName => $headerValue) {
-        if (strcasecmp($headerName, $name) == 0) {
-            return $headerValue;
+function wait_for_proxy_log($path) {
+    for ($i = 0; $i < 100; $i++) {
+        usleep(10000);
+        $log = @file_get_contents($path);
+        if (is_string($log) && strpos($log, 'POST /v1/metrics HTTP/1.1') !== false) {
+            return $log;
         }
     }
+
+    throw new Exception('wait for proxy log timeout');
+}
+
+function request_uri($log) {
+    if (preg_match('/^POST ([^ ]+) HTTP/m', $log, $matches)) {
+        return $matches[1];
+    }
+
+    return null;
+}
+
+function header_value($log, $name) {
+    foreach (preg_split('/\r?\n/', $log) as $line) {
+        $parts = explode(':', $line, 2);
+        if (count($parts) == 2 && strcasecmp($parts[0], $name) == 0) {
+            return trim($parts[1]);
+        }
+    }
+
     return null;
 }
 
@@ -33,7 +55,10 @@ $rr->flushInterval = 10000;
 $rr->maxIteration = 100;
 $rr->clearDumpedData();
 
-$proxy = RequestReplayer::launchUnixProxy(str_replace("unix://", "", getenv("DD_TRACE_AGENT_URL")));
+$socketPath = str_replace("unix://", "", getenv("DD_TRACE_AGENT_URL"));
+$proxyLog = '/tmp/unix-proxy-' . basename($socketPath);
+@unlink($proxyLog);
+$proxy = RequestReplayer::launchUnixProxy($socketPath);
 
 show('recorded', \DDTrace\Internal\record_ffe_evaluation_metric(
     'unix.metric.flag',
@@ -44,19 +69,20 @@ show('recorded', \DDTrace\Internal\record_ffe_evaluation_metric(
 ));
 show('flushed', \DDTrace\Internal\flush_ffe_evaluation_metrics());
 
-$request = $rr->waitForRequest(function ($request) {
-    return isset($request['uri']) && $request['uri'] === '/v1/metrics';
-});
+$log = wait_for_proxy_log($proxyLog);
 
-show('metrics_uri', $request['uri'] ?? null);
-show('content_type', header_value($request, 'Content-Type'));
+show('metrics_uri', request_uri($log));
+show('content_type', header_value($log, 'Content-Type'));
+show('test_token', header_value($log, 'X-Datadog-Test-Session-Token'));
 ?>
 --CLEAN--
 <?php
 @unlink("/tmp/ddtrace-ffe-metrics-test.socket");
+@unlink("/tmp/unix-proxy-ddtrace-ffe-metrics-test.socket");
 ?>
 --EXPECT--
 recorded=true
 flushed=true
 metrics_uri="/v1/metrics"
 content_type="application/x-protobuf"
+test_token="ffe/evaluation_metrics_unix_agent_endpoint"

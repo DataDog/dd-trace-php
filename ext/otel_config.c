@@ -1,10 +1,12 @@
 #include "otel_config.h"
 #include <env/env.h>
 #include "datadog.h"
+#include "endpoints.h"
 #include <components/log/log.h>
 #include <ext/sidecar.h>
 #include <ext/telemetry.h>
 #include "configuration.h"
+#include <ext/standard/url.h>
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -136,4 +138,184 @@ bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_ri
     *out = 0;
 
     return true;
+}
+
+static zend_string *datadog_otel_append_metrics_path(const char *base_endpoint, size_t base_len) {
+    while (base_len > 0 && base_endpoint[base_len - 1] == '/') {
+        base_len--;
+    }
+
+    const char suffix[] = "/v1/metrics";
+    size_t suffix_len = sizeof(suffix) - 1;
+    zend_string *endpoint = zend_string_alloc(base_len + suffix_len, 0);
+    memcpy(ZSTR_VAL(endpoint), base_endpoint, base_len);
+    memcpy(ZSTR_VAL(endpoint) + base_len, suffix, suffix_len);
+    ZSTR_VAL(endpoint)[base_len + suffix_len] = '\0';
+    return endpoint;
+}
+
+static zend_string *datadog_otel_build_http_metrics_endpoint(const char *scheme, size_t scheme_len, const char *host, size_t host_len) {
+    if (!scheme || scheme_len == 0) {
+        scheme = "http";
+        scheme_len = sizeof("http") - 1;
+    }
+    if (!host || host_len == 0) {
+        host = "localhost";
+        host_len = sizeof("localhost") - 1;
+    }
+
+    bool bracket_ipv6 = memchr(host, ':', host_len) && host[0] != '[';
+    const char separator[] = "://";
+    const char suffix[] = ":4318/v1/metrics";
+    size_t separator_len = sizeof(separator) - 1;
+    size_t suffix_len = sizeof(suffix) - 1;
+    size_t bracket_len = bracket_ipv6 ? 2 : 0;
+
+    zend_string *endpoint = zend_string_alloc(scheme_len + separator_len + bracket_len + host_len + suffix_len, 0);
+    char *cursor = ZSTR_VAL(endpoint);
+    memcpy(cursor, scheme, scheme_len);
+    cursor += scheme_len;
+    memcpy(cursor, separator, separator_len);
+    cursor += separator_len;
+    if (bracket_ipv6) {
+        *cursor++ = '[';
+    }
+    memcpy(cursor, host, host_len);
+    cursor += host_len;
+    if (bracket_ipv6) {
+        *cursor++ = ']';
+    }
+    memcpy(cursor, suffix, suffix_len);
+    cursor += suffix_len;
+    *cursor = '\0';
+    return endpoint;
+}
+
+static zend_string *datadog_otel_build_unix_metrics_endpoint(const char *socket_path, size_t socket_path_len, const char *request_path, size_t request_path_len) {
+    const char prefix[] = "unix://";
+    const char hex[] = "0123456789abcdef";
+    size_t prefix_len = sizeof(prefix) - 1;
+    zend_string *endpoint = zend_string_alloc(prefix_len + socket_path_len * 2 + request_path_len, 0);
+    char *cursor = ZSTR_VAL(endpoint);
+
+    memcpy(cursor, prefix, prefix_len);
+    cursor += prefix_len;
+    for (size_t i = 0; i < socket_path_len; i++) {
+        unsigned char byte = (unsigned char) socket_path[i];
+        *cursor++ = hex[byte >> 4];
+        *cursor++ = hex[byte & 0x0f];
+    }
+    memcpy(cursor, request_path, request_path_len);
+    cursor += request_path_len;
+    *cursor = '\0';
+
+    return endpoint;
+}
+
+static zend_string *datadog_otel_normalize_unix_metrics_endpoint(const char *endpoint, size_t endpoint_len, bool append_metrics_path) {
+    const char unix_scheme[] = "unix://";
+    size_t unix_scheme_len = sizeof(unix_scheme) - 1;
+    const char metrics_path[] = "/v1/metrics";
+    size_t metrics_path_len = sizeof(metrics_path) - 1;
+
+    if (endpoint_len <= unix_scheme_len || memcmp(endpoint, unix_scheme, unix_scheme_len) != 0) {
+        return append_metrics_path
+            ? datadog_otel_append_metrics_path(endpoint, endpoint_len)
+            : zend_string_init(endpoint, endpoint_len, 0);
+    }
+
+    const char *socket_path = endpoint + unix_scheme_len;
+    size_t socket_path_len = endpoint_len - unix_scheme_len;
+    const char *request_path = "";
+    size_t request_path_len = 0;
+
+    if (append_metrics_path) {
+        request_path = metrics_path;
+        request_path_len = metrics_path_len;
+    } else if (socket_path_len > metrics_path_len && memcmp(socket_path + socket_path_len - metrics_path_len, metrics_path, metrics_path_len) == 0) {
+        socket_path_len -= metrics_path_len;
+        request_path = metrics_path;
+        request_path_len = metrics_path_len;
+    }
+
+    if (socket_path_len > 0 && socket_path[0] == '/') {
+        return datadog_otel_build_unix_metrics_endpoint(socket_path, socket_path_len, request_path, request_path_len);
+    }
+
+    return append_metrics_path
+        ? datadog_otel_append_metrics_path(endpoint, endpoint_len)
+        : zend_string_init(endpoint, endpoint_len, 0);
+}
+
+static zend_string *datadog_otel_metrics_endpoint_from_agent_url(const char *agent_url, size_t agent_url_len) {
+    const char unix_scheme[] = "unix://";
+    size_t unix_scheme_len = sizeof(unix_scheme) - 1;
+    zend_string *agent_scheme = NULL;
+
+    if (agent_url_len > unix_scheme_len && memcmp(agent_url, unix_scheme, unix_scheme_len) == 0) {
+        return datadog_otel_normalize_unix_metrics_endpoint(agent_url, agent_url_len, true);
+    }
+
+    php_url *parsed = php_url_parse(agent_url);
+    if (parsed) {
+#if PHP_VERSION_ID >= 70300
+        if (parsed->scheme) {
+            agent_scheme = zend_string_copy(parsed->scheme);
+        }
+
+        if (parsed->host) {
+            zend_string *endpoint = datadog_otel_build_http_metrics_endpoint(
+                agent_scheme ? ZSTR_VAL(agent_scheme) : NULL,
+                agent_scheme ? ZSTR_LEN(agent_scheme) : 0,
+                ZSTR_VAL(parsed->host),
+                ZSTR_LEN(parsed->host)
+            );
+            if (agent_scheme) {
+                zend_string_release(agent_scheme);
+            }
+            php_url_free(parsed);
+            return endpoint;
+        }
+#else
+        if (parsed->scheme) {
+            agent_scheme = zend_string_init(parsed->scheme, strlen(parsed->scheme), 0);
+        }
+
+        if (parsed->host) {
+            zend_string *endpoint = datadog_otel_build_http_metrics_endpoint(
+                agent_scheme ? ZSTR_VAL(agent_scheme) : NULL,
+                agent_scheme ? ZSTR_LEN(agent_scheme) : 0,
+                parsed->host,
+                strlen(parsed->host)
+            );
+            if (agent_scheme) {
+                zend_string_release(agent_scheme);
+            }
+            php_url_free(parsed);
+            return endpoint;
+        }
+#endif
+        if (agent_scheme) {
+            zend_string_release(agent_scheme);
+        }
+        php_url_free(parsed);
+    }
+
+    return datadog_otel_build_http_metrics_endpoint(NULL, 0, NULL, 0);
+}
+
+zend_string *datadog_otel_metrics_endpoint(bool pre_rinit) {
+    ZAI_ENV_BUFFER_INIT(endpoint, ZAI_ENV_MAX_BUFSIZ);
+    if (datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"), &endpoint, pre_rinit) && endpoint.ptr[0]) {
+        return datadog_otel_normalize_unix_metrics_endpoint(endpoint.ptr, strlen(endpoint.ptr), false);
+    }
+
+    if (datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_ENDPOINT"), &endpoint, pre_rinit) && endpoint.ptr[0]) {
+        return datadog_otel_normalize_unix_metrics_endpoint(endpoint.ptr, strlen(endpoint.ptr), true);
+    }
+
+    char *agent_url = datadog_agent_url();
+    zend_string *metrics_endpoint = datadog_otel_metrics_endpoint_from_agent_url(agent_url, strlen(agent_url));
+    free(agent_url);
+    return metrics_endpoint;
 }

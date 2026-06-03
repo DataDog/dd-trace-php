@@ -11,14 +11,14 @@ final class NativeEvaluator implements Evaluator
     private $mapper;
     private $recordMetrics;
 
-    private function __construct($mapper = null, $recordMetrics = true)
+    private function __construct($mapper = null, bool $recordMetrics = true)
     {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
         }
 
         $this->mapper = $mapper ?: new ResultMapper();
-        $this->recordMetrics = (bool) $recordMetrics;
+        $this->recordMetrics = $recordMetrics;
     }
 
     public static function isAvailable()

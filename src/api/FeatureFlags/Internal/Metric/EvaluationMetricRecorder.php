@@ -61,15 +61,6 @@ final class EvaluationMetricRecorder
 
     private static function isEnabled()
     {
-        if (function_exists('dd_trace_env_config')) {
-            return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED') === true;
-        }
-
-        $value = getenv('DD_METRICS_OTEL_ENABLED');
-        if ($value === false) {
-            return false;
-        }
-
-        return in_array(strtolower((string) $value), array('1', 'true', 'yes', 'on'), true);
+        return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED') === true;
     }
 }
