@@ -1318,28 +1318,6 @@ impl Profiler {
         // If not tracked, nothing to do (wasn't sampled)
     }
 
-    /// Called when a tracked allocation is reallocated in place. Keeps heap-live samples current
-    /// without changing the original allocation stack attached to the tracked pointer.
-    ///
-    /// # Precondition
-    /// Caller must have verified that heap-live profiling is enabled (i.e. checked
-    /// `HEAP_LIVE_ENABLED` before calling this).
-    pub(crate) fn update_allocation_size(&self, ptr: *mut std::ffi::c_void, len: i64) {
-        debug_assert!(self.is_heap_live_enabled());
-
-        if let Some(mut sample) = self.live_heap_tracker.get_mut(&(ptr as usize)) {
-            let previous_size = sample.allocation_size;
-            sample.allocation_size = len;
-            trace!(
-                "Updated tracked allocation at {:#x} from {} to {} bytes",
-                ptr as usize,
-                previous_size,
-                len
-            );
-        }
-        // If not tracked, nothing to do (wasn't sampled)
-    }
-
     /// Collect a stack sample with exception.
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_exception(

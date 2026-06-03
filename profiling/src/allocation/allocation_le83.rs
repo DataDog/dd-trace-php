@@ -1,6 +1,6 @@
 use crate::allocation::{
     allocation_profiling_stats_should_collect, collect_allocation, free_allocation,
-    update_allocation_size, HEAP_LIVE_ENABLED,
+    HEAP_LIVE_ENABLED,
 };
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
@@ -387,20 +387,15 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 
     let heap_live = HEAP_LIVE_ENABLED.load(Relaxed);
 
-    if ptr::eq(ptr, prev_ptr) {
-        if heap_live {
-            update_allocation_size(ptr, len);
-        }
-    } else {
-        // Pointer moved: treat as free(old) + alloc(new). prev_ptr can be
-        // null when realloc is called as a malloc replacement.
-        if heap_live && !prev_ptr.is_null() {
-            free_allocation(prev_ptr);
-        }
+    // For in-place and pointer-moved reallocs alike: untrack the old allocation
+    // and re-sample at the new size. This preserves the upscaling invariant
+    // (the sampling decision is always made at the reported size).
+    if heap_live && !prev_ptr.is_null() {
+        free_allocation(prev_ptr);
+    }
 
-        if allocation_profiling_stats_should_collect(len) {
-            collect_allocation(ptr, len);
-        }
+    if allocation_profiling_stats_should_collect(len) {
+        collect_allocation(ptr, len);
     }
 
     ptr

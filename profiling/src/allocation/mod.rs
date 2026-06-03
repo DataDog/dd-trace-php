@@ -186,18 +186,6 @@ pub fn free_allocation(ptr: *mut c_void) {
     }
 }
 
-/// Called when memory is reallocated in place. If this pointer was tracked for
-/// live heap, updates the tracked size without replacing the original stack.
-///
-/// See `free_allocation` for the call-site gating contract.
-#[inline]
-pub fn update_allocation_size(ptr: *mut c_void, len: size_t) {
-    debug_assert!(HEAP_LIVE_ENABLED.load(Ordering::Relaxed));
-    if let Some(profiler) = Profiler::get() {
-        profiler.update_allocation_size(ptr, len as i64);
-    }
-}
-
 #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
 pub fn alloc_prof_startup() {
     allocation_le83::alloc_prof_startup();
