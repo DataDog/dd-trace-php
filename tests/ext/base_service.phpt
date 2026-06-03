@@ -38,9 +38,11 @@ array(1) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["_dd.base_service"]=>
       string(16) "base_service.php"
+      ["_dd.svc_src"]=>
+      string(1) "m"
     }
   }
 }

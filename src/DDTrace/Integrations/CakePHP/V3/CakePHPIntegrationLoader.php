@@ -26,6 +26,7 @@ class CakePHPIntegrationLoader
                 $span->name = $span->resource = 'Controller.invokeAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = CakePHPIntegration::$appName;
+                Integration::tagFrameworkServiceSource($span, CakePHPIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                 /** @var \Cake\Controller\Controller $this */
@@ -91,6 +92,7 @@ class CakePHPIntegrationLoader
                 $span->name = 'cakephp.view';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = CakePHPIntegration::$appName;
+                Integration::tagFrameworkServiceSource($span, CakePHPIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                 $absoluteFilePath = $renderHook->data['viewFileName'] ?? '';

@@ -491,6 +491,7 @@ class AMQPIntegration extends Integration
         $span->meta[Tag::SPAN_KIND] = $spanKind;
         $span->type = 'queue';
         $span->service = 'amqp';
+        $span->meta['_dd.svc_src'] = self::NAME;
         $span->meta[Tag::COMPONENT] = self::NAME;
 
         $span->meta[Tag::MQ_SYSTEM] = self::SYSTEM;

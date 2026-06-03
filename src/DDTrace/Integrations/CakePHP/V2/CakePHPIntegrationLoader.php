@@ -30,6 +30,7 @@ class CakePHPIntegrationLoader
                 $span->name = $span->resource = 'Controller.invokeAction';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = CakePHPIntegration::$appName;
+                Integration::tagFrameworkServiceSource($span, CakePHPIntegration::NAME);
                 $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
 
                 $request = $args[0];
@@ -84,6 +85,7 @@ class CakePHPIntegrationLoader
             $span->resource = $file;
             $span->meta = ['cakephp.view' => $file];
             $span->service = CakePHPIntegration::$appName;
+            Integration::tagFrameworkServiceSource($span, CakePHPIntegration::NAME);
             $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
         });
 

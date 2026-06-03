@@ -179,9 +179,11 @@ array(3) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(3) {
+    array(4) {
       ["_dd.base_service"]=>
       string(10) "FooService"
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["rand.range"]=>
       string(8) "42 - 999"
       ["rand.value"]=>

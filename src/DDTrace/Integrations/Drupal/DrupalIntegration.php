@@ -44,12 +44,14 @@ class DrupalIntegration extends Integration
                     $rootSpan = \DDTrace\root_span();
                     $rootSpan->name = 'drupal.request';
                     $rootSpan->service = $service;
+                    Integration::tagFrameworkServiceSource($rootSpan, 'drupal');
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
 
                     $span->name = 'drupal.kernel.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
+                    Integration::tagFrameworkServiceSource($span, 'drupal');
                     $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = self::NAME;
                 }
@@ -60,6 +62,7 @@ class DrupalIntegration extends Integration
             $span->name = 'drupal.httpkernel.handle';
             $span->type = Type::WEB_SERVLET;
             $span->service = \ddtrace_config_app_name('drupal');
+            Integration::tagFrameworkServiceSource($span, 'drupal');
             $span->meta[Tag::COMPONENT] = self::NAME;
         };
         // See Drupal\Core\DependencyInjection\Compiler\StackedKernelPass
@@ -78,6 +81,7 @@ class DrupalIntegration extends Integration
                     $span->name = 'drupal.kernel.boot';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name('drupal');
+                    Integration::tagFrameworkServiceSource($span, 'drupal');
                     $span->meta[Tag::COMPONENT] = self::NAME;
                 }
             ]
@@ -124,6 +128,7 @@ class DrupalIntegration extends Integration
                                 $span->name = 'drupal.hook.' . $hook;
                                 $span->type = Type::WEB_SERVLET;
                                 $span->service = \ddtrace_config_app_name('drupal');
+                                Integration::tagFrameworkServiceSource($span, 'drupal');
                                 $span->meta[Tag::COMPONENT] = self::NAME;
 
                                 $span->meta['drupal.hook'] = $hook;
@@ -165,6 +170,7 @@ class DrupalIntegration extends Integration
                                     $span->name = 'drupal.hook.' . $hook;
                                     $span->type = Type::WEB_SERVLET;
                                     $span->service = \ddtrace_config_app_name('drupal');
+                                    Integration::tagFrameworkServiceSource($span, 'drupal');
                                     $span->meta[Tag::COMPONENT] = self::NAME;
                                     $span->resource = $functionName;
 
@@ -197,6 +203,7 @@ class DrupalIntegration extends Integration
                 $span->name = 'drupal.view.execute';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = \ddtrace_config_app_name('drupal');
+                Integration::tagFrameworkServiceSource($span, 'drupal');
                 $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
                 // @var \Drupal\views\Entity\View $storage
@@ -239,6 +246,7 @@ class DrupalIntegration extends Integration
                 'prehook' => function (SpanData $span, $args) {
                     $span->name = 'drupal.theme.render';
                     $span->service = \ddtrace_config_app_name('drupal');
+                    Integration::tagFrameworkServiceSource($span, 'drupal');
                     $span->type = Type::WEB_SERVLET;
                     $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
@@ -396,6 +404,7 @@ class DrupalIntegration extends Integration
             static function (SpanData $span) {
                 $span->name = 'symfony.response.send';
                 $span->service = \ddtrace_config_app_name('drupal');
+                Integration::tagFrameworkServiceSource($span, 'drupal');
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = self::NAME;
             }

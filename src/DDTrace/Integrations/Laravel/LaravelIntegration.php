@@ -62,6 +62,7 @@ class LaravelIntegration extends Integration
                 $span->name = 'laravel.application.handle';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = self::getServiceName();
+                Integration::tagFrameworkServiceSource($span, self::NAME);
                 $span->resource = 'Illuminate\Foundation\Application@handle';
                 $span->meta[Tag::COMPONENT] = self::NAME;
 
@@ -74,6 +75,7 @@ class LaravelIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
                 $rootSpan->service = self::getServiceName();
+                Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
@@ -170,6 +172,7 @@ class LaravelIntegration extends Integration
                 $span->name = 'laravel.action';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = LaravelIntegration::getServiceName();
+                Integration::tagFrameworkServiceSource($span, self::NAME);
                 $span->resource = $this->uri;
                 $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
             }
@@ -202,6 +205,7 @@ class LaravelIntegration extends Integration
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = self::getServiceName();
+                    Integration::tagFrameworkServiceSource($span, self::NAME);
                     $span->resource = $args[0];
                     $span->meta[Tag::COMPONENT] = self::NAME;
 
@@ -241,6 +245,7 @@ class LaravelIntegration extends Integration
                     $span->name = 'laravel.event.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = self::getServiceName();
+                    Integration::tagFrameworkServiceSource($span, self::NAME);
                     $span->resource = is_object($args[0]) ? get_class($args[0]) : $args[0];
                     $span->meta[Tag::COMPONENT] = self::NAME;
                 },
@@ -252,6 +257,7 @@ class LaravelIntegration extends Integration
             $span->name = 'laravel.view.render';
             $span->type = Type::WEB_SERVLET;
             $span->service = LaravelIntegration::getServiceName();
+            Integration::tagFrameworkServiceSource($span, self::NAME);
             $span->resource = $this->view;
             $span->meta[Tag::COMPONENT] = LaravelIntegration::NAME;
         });
@@ -270,6 +276,7 @@ class LaravelIntegration extends Integration
                     : LumenIntegration::NAME;
                 $span->type = Type::WEB_SERVLET;
                 $span->service = self::getServiceName();
+                Integration::tagFrameworkServiceSource($span, self::NAME);
                 if (isset($args[0]) && \is_string($args[0])) {
                     $span->resource = $args[0];
                 }
@@ -285,6 +292,7 @@ class LaravelIntegration extends Integration
                 $span->name = 'laravel.provider.load';
                 $span->type = Type::WEB_SERVLET;
                 $span->service = $serviceName;
+                Integration::tagFrameworkServiceSource($span, self::NAME);
                 $span->resource = 'Illuminate\Foundation\ProviderRepository::load';
                 $span->meta[Tag::COMPONENT] = self::NAME;
 
@@ -293,6 +301,7 @@ class LaravelIntegration extends Integration
                 $rootSpan = \DDTrace\root_span();
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = $serviceName;
+                Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                 $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );
@@ -600,6 +609,7 @@ class LaravelIntegration extends Integration
 
                 $rootSpan->name = 'laravel.request';
                 $rootSpan->service = self::getServiceName();
+                Integration::tagFrameworkServiceSource($rootSpan, self::NAME);
                 $rootSpan->meta[Tag::COMPONENT] = self::NAME;
             }
         );

@@ -85,11 +85,15 @@ abstract class Integration implements \DDTrace\Integration
             $rootSpan = \DDTrace\root_span();
             if ($rootSpan) {
                 $service = $rootSpan->service;
+                if (isset($rootSpan->meta['_dd.svc_src'])) {
+                    $span->meta['_dd.svc_src'] = $rootSpan->meta['_dd.svc_src'];
+                }
             } else {
                 $service = \ddtrace_config_app_name($fallbackName);
             }
         } else {
             $service = $fallbackName;
+            $span->meta['_dd.svc_src'] = $fallbackName;
         }
 
         $mapping = \dd_trace_env_config('DD_SERVICE_MAPPING');
@@ -97,6 +101,19 @@ abstract class Integration implements \DDTrace\Integration
             $service = $mapping[$service];
         }
         $span->service = $service;
+    }
+
+    /**
+     * Tag _dd.svc_src with the integration name when the framework fallback drove
+     * the service value (i.e. user did not configure DD_SERVICE). When DD_SERVICE
+     * is configured, the service value is the user's default — leave _dd.svc_src
+     * cleared per RFC "Service Override Source Attribution".
+     */
+    public static function tagFrameworkServiceSource(SpanData $span, string $integrationName): void
+    {
+        if (!\dd_trace_env_config('DD_SERVICE')) {
+            $span->meta['_dd.svc_src'] = $integrationName;
+        }
     }
 
     public static function handleOrphan(SpanData $span)

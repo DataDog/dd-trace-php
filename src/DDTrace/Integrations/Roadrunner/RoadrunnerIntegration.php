@@ -155,6 +155,7 @@ class RoadrunnerIntegration extends Integration
                 $activeSpan = \DDTrace\start_trace_span();
 
                 $activeSpan->service = $service;
+                Integration::tagFrameworkServiceSource($activeSpan, 'roadrunner');
                 $activeSpan->name = "web.request";
                 $activeSpan->type = Type::WEB_SERVLET;
                 $activeSpan->meta[Tag::COMPONENT] = RoadrunnerIntegration::NAME;

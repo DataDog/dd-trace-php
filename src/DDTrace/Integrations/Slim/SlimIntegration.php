@@ -33,6 +33,7 @@ class SlimIntegration extends Integration
                 SlimIntegration::addTraceAnalyticsIfEnabled($rootSpan);
                 $rootSpan->name = 'slim.request';
                 $rootSpan->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                Integration::tagFrameworkServiceSource($rootSpan, SlimIntegration::NAME);
                 $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                 $rootSpan->meta[Tag::COMPONENT] = SlimIntegration::NAME;
 
@@ -45,6 +46,7 @@ class SlimIntegration extends Integration
                                 $span->resource = \get_class($this);
                                 $span->type = Type::WEB_SERVLET;
                                 $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                                Integration::tagFrameworkServiceSource($span, SlimIntegration::NAME);
                                 $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
                             };
                             \DDTrace\trace_method($name, 'process', $closure);
@@ -111,6 +113,7 @@ class SlimIntegration extends Integration
                     $span->resource = $callableName ?: 'controller';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                    Integration::tagFrameworkServiceSource($span, SlimIntegration::NAME);
                     $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
 
                     /** @var ServerRequestInterface $request */
@@ -152,6 +155,7 @@ class SlimIntegration extends Integration
                 \DDTrace\trace_method('Slim\Views\Twig', 'render', static function (SpanData $span, $args) {
                     $span->name = 'slim.view';
                     $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
+                    Integration::tagFrameworkServiceSource($span, SlimIntegration::NAME);
                     $span->type = Type::WEB_SERVLET;
                     $template = $args[1];
                     $span->resource = $template;

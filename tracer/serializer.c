@@ -739,6 +739,16 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
 
     zend_array *parent_meta = ddtrace_property_array(&parent->property_meta);
 
+    // Per RFC "Service Override Source Attribution", inherit _dd.svc_src
+    // from parent at span creation time.
+    zval *parent_svc_src = zend_hash_str_find(parent_meta, ZEND_STRL("_dd.svc_src"));
+    if (parent_svc_src) {
+        zend_array *child_meta = ddtrace_property_array(&span->property_meta);
+        zval copy;
+        ZVAL_COPY(&copy, parent_svc_src);
+        zend_hash_str_update(child_meta, ZEND_STRL("_dd.svc_src"), &copy);
+    }
+
     zval *prop_version = &span->property_version;
     zval_ptr_dtor(prop_version);
     zval *version;
@@ -1766,6 +1776,13 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
     if (!is_inferred_span && !zend_string_equals_ci(Z_STR(prop_service_as_string), Z_STR(prop_root_service_as_string))) {
         ddog_add_str_span_meta_zstr(rust_span, "_dd.base_service", Z_STR_P(&prop_root_service_as_string));
+
+        // Per RFC "Service Override Source Attribution": when the service was
+        // overridden but no integration/config layer tagged _dd.svc_src, the
+        // override came from the manual API.
+        if (!zend_hash_str_exists(meta, ZEND_STRL("_dd.svc_src"))) {
+            ddog_add_str_span_meta_str(rust_span, "_dd.svc_src", "m");
+        }
     }
     zend_string_release(Z_STR(prop_root_service_as_string));
     zend_string_release(Z_STR(prop_service_as_string));

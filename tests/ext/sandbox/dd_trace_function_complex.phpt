@@ -171,9 +171,11 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["_dd.base_service"]=>
       string(10) "BarService"
+      ["_dd.svc_src"]=>
+      string(1) "m"
     }
   }
   [2]=>
@@ -197,9 +199,11 @@ array(5) {
     ["type"]=>
     string(3) "cli"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["_dd.base_service"]=>
       string(10) "BarService"
+      ["_dd.svc_src"]=>
+      string(1) "m"
     }
   }
   [3]=>
