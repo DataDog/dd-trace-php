@@ -88,7 +88,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'count'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
                     ->withChildren([
@@ -127,7 +128,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'delete index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
                     ->withChildren([
@@ -166,7 +168,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'exists index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
                     ->withChildren([
@@ -213,7 +216,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'explain index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
                     ->withChildren([
@@ -256,7 +260,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'get index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])
             ->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
@@ -291,7 +296,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'index index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
                     ->withChildren([
@@ -429,6 +435,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'elasticsearch',
+                    '_dd.svc_src' => 'elasticsearch',
                     '_dd.base_service' => 'phpunit',
                 ])->withChildren([
                     SpanAssertion::exists('Elasticsearch.Endpoint.performRequest')->withChildren([
@@ -443,6 +450,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'elasticsearch',
+                    '_dd.svc_src' => 'elasticsearch',
                     '_dd.base_service' => 'phpunit',
                 ])->withChildren([
                     SpanAssertion::exists('Elasticsearch.Endpoint.performRequest')->withChildren([
@@ -482,7 +490,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'search index:' . 'my_index7'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])
             ->withChildren([
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
@@ -535,7 +544,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                         'elasticsearch.params' => '[]',
                         'elasticsearch.body' => '{"query":{"match_all":{}}}',
                         Tag::SPAN_KIND => 'client',
-                        Tag::COMPONENT => 'elasticsearch'
+                        Tag::COMPONENT => 'elasticsearch',
+                        '_dd.svc_src' => 'elasticsearch',
                     ])->withChildren([
                         SpanAssertion::exists(
                             'Elasticsearch.Serializers.SmartSerializer.serialize',
@@ -577,7 +587,8 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'update index:my_index7 type:my_type'
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'elasticsearch'
+                Tag::COMPONENT => 'elasticsearch',
+                '_dd.svc_src' => 'elasticsearch',
             ])->withChildren(
                 SpanAssertion::exists('Elasticsearch.Endpoint.performRequest', 'performRequest')
                     ->withChildren([

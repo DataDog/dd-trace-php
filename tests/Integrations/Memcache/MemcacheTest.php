@@ -181,6 +181,7 @@ final class MemcacheTest extends IntegrationTestCase
                     'memcache.command' => 'flush',
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'memcache',
+                    '_dd.svc_src' => 'memcache',
                     Tag::DB_SYSTEM => 'memcached',
                 ]),
             SpanAssertion::exists('Memcache.get'),
@@ -329,6 +330,7 @@ final class MemcacheTest extends IntegrationTestCase
             'out.host' => self::$host,
             'out.port' => self::$port,
             Tag::COMPONENT => 'memcache',
+            '_dd.svc_src' => 'memcache',
             Tag::DB_SYSTEM => 'memcached',
         ];
 

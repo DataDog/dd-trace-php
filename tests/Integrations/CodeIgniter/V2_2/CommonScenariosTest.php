@@ -55,6 +55,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Simple::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        '_dd.svc_src' => 'codeigniter',
                         Tag::HTTP_ROUTE => 'simple',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -64,6 +65,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'Simple.index'
                         )->withExactTags([
                             Tag::COMPONENT => 'codeigniter',
+                            '_dd.svc_src' => 'codeigniter',
                         ])
                     ]),
                 ],
@@ -80,6 +82,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Simple_View::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        '_dd.svc_src' => 'codeigniter',
                         Tag::HTTP_ROUTE => 'simple_view',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -89,6 +92,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'Simple_View.index'
                         )->withExactTags([
                             Tag::COMPONENT => 'codeigniter',
+                            '_dd.svc_src' => 'codeigniter',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'CI_Loader.view',
@@ -97,6 +101,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'simple_view'
                             )->withExactTags([
                                 Tag::COMPONENT => 'codeigniter',
+                                '_dd.svc_src' => 'codeigniter',
                             ]),
                         ])
                     ]),
@@ -115,6 +120,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Error_::index',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        '_dd.svc_src' => 'codeigniter',
                         Tag::HTTP_ROUTE => 'error'
                     ])
                     ->setError("Exception", "Uncaught Exception: datadog in %s:%d")
@@ -127,6 +133,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'Error_.index'
                         )->withExactTags([
                             Tag::COMPONENT => 'codeigniter',
+                            '_dd.svc_src' => 'codeigniter',
                         ])->setError('Exception', 'datadog', true),
                     ]),
                 ],
@@ -143,6 +150,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'app.endpoint' => 'Parameterized::customAction',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'codeigniter',
+                        '_dd.svc_src' => 'codeigniter',
                         Tag::HTTP_ROUTE =>  'parameterized/(:any)',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -152,6 +160,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'Parameterized.customAction'
                         )->withExactTags([
                             Tag::COMPONENT => 'codeigniter',
+                            '_dd.svc_src' => 'codeigniter',
                         ])
                     ]),
                 ],

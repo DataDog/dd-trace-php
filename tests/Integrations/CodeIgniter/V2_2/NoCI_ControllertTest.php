@@ -42,6 +42,7 @@ class NoCIControllertTest extends WebFrameworkTestCase
                     Tag::HTTP_STATUS_CODE => '200',
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'codeigniter',
+                    '_dd.svc_src' => 'codeigniter',
                     Tag::HTTP_ROUTE => 'health_check/ping',
                 ])->withChildren([
                     SpanAssertion::build(
@@ -51,6 +52,7 @@ class NoCIControllertTest extends WebFrameworkTestCase
                         'Health_check.ping'
                     )->withExactTags([
                         Tag::COMPONENT => 'codeigniter',
+                        '_dd.svc_src' => 'codeigniter',
                     ])
                 ]),
             ]

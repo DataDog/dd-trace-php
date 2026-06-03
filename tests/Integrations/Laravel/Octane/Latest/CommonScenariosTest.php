@@ -105,11 +105,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
                 'laravel.route.name' => 'simple_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
             ])->withChildren([
                 SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple')->withExactTags([
-                    Tag::COMPONENT => 'laravel'
+                    Tag::COMPONENT => 'laravel',
+                    '_dd.svc_src' => 'laravel',
                 ]),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
@@ -177,11 +179,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_STATUS_CODE => '200',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
                 'laravel.route.name' => 'unnamed_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
             ])->withChildren([
                 SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple_view')->withExactTags([
-                    Tag::COMPONENT => 'laravel'
+                    Tag::COMPONENT => 'laravel',
+                    '_dd.svc_src' => 'laravel',
                 ]),
                 SpanAssertion::build(
                     'laravel.view.render',
@@ -190,6 +194,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'simple_view'
                 )->withExactTags([
                     Tag::COMPONENT => 'laravel',
+                    '_dd.svc_src' => 'laravel',
                 ])->withChildren([
                     SpanAssertion::build(
                         'laravel.view',
@@ -198,6 +203,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '*/resources/views/simple_view.blade.php'
                     )->withExactTags([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                 ]),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
@@ -266,11 +272,13 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_STATUS_CODE => '500',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
                 'laravel.route.name' => 'unnamed_route',
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
             ])->setError('Exception', 'Controller error', true)->withChildren([
                 SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'error')->withExactTags([
-                    Tag::COMPONENT => 'laravel'
+                    Tag::COMPONENT => 'laravel',
+                    '_dd.svc_src' => 'laravel',
                 ])->setError('Exception', 'Controller error', true),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
@@ -332,6 +340,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 Tag::HTTP_STATUS_CODE => '404',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
             ])->withChildren([
                 SpanAssertion::build(
                     'laravel.view.render',
@@ -340,6 +349,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'errors::404'
                 )->withExactTags([
                     Tag::COMPONENT => 'laravel',
+                    '_dd.svc_src' => 'laravel',
                 ])->withChildren([
                     SpanAssertion::build(
                         'laravel.view',
@@ -348,6 +358,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         '*/views/404.blade.php'
                     )->withExactTags([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                 ]),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),

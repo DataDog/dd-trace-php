@@ -1712,6 +1712,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
         $tags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'phpredis',
+            '_dd.svc_src' => 'phpredis',
             Tag::DB_SYSTEM => 'redis',
         ];
 

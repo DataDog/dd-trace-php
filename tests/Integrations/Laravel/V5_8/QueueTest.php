@@ -83,7 +83,8 @@ class QueueTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->withExactTags([
-                                Tag::COMPONENT => 'laravel'
+                                Tag::COMPONENT => 'laravel',
+                                '_dd.svc_src' => 'laravel',
                             ])->withChildren([
                                 $this->spanQueuePush('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
                             ])
@@ -174,7 +175,8 @@ class QueueTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->withExactTags([
-                                Tag::COMPONENT => 'laravel'
+                                Tag::COMPONENT => 'laravel',
+                                '_dd.svc_src' => 'laravel',
                             ])->withChildren([
                                 $this->spanQueueLater('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
                             ])
@@ -267,6 +269,7 @@ class QueueTest extends WebFrameworkTestCase
             Tag::SPAN_KIND                  => 'client',
             Tag::COMPONENT                  => 'laravelqueue',
 
+            '_dd.svc_src' => 'laravelqueue',
             Tag::MQ_SYSTEM                  => 'laravel',
             Tag::MQ_DESTINATION_KIND        => 'queue',
 

@@ -81,6 +81,7 @@ class PHPRedisTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis',
+                '_dd.svc_src' => 'phpredis',
                 Tag::DB_SYSTEM => 'redis',
                 'out.host' => $this->host,
                 'out.port' => $this->port,
@@ -126,6 +127,7 @@ class PHPRedisTest extends IntegrationTestCase
             ->withExactTags([
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis',
+                '_dd.svc_src' => 'phpredis',
                 Tag::DB_SYSTEM => 'redis',
                 'out.host' => $host,
                 'out.port' => $port ?: $this->port,
@@ -1946,6 +1948,7 @@ class PHPRedisTest extends IntegrationTestCase
         $tags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'phpredis',
+            '_dd.svc_src' => 'phpredis',
             Tag::DB_SYSTEM => 'redis',
             Tag::TARGET_HOST => 'redis-integration',
         ];

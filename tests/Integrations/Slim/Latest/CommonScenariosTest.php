@@ -50,7 +50,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'web',
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
-                Tag::COMPONENT => 'slim'
+                Tag::COMPONENT => 'slim',
+                '_dd.svc_src' => 'slim',
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',
@@ -58,7 +59,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'web',
                     'Slim\Middleware\RoutingMiddleware'
                 )->withExactTags([
-                    Tag::COMPONENT => 'slim'
+                    Tag::COMPONENT => 'slim',
+                    '_dd.svc_src' => 'slim',
                 ])->withChildren([
                     SpanAssertion::build(
                         'slim.middleware',
@@ -66,7 +68,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Slim\\Views\\TwigMiddleware'
                     )->withExactTags([
-                        Tag::COMPONENT => 'slim'
+                        Tag::COMPONENT => 'slim',
+                        '_dd.svc_src' => 'slim',
                     ])
                     ->withChildren($children)
                     ->withExistingTagsNames(['error.stack'])
@@ -80,7 +83,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'web',
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
-                Tag::COMPONENT => 'slim'
+                Tag::COMPONENT => 'slim',
+                '_dd.svc_src' => 'slim',
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',
@@ -88,7 +92,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'web',
                     'Slim\Middleware\RoutingMiddleware'
                 )->withExactTags([
-                    Tag::COMPONENT => 'slim'
+                    Tag::COMPONENT => 'slim',
+                    '_dd.svc_src' => 'slim',
                 ])->withChildren([
                     SpanAssertion::build(
                         'slim.middleware',
@@ -96,7 +101,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Slim\\Views\\TwigMiddleware'
                     )->withExactTags([
-                        Tag::COMPONENT => 'slim'
+                        Tag::COMPONENT => 'slim',
+                        '_dd.svc_src' => 'slim',
                     ])->withChildren($children)
                 ]),
             ]);
@@ -121,6 +127,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
+                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/simple',
                     ])->withChildren([
                         $this->wrapMiddleware([
@@ -131,6 +138,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'Closure::__invoke'
                             )->withExactTags([
                                 Tag::COMPONENT => 'slim',
+                                '_dd.svc_src' => 'slim',
                                 'slim.route.name' => 'simple-route',
                             ])
                         ]),
@@ -149,6 +157,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
+                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/simple_view',
                     ])->withChildren([
                         $this->wrapMiddleware([
@@ -158,7 +167,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'web',
                                 'Closure::__invoke'
                             )->withExactTags([
-                                Tag::COMPONENT => 'slim'
+                                Tag::COMPONENT => 'slim',
+                                '_dd.svc_src' => 'slim',
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'slim.view',
@@ -167,6 +177,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'simple_view.phtml'
                                 )->withExactTags([
                                     Tag::COMPONENT => 'slim',
+                                    '_dd.svc_src' => 'slim',
                                     'slim.view' => 'simple_view.phtml',
                                 ]),
                             ]),
@@ -186,6 +197,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
+                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/error',
                     ])
                     ->setError(null, null)
@@ -199,6 +211,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'Closure::__invoke'
                                 )->withExactTags([
                                     Tag::COMPONENT => 'slim',
+                                    '_dd.svc_src' => 'slim',
                                 ])->withExistingTagsNames([
                                     'error.stack',
                                 ])->setError(null, 'Foo error')
@@ -220,6 +233,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
+                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/parameterized/{value}',
                     ])->withChildren([
                         $this->wrapMiddleware([
@@ -230,6 +244,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'Closure::__invoke'
                             )->withExactTags([
                                 Tag::COMPONENT => 'slim',
+                                '_dd.svc_src' => 'slim',
                             ])
                         ]),
                     ]),

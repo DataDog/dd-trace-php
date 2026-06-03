@@ -898,6 +898,7 @@ final class PDOTest extends IntegrationTestCase
             'db.user' => self::MYSQL_USER,
             'span.kind' => 'client',
             Tag::COMPONENT => 'pdo',
+            '_dd.svc_src' => 'pdo',
             Tag::DB_SYSTEM => 'mysql',
             Tag::DB_TYPE => 'mysql',
         ];

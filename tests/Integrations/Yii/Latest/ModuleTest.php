@@ -46,6 +46,7 @@ class ModuleTest extends WebFrameworkTestCase
                     'app.endpoint' => 'app\modules\forum\controllers\ModuleController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
+                    '_dd.svc_src' => "yii",
                 ])->withChildren([
                     SpanAssertion::build(
                         'yii\web\Application.run',
@@ -54,6 +55,7 @@ class ModuleTest extends WebFrameworkTestCase
                         'yii\web\Application.run'
                     )->withExactTags([
                         Tag::COMPONENT => "yii",
+                        '_dd.svc_src' => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.runAction',
@@ -62,6 +64,7 @@ class ModuleTest extends WebFrameworkTestCase
                             'forum/module/view'
                         )->withExactTags([
                             Tag::COMPONENT => "yii",
+                            '_dd.svc_src' => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
                                 'app\modules\forum\controllers\ModuleController.runAction',
@@ -70,6 +73,7 @@ class ModuleTest extends WebFrameworkTestCase
                                 'view'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
+                                '_dd.svc_src' => "yii",
                             ])
                         ])
                     ])

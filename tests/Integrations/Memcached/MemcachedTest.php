@@ -992,6 +992,7 @@ final class MemcachedTest extends IntegrationTestCase
             'out.port' => self::$port,
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'memcached',
+            '_dd.svc_src' => 'memcached',
             Tag::DB_SYSTEM => 'memcached',
         ];
 

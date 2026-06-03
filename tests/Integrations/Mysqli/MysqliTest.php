@@ -710,6 +710,7 @@ class MysqliTest extends IntegrationTestCase
             'db.type' => 'mysql',
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'mysqli',
+            '_dd.svc_src' => 'mysqli',
             Tag::DB_SYSTEM => 'mysql',
         ];
 

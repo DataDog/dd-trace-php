@@ -61,6 +61,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_ROUTE => '/simple',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
+                        '_dd.svc_src' => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.run',
@@ -69,6 +70,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'yii\web\Application.run'
                         )->withExactTags([
                             Tag::COMPONENT => "yii",
+                            '_dd.svc_src' => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
                                 'yii\web\Application.runAction',
@@ -77,6 +79,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'simple/index'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
+                                '_dd.svc_src' => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'app\controllers\SimpleController.runAction',
@@ -85,6 +88,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'index'
                                 )->withExactTags([
                                     Tag::COMPONENT => "yii",
+                                    '_dd.svc_src' => "yii",
                                 ]),
                             ]),
                         ]),
@@ -105,6 +109,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_ROUTE => '/simple_view',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
+                        '_dd.svc_src' => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.run',
@@ -113,6 +118,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'yii\web\Application.run'
                         )->withExactTags([
                             Tag::COMPONENT => "yii",
+                            '_dd.svc_src' => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
                                 'yii\web\Application.runAction',
@@ -121,6 +127,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'simple/view'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
+                                '_dd.svc_src' => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'app\controllers\SimpleController.runAction',
@@ -129,6 +136,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'view'
                                 )->withExactTags([
                                     Tag::COMPONENT => "yii",
+                                    '_dd.svc_src' => "yii",
                                 ])->withChildren([
                                     SpanAssertion::exists('yii\web\View.renderFile'),
                                     SpanAssertion::exists('yii\web\View.renderFile'),
@@ -152,6 +160,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_ROUTE => '/error',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
+                        '_dd.svc_src' => "yii",
                     ])
                         ->setError(
                             'Exception',
@@ -166,6 +175,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'site/error'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
+                                '_dd.svc_src' => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'app\controllers\SiteController.runAction',
@@ -174,6 +184,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'error'
                                 )->withExactTags([
                                     Tag::COMPONENT => "yii",
+                                    '_dd.svc_src' => "yii",
                                 ])->withChildren([
                                     SpanAssertion::exists('yii\web\View.renderFile'),
                                     SpanAssertion::exists('yii\web\View.renderFile'),
@@ -186,6 +197,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'yii\web\Application.run'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
+                                '_dd.svc_src' => "yii",
                             ])->setError('Exception', 'datadog', true)
                                 ->withChildren([
                                 SpanAssertion::build(
@@ -195,6 +207,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'simple/error'
                                 )->withExactTags([
                                     Tag::COMPONENT => "yii",
+                                    '_dd.svc_src' => "yii",
                                 ])->setError('Exception', 'datadog', true)
                                     ->withChildren([
                                         SpanAssertion::build(
@@ -204,6 +217,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'error'
                                         )->withExactTags([
                                             Tag::COMPONENT => "yii",
+                                            '_dd.svc_src' => "yii",
                                         ])->setError('Exception', 'datadog', true),
                                     ]),
                                 ]),
@@ -224,6 +238,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         Tag::HTTP_ROUTE => '/parameterized/:value',
                         Tag::SPAN_KIND => "server",
                         Tag::COMPONENT => "yii",
+                        '_dd.svc_src' => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.run',
@@ -232,6 +247,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'yii\web\Application.run'
                         )->withExactTags([
                             Tag::COMPONENT => "yii",
+                            '_dd.svc_src' => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
                                 'yii\web\Application.runAction',
@@ -240,6 +256,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'simple/parameterized'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
+                                '_dd.svc_src' => "yii",
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'app\controllers\SimpleController.runAction',
@@ -248,6 +265,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                     'parameterized'
                                 )->withExactTags([
                                     Tag::COMPONENT => "yii",
+                                    '_dd.svc_src' => "yii",
                                 ]),
                             ]),
                         ]),

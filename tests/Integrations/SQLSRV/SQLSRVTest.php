@@ -581,6 +581,7 @@ class SQLSRVTest extends IntegrationTestCase
         $tags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => SQLSRVIntegration::NAME,
+            '_dd.svc_src' => SQLSRVIntegration::NAME,
             Tag::DB_SYSTEM => SQLSRVIntegration::SYSTEM,
             Tag::DB_INSTANCE => self::$db,
             Tag::DB_USER => self::$user,
