@@ -11,13 +11,13 @@ readonly CONFIG_HEADER_FILES=(
 )
 readonly OTEL_CONFIG_FILES=(
     "ext/otel_config.c"
-    "tracer/configuration.c"
+    "tracer/tracer_otel_config.c"
 )
 readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
 readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
 readonly CONFIG_GENERATION_INPUT_FILES=(
     "${CONFIG_HEADER_FILES[@]}"
-    "${OTEL_CONFIG_FILE[@]}"
+    "${OTEL_CONFIG_FILES[@]}"
     "${PROFILING_CONFIG_FILE}"
     "${GENERATOR_SCRIPT_FILE}"
 )
@@ -118,6 +118,17 @@ function add_supported_entry(&$supported, $name, $entry) {
     if (!isset($supported[$name])) {
         $supported[$name] = [$entry];
     }
+}
+
+function otel_supported_entry($name) {
+    $entry = ["implementation" => "A", "type" => "string", "default" => ""];
+    if ($name === "OTEL_EXPORTER_OTLP_ENDPOINT") {
+        $entry["default"] = null;
+    } else if ($name === "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") {
+        $entry["default"] = null;
+        $entry["aliases"] = ["OTEL_EXPORTER_OTLP_ENDPOINT"];
+    }
+    return $entry;
 }
 
 // temporary solution until we merge configs
@@ -280,7 +291,7 @@ foreach ($otelPaths as $otelPath) {
         $otelVars = array_unique($m[1]);
         sort($otelVars);
         foreach ($otelVars as $v) {
-            add_supported_entry($supported, $v, ["implementation" => "A", "type" => "string", "default" => ""]);
+            add_supported_entry($supported, $v, otel_supported_entry($v));
         }
     }
 }
