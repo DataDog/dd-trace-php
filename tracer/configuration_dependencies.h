@@ -110,6 +110,23 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     return true;
 }
 
+// Custom parser for DD_TRACE_HEADER_TAGS (APPSEC-62412): decodes using the
+// standard SET_OR_MAP_LOWERCASE logic and unconditionally adds the two
+// security-testing headers. This runs once per decode (initial startup and
+// each ini_set call) with refcount==1 on the fresh HashTable — before
+// zai_config_intern_zval makes it immutable — so no assertion issues.
+static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
+    if (!zai_config_decode_value(value, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent)) {
+        return false;
+    }
+    zend_array *ht = Z_ARR_P(decoded_value);
+    zval empty;
+    ZVAL_EMPTY_STRING(&empty);
+    zend_hash_str_add(ht, ZEND_STRL("x-datadog-endpoint-scan"), &empty);
+    zend_hash_str_add(ht, ZEND_STRL("x-datadog-security-test"), &empty);
+    return true;
+}
+
 #define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
     static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
         UNUSED(old_value, new_value); \
