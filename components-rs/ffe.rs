@@ -4,34 +4,36 @@ use datadog_ffe::rules_based::{
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::sync::Arc;
-use std::sync::{LazyLock, RwLock};
 
 struct FfeState {
     config: Option<Configuration>,
     version: u64,
 }
 
-static FFE_STATE: LazyLock<RwLock<FfeState>> = LazyLock::new(|| {
-    RwLock::new(FfeState {
+thread_local! {
+    static FFE_STATE: RefCell<FfeState> = const { RefCell::new(FfeState {
         config: None,
         version: 0,
-    })
-});
+    }) };
+}
 
 pub fn store_config(config: Configuration) {
-    if let Ok(mut state) = FFE_STATE.write() {
+    FFE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
         state.config = Some(config);
         state.version = state.version.wrapping_add(1);
-    }
+    });
 }
 
 pub fn clear_config() {
-    if let Ok(mut state) = FFE_STATE.write() {
+    FFE_STATE.with(|state| {
+        let mut state = state.borrow_mut();
         state.config = None;
         state.version = state.version.wrapping_add(1);
-    }
+    });
 }
 
 #[no_mangle]
@@ -56,15 +58,12 @@ pub extern "C" fn ddog_ffe_load_config(json: CharSlice<'_>) -> bool {
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_has_config() -> bool {
-    FFE_STATE
-        .read()
-        .map(|state| state.config.is_some())
-        .unwrap_or(false)
+    FFE_STATE.with(|state| state.borrow().config.is_some())
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_ffe_config_version() -> u64 {
-    FFE_STATE.read().map(|state| state.version).unwrap_or(0)
+    FFE_STATE.with(|state| state.borrow().version)
 }
 
 const REASON_STATIC: i32 = 0;
@@ -149,7 +148,8 @@ pub extern "C" fn ddog_ffe_evaluate(
     let attributes = parse_attributes(attributes, attributes_count);
     let context = EvaluationContext::new(targeting_key, Arc::new(attributes));
 
-    if let Ok(state) = FFE_STATE.read() {
+    FFE_STATE.with(|state| {
+        let state = state.borrow();
         let assignment = ffe::get_assignment(
             state.config.as_ref(),
             flag_key,
@@ -159,9 +159,7 @@ pub extern "C" fn ddog_ffe_evaluate(
         );
 
         result_from_assignment(assignment)
-    } else {
-        invalid_result()
-    }
+    })
 }
 
 fn parse_attributes(
@@ -284,10 +282,9 @@ mod tests {
     use std::mem;
     use std::ptr;
     use std::ptr::NonNull;
-    use std::sync::{Mutex, Once};
+    use std::sync::Once;
 
     static INIT_ZEND_STRING_FUNCTIONS: Once = Once::new();
-    static TEST_LOCK: LazyLock<Mutex<()>> = LazyLock::new(|| Mutex::new(()));
 
     fn setup_zend_string_functions() {
         INIT_ZEND_STRING_FUNCTIONS.call_once(|| unsafe {
@@ -393,7 +390,6 @@ mod tests {
 
     #[test]
     fn empty_targeting_key_is_not_dropped() {
-        let _guard = TEST_LOCK.lock().expect("test lock should not be poisoned");
         setup_zend_string_functions();
         clear_config();
         let config =
@@ -422,8 +418,7 @@ mod tests {
     }
 
     #[test]
-    fn configuration_state_is_process_wide() {
-        let _guard = TEST_LOCK.lock().expect("test lock should not be poisoned");
+    fn configuration_state_is_thread_local() {
         clear_config();
         let empty_version = ddog_ffe_config_version();
         assert!(!ddog_ffe_has_config());
@@ -433,19 +428,19 @@ mod tests {
         let loaded_version = ddog_ffe_config_version();
         assert_eq!(loaded_version, empty_version.wrapping_add(1));
 
-        let child = std::thread::spawn(move || {
-            assert!(ddog_ffe_has_config());
-            assert_eq!(ddog_ffe_config_version(), loaded_version);
+        let child = std::thread::spawn(|| {
+            assert!(!ddog_ffe_has_config());
+            assert_eq!(ddog_ffe_config_version(), 0);
 
             assert!(load_empty_config());
             assert!(ddog_ffe_has_config());
-            assert_eq!(ddog_ffe_config_version(), loaded_version.wrapping_add(1));
+            assert_eq!(ddog_ffe_config_version(), 1);
         });
 
         child.join().expect("child thread should not panic");
 
         assert!(ddog_ffe_has_config());
-        assert_eq!(ddog_ffe_config_version(), loaded_version.wrapping_add(1));
+        assert_eq!(ddog_ffe_config_version(), loaded_version);
         clear_config();
     }
 }
