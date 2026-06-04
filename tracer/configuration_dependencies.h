@@ -121,11 +121,10 @@ static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persis
     }
     zend_array *ht = Z_ARR_P(decoded_value);
     zval empty;
-    if (persistent) {
-        ZVAL_EMPTY_PSTRING(&empty);
-    } else {
-        ZVAL_EMPTY_STRING(&empty);
-    }
+    // ZVAL_EMPTY_STRING uses zend_empty_string (IS_INTERNED, not refcounted) so
+    // the persistent HT dtor (ZVAL_INTERNAL_PTR_DTOR) sees Z_REFCOUNTED=false and
+    // skips freeing — safe to share across both bucket values on all PHP versions.
+    ZVAL_EMPTY_STRING(&empty);
     zend_hash_str_add(ht, ZEND_STRL("x-datadog-endpoint-scan"), &empty);
     zend_hash_str_add(ht, ZEND_STRL("x-datadog-security-test"), &empty);
     return true;
