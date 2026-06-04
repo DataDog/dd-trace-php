@@ -17,7 +17,7 @@ readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
 readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
 readonly CONFIG_GENERATION_INPUT_FILES=(
     "${CONFIG_HEADER_FILES[@]}"
-    "${OTEL_CONFIG_FILE[@]}"
+    "${OTEL_CONFIG_FILES[@]}"
     "${PROFILING_CONFIG_FILE}"
     "${GENERATOR_SCRIPT_FILE}"
 )
