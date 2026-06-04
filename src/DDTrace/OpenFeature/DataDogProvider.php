@@ -25,6 +25,8 @@ use OpenFeature\interfaces\provider\ResolutionDetails as ResolutionDetailsInterf
 
 final class DataDogProvider extends AbstractProvider
 {
+    private const ALLOCATION_KEY_METADATA_KEY = 'allocationKey';
+
     protected static string $NAME = 'Datadog';
 
     private Evaluator $evaluator;
@@ -111,6 +113,9 @@ final class DataDogProvider extends AbstractProvider
     ): ResolutionDetailsInterface {
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $this->normalizeContext($context));
         $this->warnIfNonProductionRuntime($details);
+        // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
+        // hooks, so PHP records metrics here after native evaluation has the
+        // final provider result.
         $this->recordEvaluationMetric($flagKey, $details);
 
         $builder = (new ResolutionDetailsBuilder())
@@ -146,11 +151,14 @@ final class DataDogProvider extends AbstractProvider
     private function allocationKey(EvaluationDetails $details): ?string
     {
         $exposure = $details->getExposureData();
-        if (!is_array($exposure) || !isset($exposure['allocationKey']) || !is_string($exposure['allocationKey'])) {
+        // This is Datadog-internal evaluator metadata. PHP OpenFeature has no
+        // flagMetadata surface here, so keep the key internal to the provider.
+        $key = self::ALLOCATION_KEY_METADATA_KEY;
+        if (!is_array($exposure) || !isset($exposure[$key]) || !is_string($exposure[$key])) {
             return null;
         }
 
-        return $exposure['allocationKey'] !== '' ? $exposure['allocationKey'] : null;
+        return $exposure[$key] !== '' ? $exposure[$key] : null;
     }
 
     /**
