@@ -139,7 +139,8 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 
 static bool ddtrace_alter_DD_TRACE_HEADER_TAGS(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_value);
-    // Security-testing headers already in new_value from dd_parse_header_tags.
+    // new_value (decoded) already has security headers from dd_parse_header_tags.
+    // new_str (raw user INI string) does NOT — passed as-is to RC, which is correct.
     if (!DATADOG_G(remote_config_state) || DATADOG_G(remote_config_writing)) {
         return true;
     }
@@ -173,8 +174,7 @@ void datadog_config_first_rinit() {
         internal_functions_ini->modified ? internal_functions_ini->orig_value : internal_functions_ini->value);
 
     zai_config_first_time_rinit(true);
-    // Note: security-testing headers are injected into DD_TRACE_HEADER_TAGS by
-    // dd_parse_header_tags (the custom parser), so no extra work is needed here.
+    // Security-testing headers are injected by dd_parse_header_tags at decode time.
     zai_config_rinit();
 
     zend_string *internal_functions_new =
