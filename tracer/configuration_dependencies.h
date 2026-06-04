@@ -121,7 +121,11 @@ static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persis
     }
     zend_array *ht = Z_ARR_P(decoded_value);
     zval empty;
-    ZVAL_EMPTY_STRING(&empty);
+    if (persistent) {
+        ZVAL_EMPTY_PSTRING(&empty);
+    } else {
+        ZVAL_EMPTY_STRING(&empty);
+    }
     zend_hash_str_add(ht, ZEND_STRL("x-datadog-endpoint-scan"), &empty);
     zend_hash_str_add(ht, ZEND_STRL("x-datadog-security-test"), &empty);
     return true;
