@@ -18,6 +18,7 @@ use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
+use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
 
@@ -25,6 +26,7 @@ pub use libdd_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
 use libdd_common::{parse_uri, Endpoint};
+use libdd_common::connector::uds::socket_path_to_uri;
 use libdd_common_ffi::slice::AsBytes;
 pub use libdd_common_ffi::*;
 pub use libdd_telemetry_ffi::*;
@@ -146,27 +148,48 @@ pub unsafe extern "C" fn datadog_parse_agent_url(
         })
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_unix_socket(
-    socket_path: CharSlice,
-) -> std::option::Option<Box<Endpoint>> {
-    #[cfg(unix)]
-    {
-        let socket_path = socket_path.to_utf8_lossy();
-        let uri = libdd_common::connector::uds::socket_path_to_uri(std::path::Path::new(
-            socket_path.as_ref(),
-        ))
-        .ok()?;
+#[cfg(unix)]
+fn otel_metrics_endpoint_from_unix_socket(socket_path: &str) -> std::option::Option<Box<Endpoint>> {
+    socket_path_to_uri(Path::new(socket_path)).ok().and_then(|uri| {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(PathAndQuery::from_static("/v1/metrics"));
         Uri::from_parts(parts)
             .ok()
             .map(|url| Box::new(Endpoint::from_url(url)))
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+    let url_str = url.to_utf8_lossy();
+    #[cfg(unix)]
+    if let Some(socket_path) = url_str.strip_prefix("unix://") {
+        let socket_path = socket_path.strip_suffix("/v1/metrics").unwrap_or(socket_path);
+        return otel_metrics_endpoint_from_unix_socket(socket_path);
     }
-    #[cfg(not(unix))]
-    {
-        let _ = socket_path;
-        None
+    parse_uri(url_str.as_ref())
+        .ok()
+        .map(|url| Box::new(Endpoint::from_url(url)))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+    let url_str = url.to_utf8_lossy();
+    #[cfg(unix)]
+    if let Some(socket_path) = url_str.strip_prefix("unix://") {
+        otel_metrics_endpoint_from_unix_socket(socket_path)
+    } else if url_str.starts_with("http") {
+        let parsed = parse_uri(url_str.as_ref()).ok();
+        let scheme = parsed.as_ref().and_then(|u| u.scheme_str()).unwrap_or("http");
+        let host = parsed
+            .as_ref()
+            .and_then(|u| u.host())
+            .unwrap_or("localhost");
+        parse_uri(&format!("{}://{}:4318/v1/metrics", scheme, host))
+            .ok()
+            .map(|url| Box::new(Endpoint::from_url(url)))
+    } else {
+        datadog_parse_agent_url(url)
     }
 }
 

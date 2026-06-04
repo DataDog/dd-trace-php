@@ -51,7 +51,9 @@ void ddtrace_drop_rust_string(char *input, uintptr_t len);
 
 struct ddog_Endpoint *datadog_parse_agent_url(ddog_CharSlice url);
 
-struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_unix_socket(ddog_CharSlice socket_path);
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
 
 void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
                                              void (*callback)(ddog_crasht_EndpointConfig, void*),

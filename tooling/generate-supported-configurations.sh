@@ -120,17 +120,6 @@ function add_supported_entry(&$supported, $name, $entry) {
     }
 }
 
-function otel_supported_entry($name) {
-    $entry = ["implementation" => "A", "type" => "string", "default" => ""];
-    if ($name === "OTEL_EXPORTER_OTLP_ENDPOINT") {
-        $entry["default"] = null;
-    } else if ($name === "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT") {
-        $entry["default"] = null;
-        $entry["aliases"] = ["OTEL_EXPORTER_OTLP_ENDPOINT"];
-    }
-    return $entry;
-}
-
 // temporary solution until we merge configs
 function map_rust_type($rawType, $parser) {
     $map = [
@@ -291,7 +280,7 @@ foreach ($otelPaths as $otelPath) {
         $otelVars = array_unique($m[1]);
         sort($otelVars);
         foreach ($otelVars as $v) {
-            add_supported_entry($supported, $v, otel_supported_entry($v));
+            add_supported_entry($supported, $v, ["implementation" => "A", "type" => "string", "default" => ""]);
         }
     }
 }

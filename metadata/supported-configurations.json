@@ -2644,17 +2644,14 @@
       {
         "implementation": "A",
         "type": "string",
-        "default": null
+        "default": ""
       }
     ],
     "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": [
       {
-        "implementation": "A",
+        "implementation": "B",
         "type": "string",
-        "default": null,
-        "aliases": [
-          "OTEL_EXPORTER_OTLP_ENDPOINT"
-        ]
+        "default": ""
       }
     ],
     "OTEL_LOG_LEVEL": [

@@ -1,6 +1,11 @@
 #include "endpoints.h"
+
+#include <components-rs/common.h>
+#include <components-rs/datadog.h>
+
 #include "configuration.h"
 #include "datadog.h"
+#include "ffi_utils.h"
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
@@ -100,4 +105,16 @@ char *datadog_dogstatsd_url(void) {
     char *formatted_url;
     asprintf(&formatted_url, HOST_V4_FORMAT_STR, "localhost", (uint32_t)port);
     return formatted_url;
+}
+
+ddog_Endpoint *datadog_otel_metrics_endpoint(void) {
+    zend_string *endpoint_url = get_global_OTEL_EXPORTER_OTLP_METRICS_ENDPOINT();
+    if (ZSTR_LEN(endpoint_url) > 0) {
+        return datadog_otel_metrics_endpoint_from_url(dd_zend_string_to_CharSlice(endpoint_url));
+    }
+
+    char *agent_url = datadog_agent_url();
+    ddog_Endpoint *metrics_endpoint = datadog_otel_metrics_endpoint_from_agent_url((ddog_CharSlice){.ptr = agent_url, .len = strlen(agent_url)});
+    free(agent_url);
+    return metrics_endpoint;
 }

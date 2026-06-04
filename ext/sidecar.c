@@ -16,7 +16,6 @@
 #include "string_utils.h"
 #include "target_metadata.h"
 #include "ffi_utils.h"
-#include "otel_config.h"
 #include <tracer/tracer_api.h>
 #ifndef _WIN32
 #include <tracer/coms.h>
@@ -105,7 +104,7 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
     ddog_CharSlice root_session_id = datadog_is_empty_session_id(datadog_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_root_session_id, .len = sizeof(datadog_formatted_root_session_id)};
     ddog_CharSlice parent_session_id = datadog_is_empty_session_id(datadog_formatted_parent_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_parent_session_id, .len = sizeof(datadog_formatted_parent_session_id)};
     const ddog_Vec_Tag *process_tags = datadog_process_tags_get_vec();
-    ddog_Endpoint *otlp_metrics_endpoint = datadog_otel_metrics_endpoint(!zai_config_is_initialized());
+    ddog_Endpoint *otlp_metrics_endpoint = datadog_otel_metrics_endpoint();
     ddog_sidecar_session_set_config(transport, session_id, datadog_endpoint, dogstatsd_endpoint, otlp_metrics_endpoint,
                                     DDOG_CHARSLICE_C("php"),
                                     php_version_rt,

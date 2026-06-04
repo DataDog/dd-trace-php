@@ -300,22 +300,6 @@ ddog_MaybeError ddog_sidecar_send_debugger_datum(struct ddog_SidecarTransport **
                                                  struct ddog_DebuggerPayload *payload);
 
 /**
- * Send structured FFE evaluation metric events to the sidecar. The sidecar
- * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
- * function is caller-driven so SDKs with existing host-language hooks can
- * safely coexist until they explicitly migrate.
- *
- * # Safety
- * `context` and every element in `metrics` must contain valid UTF-8
- * `CharSlice` values. Empty `metrics` is a no-op.
- */
-ddog_MaybeError ddog_sidecar_send_ffe_evaluation_metrics(struct ddog_SidecarTransport **transport,
-                                                         const struct ddog_InstanceId *instance_id,
-                                                         const ddog_QueueId *queue_id,
-                                                         const struct ddog_FfeTelemetryContext *context,
-                                                         struct ddog_Slice_FfeEvaluationMetric metrics);
-
-/**
  * Send structured FFE exposure events to the sidecar. The sidecar owns
  * deduplication, JSON serialization, and Agent EVP delivery. This function is
  * caller-driven; shared libdatadog evaluator calls do not log unless an SDK
@@ -330,6 +314,22 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      const ddog_QueueId *queue_id,
                                                      const struct ddog_FfeTelemetryContext *context,
                                                      struct ddog_Slice_FfeExposure exposures);
+
+/**
+ * Send structured FFE evaluation metric events to the sidecar. The sidecar
+ * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
+ * function is caller-driven so SDKs with existing host-language hooks can
+ * safely coexist until they explicitly migrate.
+ *
+ * # Safety
+ * `context` and every element in `metrics` must contain valid UTF-8
+ * `CharSlice` values. Empty `metrics` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_evaluation_metrics(struct ddog_SidecarTransport **transport,
+                                                         const struct ddog_InstanceId *instance_id,
+                                                         const ddog_QueueId *queue_id,
+                                                         const struct ddog_FfeTelemetryContext *context,
+                                                         struct ddog_Slice_FfeEvaluationMetric metrics);
 
 ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
                                                        const struct ddog_InstanceId *instance_id,
