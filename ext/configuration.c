@@ -109,13 +109,20 @@ static void dd_copy_tolower(char *restrict dst, const char *restrict src) {
     }
 }
 
-static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_name) {
-    if (env_name.len + DD_TO_DATADOG_INC >= ZAI_CONFIG_NAME_BUFSIZ) {
-        assert(false && "Expanded env name length is larger than the INI name buffer");
-        return;
+static void dd_copy_tolower_dot(char *restrict dst, const char *restrict src) {
+    while (*src) {
+        char c = dd_tolower_ascii(*(src++));
+        *(dst++) = c == '_' ? '.' : c;
     }
+}
 
+static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_name) {
     if (env_name.ptr == strstr(env_name.ptr, "DD_")) {
+        if (env_name.len + DD_TO_DATADOG_INC >= ZAI_CONFIG_NAME_BUFSIZ) {
+            assert(false && "Expanded env name length is larger than the INI name buffer");
+            return;
+        }
+
         dd_copy_tolower(ini_name->ptr + DD_TO_DATADOG_INC, env_name.ptr);
         memcpy(ini_name->ptr, "datadog.", sizeof("datadog.") - 1);
         ini_name->len = env_name.len + DD_TO_DATADOG_INC;
@@ -127,6 +134,14 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
         } else if (env_name.ptr == strstr(env_name.ptr, "DD_DYNAMIC_INSTRUMENTATION_")) {
             ini_name->ptr[sizeof("datadog.dynamic_instrumentation") - 1] = '.';
         }
+    } else if (env_name.len >= sizeof("OTEL_") - 1 && memcmp(env_name.ptr, "OTEL_", sizeof("OTEL_") - 1) == 0) {
+        if (env_name.len >= ZAI_CONFIG_NAME_BUFSIZ) {
+            assert(false && "OTEL INI name length is larger than the INI name buffer");
+            return;
+        }
+
+        dd_copy_tolower_dot(ini_name->ptr, env_name.ptr);
+        ini_name->len = env_name.len;
     } else {
         ini_name->len = 0;
         assert(false && "Unexpected env var name: missing 'DD_' prefix");

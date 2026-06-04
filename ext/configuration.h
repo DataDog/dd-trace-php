@@ -4,6 +4,7 @@
 #include <stdbool.h>
 
 #include "compatibility.h"
+#include "otel_config.h"
 #include <config/config.h>
 
 bool datadog_config_minit(int module_number);
