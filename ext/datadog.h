@@ -69,9 +69,6 @@ ZEND_BEGIN_MODULE_GLOBALS(datadog)
     bool request_initialized;
     ddog_SidecarActionsBuffer *telemetry_buffer;
     ddog_SidecarActionsBuffer *metrics_buffer;
-    void *ffe_metric_buffer;
-    size_t ffe_metric_buffer_len;
-    size_t ffe_metric_buffer_cap;
 
     bool asm_event_emitted;
 

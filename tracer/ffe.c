@@ -55,16 +55,16 @@ static void datadog_ffe_release_metric(datadog_ffe_metric *metric) {
 }
 
 static void datadog_ffe_clear_evaluation_metrics(void) {
-    datadog_ffe_metric *buffer = (datadog_ffe_metric *) DATADOG_G(ffe_metric_buffer);
-    for (size_t i = 0; i < DATADOG_G(ffe_metric_buffer_len); i++) {
+    datadog_ffe_metric *buffer = (datadog_ffe_metric *) DDTRACE_G(ffe_metric_buffer);
+    for (size_t i = 0; i < DDTRACE_G(ffe_metric_buffer_len); i++) {
         datadog_ffe_release_metric(&buffer[i]);
     }
     if (buffer) {
         efree(buffer);
     }
-    DATADOG_G(ffe_metric_buffer) = NULL;
-    DATADOG_G(ffe_metric_buffer_len) = 0;
-    DATADOG_G(ffe_metric_buffer_cap) = 0;
+    DDTRACE_G(ffe_metric_buffer) = NULL;
+    DDTRACE_G(ffe_metric_buffer_len) = 0;
+    DDTRACE_G(ffe_metric_buffer_cap) = 0;
 }
 
 bool datadog_ffe_record_evaluation_metric(
@@ -83,26 +83,26 @@ bool datadog_ffe_record_evaluation_metric(
         return false;
     }
 
-    if (DATADOG_G(ffe_metric_buffer_len) >= DATADOG_FFE_METRIC_BUFFER_LIMIT) {
+    if (DDTRACE_G(ffe_metric_buffer_len) >= DATADOG_FFE_METRIC_BUFFER_LIMIT) {
         return false;
     }
 
-    if (DATADOG_G(ffe_metric_buffer_len) == DATADOG_G(ffe_metric_buffer_cap)) {
-        size_t new_cap = DATADOG_G(ffe_metric_buffer_cap) == 0 ? 8 : DATADOG_G(ffe_metric_buffer_cap) * 2;
+    if (DDTRACE_G(ffe_metric_buffer_len) == DDTRACE_G(ffe_metric_buffer_cap)) {
+        size_t new_cap = DDTRACE_G(ffe_metric_buffer_cap) == 0 ? 8 : DDTRACE_G(ffe_metric_buffer_cap) * 2;
         if (new_cap > DATADOG_FFE_METRIC_BUFFER_LIMIT) {
             new_cap = DATADOG_FFE_METRIC_BUFFER_LIMIT;
         }
-        DATADOG_G(ffe_metric_buffer) = safe_erealloc(
-            DATADOG_G(ffe_metric_buffer),
+        DDTRACE_G(ffe_metric_buffer) = safe_erealloc(
+            DDTRACE_G(ffe_metric_buffer),
             new_cap,
             sizeof(datadog_ffe_metric),
             0
         );
-        DATADOG_G(ffe_metric_buffer_cap) = new_cap;
+        DDTRACE_G(ffe_metric_buffer_cap) = new_cap;
     }
 
-    datadog_ffe_metric *buffer = (datadog_ffe_metric *) DATADOG_G(ffe_metric_buffer);
-    datadog_ffe_metric *metric = &buffer[DATADOG_G(ffe_metric_buffer_len)++];
+    datadog_ffe_metric *buffer = (datadog_ffe_metric *) DDTRACE_G(ffe_metric_buffer);
+    datadog_ffe_metric *metric = &buffer[DDTRACE_G(ffe_metric_buffer_len)++];
     metric->flag_key = zend_string_init(flag_key, flag_key_len, 0);
     metric->variant = zend_string_init(variant ? variant : "", variant ? variant_len : 0, 0);
     metric->reason = zend_string_init(reason ? reason : "", reason ? reason_len : 0, 0);
@@ -113,8 +113,8 @@ bool datadog_ffe_record_evaluation_metric(
 }
 
 bool datadog_ffe_flush_evaluation_metrics(void) {
-    size_t metric_count = DATADOG_G(ffe_metric_buffer_len);
-    datadog_ffe_metric *buffer = (datadog_ffe_metric *) DATADOG_G(ffe_metric_buffer);
+    size_t metric_count = DDTRACE_G(ffe_metric_buffer_len);
+    datadog_ffe_metric *buffer = (datadog_ffe_metric *) DDTRACE_G(ffe_metric_buffer);
 
     if (metric_count == 0 || !buffer) {
         return false;
