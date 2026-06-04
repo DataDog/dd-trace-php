@@ -1640,17 +1640,7 @@ static void ddtrace_ffe_record_evaluation_metric_result(
 ) {
     const char *reason_name = ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(reason, error_code));
     const char *error_name = ddtrace_ffe_error_name(error_code);
-    datadog_ffe_record_evaluation_metric(
-        ZSTR_VAL(flag_key),
-        ZSTR_LEN(flag_key),
-        variant ? ZSTR_VAL(variant) : NULL,
-        variant ? ZSTR_LEN(variant) : 0,
-        reason_name,
-        strlen(reason_name),
-        error_name,
-        error_name ? strlen(error_name) : 0,
-        allocation_key ? ZSTR_VAL(allocation_key) : NULL,
-        allocation_key ? ZSTR_LEN(allocation_key) : 0);
+    datadog_ffe_record_evaluation_metric(flag_key, variant, reason_name, error_name, allocation_key);
 }
 
 static zend_string *ddtrace_ffe_attributes_json(zval *attrs_zv) {
@@ -1809,15 +1799,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
 
     if (!result.valid) {
         if (record_metric) {
-            datadog_ffe_record_evaluation_metric(
-                ZSTR_VAL(flag_key),
-                ZSTR_LEN(flag_key),
-                NULL,
-                0,
-                ZEND_STRL("ERROR"),
-                ZEND_STRL("PROVIDER_NOT_READY"),
-                NULL,
-                0);
+            datadog_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
         }
         RETURN_NULL();
     }
@@ -2754,36 +2736,26 @@ PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
 }
 
 PHP_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric) {
-    char *flag_key;
-    size_t flag_key_len;
-    char *variant = NULL;
-    size_t variant_len = 0;
-    char *reason = NULL;
-    size_t reason_len = 0;
-    char *error_type = NULL;
-    size_t error_type_len = 0;
-    char *allocation_key = NULL;
-    size_t allocation_key_len = 0;
+    zend_string *flag_key;
+    zend_string *variant = NULL;
+    zend_string *reason = NULL;
+    zend_string *error_type = NULL;
+    zend_string *allocation_key = NULL;
 
     ZEND_PARSE_PARAMETERS_START(5, 5)
-        Z_PARAM_STRING(flag_key, flag_key_len)
-        Z_PARAM_STRING_OR_NULL(variant, variant_len)
-        Z_PARAM_STRING_OR_NULL(reason, reason_len)
-        Z_PARAM_STRING_OR_NULL(error_type, error_type_len)
-        Z_PARAM_STRING_OR_NULL(allocation_key, allocation_key_len)
+        Z_PARAM_STR(flag_key)
+        Z_PARAM_STR_OR_NULL(variant)
+        Z_PARAM_STR_OR_NULL(reason)
+        Z_PARAM_STR_OR_NULL(error_type)
+        Z_PARAM_STR_OR_NULL(allocation_key)
     ZEND_PARSE_PARAMETERS_END();
 
     RETURN_BOOL(datadog_ffe_record_evaluation_metric(
         flag_key,
-        flag_key_len,
         variant,
-        variant_len,
-        reason,
-        reason_len,
-        error_type,
-        error_type_len,
-        allocation_key,
-        allocation_key_len));
+        reason ? ZSTR_VAL(reason) : NULL,
+        error_type ? ZSTR_VAL(error_type) : NULL,
+        allocation_key));
 }
 
 PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {

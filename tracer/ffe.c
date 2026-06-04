@@ -34,24 +34,11 @@ typedef struct {
 } dd_ffe_exposure;
 
 static void datadog_ffe_release_metric(datadog_ffe_metric *metric) {
-    if (!metric) {
-        return;
-    }
-    if (metric->flag_key) {
-        zend_string_release(metric->flag_key);
-    }
-    if (metric->variant) {
-        zend_string_release(metric->variant);
-    }
-    if (metric->reason) {
-        zend_string_release(metric->reason);
-    }
-    if (metric->error_type) {
-        zend_string_release(metric->error_type);
-    }
-    if (metric->allocation_key) {
-        zend_string_release(metric->allocation_key);
-    }
+    zend_string_release(metric->flag_key);
+    zend_string_release(metric->variant);
+    zend_string_release(metric->reason);
+    zend_string_release(metric->error_type);
+    zend_string_release(metric->allocation_key);
 }
 
 static void datadog_ffe_clear_evaluation_metrics(void) {
@@ -68,18 +55,13 @@ static void datadog_ffe_clear_evaluation_metrics(void) {
 }
 
 bool datadog_ffe_record_evaluation_metric(
-    const char *flag_key,
-    size_t flag_key_len,
-    const char *variant,
-    size_t variant_len,
+    zend_string *flag_key,
+    zend_string *variant,
     const char *reason,
-    size_t reason_len,
     const char *error_type,
-    size_t error_type_len,
-    const char *allocation_key,
-    size_t allocation_key_len
+    zend_string *allocation_key
 ) {
-    if (!get_DD_METRICS_OTEL_ENABLED() || !flag_key || flag_key_len == 0) {
+    if (!get_DD_METRICS_OTEL_ENABLED() || !flag_key || ZSTR_LEN(flag_key) == 0) {
         return false;
     }
 
@@ -103,11 +85,11 @@ bool datadog_ffe_record_evaluation_metric(
 
     datadog_ffe_metric *buffer = (datadog_ffe_metric *) DDTRACE_G(ffe_metric_buffer);
     datadog_ffe_metric *metric = &buffer[DDTRACE_G(ffe_metric_buffer_len)++];
-    metric->flag_key = zend_string_init(flag_key, flag_key_len, 0);
-    metric->variant = zend_string_init(variant ? variant : "", variant ? variant_len : 0, 0);
-    metric->reason = zend_string_init(reason ? reason : "", reason ? reason_len : 0, 0);
-    metric->error_type = zend_string_init(error_type ? error_type : "", error_type ? error_type_len : 0, 0);
-    metric->allocation_key = zend_string_init(allocation_key ? allocation_key : "", allocation_key ? allocation_key_len : 0, 0);
+    metric->flag_key = zend_string_copy(flag_key);
+    metric->variant = variant ? zend_string_copy(variant) : ZSTR_EMPTY_ALLOC();
+    metric->reason = reason ? zend_string_init(reason, strlen(reason), 0) : ZSTR_EMPTY_ALLOC();
+    metric->error_type = error_type ? zend_string_init(error_type, strlen(error_type), 0) : ZSTR_EMPTY_ALLOC();
+    metric->allocation_key = allocation_key ? zend_string_copy(allocation_key) : ZSTR_EMPTY_ALLOC();
 
     return true;
 }
