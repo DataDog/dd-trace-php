@@ -20,28 +20,28 @@ function show($label, $value) {
     echo $label . '=' . json_encode($value, JSON_UNESCAPED_SLASHES) . "\n";
 }
 
-function wait_for_proxy_log($path) {
+function wait_for_proxy_request($path) {
     for ($i = 0; $i < 100; $i++) {
         usleep(10000);
         $log = @file_get_contents($path);
-        if (is_string($log) && strpos($log, 'POST /v1/metrics HTTP/1.1') !== false) {
-            return $log;
+        if (is_string($log) && preg_match('/^POST \/v1\/metrics HTTP\/1\.1\r?\n.*?\r?\n\r?\n/ms', $log, $matches)) {
+            return $matches[0];
         }
     }
 
-    throw new Exception('wait for proxy log timeout');
+    throw new Exception('wait for proxy request timeout');
 }
 
-function request_uri($log) {
-    if (preg_match('/^POST ([^ ]+) HTTP/m', $log, $matches)) {
+function request_uri($request) {
+    if (preg_match('/^POST ([^ ]+) HTTP/m', $request, $matches)) {
         return $matches[1];
     }
 
     return null;
 }
 
-function header_value($log, $name) {
-    foreach (preg_split('/\r?\n/', $log) as $line) {
+function header_value($request, $name) {
+    foreach (preg_split('/\r?\n/', $request) as $line) {
         $parts = explode(':', $line, 2);
         if (count($parts) == 2 && strcasecmp($parts[0], $name) == 0) {
             return trim($parts[1]);
@@ -70,11 +70,11 @@ show('recorded', \DDTrace\Internal\record_ffe_evaluation_metric(
 ));
 show('flushed', \DDTrace\Internal\flush_ffe_evaluation_metrics());
 
-$log = wait_for_proxy_log($proxyLog);
+$request = wait_for_proxy_request($proxyLog);
 
-show('metrics_uri', request_uri($log));
-show('content_type', header_value($log, 'Content-Type'));
-show('test_token', header_value($log, 'X-Datadog-Test-Session-Token'));
+show('metrics_uri', request_uri($request));
+show('content_type', header_value($request, 'Content-Type'));
+show('test_token', header_value($request, 'X-Datadog-Test-Session-Token'));
 ?>
 --CLEAN--
 <?php
