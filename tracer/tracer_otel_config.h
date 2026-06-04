@@ -1,5 +1,5 @@
-#ifndef DD_TRACER_OTEL_CONFIG_H
-#define DD_TRACER_OTEL_CONFIG_H
+#ifndef DD_OTEL_CONFIG_H
+#define DD_OTEL_CONFIG_H
 
 #include <env/env.h>
 
@@ -17,4 +17,4 @@ bool ddtrace_conf_otel_traces_exporter(zai_env_buffer *buf, bool pre_rinit);
 bool ddtrace_conf_otel_metrics_exporter(zai_env_buffer *buf, bool pre_rinit);
 bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_rinit);
 
-#endif // DD_TRACER_OTEL_CONFIG_H
+#endif // DD_OTEL_CONFIG_H
