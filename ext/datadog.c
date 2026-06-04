@@ -159,7 +159,7 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {
-        // Only set up the sidecar when it's actually needed (appsec, telemetry, or trace sender).
+        // Only set up the sidecar when it's actually needed (appsec, telemetry, trace sender, or OTLP metrics).
         ddog_RemoteConfigFlags flags = {0};
         bool enable_sidecar = datadog_sidecar_should_enable(&flags);
         if (enable_sidecar) {
