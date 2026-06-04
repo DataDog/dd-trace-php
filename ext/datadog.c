@@ -567,9 +567,6 @@ static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 static PHP_RINIT_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
-    // Do after env check, so that RC data is not updated before RC init
-    DATADOG_G(request_initialized) = true;
-
     if (!DATADOG_G(remote_config_state) && datadog_endpoint) {
         DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
     }
@@ -584,12 +581,19 @@ static PHP_RINIT_FUNCTION(datadog) {
 
     datadog_log_rinit(PG(error_log));
 
-    datadog_sidecar_rinit();
-
     datadog_agent_info_rinit();
 
     // Single combined read: applies env, container-hash, and concentrator config.
     datadog_apply_agent_info();
+
+#ifdef DDTRACE
+    ddtrace_rinit_early();
+#endif
+
+    // Do after env check, so that RC data is not updated before RC init
+    DATADOG_G(request_initialized) = true;
+
+    datadog_sidecar_rinit();
 
 #ifdef DDTRACE
     ddtrace_rinit();
