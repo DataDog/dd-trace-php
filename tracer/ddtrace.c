@@ -442,7 +442,6 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
     ddtrace_asm_event_rinit();
-    ddtrace_live_debugger_rinit();
 
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
@@ -481,12 +480,13 @@ static void dd_initialize_request(void) {
     }
 }
 
-void ddtrace_rinit(void) {
+void ddtrace_rinit_early(void) {
 #if PHP_VERSION_ID < 80000 || (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500)
     zai_interceptor_rinit();
 #endif
 
     ddtrace_weak_resources_rinit();
+    ddtrace_live_debugger_rinit();
 
     if (!datadog_disable) {
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
@@ -497,7 +497,9 @@ void ddtrace_rinit(void) {
         ddtrace_autoload_rinit();
 #endif
     }
+}
 
+void ddtrace_rinit(void) {
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (datadog_endpoint) {
@@ -593,8 +595,6 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         dd_force_shutdown_tracing(fast_shutdown);
     }
 
-    ddtrace_live_debugger_rshutdown();
-
     if (!datadog_disable) {
         dd_shutdown_hooks(fast_shutdown);
 
@@ -610,6 +610,7 @@ void ddtrace_rshutdown(bool fast_shutdown) {
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
+    ddtrace_live_debugger_rshutdown();
 }
 
 void ddtrace_post_deactivate(void) {
