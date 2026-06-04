@@ -110,23 +110,24 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     return true;
 }
 
-// Custom parser for DD_TRACE_HEADER_TAGS: prepend security-testing headers (APPSEC-62412) to
+// Custom parser for DD_TRACE_HEADER_TAGS: append security-testing headers (APPSEC-62412) to
 // the value string so ZAI's own decoder handles key creation and interning correctly across
 // all PHP versions and thread modes, avoiding zend_new_interned_string_permanent assertions.
+// Appending keeps user-configured headers first in iteration order.
 static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
-    static const char sec_prefix[] = "x-datadog-endpoint-scan,x-datadog-security-test";
-    static const size_t sec_prefix_len = sizeof(sec_prefix) - 1;
+    static const char sec_suffix[] = "x-datadog-endpoint-scan,x-datadog-security-test";
+    static const size_t sec_suffix_len = sizeof(sec_suffix) - 1;
 
     if (value.len == 0) {
-        zai_str combined = {.ptr = sec_prefix, .len = sec_prefix_len};
+        zai_str combined = {.ptr = sec_suffix, .len = sec_suffix_len};
         return zai_config_decode_value(combined, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent);
     }
 
-    size_t combined_len = sec_prefix_len + 1 + value.len;
+    size_t combined_len = value.len + 1 + sec_suffix_len;
     char *buf = pemalloc(combined_len + 1, persistent);
-    memcpy(buf, sec_prefix, sec_prefix_len);
-    buf[sec_prefix_len] = ',';
-    memcpy(buf + sec_prefix_len + 1, value.ptr, value.len);
+    memcpy(buf, value.ptr, value.len);
+    buf[value.len] = ',';
+    memcpy(buf + value.len + 1, sec_suffix, sec_suffix_len);
     buf[combined_len] = '\0';
 
     zai_str combined = {.ptr = buf, .len = combined_len};
