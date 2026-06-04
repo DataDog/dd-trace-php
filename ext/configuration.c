@@ -139,8 +139,7 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
 
 static bool ddtrace_alter_DD_TRACE_HEADER_TAGS(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_value);
-    // Security-testing headers are added by dd_parse_header_tags (the custom parser),
-    // so new_value already contains them. Only handle remote config notification here.
+    // Security-testing headers already in new_value from dd_parse_header_tags.
     if (!DATADOG_G(remote_config_state) || DATADOG_G(remote_config_writing)) {
         return true;
     }
@@ -155,6 +154,7 @@ bool datadog_config_minit(int module_number) {
         LOG(ERROR, "Unable to load configuration; likely due to json symbols failing to resolve.");
         return false;
     }
+
     // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
     // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the
