@@ -110,30 +110,24 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     return true;
 }
 
-// Custom parser for DD_TRACE_HEADER_TAGS: append security-testing headers (APPSEC-62412) to
-// the value string so ZAI's own decoder handles key creation and interning correctly across
-// all PHP versions and thread modes, avoiding zend_new_interned_string_permanent assertions.
-// Appending keeps user-configured headers first in iteration order.
+// Custom parser to ensure security-testing headers are always captured.
 static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
-    static const char sec_suffix[] = "x-datadog-endpoint-scan,x-datadog-security-test";
-    static const size_t sec_suffix_len = sizeof(sec_suffix) - 1;
-
-    if (value.len == 0) {
-        zai_str combined = {.ptr = sec_suffix, .len = sec_suffix_len};
-        return zai_config_decode_value(combined, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent);
+    if (!zai_config_decode_value(value, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent)) {
+        return false;
     }
 
-    size_t combined_len = value.len + 1 + sec_suffix_len;
-    char *buf = pemalloc(combined_len + 1, persistent);
-    memcpy(buf, value.ptr, value.len);
-    buf[value.len] = ',';
-    memcpy(buf + value.len + 1, sec_suffix, sec_suffix_len);
-    buf[combined_len] = '\0';
+    HashTable *ht = Z_ARRVAL_P(decoded_value);
+    zval empty;
+    if (persistent) {
+        ZVAL_EMPTY_PSTRING(&empty);
+    } else {
+        ZVAL_EMPTY_STRING(&empty);
+    }
+    Z_TRY_ADDREF(empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-endpoint-scan") - 1, &empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-security-test") - 1, &empty);
 
-    zai_str combined = {.ptr = buf, .len = combined_len};
-    bool result = zai_config_decode_value(combined, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent);
-    pefree(buf, persistent);
-    return result;
+    return true;
 }
 
 #define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
