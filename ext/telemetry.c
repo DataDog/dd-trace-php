@@ -98,8 +98,7 @@ void datadog_telemetry_finalize() {
 #if ZTS
             ini = zend_hash_find_ptr(EG(ini_directives), ini->name);
 #endif
-            if (cfg->names[0].len != sizeof("DD_TRACE_ENABLED") - 1
-                || memcmp(cfg->names[0].ptr, "DD_TRACE_ENABLED", sizeof("DD_TRACE_ENABLED") - 1) != 0) { // DD_TRACE_ENABLED is meaningless: always off at rshutdown
+            if (!cfg->sensitive) {
                 ddog_ConfigurationOrigin origin = DDOG_CONFIGURATION_ORIGIN_ENV_VAR;
                 switch (cfg->name_index) {
                     case ZAI_CONFIG_ORIGIN_DEFAULT:
