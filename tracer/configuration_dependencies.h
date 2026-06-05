@@ -13,6 +13,8 @@ static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persisten
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_SERVICE);
     } else if (zai_str_eq_ci_cstr(value, "full")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_FULL);
+    } else if (zai_str_eq_ci_cstr(value, "dynamic_service")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DYNAMIC_SERVICE);
     } else {
         return false;
     }
