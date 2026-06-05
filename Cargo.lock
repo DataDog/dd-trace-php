@@ -1439,6 +1439,7 @@ dependencies = [
  "nix 0.29.0",
  "prctl",
  "priority-queue",
+ "prost",
  "rand 0.8.5",
  "rmp-serde",
  "sendfd",

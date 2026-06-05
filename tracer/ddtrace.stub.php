@@ -900,7 +900,7 @@ namespace DDTrace {
      *
      * @internal Used by the Datadog feature flag client.
      */
-    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes): ?FfeResult {}
+    function ffe_evaluate(string $flagKey, int $expectedType, ?string $targetingKey, array $attributes, bool $recordMetric = true): ?FfeResult {}
 
     /**
      * Check if FFE (Feature Flag Evaluation) configuration is loaded.
@@ -1067,6 +1067,24 @@ namespace DDTrace\Internal {
      * @internal
      */
     function handle_fork(): void {}
+
+    /**
+     * Record a Feature Flag Evaluation metric event in native request-local
+     * memory. The batch is flushed to the shared sidecar during request
+     * shutdown; PHP does not aggregate, encode OTLP, or perform transport.
+     *
+     * @internal
+     */
+    function record_ffe_evaluation_metric(string $flagKey, ?string $variant, ?string $reason, ?string $errorType, ?string $allocationKey): bool {}
+
+    /**
+     * Flush request-local Feature Flag Evaluation metric events to the shared
+     * sidecar. Intended for long-lived integration test servers; normal PHP
+     * requests flush during request shutdown.
+     *
+     * @internal
+     */
+    function flush_ffe_evaluation_metrics(): bool {}
 
 }
 

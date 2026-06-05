@@ -195,6 +195,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice session_id,
                                                 const struct ddog_Endpoint *agent_endpoint,
                                                 const struct ddog_Endpoint *dogstatsd_endpoint,
+                                                const struct ddog_Endpoint *otlp_metrics_endpoint,
                                                 ddog_CharSlice language,
                                                 ddog_CharSlice language_version,
                                                 ddog_CharSlice tracer_version,
@@ -313,6 +314,22 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      const ddog_QueueId *queue_id,
                                                      const struct ddog_FfeTelemetryContext *context,
                                                      struct ddog_Slice_FfeExposure exposures);
+
+/**
+ * Send structured FFE evaluation metric events to the sidecar. The sidecar
+ * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
+ * function is caller-driven so SDKs with existing host-language hooks can
+ * safely coexist until they explicitly migrate.
+ *
+ * # Safety
+ * `context` and every element in `metrics` must contain valid UTF-8
+ * `CharSlice` values. Empty `metrics` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_evaluation_metrics(struct ddog_SidecarTransport **transport,
+                                                         const struct ddog_InstanceId *instance_id,
+                                                         const ddog_QueueId *queue_id,
+                                                         const struct ddog_FfeTelemetryContext *context,
+                                                         struct ddog_Slice_FfeEvaluationMetric metrics);
 
 ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
                                                        const struct ddog_InstanceId *instance_id,

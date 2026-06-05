@@ -181,6 +181,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_DDTrace_ffe_evaluate, 0, 4, DDTra
 	ZEND_ARG_TYPE_INFO(0, expectedType, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, targetingKey, IS_STRING, 1)
 	ZEND_ARG_TYPE_INFO(0, attributes, IS_ARRAY, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, recordMetric, _IS_BOOL, 0, "true")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_ffe_has_config, 0, 0, _IS_BOOL, 0)
@@ -245,6 +246,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_add_span_flag, 
 ZEND_END_ARG_INFO()
 
 #define arginfo_DDTrace_Internal_handle_fork arginfo_DDTrace_flush
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, 5, _IS_BOOL, 0)
+	ZEND_ARG_TYPE_INFO(0, flagKey, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, variant, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, reason, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, errorType, IS_STRING, 1)
+	ZEND_ARG_TYPE_INFO(0, allocationKey, IS_STRING, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, 0, _IS_BOOL, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_datadog_appsec_v2_track_user_login_success, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, login, IS_STRING, 0)
@@ -431,6 +443,8 @@ ZEND_FUNCTION(DDTrace_Testing_emit_asm_event);
 ZEND_FUNCTION(DDTrace_Testing_normalize_tag_value);
 ZEND_FUNCTION(DDTrace_Internal_add_span_flag);
 ZEND_FUNCTION(DDTrace_Internal_handle_fork);
+ZEND_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric);
+ZEND_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_success);
 ZEND_FUNCTION(datadog_appsec_v2_track_user_login_failure);
 ZEND_FUNCTION(dd_trace_env_config);
@@ -531,6 +545,8 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Testing", "normalize_tag_value"), zif_DDTrace_Testing_normalize_tag_value, arginfo_DDTrace_Testing_normalize_tag_value, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "add_span_flag"), zif_DDTrace_Internal_add_span_flag, arginfo_DDTrace_Internal_add_span_flag, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "handle_fork"), zif_DDTrace_Internal_handle_fork, arginfo_DDTrace_Internal_handle_fork, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "record_ffe_evaluation_metric"), zif_DDTrace_Internal_record_ffe_evaluation_metric, arginfo_DDTrace_Internal_record_ffe_evaluation_metric, 0, NULL, NULL)
+	ZEND_RAW_FENTRY(ZEND_NS_NAME("DDTrace\\Internal", "flush_ffe_evaluation_metrics"), zif_DDTrace_Internal_flush_ffe_evaluation_metrics, arginfo_DDTrace_Internal_flush_ffe_evaluation_metrics, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_success"), zif_datadog_appsec_v2_track_user_login_success, arginfo_datadog_appsec_v2_track_user_login_success, 0, NULL, NULL)
 	ZEND_RAW_FENTRY(ZEND_NS_NAME("datadog\\appsec\\v2", "track_user_login_failure"), zif_datadog_appsec_v2_track_user_login_failure, arginfo_datadog_appsec_v2_track_user_login_failure, 0, NULL, NULL)
 	ZEND_FE(dd_trace_env_config, arginfo_dd_trace_env_config)

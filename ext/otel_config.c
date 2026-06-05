@@ -1,6 +1,7 @@
 #include "otel_config.h"
 #include <env/env.h>
 #include "datadog.h"
+#include <components-rs/common.h>
 #include <components/log/log.h>
 #include <ext/sidecar.h>
 #include <ext/telemetry.h>
@@ -135,5 +136,27 @@ bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_ri
     }
     *out = 0;
 
+    return true;
+}
+
+bool ddtrace_conf_otel_otlp_endpoint(zai_env_buffer *buf, bool pre_rinit) {
+    ZAI_ENV_BUFFER_INIT(local, ZAI_ENV_MAX_BUFSIZ);
+    if (!datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_ENDPOINT"), &local, pre_rinit) || !local.ptr[0]) {
+        return false;
+    }
+
+    size_t base_len = strlen(local.ptr);
+    while (base_len > 0 && local.ptr[base_len - 1] == '/') {
+        base_len--;
+    }
+
+    const char suffix[] = "/v1/metrics";
+    size_t suffix_len = sizeof(suffix) - 1;
+    if (base_len + suffix_len + 1 > ZAI_ENV_MAX_BUFSIZ) {
+        return false;
+    }
+
+    memcpy(buf->ptr, local.ptr, base_len);
+    memcpy(buf->ptr + base_len, suffix, suffix_len + 1);
     return true;
 }

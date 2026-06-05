@@ -96,6 +96,10 @@ typedef struct {
     void *ffe_exposure_buffer;
     size_t ffe_exposure_buffer_len;
     size_t ffe_exposure_buffer_cap;
+    void *ffe_metric_buffer;
+    size_t ffe_metric_buffer_len;
+    size_t ffe_metric_buffer_cap;
+
 } ddtrace_globals;
 
 #define DDTRACE_G(v) (DATADOG_G(ddtrace).v)

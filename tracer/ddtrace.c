@@ -607,6 +607,7 @@ void ddtrace_rshutdown(bool fast_shutdown) {
     }
 
     ddtrace_ffe_flush_exposures();
+    ddtrace_ffe_flush_evaluation_metrics();
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
@@ -659,7 +660,9 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
     flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
-    return get_global_DD_TRACE_SIDECAR_TRACE_SENDER() || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
+    return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
+        || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
+        || get_global_DD_METRICS_OTEL_ENABLED();
 }
 
 #if defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
