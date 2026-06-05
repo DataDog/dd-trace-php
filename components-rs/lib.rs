@@ -18,6 +18,7 @@ use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
+#[cfg(unix)]
 use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
@@ -151,16 +152,13 @@ pub unsafe extern "C" fn datadog_parse_agent_url(
 
 #[cfg(unix)]
 fn otel_metrics_endpoint_from_unix_socket(_socket_path: &str) -> std::option::Option<Box<Endpoint>> {
-    #[cfg(unix)]
-    return socket_path_to_uri(Path::new(_socket_path)).ok().and_then(|uri| {
+    socket_path_to_uri(Path::new(_socket_path)).ok().and_then(|uri| {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(PathAndQuery::from_static("/v1/metrics"));
         Uri::from_parts(parts)
             .ok()
             .map(|url| Box::new(Endpoint::from_url(url)))
-    });
-    #[cfg(not(unix))]
-    None
+    })
 }
 
 #[no_mangle]
@@ -181,8 +179,9 @@ pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(url: CharS
     let url_str = url.to_utf8_lossy();
     #[cfg(unix)]
     if let Some(socket_path) = url_str.strip_prefix("unix://") {
-        otel_metrics_endpoint_from_unix_socket(socket_path)
-    } else if url_str.starts_with("http") {
+        return otel_metrics_endpoint_from_unix_socket(socket_path);
+    }
+    if url_str.starts_with("http") {
         let parsed = parse_uri(url_str.as_ref()).ok();
         let scheme = parsed.as_ref().and_then(|u| u.scheme_str()).unwrap_or("http");
         let host = parsed
