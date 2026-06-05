@@ -110,6 +110,26 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
     return true;
 }
 
+// Custom parser to ensure security-testing headers are always captured.
+static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
+    if (!zai_config_decode_value(value, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent)) {
+        return false;
+    }
+
+    HashTable *ht = Z_ARRVAL_P(decoded_value);
+    zval empty;
+    if (persistent) {
+        ZVAL_EMPTY_PSTRING(&empty);
+    } else {
+        ZVAL_EMPTY_STRING(&empty);
+    }
+    Z_TRY_ADDREF(empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-endpoint-scan"), &empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-security-test"), &empty);
+
+    return true;
+}
+
 #define INI_CHANGE_DYNAMIC_CONFIG(name, config) \
     static bool ddtrace_alter_##name(zval *old_value, zval *new_value, zend_string *new_str) { \
         UNUSED(old_value, new_value); \

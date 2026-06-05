@@ -88,7 +88,7 @@
     CONFIG(CUSTOM(INT), DD_TRACE_SAMPLING_RULES_FORMAT, "glob", .parser = dd_parse_sampling_rules_format)      \
     CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
-    CONFIG(SET_OR_MAP_LOWERCASE, DD_TRACE_HEADER_TAGS, "", .ini_change = ddtrace_alter_DD_TRACE_HEADER_TAGS)   \
+    CONFIG(CUSTOM(MAP), DD_TRACE_HEADER_TAGS, "", .ini_change = ddtrace_alter_DD_TRACE_HEADER_TAGS, .parser = dd_parse_header_tags) \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
     CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
     CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \

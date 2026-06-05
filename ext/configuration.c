@@ -146,6 +146,7 @@ bool datadog_config_minit(int module_number) {
         LOG(ERROR, "Unable to load configuration; likely due to json symbols failing to resolve.");
         return false;
     }
+
     // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
     // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the

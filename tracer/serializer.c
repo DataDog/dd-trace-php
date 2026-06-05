@@ -55,6 +55,9 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
+#define DD_TAG_HTTP_REQH_ENDPOINT_SCAN "http.request.headers.x-datadog-endpoint-scan"
+#define DD_TAG_HTTP_REQH_SECURITY_TEST "http.request.headers.x-datadog-security-test"
+
 extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str span_type,
                                                zai_str resource);
@@ -1835,6 +1838,8 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.dm", true);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.ksr", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.tid", true);
+        transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_ENDPOINT_SCAN, false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_SECURITY_TEST, false);
 
         ddog_set_span_error(serialized_inferred_span, ddog_get_span_error(rust_span));
     }
