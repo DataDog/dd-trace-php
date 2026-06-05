@@ -110,7 +110,7 @@ pub struct LiveDebuggerCallbacks {
 #[derive(Default)]
 pub struct LiveDebuggerState {
     pub spans_map: HashMap<String, i64>,
-    pub active: HashMap<String, (RemoteConfigParsed, MaybeShmLimiter)>,
+    pub active: HashMap<String, Box<(RemoteConfigParsed, MaybeShmLimiter)>>, // Box<> for stable heap address!
     pub config_id: String,
     pub allow_dfa: Option<Regex>,
     pub deny_dfa: Option<Regex>,
@@ -390,7 +390,7 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
                 if let Some(data) = value.data {
                     match value.product {
                         RemoteConfigProduct::LiveDebugger => {
-                            let val = (data, MaybeShmLimiter::open(limiter_index));
+                            let val = Box::new((data, MaybeShmLimiter::open(limiter_index)));
                             let rc_ref: &mut RemoteConfigState = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
                             let entry = remote_config.live_debugger.active.entry(value.config_id);
                             let (parsed, limiter) = match entry {
@@ -438,8 +438,8 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             }
             RemoteConfigUpdate::Remove(path) => match path.product {
                 RemoteConfigProduct::LiveDebugger => {
-                    if let Some((parsed, _)) = remote_config.live_debugger.active.remove(&path.config_id) {
-                        if let Some(debugger) = parsed.downcast::<LiveDebuggingData>() {
+                    if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id) {
+                        if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
                             remove_config(remote_config, debugger);
                         }
                     }
@@ -552,8 +552,8 @@ fn remove_config(remote_config: &mut RemoteConfigState, debugger: &LiveDebugging
 pub extern "C" fn ddog_remote_config_get_loaded_configs(remote_config: &RemoteConfigState) -> *mut c_char {
     let mut entries: Vec<(String, String)> = Vec::new();
 
-    for (config_id, (parsed, _)) in &remote_config.live_debugger.active {
-        if let Some(debugger) = parsed.downcast::<LiveDebuggingData>() {
+    for (config_id, boxed) in &remote_config.live_debugger.active {
+        if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
             let value = match debugger {
                 LiveDebuggingData::Probe(p) => format!(r#"{{"type":"probe","id":"{}"}}"#, p.id),
                 LiveDebuggingData::ServiceConfiguration(sc) => format!(r#"{{"type":"service_config","id":"{}"}}"#, sc.id),
@@ -610,13 +610,13 @@ pub extern "C" fn ddog_type_can_be_instrumented(
 
 #[no_mangle]
 pub extern "C" fn ddog_global_log_probe_limiter_inc(remote_config: &RemoteConfigState) -> bool {
-    if let Some((parsed, limiter)) = remote_config
+    if let Some(boxed) = remote_config
         .live_debugger
         .active
         .get(&remote_config.live_debugger.config_id)
     {
-        if let Some(LiveDebuggingData::ServiceConfiguration(config)) = parsed.downcast::<LiveDebuggingData>() {
-            limiter.inc(config.sampling_snapshots_per_second)
+        if let Some(LiveDebuggingData::ServiceConfiguration(config)) = boxed.0.downcast::<LiveDebuggingData>() {
+            boxed.1.inc(config.sampling_snapshots_per_second)
         } else {
             true
         }
@@ -720,9 +720,9 @@ pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
             }
         } else {
             // Reinstall all probes currently stored in `active`.
-            for (probe_id, (parsed, limiter)) in remote_config.live_debugger.active.iter() {
-                if let Some(LiveDebuggingData::Probe(probe)) = parsed.downcast::<LiveDebuggingData>() {
-                    let hook_id = (callbacks.set_probe)(probe.into(), limiter);
+            for (probe_id, boxed) in remote_config.live_debugger.active.iter() {
+                if let Some(LiveDebuggingData::Probe(probe)) = boxed.0.downcast::<LiveDebuggingData>() {
+                    let hook_id = (callbacks.set_probe)(probe.into(), &boxed.1);
                     if hook_id >= 0 {
                         remote_config
                             .live_debugger
