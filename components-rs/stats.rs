@@ -517,6 +517,8 @@ pub unsafe extern "C" fn ddog_sidecar_add_php_span_to_concentrator(
     let env_str = char_slice_str(env).to_owned();
     let version_str = char_slice_str(version).to_owned();
     let owned_span = php_span_to_owned_input(span);
-    let _ = add_span_to_concentrator(transport, env_str, version_str, owned_span);
+    if let Err(e) = add_span_to_concentrator(transport, env_str, version_str, owned_span) {
+        trace!("Failed to send span to concentrator via IPC: {e}");
+    }
 }
 
