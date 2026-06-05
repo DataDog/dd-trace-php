@@ -1640,7 +1640,7 @@ static void ddtrace_ffe_record_evaluation_metric_result(
 ) {
     const char *reason_name = ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(reason, error_code));
     const char *error_name = ddtrace_ffe_error_name(error_code);
-    datadog_ffe_record_evaluation_metric(flag_key, variant, reason_name, error_name, allocation_key);
+    ddtrace_ffe_record_evaluation_metric(flag_key, variant, reason_name, error_name, allocation_key);
 }
 
 static zend_string *ddtrace_ffe_attributes_json(zval *attrs_zv) {
@@ -1799,7 +1799,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
 
     if (!result.valid) {
         if (record_metric) {
-            datadog_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
+            ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
         }
         RETURN_NULL();
     }
@@ -2750,7 +2750,7 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric) {
         Z_PARAM_STR_OR_NULL(allocation_key)
     ZEND_PARSE_PARAMETERS_END();
 
-    RETURN_BOOL(datadog_ffe_record_evaluation_metric(
+    RETURN_BOOL(ddtrace_ffe_record_evaluation_metric(
         flag_key,
         variant,
         reason ? ZSTR_VAL(reason) : NULL,
@@ -2761,7 +2761,7 @@ PHP_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric) {
 PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
     ZEND_PARSE_PARAMETERS_NONE();
 
-    RETURN_BOOL(datadog_ffe_flush_evaluation_metrics());
+    RETURN_BOOL(ddtrace_ffe_flush_evaluation_metrics());
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

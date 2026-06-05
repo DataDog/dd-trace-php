@@ -6,6 +6,7 @@
 #include "logging.h"
 #include <json/json.h>
 #include "sidecar.h"
+#include "otel_config.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
 

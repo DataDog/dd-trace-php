@@ -5,7 +5,6 @@
 #include <components-rs/datadog.h>
 #include <components-rs/sidecar.h>
 
-#include <tracer/ffe.h>
 #include <tracer/tracer_api.h>
 
 #include "configuration.h"
@@ -652,7 +651,6 @@ static PHP_RSHUTDOWN_FUNCTION(datadog) {
 
 #ifdef DDTRACE
     ddtrace_rshutdown(fast_shutdown);
-    datadog_ffe_flush_evaluation_metrics();
 #endif
 
     datadog_sidecar_finalize(true);

@@ -607,6 +607,7 @@ void ddtrace_rshutdown(bool fast_shutdown) {
     }
 
     ddtrace_ffe_flush_exposures();
+    ddtrace_ffe_flush_evaluation_metrics();
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
