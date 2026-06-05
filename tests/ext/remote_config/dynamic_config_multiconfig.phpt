@@ -31,7 +31,7 @@ $specific_path = put_dynamic_config_file([
     "tracing_sample_rate" => 0.7,
 ]);
 
-sleep(20); // signal interrupts interrupt the sleep().
+dd_trace_internal_fn("await_remote_config");
 
 // Specific config wins for sample_rate; org-level provides log_injection.
 print "After both configs:\n";
@@ -40,7 +40,7 @@ var_dump(ini_get("datadog.logs_injection"));
 
 del_rc_file($specific_path);
 
-sleep(20); // signal interrupts interrupt the sleep().
+dd_trace_internal_fn("await_remote_config");
 
 // Only org-level remains: sample_rate falls back to 0.3.
 print "After removing specific config:\n";

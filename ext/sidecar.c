@@ -175,9 +175,12 @@ static void dd_sidecar_on_reconnect(ddog_SidecarTransport *transport) {
         ddog_CharSlice service_name = dd_zend_string_to_CharSlice(DATADOG_G(last_service_name));
         ddog_CharSlice env_name = dd_zend_string_to_CharSlice(DATADOG_G(last_env_name));
         ddog_CharSlice version = dd_zend_string_to_CharSlice(DATADOG_G(last_version));
+        uint64_t remote_config_generation = DATADOG_G(remote_config_state)
+            ? ddog_remote_config_current_generation(DATADOG_G(remote_config_state))
+            : 0;
         datadog_ffi_try("Failed sending config data",
                         ddog_sidecar_set_universal_service_tags(&transport, datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), service_name,
-                                                                env_name, version, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
+                                                                env_name, version, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
     }
 
     tsrm_mutex_unlock(DATADOG_G(sidecar_universal_service_tags_mutex));
@@ -566,6 +569,7 @@ void datadog_sidecar_shutdown(void) {
 void datadog_force_new_instance_id(void) {
     if (datadog_sidecar_instance_id) {
         ddog_sidecar_instanceId_drop(datadog_sidecar_instance_id);
+        datadog_generate_runtime_id();
         dd_set_resettable_sidecar_globals();
     }
 }
@@ -745,8 +749,11 @@ void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, 
         tsrm_mutex_unlock(DATADOG_G(sidecar_universal_service_tags_mutex));
 
         // This must not be in mutex, as a reconnect may happen here
+        uint64_t remote_config_generation = DATADOG_G(remote_config_state)
+            ? ddog_remote_config_current_generation(DATADOG_G(remote_config_state))
+            : 0;
         datadog_ffi_try("Failed sending config data",
-                        ddog_sidecar_set_universal_service_tags(transport, datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state()));
+                        ddog_sidecar_set_universal_service_tags(transport, datadog_sidecar_instance_id, &DATADOG_G(sidecar_queue_id), service_slice, env_slice, version_slice, &DATADOG_G(active_global_tags), ddtrace_dynamic_instrumentation_state(), remote_config_generation));
     } else {
         zend_string_release(service_string);
         zend_string_release(env_string);
@@ -810,8 +817,10 @@ void datadog_sidecar_gshutdown(zend_datadog_globals *datadog_globals) {
 
 bool datadog_alter_test_session_token(zval *old_value, zval *new_value, zend_string *new_str) {
     UNUSED(old_value, new_str);
-    if (DATADOG_G(sidecar)) {
+    if (datadog_endpoint) {
         ddog_endpoint_set_test_token(datadog_endpoint, dd_zend_string_to_CharSlice(Z_STR_P(new_value)));
+    }
+    if (DATADOG_G(sidecar)) {
         datadog_ffi_try("Failed updating test session token",
                         ddog_sidecar_set_test_session_token(&DATADOG_G(sidecar), dd_zend_string_to_CharSlice(Z_STR_P(new_value))));
     }

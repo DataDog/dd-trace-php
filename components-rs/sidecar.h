@@ -343,7 +343,8 @@ ddog_MaybeError ddog_sidecar_set_universal_service_tags(struct ddog_SidecarTrans
                                                         ddog_CharSlice env_name,
                                                         ddog_CharSlice app_version,
                                                         const struct ddog_Vec_Tag *global_tags,
-                                                        enum ddog_DynamicInstrumentationConfigState dynamic_instrumentation_state);
+                                                        enum ddog_DynamicInstrumentationConfigState dynamic_instrumentation_state,
+                                                        uint64_t remote_config_generation);
 
 ddog_MaybeError ddog_sidecar_set_request_config(struct ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,

@@ -139,6 +139,8 @@ void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
                                                              bool di_enabled);
 
+uint64_t ddog_remote_config_current_generation(const struct ddog_RemoteConfigState *remote_config);
+
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
 bool ddog_process_remote_configs(struct ddog_RemoteConfigState *remote_config);
