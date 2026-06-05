@@ -175,7 +175,13 @@ static void zai_config_entries_init(zai_config_entry entries[], zai_config_id en
     zend_hash_init(&zai_config_name_map, entries_count * 2, NULL, NULL, /* persistent */ 1);
 
     for (zai_config_id i = 0; i < entries_count; i++) {
-        zai_config_memoized_entry *memoized = zai_config_memoize_entry(&entries[i]);
+        zai_config_memoize_entry(&entries[i]);
+    }
+}
+
+static void zai_config_store_names(void) {
+    for (zai_config_id i = 0; i < zai_config_memoized_entries_count; i++) {
+        zai_config_memoized_entry *memoized = &zai_config_memoized_entries[i];
         for (uint8_t n = 0; n < memoized->names_count; n++) {
             zai_config_register_config_id(&memoized->names[n], i);
         }
@@ -192,6 +198,7 @@ bool zai_config_minit(zai_config_entry entries[], size_t entries_count, zai_conf
     if (!zai_json_setup_bindings()) return false;
     zai_config_entries_init(entries, entries_count);
     zai_config_ini_minit(env_to_ini, module_number);
+    zai_config_store_names();
     zai_config_stable_file_minit();
 #if PHP_VERSION_ID >= 70300 && PHP_VERSION_ID < 70400
     zai_persistent_new_interned_string = zend_new_interned_string;

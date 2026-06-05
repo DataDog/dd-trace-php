@@ -2642,14 +2642,14 @@
     ],
     "OTEL_EXPORTER_OTLP_ENDPOINT": [
       {
-        "implementation": "A",
+        "implementation": "D",
         "type": "string",
         "default": ""
       }
     ],
     "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": [
       {
-        "implementation": "B",
+        "implementation": "D",
         "type": "string",
         "default": ""
       }

@@ -26,6 +26,7 @@ pub use libdd_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
 use libdd_common::{parse_uri, Endpoint};
+#[cfg(unix)]
 use libdd_common::connector::uds::socket_path_to_uri;
 use libdd_common_ffi::slice::AsBytes;
 pub use libdd_common_ffi::*;
@@ -149,14 +150,17 @@ pub unsafe extern "C" fn datadog_parse_agent_url(
 }
 
 #[cfg(unix)]
-fn otel_metrics_endpoint_from_unix_socket(socket_path: &str) -> std::option::Option<Box<Endpoint>> {
-    socket_path_to_uri(Path::new(socket_path)).ok().and_then(|uri| {
+fn otel_metrics_endpoint_from_unix_socket(_socket_path: &str) -> std::option::Option<Box<Endpoint>> {
+    #[cfg(unix)]
+    return socket_path_to_uri(Path::new(_socket_path)).ok().and_then(|uri| {
         let mut parts = uri.into_parts();
         parts.path_and_query = Some(PathAndQuery::from_static("/v1/metrics"));
         Uri::from_parts(parts)
             .ok()
             .map(|url| Box::new(Endpoint::from_url(url)))
-    })
+    });
+    #[cfg(not(unix))]
+    None
 }
 
 #[no_mangle]
