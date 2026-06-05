@@ -3,6 +3,7 @@ RC notifications must appear in forked processes
 --SKIPIF--
 <?php
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 ?>
 --ENV--
 DD_AGENT_HOST=request-replayer

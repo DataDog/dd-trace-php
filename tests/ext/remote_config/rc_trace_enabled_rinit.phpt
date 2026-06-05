@@ -3,6 +3,7 @@ RC tracing_enabled=true during RINIT does not double-init request globals
 --SKIPIF--
 <?php
 include __DIR__ . '/../includes/skipif_no_dev_env.inc';
+if (!extension_loaded('pcntl')) die('skip: pcntl extension required');
 ?>
 --ENV--
 DD_AGENT_HOST=request-replayer
