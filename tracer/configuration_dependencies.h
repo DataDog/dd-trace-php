@@ -124,8 +124,8 @@ static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persis
         ZVAL_EMPTY_STRING(&empty);
     }
     Z_TRY_ADDREF(empty);
-    zend_hash_str_update(ht, ZEND_STRL("x-datadog-endpoint-scan") - 1, &empty);
-    zend_hash_str_update(ht, ZEND_STRL("x-datadog-security-test") - 1, &empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-endpoint-scan"), &empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-security-test"), &empty);
 
     return true;
 }
