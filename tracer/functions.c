@@ -2005,7 +2005,8 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {
             zval *container_tags_hash = ZVAL_VARARG_PARAM(params, 0);
             if (Z_TYPE_P(container_tags_hash) == IS_STRING) {
-                zend_string *hash = zend_string_dup(Z_STR_P(container_tags_hash), 1);
+                // zend_string_dup does not dup request-local interned strings...
+                zend_string *hash = zend_string_init(Z_STRVAL_P(container_tags_hash), Z_STRLEN_P(container_tags_hash), 1);
                 datadog_process_tags_set_container_tags_hash(hash);
                 zend_string_release(hash);
                 RETVAL_TRUE;
