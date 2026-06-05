@@ -1993,7 +1993,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 RETURN_FALSE;
             }
             ddog_sidecar_send_garbage(&DATADOG_G(sidecar));
-            datadog_generate_runtime_id();
             datadog_force_new_instance_id();
             RETURN_TRUE;
         } else if (FUNCTION_NAME_MATCHES("reload_process_tags")) {
@@ -2093,9 +2092,13 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else {
                 array_init(return_value);
             }
-        } else if (FUNCTION_NAME_MATCHES("get_remote_config_state")) {
-            // Returns a placeholder; actual state is accessed via globals
-            RETVAL_LONG((zend_long)(uintptr_t)DATADOG_G(remote_config_state));
+        } else if (FUNCTION_NAME_MATCHES("await_remote_config")) {
+            uint32_t timeout_sec = 10;
+            if (params_count == 1) {
+                timeout_sec = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            php_sleep(timeout_sec);
+            RETURN_BOOL(DATADOG_G(reread_remote_configuration));
         } else if (FUNCTION_NAME_MATCHES("get_agent_info")) {
             // Returns a PHP array decoded from the agent /info JSON payload.
             if (DATADOG_G(agent_info_reader)) {

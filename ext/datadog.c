@@ -138,15 +138,17 @@ static int datadog_startup(zend_extension *extension) {
     }
 
 #ifdef DDTRACE
-    ddtrace_startup(extension);
+    ddtrace_startup();
 #endif
 
     return SUCCESS;
 }
 
 static void datadog_shutdown(zend_extension *extension) {
-#ifdef DDTRACE
-    ddtrace_shutdown(extension);
+    UNUSED(extension);
+
+    #ifdef DDTRACE
+    ddtrace_shutdown();
 #endif
 }
 
@@ -703,22 +705,11 @@ static PHP_MINFO_FUNCTION(datadog) {
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
     datadog_sidecar_handle_fork();
-    if (DDTRACE_G(agent_config_reader)) {
-        ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
-        DDTRACE_G(agent_config_reader) = NULL;
-    }
-    if (DATADOG_G(remote_config_state)) {
-        ddog_shutdown_remote_config(DATADOG_G(remote_config_state));
-        DATADOG_G(remote_config_state) = NULL;
-    }
-    if (DATADOG_G(agent_info_reader)) {
-        ddog_drop_agent_info_reader(DATADOG_G(agent_info_reader));
-        DATADOG_G(agent_info_reader) = NULL;
-    }
-    datadog_generate_runtime_id();
 
 #ifdef DDTRACE
     ddtrace_internal_handle_fork();
+#else
+    ddtrace_sidecar_submit_span_data_direct_defaults(&DATADOG_G(sidecar), NULL);
 #endif
 }
 
