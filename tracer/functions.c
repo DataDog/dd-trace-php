@@ -617,6 +617,20 @@ static zval *ddtrace_span_stack_get_property_ptr_ptr(zend_object *object, zend_s
 }
 
 #if PHP_VERSION_ID < 80000
+static void ddtrace_span_stack_unset_property(zval *object, zval *member, void **cache_slot) {
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+#else
+static void ddtrace_span_stack_unset_property(zend_object *object, zend_string *member, void **cache_slot) {
+    zend_string *prop_name = member;
+#endif
+    if (zend_string_equals_literal(prop_name, "active")) {
+        return;
+    }
+
+    zend_std_unset_property(object, member, cache_slot);
+}
+
+#if PHP_VERSION_ID < 80000
 #if PHP_VERSION_ID >= 70400
 static zval *ddtrace_span_stack_readonly(zval *object, zval *member, zval *value, void **cache_slot) {
 #else
@@ -722,6 +736,7 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_stack_handlers.dtor_obj = ddtrace_span_stack_dtor_obj;
     ddtrace_span_stack_handlers.read_property = ddtrace_span_stack_read_property;
     ddtrace_span_stack_handlers.get_property_ptr_ptr = ddtrace_span_stack_get_property_ptr_ptr;
+    ddtrace_span_stack_handlers.unset_property = ddtrace_span_stack_unset_property;
     ddtrace_span_stack_handlers.write_property = ddtrace_span_stack_readonly;
 
 }
