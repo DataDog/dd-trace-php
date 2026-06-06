@@ -163,6 +163,12 @@ void ddog_php_prof_zend_mm_set_custom_handlers(zend_mm_heap *heap,
 
 zend_execute_data* ddog_php_prof_get_current_execute_data();
 
+/**
+ * Returns the address of `EG(objects_store)`. Used by the GC survivors
+ * pass to walk the live-object bucket array entirely from Rust.
+ */
+zend_objects_store* ddog_php_prof_get_objects_store();
+
 #if CFG_FIBERS
 zend_fiber* ddog_php_prof_get_active_fiber();
 zend_fiber* ddog_php_prof_get_active_fiber_test();

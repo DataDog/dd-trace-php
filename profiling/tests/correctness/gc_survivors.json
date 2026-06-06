@@ -1,0 +1,46 @@
+{
+  "scale_by_duration": true,
+  "test_name": "php_gc_survivors",
+  "stacks": [
+    {
+      "profile-type": "timeline",
+      "stack-content": [
+        {
+          "regular_expression": "^\\[gc\\]$",
+          "percent": 100,
+          "error_margin": 100,
+          "labels": [
+            {
+              "key": "event",
+              "values": [
+                "gc"
+              ]
+            },
+            {
+              "key": "gc reason",
+              "values": [
+                "induced"
+              ]
+            },
+            {
+              "key": "gc collected",
+              "values_regex": "^[0-9]+$"
+            },
+            {
+              "key": "gc runs",
+              "values_regex": "^[0-9]+$"
+            },
+            {
+              "key": "survivors",
+              "values_regex": "^.*\\\\Bench\\\\AlphaThing 200.*\\\\Bench\\\\BetaThing 100.*$"
+            },
+            {
+              "key": "end_timestamp_ns",
+              "values_regex": "^[0-9]+$"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
