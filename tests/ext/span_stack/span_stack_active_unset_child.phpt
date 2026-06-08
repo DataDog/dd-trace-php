@@ -13,9 +13,9 @@ DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 
 use DDTrace\SpanData;
 
-function span_stack_active_unset_child(): void {}
+function span_stack_active_unset_child() {}
 
-\DDTrace\trace_function('span_stack_active_unset_child', static function (SpanData $span): void {
+\DDTrace\trace_function('span_stack_active_unset_child', static function (SpanData $span) {
     $span->name = 'span_stack_active_unset_child';
 });
 
