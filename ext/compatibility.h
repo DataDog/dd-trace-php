@@ -274,6 +274,7 @@ static inline HashTable *zend_new_array(uint32_t nSize) {
 #define zend_std_read_dimension std_object_handlers.read_dimension
 #define zend_std_get_property_ptr_ptr std_object_handlers.get_property_ptr_ptr
 #define zend_std_read_property std_object_handlers.read_property
+#define zend_std_unset_property std_object_handlers.unset_property
 
 // make ZEND_STRL work
 #undef zend_hash_str_update
