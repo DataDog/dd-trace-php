@@ -184,7 +184,7 @@ class PredisTest extends IntegrationTestCase
                 ->withExactTags([
                     Tag::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'predis',
-                    '_dd.svc_src' => 'predis',
+                    '_dd.svc_src' => 'redis',
                     Tag::DB_SYSTEM => 'redis',
                 ]),
         ]);
@@ -258,7 +258,7 @@ class PredisTest extends IntegrationTestCase
         $exactTags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'predis',
-            '_dd.svc_src' => 'predis',
+            '_dd.svc_src' => 'redis',
             Tag::DB_SYSTEM => 'redis',
             'redis.pipeline_length' => '2',
             Tag::TARGET_HOST => $this->host,
@@ -382,19 +382,22 @@ class PredisTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('Predis.Client.__construct'),
             SpanAssertion::build('Predis.Client.connect', 'configured_service', 'redis', 'Predis.Client.connect')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags(null)),
         ]);
     }
 
-    private function baseTags()
+    private function baseTags($svcSrc = 'redis')
     {
-        return [
+        $tags = [
             'out.host' => $this->host,
             'out.port' => $this->port,
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'predis',
-            '_dd.svc_src' => 'predis',
             Tag::DB_SYSTEM => 'redis',
         ];
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
+        return $tags;
     }
 }

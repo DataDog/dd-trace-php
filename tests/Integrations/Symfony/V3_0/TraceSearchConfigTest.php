@@ -47,7 +47,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                     'http.status_code' => '200',
                     Tag::SPAN_KIND => 'server',
                     Tag::COMPONENT => 'symfony',
-                    '_dd.svc_src' => 'symfony',
                 ])->withExactMetrics([
                     '_dd1.sr.eausr' => 0.3,
                     '_sampling_priority_v1' => 1,

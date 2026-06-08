@@ -58,7 +58,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
-                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/simple',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -68,7 +67,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'Closure::__invoke'
                         )->withExactTags([
                             Tag::COMPONENT => 'slim',
-                            '_dd.svc_src' => 'slim',
                         ])
                     ]),
                 ],
@@ -85,7 +83,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
-                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/simple_view',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -95,7 +92,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'App\SimpleViewController::index'
                         )->withExactTags([
                             Tag::COMPONENT => 'slim',
-                            '_dd.svc_src' => 'slim',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.view',
@@ -105,7 +101,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             )->withExactTags([
                                 'slim.view' => 'simple_view.phtml',
                                 Tag::COMPONENT => 'slim',
-                                '_dd.svc_src' => 'slim',
                             ])
                         ])
                     ]),
@@ -123,7 +118,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
-                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/error',
                     ])->setError(null, null)
                         ->withChildren([
@@ -134,7 +128,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'Closure::__invoke'
                             )->withExactTags([
                                 Tag::COMPONENT => 'slim',
-                                '_dd.svc_src' => 'slim',
                             ])->withExistingTagsNames([
                                 'error.stack',
                             ])->setError(null, 'Foo error')
@@ -153,7 +146,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'slim',
-                        '_dd.svc_src' => 'slim',
                         Tag::HTTP_ROUTE => '/parameterized/{value}',
                     ])->withChildren([
                         SpanAssertion::build(
@@ -163,7 +155,6 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'Closure::__invoke'
                         )->withExactTags([
                             Tag::COMPONENT => 'slim',
-                            '_dd.svc_src' => 'slim',
                         ])
                     ]),
                 ],

@@ -1662,13 +1662,13 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 $serviceName,
                 'redis',
                 "RedisCluster.__construct"
-            )->withExactTags($this->baseTags(null, false, false), ['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1]]),
+            )->withExactTags($this->baseTags(null, false, false), ['out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], '_dd.svc_src' => 'opt.redis_client_split_by_host']),
             SpanAssertion::build(
                 "RedisCluster.set",
                 $serviceName,
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags($this->baseTags('set key value'))
+            )->withExactTags($this->baseTags('set key value'), ['_dd.svc_src' => 'opt.redis_client_split_by_host'])
         ]);
 
         $redis->close();

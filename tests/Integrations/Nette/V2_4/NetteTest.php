@@ -60,7 +60,6 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette',
-                        '_dd.svc_src' => 'nette',
                     ])->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',
@@ -69,7 +68,6 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette.configurator.createRobotLoader'
                         )->withExactTags([
                             Tag::COMPONENT => 'nette',
-                            '_dd.svc_src' => 'nette',
                         ]),
                         SpanAssertion::build(
                             'nette.application.run',
@@ -78,7 +76,6 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette.application.run'
                         )->withExactTags([
                             Tag::COMPONENT => 'nette',
-                            '_dd.svc_src' => 'nette',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'nette.presenter.run',
@@ -87,7 +84,6 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette.presenter.run'
                             )->withExactTags([
                                 Tag::COMPONENT => 'nette',
-                                '_dd.svc_src' => 'nette',
                             ]),
                         ])
                     ])
@@ -106,7 +102,6 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette',
-                        '_dd.svc_src' => 'nette',
                     ])->withChildren([
                         SpanAssertion::build(
                             'nette.configurator.createRobotLoader',
@@ -115,7 +110,6 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette.configurator.createRobotLoader'
                         )->withExactTags([
                             Tag::COMPONENT => 'nette',
-                            '_dd.svc_src' => 'nette',
                         ]),
                         SpanAssertion::build(
                             'nette.application.run',
@@ -124,7 +118,6 @@ final class NetteTest extends WebFrameworkTestCase
                             'nette.application.run'
                         )->withExactTags([
                             Tag::COMPONENT => 'nette',
-                            '_dd.svc_src' => 'nette',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'nette.presenter.run',
@@ -133,7 +126,6 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette.presenter.run'
                             )->withExactTags([
                                 Tag::COMPONENT => 'nette',
-                                '_dd.svc_src' => 'nette',
                             ]),
                             SpanAssertion::build(
                                 'nette.latte.render',
@@ -143,7 +135,6 @@ final class NetteTest extends WebFrameworkTestCase
                             )->withExactTags([
                                 'nette.latte.templateName' => '%s',
                                 Tag::COMPONENT => 'nette',
-                                '_dd.svc_src' => 'nette',
                             ])->withChildren([
                                 SpanAssertion::exists('nette.latte.createTemplate'), // layout template
                                 SpanAssertion::exists('nette.latte.createTemplate'), // simpleView template
@@ -165,7 +156,6 @@ final class NetteTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'nette',
-                        '_dd.svc_src' => 'nette',
                     ])
                         ->setError('HttpError')
                         ->withChildren([
@@ -176,7 +166,6 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette.configurator.createRobotLoader'
                             )->withExactTags([
                                 Tag::COMPONENT => 'nette',
-                                '_dd.svc_src' => 'nette',
                             ]),
                             SpanAssertion::build(
                                 'nette.application.run',
@@ -185,7 +174,6 @@ final class NetteTest extends WebFrameworkTestCase
                                 'nette.application.run'
                             )->withExactTags([
                                 Tag::COMPONENT => 'nette',
-                                '_dd.svc_src' => 'nette',
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'nette.presenter.run',
@@ -194,7 +182,6 @@ final class NetteTest extends WebFrameworkTestCase
                                     'nette.presenter.run'
                                 )->withExactTags([
                                     Tag::COMPONENT => 'nette',
-                                    '_dd.svc_src' => 'nette',
                                 ])
                                     ->setError('Exception', 'An exception occurred')
                                     ->withExistingTagsNames(['error.stack']),

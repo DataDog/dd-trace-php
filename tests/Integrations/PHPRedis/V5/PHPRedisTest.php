@@ -2280,7 +2280,7 @@ class PHPRedisTest extends IntegrationTestCase
                 Tag::TARGET_HOST => 'non-existing-host',
                 'out.port' => $this->port,
                 Tag::COMPONENT => 'phpredis',
-                '_dd.svc_src' => 'phpredis',
+                '_dd.svc_src' => 'opt.redis_client_split_by_host',
                 Tag::DB_SYSTEM => 'redis',
             ]),
         ]);
@@ -2308,7 +2308,7 @@ class PHPRedisTest extends IntegrationTestCase
                 Tag::TARGET_PORT => $this->port,
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis',
-                '_dd.svc_src' => 'phpredis',
+                '_dd.svc_src' => 'opt.redis_client_split_by_host',
                 Tag::DB_SYSTEM => 'redis',
             ]),
             SpanAssertion::build(
@@ -2322,7 +2322,7 @@ class PHPRedisTest extends IntegrationTestCase
                 Tag::TARGET_HOST => $this->host,
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis',
-                '_dd.svc_src' => 'phpredis',
+                '_dd.svc_src' => 'opt.redis_client_split_by_host',
                 Tag::DB_SYSTEM => 'redis',
             ]),
         ]);
