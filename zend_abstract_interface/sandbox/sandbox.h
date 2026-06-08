@@ -126,6 +126,7 @@ typedef struct zai_exception_state_s {
 
 typedef struct zai_engine_state_s {
     zend_execute_data *current_execute_data;
+    uint32_t jit_trace_num;
 } zai_engine_state;
 
 typedef struct zai_sandbox_s {
@@ -189,10 +190,12 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
 
 inline void zai_sandbox_engine_state_backup(zai_engine_state *es) {
     es->current_execute_data = EG(current_execute_data);
+    es->jit_trace_num = EG(jit_trace_num);
 }
 
 inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
     EG(current_execute_data) = es->current_execute_data;
+    EG(jit_trace_num) = es->jit_trace_num;
 }
 
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
