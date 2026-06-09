@@ -7,9 +7,9 @@ use datadog_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluat
 use datadog_live_debugger_ffi::send_data::{
     ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
 };
-use datadog_remote_config::config::dynamic::{Configs, DynamicConfigFile, TracingSamplingRuleProvenance};
-use datadog_remote_config::fetch::ConfigInvariants;
-use datadog_remote_config::{
+use libdd_remote_config::config::dynamic::{Configs, DynamicConfigFile, TracingSamplingRuleProvenance};
+use libdd_remote_config::fetch::ConfigInvariants;
+use libdd_remote_config::{
     default_registry, RemoteConfigCapabilities, RemoteConfigParsed, RemoteConfigProduct, Target,
 };
 use datadog_sidecar::service::blocking::SidecarTransport;
