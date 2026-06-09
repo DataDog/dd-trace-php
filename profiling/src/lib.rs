@@ -418,6 +418,7 @@ pub struct RequestLocals {
     /// the initial settings, or possibly the values which were available
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
+    pub profiling_experimental_heap_live_enabled: bool,
 
     pub interrupt_count: AtomicU32,
     pub vm_interrupt_addr: *const AtomicBool,
@@ -443,6 +444,7 @@ impl Default for RequestLocals {
             git_repository_url: None,
             tags: vec![],
             system_settings: SystemSettings::get(),
+            profiling_experimental_heap_live_enabled: false,
             interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
@@ -613,6 +615,8 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 warn!("{err}");
             }
             locals.tags = tags;
+            locals.profiling_experimental_heap_live_enabled =
+                config::profiling_experimental_heap_live_enabled_current();
         }
         locals.system_settings = system_settings;
     });

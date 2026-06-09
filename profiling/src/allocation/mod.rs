@@ -14,17 +14,7 @@ use log::{debug, trace};
 use rand_distr::{Distribution, Poisson};
 use std::ffi::c_void;
 use std::num::{NonZero, NonZeroU32, NonZeroU64};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-
-/// Fast-path gate for the heap-live tracking code paths.
-///
-/// Mirrors `SystemSettings::profiling_experimental_heap_live_enabled` so the alloc/free/
-/// realloc handlers can short-circuit with a single relaxed atomic load,
-/// avoiding the `Profiler::get()` `OnceLock` load on every `efree`/`erealloc`
-/// when heap-live profiling is disabled (which is the default).
-///
-/// Set in `Profiler::new` and cleared in `Profiler::stop` / `Profiler::kill`.
-pub(crate) static HEAP_LIVE_ENABLED: AtomicBool = AtomicBool::new(false);
+use std::sync::atomic::{AtomicU64, Ordering};
 
 #[cfg(not(php_zts))]
 use rand::rngs::StdRng;
@@ -174,13 +164,8 @@ pub fn collect_allocation(ptr: *mut c_void, len: size_t) {
 
 /// Called when memory is freed. If this pointer was tracked for live heap,
 /// sends the deallocation sample to cancel out the original allocation.
-///
-/// The call sites in `alloc_prof_free`/`alloc_prof_realloc` gate on
-/// `HEAP_LIVE_ENABLED` before calling this, so the `Profiler::get()` load
-/// and any tracker work is paid only when the feature is on.
 #[inline]
 pub fn free_allocation(ptr: *mut c_void) {
-    debug_assert!(HEAP_LIVE_ENABLED.load(Ordering::Relaxed));
     if let Some(profiler) = Profiler::get() {
         profiler.free_allocation(ptr);
     }

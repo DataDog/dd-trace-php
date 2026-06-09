@@ -24,7 +24,7 @@ use crate::bindings::{
 };
 use crate::config::SystemSettings;
 use crate::exception::EXCEPTION_PROFILING_INTERVAL;
-use crate::{Clocks, CLOCKS, TAGS};
+use crate::{Clocks, RefCellExt, CLOCKS, REQUEST_LOCALS, TAGS};
 use chrono::Utc;
 use core::mem::forget;
 use core::{ptr, str};
@@ -847,16 +847,6 @@ impl Profiler {
     }
 
     pub fn new(system_settings: &SystemSettings) -> Self {
-        // Publish the heap-live gate before any handlers can observe it.
-        // Relaxed is sufficient: the alloc handlers don't synchronize state
-        // through this flag, they only use it to decide whether to even
-        // attempt a `Profiler::get()`. The `Profiler` itself is published
-        // through the `OnceLock` (with Acquire) inside `Profiler::get`.
-        crate::allocation::HEAP_LIVE_ENABLED.store(
-            system_settings.profiling_experimental_heap_live_enabled,
-            Ordering::Relaxed,
-        );
-
         let fork_barrier = Arc::new(Barrier::new(3));
         let interrupt_manager = Arc::new(InterruptManager::new());
         let (message_sender, message_receiver) = crossbeam_channel::bounded(100);
@@ -1019,10 +1009,6 @@ impl Profiler {
     /// # Safety
     /// Must be called in mshutdown.
     pub unsafe fn stop(timeout: Duration) {
-        // Disable the heap-live fast path early so any remaining
-        // allocations during teardown short-circuit cleanly.
-        crate::allocation::HEAP_LIVE_ENABLED.store(false, Ordering::Relaxed);
-
         // SAFETY: only called during mshutdown, where we have ownership of
         // the PROFILER object.
         if let Some(profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).get_mut() } {
@@ -1112,10 +1098,6 @@ impl Profiler {
     /// Must be called when no other thread is using the PROFILER object. That
     /// includes this thread in some kind of recursive manner.
     pub unsafe fn kill() {
-        // Same rationale as `stop`: stop the fast path from entering
-        // `Profiler::get()` before we tear the profiler down.
-        crate::allocation::HEAP_LIVE_ENABLED.store(false, Ordering::Relaxed);
-
         // SAFETY: see this function's safety conditions.
         if let Some(mut profiler) = unsafe { (*ptr::addr_of_mut!(PROFILER)).take() } {
             // Drop some things to reduce memory.
@@ -1160,14 +1142,10 @@ impl Profiler {
         result
     }
 
-    /// Returns true if heap live profiling is enabled.
-    ///
-    /// Reads the same static as the alloc handlers' fast path so all
-    /// heap-live gates agree on a single source of truth and avoid an
-    /// `AtomicPtr` load + `SystemSettings` deref on the hot path.
+    /// Returns true if heap live profiling is enabled for the current request.
     #[inline]
     fn is_heap_live_enabled(&self) -> bool {
-        crate::allocation::HEAP_LIVE_ENABLED.load(Ordering::Relaxed)
+        REQUEST_LOCALS.borrow_or_false(|locals| locals.profiling_experimental_heap_live_enabled)
     }
 
     /// Collect a stack sample with elapsed wall time. Collects CPU time if
@@ -1301,13 +1279,7 @@ impl Profiler {
 
     /// Called when memory is freed. Removes the allocation from tracking. The next profile export
     /// will not include this allocation in the heap-live samples.
-    ///
-    /// # Precondition
-    /// Caller must have verified that heap-live profiling is enabled (i.e. checked
-    /// `HEAP_LIVE_ENABLED` before calling this).
     pub(crate) fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
-        debug_assert!(self.is_heap_live_enabled());
-
         if let Some(sample) = self.untrack_allocation(ptr as usize) {
             trace!(
                 "Untracked freed allocation at {:#x} ({} bytes)",

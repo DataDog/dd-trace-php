@@ -1,6 +1,5 @@
 use crate::allocation::{
     allocation_profiling_stats_should_collect, collect_allocation, free_allocation,
-    HEAP_LIVE_ENABLED,
 };
 use crate::bindings as zend;
 use crate::PROFILER_NAME;
@@ -364,10 +363,10 @@ unsafe extern "C" fn alloc_prof_free(
 
 #[inline(always)]
 unsafe fn alloc_prof_free_impl(ptr: *mut c_void) {
-    // Check if this was a tracked allocation (before freeing!).
-    // `HEAP_LIVE_ENABLED` is checked so the disabled path is a single
-    // relaxed load + branch and never touches `Profiler::get()`.
-    if !ptr.is_null() && HEAP_LIVE_ENABLED.load(Relaxed) {
+    // Check if this was a tracked allocation before freeing. This intentionally
+    // avoids a process-wide heap-live fast-path flag: ZTS SAPIs can run requests
+    // with different INI state on different threads.
+    if !ptr.is_null() {
         free_allocation(ptr);
     }
     tls_zend_mm_state_get!(free)(ptr);
@@ -430,7 +429,7 @@ unsafe fn alloc_prof_realloc_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     // returning NULL. If realloc returns, prev_ptr has been consumed: untrack it
     // before any userland-only early return, then let the new allocation be
     // re-sampled at the reported size.
-    if HEAP_LIVE_ENABLED.load(Relaxed) && !prev_ptr.is_null() {
+    if !prev_ptr.is_null() {
         free_allocation(prev_ptr);
     }
 

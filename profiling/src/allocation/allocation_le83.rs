@@ -1,6 +1,5 @@
 use crate::allocation::{
     allocation_profiling_stats_should_collect, collect_allocation, free_allocation,
-    HEAP_LIVE_ENABLED,
 };
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
@@ -336,10 +335,10 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
-    // Check if this was a tracked allocation (before freeing!).
-    // `HEAP_LIVE_ENABLED` is checked first so the disabled path is a single
-    // relaxed load + branch and never touches `Profiler::get()`.
-    if !ptr.is_null() && HEAP_LIVE_ENABLED.load(Relaxed) {
+    // Check if this was a tracked allocation before freeing. This intentionally
+    // avoids a process-wide heap-live fast-path flag: ZTS SAPIs can run requests
+    // with different INI state on different threads.
+    if !ptr.is_null() {
         free_allocation(ptr);
     }
 
@@ -376,7 +375,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
     // returning NULL. If realloc returns, prev_ptr has been consumed: untrack it
     // before any userland-only early return, then let the new allocation be
     // re-sampled at the reported size.
-    if HEAP_LIVE_ENABLED.load(Relaxed) && !prev_ptr.is_null() {
+    if !prev_ptr.is_null() {
         free_allocation(prev_ptr);
     }
 

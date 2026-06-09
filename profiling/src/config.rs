@@ -649,6 +649,39 @@ unsafe fn get_system_bool(id: ConfigId, default: bool) -> bool {
     get_system_value(id).try_into().unwrap_or(default)
 }
 
+unsafe fn get_bool(id: ConfigId, default: bool) -> bool {
+    get_value(id).try_into().unwrap_or(default)
+}
+
+unsafe fn profiling_enabled_current() -> bool {
+    get_bool(ProfilingEnabled, DEFAULT_SYSTEM_SETTINGS.profiling_enabled)
+}
+
+unsafe fn profiling_experimental_features_enabled_current() -> bool {
+    profiling_enabled_current()
+        && get_bool(
+            ProfilingExperimentalFeaturesEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_experimental_features_enabled,
+        )
+}
+
+unsafe fn profiling_allocation_enabled_current() -> bool {
+    profiling_enabled_current()
+        && get_bool(
+            ProfilingAllocationEnabled,
+            DEFAULT_SYSTEM_SETTINGS.profiling_allocation_enabled,
+        )
+}
+
+pub(crate) unsafe fn profiling_experimental_heap_live_enabled_current() -> bool {
+    profiling_allocation_enabled_current()
+        && (profiling_experimental_features_enabled_current()
+            || get_bool(
+                ProfilingExperimentalHeapLiveEnabled,
+                DEFAULT_SYSTEM_SETTINGS.profiling_experimental_heap_live_enabled,
+            ))
+}
+
 #[track_caller]
 unsafe fn get_system_str(config_id: ConfigId) -> Option<Cow<'static, str>> {
     let entry = get_system_value(config_id);
