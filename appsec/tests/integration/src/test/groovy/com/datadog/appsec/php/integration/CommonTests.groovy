@@ -271,7 +271,6 @@ trait CommonTests {
     @Test
     void 'trace without event'() {
         def respContentType = null
-        def respContentLength = null
         def trace = container.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             def headerContentType = resp.headers().firstValue('Content-Type')
@@ -286,6 +285,28 @@ trait CommonTests {
         assert span.meta."http.response.headers.content-type" == respContentType
         assert span.meta."http.response.headers.content-encoding" == 'foobar'
         assert span.meta."http.response.headers.content-language" == 'en'
+    }
+
+    @Test
+    void 'response with zero content-length'() {
+        def trace = container.traceFromRequest('/zero_content_length.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        def spanContentLength = trace.first().meta."http.response.headers.content-length"
+        assert spanContentLength instanceof String
+        assert spanContentLength == '0'
+    }
+
+    @Test
+    void 'response with non-zero content-length'() {
+        def trace = container.traceFromRequest('/non_zero_content_length.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        def spanContentLength = trace.first().meta."http.response.headers.content-length"
+        assert spanContentLength instanceof String
+        assert spanContentLength == '12'
     }
 
     @Test
