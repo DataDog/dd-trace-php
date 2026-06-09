@@ -3,8 +3,8 @@
 
 #ifdef DDTRACE
 // Primary lifecycle
-int ddtrace_startup(zend_extension *extension);
-void ddtrace_shutdown(zend_extension *extension);
+int ddtrace_startup(void);
+void ddtrace_shutdown(void);
 void ddtrace_activate_once(void);
 void ddtrace_activate_early(void);
 void ddtrace_activate_late(void);

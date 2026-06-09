@@ -88,7 +88,7 @@
     CONFIG(CUSTOM(INT), DD_TRACE_SAMPLING_RULES_FORMAT, "glob", .parser = dd_parse_sampling_rules_format)      \
     CONFIG(JSON, DD_SPAN_SAMPLING_RULES, "[]")                                                                 \
     CONFIG(STRING, DD_SPAN_SAMPLING_RULES_FILE, "", .ini_change = ddtrace_alter_sampling_rules_file_config)    \
-    CONFIG(SET_OR_MAP_LOWERCASE, DD_TRACE_HEADER_TAGS, "", .ini_change = ddtrace_alter_DD_TRACE_HEADER_TAGS)   \
+    CONFIG(CUSTOM(MAP), DD_TRACE_HEADER_TAGS, "", .ini_change = ddtrace_alter_DD_TRACE_HEADER_TAGS, .parser = dd_parse_header_tags) \
     CONFIG(INT, DD_TRACE_X_DATADOG_TAGS_MAX_LENGTH, "512")                                                     \
     CONFIG(MAP, DD_TRACE_PEER_SERVICE_MAPPING, "")                                                             \
     CONFIG(BOOL, DD_TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "false")                                              \
@@ -129,6 +129,7 @@
     CONFIG(BOOL, DD_TRACE_PROPAGATE_USER_ID_DEFAULT, "false")                                                  \
     CONFIG(CUSTOM(INT), DD_DBM_PROPAGATION_MODE, "disabled", .parser = dd_parse_dbm_mode)                      \
     CONFIG(BOOL, DD_DBM_INJECT_SQL_BASEHASH, "false")                                                          \
+    CONFIG(BOOL, DD_DBM_ALWAYS_APPEND_SQL_COMMENT, "false")                                                    \
     CONFIG(SET, DD_TRACE_WORDPRESS_ADDITIONAL_ACTIONS, "")                                                     \
     CONFIG(BOOL, DD_TRACE_WORDPRESS_CALLBACKS, "true")                                                         \
     CONFIG(BOOL, DD_INTEGRATION_METRICS_ENABLED, "true",                                                       \
@@ -182,6 +183,7 @@ enum ddtrace_dbm_propagation_mode {
     DD_TRACE_DBM_PROPAGATION_DISABLED,
     DD_TRACE_DBM_PROPAGATION_SERVICE,
     DD_TRACE_DBM_PROPAGATION_FULL,
+    DD_TRACE_DBM_PROPAGATION_DYNAMIC_SERVICE,
 };
 
 // To remove in 1.0

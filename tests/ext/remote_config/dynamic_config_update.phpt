@@ -51,7 +51,7 @@ put_dynamic_config_file([
 \DDTrace\start_span();
 
 if (ini_get("datadog.trace.sample_rate") != 0.5) {
-    sleep(20); // signal interrupts interrupt the sleep().
+    dd_trace_internal_fn("await_remote_config");
 }
 
 var_dump(ini_get("datadog.trace.sample_rate"));

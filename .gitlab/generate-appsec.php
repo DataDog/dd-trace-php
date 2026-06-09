@@ -250,7 +250,7 @@ stages:
     - apt update && apt install -y openjdk-17-jre
     - |
       echo "Installing codecov CLI"
-      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
       CODECOV_VERSION=0.6.1
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
@@ -325,7 +325,7 @@ stages:
     - apt update && apt install -y openjdk-17-jre
     - |
       echo "Installing codecov CLI"
-      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
       CODECOV_VERSION=0.6.1
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/linux/codecov.SHA256SUM
@@ -415,7 +415,7 @@ stages:
       CODECOV_TOKEN=$(vault kv get --format=json kv/k8s/gitlab-runner/dd-trace-php/codecov | jq -r .data.data.token)
       CODECOV_VERSION=0.6.1
       CODECOV_ARCH=linux
-      curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+      curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0x27034E7FDB850E0BBC2C62FF806BB28AED779869" | gpg --no-default-keyring --keyring trustedkeys.gpg --import
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM
       curl -Os https://uploader.codecov.io/v${CODECOV_VERSION}/${CODECOV_ARCH}/codecov.SHA256SUM.sig

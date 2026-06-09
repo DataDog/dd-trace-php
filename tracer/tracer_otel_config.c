@@ -1,4 +1,5 @@
 #include "tracer_otel_config.h"
+#include <ext/otel_config.h>
 #include <env/env.h>
 #include <ext/otel_config.h>
 #include "ddtrace.h"

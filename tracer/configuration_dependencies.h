@@ -13,6 +13,8 @@ static bool dd_parse_dbm_mode(zai_str value, zval *decoded_value, bool persisten
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_SERVICE);
     } else if (zai_str_eq_ci_cstr(value, "full")) {
         ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_FULL);
+    } else if (zai_str_eq_ci_cstr(value, "dynamic_service")) {
+        ZVAL_LONG(decoded_value, DD_TRACE_DBM_PROPAGATION_DYNAMIC_SERVICE);
     } else {
         return false;
     }
@@ -106,6 +108,26 @@ static bool dd_parse_tags(zai_str value, zval *decoded_value, bool persistent) {
         // Move to the start of the next tag
         current = tag_end + 1;
     }
+
+    return true;
+}
+
+// Custom parser to ensure security-testing headers are always captured.
+static bool dd_parse_header_tags(zai_str value, zval *decoded_value, bool persistent) {
+    if (!zai_config_decode_value(value, ZAI_CONFIG_TYPE_SET_OR_MAP_LOWERCASE, NULL, decoded_value, persistent)) {
+        return false;
+    }
+
+    HashTable *ht = Z_ARRVAL_P(decoded_value);
+    zval empty;
+    if (persistent) {
+        ZVAL_EMPTY_PSTRING(&empty);
+    } else {
+        ZVAL_EMPTY_STRING(&empty);
+    }
+    Z_TRY_ADDREF(empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-endpoint-scan"), &empty);
+    zend_hash_str_update(ht, ZEND_STRL("x-datadog-security-test"), &empty);
 
     return true;
 }

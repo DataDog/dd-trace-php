@@ -276,7 +276,7 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bytes::ZendString;
+    use crate::bytes::{OwnedZendString, ZendString};
     use std::alloc::{alloc_zeroed, dealloc, Layout};
     use std::ffi::CString;
     use std::mem;

@@ -484,10 +484,19 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
 
     ddtrace_span_data *span = OBJ_SPANDATA(obj);
     // As per unified service tagging spec if a span is created with a service name different from the global
-    // service name it will not inherit the global version value
+    // service name it will not inherit the global version value, unless it has no ancestor traces.
     if (zend_string_equals_literal(prop_name, "service")) {
         cache_slot = NULL;
-        if (ZSTR_LEN(get_DD_SERVICE()) || !ddtrace_span_is_entrypoint_root(span)) {
+        bool is_top_level_root = span->std.ce == ddtrace_ce_root_span_data;
+        if (is_top_level_root) {
+            for (ddtrace_span_stack *s = span->stack->parent_stack; s != NULL; s = s->parent_stack) {
+                if (s->active) {
+                    is_top_level_root = false;
+                    break;
+                }
+            }
+        }
+        if (ZSTR_LEN(get_DD_SERVICE()) || !is_top_level_root) {
             if (!zend_is_identical(&span->property_service, value)) {
                 zval_ptr_dtor(&span->property_version);
                 ZVAL_EMPTY_STRING(&span->property_version);
@@ -576,6 +585,11 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
 }
 
+static bool ddtrace_span_stack_is_context_property(zend_string *prop_name) {
+    return zend_string_equals_literal(prop_name, "active")
+        || zend_string_equals_literal(prop_name, "parent");
+}
+
 #if PHP_VERSION_ID < 80000
 static zval *ddtrace_span_stack_read_property(zval *object, zval *member, int type, void **cache_slot, zval *rv) {
     zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
@@ -586,8 +600,12 @@ static zval *ddtrace_span_stack_read_property(zend_object *object, zend_string *
     ddtrace_span_stack *stack = (ddtrace_span_stack *)object;
 #endif
     if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
-            && zend_string_equals_literal(prop_name, "active")) {
-        ZVAL_COPY(rv, &stack->property_active);
+            && ddtrace_span_stack_is_context_property(prop_name)) {
+        if (zend_string_equals_literal(prop_name, "active")) {
+            ZVAL_COPY(rv, &stack->property_active);
+        } else {
+            ZVAL_COPY(rv, &stack->property_parent);
+        }
         return rv;
     }
     return zend_std_read_property(object, member, type, cache_slot, rv);
@@ -601,10 +619,27 @@ static zval *ddtrace_span_stack_get_property_ptr_ptr(zend_object *object, zend_s
     zend_string *prop_name = member;
 #endif
     if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
-            && zend_string_equals_literal(prop_name, "active")) {
+            && ddtrace_span_stack_is_context_property(prop_name)) {
         return NULL;  // prevent cache fill; read_property handles the copy
     }
     return zend_std_get_property_ptr_ptr(object, member, type, cache_slot);
+}
+
+#if PHP_VERSION_ID < 80000
+static void ddtrace_span_stack_unset_property(zval *object, zval *member, void **cache_slot) {
+    zend_object *obj = Z_OBJ_P(object);
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+#else
+static void ddtrace_span_stack_unset_property(zend_object *object, zend_string *member, void **cache_slot) {
+    zend_object *obj = object;
+    zend_string *prop_name = member;
+#endif
+    if (ddtrace_span_stack_is_context_property(prop_name)) {
+        zend_throw_error(zend_ce_error, "Cannot unset readonly property %s::$%s", ZSTR_VAL(obj->ce->name), ZSTR_VAL(prop_name));
+        return;
+    }
+
+    zend_std_unset_property(object, member, cache_slot);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -620,7 +655,7 @@ static zval *ddtrace_span_stack_readonly(zend_object *object, zend_string *membe
     zend_object *obj = object;
     zend_string *prop_name = member;
 #endif
-    if (zend_string_equals_literal(prop_name, "parent")) {
+    if (ddtrace_span_stack_is_context_property(prop_name)) {
         zend_throw_error(zend_ce_error, "Cannot modify readonly property %s::$%s", ZSTR_VAL(obj->ce->name), ZSTR_VAL(prop_name));
 #if PHP_VERSION_ID >= 70400
         return &EG(uninitialized_zval);
@@ -713,6 +748,7 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_stack_handlers.dtor_obj = ddtrace_span_stack_dtor_obj;
     ddtrace_span_stack_handlers.read_property = ddtrace_span_stack_read_property;
     ddtrace_span_stack_handlers.get_property_ptr_ptr = ddtrace_span_stack_get_property_ptr_ptr;
+    ddtrace_span_stack_handlers.unset_property = ddtrace_span_stack_unset_property;
     ddtrace_span_stack_handlers.write_property = ddtrace_span_stack_readonly;
 
 }
@@ -1591,6 +1627,58 @@ PHP_FUNCTION(DDTrace_Testing_ffe_load_config) {
     RETURN_BOOL(ddog_ffe_load_config(dd_zend_string_to_CharSlice(json)));
 }
 
+static const char *ddtrace_ffe_reason_name(int32_t reason) {
+    switch (reason) {
+        case 0:
+            return "STATIC";
+        case 2:
+            return "TARGETING_MATCH";
+        case 3:
+            return "SPLIT";
+        case 4:
+            return "DISABLED";
+        case 5:
+            return "ERROR";
+        case 1:
+        default:
+            return "DEFAULT";
+    }
+}
+
+static const char *ddtrace_ffe_error_name(int32_t error_code) {
+    switch (error_code) {
+        case 0:
+            return NULL;
+        case 1:
+            return "TYPE_MISMATCH";
+        case 2:
+            return "PARSE_ERROR";
+        case 3:
+            return "FLAG_NOT_FOUND";
+        case 6:
+            return "PROVIDER_NOT_READY";
+        case 7:
+        default:
+            return "GENERAL";
+    }
+}
+
+static int32_t ddtrace_ffe_effective_reason(int32_t reason, int32_t error_code) {
+    return error_code == 0 ? reason : 5;
+}
+
+static void ddtrace_ffe_record_evaluation_metric_result(
+    zend_string *flag_key,
+    zend_string *variant,
+    zend_string *allocation_key,
+    int32_t reason,
+    int32_t error_code
+) {
+    const char *reason_name = ddtrace_ffe_reason_name(ddtrace_ffe_effective_reason(reason, error_code));
+    const char *error_name = ddtrace_ffe_error_name(error_code);
+    ddtrace_ffe_record_evaluation_metric(flag_key, variant, reason_name, error_name, allocation_key);
+}
+
 static zend_string *ddtrace_ffe_attributes_json(zval *attrs_zv) {
     smart_str buf = {0};
     zai_json_encode(&buf, attrs_zv, 0);
@@ -1658,15 +1746,18 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     zend_string *key;
     zval *value;
     struct ddog_FfeResult result;
+    zend_bool record_metric = true;
     zend_string *value_json;
     zend_string *variant;
     zend_string *allocation_key;
 
-    ZEND_PARSE_PARAMETERS_START(4, 4)
+    ZEND_PARSE_PARAMETERS_START(4, 5)
         Z_PARAM_STR(flag_key)
         Z_PARAM_LONG(type_id_zl)
         Z_PARAM_STR_OR_NULL(targeting_key)
         Z_PARAM_ARRAY(attrs_zv)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_BOOL(record_metric)
     ZEND_PARSE_PARAMETERS_END();
 
     type_id = (int32_t) type_id_zl;
@@ -1743,12 +1834,24 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     }
 
     if (!result.valid) {
+        if (record_metric) {
+            ddtrace_ffe_record_evaluation_metric(flag_key, NULL, "ERROR", "PROVIDER_NOT_READY", NULL);
+        }
         RETURN_NULL();
     }
 
     value_json = result.value_json;
     variant = result.variant;
     allocation_key = result.allocation_key;
+
+    if (record_metric) {
+        ddtrace_ffe_record_evaluation_metric_result(
+            flag_key,
+            variant,
+            allocation_key,
+            result.reason,
+            result.error_code);
+    }
 
     if (result.do_log && allocation_key && variant) {
         zend_string *subject_attributes_json = ddtrace_ffe_attributes_json(attrs_zv);
@@ -1766,7 +1869,7 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("valueJson"), value_json);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("variant"), variant);
     ddtrace_ffe_update_nullable_string_property(return_value, ZEND_STRL("allocationKey"), allocation_key);
-    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), result.reason);
+    ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
@@ -1917,7 +2020,6 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 RETURN_FALSE;
             }
             ddog_sidecar_send_garbage(&DATADOG_G(sidecar));
-            datadog_generate_runtime_id();
             datadog_force_new_instance_id();
             RETURN_TRUE;
         } else if (FUNCTION_NAME_MATCHES("reload_process_tags")) {
@@ -1929,7 +2031,10 @@ PHP_FUNCTION(dd_trace_internal_fn) {
         } else if (params_count == 1 && FUNCTION_NAME_MATCHES("set_container_tags_hash")) {
             zval *container_tags_hash = ZVAL_VARARG_PARAM(params, 0);
             if (Z_TYPE_P(container_tags_hash) == IS_STRING) {
-                datadog_process_tags_set_container_tags_hash(Z_STR_P(container_tags_hash));
+                // zend_string_dup does not dup request-local interned strings...
+                zend_string *hash = zend_string_init(Z_STRVAL_P(container_tags_hash), Z_STRLEN_P(container_tags_hash), 1);
+                datadog_process_tags_set_container_tags_hash(hash);
+                zend_string_release(hash);
                 RETVAL_TRUE;
             } else {
                 RETVAL_FALSE;
@@ -2017,9 +2122,13 @@ PHP_FUNCTION(dd_trace_internal_fn) {
             } else {
                 array_init(return_value);
             }
-        } else if (FUNCTION_NAME_MATCHES("get_remote_config_state")) {
-            // Returns a placeholder; actual state is accessed via globals
-            RETVAL_LONG((zend_long)(uintptr_t)DATADOG_G(remote_config_state));
+        } else if (FUNCTION_NAME_MATCHES("await_remote_config")) {
+            uint32_t timeout_sec = 10;
+            if (params_count == 1) {
+                timeout_sec = (uint32_t)Z_LVAL_P(ZVAL_VARARG_PARAM(params, 0));
+            }
+            php_sleep(timeout_sec);
+            RETURN_BOOL(DATADOG_G(reread_remote_configuration));
         } else if (FUNCTION_NAME_MATCHES("get_agent_info")) {
             // Returns a PHP array decoded from the agent /info JSON payload.
             if (DATADOG_G(agent_info_reader)) {
@@ -2666,6 +2775,35 @@ PHP_FUNCTION(DDTrace_consume_distributed_tracing_headers) {
     }
 
     RETURN_NULL();
+}
+
+PHP_FUNCTION(DDTrace_Internal_record_ffe_evaluation_metric) {
+    zend_string *flag_key;
+    zend_string *variant = NULL;
+    zend_string *reason = NULL;
+    zend_string *error_type = NULL;
+    zend_string *allocation_key = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(5, 5)
+        Z_PARAM_STR(flag_key)
+        Z_PARAM_STR_OR_NULL(variant)
+        Z_PARAM_STR_OR_NULL(reason)
+        Z_PARAM_STR_OR_NULL(error_type)
+        Z_PARAM_STR_OR_NULL(allocation_key)
+    ZEND_PARSE_PARAMETERS_END();
+
+    RETURN_BOOL(ddtrace_ffe_record_evaluation_metric(
+        flag_key,
+        variant,
+        reason ? ZSTR_VAL(reason) : NULL,
+        error_type ? ZSTR_VAL(error_type) : NULL,
+        allocation_key));
+}
+
+PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
+    ZEND_PARSE_PARAMETERS_NONE();
+
+    RETURN_BOOL(ddtrace_ffe_flush_evaluation_metrics());
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

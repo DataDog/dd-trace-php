@@ -1,5 +1,5 @@
 use crate::sidecar::MaybeShmLimiter;
-use datadog_ffe::rules_based::Configuration;
+use datadog_ffe::rules_based::{Configuration, UniversalFlagConfig};
 use datadog_live_debugger::debugger_defs::{DebuggerData, DebuggerPayload};
 use datadog_live_debugger::{FilterList, LiveDebuggingData, ServiceConfiguration};
 use datadog_live_debugger_ffi::data::Probe;
@@ -7,11 +7,11 @@ use datadog_live_debugger_ffi::evaluator::{ddog_register_expr_evaluator, Evaluat
 use datadog_live_debugger_ffi::send_data::{
     ddog_debugger_diagnostics_create_unboxed, ddog_snapshot_redacted_type,
 };
+use datadog_remote_config::config::dynamic::{Configs, DynamicConfigFile, TracingSamplingRuleProvenance};
 use datadog_remote_config::fetch::ConfigInvariants;
 use datadog_remote_config::{
-    RemoteConfigCapabilities, RemoteConfigData, RemoteConfigProduct, Target,
+    default_registry, RemoteConfigCapabilities, RemoteConfigParsed, RemoteConfigProduct, Target,
 };
-use datadog_remote_config::config::dynamic::{Configs, TracingSamplingRuleProvenance};
 use datadog_sidecar::service::blocking::SidecarTransport;
 use datadog_sidecar::service::{InstanceId, QueueId};
 use datadog_sidecar::shm_remote_config::{RemoteConfigManager, RemoteConfigUpdate};
@@ -110,7 +110,7 @@ pub struct LiveDebuggerCallbacks {
 #[derive(Default)]
 pub struct LiveDebuggerState {
     pub spans_map: HashMap<String, i64>,
-    pub active: HashMap<String, Box<(LiveDebuggingData, MaybeShmLimiter)>>,
+    pub active: HashMap<String, Box<(RemoteConfigParsed, MaybeShmLimiter)>>, // Box<> for stable heap address!
     pub config_id: String,
     pub allow_dfa: Option<Regex>,
     pub deny_dfa: Option<Regex>,
@@ -204,12 +204,20 @@ pub unsafe extern "C" fn ddog_init_remote_config_state(
     endpoint: &Endpoint,
     di_enabled: bool,
 ) -> Box<RemoteConfigState> {
+    #[allow(clippy::expect_used)]
+    let registry = Arc::new(
+        default_registry()
+            .with::<LiveDebuggingData>()
+            .expect("LiveDebugger is distinct from default products")
+            .with::<UniversalFlagConfig>()
+            .expect("FFE is distinct from default products"),
+    );
     Box::new(RemoteConfigState {
-        manager: RemoteConfigManager::new(ConfigInvariants {
+        manager: RemoteConfigManager::new_with_registry(ConfigInvariants {
             language: "php".to_string(),
             tracer_version: include_str!("../VERSION").trim().into(),
             endpoint: endpoint.clone(),
-        }),
+        }, registry),
         live_debugger: LiveDebuggerState {
             di_enabled,
             ..Default::default()
@@ -355,6 +363,11 @@ fn insert_new_configs(
 }
 
 #[no_mangle]
+pub extern "C" fn ddog_remote_config_current_generation(remote_config: &RemoteConfigState) -> u64 {
+    remote_config.manager.current_remote_config_generation()
+}
+
+#[no_mangle]
 pub extern "C" fn ddog_remote_config_get_path(remote_config: &RemoteConfigState) -> *const c_char {
     remote_config
         .manager
@@ -373,47 +386,62 @@ pub extern "C" fn ddog_process_remote_configs(remote_config: &mut RemoteConfigSt
             RemoteConfigUpdate::Add {
                 value,
                 limiter_index,
-            } => match value.data {
-                RemoteConfigData::LiveDebugger(debugger) => {
-                    let val = Box::new((debugger, MaybeShmLimiter::open(limiter_index)));
-                    let rc_ref = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
-                    let entry = remote_config.live_debugger.active.entry(value.config_id);
-                    let (debugger, limiter) = &mut **match entry {
-                        Entry::Occupied(mut e) => {
-                            e.insert(val);
-                            e.into_mut()
+            } => {
+                if let Some(data) = value.data {
+                    match value.product {
+                        RemoteConfigProduct::LiveDebugger => {
+                            let val = Box::new((data, MaybeShmLimiter::open(limiter_index)));
+                            let rc_ref: &mut RemoteConfigState = unsafe { mem::transmute(remote_config as *mut _) }; // sigh, borrow checker
+                            let entry = remote_config.live_debugger.active.entry(value.config_id);
+                            let (parsed, limiter) = match entry {
+                                Entry::Occupied(mut e) => {
+                                    e.insert(val);
+                                    let r = e.into_mut();
+                                    (&r.0, &r.1)
+                                }
+                                Entry::Vacant(e) => {
+                                    let r = e.insert(val);
+                                    (&r.0, &r.1)
+                                }
+                            };
+                            if let Some(debugger) = parsed.downcast::<LiveDebuggingData>() {
+                                apply_config(rc_ref, debugger, limiter);
+                            }
                         }
-                        Entry::Vacant(e) => e.insert(val),
-                    };
-                    apply_config(rc_ref, debugger, limiter);
-                }
-                RemoteConfigData::DynamicConfig(config_data) => {
-                    let priority = config_data.priority();
-                    let configs: Vec<Configs> = config_data.lib_config.into();
-                    if !configs.is_empty() {
-                        remote_config.dynamic_config.active_configs
-                            .insert(value.config_id, ActiveDynamicConfig { priority, configs });
-                        let merged = compute_merged_configs(&remote_config.dynamic_config.active_configs);
-                        insert_new_configs(
-                            &mut remote_config.dynamic_config.old_config_values,
-                            &mut remote_config.dynamic_config.merged_configs,
-                            merged,
-                        );
+                        RemoteConfigProduct::ApmTracing => {
+                            if let Some(config_data) = data.downcast::<DynamicConfigFile>() {
+                                let priority = config_data.priority();
+                                let configs: Vec<Configs> = config_data.lib_config.clone().into();
+                                if !configs.is_empty() {
+                                    remote_config.dynamic_config.active_configs
+                                        .insert(value.config_id, ActiveDynamicConfig { priority, configs });
+                                    let merged = compute_merged_configs(&remote_config.dynamic_config.active_configs);
+                                    insert_new_configs(
+                                        &mut remote_config.dynamic_config.old_config_values,
+                                        &mut remote_config.dynamic_config.merged_configs,
+                                        merged,
+                                    );
+                                }
+                            }
+                        }
+                        RemoteConfigProduct::FfeFlags => {
+                            debug!("Received FFE flags configuration");
+                            if let Some(ufc) = data.downcast::<UniversalFlagConfig>() {
+                                if let Ok(ufc_owned) = UniversalFlagConfig::from_json(ufc.to_json().to_vec()) {
+                                    crate::ffe::store_config(Configuration::from_server_response(ufc_owned));
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
-                RemoteConfigData::FfeFlags(ufc) => {
-                    debug!("Received FFE flags configuration");
-                    crate::ffe::store_config(Configuration::from_server_response(ufc));
-                }
-                RemoteConfigData::Ignored(_) => (),
-                RemoteConfigData::TracerFlareConfig(_) => {}
-                RemoteConfigData::TracerFlareTask(_) => {}
-            },
+            }
             RemoteConfigUpdate::Remove(path) => match path.product {
                 RemoteConfigProduct::LiveDebugger => {
-                    if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id)
-                    {
-                        remove_config(remote_config, &boxed.0);
+                    if let Some(boxed) = remote_config.live_debugger.active.remove(&path.config_id) {
+                        if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
+                            remove_config(remote_config, debugger);
+                        }
                     }
                 }
                 RemoteConfigProduct::ApmTracing => {
@@ -525,11 +553,13 @@ pub extern "C" fn ddog_remote_config_get_loaded_configs(remote_config: &RemoteCo
     let mut entries: Vec<(String, String)> = Vec::new();
 
     for (config_id, boxed) in &remote_config.live_debugger.active {
-        let value = match &boxed.0 {
-            LiveDebuggingData::Probe(p) => format!(r#"{{"type":"probe","id":"{}"}}"#, p.id),
-            LiveDebuggingData::ServiceConfiguration(sc) => format!(r#"{{"type":"service_config","id":"{}"}}"#, sc.id),
-        };
-        entries.push((config_id.clone(), value));
+        if let Some(debugger) = boxed.0.downcast::<LiveDebuggingData>() {
+            let value = match debugger {
+                LiveDebuggingData::Probe(p) => format!(r#"{{"type":"probe","id":"{}"}}"#, p.id),
+                LiveDebuggingData::ServiceConfiguration(sc) => format!(r#"{{"type":"service_config","id":"{}"}}"#, sc.id),
+            };
+            entries.push((config_id.clone(), value));
+        }
     }
 
     for config_id in remote_config.dynamic_config.active_configs.keys() {
@@ -585,8 +615,8 @@ pub extern "C" fn ddog_global_log_probe_limiter_inc(remote_config: &RemoteConfig
         .active
         .get(&remote_config.live_debugger.config_id)
     {
-        if let (LiveDebuggingData::ServiceConfiguration(config), limiter) = &**boxed {
-            limiter.inc(config.sampling_snapshots_per_second)
+        if let Some(LiveDebuggingData::ServiceConfiguration(config)) = boxed.0.downcast::<LiveDebuggingData>() {
+            boxed.1.inc(config.sampling_snapshots_per_second)
         } else {
             true
         }
@@ -691,8 +721,8 @@ pub extern "C" fn ddog_set_dynamic_instrumentation_enabled(
         } else {
             // Reinstall all probes currently stored in `active`.
             for (probe_id, boxed) in remote_config.live_debugger.active.iter() {
-                if let (LiveDebuggingData::Probe(probe), limiter) = &**boxed {
-                    let hook_id = (callbacks.set_probe)(probe.into(), limiter);
+                if let Some(LiveDebuggingData::Probe(probe)) = boxed.0.downcast::<LiveDebuggingData>() {
+                    let hook_id = (callbacks.set_probe)(probe.into(), &boxed.1);
                     if hook_id >= 0 {
                         remote_config
                             .live_debugger
