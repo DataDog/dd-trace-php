@@ -296,7 +296,7 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
     zend_catch
     {
         if (PG(last_error_message)) {
-#if PHP_VERSION_ID < 70100
+#if PHP_VERSION_ID < 80000
             const char *last_err = PG(last_error_message);
 #else
             const char *last_err = ZSTR_VAL(PG(last_error_message));
@@ -314,11 +314,15 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
     }
     zend_end_try();
 
-    __auto_type res = zend_set_memory_limit(orig_mem_limit);
-    if (res == FAILURE) {
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    // PHP 8.0: zend_set_memory_limit returns void
+    zend_set_memory_limit(orig_mem_limit);
+#else
+    if (zend_set_memory_limit(orig_mem_limit) == FAILURE) {
         mlog(
             dd_log_error, "Failed to restore memory limit in request shutdown");
     }
+#endif
 }
 
 static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
