@@ -1,5 +1,5 @@
 use crate::allocation::{
-    allocation_profiling_stats_should_collect, collect_allocation, free_allocation,
+    allocation_profiling_stats_should_collect, collect_allocation, untrack_allocation,
 };
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
@@ -339,7 +339,7 @@ unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
     // avoids a process-wide heap-live fast-path flag: ZTS SAPIs can run requests
     // with different INI state on different threads.
     if !ptr.is_null() {
-        free_allocation(ptr);
+        untrack_allocation(ptr);
     }
 
     tls_zend_mm_state_get!(free)(ptr);
@@ -376,7 +376,7 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
     // before any userland-only early return, then let the new allocation be
     // re-sampled at the reported size.
     if !prev_ptr.is_null() {
-        free_allocation(prev_ptr);
+        untrack_allocation(prev_ptr);
     }
 
     // during startup, minit, rinit, ... current_execute_data is null

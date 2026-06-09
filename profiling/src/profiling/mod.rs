@@ -976,7 +976,10 @@ impl Profiler {
 
     /// Untrack an allocation. Returns the sample if it was tracked.
     pub(crate) fn untrack_allocation(&self, ptr: usize) -> Option<LiveHeapSample> {
-        let result = self.live_heap_tracker.remove(&ptr).map(|(_, sample)| sample);
+        let result = self
+            .live_heap_tracker
+            .remove(&ptr)
+            .map(|(_, sample)| sample);
         if result.is_some() {
             self.live_heap_tracker_count.fetch_sub(1, Ordering::Relaxed);
         }
@@ -1275,19 +1278,6 @@ impl Profiler {
                 warn!("Failed to collect stack sample: {err}")
             }
         }
-    }
-
-    /// Called when memory is freed. Removes the allocation from tracking. The next profile export
-    /// will not include this allocation in the heap-live samples.
-    pub(crate) fn free_allocation(&self, ptr: *mut std::ffi::c_void) {
-        if let Some(sample) = self.untrack_allocation(ptr as usize) {
-            trace!(
-                "Untracked freed allocation at {:#x} ({} bytes)",
-                ptr as usize,
-                sample.allocation_size
-            );
-        }
-        // If not tracked, nothing to do (wasn't sampled)
     }
 
     /// Collect a stack sample with exception.

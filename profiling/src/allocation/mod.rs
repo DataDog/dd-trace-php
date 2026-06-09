@@ -162,12 +162,19 @@ pub fn collect_allocation(ptr: *mut c_void, len: size_t) {
     }
 }
 
-/// Called when memory is freed. If this pointer was tracked for live heap,
-/// sends the deallocation sample to cancel out the original allocation.
+/// Called when an allocation is no longer live, such as `free` or successful
+/// `realloc`. If this pointer was tracked for live heap, remove it from the
+/// live set.
 #[inline]
-pub fn free_allocation(ptr: *mut c_void) {
+pub fn untrack_allocation(ptr: *mut c_void) {
     if let Some(profiler) = Profiler::get() {
-        profiler.free_allocation(ptr);
+        if let Some(sample) = profiler.untrack_allocation(ptr as usize) {
+            trace!(
+                "Untracked allocation at {:#x} ({} bytes)",
+                ptr as usize,
+                sample.allocation_size
+            );
+        }
     }
 }
 
