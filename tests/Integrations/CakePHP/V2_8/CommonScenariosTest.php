@@ -60,7 +60,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        '_dd.svc_src' => 'cakephp',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -69,7 +68,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Controller.invokeAction'
                         )->withExactTags([
                             Tag::COMPONENT => 'cakephp',
-                            '_dd.svc_src' => 'cakephp',
                         ])
                     ]),
                 ],
@@ -88,7 +86,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        '_dd.svc_src' => 'cakephp',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -97,7 +94,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Controller.invokeAction'
                         )->withExactTags([
                             Tag::COMPONENT => 'cakephp',
-                            '_dd.svc_src' => 'cakephp',
                         ]),
                         SpanAssertion::build(
                             'cakephp.view',
@@ -107,7 +103,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         )->withExactTags([
                             'cakephp.view' => 'SimpleView/index.ctp',
                             Tag::COMPONENT => 'cakephp',
-                            '_dd.svc_src' => 'cakephp',
                         ]),
                     ]),
                 ],
@@ -126,7 +121,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/:controller',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        '_dd.svc_src' => 'cakephp',
                     ])->withExistingTagsNames([
                         'error.stack'
                     ])->setError(
@@ -140,7 +134,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Controller.invokeAction'
                         )->withExactTags([
                             Tag::COMPONENT => 'cakephp',
-                            '_dd.svc_src' => 'cakephp',
                         ])->withExistingTagsNames([
                             'error.stack',
                         ])->setError(null, 'Foo error'),
@@ -152,7 +145,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         )->withExactTags([
                             'cakephp.view' => 'Errors/index.ctp',
                             Tag::COMPONENT => 'cakephp',
-                            '_dd.svc_src' => 'cakephp',
                         ]),
                     ]),
                 ],
@@ -171,7 +163,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.route' => '/parameterized/:param',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'cakephp',
-                        '_dd.svc_src' => 'cakephp',
                     ])->withChildren([
                         SpanAssertion::build(
                             'Controller.invokeAction',
@@ -180,7 +171,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'Controller.invokeAction'
                         )->withExactTags([
                             Tag::COMPONENT => 'cakephp',
-                            '_dd.svc_src' => 'cakephp',
                         ])
                     ]),
                 ]

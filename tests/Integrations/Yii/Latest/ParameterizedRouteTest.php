@@ -46,7 +46,6 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                     'app.endpoint' => 'app\controllers\HomesController::actionView',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
-                    '_dd.svc_src' => "yii",
                 ])->withChildren([
                     SpanAssertion::build(
                         'yii\web\Application.run',
@@ -55,7 +54,6 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                         'yii\web\Application.run'
                     )->withExactTags([
                         Tag::COMPONENT => "yii",
-                        '_dd.svc_src' => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.runAction',
@@ -64,7 +62,6 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                             'homes/view'
                         )->withExactTags([
                             Tag::COMPONENT => "yii",
-                            '_dd.svc_src' => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
                                 'app\controllers\HomesController.runAction',
@@ -73,7 +70,6 @@ class ParameterizedRouteTest extends WebFrameworkTestCase
                                 'view'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
-                                '_dd.svc_src' => "yii",
                             ])
                         ])
                     ])

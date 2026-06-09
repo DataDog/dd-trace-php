@@ -37,7 +37,7 @@ class EloquentTest extends WebFrameworkTestCase
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
-            '_dd.svc_src' => 'laravel',
+            '_dd.svc_src' => 'Laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -57,7 +57,7 @@ class EloquentTest extends WebFrameworkTestCase
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
-            '_dd.svc_src' => 'laravel',
+            '_dd.svc_src' => 'Laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -77,7 +77,7 @@ class EloquentTest extends WebFrameworkTestCase
             TAG::SPAN_KIND => 'client',
             'sql.query' => 'select * from `users`',
             TAG::COMPONENT => 'eloquent',
-            '_dd.svc_src' => 'laravel',
+            '_dd.svc_src' => 'Laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -96,7 +96,7 @@ class EloquentTest extends WebFrameworkTestCase
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
-            '_dd.svc_src' => 'laravel',
+            '_dd.svc_src' => 'Laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -116,7 +116,7 @@ class EloquentTest extends WebFrameworkTestCase
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
-            '_dd.svc_src' => 'laravel',
+            '_dd.svc_src' => 'Laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }
@@ -136,7 +136,7 @@ class EloquentTest extends WebFrameworkTestCase
         )->withExactTags([
             TAG::SPAN_KIND => 'client',
             TAG::COMPONENT => 'eloquent',
-            '_dd.svc_src' => 'laravel',
+            '_dd.svc_src' => 'Laravel',
             Tag::DB_SYSTEM => 'other_sql',
         ]));
     }

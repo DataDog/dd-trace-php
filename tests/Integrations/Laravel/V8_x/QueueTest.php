@@ -355,7 +355,8 @@ class QueueTest extends WebFrameworkTestCase
             'web',
             'Illuminate\Queue\Events\JobProcessing'
         )->withExistingTagsNames([
-            Tag::COMPONENT
+            Tag::COMPONENT,
+            '_dd.svc_src',
         ]);
     }
 
@@ -367,7 +368,8 @@ class QueueTest extends WebFrameworkTestCase
             'web',
             'Illuminate\Queue\Events\JobProcessed'
         )->withExistingTagsNames([
-            Tag::COMPONENT
+            Tag::COMPONENT,
+            '_dd.svc_src',
         ]);
     }
 

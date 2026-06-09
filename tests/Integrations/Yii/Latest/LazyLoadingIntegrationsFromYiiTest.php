@@ -47,7 +47,6 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                     'app.endpoint' => 'app\controllers\SiteController::actionIndex',
                     Tag::SPAN_KIND => "server",
                     Tag::COMPONENT => "yii",
-                    '_dd.svc_src' => "yii",
                 ])->withChildren([
                     SpanAssertion::build(
                         'yii\web\Application.run',
@@ -56,7 +55,6 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                         'yii\web\Application.run'
                     )->withExactTags([
                         Tag::COMPONENT => "yii",
-                        '_dd.svc_src' => "yii",
                     ])->withChildren([
                         SpanAssertion::build(
                             'yii\web\Application.runAction',
@@ -65,7 +63,6 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                             'index'
                         )->withExactTags([
                             Tag::COMPONENT => "yii",
-                            '_dd.svc_src' => "yii",
                         ])->withChildren([
                             SpanAssertion::build(
                                 'app\controllers\SiteController.runAction',
@@ -74,7 +71,6 @@ class LazyLoadingIntegrationsFromYiiTest extends WebFrameworkTestCase
                                 'index'
                             )->withExactTags([
                                 Tag::COMPONENT => "yii",
-                                '_dd.svc_src' => "yii",
                             ]),
                         ]),
                     ])
