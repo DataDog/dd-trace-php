@@ -29,6 +29,18 @@ bool ddtrace_conf_otel_sample_rate(zai_env_buffer *buf, bool pre_rinit) {
         return false;
     }
 
+    // Datadog sampling is inherently parent-based (it respects the upstream
+    // sampling decision). A non-parentbased OTEL_TRACES_SAMPLER is therefore
+    // mapped to its parentbased equivalent; warn so the user knows the
+    // root-only semantics are not honored exactly.
+    bool non_parentbased = strcmp(buf->ptr, "always_on") == 0
+                        || strcmp(buf->ptr, "always_off") == 0
+                        || strcmp(buf->ptr, "traceidratio") == 0;
+    if (non_parentbased) {
+        LOG_ONCE(WARN, "OTEL_TRACES_SAMPLER '%s' is non-parentbased; Datadog sampling is parent-based, "
+                       "mapping to the parentbased equivalent", buf->ptr);
+    }
+
     if (strcmp(buf->ptr, "always_on") == 0 || strcmp(buf->ptr, "parentbased_always_on") == 0) {
         buf->ptr = "1"; buf->len = 1;
         return true;
@@ -54,6 +66,12 @@ bool ddtrace_conf_otel_traces_exporter(zai_env_buffer *buf, bool pre_rinit) {
         if (strcmp(buf->ptr, "none") == 0) {
             buf->ptr = "0"; buf->len = 1;
             return true;
+        }
+        // "otlp" enables OTLP trace export; tracing itself stays enabled, so do
+        // not alter DD_TRACE_ENABLED here. The OTLP gate is reported through
+        // DD_TRACE_OTLP_ENABLED via ddtrace_conf_otel_traces_otlp_enabled.
+        if (strcmp(buf->ptr, "otlp") == 0) {
+            return false;
         }
         LOG_ONCE(WARN, "OTEL_TRACES_EXPORTER has invalid value: %s", buf->ptr);
         datadog_report_otel_cfg_telemetry_invalid("otel_traces_exporter", "dd_trace_enabled", pre_rinit);

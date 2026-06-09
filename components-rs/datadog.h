@@ -55,6 +55,34 @@ struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url)
 
 struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
 
+struct ddog_Endpoint *datadog_otel_traces_endpoint_from_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_traces_endpoint_from_agent_url(ddog_CharSlice url);
+
+/**
+ * Registers the OTLP traces export configuration for a sidecar session.
+ *
+ * `endpoint` is the full OTLP traces URL (already resolved by the extension,
+ * including the computed default and the `OTEL_EXPORTER_OTLP_ENDPOINT` ->
+ * `/v1/traces` fallback). `headers` is the raw `key=value,...` string.
+ *
+ * # Safety
+ * All CharSlice arguments must point to valid, correctly-sized data.
+ */
+ddog_MaybeError ddog_sidecar_session_set_otlp_traces_endpoint(ddog_CharSlice session_id,
+                                                              ddog_CharSlice endpoint,
+                                                              ddog_CharSlice headers,
+                                                              uint64_t timeout_ms);
+
+/**
+ * Clears the OTLP traces export configuration for a session (e.g. when OTLP
+ * trace export is disabled or the session is torn down).
+ *
+ * # Safety
+ * `session_id` must point to valid, correctly-sized data.
+ */
+void ddog_sidecar_session_clear_otlp_traces_endpoint(ddog_CharSlice session_id);
+
 void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
                                              void (*callback)(ddog_crasht_EndpointConfig, void*),
                                              void *userdata);

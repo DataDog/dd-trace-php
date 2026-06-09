@@ -99,6 +99,16 @@ DATADOG_PUBLIC uint64_t datadog_get_sidecar_queue_id(void) {
     return DATADOG_G(sidecar_queue_id);
 }
 
+// Returns true when OTLP trace export is enabled for this process.
+//
+// The DD_TRACE_OTLP_ENABLED config already folds in both the
+// OTEL_TRACES_EXPORTER=otlp selection and the DD_TRACE_AGENT_PROTOCOL_VERSION
+// disable gate (see ddtrace_conf_otel_traces_otlp_enabled), so reading it here
+// reflects the final enablement decision.
+bool datadog_otlp_traces_enabled(void) {
+    return get_global_DD_TRACE_OTLP_ENABLED();
+}
+
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) datadog_formatted_session_id, .len = sizeof(datadog_formatted_session_id)};
     ddog_CharSlice root_session_id = datadog_is_empty_session_id(datadog_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_root_session_id, .len = sizeof(datadog_formatted_root_session_id)};
@@ -134,6 +144,24 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                 );
     if (otlp_metrics_endpoint) {
         ddog_endpoint_drop(otlp_metrics_endpoint);
+    }
+
+    // Plumb the OTLP traces endpoint to the sidecar, mirroring the OTLP metrics
+    // endpoint above. The endpoint URL is built from OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+    // (or the OTEL_EXPORTER_OTLP_ENDPOINT -> /v1/traces fallback / computed
+    // default), gated on OTEL_TRACES_EXPORTER=otlp and the
+    // DD_TRACE_AGENT_PROTOCOL_VERSION disable check.
+    if (datadog_otlp_traces_enabled()) {
+        char *traces_url = datadog_otel_traces_url();
+        datadog_ffi_try("Failed setting OTLP traces endpoint on sidecar session",
+                        ddog_sidecar_session_set_otlp_traces_endpoint(
+                            session_id,
+                            (ddog_CharSlice){.ptr = traces_url, .len = strlen(traces_url)},
+                            dd_zend_string_to_CharSlice(get_global_OTEL_EXPORTER_OTLP_TRACES_HEADERS()),
+                            (uint64_t)get_global_OTEL_EXPORTER_OTLP_TRACES_TIMEOUT()));
+        free(traces_url);
+    } else {
+        ddog_sidecar_session_clear_otlp_traces_endpoint(session_id);
     }
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {

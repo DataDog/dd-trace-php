@@ -11,6 +11,11 @@ bool ddtrace_conf_otel_resource_attributes_version(zai_env_buffer *buf, bool pre
 bool ddtrace_conf_otel_service_name(zai_env_buffer *buf, bool pre_rinit);
 bool ddtrace_conf_otel_log_level(zai_env_buffer *buf, bool pre_rinit);
 bool ddtrace_conf_otel_otlp_endpoint(zai_env_buffer *buf, bool pre_rinit);
+bool ddtrace_conf_otel_traces_otlp_endpoint(zai_env_buffer *buf, bool pre_rinit);
+bool ddtrace_conf_otel_traces_otlp_enabled(zai_env_buffer *buf, bool pre_rinit);
+bool ddtrace_conf_otel_traces_otlp_headers(zai_env_buffer *buf, bool pre_rinit);
+bool ddtrace_conf_otel_traces_otlp_timeout(zai_env_buffer *buf, bool pre_rinit);
+bool ddtrace_conf_otel_traces_otlp_protocol(zai_env_buffer *buf, bool pre_rinit);
 bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_rinit);
 
 #endif // DD_OTEL_CONFIG_H

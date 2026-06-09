@@ -53,6 +53,9 @@ void datadog_force_new_instance_id(void);
 void datadog_sidecar_push_tag(ddog_Vec_Tag *vec, ddog_CharSlice key, ddog_CharSlice value);
 void datadog_sidecar_push_tags(ddog_Vec_Tag *vec, zval *tags);
 ddog_Endpoint *datadog_sidecar_agent_endpoint(void);
+// Returns true when OTLP trace export is enabled (OTEL_TRACES_EXPORTER=otlp and
+// DD_TRACE_AGENT_PROTOCOL_VERSION is not set).
+bool datadog_otlp_traces_enabled(void);
 void ddtrace_sidecar_submit_span_data_direct_defaults(ddog_SidecarTransport **transport, ddtrace_span_data *root);
 void ddtrace_sidecar_submit_span_data_direct(ddog_SidecarTransport **transport, ddtrace_span_data *root, zend_string *cfg_service, zend_string *cfg_env, zend_string *cfg_version);
 

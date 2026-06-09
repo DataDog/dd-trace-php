@@ -90,6 +90,21 @@ enum datadog_sidecar_connection_mode {
     CONFIG(STRING, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "",                                                    \
            .ini_change = zai_config_system_ini_change,                                                         \
            .env_config_fallback = ddtrace_conf_otel_otlp_endpoint)                                             \
+    CONFIG(BOOL, DD_TRACE_OTLP_ENABLED, "false",                                                               \
+           .ini_change = zai_config_system_ini_change,                                                         \
+           .env_config_fallback = ddtrace_conf_otel_traces_otlp_enabled)                                       \
+    CONFIG(STRING, OTEL_EXPORTER_OTLP_TRACES_ENDPOINT, "",                                                     \
+           .ini_change = zai_config_system_ini_change,                                                         \
+           .env_config_fallback = ddtrace_conf_otel_traces_otlp_endpoint)                                      \
+    CONFIG(STRING, OTEL_EXPORTER_OTLP_TRACES_HEADERS, "",                                                      \
+           .ini_change = zai_config_system_ini_change,                                                         \
+           .env_config_fallback = ddtrace_conf_otel_traces_otlp_headers)                                       \
+    CONFIG(INT, OTEL_EXPORTER_OTLP_TRACES_TIMEOUT, "10000",                                                    \
+           .ini_change = zai_config_system_ini_change,                                                         \
+           .env_config_fallback = ddtrace_conf_otel_traces_otlp_timeout)                                       \
+    CONFIG(STRING, OTEL_EXPORTER_OTLP_TRACES_PROTOCOL, "http/json",                                            \
+           .ini_change = zai_config_system_ini_change,                                                         \
+           .env_config_fallback = ddtrace_conf_otel_traces_otlp_protocol)                                      \
     CONFIG(INT, DD_TRACE_BUFFER_SIZE, "2097152", .ini_change = zai_config_system_ini_change)                   \
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \

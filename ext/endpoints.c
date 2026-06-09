@@ -122,3 +122,72 @@ ddog_Endpoint *datadog_otel_metrics_endpoint(void) {
     free(agent_url);
     return metrics_endpoint;
 }
+
+// Builds the OTLP traces endpoint, mirroring datadog_otel_metrics_endpoint():
+// the explicit OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (or its
+// OTEL_EXPORTER_OTLP_ENDPOINT -> /v1/traces fallback resolved by the config
+// layer) is used as-is; otherwise the computed default
+// http://<agent_host>:4318/v1/traces is derived from the agent URL.
+// The Rust builders (datadog_otel_traces_endpoint_from_url /
+// _from_agent_url) own the URL handling, exactly like the metrics path.
+ddog_Endpoint *datadog_otel_traces_endpoint(void) {
+    zend_string *endpoint_url = get_global_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT();
+    if (ZSTR_LEN(endpoint_url) > 0) {
+        return datadog_otel_traces_endpoint_from_url(dd_zend_string_to_CharSlice(endpoint_url));
+    }
+
+    char *agent_url = datadog_agent_url();
+    ddog_Endpoint *traces_endpoint = datadog_otel_traces_endpoint_from_agent_url((ddog_CharSlice){.ptr = agent_url, .len = strlen(agent_url)});
+    free(agent_url);
+    return traces_endpoint;
+}
+
+// Resolves the OTLP traces endpoint URL as a heap-allocated, null-terminated
+// string (caller must free()). Returns the explicit
+// OTEL_EXPORTER_OTLP_TRACES_ENDPOINT verbatim, or the computed default
+// http://<agent_host>:4318/v1/traces derived from the agent URL. This is the
+// string form passed to the sidecar (see ddog_sidecar_session_set_otlp_traces_endpoint).
+char *datadog_otel_traces_url(void) {
+    zend_string *endpoint_url = get_global_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT();
+    if (ZSTR_LEN(endpoint_url) > 0) {
+        return zend_strndup(ZSTR_VAL(endpoint_url), ZSTR_LEN(endpoint_url));
+    }
+
+    char *agent_url = datadog_agent_url();
+    bool isIPv6 = false;
+    const char *host = "localhost";
+    char *host_buf = NULL;
+
+    // Extract host from the agent URL (scheme://host:port[/...]). For UDS agent
+    // URLs (unix://...), fall back to localhost for the OTLP http endpoint.
+    const char *scheme_sep = strstr(agent_url, "://");
+    if (scheme_sep && strncmp(agent_url, "unix", 4) != 0) {
+        const char *host_start = scheme_sep + 3;
+        const char *host_end;
+        if (*host_start == '[') {
+            // IPv6 literal: http://[::1]:8126
+            isIPv6 = true;
+            host_start++;
+            host_end = strchr(host_start, ']');
+        } else {
+            host_end = host_start;
+            while (*host_end && *host_end != ':' && *host_end != '/') {
+                host_end++;
+            }
+        }
+        if (host_end && host_end > host_start) {
+            host_buf = zend_strndup(host_start, host_end - host_start);
+            host = host_buf;
+        }
+    }
+
+    char *url;
+    asprintf(&url, isIPv6 ? "http://[%s]:4318/v1/traces" : "http://%s:4318/v1/traces", host);
+    if (host_buf) {
+        free(host_buf);
+    }
+    free(agent_url);
+
+    // Normalize to a malloc-allocated buffer freeable with free() (asprintf already is).
+    return url;
+}
