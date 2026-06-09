@@ -131,11 +131,15 @@ std::optional<engine::result> engine::context::publish(
 
     // no actions, but we have json fragments in triggers. Add a record action
     if (event.actions.empty()) {
-        action record = {dds::action_type::record, {}};
-        event.actions.emplace_back(std::move(record));
+        event.actions.emplace_back(
+            dds::action{.type = dds::action_type::record, .parameters = {}});
     }
 
-    dds::engine::result res{{}, std::move(event.triggers), force_keep};
+    dds::engine::result res{
+        .actions = {},
+        .triggers = std::move(event.triggers),
+        .force_keep = force_keep,
+    };
     for (auto const &action : event.actions) {
         dds::action new_action;
         new_action.type = action.type;

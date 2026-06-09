@@ -99,22 +99,41 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
 
         $this->assertGreaterThanOrEqual(3, \count($traces), 'Expected at least 3 traces from multiple worker requests');
 
-        // Identify master vs worker processes.
-        $allPids = array_values(array_filter(array_map('intval', explode("\n", trim(\shell_exec('pgrep php-fpm') ?: '')))));
-        $this->assertNotEmpty($allPids, 'No php-fpm processes found');
+        // Identify master vs worker processes using the known PID from the test
+        // infrastructure. Using pgrep system-wide would pick up php-fpm processes from
+        // other test classes that may still be shutting down concurrently.
+        $topPid = self::$appServer->getFpmPid();
+        $this->assertNotNull($topPid, 'Could not get php-fpm master PID from test infrastructure');
 
-        $masterPid = null;
-        $workerPids = [];
-        foreach ($allPids as $pid) {
-            $ppid = (int) trim(\shell_exec("ps -o ppid= -p $pid 2>/dev/null") ?: '0');
-            if (\in_array($ppid, $allPids, true)) {
-                $workerPids[] = $pid;
-            } else {
-                $masterPid = $pid;
+        // When running under sudo, getPid() may return the sudo process. Walk one level
+        // down to find the actual php-fpm master if topPid is not itself php-fpm.
+        $masterPid = $topPid;
+        $topComm = trim(\shell_exec("ps -o comm= -p $topPid 2>/dev/null") ?: '');
+        if (strpos($topComm, 'php-fpm') === false) {
+            // topPid is sudo (or similar wrapper); actual php-fpm master is a direct child
+            $childPidsRaw = trim(\shell_exec("ps -o pid= --ppid $topPid 2>/dev/null") ?: '');
+            foreach (array_filter(array_map('intval', explode("\n", $childPidsRaw))) as $childPid) {
+                $comm = trim(\shell_exec("ps -o comm= -p $childPid 2>/dev/null") ?: '');
+                if (strpos($comm, 'php-fpm') !== false) {
+                    $masterPid = $childPid;
+                    break;
+                }
             }
         }
 
-        $this->assertNotNull($masterPid, 'Could not identify php-fpm master process');
+        // Get all direct children of the master, but exclude orphaned processes from
+        // previous FPM instances. PHP-FPM sets itself as a subreaper, so when a previous
+        // FPM master dies before its workers, the orphaned workers get re-parented here.
+        // Orphaned workers always have a start-time BEFORE our master, so we filter by
+        // comparing /proc/$pid/stat field 22 (starttime in jiffies since boot).
+        $masterStartTime = $this->readProcStartTime($masterPid);
+        $workerPidsRaw = trim(\shell_exec("ps -o pid= --ppid $masterPid 2>/dev/null") ?: '');
+        $workerPids = [];
+        foreach (array_filter(array_map('intval', explode("\n", $workerPidsRaw))) as $childPid) {
+            if ($this->readProcStartTime($childPid) >= $masterStartTime) {
+                $workerPids[] = $childPid;
+            }
+        }
         $this->assertCount(3, $workerPids, 'Expected exactly 3 worker processes (pm=static, max_children=3)');
 
         // Master must have >1 thread: its main thread + the sidecar listener thread.
@@ -147,6 +166,26 @@ final class SidecarThreadModeRootTest extends WebFrameworkTestCase
         }
         \preg_match('/^Threads:\s+(\d+)/m', $status, $m);
         return isset($m[1]) ? (int) $m[1] : 0;
+    }
+
+    /**
+     * Returns the process start time in clock ticks from /proc/$pid/stat field 22.
+     * Used to distinguish our FPM workers (started after our master) from orphaned
+     * processes re-parented from a previous FPM instance (started before our master).
+     */
+    private function readProcStartTime($pid)
+    {
+        $stat = @\file_get_contents("/proc/$pid/stat");
+        if ($stat === false) {
+            return 0;
+        }
+        // Field 22 (1-indexed) = starttime. Fields are space-separated but field 2
+        // (the process name) can contain spaces and is wrapped in parentheses.
+        // Strip the comm field first to safely parse the rest.
+        $stat = \preg_replace('/^\d+ \(.*?\) /', '', $stat);
+        $fields = \explode(' ', \trim($stat));
+        // After stripping pid and comm, field 22 becomes index 19 (0-indexed).
+        return isset($fields[19]) ? (int) $fields[19] : 0;
     }
 
     /**

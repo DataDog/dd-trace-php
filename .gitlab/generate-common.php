@@ -115,7 +115,7 @@ register_shutdown_function(function () use ($_libdatadog_sha) {
 
     $step  = <<<STEP
     - git config --global --add safe.directory "\${CI_PROJECT_DIR}/libdatadog"
-    - (cd libdatadog; git fetch --depth=1 origin "$_libdatadog_sha" 2>&1)
+    - (cd libdatadog; git fetch --depth=1 origin "$_libdatadog_sha" 2>/dev/null || git fetch origin "$_libdatadog_sha" 2>&1)
     - (cd libdatadog; git checkout FETCH_HEAD)
 STEP;
 

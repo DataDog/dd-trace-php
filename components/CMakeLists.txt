@@ -52,7 +52,6 @@ add_library(datadog_php_components INTERFACE)
 
 add_subdirectory(string_view)
 
-add_subdirectory(container_id)
 add_subdirectory(sapi)
 add_subdirectory(stack-sample)
 

@@ -19,6 +19,9 @@ pub struct ZendString {
 #[repr(transparent)]
 pub struct OwnedZendString(pub NonNull<ZendString>);
 
+/// cbindgen:ignore
+pub type MaybeOwnedZendString = Option<OwnedZendString>;
+
 impl OwnedZendString {
     pub fn from_copy(mut ptr: NonNull<ZendString>) -> Self {
         unsafe { DDOG_ADDREF_ZEND_STRING.unwrap_unchecked()(ptr.as_mut()) };

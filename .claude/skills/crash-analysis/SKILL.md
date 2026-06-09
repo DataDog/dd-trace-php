@@ -39,7 +39,7 @@ file. Do all extractions in parallel where possible.
 
 From the mapped files, determine:
 - **Products loaded**: look for `ddtrace.so`, `ddappsec.so`, `datadog-profiling.so`
-- **SSI mode**: check for `libddtrace_php.so` and `dd_library_loader.so` — if present, the process is running the SSI (Single-Step Instrumentation) package. See [SSI architecture](#ssi-architecture) below.
+- **SSI mode**: check for `libdatadog_php.so` and `dd_library_loader.so` — if present, the process is running the SSI (Single-Step Instrumentation) package. See [SSI architecture](#ssi-architecture) below.
 - **OS/arch**: architecture (x86_64 or aarch64)
 - **libc**: GNU (`ld-linux-x86-64.so`) or musl (`ld-musl-x86-64.so`)
 
@@ -50,7 +50,7 @@ When the Datadog SSI package is installed, the process loads **four** binaries i
 | Binary | Typical text size | Role |
 |--------|------------------|------|
 | `dd_library_loader.so` | ~28 KiB | Zend extension (loaded via `zend_extension=`); bootstraps everything else |
-| `libddtrace_php.so` | ~10 MiB | Shared library with sidecar, crashtracker, and Rust components; loaded by the loader with `RTLD_GLOBAL` |
+| `libdatadog_php.so` | ~10 MiB | Shared library with sidecar, crashtracker, and Rust components; loaded by the loader with `RTLD_GLOBAL` |
 | `ddtrace.so` (SSI standalone) | ~750 KiB | PHP extension with most tracer logic; much smaller than monolithic ddtrace.so |
 | `ddappsec.so` | ~630 KiB | AppSec extension; same binary for SSI and non-SSI |
 
@@ -58,7 +58,7 @@ When the Datadog SSI package is installed, the process loads **four** binaries i
 
 Loading order (the loader is a Zend extension and fires before any `extension=` module):
 1. `dd_library_loader.so` MINIT fires
-2. Loader calls `dlopen(libddtrace_php.so, RTLD_NOW|RTLD_GLOBAL)`
+2. Loader calls `dlopen(libdatadog_php.so, RTLD_NOW|RTLD_GLOBAL)`
 3. Loader calls `zend_register_internal_module` for the SSI `ddtrace.so`
 4. PHP processes `extension=` directives; any `extension=ddtrace.so` pointing elsewhere is rejected as duplicate
 
@@ -139,7 +139,7 @@ If the stacktrace correlation is ambiguous or the crash is in Datadog code:
 ### Datadog binaries
 
 1. Download the release binaries:
-   - **SSI** (`libddtrace_php.so` in maps): fetches from ECR public, no credentials needed:
+   - **SSI** (`libdatadog_php.so` in maps): fetches from ECR public, no credentials needed:
      ```
      .claude/dd_php_release_url --ssi '<version>' '<arch>'
      ```

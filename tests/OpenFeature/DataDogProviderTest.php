@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace DDTrace\Tests\OpenFeature {
 
-use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
@@ -163,25 +162,7 @@ final class DataDogProviderTest extends TestCase
 
     private function providerForEvaluator(Evaluator $evaluator, ?LoggerInterface $logger = null): DataDogProvider
     {
-        $logger = $logger ?: new NullLogger(LogLevel::EMERGENCY);
-        $provider = new DataDogProvider($logger);
-        $client = $this->clientForEvaluator($evaluator, $logger);
-
-        (function () use ($client): void {
-            $this->client = $client;
-        })->call($provider);
-
-        return $provider;
-    }
-
-    private function clientForEvaluator(Evaluator $evaluator, LoggerInterface $logger): FeatureFlagsClient
-    {
-        $client = new FeatureFlagsClient($logger);
-        (function () use ($evaluator): void {
-            $this->evaluator = $evaluator;
-        })->call($client);
-
-        return $client;
+        return DataDogProvider::createWithDependencies($evaluator, $logger ?: new NullLogger(LogLevel::EMERGENCY));
     }
 
     private function openFeatureClientFor(DataDogProvider $provider)

@@ -1,4 +1,4 @@
-use crate::bytes::OwnedZendString;
+use crate::bytes::MaybeOwnedZendString;
 use datadog_ffe::rules_based::{
     self as ffe, AssignmentReason, AssignmentValue, Attribute, Configuration, EvaluationContext,
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
@@ -92,9 +92,9 @@ const TYPE_OBJECT: i32 = 4;
 
 #[repr(C)]
 pub struct FfeResult {
-    pub value_json: Option<OwnedZendString>,
-    pub variant: Option<OwnedZendString>,
-    pub allocation_key: Option<OwnedZendString>,
+    pub value_json: MaybeOwnedZendString,
+    pub variant: MaybeOwnedZendString,
+    pub allocation_key: MaybeOwnedZendString,
     pub reason: i32,
     pub error_code: i32,
     pub do_log: bool,
@@ -276,7 +276,7 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bytes::ZendString;
+    use crate::bytes::{OwnedZendString, ZendString};
     use std::alloc::{alloc_zeroed, dealloc, Layout};
     use std::ffi::CString;
     use std::mem;

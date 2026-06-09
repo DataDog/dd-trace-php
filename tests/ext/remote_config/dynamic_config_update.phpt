@@ -6,7 +6,7 @@ Test dynamic config update
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
+DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 --INI--
 datadog.trace.agent_test_session_token=remote-config/dynamic_config_update
 --FILE--
@@ -51,7 +51,7 @@ put_dynamic_config_file([
 \DDTrace\start_span();
 
 if (ini_get("datadog.trace.sample_rate") != 0.5) {
-    sleep(20); // signal interrupts interrupt the sleep().
+    dd_trace_internal_fn("await_remote_config");
 }
 
 var_dump(ini_get("datadog.trace.sample_rate"));

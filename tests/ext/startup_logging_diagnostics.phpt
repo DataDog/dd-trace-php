@@ -19,7 +19,6 @@ $logs = dd_get_startup_logs($args, $env);
 
 dd_dump_startup_logs($logs, [
     'open_basedir_sources_allowed',
-    'open_basedir_container_tagging_allowed',
     'service',
     'tags',
     'agent_url',
@@ -31,7 +30,6 @@ var_dump(strncasecmp(PHP_OS, "WIN", 3) == 0 || isset($logs["agent_error"]));
 ?>
 --EXPECTF--
 open_basedir_sources_allowed: false
-open_basedir_container_tagging_allowed: false
 service: "foo_service"
 agent_url: "http://invalid_host:8126"
 tags: {"foo":"tag"}

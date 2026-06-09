@@ -7,8 +7,6 @@ DD_TRACE_AUTO_FLUSH_ENABLED=false
 <?php
 use DDTrace\SpanData;
 
-//sleep(10);
-
 function test_endpoint($path) {
     // create a root span manually
     $root_span = DDTrace\start_trace_span();

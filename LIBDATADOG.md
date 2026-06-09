@@ -3,7 +3,7 @@ Common components are integrated in dd-trace-php by importing the source code fr
 the [contributing file](https://github.com/DataDog/dd-trace-php/blob/master/CONTRIBUTING.md) the code is imported by using git
 submodules which downloads the sources into libdatadog folder located at the project’s root directory.
 ## Integration
-The rust sources are compiled to assemble a static library named libddtrace_php.a, this library contains the necessary
+The rust sources are compiled to assemble a static library named libdatadog_php.a, this library contains the necessary
 functionality to:
 * Sidecar initialization and communication.
 * Sending telemetry.
