@@ -109,7 +109,7 @@ abstract class Integration implements \DDTrace\Integration
      * is configured, the service value is the user's default — leave _dd.svc_src
      * cleared per RFC "Service Override Source Attribution".
      */
-    public static function tagFrameworkServiceSource(SpanData $span, string $integrationName): void
+    public static function tagFrameworkServiceSource(SpanData $span, $integrationName)
     {
         if (!\dd_trace_env_config('DD_SERVICE')) {
             $span->meta['_dd.svc_src'] = $integrationName;

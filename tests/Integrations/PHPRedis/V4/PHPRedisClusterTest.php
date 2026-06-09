@@ -1800,14 +1800,14 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 "RedisCluster.__construct"
             )->withExactTags([
                 'out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis',
+                Tag::COMPONENT => 'phpredis', '_dd.svc_src' => 'opt.redis_client_split_by_host', Tag::DB_SYSTEM => 'redis',
             ]),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'redis-cluster_name',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name'])
+            )->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name', '_dd.svc_src' => 'opt.redis_client_split_by_host'])
         ]);
 
         $redis->close();
@@ -1834,14 +1834,14 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 "RedisCluster.__construct"
             )->withExactTags([
                 'out.host' => $this->connection1[0], 'out.port' => $this->connection1[1], Tag::SPAN_KIND => 'client',
-                Tag::COMPONENT => 'phpredis', Tag::DB_SYSTEM => 'redis',
+                Tag::COMPONENT => 'phpredis', '_dd.svc_src' => 'opt.redis_client_split_by_host', Tag::DB_SYSTEM => 'redis',
             ]),
             SpanAssertion::build(
                 "RedisCluster.set",
                 'redis-cluster_name',
                 'redis',
                 "RedisCluster.set"
-            )->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name'])
+            )->withExactTags($this->baseTags('set key value', false, false), ['_dd.cluster.name' => 'cluster_name', '_dd.svc_src' => 'opt.redis_client_split_by_host'])
         ]);
 
         $redis->close();

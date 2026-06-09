@@ -33,7 +33,6 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console'
             )->withExactTags([
                 Tag::COMPONENT => 'cakephp',
-                '_dd.svc_src' => 'cakephp',
             ])
         ]);
     }
@@ -50,7 +49,6 @@ class CommonScenariosTest extends CLITestCase
                 'cake_console routes'
             )->withExactTags([
                 Tag::COMPONENT => 'cakephp',
-                '_dd.svc_src' => 'cakephp',
             ])
         ]);
     }

@@ -483,7 +483,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
-                    '_dd.svc_src' => 'curl',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -515,7 +515,7 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
-                    '_dd.svc_src' => 'curl',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
@@ -769,7 +769,6 @@ final class CurlIntegrationTest extends IntegrationTestCase
                     'span.kind' => 'client',
                     'network.destination.name' => HTTPBIN_SERVICE_HOST,
                     Tag::COMPONENT => 'curl',
-                    '_dd.svc_src' => 'curl',
                 ])
                 ->withExistingTagsNames(self::commonCurlInfoTags())
                 ->skipTagsLike('/^curl\..*/'),
