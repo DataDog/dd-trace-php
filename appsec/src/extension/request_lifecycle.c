@@ -535,10 +535,14 @@ static void _set_cur_span(zend_object *nullable span)
 }
 
 bool dd_req_lifecycle_is_active(void)
-{ return _between_init_shutdown_msgs && DDAPPSEC_G(active); }
+{
+    return _between_init_shutdown_msgs && DDAPPSEC_G(active);
+}
 
 zend_object *nullable dd_req_lifecycle_get_cur_span(void)
-{ return _cur_req_span; }
+{
+    return _cur_req_span;
+}
 
 zend_string *nullable dd_req_lifecycle_get_client_ip(void)
 {
@@ -995,7 +999,9 @@ static inline uint64_t _hash_string(
 }
 static inline uint64_t _hash_zend_string(
     uint64_t hash, zend_string *nonnull str)
-{ return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str)); }
+{
+    return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str));
+}
 
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
 {
