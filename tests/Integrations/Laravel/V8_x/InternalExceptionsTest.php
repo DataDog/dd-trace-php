@@ -47,7 +47,8 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.status_code' => '501',
                         'http.route' => 'not-implemented',
                         TAG::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'laravel'
+                        TAG::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
@@ -57,7 +58,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'not-implemented')
                             ->withExactTags([
                                 TAG::COMPONENT => 'laravel',
-                                '_dd.svc_src' => 'Laravel',
+                                '_dd.svc_src' => 'laravel',
                                 'track_error' => 'false',
                             ])
                             ->setError('Symfony\Component\HttpKernel\Exception\HttpException')
@@ -109,7 +110,8 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         'http.status_code' => '403',
                         'http.route' => 'unauthorized',
                         TAG::SPAN_KIND => 'server',
-                        TAG::COMPONENT => 'laravel'
+                        TAG::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withExactMetrics([
                         '_sampling_priority_v1' => 1,
@@ -122,7 +124,8 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                             'web',
                             'errors::403'
                         )->withExactTags([
-                            TAG::COMPONENT => 'laravel'
+                            TAG::COMPONENT => 'laravel',
+                            '_dd.svc_src' => 'laravel',
                         ])->withChildren([
                             SpanAssertion::exists('laravel.view')->withChildren([
                                 SpanAssertion::exists('laravel.event.handle'),
@@ -133,7 +136,7 @@ class InternalExceptionsTest extends WebFrameworkTestCase
                         SpanAssertion::build('laravel.action', 'laravel_test_app', 'web', 'unauthorized')
                             ->withExactTags([
                                 TAG::COMPONENT => 'laravel',
-                                '_dd.svc_src' => 'Laravel',
+                                '_dd.svc_src' => 'laravel',
                                 'track_error' => 'false',
                             ])
                             ->setError()

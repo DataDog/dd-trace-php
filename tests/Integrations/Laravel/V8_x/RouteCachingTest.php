@@ -47,7 +47,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel',
-                        '_dd.svc_src' => 'Laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
@@ -96,7 +96,7 @@ class RouteCachingTest extends WebFrameworkTestCase
                         'http.route' => 'unnamed-route',
                         TAG::SPAN_KIND => 'server',
                         TAG::COMPONENT => 'laravel',
-                        '_dd.svc_src' => 'Laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withChildren([
                         SpanAssertion::exists('laravel.action'),
