@@ -426,26 +426,22 @@ unsafe fn alloc_prof_realloc_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_
 
     let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
 
+    // ZendMM allocation failures raise a fatal error and bail out instead of
+    // returning NULL. If realloc returns, prev_ptr has been consumed: untrack it
+    // before any userland-only early return, then let the new allocation be
+    // re-sampled at the reported size.
+    if HEAP_LIVE_ENABLED.load(Relaxed) && !prev_ptr.is_null() {
+        free_allocation(prev_ptr);
+    }
+
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
     if zend::ddog_php_prof_get_current_execute_data().is_null() {
         return ptr;
     }
 
-    // realloc returned NULL: the original prev_ptr is still live by C
-    // semantics, so we must not free-track it. zend_mm typically aborts
-    // on OOM, but be defensive in case of custom allocators.
     if ptr.is_null() {
         return ptr;
-    }
-
-    let heap_live = HEAP_LIVE_ENABLED.load(Relaxed);
-
-    // For in-place and pointer-moved reallocs alike: untrack the old allocation
-    // and re-sample at the new size. This preserves the upscaling invariant
-    // (the sampling decision is always made at the reported size).
-    if heap_live && !prev_ptr.is_null() {
-        free_allocation(prev_ptr);
     }
 
     if allocation_profiling_stats_should_collect(len) {
