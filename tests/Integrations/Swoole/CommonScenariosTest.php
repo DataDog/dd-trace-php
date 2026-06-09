@@ -75,7 +75,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'swoole',
-                        '_dd.svc_src' => 'swoole',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -90,7 +89,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'swoole',
-                        '_dd.svc_src' => 'swoole',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -106,7 +104,6 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'error.stack' => (PHP_VERSION_ID >= 80400 ? "#0 [internal function]: {closure:" . dirname(__DIR__, 2) . "/Frameworks/Swoole/index.php:9}()" : "#0 [internal function]: {closure}()") . "\n#1 {main}",
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'swoole',
-                        '_dd.svc_src' => 'swoole',
                     ])->setError('Exception', 'Uncaught Exception: Error page'),
                 ],
             ]

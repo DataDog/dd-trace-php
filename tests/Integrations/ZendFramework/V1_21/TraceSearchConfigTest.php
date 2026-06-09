@@ -44,7 +44,6 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'zendframework',
-                        '_dd.svc_src' => 'zendframework',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
