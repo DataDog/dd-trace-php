@@ -183,11 +183,22 @@ const ddog_CharSlice PHP_OPCACHE_ENABLE = DDOG_CHARSLICE_C("php.opcache.enable")
 // Fetches certain opcache tags and adds them with the pattern of php.opcache.*.
 static void dd_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
 #if PHP_VERSION_ID >= 80000
-    // We'll push php.opcache.enabled:0 whenever we detect we're disabled.
-
     bool loaded = zend_get_extension("Zend OPcache");
     if (UNEXPECTED(!loaded)) {
         goto opcache_disabled;
+    }
+
+    // The CLI SAPI has an additional configuration for being enabled. This is
+    // INI_SYSTEM so we can check it here.
+    bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
+    if (is_cli_sapi) {
+        ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.enable_cli");
+        zend_string *value = dd_crasht_find_ini_by_tag(tag);
+        if (EXPECTED(value)) {
+            bool is_enabled = zend_ini_parse_bool(value);
+            ddog_CharSlice val = is_enabled ? ONE : ZERO;
+            dd_crasht_push_tag(tags, tag, val);
+        }
     }
 
     // opcache.jit_buffer_size is INI_SYSTEM, so we can check it now. If it's
@@ -209,25 +220,6 @@ static void dd_crasht_add_opcache_inis(ddog_Vec_Tag *tags) {
                 ? dd_zend_string_to_CharSlice(value)
                 : ZERO;
             dd_crasht_push_tag(tags, tag, val);
-            if (UNEXPECTED(!is_positive)) {
-                goto opcache_disabled;
-            }
-        }
-    }
-
-    // The CLI SAPI has an additional configuration for being enabled. This is
-    // INI_SYSTEM so we can check it here.
-    bool is_cli_sapi = strcmp("cli", sapi_module.name) == 0;
-    if (is_cli_sapi) {
-        ddog_CharSlice tag = DDOG_CHARSLICE_C("php.opcache.enable_cli");
-        zend_string *value = dd_crasht_find_ini_by_tag(tag);
-        if (EXPECTED(value)) {
-            bool is_enabled = zend_ini_parse_bool(value);
-            ddog_CharSlice val = is_enabled ? ONE : ZERO;
-            dd_crasht_push_tag(tags, tag, val);
-            if (UNEXPECTED(!is_enabled)) {
-                goto opcache_disabled;
-            }
         }
     }
 
