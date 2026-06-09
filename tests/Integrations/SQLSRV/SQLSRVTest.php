@@ -527,7 +527,7 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('sqlsrv_connect'),
             SpanAssertion::build('sqlsrv_query', 'configured_service', 'sql', $query)
-                ->withExactTags(self::baseTags($query))
+                ->withExactTags(self::baseTags($query, false, null))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
@@ -576,18 +576,21 @@ class SQLSRVTest extends IntegrationTestCase
         $this->assertCount(1, $results);
     }
 
-    private static function baseTags($query = null, $expectPeerService = false)
+    private static function baseTags($query = null, $expectPeerService = false, $svcSrc = SQLSRVIntegration::NAME)
     {
         $tags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => SQLSRVIntegration::NAME,
-            '_dd.svc_src' => SQLSRVIntegration::NAME,
             Tag::DB_SYSTEM => SQLSRVIntegration::SYSTEM,
             Tag::DB_INSTANCE => self::$db,
             Tag::DB_USER => self::$user,
             Tag::TARGET_HOST => self::$host,
             Tag::TARGET_PORT => self::$port,
         ];
+
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
 
         if ($expectPeerService) {
             $tags['peer.service'] = 'master';

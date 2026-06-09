@@ -331,7 +331,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle',
-                    '_dd.svc_src' => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }
@@ -352,7 +352,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle',
-                    '_dd.svc_src' => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }

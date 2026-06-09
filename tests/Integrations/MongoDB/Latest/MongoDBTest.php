@@ -923,7 +923,6 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
-                    '_dd.svc_src' => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')

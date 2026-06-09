@@ -2007,7 +2007,7 @@ class PHPRedisClusterTest extends IntegrationTestCase
                 'configured_service',
                 'redis',
                 "RedisCluster.mSetNx"
-            )->withExactTags($this->baseTags('mSetNx k1 v1 k2 v2')),
+            )->withExactTags($this->baseTags('mSetNx k1 v1 k2 v2', false, true, null)),
         ]);
     }
 
@@ -2044,14 +2044,16 @@ class PHPRedisClusterTest extends IntegrationTestCase
         return empty($rawCommand) ? $method : "$method $rawCommand";
     }
 
-    protected function baseTags($rawCommand = null, $expectPeerService = false, $hasFirstConfiguredHost = true)
+    protected function baseTags($rawCommand = null, $expectPeerService = false, $hasFirstConfiguredHost = true, $svcSrc = 'phpredis')
     {
         $tags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'phpredis',
-            '_dd.svc_src' => 'phpredis',
             Tag::DB_SYSTEM => 'redis',
         ];
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
 
         if ($hasFirstConfiguredHost) {
             $tags['_dd.first.configured.host'] = $this->clusterIp;
