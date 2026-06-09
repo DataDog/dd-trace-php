@@ -152,7 +152,7 @@ lazy_static! {
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
 // If ddtrace is loaded, we fetch the uuid from there instead
 extern "C" {
-    pub static ddtrace_runtime_id: *const Uuid;
+    pub static datadog_runtime_id: *const Uuid;
 }
 
 /// Module dependencies for the profiler extension.
@@ -524,7 +524,7 @@ thread_local! {
 /// Gets the runtime-id for the process. Do not call before RINIT!
 fn runtime_id() -> &'static Uuid {
     RUNTIME_ID
-        .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+        .get_or_init(|| unsafe { datadog_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
 }
 
 extern "C" fn activate() {

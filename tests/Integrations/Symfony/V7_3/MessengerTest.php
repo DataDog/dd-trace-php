@@ -45,6 +45,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_DEBUG' => 'true',
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
         ]);
     }
 
@@ -87,6 +88,7 @@ class MessengerTest extends WebFrameworkTestCase
             'DD_TRACE_REMOVE_AUTOINSTRUMENTATION_ORPHANS' => 'true',
             'DD_TRACE_SYMFONY_MESSENGER_MIDDLEWARES' => 'true',
             'DD_INSTRUMENTATION_TELEMETRY_ENABLED' => 'false',
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
         ], [], ['messenger:consume', 'async', '--limit=1']);
 
         $this->snapshotFromTraces(

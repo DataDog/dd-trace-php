@@ -187,7 +187,7 @@ static size_t _iovecs_total_size(zend_llist *nonnull iovecs)
     zend_llist_position pos;
     size_t total = 0;
     for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-         iov = zend_llist_get_next_ex(iovecs, &pos)) {
+        iov = zend_llist_get_next_ex(iovecs, &pos)) {
         total += iov->iov_len;
     }
     return total;
@@ -212,7 +212,7 @@ dd_result dd_conn_sendv(dd_conn *nonnull conn, zend_llist *nonnull iovecs)
     zend_llist_position pos;
     size_t i = 1;
     for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-         iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
+        iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
         iovs[i] = *iov;
     }
 
@@ -456,9 +456,11 @@ dd_result dd_conn_set_timeout(
     return dd_success;
 }
 
-#define ONE_E3 1000
-#define ONE_E6 1000000
-#define ONE_E9 1000000000
+enum {
+    ONE_E3 = 1000,
+    ONE_E6 = 1000000,
+    ONE_E9 = 1000000000,
+};
 static void _timespec_add_ms(struct timespec *ts, long num_ms)
 {
     long seconds = num_ms / ONE_E3;

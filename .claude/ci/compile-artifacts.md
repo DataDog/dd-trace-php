@@ -31,7 +31,7 @@ If you need to run this step outside a build script and your host lacks `binutil
 - `compile_rust.sh` -- shared Rust build wrapper invoked by `compile_extension.sh`
   and `build-sidecar.sh`; sets `RUSTFLAGS`, `RUSTC_BOOTSTRAP=1`, and `SIDECAR_VERSION`
 - `.gitlab/build-tracing.sh` -- builds NTS + ZTS `.a` (static archives) for the package pipeline
-- `.gitlab/build-sidecar.sh` -- builds `libddtrace_php.{a,so}` (Rust sidecar)
+- `.gitlab/build-sidecar.sh` -- builds `libdatadog_php.{a,so}` (Rust sidecar)
 - `.gitlab/link-tracing-extension.sh` -- links `.a` archives with the sidecar into final `.so` files
 - `.gitlab/build-appsec.sh` -- builds `ddappsec-{ABI}.so` (NTS + ZTS)
 - `.gitlab/build-appsec-helper.sh` -- builds `libddappsec-helper.so` (C++ helper, musl toolchain)
@@ -43,7 +43,7 @@ If you need to run this step outside a build script and your host lacks `binutil
 
 | CI Job | Image | What it does |
 |--------|-------|--------------|
-| `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-6` | Runs `append-build-id.sh` to stamp VERSION; compiles Rust (`compile_rust.sh`, debug profile) and C (`make -j static`) in parallel; `make static` also builds `php_sidecar_mockgen` (a secondary Rust build generating `mock_php.c` stubs); rewrites ldflags via `sed -i`; links `ddtrace.a` + `libddtrace_php.a` → `ddtrace.so` with `-soname ddtrace.so`. Sets `SHARED=1` (adds `--cfg php_shared_build` to `RUSTFLAGS`). |
+| `compile extension: debug` | `dd-trace-ci:php-{ver}_bookworm-6` | Runs `append-build-id.sh` to stamp VERSION; compiles Rust (`compile_rust.sh`, debug profile) and C (`make -j static`) in parallel; `make static` also builds `php_sidecar_mockgen` (a secondary Rust build generating `mock_php.c` stubs); rewrites ldflags via `sed -i`; links `ddtrace.a` + `libdatadog_php.a` → `ddtrace.so` with `-soname ddtrace.so`. Sets `SHARED=1` (adds `--cfg php_shared_build` to `RUSTFLAGS`). |
 | `compile extension: debug-zts-asan` | `dd-trace-ci:php-{ver}_bookworm-6` | Same as `compile extension: debug` (inherits `SHARED=1` via `extends:`) but with `WITH_ASAN=1` (sets `ASAN=1`+`COMPILE_ASAN=1`) and `SWITCH_PHP_VERSION=debug-zts-asan`; produces `ddtrace.so` instrumented with AddressSanitizer for ASAN test jobs |
 | `Prepare code` | `php:8.2-cli` | Runs `composer update` + `make generate` to produce `src/bridge/_generated_*.php` |
 
@@ -70,8 +70,8 @@ files via `classpreloader`: `_generated_api.php`, `_generated_tracer.php`, and
 | `prepare code` | `composer:2` | `.gitlab/append-build-id.sh` (bumps VERSION first) + `composer self-update` + `composer update` + `make generate`; produces VERSION + generated bridge files |
 | `cache cargo deps: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` (alpine uses `php-compile-extension-alpine-8.1`) | `cargo fetch` to warm the Cargo cache for the given target triplet |
 | `compile tracing extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS + debug + ZTS static archives (`.a`) and standalone `.so` via `build-tracing.sh` (debug skipped on alpine); outputs `ddtrace-{PHP_API}{suffix}[-debug\|-zts].{a,so}` under `extensions_{arch}/` and `standalone_{arch}/` |
-| `compile tracing sidecar: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Builds `libddtrace_php.{a,so}` (FFI bridge library; `ddtrace-php` crate in `components-rs/`) via `build-sidecar.sh` → `compile_rust.sh` → `cargo build`; profile `tracer-release` (LTO, 1 codegen unit, panic=abort); `RUSTFLAGS=--cfg tokio_unstable --cfg php_shared_build`; `SIDECAR_VERSION` embedded from `VERSION` file |
-| `link tracing extension: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Rewrites `-export-symbols` → `-Wl,--retain-symbols-file` in the `.ldflags` file via `sed -i`; links each per-version `.a` in `extensions_$(uname -m)/` against `libddtrace_php_$(uname -m)${suffix}.a` with `-whole-archive` and the rewritten ldflags, setting `-soname ddtrace.so`; all links run in parallel background processes; post-processes each `.so` with `objcopy --compress-debug-sections` |
+| `compile tracing sidecar: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Builds `libdatadog_php.{a,so}` (FFI bridge library; `datadog-php` crate in `components-rs/`) via `build-sidecar.sh` → `compile_rust.sh` → `cargo build`; profile `tracer-release` (LTO, 1 codegen unit, panic=abort); `RUSTFLAGS=--cfg tokio_unstable --cfg php_shared_build`; `SIDECAR_VERSION` embedded from `VERSION` file |
+| `link tracing extension: [{arch}, {triplet}]` | `dd-trace-ci:php-8.1_{platform}` | Rewrites `-export-symbols` → `-Wl,--retain-symbols-file` in the `.ldflags` file via `sed -i`; links each per-version `.a` in `extensions_$(uname -m)/` against `libdatadog_php_$(uname -m)${suffix}.a` with `-whole-archive` and the rewritten ldflags, setting `-soname ddtrace.so`; all links run in parallel background processes; post-processes each `.so` with `objcopy --compress-debug-sections` |
 | `aggregate tracing extension: [{arch}]` | `dd-trace-ci:php-7.4_bookworm-6` | No-op `ls` that aggregates artifacts from all `compile tracing extension` jobs for one arch into a single artifact set |
 | `compile tracing extension asan: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_bookworm-6` | Switches to `debug-zts-asan` PHP; builds `ddtrace.so` directly with `RUST_DEBUG_BUILD=1` (Rust debug profile, no `.a` intermediate); copies to `extensions_$(uname -m)/ddtrace-${ABI_NO}-debug-zts.so`; post-processes with `objcopy --compress-debug-sections` |
 | `compile appsec extension: [{ver}, {arch}, {triplet}]` | `dd-trace-ci:php-{ver}_{platform}` | Builds NTS and ZTS appsec extensions sequentially via cmake+make in `appsec/build/` and `appsec/build-zts/`; cmake flags: `-DCMAKE_BUILD_TYPE=RelWithDebInfo -DDD_APPSEC_BUILD_HELPER=OFF -DDD_APPSEC_TESTING=OFF -DDD_APPSEC_EXTENSION_STATIC_LIBSTDCXX=ON`; outputs `appsec_$(uname -m)/ddappsec-$PHP_API${suffix}[-zts].so`; post-processes with `objcopy --compress-debug-sections` |
@@ -191,10 +191,10 @@ prepare code          cache cargo deps: [{arch}, {triplet}]
   `GIT_STRATEGY: none` variable means the runner does not clone the repo -- instead the
   job script manually clones via `git clone` + `git checkout`.
 
-- `ddtrace.sym` (repo root) is the export list for the final `ddtrace.so`. All symbols
+- `datadog.sym` (repo root) is the export list for the final `ddtrace.so`. All symbols
   not listed are hidden via `--retain-symbols-file` + `-fvisibility=hidden`. If you add
   a new function that must be callable from appsec, profiler, or the SSI loader, add it
-  to `ddtrace.sym` or the linker will drop it.
+  to `datadog.sym` or the linker will drop it.
 
 - `CARGO_TARGET_DIR` must not be set explicitly for `compile_rust.sh`. The default
   (`target`) is resolved relative to the workspace root by Cargo. An explicit value

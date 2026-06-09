@@ -345,7 +345,7 @@ def buildTracerTask = { String version, String variant, altBaseTag = null ->
                             '../../../ext',
                             '../../../zend_abstract_interface',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                     ],
             ],
             outputs: [
@@ -378,7 +378,7 @@ def buildTracerCmakeTask = { String version, String variant, altBaseTag = null -
                             '../../../zend_abstract_interface',
                             '../../../components-rs',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                             '../../cmake',
                     ],
                     files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
@@ -427,12 +427,12 @@ def buildTracerSsiTask = { String version, String variant ->
                             '../../../zend_abstract_interface',
                             '../../../components-rs',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                     ],
             ],
             outputs: [
                     volume: 'php-tracer-ssi',
-                    files: ['ddtrace.so', 'libddtrace_php.so'],
+                    files: ['ddtrace.so', 'libdatadog_php.so'],
             ],
             volumes: [
                     ("php-tracer-ssi-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
@@ -446,12 +446,12 @@ def buildTracerSsiTask = { String version, String variant ->
                         make /project/tmp/build_extension/modules/ddtrace.so
                     cp /project/tmp/build_extension/modules/ddtrace.so /tracer-ssi/ddtrace.so
 
-                    # Build libddtrace_php.so (cdylib) via compile_rust.sh.
+                    # Build libdatadog_php.so (cdylib) via compile_rust.sh.
                     CARGO_TARGET_DIR=/project/tmp/target \\
                         SHARED=1 PROFILE=${cargoProfile} host_os=linux ./compile_rust.sh
-                    cp /project/tmp/target/${cargoProfile}/libddtrace_php.so /tracer-ssi/libddtrace_php.so
+                    cp /project/tmp/target/${cargoProfile}/libdatadog_php.so /tracer-ssi/libdatadog_php.so
 
-                    touch /tracer-ssi/ddtrace.so /tracer-ssi/libddtrace_php.so
+                    touch /tracer-ssi/ddtrace.so /tracer-ssi/libdatadog_php.so
                     """
             ]
     )
@@ -474,14 +474,14 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                             '../../../zend_abstract_interface',
                             '../../../components-rs',
                             '../../../libdatadog',
-                            '../../../ddtrace.sym',
+                            '../../../datadog.sym',
                             '../../cmake',
                     ],
                     files: ['../../CMakeLists.txt', '../../cmake/ddtrace.cmake'],
             ],
             outputs: [
                     volume: 'php-tracer-ssi-cmake',
-                    files: ['ddtrace.so', 'libddtrace_php.so'],
+                    files: ['ddtrace.so', 'libdatadog_php.so'],
             ],
             volumes: [
                     ("php-tracer-ssi-cmake-${version}-${variant}"): [mountPoint: '/tracer-ssi'],
@@ -499,8 +499,8 @@ def buildTracerSsiCmakeTask = { String version, String variant ->
                               -DDD_APPSEC_TESTING=OFF \\
                               /project/appsec
                     make -j ddtrace
-                    cp components_rs/${cargoSubdir}/libddtrace_php.so .
-                    touch ddtrace.so libddtrace_php.so
+                    cp components_rs/${cargoSubdir}/libdatadog_php.so .
+                    touch ddtrace.so libdatadog_php.so
                     """
             ]
     )
@@ -1101,14 +1101,8 @@ buildRunInDockerTask(
                     echo 'Found profraw files:'
                     ls -la *.profraw
 
-                    # Detect the architecture-specific toolchain path
-                    ARCH=\$(uname -m)
-                    if [ "\$ARCH" = "aarch64" ]; then
-                        RUST_TARGET="aarch64-unknown-linux-gnu"
-                    else
-                        RUST_TARGET="x86_64-unknown-linux-gnu"
-                    fi
-                    LLVM_TOOLS="/root/.rustup/toolchains/1.84.1-\${RUST_TARGET}/lib/rustlib/\${RUST_TARGET}/bin"
+                    RUST_TARGET_LIBDIR="\$(rustc --print target-libdir)"
+                    LLVM_TOOLS="\${RUST_TARGET_LIBDIR%/lib}/bin"
 
                     \${LLVM_TOOLS}/llvm-profdata merge -sparse *.profraw -o merged.profdata
                     \${LLVM_TOOLS}/llvm-cov export \\

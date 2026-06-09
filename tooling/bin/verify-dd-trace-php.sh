@@ -17,8 +17,8 @@ if [ "z${1:-}" = "z" ] ; then
     exit 1
 fi
 
-if [ ! -f "ddtrace.sym" ] ; then
-    >&2 echo "ERROR: expected 'ddtrace.sym' to exist"
+if [ ! -f "datadog.sym" ] ; then
+    >&2 echo "ERROR: expected 'datadog.sym' to exist"
     exit 1
 fi
 # }}}
@@ -39,7 +39,7 @@ nm -gC "$sofile" \
     | sort > "$actual_symbols"
 
 expected_symbols=`mktemp "$TMPDIR/expected_symbols.XXXXXXXX"`
-sort "ddtrace.sym" > "$expected_symbols"
+sort "datadog.sym" > "$expected_symbols"
 
 unexpected_symbols=`mktemp "$TMPDIR/unexpected_symbols.XXXXXXXX"`
 # comm -13 will show lines that exist in file 2 that do not exist in file 1.

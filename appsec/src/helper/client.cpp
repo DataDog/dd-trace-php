@@ -4,6 +4,7 @@
 // This product includes software developed at Datadog
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 
+#include <cassert>
 #include <chrono>
 #include <map>
 #include <spdlog/spdlog.h>
@@ -474,7 +475,8 @@ bool client::handle_command(network::request_shutdown::request &command)
         return false;
     }
 
-    context_->set_input_truncated(command.input_truncated);
+    assert(context_.has_value());
+    context_.value().set_input_truncated(command.input_truncated);
 
     collect_metrics(*response, *service_, context_, sc_settings_);
     service_->drain_logs(sc_settings_);

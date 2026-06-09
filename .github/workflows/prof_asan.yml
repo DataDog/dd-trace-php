@@ -3,6 +3,9 @@ name: Profiling ASAN Tests
 on:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   prof-asan:
     name: PHP ${{ matrix.php-version }} ${{ matrix.php-build }} (${{ matrix.runner }})
@@ -18,9 +21,9 @@ jobs:
       CARGO_TARGET_DIR: /tmp/build-cargo
       RUST_TOOLCHAIN: nightly-2025-06-13
     container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-7
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-8
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
-      options: --user root --privileged
+      options: --user root
 
     steps:
       - name: Checkout
@@ -30,7 +33,7 @@ jobs:
           submodules: true
 
       - name: Cache Cargo dependencies
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             /rust/cargo/registry/index/
@@ -41,7 +44,7 @@ jobs:
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-deps-asan-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache Cargo target
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: /tmp/build-cargo/
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-target-asan-${{ matrix.php-version }}-${{ matrix.php-build }}-${{ env.RUST_TOOLCHAIN }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
@@ -51,10 +54,10 @@ jobs:
           set -eux
           switch-php ${{ matrix.php-build }}
           cd profiling
-          export CC=clang-19
+          export CC=clang-20
           export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
-          export RUSTC_LINKER=lld-17
+          export RUSTC_LINKER=lld-20
           triplet=$(uname -m)-unknown-linux-gnu
           RUSTFLAGS='-Zsanitizer=address' cargo +${RUST_TOOLCHAIN} build -Zbuild-std=std,panic_abort --target $triplet --profile profiler-release
           cp -v "$CARGO_TARGET_DIR/$triplet/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"

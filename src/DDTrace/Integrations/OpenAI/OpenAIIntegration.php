@@ -684,7 +684,7 @@ class OpenAIIntegration extends Integration
         bool      $estimated = false
     )
     {
-        if (!dd_trace_env_config('DD_OPENAI_METRICS_ENABLED')) {
+        if (!dd_trace_env_config('DD_OPENAI_METRICS_ENABLED') || !dd_trace_env_config('DD_INTEGRATION_METRICS_ENABLED')) {
             return;
         }
 

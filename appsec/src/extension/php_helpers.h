@@ -5,8 +5,8 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
-#include <php.h>
 #include "attributes.h"
+#include <php.h>
 
 #ifdef ZTS
 #    define THREAD_LOCAL_ON_ZTS __thread
