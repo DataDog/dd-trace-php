@@ -36,5 +36,5 @@ echo "Done.";
 ?>
 --EXPECTREGEX--
 .*Tracked allocation at 0x[0-9a-f]+ \(\d+ bytes\) for batched heap-live emission.*
-.*Untracked freed allocation at 0x[0-9a-f]+ \(\d+ bytes\).*
+.*Untracked allocation at 0x[0-9a-f]+ \(\d+ bytes\).*
 .*Done\..*
