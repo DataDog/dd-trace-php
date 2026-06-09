@@ -1,6 +1,6 @@
 #define _CRASHTRACKING_COLLECTOR
 
-#include "ddtrace.h"
+#include "datadog.h"
 #include "sidecar.h"
 
 #include "version.h"
@@ -10,14 +10,14 @@
 
 #include <components-rs/common.h>
 #include <components-rs/crashtracker.h>
-#include <components-rs/ddtrace.h>
+#include <components-rs/datadog.h>
 #include <components-rs/sidecar.h>
 
-bool init_crash_tracking(void) {
+bool datadog_init_crash_tracking(void) {
     ddog_Vec_Tag tags = ddog_Vec_Tag_new();
-    const ddog_crasht_Metadata metadata = ddtrace_setup_crashtracking_metadata(&tags);
+    const ddog_crasht_Metadata metadata = datadog_setup_crashtracking_metadata(&tags);
 
-    ddog_Endpoint* agent_endpoint = ddtrace_sidecar_agent_endpoint();
+    ddog_Endpoint* agent_endpoint = datadog_sidecar_agent_endpoint();
     bool result = ddog_setup_crashtracking(agent_endpoint, metadata);
 
     if (result) {

@@ -42,7 +42,7 @@ config config::from_line(std::string_view line)
     // base64 decode rc_path (no padding):
     std::string rc_path = base64_decode(rc_path_encoded);
 
-    return {std::string{shm_path}, std::move(rc_path)};
+    return {.shm_path = std::string{shm_path}, .rc_path = std::move(rc_path)};
 }
 
 mapped_memory config::read() const
@@ -57,7 +57,7 @@ mapped_memory config::read() const
     auto close_fs = defer{[fd]() { ::close(fd); }};
 
     // check that the uid of the shared memory segment is the same as ours
-    struct ::stat shm_stat {};
+    struct ::stat shm_stat{};
     if (::fstat(fd, &shm_stat) == -1) {
         throw std::runtime_error{
             "Call to fstat on memory segment failed: " + strerror_ts(errno)};

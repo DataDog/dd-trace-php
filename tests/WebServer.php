@@ -143,6 +143,16 @@ final class WebServer
         $this->phpFpmMaxChildren = $maxChildren;
     }
 
+    /**
+     * Returns the PID of the FPM master process, or null if not available.
+     */
+    public function getFpmPid()
+    {
+        return ($this->sapi instanceof \DDTrace\Tests\Sapi\PhpFpm\PhpFpm)
+            ? $this->sapi->getProcessPid()
+            : null;
+    }
+
     public function setPhpFpmUser($user, $group = null)
     {
         $this->phpFpmUser = $user;
@@ -336,7 +346,11 @@ final class WebServer
         $diff = @file_get_contents($this->defaultInis['error_log'], false, null, $this->errorLogSize);
         $out = "";
         foreach (explode("\n", $diff) as $line) {
-            if (preg_match("(\[ddtrace] \[(error|warn|deprecated|warning)])", $line)) {
+            // Ignore sidecar retry errors for known-invalid test hostnames — these are
+            // expected cross-test noise from sidecar RC polling after sessions with
+            // deliberately unreachable agent URLs.
+            if (preg_match("(\[ddtrace] \[(error|warn|deprecated|warning)])", $line)
+                && strpos($line, 'invalid_host') === false) {
                 $out .= $line;
             }
         }

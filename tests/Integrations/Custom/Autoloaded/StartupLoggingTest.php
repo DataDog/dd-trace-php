@@ -32,9 +32,9 @@ final class StartupLoggingTest extends WebFrameworkTestCase
         ]);
     }
 
-    protected function ddSetUp()
+    public static function ddSetUpBeforeClass()
     {
-        parent::ddSetUp();
+        parent::ddSetUpBeforeClass();
 
         // clear out any previous logs
         $log = self::getAppErrorLog();
@@ -74,6 +74,12 @@ final class StartupLoggingTest extends WebFrameworkTestCase
         if (\getenv('DD_TRACE_TEST_SAPI') == 'apache2handler') {
             $this->markTestSkipped("Test does not make sense with multi-processing");
         }
+
+        // Clear the log so we start fresh for this specific assertion.
+        // (testLogsGeneratedOnFirstRequest may have written content during class setup.)
+        $log = self::getAppErrorLog();
+        @\unlink($log);
+        \touch($log);
 
         $this->tracesFromWebRequest(function () {
             $spec = GetSpec::create('Second request: Startup logs test', '/simple');

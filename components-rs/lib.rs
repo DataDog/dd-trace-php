@@ -18,6 +18,8 @@ use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
+#[cfg(unix)]
+use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
 
@@ -25,44 +27,46 @@ pub use libdd_crashtracker_ffi::*;
 pub use libdd_library_config_ffi::*;
 pub use datadog_sidecar_ffi::*;
 use libdd_common::{parse_uri, Endpoint};
+#[cfg(unix)]
+use libdd_common::connector::uds::socket_path_to_uri;
 use libdd_common_ffi::slice::AsBytes;
 pub use libdd_common_ffi::*;
 pub use libdd_telemetry_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_runtime_id: Uuid = Uuid::nil();
+pub static mut datadog_runtime_id: Uuid = Uuid::nil();
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_session_id: Uuid = Uuid::nil();
+pub static mut datadog_session_id: Uuid = Uuid::nil();
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_formatted_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_session_id: [u8; 36] = [0u8; 36];
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_formatted_root_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_root_session_id: [u8; 36] = [0u8; 36];
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
-pub static mut ddtrace_formatted_parent_session_id: [u8; 36] = [0u8; 36];
+pub static mut datadog_formatted_parent_session_id: [u8; 36] = [0u8; 36];
 
 /// # Safety
 /// Must be called from a single-threaded context, such as MINIT or first rinit.
 #[no_mangle]
-pub unsafe extern "C" fn ddtrace_generate_runtime_id() {
-    ddtrace_runtime_id = Uuid::new_v4();
+pub unsafe extern "C" fn datadog_generate_runtime_id() {
+    datadog_runtime_id = Uuid::new_v4();
 }
 
 /// # Safety
 /// Must be called from a single-threaded context, such as MINIT.
 #[no_mangle]
-pub unsafe extern "C" fn ddtrace_generate_session_id() {
-    ddtrace_session_id = Uuid::new_v4();
-    ddtrace_runtime_id = ddtrace_session_id;
-    ddtrace_session_id.as_hyphenated().encode_lower(&mut ddtrace_formatted_session_id);
+pub unsafe extern "C" fn datadog_generate_session_id() {
+    datadog_session_id = Uuid::new_v4();
+    datadog_runtime_id = datadog_session_id;
+    datadog_session_id.as_hyphenated().encode_lower(&mut datadog_formatted_session_id);
 
     unsafe fn set(name: &str, value: &mut [u8; 36], force: bool) {
         if let Ok(str) = std::env::var(name) {
@@ -74,18 +78,18 @@ pub unsafe extern "C" fn ddtrace_generate_session_id() {
                 }
             }
         }
-        std::env::set_var(name, OsStr::from_encoded_bytes_unchecked(&ddtrace_formatted_session_id));
+        std::env::set_var(name, OsStr::from_encoded_bytes_unchecked(&datadog_formatted_session_id));
     }
 
-    set("_DD_PARENT_PHP_SESSION_ID", &mut ddtrace_formatted_parent_session_id, true);
-    set("_DD_ROOT_PHP_SESSION_ID", &mut ddtrace_formatted_root_session_id, false);
+    set("_DD_PARENT_PHP_SESSION_ID", &mut datadog_formatted_parent_session_id, true);
+    set("_DD_ROOT_PHP_SESSION_ID", &mut datadog_formatted_root_session_id, false);
 }
 
 #[no_mangle]
-pub extern "C" fn ddtrace_format_runtime_id(buf: &mut [u8; 36]) {
-    // Safety: ddtrace_runtime_id is only supposed to be mutated from single-
+pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
+    // Safety: datadog_runtime_id is only supposed to be mutated from single-
     // threaded contexts, so reads should always be safe.
-    unsafe { ddtrace_runtime_id.as_hyphenated().encode_lower(buf) };
+    unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
 }
 
 #[must_use]
@@ -121,7 +125,7 @@ pub unsafe extern "C" fn ddtrace_drop_rust_string(input: *mut c_char, len: usize
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ddtrace_parse_agent_url(
+pub unsafe extern "C" fn datadog_parse_agent_url(
     url: CharSlice,
 ) -> std::option::Option<Box<Endpoint>> {
     parse_uri(url.to_utf8_lossy().as_ref())
@@ -146,9 +150,55 @@ pub unsafe extern "C" fn ddtrace_parse_agent_url(
         })
 }
 
+#[cfg(unix)]
+fn otel_metrics_endpoint_from_unix_socket(_socket_path: &str) -> std::option::Option<Box<Endpoint>> {
+    socket_path_to_uri(Path::new(_socket_path)).ok().and_then(|uri| {
+        let mut parts = uri.into_parts();
+        parts.path_and_query = Some(PathAndQuery::from_static("/v1/metrics"));
+        Uri::from_parts(parts)
+            .ok()
+            .map(|url| Box::new(Endpoint::from_url(url)))
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+    let url_str = url.to_utf8_lossy();
+    #[cfg(unix)]
+    if let Some(socket_path) = url_str.strip_prefix("unix://") {
+        let socket_path = socket_path.strip_suffix("/v1/metrics").unwrap_or(socket_path);
+        return otel_metrics_endpoint_from_unix_socket(socket_path);
+    }
+    parse_uri(url_str.as_ref())
+        .ok()
+        .map(|url| Box::new(Endpoint::from_url(url)))
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+    let url_str = url.to_utf8_lossy();
+    #[cfg(unix)]
+    if let Some(socket_path) = url_str.strip_prefix("unix://") {
+        return otel_metrics_endpoint_from_unix_socket(socket_path);
+    }
+    if url_str.starts_with("http") {
+        let parsed = parse_uri(url_str.as_ref()).ok();
+        let scheme = parsed.as_ref().and_then(|u| u.scheme_str()).unwrap_or("http");
+        let host = parsed
+            .as_ref()
+            .and_then(|u| u.host())
+            .unwrap_or("localhost");
+        parse_uri(&format!("{}://{}:4318/v1/metrics", scheme, host))
+            .ok()
+            .map(|url| Box::new(Endpoint::from_url(url)))
+    } else {
+        datadog_parse_agent_url(url)
+    }
+}
+
 #[no_mangle]
 #[cfg(unix)]
-pub unsafe extern "C" fn ddtrace_endpoint_as_crashtracker_config(
+pub unsafe extern "C" fn datadog_endpoint_as_crashtracker_config(
     endpoint: &Endpoint,
     callback: unsafe extern "C" fn(EndpointConfig<'_>, *mut std::ffi::c_void),
     userdata: *mut std::ffi::c_void,

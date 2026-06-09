@@ -1,3 +1,3 @@
-#include "ext/ddtrace.h"
+#include "ext/datadog.h"
 
-#define phpext_ddtrace_ptr &ddtrace_module_entry
+#define phpext_ddtrace_ptr &datadog_module_entry

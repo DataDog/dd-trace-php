@@ -20,7 +20,7 @@ fi
 
 if [[ -n $USE_SSI ]]; then
   echo "Enabling SSI loader" >&2
-  # SSI initialization is slower per worker (loading libddtrace_php.so).
+  # SSI initialization is slower per worker (loading libdatadog_php.so).
   # Raise MaxRequestWorkers so health-check retries don't exhaust the pool.
   if [[ -f /etc/apache2/mods-enabled/mpm_prefork.conf ]]; then
     sed -i 's/MaxRequestWorkers[[:space:]]\+[0-9]\+/MaxRequestWorkers 16/' \
@@ -30,7 +30,7 @@ if [[ -n $USE_SSI ]]; then
   EXT_SUFFIX=$(php -r 'echo ZEND_DEBUG_BUILD ? "-debug" : "";')
   PKG=/tmp/dd-package
   mkdir -p "$PKG/loader" "$PKG/trace/ext/$PHP_API" "$PKG/appsec/ext/$PHP_API" "$PKG/appsec/lib"
-  ln -s /tracer-ssi/libddtrace_php.so "$PKG/loader/libddtrace_php.so"
+  ln -s /tracer-ssi/libdatadog_php.so "$PKG/loader/libdatadog_php.so"
   ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
   ln -s /appsec/ddappsec.so "$PKG/appsec/ext/$PHP_API/ddappsec${EXT_SUFFIX}.so"
   ln -s /appsec/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper.so"

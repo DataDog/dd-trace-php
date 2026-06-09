@@ -1,4 +1,4 @@
-Checks: 'readability-identifier-naming,-bugprone-lambda-function-name'
+Checks: 'readability-identifier-naming,-bugprone-lambda-function-name,-clang-analyzer-optin.cplusplus.UninitializedObject'
 
 CheckOptions:
   - key: readability-identifier-naming.StructCase

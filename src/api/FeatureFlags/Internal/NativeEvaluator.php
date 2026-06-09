@@ -9,14 +9,16 @@ final class NativeEvaluator implements Evaluator
     const WARNING_MESSAGE = 'Datadog-backed PHP feature flag evaluation has no Remote Configuration data loaded for this request. Returning default values.';
 
     private $mapper;
+    private $recordMetrics;
 
-    private function __construct($mapper = null)
+    private function __construct($mapper = null, bool $recordMetrics = true)
     {
         if ($mapper !== null && !$mapper instanceof ResultMapper) {
             throw new \InvalidArgumentException('Expected a ResultMapper instance');
         }
 
         $this->mapper = $mapper ?: new ResultMapper();
+        $this->recordMetrics = $recordMetrics;
     }
 
     public static function isAvailable()
@@ -24,9 +26,9 @@ final class NativeEvaluator implements Evaluator
         return function_exists('DDTrace\\ffe_evaluate');
     }
 
-    public static function create()
+    public static function create($recordMetrics = true)
     {
-        return self::isAvailable() ? new self() : new UnavailableEvaluator();
+        return self::isAvailable() ? new self(null, $recordMetrics) : new UnavailableEvaluator();
     }
 
     public function evaluate(
@@ -40,7 +42,8 @@ final class NativeEvaluator implements Evaluator
             $flagKey,
             $this->typeId($expectedType),
             $targetingKey,
-            $this->normalizeAttributes($attributes)
+            $this->normalizeAttributes($attributes),
+            $this->recordMetrics
         );
 
         if (is_array($rawResult) || is_object($rawResult)) {

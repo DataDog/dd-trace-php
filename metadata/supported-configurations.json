@@ -284,6 +284,13 @@
         "default": "true"
       }
     ],
+    "DD_DBM_ALWAYS_APPEND_SQL_COMMENT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_DBM_INJECT_SQL_BASEHASH": [
       {
         "implementation": "A",
@@ -2636,6 +2643,20 @@
     "DD_VERSION": [
       {
         "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_ENDPOINT": [
+      {
+        "implementation": "D",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": [
+      {
+        "implementation": "D",
         "type": "string",
         "default": ""
       }

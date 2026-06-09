@@ -8,7 +8,7 @@ add_custom_target(helper-rust-stamp
         "-DHELPER_RUST_DIR=${HELPER_RUST_DIR}"
         "-DSTAMP_FILE=${HELPER_RUST_STAMP_FILE}"
         -P "${CMAKE_CURRENT_LIST_DIR}/update_helper_rust_stamp.cmake"
-    BYPRODUCT ${HELPER_RUST_STAMP_FILE}
+    BYPRODUCTS ${HELPER_RUST_STAMP_FILE}
 )
 
 set(CARGO_BUILD_CMD "cargo build")

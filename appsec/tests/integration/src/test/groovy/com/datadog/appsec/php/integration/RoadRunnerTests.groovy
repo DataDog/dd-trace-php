@@ -3,6 +3,7 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.docker.LogFile
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.BeforeAll
@@ -62,8 +63,8 @@ class RoadRunnerTests implements WorkerStrategyTests {
         Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
                 'This bug only manifests on the Rust helper (strict outer/inner loop state machine).')
 
-        long logOffset = (CONTAINER.execInContainer('bash', '-c',
-                'wc -c < /tmp/logs/helper.log').stdout.trim() as long)
+        LogFile helperLog = new LogFile(CONTAINER, 'helper.log')
+        helperLog.markEndPos()
 
         // PostRespondLfiHandler sets a callback that calls fopen('../etc/passwd')
         // after respond() returns. By that point, request_shutdown has been sent
@@ -78,15 +79,52 @@ class RoadRunnerTests implements WorkerStrategyTests {
             assert resp.statusCode() == 200
         }
 
-        String helperLog = CONTAINER.execInContainer('bash', '-c',
-                "tail -c +${logOffset + 1} /tmp/logs/helper.log").stdout
+        List<String> lines = helperLog.linesSinceMark
+        log.info("Helper log since offset:\n{}", lines.join('\n'))
 
-        log.info("Helper log since offset:\n{}", helperLog)
-
-        assert !helperLog.contains('unexpected command RequestExec') :
+        assert !lines.any { it.contains('unexpected command RequestExec') } :
                 "Helper received RequestExec in outer loop. " +
                 "Relevant log:\n" +
-                helperLog.readLines().findAll {
+                lines.findAll {
+                    it.contains('unexpected command') || it.contains('error in request loop')
+                }.join('\n')
+    }
+
+    /**
+     * Regression test for the AppSec helper "unexpected command RequestExec" bug,
+     * variant where the post-respond RequestExec sender is the user-tracking SDK
+     * (track_user_login_success -> dd_find_and_apply_verdict_for_user) rather than
+     * push_addresses.
+     */
+    @Test
+    void 'no unexpected RequestExec in outer loop after post-respond track_user_login'() {
+        Assumptions.assumeTrue(System.getProperty('USE_HELPER_RUST') != null,
+                'This bug only manifests on the Rust helper (strict outer/inner loop state machine).')
+
+        LogFile helperLog = new LogFile(CONTAINER, 'helper.log')
+        helperLog.markEndPos()
+
+        // PostRespondTrackUserHandler sets a callback that calls
+        // track_user_login_success() after respond() returns. By that point,
+        // request_shutdown has been sent via the response_committed hook. If
+        // dd_find_and_apply_verdict_for_user still reaches the helper (socket
+        // open, active=true), it sends RequestExec into the outer loop.
+        CONTAINER.traceFromRequest('/post-respond-track-user') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        // Follow-up request verifies the connection is still usable.
+        CONTAINER.traceFromRequest('/') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        List<String> lines = helperLog.linesSinceMark
+        log.info("Helper log since offset:\n{}", lines.join('\n'))
+
+        assert !lines.any { it.contains('unexpected command RequestExec') } :
+                "Helper received RequestExec in outer loop. " +
+                "Relevant log:\n" +
+                lines.findAll {
                     it.contains('unexpected command') || it.contains('error in request loop')
                 }.join('\n')
     }

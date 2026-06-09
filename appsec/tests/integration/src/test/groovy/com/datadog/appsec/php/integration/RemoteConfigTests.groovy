@@ -48,6 +48,7 @@ class RemoteConfigTests {
         ExecResult res = CONTAINER.execInContainer(
                 'bash', '-c',
                 '''sed -e '/appsec.enabled/d' -e '/appsec.rules=/d' /etc/php/php.ini > /etc/php/php-rc.ini;
+                   sed -i 's/pm.max_children = .*/pm.max_children = 1/' /etc/php-fpm.d/www.conf;
                    kill -9 `pgrep php-fpm`;
                    export  DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=1 DD_ENV=;
                    php-fpm -y /etc/php-fpm.conf -c /etc/php/php-rc.ini''')

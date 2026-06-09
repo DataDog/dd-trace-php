@@ -53,7 +53,7 @@ static THREAD_LOCAL_ON_ZTS bool _between_init_shutdown_msgs;
 static THREAD_LOCAL_ON_ZTS bool _shutdown_done_on_commit;
 static THREAD_LOCAL_ON_ZTS bool _empty_service_or_env;
 static THREAD_LOCAL_ON_ZTS bool _request_blocked;
-#define MAX_LENGTH_OF_REM_CFG_PATH 31
+enum { MAX_LENGTH_OF_REM_CFG_PATH = 31 };
 static THREAD_LOCAL_ON_ZTS char
     _last_rem_cfg_path[MAX_LENGTH_OF_REM_CFG_PATH + 1];
 #define CLIENT_IP_LOOKUP_FAILED ((zend_string *)-1)
@@ -283,7 +283,49 @@ static zend_array *nullable _do_request_begin(
     return spec;
 }
 
+static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force);
+
 void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
+{
+    // temporarily remove the memory limit to avoid bailouts
+    // and as a safety net do a try-catch
+    __auto_type orig_mem_limit = PG(memory_limit);
+    zend_set_memory_limit((size_t)Z_L(-1) >> 1);
+
+    zend_try { _do_req_lifecycle_rshutdown(ignore_verdict, force); }
+    zend_catch
+    {
+        if (PG(last_error_message)) {
+#if PHP_VERSION_ID < 80000
+            const char *last_err = PG(last_error_message);
+#else
+            const char *last_err = ZSTR_VAL(PG(last_error_message));
+#endif
+            mlog_g(dd_log_error,
+                "Bailout in request shutdown; disconnecting from helper: %s",
+                last_err);
+        } else {
+            mlog_g(dd_log_error,
+                "Bailout in request shutdown; disconnecting from helper");
+        }
+        _reset_globals();
+        dd_helper_close_conn(); // note: not completely bailout-safe,
+                                // but should be fine with the raised mem limit
+    }
+    zend_end_try();
+
+#if PHP_VERSION_ID >= 80000 && PHP_VERSION_ID < 80100
+    // PHP 8.0: zend_set_memory_limit returns void
+    zend_set_memory_limit(orig_mem_limit);
+#else
+    if (zend_set_memory_limit(orig_mem_limit) == FAILURE) {
+        mlog(
+            dd_log_error, "Failed to restore memory limit in request shutdown");
+    }
+#endif
+}
+
+static void _do_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
 {
     if (DDAPPSEC_G(enabled) == APPSEC_FULLY_DISABLED) {
         mlog_g(dd_log_debug, "Skipping all request shutdown actions because "
@@ -437,6 +479,7 @@ static zend_array *_do_request_finish_user_req(bool ignore_verdict,
     return spec;
 }
 
+// Should be bailout-safe -- means, in particular, no emalloc allocations
 static void _reset_globals(void)
 {
     _set_cur_span(NULL);
@@ -491,7 +534,10 @@ static void _set_cur_span(zend_object *nullable span)
     }
 }
 
-bool dd_req_lifecycle_is_active(void) { return _between_init_shutdown_msgs; }
+bool dd_req_lifecycle_is_active(void)
+{
+    return _between_init_shutdown_msgs && DDAPPSEC_G(active);
+}
 
 zend_object *nullable dd_req_lifecycle_get_cur_span(void)
 {
