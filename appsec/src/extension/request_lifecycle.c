@@ -292,13 +292,18 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
     __auto_type orig_mem_limit = PG(memory_limit);
     zend_set_memory_limit((size_t)Z_L(-1) >> 1);
 
-    zend_try {
-        _do_req_lifecycle_rshutdown(ignore_verdict, force);
-    } zend_catch {
+    zend_try { _do_req_lifecycle_rshutdown(ignore_verdict, force); }
+    zend_catch
+    {
         if (PG(last_error_message)) {
+#if PHP_VERSION_ID < 70100
+            const char *last_err = PG(last_error_message);
+#else
+            const char *last_err = ZSTR_VAL(PG(last_error_message));
+#endif
             mlog_g(dd_log_error,
                 "Bailout in request shutdown; disconnecting from helper: %s",
-                ZSTR_VAL(PG(last_error_message)));
+                last_err);
         } else {
             mlog_g(dd_log_error,
                 "Bailout in request shutdown; disconnecting from helper");
@@ -306,12 +311,13 @@ void dd_req_lifecycle_rshutdown(bool ignore_verdict, bool force)
         _reset_globals();
         dd_helper_close_conn(); // note: not completely bailout-safe,
                                 // but should be fine with the raised mem limit
-    } zend_end_try();
+    }
+    zend_end_try();
 
     __auto_type res = zend_set_memory_limit(orig_mem_limit);
     if (res == FAILURE) {
-        mlog(dd_log_error,
-            "Failed to restore memory limit in request shutdown");
+        mlog(
+            dd_log_error, "Failed to restore memory limit in request shutdown");
     }
 }
 
@@ -525,14 +531,10 @@ static void _set_cur_span(zend_object *nullable span)
 }
 
 bool dd_req_lifecycle_is_active(void)
-{
-    return _between_init_shutdown_msgs && DDAPPSEC_G(active);
-}
+{ return _between_init_shutdown_msgs && DDAPPSEC_G(active); }
 
 zend_object *nullable dd_req_lifecycle_get_cur_span(void)
-{
-    return _cur_req_span;
-}
+{ return _cur_req_span; }
 
 zend_string *nullable dd_req_lifecycle_get_client_ip(void)
 {
@@ -989,9 +991,7 @@ static inline uint64_t _hash_string(
 }
 static inline uint64_t _hash_zend_string(
     uint64_t hash, zend_string *nonnull str)
-{
-    return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str));
-}
+{ return _hash_string(hash, ZSTR_VAL(str), ZSTR_LEN(str)); }
 
 static uint64_t _calc_sampling_key(zend_object *root_span, int status_code)
 {
