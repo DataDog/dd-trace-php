@@ -45,9 +45,7 @@ class SlimIntegration extends Integration
                                 $span->name = 'slim.middleware';
                                 $span->resource = \get_class($this);
                                 $span->type = Type::WEB_SERVLET;
-                                $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
-                                Integration::tagFrameworkServiceSource($span, SlimIntegration::NAME);
-                                $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
+                                Integration::setComponentMetadata($span, SlimIntegration::NAME);
                             };
                             \DDTrace\trace_method($name, 'process', $closure);
                         }
@@ -112,9 +110,7 @@ class SlimIntegration extends Integration
 
                     $span->resource = $callableName ?: 'controller';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = \ddtrace_config_app_name(SlimIntegration::NAME);
-                    Integration::tagFrameworkServiceSource($span, SlimIntegration::NAME);
-                    $span->meta[Tag::COMPONENT] = SlimIntegration::NAME;
+                    Integration::setComponentMetadata($span, SlimIntegration::NAME);
 
                     /** @var ServerRequestInterface $request */
                     $request = $args[1];

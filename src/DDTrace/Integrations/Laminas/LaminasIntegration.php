@@ -157,9 +157,7 @@ class LaminasIntegration extends Integration
                         $span->name = 'laminas.mvcEventListener';
                         $span->resource = $className . '@' . $methodName;
                         $span->type = Type::WEB_SERVLET;
-                        $span->service = \ddtrace_config_app_name('laminas');
-                        Integration::tagFrameworkServiceSource($span, 'laminas');
-                        $span->meta[Tag::COMPONENT] = 'laminas';
+                        Integration::setComponentMetadata($span, 'laminas');
                     }
                 );
             }
@@ -175,9 +173,7 @@ class LaminasIntegration extends Integration
                 $span->name = 'laminas.application.init';
                 $span->resource = 'laminas.application.init';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('laminas');
-                Integration::tagFrameworkServiceSource($span, 'laminas');
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                Integration::setComponentMetadata($span, 'laminas');
 
                 $rootSpan = root_span();
                 $rootSpan->name = 'laminas.request';
@@ -195,9 +191,7 @@ class LaminasIntegration extends Integration
                 $span->name = 'laminas.application.bootstrap';
                 $span->resource = 'laminas.application.bootstrap';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('laminas');
-                Integration::tagFrameworkServiceSource($span, 'laminas');
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                Integration::setComponentMetadata($span, 'laminas');
             }
         );
 
@@ -215,9 +209,7 @@ class LaminasIntegration extends Integration
                     }
 
                     $span->name = "laminas.event.$eventName";
-                    $span->service = \ddtrace_config_app_name('laminas');
-                    Integration::tagFrameworkServiceSource($span, 'laminas');
-                    $span->meta[Tag::COMPONENT] = 'laminas';
+                    Integration::setComponentMetadata($span, 'laminas');
                 }
             ]
         );
@@ -230,9 +222,7 @@ class LaminasIntegration extends Integration
                     $service = \ddtrace_config_app_name('laminas');
                     $span->name = 'laminas.application.run';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = $service;
-                    Integration::tagFrameworkServiceSource($span, 'laminas');
-                    $span->meta[Tag::COMPONENT] = 'laminas';
+                    Integration::setComponentMetadata($span, 'laminas', $service);
                 }
             ]
         );
@@ -546,9 +536,7 @@ class LaminasIntegration extends Integration
             'forward',
             static function (SpanData $span, $args) {
                 $span->name = 'laminas.controller.forward';
-                $span->service = \ddtrace_config_app_name('laminas');
-                Integration::tagFrameworkServiceSource($span, 'laminas');
-                $span->meta[Tag::COMPONENT] = 'laminas';
+                Integration::setComponentMetadata($span, 'laminas');
 
                 $controllerName = $args[0];
                 if (isset($args[1]) && isset($args[1]['action'])) {

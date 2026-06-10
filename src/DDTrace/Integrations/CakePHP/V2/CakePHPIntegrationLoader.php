@@ -29,9 +29,7 @@ class CakePHPIntegrationLoader
             function (SpanData $span, array $args) {
                 $span->name = $span->resource = 'Controller.invokeAction';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = CakePHPIntegration::$appName;
-                Integration::tagFrameworkServiceSource($span, CakePHPIntegration::NAME);
-                $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+                Integration::setComponentMetadata($span, CakePHPIntegration::NAME, CakePHPIntegration::$appName);
 
                 $request = $args[0];
                 if (!$request instanceof CakeRequest) {
@@ -84,9 +82,7 @@ class CakePHPIntegrationLoader
             $file = $this->viewPath . '/' . $this->view . $this->ext;
             $span->resource = $file;
             $span->meta = ['cakephp.view' => $file];
-            $span->service = CakePHPIntegration::$appName;
-            Integration::tagFrameworkServiceSource($span, CakePHPIntegration::NAME);
-            $span->meta[Tag::COMPONENT] = CakePHPIntegration::NAME;
+            Integration::setComponentMetadata($span, CakePHPIntegration::NAME, CakePHPIntegration::$appName);
         });
 
         \DDTrace\hook_method(

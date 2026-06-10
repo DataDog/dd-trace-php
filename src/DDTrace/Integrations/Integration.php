@@ -116,6 +116,24 @@ abstract class Integration implements \DDTrace\Integration
         }
     }
 
+    /**
+     * Set the standard framework-integration metadata on a span:
+     * - _dd.svc_src = $component when DD_SERVICE is not user-configured
+     * - $span->service = $service (defaults to ddtrace_config_app_name($component))
+     * - $span->meta[Tag::COMPONENT] = $component
+     *
+     * Sets svc_src BEFORE service so the C-level service write hook does not
+     * stamp the default 'm' (manual API) source.
+     */
+    public static function setComponentMetadata(SpanData $span, $component, $service = null)
+    {
+        if (!\dd_trace_env_config('DD_SERVICE')) {
+            $span->meta['_dd.svc_src'] = $component;
+        }
+        $span->service = $service !== null ? $service : \ddtrace_config_app_name($component);
+        $span->meta[Tag::COMPONENT] = $component;
+    }
+
     public static function handleOrphan(SpanData $span)
     {
         if (
