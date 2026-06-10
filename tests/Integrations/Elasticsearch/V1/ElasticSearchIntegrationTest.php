@@ -69,7 +69,7 @@ class ElasticSearchIntegrationTest extends IntegrationTestCase
                 'elasticsearch',
                 'elasticsearch',
                 '__construct'
-            )->withExactTags([Tag::COMPONENT => 'elasticsearch'])
+            )->withExactTags([Tag::COMPONENT => 'elasticsearch', '_dd.svc_src' => 'elasticsearch'])
         ]);
     }
 
