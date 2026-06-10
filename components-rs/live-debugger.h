@@ -166,9 +166,58 @@ ddog_MaybeError ddog_live_debugger_spawn_sender(const ddog_Endpoint *endpoint,
                                                 struct ddog_String *tags,
                                                 struct ddog_SenderHandle **handle);
 
+/**
+ * Builds an [`Endpoint`] for sending debugger and SymDB payloads directly to
+ * the Datadog intake (agentless), targeting `debugger-intake.{site}`. The
+ * returned endpoint must be freed with `ddog_endpoint_drop`.
+ */
+ddog_MaybeError ddog_live_debugger_endpoint_from_site_and_api_key(ddog_CharSlice site,
+                                                                  ddog_CharSlice api_key,
+                                                                  ddog_Endpoint **endpoint);
+
+/**
+ * Creates an empty sender config. Configure it with the
+ * `ddog_live_debugger_sender_config_*` functions, then hand it to
+ * `ddog_live_debugger_spawn_sender_with_config` (which consumes it). If the
+ * config is not spawned, free it with `ddog_live_debugger_sender_config_drop`.
+ */
+struct ddog_Config *ddog_live_debugger_sender_config_new(void);
+
+ddog_MaybeError ddog_live_debugger_sender_config_set_endpoint(struct ddog_Config *config,
+                                                              const ddog_Endpoint *endpoint);
+
+ddog_MaybeError ddog_live_debugger_sender_config_set_symdb_endpoint(struct ddog_Config *config,
+                                                                    const ddog_Endpoint *endpoint);
+
+ddog_MaybeError ddog_live_debugger_sender_config_add_additional_endpoint(struct ddog_Config *config,
+                                                                         const ddog_Endpoint *endpoint);
+
+ddog_MaybeError ddog_live_debugger_sender_config_add_additional_symdb_endpoint(struct ddog_Config *config,
+                                                                               const ddog_Endpoint *endpoint);
+
+void ddog_live_debugger_sender_config_drop(struct ddog_Config*);
+
+/**
+ * Spawns a sender from a fully-configured [`Config`], consuming it. Supports
+ * SymDB and additional dual-ship endpoints, unlike
+ * `ddog_live_debugger_spawn_sender`.
+ */
+ddog_MaybeError ddog_live_debugger_spawn_sender_with_config(struct ddog_Config *config,
+                                                            struct ddog_String *tags,
+                                                            struct ddog_SenderHandle **handle);
+
 bool ddog_live_debugger_send_raw_data(struct ddog_SenderHandle *handle,
                                       enum ddog_DebuggerType debugger_type,
                                       struct ddog_OwnedCharSlice data);
+
+/**
+ * Enqueues a raw SymDB (symbol database) payload to be forwarded to the SymDB
+ * intake. The body is sent verbatim with the given `content_type`; `data` is
+ * owned and freed once sent. Returns `true` if the payload was enqueued.
+ */
+bool ddog_live_debugger_send_symdb_data(struct ddog_SenderHandle *handle,
+                                        ddog_CharSlice content_type,
+                                        struct ddog_OwnedCharSlice data);
 
 bool ddog_live_debugger_send_payload(struct ddog_SenderHandle *handle,
                                      const struct ddog_DebuggerPayload *data);
