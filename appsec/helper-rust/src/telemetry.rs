@@ -93,11 +93,13 @@ pub const WAF_INIT: MetricName = MetricName("waf.init");
 pub const WAF_UPDATES: MetricName = MetricName("waf.updates");
 pub const WAF_REQUESTS: MetricName = MetricName("waf.requests");
 pub const WAF_CONFIG_ERRORS: MetricName = MetricName("waf.config_errors");
+pub const WAF_ERROR: MetricName = MetricName("waf.error");
 pub const WAF_DURATION_DIST: MetricName = MetricName("waf.duration");
 pub const RASP_DURATION_DIST: MetricName = MetricName("rasp.duration");
 pub const RASP_RULE_EVAL: MetricName = MetricName("rasp.rule.eval");
 pub const RASP_RULE_MATCH: MetricName = MetricName("rasp.rule.match");
 pub const RASP_TIMEOUT: MetricName = MetricName("rasp.timeout");
+pub const RASP_ERROR: MetricName = MetricName("rasp.error");
 pub const HELPER_WORKER_COUNT: MetricName = MetricName("helper.service_worker_count");
 
 #[derive(Debug, Clone, Copy)]
@@ -123,6 +125,10 @@ pub const KNOWN_METRICS: &[KnownMetric] = &[
         metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
     },
     KnownMetric {
+        name: WAF_ERROR,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
         name: WAF_DURATION_DIST,
         metric_type: ddog_MetricType_DDOG_METRIC_TYPE_DISTRIBUTION,
     },
@@ -140,6 +146,10 @@ pub const KNOWN_METRICS: &[KnownMetric] = &[
     },
     KnownMetric {
         name: RASP_RULE_EVAL,
+        metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
+    },
+    KnownMetric {
+        name: RASP_ERROR,
         metric_type: ddog_MetricType_DDOG_METRIC_TYPE_COUNT,
     },
     KnownMetric {

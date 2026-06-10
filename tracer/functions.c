@@ -619,6 +619,11 @@ static zval *ddtrace_root_span_data_write(zend_object *object, zend_string *memb
 #endif
 }
 
+static bool ddtrace_span_stack_is_context_property(zend_string *prop_name) {
+    return zend_string_equals_literal(prop_name, "active")
+        || zend_string_equals_literal(prop_name, "parent");
+}
+
 #if PHP_VERSION_ID < 80000
 static zval *ddtrace_span_stack_read_property(zval *object, zval *member, int type, void **cache_slot, zval *rv) {
     zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
@@ -629,8 +634,12 @@ static zval *ddtrace_span_stack_read_property(zend_object *object, zend_string *
     ddtrace_span_stack *stack = (ddtrace_span_stack *)object;
 #endif
     if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
-            && zend_string_equals_literal(prop_name, "active")) {
-        ZVAL_COPY(rv, &stack->property_active);
+            && ddtrace_span_stack_is_context_property(prop_name)) {
+        if (zend_string_equals_literal(prop_name, "active")) {
+            ZVAL_COPY(rv, &stack->property_active);
+        } else {
+            ZVAL_COPY(rv, &stack->property_parent);
+        }
         return rv;
     }
     return zend_std_read_property(object, member, type, cache_slot, rv);
@@ -644,10 +653,27 @@ static zval *ddtrace_span_stack_get_property_ptr_ptr(zend_object *object, zend_s
     zend_string *prop_name = member;
 #endif
     if ((type == BP_VAR_W || type == BP_VAR_RW || type == BP_VAR_UNSET)
-            && zend_string_equals_literal(prop_name, "active")) {
+            && ddtrace_span_stack_is_context_property(prop_name)) {
         return NULL;  // prevent cache fill; read_property handles the copy
     }
     return zend_std_get_property_ptr_ptr(object, member, type, cache_slot);
+}
+
+#if PHP_VERSION_ID < 80000
+static void ddtrace_span_stack_unset_property(zval *object, zval *member, void **cache_slot) {
+    zend_object *obj = Z_OBJ_P(object);
+    zend_string *prop_name = Z_TYPE_P(member) == IS_STRING ? Z_STR_P(member) : ZSTR_EMPTY_ALLOC();
+#else
+static void ddtrace_span_stack_unset_property(zend_object *object, zend_string *member, void **cache_slot) {
+    zend_object *obj = object;
+    zend_string *prop_name = member;
+#endif
+    if (ddtrace_span_stack_is_context_property(prop_name)) {
+        zend_throw_error(zend_ce_error, "Cannot unset readonly property %s::$%s", ZSTR_VAL(obj->ce->name), ZSTR_VAL(prop_name));
+        return;
+    }
+
+    zend_std_unset_property(object, member, cache_slot);
 }
 
 #if PHP_VERSION_ID < 80000
@@ -663,7 +689,7 @@ static zval *ddtrace_span_stack_readonly(zend_object *object, zend_string *membe
     zend_object *obj = object;
     zend_string *prop_name = member;
 #endif
-    if (zend_string_equals_literal(prop_name, "parent")) {
+    if (ddtrace_span_stack_is_context_property(prop_name)) {
         zend_throw_error(zend_ce_error, "Cannot modify readonly property %s::$%s", ZSTR_VAL(obj->ce->name), ZSTR_VAL(prop_name));
 #if PHP_VERSION_ID >= 70400
         return &EG(uninitialized_zval);
@@ -756,6 +782,7 @@ static void dd_register_span_data_ce(void) {
     ddtrace_span_stack_handlers.dtor_obj = ddtrace_span_stack_dtor_obj;
     ddtrace_span_stack_handlers.read_property = ddtrace_span_stack_read_property;
     ddtrace_span_stack_handlers.get_property_ptr_ptr = ddtrace_span_stack_get_property_ptr_ptr;
+    ddtrace_span_stack_handlers.unset_property = ddtrace_span_stack_unset_property;
     ddtrace_span_stack_handlers.write_property = ddtrace_span_stack_readonly;
 
 }
