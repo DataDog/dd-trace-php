@@ -147,21 +147,24 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
     }
 
     // Plumb the OTLP traces endpoint to the sidecar, mirroring the OTLP metrics
-    // endpoint above. The endpoint URL is built from OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+    // endpoint above. The endpoint is built from OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
     // (or the OTEL_EXPORTER_OTLP_ENDPOINT -> /v1/traces fallback / computed
     // default), gated on OTEL_TRACES_EXPORTER=otlp and the
-    // DD_TRACE_AGENT_PROTOCOL_VERSION disable check.
-    if (datadog_otlp_traces_enabled()) {
-        char *traces_url = datadog_otel_traces_url();
-        datadog_ffi_try("Failed setting OTLP traces endpoint on sidecar session",
-                        ddog_sidecar_session_set_otlp_traces_endpoint(
-                            session_id,
-                            (ddog_CharSlice){.ptr = traces_url, .len = strlen(traces_url)},
-                            dd_zend_string_to_CharSlice(get_global_OTEL_EXPORTER_OTLP_TRACES_HEADERS()),
-                            (uint64_t)get_global_OTEL_EXPORTER_OTLP_TRACES_TIMEOUT()));
-        free(traces_url);
-    } else {
-        ddog_sidecar_session_clear_otlp_traces_endpoint(session_id);
+    // DD_TRACE_AGENT_PROTOCOL_VERSION disable check. When enabled, the sidecar
+    // exports this session's traces via libdatadog's OTLP TraceExporter instead
+    // of the agent msgpack path; a NULL endpoint clears the config and restores
+    // the default agent path.
+    ddog_Endpoint *otlp_traces_endpoint =
+        datadog_otlp_traces_enabled() ? datadog_otel_traces_endpoint() : NULL;
+    datadog_ffi_try("Failed setting OTLP traces endpoint on sidecar session",
+                    ddog_sidecar_session_set_otlp_traces_endpoint(
+                        transport,
+                        session_id,
+                        otlp_traces_endpoint,
+                        dd_zend_string_to_CharSlice(get_global_OTEL_EXPORTER_OTLP_TRACES_HEADERS()),
+                        (uint64_t)get_global_OTEL_EXPORTER_OTLP_TRACES_TIMEOUT()));
+    if (otlp_traces_endpoint) {
+        ddog_endpoint_drop(otlp_traces_endpoint);
     }
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
