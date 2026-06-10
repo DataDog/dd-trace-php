@@ -13,25 +13,29 @@ pub mod telemetry;
 pub mod trace_filter;
 pub mod bytes;
 
-use libdd_common::entity_id::{get_container_id, set_cgroup_file};
+pub use datadog_sidecar_ffi::*;
+pub use libdd_crashtracker_ffi::*;
+pub use libdd_common_ffi::*;
+pub use libdd_library_config_ffi::*;
+pub use libdd_telemetry_ffi::*;
+
 use http::uri::{PathAndQuery, Scheme};
 use http::Uri;
+use libdd_common::entity_id::{get_container_id, set_cgroup_file};
+use libdd_common::{parse_uri, Endpoint};
+use libdd_common_ffi::slice::AsBytes;
 use std::borrow::Cow;
 use std::ffi::{c_char, OsStr};
-#[cfg(unix)]
-use std::path::Path;
 use std::ptr::null_mut;
 use uuid::Uuid;
 
-pub use libdd_crashtracker_ffi::*;
-pub use libdd_library_config_ffi::*;
-pub use datadog_sidecar_ffi::*;
-use libdd_common::{parse_uri, Endpoint};
 #[cfg(unix)]
 use libdd_common::connector::uds::socket_path_to_uri;
-use libdd_common_ffi::slice::AsBytes;
-pub use libdd_common_ffi::*;
-pub use libdd_telemetry_ffi::*;
+#[cfg(unix)]
+use std::path::Path;
+
+#[cfg(target_os = "linux")]
+pub use libdd_otel_thread_ctx_ffi::*;
 
 #[no_mangle]
 #[allow(non_upper_case_globals)]
