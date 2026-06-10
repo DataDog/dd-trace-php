@@ -83,8 +83,9 @@ typedef struct ddtrace_profiling_context_s {
 } ddtrace_profiling_context;
 
 /**
- * A pointer to the tracer's ddtrace_get_profiling_context function if it was
- * found, otherwise points to a function which just returns {0, 0}.
+ * A pointer to the tracer's profiling-context function if it was found,
+ * otherwise points to a function which just returns {0, 0}. On Linux this
+ * prefers ddtrace_get_profiling_otel_context when available.
  */
 extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void);
 
@@ -100,6 +101,12 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
  * registry and finding the ddtrace_get_profiling_context function.
  */
 void datadog_php_profiling_startup(zend_extension *extension);
+
+/**
+ * Returns the ddtrace profiling context API selected during zend_extension
+ * startup, or "none" when no provider was found.
+ */
+zai_str datadog_php_profiling_context_api_name(void);
 
 /**
  * Used to hold information for overwriting the internal function handler

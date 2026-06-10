@@ -648,6 +648,13 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
     let once = unsafe { &*ptr::addr_of!(RINIT_ONCE) };
     once.call_once(|| {
         if system_settings.profiling_enabled {
+            // SAFETY: this returns a view of a static string owned by php_ffi.c.
+            let context_api = unsafe { bindings::datadog_php_profiling_context_api_name() };
+            info!(
+                "Profiling context API selected: {}.",
+                context_api.to_string_lossy()
+            );
+
             // SAFETY: sapi_module is initialized by rinit and shouldn't be
             // modified at this point (safe to read values).
             let sapi_module = unsafe { &*ptr::addr_of!(zend::sapi_module) };

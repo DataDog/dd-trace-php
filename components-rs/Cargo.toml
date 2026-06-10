@@ -54,6 +54,9 @@ libc = "0.2"
 bincode = { version = "1.3.3" }
 hashbrown = "0.15"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libdd-otel-thread-ctx-ffi = { path = "../libdatadog/libdd-otel-thread-ctx-ffi", default-features = false }
+
 [build-dependencies]
 cbindgen = "0.27"
 
