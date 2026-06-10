@@ -15,16 +15,31 @@ const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
 const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
 uint8_t *datadog_runtime_id = NULL;
+static const zai_str datadog_php_profiling_context_api_none = ZAI_STRL("none");
+static const zai_str datadog_php_profiling_context_api_otel = ZAI_STRL("ddtrace_get_profiling_otel_context");
+static const zai_str datadog_php_profiling_context_api_legacy = ZAI_STRL("ddtrace_get_profiling_context");
+static zai_str datadog_php_profiling_context_api = ZAI_STRL("none");
 
 static void locate_datadog_runtime_id(const zend_extension *extension) {
     datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
 }
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
+#ifdef __linux__
+    ddtrace_profiling_context (*get_profiling_otel)(void) =
+        DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_otel_context");
+    if (EXPECTED(get_profiling_otel)) {
+        datadog_php_profiling_get_profiling_context = get_profiling_otel;
+        datadog_php_profiling_context_api = datadog_php_profiling_context_api_otel;
+        return;
+    }
+#endif
+
     ddtrace_profiling_context (*get_profiling)(void) =
         DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_context");
     if (EXPECTED(get_profiling)) {
         datadog_php_profiling_get_profiling_context = get_profiling;
+        datadog_php_profiling_context_api = datadog_php_profiling_context_api_legacy;
     }
 }
 
@@ -153,6 +168,7 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 
     datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
     datadog_php_profiling_get_process_tags_serialized = noop_get_process_tags_serialized;
+    datadog_php_profiling_context_api = datadog_php_profiling_context_api_none;
 
     /* Due to the optional dependency on ddtrace, the profiling module will be
      * loaded after ddtrace if it's present, so ddtrace should always be found
@@ -175,6 +191,10 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     orig_post_startup_cb = zend_post_startup_cb;
     zend_post_startup_cb = ddog_php_prof_post_startup_cb;
 #endif
+}
+
+zai_str datadog_php_profiling_context_api_name(void) {
+    return datadog_php_profiling_context_api;
 }
 
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
