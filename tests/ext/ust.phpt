@@ -97,6 +97,8 @@ array(2) {
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["env"]=>
       string(8) "env_test"
       ["runtime-id"]=>

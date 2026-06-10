@@ -22,5 +22,5 @@ echo "root svc_src: " . ($byName['root']['meta']['_dd.svc_src'] ?? '(unset)') . 
 echo "child svc_src: " . ($byName['child']['meta']['_dd.svc_src'] ?? '(unset)') . "\n";
 ?>
 --EXPECT--
-root svc_src: (unset)
+root svc_src: m
 child svc_src: m

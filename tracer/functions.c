@@ -502,16 +502,13 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
                 ZVAL_EMPTY_STRING(&span->property_version);
             }
         }
-
-        if (!is_top_level_root && span->root != NULL && Z_TYPE_P(value) == IS_STRING
-            && Z_TYPE(span->root->property_service) == IS_STRING
-            && !zend_string_equals(Z_STR_P(value), Z_STR(span->root->property_service))) {
+        // Per RFC "Service Override Source Attribution": an explicit
+        // $span->service = ... write is a manual API override → svc_src='m'.
+        if (Z_TYPE_P(value) == IS_STRING && !zend_is_identical(&span->property_service, value)) {
             zend_array *meta = ddtrace_property_array(&span->property_meta);
-            if (!zend_hash_str_exists(meta, ZEND_STRL("_dd.svc_src"))) {
-                zval val;
-                ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
-                zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
-            }
+            zval val;
+            ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
+            zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
         }
     }
 
