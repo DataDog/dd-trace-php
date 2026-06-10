@@ -143,11 +143,13 @@ impl SystemSettings {
                 error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.1.21 or 8.2.8. See https://github.com/DataDog/dd-trace-php/pull/2088");
             }
             system_settings.profiling_allocation_enabled = false;
+            system_settings.profiling_experimental_heap_live_enabled = false;
         }
         #[cfg(php_zend_mm_set_custom_handlers_ex)]
         if allocation::allocation_ge84::first_rinit_should_disable_due_to_jit() {
             error!("Memory allocation profiling will be disabled as long as JIT is active. To enable allocation profiling disable JIT or upgrade PHP to at least version 8.4.7. See https://github.com/DataDog/dd-trace-php/pull/3199");
             system_settings.profiling_allocation_enabled = false;
+            system_settings.profiling_experimental_heap_live_enabled = false;
         }
 
         SystemSettings::log_state(
