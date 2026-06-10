@@ -400,8 +400,7 @@ mod otel_traces_endpoint_tests {
             datadog_otel_traces_endpoint_from_agent_url(CharSlice::from("http://"))
         };
         // Falls back to localhost when the agent URL has no host.
-        if let Some(ep) = ep {
-            assert_eq!(ep.url.to_string(), "http://localhost:4318/v1/traces");
-        }
+        let ep = ep.expect("endpoint should be derived even when the agent URL has no host");
+        assert_eq!(ep.url.to_string(), "http://localhost:4318/v1/traces");
     }
 }
