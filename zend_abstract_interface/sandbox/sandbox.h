@@ -195,7 +195,24 @@ inline void zai_sandbox_engine_state_backup(zai_engine_state *es) {
 
 inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
     EG(current_execute_data) = es->current_execute_data;
+#if PHP_VERSION_ID >= 80500
+    /* PHP 8.5's IR-based tracing JIT made zend_jit_trace_exit() less tolerant of
+     * a stale trace id after a caught bailout: it removed the GCC_GLOBAL_REGS
+     * guard around the exception/opline correction (php-src zend_jit_trace.c,
+     * ~8773-8779), so the resumed caller reaches the side-exit deopt path far
+     * more readily and dereferences &zend_jit_traces[EG(jit_trace_num)]. On the
+     * sandbox bailout-catch path the captured jit_trace_num can itself be stale
+     * (the hook may have been entered while already inside a trace), so simply
+     * restoring it re-arms the crash on 8.5. zend_call_function() only ever
+     * save/restores EG(jit_trace_num) (Zend/zend_execute_API.c) and opcache
+     * exposes no symbol to reset JIT_G(tracing) from another extension, so we
+     * reset to 0 here -- the "not currently in a trace" invariant the resumed
+     * interpreter expects; the engine re-establishes jit_trace_num on the next
+     * trace entry. This path is reached only from zai_sandbox_bailout(). */
+    EG(jit_trace_num) = 0;
+#else
     EG(jit_trace_num) = es->jit_trace_num;
+#endif
 }
 
 inline void zai_sandbox_open(zai_sandbox *sandbox) {
