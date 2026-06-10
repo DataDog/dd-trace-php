@@ -139,7 +139,10 @@ bool ddtrace_conf_otel_resource_attributes_tags(zai_env_buffer *buf, bool pre_ri
     return true;
 }
 
-bool ddtrace_conf_otel_otlp_endpoint(zai_env_buffer *buf, bool pre_rinit) {
+// Reads OTEL_EXPORTER_OTLP_ENDPOINT, strips trailing slashes, and appends the
+// signal-specific suffix (e.g. "/v1/metrics" or "/v1/traces"). Used as the
+// fallback for the per-signal OTLP endpoint configs.
+static bool ddtrace_conf_otel_otlp_endpoint_with_suffix(zai_env_buffer *buf, bool pre_rinit, const char *suffix, size_t suffix_len) {
     ZAI_ENV_BUFFER_INIT(local, ZAI_ENV_MAX_BUFSIZ);
     if (!datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_ENDPOINT"), &local, pre_rinit) || !local.ptr[0]) {
         return false;
@@ -150,13 +153,68 @@ bool ddtrace_conf_otel_otlp_endpoint(zai_env_buffer *buf, bool pre_rinit) {
         base_len--;
     }
 
-    const char suffix[] = "/v1/metrics";
-    size_t suffix_len = sizeof(suffix) - 1;
     if (base_len + suffix_len + 1 > ZAI_ENV_MAX_BUFSIZ) {
         return false;
     }
 
     memcpy(buf->ptr, local.ptr, base_len);
     memcpy(buf->ptr + base_len, suffix, suffix_len + 1);
+    return true;
+}
+
+bool ddtrace_conf_otel_otlp_endpoint(zai_env_buffer *buf, bool pre_rinit) {
+    return ddtrace_conf_otel_otlp_endpoint_with_suffix(buf, pre_rinit, ZEND_STRL("/v1/metrics"));
+}
+
+bool ddtrace_conf_otel_traces_otlp_endpoint(zai_env_buffer *buf, bool pre_rinit) {
+    return ddtrace_conf_otel_otlp_endpoint_with_suffix(buf, pre_rinit, ZEND_STRL("/v1/traces"));
+}
+
+bool ddtrace_conf_otel_traces_otlp_enabled(zai_env_buffer *buf, bool pre_rinit) {
+    if (!datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_TRACES_EXPORTER"), buf, pre_rinit)) {
+        return false;
+    }
+    if (strcmp(buf->ptr, "otlp") == 0) {
+        // Gate: pinning the Datadog agent trace protocol via
+        // DD_TRACE_AGENT_PROTOCOL_VERSION is incompatible with routing traces
+        // over OTLP. When it is set, OTLP trace export is disabled and a notice
+        // is logged (the agent trace protocol version takes precedence).
+        zai_option_str protocol_version = zai_sys_getenv((zai_str)ZAI_STRL("DD_TRACE_AGENT_PROTOCOL_VERSION"));
+        if (zai_option_str_is_some(protocol_version) && protocol_version.len > 0) {
+            LOG_ONCE(WARN, "OTLP trace export requested via OTEL_TRACES_EXPORTER=otlp, but "
+                           "DD_TRACE_AGENT_PROTOCOL_VERSION is set; OTLP trace export disabled "
+                           "(the agent trace protocol version takes precedence)");
+            buf->ptr = "0"; buf->len = 1;
+            return true;
+        }
+        buf->ptr = "1"; buf->len = 1;
+        return true;
+    }
+    // Any other value (including "none") leaves OTLP trace export disabled.
+    buf->ptr = "0"; buf->len = 1;
+    return true;
+}
+
+bool ddtrace_conf_otel_traces_otlp_headers(zai_env_buffer *buf, bool pre_rinit) {
+    // OTEL_EXPORTER_OTLP_TRACES_HEADERS falls back to OTEL_EXPORTER_OTLP_HEADERS.
+    // The value is a comma-separated list of key=value pairs, passed through as-is.
+    return datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_HEADERS"), buf, pre_rinit);
+}
+
+bool ddtrace_conf_otel_traces_otlp_timeout(zai_env_buffer *buf, bool pre_rinit) {
+    // OTEL_EXPORTER_OTLP_TRACES_TIMEOUT falls back to OTEL_EXPORTER_OTLP_TIMEOUT (milliseconds).
+    return datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_TIMEOUT"), buf, pre_rinit);
+}
+
+bool ddtrace_conf_otel_traces_otlp_protocol(zai_env_buffer *buf, bool pre_rinit) {
+    // OTEL_EXPORTER_OTLP_TRACES_PROTOCOL falls back to OTEL_EXPORTER_OTLP_PROTOCOL.
+    if (!datadog_get_otel_value((zai_str)ZAI_STRL("OTEL_EXPORTER_OTLP_PROTOCOL"), buf, pre_rinit)) {
+        return false;
+    }
+    // Only http/json is honored for OTLP trace export today. Report any other
+    // value but keep it visible so config telemetry reflects the user's setting.
+    if (strcmp(buf->ptr, "http/json") != 0) {
+        LOG_ONCE(WARN, "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL '%s' is not supported for OTLP trace export; only http/json is honored", buf->ptr);
+    }
     return true;
 }

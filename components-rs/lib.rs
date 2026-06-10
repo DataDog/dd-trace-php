@@ -196,6 +196,57 @@ pub unsafe extern "C" fn datadog_otel_metrics_endpoint_from_agent_url(url: CharS
     }
 }
 
+#[cfg(unix)]
+fn otel_traces_endpoint_from_unix_socket(_socket_path: &str) -> std::option::Option<Box<Endpoint>> {
+    socket_path_to_uri(Path::new(_socket_path)).ok().and_then(|uri| {
+        let mut parts = uri.into_parts();
+        parts.path_and_query = Some(PathAndQuery::from_static("/v1/traces"));
+        Uri::from_parts(parts)
+            .ok()
+            .map(|url| Box::new(Endpoint::from_url(url)))
+    })
+}
+
+/// Builds an OTLP traces endpoint from an explicit, full endpoint URL, used
+/// as-is (mirrors `datadog_otel_metrics_endpoint_from_url`).
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_traces_endpoint_from_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+    let url_str = url.to_utf8_lossy();
+    #[cfg(unix)]
+    if let Some(socket_path) = url_str.strip_prefix("unix://") {
+        let socket_path = socket_path.strip_suffix("/v1/traces").unwrap_or(socket_path);
+        return otel_traces_endpoint_from_unix_socket(socket_path);
+    }
+    parse_uri(url_str.as_ref())
+        .ok()
+        .map(|url| Box::new(Endpoint::from_url(url)))
+}
+
+/// Builds an OTLP traces endpoint from the agent URL by reusing the agent
+/// host and forcing the standard OTLP http port and `/v1/traces` path
+/// (mirrors `datadog_otel_metrics_endpoint_from_agent_url`).
+#[no_mangle]
+pub unsafe extern "C" fn datadog_otel_traces_endpoint_from_agent_url(url: CharSlice) -> std::option::Option<Box<Endpoint>> {
+    let url_str = url.to_utf8_lossy();
+    #[cfg(unix)]
+    if let Some(socket_path) = url_str.strip_prefix("unix://") {
+        return otel_traces_endpoint_from_unix_socket(socket_path);
+    }
+    if url_str.starts_with("http") {
+        let parsed = parse_uri(url_str.as_ref()).ok();
+        let scheme = parsed.as_ref().and_then(|u| u.scheme_str()).unwrap_or("http");
+        let host = parsed
+            .as_ref()
+            .and_then(|u| u.host())
+            .unwrap_or("localhost");
+        parse_uri(&format!("{}://{}:4318/v1/traces", scheme, host))
+            .ok()
+            .map(|url| Box::new(Endpoint::from_url(url)))
+    } else {
+        datadog_parse_agent_url(url)
+    }
+}
+
 #[no_mangle]
 #[cfg(unix)]
 pub unsafe extern "C" fn datadog_endpoint_as_crashtracker_config(
@@ -316,5 +367,40 @@ pub extern "C" fn ddog_free_normalized_tag_value(ptr: *const c_char) {
     }
     unsafe {
         drop(std::ffi::CString::from_raw(ptr as *mut c_char));
+    }
+}
+
+#[cfg(test)]
+mod otel_traces_endpoint_tests {
+    use super::*;
+    use libdd_common_ffi::CharSlice;
+
+    #[test]
+    fn traces_endpoint_from_explicit_url_used_as_is() {
+        let ep = unsafe {
+            datadog_otel_traces_endpoint_from_url(CharSlice::from("http://collector:4318/v1/traces"))
+        }
+        .expect("endpoint should parse");
+        assert_eq!(ep.url.to_string(), "http://collector:4318/v1/traces");
+    }
+
+    #[test]
+    fn traces_endpoint_from_agent_url_uses_4318_and_v1_traces() {
+        let ep = unsafe {
+            datadog_otel_traces_endpoint_from_agent_url(CharSlice::from("http://agent-host:8126"))
+        }
+        .expect("endpoint should be derived from agent url");
+        // Port forced to 4318 and /v1/traces path appended; host preserved.
+        assert_eq!(ep.url.to_string(), "http://agent-host:4318/v1/traces");
+    }
+
+    #[test]
+    fn traces_endpoint_from_agent_url_defaults_host_when_missing() {
+        let ep = unsafe {
+            datadog_otel_traces_endpoint_from_agent_url(CharSlice::from("http://"))
+        };
+        // Falls back to localhost when the agent URL has no host.
+        let ep = ep.expect("endpoint should be derived even when the agent URL has no host");
+        assert_eq!(ep.url.to_string(), "http://localhost:4318/v1/traces");
     }
 }

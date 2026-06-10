@@ -55,6 +55,19 @@ struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url)
 
 struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
 
+/**
+ * Builds an OTLP traces endpoint from an explicit, full endpoint URL, used
+ * as-is (mirrors `datadog_otel_metrics_endpoint_from_url`).
+ */
+struct ddog_Endpoint *datadog_otel_traces_endpoint_from_url(ddog_CharSlice url);
+
+/**
+ * Builds an OTLP traces endpoint from the agent URL by reusing the agent
+ * host and forcing the standard OTLP http port and `/v1/traces` path
+ * (mirrors `datadog_otel_metrics_endpoint_from_agent_url`).
+ */
+struct ddog_Endpoint *datadog_otel_traces_endpoint_from_agent_url(ddog_CharSlice url);
+
 void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
                                              void (*callback)(ddog_crasht_EndpointConfig, void*),
                                              void *userdata);

@@ -122,3 +122,22 @@ ddog_Endpoint *datadog_otel_metrics_endpoint(void) {
     free(agent_url);
     return metrics_endpoint;
 }
+
+// Builds the OTLP traces endpoint, mirroring datadog_otel_metrics_endpoint():
+// the explicit OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (or its
+// OTEL_EXPORTER_OTLP_ENDPOINT -> /v1/traces fallback resolved by the config
+// layer) is used as-is; otherwise the computed default
+// http://<agent_host>:4318/v1/traces is derived from the agent URL.
+// The Rust builders (datadog_otel_traces_endpoint_from_url /
+// _from_agent_url) own the URL handling, exactly like the metrics path.
+ddog_Endpoint *datadog_otel_traces_endpoint(void) {
+    zend_string *endpoint_url = get_global_OTEL_EXPORTER_OTLP_TRACES_ENDPOINT();
+    if (ZSTR_LEN(endpoint_url) > 0) {
+        return datadog_otel_traces_endpoint_from_url(dd_zend_string_to_CharSlice(endpoint_url));
+    }
+
+    char *agent_url = datadog_agent_url();
+    ddog_Endpoint *traces_endpoint = datadog_otel_traces_endpoint_from_agent_url((ddog_CharSlice){.ptr = agent_url, .len = strlen(agent_url)});
+    free(agent_url);
+    return traces_endpoint;
+}

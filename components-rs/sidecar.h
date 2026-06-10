@@ -227,6 +227,30 @@ ddog_MaybeError ddog_sidecar_session_set_process_tags(struct ddog_SidecarTranspo
                                                       const struct ddog_Vec_Tag *process_tags);
 
 /**
+ * Sets the OTLP traces export configuration for an existing session.
+ *
+ * This is additive and non-breaking: when `otlp_traces_endpoint` is non-null,
+ * the session's traces are exported via libdatadog's OTLP `TraceExporter`
+ * (HTTP/JSON) instead of the agent msgpack `/v0.4/traces` path. Passing a null
+ * `otlp_traces_endpoint` clears the configuration and restores the default
+ * agent path. Sessions that never call this function are unaffected.
+ *
+ * `headers` is the raw `key=value,...` string (e.g. the value of
+ * `OTEL_EXPORTER_OTLP_TRACES_HEADERS`); `timeout_ms` of `0` selects the
+ * default OTLP request timeout. The endpoint URL is used as-is — the host
+ * language is responsible for resolving the full `…/v1/traces` URL.
+ *
+ * # Safety
+ * `otlp_traces_endpoint`, when non-null, must point to a valid `Endpoint`. All
+ * `CharSlice` arguments must point to valid, correctly-sized data.
+ */
+ddog_MaybeError ddog_sidecar_session_set_otlp_traces_endpoint(struct ddog_SidecarTransport **transport,
+                                                              ddog_CharSlice session_id,
+                                                              const struct ddog_Endpoint *otlp_traces_endpoint,
+                                                              ddog_CharSlice headers,
+                                                              uint64_t timeout_ms);
+
+/**
  * Enqueues a telemetry log action to be processed internally.
  * Non-blocking. Logs might be dropped if the internal queue is full.
  *

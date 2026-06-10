@@ -99,6 +99,16 @@ DATADOG_PUBLIC uint64_t datadog_get_sidecar_queue_id(void) {
     return DATADOG_G(sidecar_queue_id);
 }
 
+// Returns true when OTLP trace export is enabled for this process.
+//
+// The DD_TRACE_OTLP_ENABLED config already folds in both the
+// OTEL_TRACES_EXPORTER=otlp selection and the DD_TRACE_AGENT_PROTOCOL_VERSION
+// disable gate (see ddtrace_conf_otel_traces_otlp_enabled), so reading it here
+// reflects the final enablement decision.
+bool datadog_otlp_traces_enabled(void) {
+    return get_global_DD_TRACE_OTLP_ENABLED();
+}
+
 static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_fork, const char *logpath) {
     ddog_CharSlice session_id = (ddog_CharSlice) {.ptr = (char *) datadog_formatted_session_id, .len = sizeof(datadog_formatted_session_id)};
     ddog_CharSlice root_session_id = datadog_is_empty_session_id(datadog_formatted_root_session_id) ? DDOG_CHARSLICE_C("") : (ddog_CharSlice) {.ptr = (char *) datadog_formatted_root_session_id, .len = sizeof(datadog_formatted_root_session_id)};
@@ -134,6 +144,50 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                 );
     if (otlp_metrics_endpoint) {
         ddog_endpoint_drop(otlp_metrics_endpoint);
+    }
+
+    // Plumb the OTLP traces endpoint to the sidecar, mirroring the OTLP metrics
+    // endpoint above. The endpoint is built from OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+    // (or the OTEL_EXPORTER_OTLP_ENDPOINT -> /v1/traces fallback / computed
+    // default), gated on OTEL_TRACES_EXPORTER=otlp and the
+    // DD_TRACE_AGENT_PROTOCOL_VERSION disable check. When enabled, the sidecar
+    // exports this session's traces via libdatadog's OTLP TraceExporter instead
+    // of the agent msgpack path; a NULL endpoint clears the config and restores
+    // the default agent path.
+    bool otlp_traces_enabled = datadog_otlp_traces_enabled();
+    ddog_Endpoint *otlp_traces_endpoint = otlp_traces_enabled ? datadog_otel_traces_endpoint() : NULL;
+    if (otlp_traces_enabled) {
+        // Only http/json is supported this phase; warn (don't fail) on a configured non-http/json
+        // protocol so a grpc/http-protobuf misconfiguration isn't a silent no-op. Mirrors dd-trace-rs/rb.
+        zend_string *otlp_protocol = get_global_OTEL_EXPORTER_OTLP_TRACES_PROTOCOL();
+        if (otlp_protocol && ZSTR_LEN(otlp_protocol) > 0 && strcmp(ZSTR_VAL(otlp_protocol), "http/json") != 0) {
+            LOG(WARN, "OTLP trace export only supports the http/json protocol; the configured protocol '%s' is ignored and traces are sent as http/json.",
+                ZSTR_VAL(otlp_protocol));
+        }
+        // If OTLP is enabled but the endpoint could not be resolved (e.g. a malformed
+        // OTEL_EXPORTER_OTLP_TRACES_ENDPOINT), a NULL endpoint silently restores the agent path.
+        // Surface that rather than letting OTLP be a silent no-op.
+        if (!otlp_traces_endpoint) {
+            LOG(WARN, "OTEL_TRACES_EXPORTER=otlp is set but the OTLP traces endpoint could not be resolved; falling back to Datadog agent trace export.");
+        }
+    }
+
+    // Clamp a negative timeout (INT config) to 0 so it maps to the FFI's "use default" instead of
+    // wrapping to a huge uint64.
+    int64_t otlp_traces_timeout = get_global_OTEL_EXPORTER_OTLP_TRACES_TIMEOUT();
+    if (otlp_traces_timeout < 0) {
+        otlp_traces_timeout = 0;
+    }
+
+    datadog_ffi_try("Failed setting OTLP traces endpoint on sidecar session",
+                    ddog_sidecar_session_set_otlp_traces_endpoint(
+                        transport,
+                        session_id,
+                        otlp_traces_endpoint,
+                        dd_zend_string_to_CharSlice(get_global_OTEL_EXPORTER_OTLP_TRACES_HEADERS()),
+                        (uint64_t)otlp_traces_timeout));
+    if (otlp_traces_endpoint) {
+        ddog_endpoint_drop(otlp_traces_endpoint);
     }
 
     if (get_global_DD_INSTRUMENTATION_TELEMETRY_ENABLED()) {
