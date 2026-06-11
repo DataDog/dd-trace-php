@@ -12,6 +12,8 @@ crash in zend_jit_trace_exit().
 if (PHP_VERSION_ID < 80000) die('skip: JIT is only available on PHP 8+');
 if (!extension_loaded('Zend OPcache')) die('skip: Zend OPcache is required');
 ?>
+--XFAIL--
+PHP 8.5 Bookworm image needs to be rebuilt with ASAN preserve_none enabled
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_LOG_LEVEL=off

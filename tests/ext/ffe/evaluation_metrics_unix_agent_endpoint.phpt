@@ -12,6 +12,7 @@ DD_INSTRUMENTATION_TELEMETRY_ENABLED=0
 DD_REMOTE_CONFIG_ENABLED=0
 --INI--
 datadog.trace.agent_test_session_token=ffe/evaluation_metrics_unix_agent_endpoint
+pcre.jit=0
 --FILE--
 <?php
 include __DIR__ . '/../includes/request_replayer.inc';
