@@ -32,7 +32,7 @@ class DatabaseIntegrationHelper
             "odbc" => true,
         ];
 
-        $propagationMode = dd_trace_env_config("DD_DBM_PROPAGATION_MODE");
+        $propagationMode = \dd_trace_env_config("DD_DBM_PROPAGATION_MODE");
         if ($propagationMode != \DDTrace\DBM_PROPAGATION_DISABLED && isset($allowedBackends[$backend])) {
             $fullPropagationBackends = [
                 "mysql" => true,
@@ -49,12 +49,15 @@ class DatabaseIntegrationHelper
             $peerService = $span->meta['peer.service'] ?? '';
 
             // Inject base hash into span tags if enabled
-            if (dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")) {
+            if (\dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")
+                || $propagationMode == \DDTrace\DBM_PROPAGATION_DYNAMIC_SERVICE) {
                 $baseHash = \DDTrace\System\process_tags_base_hash();
                 if ($baseHash !== null) {
                     $span->meta[Tag::PROPAGATED_HASH] = $baseHash;
                 }
             }
+
+            $append = $backend === "sqlsrv" || \dd_trace_env_config("DD_DBM_ALWAYS_APPEND_SQL_COMMENT");
 
             $query = self::propagateViaSqlComments(
                 $hook->args[$argNum],
@@ -62,7 +65,8 @@ class DatabaseIntegrationHelper
                 $propagationMode,
                 $targetHost,
                 $dbName,
-                $peerService
+                $peerService,
+                $append
             );
             $hook->args[$argNum] = $query;
             $hook->overrideArguments($hook->args);
@@ -78,7 +82,8 @@ class DatabaseIntegrationHelper
         $mode = \DDTrace\DBM_PROPAGATION_FULL,
         $targetHost = '',
         $dbName = '',
-        $peerService = ''
+        $peerService = '',
+        $append = false
     ) {
         $rootSpan = \DDTrace\root_span();
 
@@ -136,17 +141,18 @@ class DatabaseIntegrationHelper
         }
 
         // Inject base hash into SQL comment if enabled
-        if (dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")) {
+        if (\dd_trace_env_config("DD_DBM_INJECT_SQL_BASEHASH")
+            || $mode == \DDTrace\DBM_PROPAGATION_DYNAMIC_SERVICE) {
             $baseHash = \DDTrace\System\process_tags_base_hash();
             if ($baseHash !== null) {
                 $tags["ddsh"] = $baseHash;
             }
         }
 
-        return self::injectSqlComment($query, $tags);
+        return self::injectSqlComment($query, $tags, $append);
     }
 
-    public static function injectSqlComment($query, array $tags)
+    public static function injectSqlComment($query, array $tags, $append = false)
     {
         if (!$tags) {
             return $query;
@@ -162,6 +168,9 @@ class DatabaseIntegrationHelper
 
         if ($query == "") {
             return $comment;
+        }
+        if ($append) {
+            return "$query $comment";
         }
         return "$comment $query";
     }

@@ -51,6 +51,10 @@ void ddtrace_drop_rust_string(char *input, uintptr_t len);
 
 struct ddog_Endpoint *datadog_parse_agent_url(ddog_CharSlice url);
 
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
+
 void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
                                              void (*callback)(ddog_crasht_EndpointConfig, void*),
                                              void *userdata);
@@ -134,6 +138,8 @@ void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
                                                              bool di_enabled);
+
+uint64_t ddog_remote_config_current_generation(const struct ddog_RemoteConfigState *remote_config);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 

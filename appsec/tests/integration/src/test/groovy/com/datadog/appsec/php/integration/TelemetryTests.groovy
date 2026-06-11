@@ -118,7 +118,6 @@ class TelemetryTests {
         TelemetryHelpers.Metric connSuccess
         TelemetryHelpers.Metric workerCount
 
-
         TelemetryHelpers.waitForMetrics(CONTAINER, 30) { List<TelemetryHelpers.GenerateMetrics> messages ->
             def allSeries = messages.collectMany { it.series }
             wafInit = allSeries.find { it.name == 'waf.init' }
@@ -1384,4 +1383,5 @@ class TelemetryTests {
             assert bundledDiagLog.message == "{\"missing key 'conditions'\":[\"bad-rule\"]}"
         }
     }
+
 }

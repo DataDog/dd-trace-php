@@ -46,7 +46,7 @@ Do not try to work around these — report them in `tmp/REPORT.md` and leave the
 
 - A panic or unexpected behaviour coming from *inside* libdatadog (not from our code calling it incorrectly)
 - A regression where functionality that previously worked no longer does (and there is no obvious new API to call instead)
-- An API change so large it would require significant redesign of our architecture
+- An API change so large it would require significant redesign of our architecture. But first give it a try! Maybe it's not that bad.
 
 ### Ignore (test flakiness or unrelated failures)
 
