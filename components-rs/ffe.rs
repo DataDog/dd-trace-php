@@ -772,6 +772,11 @@ mod tests {
 
     #[test]
     fn empty_targeting_key_is_not_dropped() {
+        // Acquire EVP_TEST_LOCK because ddog_ffe_evaluate() records into the
+        // global EVP_AGGREGATOR; without serialization this test can corrupt
+        // the aggregator state observed by concurrent EVP tests (#Rule1-flakiness).
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
         setup_zend_string_functions();
         clear_config();
         let config =
@@ -797,6 +802,7 @@ mod tests {
             r#""empty-targeting-key""#
         );
         clear_config();
+        reset_aggregator();
     }
 
     #[test]
