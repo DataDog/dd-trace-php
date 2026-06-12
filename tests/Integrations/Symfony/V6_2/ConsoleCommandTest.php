@@ -35,7 +35,6 @@ class ConsoleCommandTest extends IntegrationTestCase
                                 'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
                                 Tag::COMPONENT => 'symfony',
                                 '_dd.svc_src' => 'symfony',
-                                '_dd.svc_src' => 'm',
                                 '_dd.base_service' => 'console'
                             ]),
                         SpanAssertion::exists('symfony.console.command', 'symfony.console.command'),
