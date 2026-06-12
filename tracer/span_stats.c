@@ -108,52 +108,30 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
     // Env: prefer deprecated meta["env"] (with a warning), else span property.
     pre->env = NULL;
     zval *meta_env = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("env")) : NULL;
-    if (meta_env) {
-        pre->env_deprecated = true;
-        LOG(DEPRECATED, "Using \"env\" in meta is deprecated. Instead specify the env property directly on the span.");
-        zend_string *str = datadog_convert_to_str(meta_env);
+    pre->env_deprecated = false;
+    zval *prop_env = &span->property_env;
+    ZVAL_DEREF(prop_env);
+    if (Z_TYPE_P(prop_env) > IS_NULL) {
+        zend_string *str = datadog_convert_to_str(prop_env);
         if (ZSTR_LEN(str) > 0) {
             pre->env = str;
         } else {
             zend_string_release(str);
-        }
-    } else {
-        pre->env_deprecated = false;
-        zval *prop_env = &span->property_env;
-        ZVAL_DEREF(prop_env);
-        if (Z_TYPE_P(prop_env) > IS_NULL) {
-            zend_string *str = datadog_convert_to_str(prop_env);
-            if (ZSTR_LEN(str) > 0) {
-                pre->env = str;
-            } else {
-                zend_string_release(str);
-            }
         }
     }
 
     // Version: prefer deprecated meta["version"] (with a warning), else the span's own property.
     pre->version = NULL;
     zval *meta_version = pre->meta ? zend_hash_str_find(pre->meta, ZEND_STRL("version")) : NULL;
-    if (meta_version) {
-        pre->version_deprecated = true;
-        LOG(DEPRECATED, "Using \"version\" in meta is deprecated. Instead specify the version property directly on the span.");
-        zend_string *str = datadog_convert_to_str(meta_version);
+    pre->version_deprecated = false;
+    zval *prop_version = &span->property_version;
+    ZVAL_DEREF(prop_version);
+    if (Z_TYPE_P(prop_version) > IS_NULL) {
+        zend_string *str = datadog_convert_to_str(prop_version);
         if (ZSTR_LEN(str) > 0) {
             pre->version = str;
         } else {
             zend_string_release(str);
-        }
-    } else {
-        pre->version_deprecated = false;
-        zval *prop_version = &span->property_version;
-        ZVAL_DEREF(prop_version);
-        if (Z_TYPE_P(prop_version) > IS_NULL) {
-            zend_string *str = datadog_convert_to_str(prop_version);
-            if (ZSTR_LEN(str) > 0) {
-                pre->version = str;
-            } else {
-                zend_string_release(str);
-            }
         }
     }
 
