@@ -122,6 +122,13 @@ struct ddog_FfeResult ddog_ffe_evaluate(ddog_CharSlice flag_key,
                                         const struct ddog_FfeAttribute *attributes,
                                         uintptr_t attributes_count);
 
+bool ddog_ffe_flush_flag_evaluation_batch(struct ddog_SidecarTransport **transport,
+                                          const struct ddog_InstanceId *instance_id,
+                                          const ddog_QueueId *queue_id,
+                                          ddog_CharSlice service,
+                                          ddog_CharSlice env,
+                                          ddog_CharSlice version);
+
 bool ddog_shall_log(enum ddog_Log category);
 
 void ddog_set_error_log_level(bool once);
