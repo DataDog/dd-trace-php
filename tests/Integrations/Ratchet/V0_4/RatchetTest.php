@@ -84,6 +84,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     'span.kind' => 'producer',
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'm',
                     'websocket.message.type' => 'text',
                 ])
                 ->withExactMetrics([

@@ -113,11 +113,13 @@ array(3) {
     ["type"]=>
     string(7) "FooType"
     ["meta"]=>
-    array(4) {
+    array(5) {
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["runtime-id"]=>
