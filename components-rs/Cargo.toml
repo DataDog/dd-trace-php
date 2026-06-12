@@ -15,7 +15,7 @@ libdd-telemetry-ffi = { path = "../libdatadog/libdd-telemetry-ffi", default-feat
 datadog-live-debugger = { path = "../libdatadog/datadog-live-debugger" }
 datadog-live-debugger-ffi = { path = "../libdatadog/datadog-live-debugger-ffi", default-features = false }
 datadog-ipc = { path = "../libdatadog/datadog-ipc" }
-datadog-ffe = { path = "../libdatadog/datadog-ffe" }
+datadog-ffe = { path = "../libdatadog/datadog-ffe", features = ["flagevaluation-evp"] }
 libdd-remote-config = { path = "../libdatadog/libdd-remote-config" }
 datadog-sidecar = { path = "../libdatadog/datadog-sidecar" }
 datadog-sidecar-ffi = { path = "../libdatadog/datadog-sidecar-ffi" }
