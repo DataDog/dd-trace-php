@@ -73,7 +73,7 @@ namespace DDTrace {
         public ?int $configVersion = null;
     }
 
-    class SpanEvent implements \JsonSerializable {
+    class SpanEvent {
         /**
          * SpanEvent constructor.
          *
@@ -97,11 +97,6 @@ namespace DDTrace {
          * @var int The event start time in nanoseconds, if not provided set the current Unix timestamp
          */
         public int $timestamp;
-
-        /**
-         * @return mixed
-         */
-        public function jsonSerialize(): mixed {}
     }
 
     class ExceptionSpanEvent extends SpanEvent {
@@ -119,7 +114,7 @@ namespace DDTrace {
         public \Throwable $exception;
     }
 
-    class SpanLink implements \JsonSerializable {
+    class SpanLink {
         /**
          * @var string $traceId A 32-character, lower-case hexadecimal encoded string of the linked trace ID. This field
          * shouldn't be directly assigned an id from SpanData. Use the SpanData::getLink() method instead.
@@ -148,11 +143,6 @@ namespace DDTrace {
         public int $droppedAttributesCount;
 
         /**
-         * @return mixed
-         */
-        public function jsonSerialize(): mixed {}
-
-        /**
          * Consumes distributed tracing headers, from which a span link will be constructed.
          *
          * @param array|callable(string):mixed $headersOrCallback Either an array with a lowercase header to value mapping,
@@ -173,6 +163,15 @@ namespace DDTrace {
         public string $repositoryUrl = "";
     }
 
+    class SpanKind {
+        const UNSPECIFIED = 0;
+        const INTERNAL = 1;
+        const SERVER = 2;
+        const CLIENT = 3;
+        const PRODUCER = 4;
+        const CONSUMER = 5;
+    }
+
     class SpanData {
         /**
          * @var string|null The span name
@@ -189,18 +188,6 @@ namespace DDTrace {
          * the parent span), or datadog.service initialization settings if no parent exists
          */
         public string|null $service = "";
-
-        /**
-         * @var string The environment you are tracing. Defaults to active environment at the time of span creation
-         * (i.e., the parent span), or datadog.env initialization settings if no parent exists
-         */
-        public string $env = "";
-
-        /**
-         * @var string The version of the application you are tracing. Defaults to active version at the time of
-         * span creation (i.e., the parent span), or datadog.version initialization settings if no parent exists
-         */
-        public string $version = "";
 
         /**
          * @var string[] Meta struct can be used to send any data to the backend. The peculiarity of meta struct is
@@ -296,6 +283,24 @@ namespace DDTrace {
          * Baggage is a key-value store, which means it lets you propagate any data you like alongside context regardless of trace ids existence.
          */
         public array $baggage = [];
+
+        /**
+         * @var string The environment you are tracing. Defaults to active environment at the time of span creation
+         * (i.e., the parent span), or datadog.env initialization settings if no parent exists
+         */
+        public string $env = "";
+
+        /**
+         * @var string The version of the application you are tracing. Defaults to active version at the time of
+         * span creation (i.e., the parent span), or datadog.version initialization settings if no parent exists
+         */
+        public string $version = "";
+
+        public string $component = "";
+
+        public int $spanKind = 0;
+
+        public array $attributes = [];
     }
 
     class InferredSpanData extends SpanData {}
@@ -315,6 +320,8 @@ namespace DDTrace {
          * @var int The currently active sampling priority.
          */
         public int $samplingPriority = \DD_TRACE_PRIORITY_SAMPLING_UNKNOWN;
+
+        public int $samplingMechanism = 0;
 
         /**
          * @var int The unmodified sampling priority as inherited directly through distributed tracing.
@@ -353,6 +360,20 @@ namespace DDTrace {
         public GitMetadata|null $gitMetadata = null;
 
         public InferredSpanData|null $inferredSpan = null;
+
+        /**
+         * @var string The environment you are tracing. Defaults to active environment at the time of span creation
+         * (i.e., the parent span), or datadog.env initialization settings if no parent exists
+         */
+        public string $env = "";
+
+        /**
+         * @var string The version of the application you are tracing. Defaults to active version at the time of
+         * span creation (i.e., the parent span), or datadog.version initialization settings if no parent exists
+         */
+        public string $version = "";
+
+        public string $hostname = "";
     }
 
     /**
@@ -386,6 +407,8 @@ namespace DDTrace {
          * removal.
          */
         public array $spanCreationObservers = [];
+
+        public array $attributes = [];
     }
 
     interface Integration {
@@ -537,7 +560,7 @@ namespace DDTrace {
     // phpcs:enable Generic.Files.LineLength.TooLong
 
     /**
-     * Add a tag to be automatically applied to every span that is created, if tracing is enabled.
+     * Add a tag to be automatically applied to every spanStack that is created, if tracing is enabled.
      *
      * @param string $key Tag key
      * @param string $value Tag Value
@@ -754,6 +777,7 @@ namespace DDTrace {
     /**
      * Return the id of the current trace
      *
+     * @deprecated This function is deprecated and should not be used.
      * @return string The id of the current trace
      */
     function trace_id(): string {}
@@ -773,6 +797,7 @@ namespace DDTrace {
     /**
      * Get information on the current context
      *
+     * @deprecated This function is deprecated and should not be used.
      * @return array{trace_id: string, span_id: string, version: string, env: string}
      */
     function current_context(): array {}
@@ -783,7 +808,7 @@ namespace DDTrace {
      *
      * The distributed tracing context can be reset by calling 'set_distributed_tracing_context("0", "0")'
      *
-     * @param string $traceId The unique integer (128-bit unsigned) ID of the trace containing this span
+     * @param string $traceId The unique integer (128-bit hex unsigned) ID of the trace containing this span
      * @param string $parentId The span integer ID of the parent span
      * @param string|null $origin The distributed tracing origin
      * @param array|string|null $propagated_tags If provided, propagated tags from the root span will be cleared and
@@ -1178,31 +1203,6 @@ namespace {
     function dd_trace_disable_in_request(): bool {}
 
     /**
-     * (Noop/To do) Untrace traced functions and methods
-     *
-     * @internal
-     * @return bool 'true' if reset was successful, else 'false'
-     */
-    function dd_trace_reset(): bool {}
-
-    /**
-     * If tracing is enabled, serialize the trace into a string to send to the agent
-     *
-     * @internal
-     * @param array $traceArray Serialize values must be of type array, string, int, float, bool or null
-     * @return bool|string The serialized array, else 'false' if an error was encountered
-     */
-    function dd_trace_serialize_msgpack(array $traceArray): bool|string {}
-
-    /**
-     * Null function to easily breakpoint the execution at specific PHP line in GDB
-     *
-     * @internal
-     * @return bool Return 'true' if tracing is enabled, else 'false'
-     */
-    function dd_trace_noop(mixed ...$args): bool {}
-
-    /**
      * Get the parsed value of the memory limit DD_TRACE_MEMORY_LIMIT in binary bytes
      *
      * @return int The memory limit
@@ -1219,6 +1219,7 @@ namespace {
     /**
      * Get the name of the app (DD_SERVICE)
      *
+     * @deprecated This function is deprecated and should not be used.
      * @param string|null $fallbackName Fallback name if the app's name wasn't set
      * @return string|null The app name, else the fallback name. Return 'null' if the app name isn't set and no
      * fallback name is provided.
@@ -1228,6 +1229,7 @@ namespace {
     /**
      * Check if distributed tracing is enabled (DD_DISTRIBUTED_TRACING)
      *
+     * @deprecated This function is deprecated and should not be used.
      * @return bool 'true' if distributed tracing is enabled, else 'false'
      */
     function ddtrace_config_distributed_tracing_enabled(): bool {}
@@ -1235,6 +1237,7 @@ namespace {
     /**
      * Check if tracing is enabled (DD_TRACE_ENABLED)
      *
+     * @deprecated This function is deprecated and should not be used.
      * @return bool 'true' is tracing is enabled, else 'false'
      */
     function ddtrace_config_trace_enabled(): bool {}
@@ -1246,35 +1249,6 @@ namespace {
      * @return bool The status of the integration, or 'false' if tracing isn't enabled.
      */
     function ddtrace_config_integration_enabled(string $integrationName): bool {}
-
-    /**
-     * Send payload to background sender's buffer
-     *
-     * @internal
-     * @param int $numTraces Trace count. Note that at the moment, the background sender is only capable of sending
-     * exactly one trace
-     * @param array $curlHeaders HTTP Headers
-     * @param string $payload HTTP Body
-     * @return bool 'true' if tracers were successfully sent or if the tracer is disabled, and 'false' if not exactly
-     * one trace was sent or if the procedure was unsuccessful
-     */
-    function dd_trace_send_traces_via_thread(int $numTraces, array $curlHeaders, string $payload): bool {}
-
-    /**
-     * Serializes and sends traces to the agent (in the format dd_trace_serialize_closed_spans() returns spans).
-     *
-     * @internal
-     * @param array $traceArray Array in the format returned by dd_trace_serialize_closed_spans()
-     */
-    function dd_trace_buffer_span(array $traceArray): bool {}
-
-    /**
-     * Used to send any already buffered spans to the agent
-     *
-     * @internal
-     * @return int
-     */
-    function dd_trace_coms_trigger_writer_flush(): int {}
 
     /**
      * Execute a given internal function
@@ -1293,6 +1267,7 @@ namespace {
     /**
      * Set the distributed trace id
      *
+     * @deprecated This function is deprecated and should not be used.
      * @param string|null $traceId New trace id
      * @return bool 'true' if the change was properly applied, else 'false'
      */
@@ -1315,6 +1290,7 @@ namespace {
     /**
      * Get the compiling time of all files compiled up to now (in µs)
      *
+     * @deprecated This function is deprecated and should not be used.
      * @return int Compile time
      */
     function dd_trace_compile_time_microseconds(): int {}
@@ -1342,11 +1318,13 @@ namespace {
     function dd_trace_close_all_spans_and_flush(): void {}
 
     /**
+     * @deprecated This function is deprecated and should not be used.
      * @alias DDTrace_trace_function
      */
     function dd_trace_function(string $functionName, \Closure|array|null $tracingClosureOrConfigArray): bool {}
 
     /**
+     * @deprecated This function is deprecated and should not be used.
      * @alias DDTrace_trace_method
      */
     function dd_trace_method(
