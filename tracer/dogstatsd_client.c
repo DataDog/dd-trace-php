@@ -1,3 +1,4 @@
+// TODO: remove this file and put it in the sidecar.
 #include "dogstatsd_client.h"
 
 #include <dogstatsd_client/client.h>
