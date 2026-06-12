@@ -59,6 +59,23 @@ final class EvaluationMetricRecorder
         }
     }
 
+    /**
+     * Returns true when the EVP flagevaluation emission killswitch
+     * DD_FLAGGING_EVALUATION_COUNTS_ENABLED is not explicitly disabled.
+     * Default: enabled.
+     *
+     * @internal Killswitch only — does not control the OTel metric path.
+     */
+    public static function isEvpEnabled()
+    {
+        $val = getenv('DD_FLAGGING_EVALUATION_COUNTS_ENABLED');
+        if ($val === false || $val === '') {
+            return true; // absent → on
+        }
+        $lower = strtolower($val);
+        return !in_array($lower, ['false', '0', 'no'], true);
+    }
+
     private static function isEnabled()
     {
         return \dd_trace_env_config('DD_METRICS_OTEL_ENABLED') === true;
