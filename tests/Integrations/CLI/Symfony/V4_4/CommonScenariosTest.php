@@ -59,6 +59,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.terminate'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         '_dd.base_service' => 'console',
                     ]),
@@ -69,6 +70,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'app:throw'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         'symfony.console.command.class' => 'App\\Command\\ThrowCommand',
                         '_dd.base_service' => 'console',
@@ -84,6 +86,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.error'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         '_dd.base_service' => 'console',
                     ]),
@@ -94,6 +97,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.command'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         '_dd.base_service' => 'console',
                     ]),
@@ -104,6 +108,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'App\Kernel'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         '_dd.base_service' => 'console',
                     ])
@@ -137,6 +142,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.terminate'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         '_dd.base_service' => 'console',
                     ]),
@@ -147,6 +153,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'about'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         'symfony.console.command.class' => 'Symfony\Bundle\FrameworkBundle\Command\AboutCommand',
                         '_dd.base_service' => 'console',
@@ -158,6 +165,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'symfony.console.command'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         '_dd.base_service' => 'console',
                     ]),
@@ -168,6 +176,7 @@ class CommonScenariosTest extends IntegrationTestCase
                         'App\Kernel'
                     )->withExactTags([
                         Tag::COMPONENT => 'symfony',
+                        '_dd.svc_src' => 'symfony',
                         '_dd.svc_src' => 'm',
                         '_dd.base_service' => 'console',
                     ]),

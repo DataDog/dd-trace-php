@@ -94,9 +94,6 @@ abstract class Integration implements \DDTrace\Integration
             $service = $mapping[$service];
         }
         $span->service = $service;
-        // The C write hook stamps svc_src='m' on any $span->service write; clear
-        // it and re-establish the integration-driven source per RFC. In flat
-        // mode with a default-service root (root has no svc_src), leave cleared.
         unset($span->meta['_dd.svc_src']);
         if ($flatServiceNames) {
             if ($rootSpan && isset($rootSpan->meta['_dd.svc_src'])) {
@@ -107,15 +104,11 @@ abstract class Integration implements \DDTrace\Integration
         }
     }
 
-    /**
-     * Tag _dd.svc_src with the integration name when the framework fallback drove
-     * the service value (i.e. user did not configure DD_SERVICE). When DD_SERVICE
-     * is configured, the service value is the user's default — leave _dd.svc_src
-     * cleared per RFC "Service Override Source Attribution".
-     */
     public static function tagFrameworkServiceSource(SpanData $span, $integrationName)
     {
-        if (!\dd_trace_env_config('DD_SERVICE')) {
+        if (\dd_trace_env_config('DD_SERVICE')) {
+            unset($span->meta['_dd.svc_src']);
+        } else {
             $span->meta['_dd.svc_src'] = $integrationName;
         }
     }

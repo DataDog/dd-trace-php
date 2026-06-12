@@ -502,8 +502,6 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
                 ZVAL_EMPTY_STRING(&span->property_version);
             }
         }
-        // Per RFC "Service Override Source Attribution": an explicit
-        // $span->service = ... write is a manual API override → svc_src='m'.
         if (Z_TYPE_P(value) == IS_STRING && !zend_is_identical(&span->property_service, value)) {
             zend_array *meta = ddtrace_property_array(&span->property_meta);
             zval val;
