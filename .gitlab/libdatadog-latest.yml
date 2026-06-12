@@ -200,13 +200,12 @@ stages:
           if [ "${is_compile}" = "true" ]; then
             safe=$(echo "${jname_lower}" | tr '/ ' '-_' | cut -c1-60)
             trace_file="tmp/artifacts/traces/${safe}_${job_id}.txt"
-            echo "" && echo "--- trace: ${job_name} (${trigger}) ---"
-            trace=$(curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" \
-              "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${job_id}/trace" \
-              || echo "[trace unavailable]")
-            { echo "=== ${job_name} (trigger: ${trigger}) ==="; echo "${trace}" | tail -c 15360; } \
-              > "${trace_file}"
-            echo "${trace}" | tail -c 2000
+            echo ""
+            {
+              echo "=== ${job_name} (trigger: ${trigger}) ==="
+              (curl -sf -H "PRIVATE-TOKEN: ${GITLAB_TOKEN}" "${GITLAB_API}/projects/${CI_PROJECT_ID}/jobs/${job_id}/trace" || echo "[trace unavailable]") | tail -c 15360
+            } > "${trace_file}"
+            tail -c 2000 "${trace_file}"
           fi
         done < <(jq -c '.[]' tmp/artifacts/all_failures.json)
 
@@ -275,7 +274,7 @@ stages:
 
       # Feedback runs append [no-ci-feedback] so the next push doesn't trigger
       # another analyze-and-create-pr, breaking the potential infinite loop.
-      FEEDBACK_MARKER="${LIBDATADOG_FEEDBACK_RUN:+' [no-ci-feedback]'}"
+      FEEDBACK_MARKER=$(if [ "${LIBDATADOG_FEEDBACK_RUN:-}" == "true" ]; then echo " [no-ci-feedback]"; fi)
       COMMIT_MSG="libdatadog update to ${LIBDATADOG_SHA:0:8}${FEEDBACK_MARKER}
 
       Automated update by CI pipeline ${CI_PIPELINE_URL}
@@ -290,7 +289,7 @@ stages:
           "https://x-access-token:${GITHUB_TOKEN}@github.com/DataDog/dd-trace-php.git" \
           "HEAD:${TARGET_BRANCH}"
         set -x
-      elif [ -z "${LIBDATADOG_FEEDBACK_RUN:-}" ]; then
+      elif [ "${LIBDATADOG_FEEDBACK_RUN:-}" == "true" ]; then
         # Original schedule run with no code changes: still push the submodule bump.
         git commit --allow-empty -m "${COMMIT_MSG}" \
           --author="github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
