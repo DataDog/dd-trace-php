@@ -99,11 +99,11 @@ const TYPE_FLOAT: i32 = 2;
 const TYPE_BOOLEAN: i32 = 3;
 const TYPE_OBJECT: i32 = 4;
 
-// ── EVP flagevaluation aggregation (EMIT-07, frozen contract) ─────────────────
+// ── EVP flagevaluation aggregation ────────────────────────────────────────────
 
 /// Full-tier aggregation key: six dimensions, all exact strings, no hash.
-/// Reviewer concern #3 (3395004724): no collision-prone digest — Go's comparable
-/// struct identity ported to Rust via #[derive(Eq, Hash)].
+/// No collision-prone digest — comparable struct identity via
+/// #[derive(Eq, Hash)] so distinct dimensions never alias.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct FullTierKey {
     flag_key: String,
@@ -193,9 +193,9 @@ fn evp_enabled() -> bool {
 }
 
 /// Canonical context key: length-delimited, serde-JSON-encoded sorted context
-/// attributes. No hash — language-native map key (reviewer concern #3
-/// 3395004724). Distinct attribute maps produce distinct keys; same maps
-/// produce identical keys (deterministic because keys are sorted).
+/// attributes. No hash — a language-native map key. Distinct attribute maps
+/// produce distinct keys; same maps produce identical keys (deterministic
+/// because keys are sorted).
 fn canonical_context_key(attrs: &HashMap<Str, Attribute>) -> String {
     // Sort keys for deterministic ordering.
     let mut pairs: Vec<(&Str, &Attribute)> = attrs.iter().collect();
@@ -272,8 +272,8 @@ fn now_ms() -> i64 {
 /// Record one evaluation into the EVP aggregator (two-tier, frozen caps).
 /// Called from `ddog_ffe_evaluate()` if the killswitch is on.
 ///
-/// `variant_str`: empty string means runtime default (absent variant, reviewer
-/// concern #5 3395344504).
+/// `variant_str`: empty string means runtime default (absent variant — detected
+/// from the absence of a variant, not from the reason alone).
 fn record_flag_evaluation_evp(
     flag_key: &str,
     variant_str: &str,
@@ -303,7 +303,7 @@ fn record_flag_evaluation_evp(
     // First, check the existing bucket in the per-flag state.
     if let Some(flag_state) = agg.full_tier.get_mut(flag_key) {
         if let Some(bucket) = flag_state.buckets.get_mut(&full_key) {
-            // Existing bucket — merge (min/max for first/last, reviewer concern #4).
+            // Existing bucket — merge (min/max for first/last, no wall-clock assumptions).
             bucket.merge(eval_ms);
             return;
         }
@@ -345,7 +345,7 @@ fn record_flag_evaluation_evp(
         agg.degraded_tier
             .insert(degraded_key, AggBucket::new(eval_ms));
     } else {
-        // Both tiers full → drop and count (reviewer concern #8 3385309427).
+        // Both tiers full → drop and count (explicit bounded overflow).
         agg.dropped_degraded_overflow = agg.dropped_degraded_overflow.saturating_add(1);
     }
 }
@@ -827,7 +827,7 @@ mod tests {
     fn empty_targeting_key_is_not_dropped() {
         // Acquire EVP_TEST_LOCK because ddog_ffe_evaluate() records into the
         // global EVP_AGGREGATOR; without serialization this test can corrupt
-        // the aggregator state observed by concurrent EVP tests (#Rule1-flakiness).
+        // the aggregator state observed by concurrent EVP tests.
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         reset_aggregator();
         setup_zend_string_functions();
@@ -859,16 +859,16 @@ mod tests {
     }
 
     // Test: the real FFI entry point `ddog_ffe_evaluate` (the function the PHP/C
-    // layer calls — tracer/functions.c:1817) actually populates the global
-    // EVP_AGGREGATOR that `ddog_ffe_flush_flag_evaluation_batch` later drains.
+    // layer calls) actually populates the global EVP_AGGREGATOR that
+    // `ddog_ffe_flush_flag_evaluation_batch` later drains.
     //
-    // This closes the "unit-green ≠ emits" gap (memory: phase2-fanin-validation-results):
-    // every other EVP test calls the internal `record_flag_evaluation_evp` helper
-    // directly, so none of them prove that an actual evaluation through the FFI
-    // boundary feeds the aggregator. If the `if result.valid && evp_enabled()`
-    // recording block in `ddog_ffe_evaluate` were removed or short-circuited, the
-    // flag would still evaluate correctly and every existing test would stay green
-    // while PHP emitted nothing — exactly the symptom observed in the fan-in run.
+    // This closes the "unit-green but emits nothing" gap: every other EVP test
+    // calls the internal `record_flag_evaluation_evp` helper directly, so none of
+    // them prove that an actual evaluation through the FFI boundary feeds the
+    // aggregator. If the `if result.valid && evp_enabled()` recording block in
+    // `ddog_ffe_evaluate` were removed or short-circuited, the flag would still
+    // evaluate correctly and every existing test would stay green while PHP
+    // emitted nothing.
     #[test]
     fn ddog_ffe_evaluate_populates_evp_aggregator_for_flush() {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -983,7 +983,7 @@ mod tests {
         clear_config();
     }
 
-    // ── EVP aggregation unit tests (EMIT-07, frozen contract) ─────────────────
+    // ── EVP aggregation unit tests ────────────────────────────────────────────
 
     // Serialization mutex to prevent parallel EVP tests from interfering with
     // the global aggregator state.
@@ -1013,7 +1013,7 @@ mod tests {
     }
 
     // Test: identical evaluations → same bucket, count=2, first<=last.
-    // Reviewer concern #4 (3395176782): first/last via min/max.
+    // first/last via min/max, not wall-clock ordering.
     #[test]
     fn identical_evaluations_merge_into_single_bucket() {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -1040,7 +1040,7 @@ mod tests {
         assert_eq!(ev.last_evaluation, eval_ms_2);
     }
 
-    // Test: differing context attrs → distinct buckets (reviewer concern #3 3395004724).
+    // Test: differing context attrs → distinct buckets (no key collision).
     #[test]
     fn different_context_values_produce_distinct_full_tier_buckets() {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -1090,7 +1090,7 @@ mod tests {
     }
 
     // Test: full-tier overflow routes to degraded tier.
-    // Reviewer concern #8 (3385309427): three named cap constants with explicit bounds.
+    // Three named cap constants enforce explicit bounds on each tier.
     #[test]
     fn full_tier_overflow_routes_to_degraded_tier() {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -1300,7 +1300,8 @@ mod tests {
         );
     }
 
-    // Test: absent variant → runtime_default_used = true (reviewer concern #5 3395344504).
+    // Test: absent variant → runtime_default_used = true (detected from the
+    // absence of a variant, not the reason alone).
     #[test]
     fn absent_variant_sets_runtime_default_used() {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -1318,8 +1319,8 @@ mod tests {
     }
 
     // Test: killswitch DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false → no recording.
-    // OTel record_ffe_evaluation_metric path must still be wired (verified by presence
-    // of the function in this codebase — PRES-01).
+    // The existing OTel record_ffe_evaluation_metric path must still be wired
+    // (verified by presence of the function in this codebase).
     #[test]
     fn killswitch_disabled_skips_evp_recording() {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
@@ -1348,7 +1349,7 @@ mod tests {
         assert!(evp_enabled(), "evp_enabled() must return true when env var is absent (default on)");
     }
 
-    // Test: PRES-01 — confirm record_ffe_evaluation_metric exists (OTel native path).
+    // Test: confirm the existing OTel native path is preserved (non-regression).
     // This is a compile-time proof: if the function is missing, the test module won't compile.
     #[test]
     fn otel_native_path_function_exists() {
