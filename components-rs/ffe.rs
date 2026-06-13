@@ -4,17 +4,18 @@ use datadog_ffe::rules_based::{
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
 use datadog_ffe::telemetry::flagevaluation::{
-    AllocationKey, FfeFlagEvaluationBatch, FfeFlagEvaluationEvent, FlagKey, VariantKey,
-    DEGRADED_CAP, GLOBAL_CAP, PER_FLAG_CAP,
+    prune_context, AllocationKey, ContextDD, FfeFlagEvaluationBatch, FfeFlagEvaluationEvent,
+    FlagEvalEventContext, FlagKey, VariantKey, DEGRADED_CAP, GLOBAL_CAP, PER_FLAG_CAP,
 };
 use datadog_ffe::telemetry::FfeTelemetryContext;
 use datadog_sidecar::service::blocking::{self as sidecar_blocking, SidecarTransport};
 use datadog_sidecar::service::{InstanceId, QueueId, SidecarAction};
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
+use tracing::warn;
 
 struct FfeState {
     config: Option<Configuration>,
@@ -156,6 +157,12 @@ impl AggBucket {
 #[derive(Default)]
 struct FullTierFlagState {
     buckets: HashMap<FullTierKey, AggBucket>,
+    /// Pruned evaluation context per bucket, captured once at bucket creation.
+    /// The context is identical for every evaluation folded into a bucket (it is
+    /// part of the bucket identity via `context_key`), so it only needs to be
+    /// pruned and stored on first insert, then carried verbatim into the drained
+    /// full-tier event.
+    contexts: HashMap<FullTierKey, BTreeMap<String, serde_json::Value>>,
 }
 
 /// Two-tier aggregator state. Process-global behind a Mutex.
@@ -213,6 +220,24 @@ fn append_length_delimited(buf: &mut Vec<u8>, data: &[u8]) {
     let len = data.len() as u64;
     buf.extend_from_slice(&len.to_be_bytes());
     buf.extend_from_slice(data);
+}
+
+/// Build the pruned evaluation context carried by a full-tier event.
+///
+/// Converts the evaluation-context attributes to JSON values and applies the
+/// shared `prune_context` bounds (≤256 fields, string values >256 bytes skipped)
+/// so the full tier and the degraded tier enforce the same caps. Returns the
+/// pruned map (empty when there are no attributes).
+fn pruned_context_map(attrs: &HashMap<Str, Attribute>) -> BTreeMap<String, serde_json::Value> {
+    let raw: BTreeMap<String, serde_json::Value> = attrs
+        .iter()
+        .filter_map(|(k, v)| {
+            serde_json::to_value(v)
+                .ok()
+                .map(|json| (k.as_str().to_owned(), json))
+        })
+        .collect();
+    prune_context(&raw)
 }
 
 /// Map reason integer to the canonical reason string.
@@ -293,7 +318,11 @@ fn record_flag_evaluation_evp(
         .unwrap_or(0);
 
     if current_total < GLOBAL_CAP && flag_count < PER_FLAG_CAP {
+        let pruned = pruned_context_map(attrs);
         let flag_state = agg.full_tier.entry(flag_key.to_owned()).or_default();
+        flag_state
+            .contexts
+            .insert(full_key.clone(), pruned);
         flag_state.buckets.insert(full_key, AggBucket::new(eval_ms));
         agg.full_tier_total += 1;
         return;
@@ -337,8 +366,20 @@ fn drain_aggregator(
     let mut events: Vec<FfeFlagEvaluationEvent> = Vec::new();
 
     // Drain full tier.
-    for (flag_key, flag_state) in agg.full_tier.drain() {
+    for (flag_key, mut flag_state) in agg.full_tier.drain() {
         for (k, bucket) in flag_state.buckets {
+            // Pull the pruned context captured for this bucket at insertion time.
+            let pruned = flag_state.contexts.remove(&k).unwrap_or_default();
+            let context = if pruned.is_empty() {
+                None
+            } else {
+                Some(FlagEvalEventContext {
+                    evaluation: Some(pruned),
+                    dd: Some(ContextDD {
+                        service: service.to_owned(),
+                    }),
+                })
+            };
             let runtime_default = k.variant.is_empty();
             let variant = if k.variant.is_empty() {
                 None
@@ -366,7 +407,7 @@ fn drain_aggregator(
                 variant,
                 allocation,
                 targeting_key,
-                context: None, // context pruning owned by PREP-01 types on the sidecar
+                context,
                 error: None,
                 runtime_default_used: runtime_default,
             });
@@ -390,6 +431,18 @@ fn drain_aggregator(
             error: None,
             runtime_default_used: runtime_default,
         });
+    }
+
+    // Surface degraded-tier overflow drops so an undersized degradedCap is
+    // observable rather than a silent loss of legitimate counts. Read-and-reset
+    // at drain so the warning reflects only the drops since the last flush.
+    let dropped_degraded_overflow = agg.dropped_degraded_overflow;
+    agg.dropped_degraded_overflow = 0;
+    if dropped_degraded_overflow > 0 {
+        warn!(
+            "openfeature: degraded aggregation tier full — dropped {dropped_degraded_overflow} \
+             evaluation(s); raise degradedCap (best-effort telemetry)"
+        );
     }
 
     if events.is_empty() {
