@@ -858,6 +858,104 @@ mod tests {
         reset_aggregator();
     }
 
+    // Test: the real FFI entry point `ddog_ffe_evaluate` (the function the PHP/C
+    // layer calls — tracer/functions.c:1817) actually populates the global
+    // EVP_AGGREGATOR that `ddog_ffe_flush_flag_evaluation_batch` later drains.
+    //
+    // This closes the "unit-green ≠ emits" gap (memory: phase2-fanin-validation-results):
+    // every other EVP test calls the internal `record_flag_evaluation_evp` helper
+    // directly, so none of them prove that an actual evaluation through the FFI
+    // boundary feeds the aggregator. If the `if result.valid && evp_enabled()`
+    // recording block in `ddog_ffe_evaluate` were removed or short-circuited, the
+    // flag would still evaluate correctly and every existing test would stay green
+    // while PHP emitted nothing — exactly the symptom observed in the fan-in run.
+    #[test]
+    fn ddog_ffe_evaluate_populates_evp_aggregator_for_flush() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        setup_zend_string_functions();
+        clear_config();
+        // Ensure the killswitch is in its default-on state for this test.
+        std::env::remove_var("DD_FLAGGING_EVALUATION_COUNTS_ENABLED");
+
+        let config =
+            CString::new(EMPTY_TARGETING_KEY_CONFIG).expect("test fixture is valid cstring");
+        assert!(ddog_ffe_load_config(char_slice(&config)));
+
+        let flag_key =
+            CString::new("empty.targeting.shard.flag").expect("test flag key is valid cstring");
+
+        // Drive the real FFI entry point twice with identical inputs.
+        for _ in 0..2 {
+            let result = ddog_ffe_evaluate(
+                char_slice(&flag_key),
+                TYPE_STRING,
+                CharSlice::from(""),
+                std::ptr::null(),
+                0,
+            );
+            assert!(result.valid, "evaluation must be valid");
+        }
+
+        // Draining the aggregator must yield exactly the batch the sidecar flush
+        // would send: one bucket for the flag with the merged count.
+        let batch = drain_aggregator("svc", "prod", "1.0")
+            .expect("ddog_ffe_evaluate must have recorded into the EVP aggregator");
+        assert_eq!(
+            batch.flag_evaluations.len(),
+            1,
+            "two identical evaluations must aggregate into a single bucket"
+        );
+        let ev = &batch.flag_evaluations[0];
+        assert_eq!(ev.flag.key, "empty.targeting.shard.flag");
+        assert_eq!(ev.evaluation_count, 2);
+        assert_eq!(
+            ev.variant.as_ref().map(|v| v.key.as_str()),
+            Some("empty-target"),
+            "the assigned variation key must flow through to the EVP event"
+        );
+
+        clear_config();
+        reset_aggregator();
+    }
+
+    // Test: with the killswitch disabled, the real FFI entry point must NOT
+    // record into the aggregator (the `evp_enabled()` gate lives in
+    // `ddog_ffe_evaluate`, so this exercises the integrated gate, unlike
+    // `killswitch_disabled_skips_evp_recording` which checks `evp_enabled()` alone).
+    #[test]
+    fn ddog_ffe_evaluate_respects_killswitch() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        setup_zend_string_functions();
+        clear_config();
+        std::env::set_var("DD_FLAGGING_EVALUATION_COUNTS_ENABLED", "false");
+
+        let config =
+            CString::new(EMPTY_TARGETING_KEY_CONFIG).expect("test fixture is valid cstring");
+        assert!(ddog_ffe_load_config(char_slice(&config)));
+
+        let flag_key =
+            CString::new("empty.targeting.shard.flag").expect("test flag key is valid cstring");
+        let result = ddog_ffe_evaluate(
+            char_slice(&flag_key),
+            TYPE_STRING,
+            CharSlice::from(""),
+            std::ptr::null(),
+            0,
+        );
+        assert!(result.valid, "evaluation must still succeed when EVP is off");
+
+        assert!(
+            drain_aggregator("svc", "prod", "1.0").is_none(),
+            "killswitch=false must leave the EVP aggregator empty"
+        );
+
+        std::env::remove_var("DD_FLAGGING_EVALUATION_COUNTS_ENABLED");
+        clear_config();
+        reset_aggregator();
+    }
+
     #[test]
     fn configuration_state_is_thread_local() {
         clear_config();
@@ -1095,6 +1193,111 @@ mod tests {
             Some("alloc-1")
         );
         assert!(!ev.runtime_default_used);
+    }
+
+    // Test: full-tier events carry the pruned evaluation context.
+    #[test]
+    fn full_tier_event_carries_pruned_context() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        let attrs = attrs_with("plan", "premium");
+        record_flag_evaluation_evp(
+            "ctx-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
+            Some("user-1"), &attrs, 1_000,
+        );
+
+        let batch = drain_aggregator("frontend", "prod", "1.0").unwrap();
+        let ev = &batch.flag_evaluations[0];
+        let context = ev.context.as_ref().expect("full-tier event must carry context");
+        let evaluation = context
+            .evaluation
+            .as_ref()
+            .expect("context.evaluation must be present");
+        assert_eq!(evaluation.get("plan"), Some(&serde_json::json!("premium")));
+        assert_eq!(
+            context.dd.as_ref().map(|d| d.service.as_str()),
+            Some("frontend"),
+            "context.dd.service must carry the flushing service name"
+        );
+    }
+
+    // Test: oversized string context values are skipped before buffering.
+    #[test]
+    fn full_tier_context_prunes_oversized_string_values() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        let mut attrs = HashMap::new();
+        attrs.insert(Str::from("ok"), Attribute::from("short"));
+        attrs.insert(Str::from("oversized"), Attribute::from("x".repeat(257).as_str()));
+        record_flag_evaluation_evp(
+            "prune-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
+            Some("user-1"), &attrs, 1_000,
+        );
+
+        let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
+        let evaluation = batch.flag_evaluations[0]
+            .context
+            .as_ref()
+            .and_then(|c| c.evaluation.as_ref())
+            .expect("context.evaluation must be present");
+        assert!(evaluation.contains_key("ok"), "short value must be kept");
+        assert!(
+            !evaluation.contains_key("oversized"),
+            "value over 256 chars must be skipped before buffering"
+        );
+    }
+
+    // Test: empty context produces no context object (degraded-shaped full event).
+    #[test]
+    fn full_tier_empty_context_emits_no_context_object() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        record_flag_evaluation_evp(
+            "no-ctx-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
+            Some("user-1"), &empty_attrs(), 1_000,
+        );
+
+        let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
+        assert!(
+            batch.flag_evaluations[0].context.is_none(),
+            "an evaluation with no context attributes must omit the context object"
+        );
+    }
+
+    // Test: draining reads-and-resets the degraded-overflow drop counter so the
+    // observable warning reflects only drops since the previous flush.
+    #[test]
+    fn drain_resets_degraded_overflow_drop_counter() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        {
+            let mut agg = match EVP_AGGREGATOR.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            agg.dropped_degraded_overflow = 5;
+            // A bucket so the batch is non-empty and drain runs to completion.
+            agg.degraded_tier.insert(
+                DegradedTierKey {
+                    flag_key: "f".to_owned(),
+                    variant: "on".to_owned(),
+                    allocation_key: "a".to_owned(),
+                    reason: "SPLIT".to_owned(),
+                },
+                AggBucket::new(1_000),
+            );
+        }
+
+        let _ = drain_aggregator("svc", "prod", "1.0").unwrap();
+
+        let agg = match EVP_AGGREGATOR.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        assert_eq!(
+            agg.dropped_degraded_overflow, 0,
+            "drain must reset the overflow drop counter after surfacing it"
+        );
     }
 
     // Test: absent variant → runtime_default_used = true (reviewer concern #5 3395344504).
