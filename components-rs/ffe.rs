@@ -320,9 +320,7 @@ fn record_flag_evaluation_evp(
     if current_total < GLOBAL_CAP && flag_count < PER_FLAG_CAP {
         let pruned = pruned_context_map(attrs);
         let flag_state = agg.full_tier.entry(flag_key.to_owned()).or_default();
-        flag_state
-            .contexts
-            .insert(full_key.clone(), pruned);
+        flag_state.contexts.insert(full_key.clone(), pruned);
         flag_state.buckets.insert(full_key, AggBucket::new(eval_ms));
         agg.full_tier_total += 1;
         return;
@@ -352,11 +350,7 @@ fn record_flag_evaluation_evp(
 
 /// Drain the aggregator and build a `FfeFlagEvaluationBatch`.
 /// Returns `None` if the aggregator is empty.
-fn drain_aggregator(
-    service: &str,
-    env: &str,
-    version: &str,
-) -> Option<FfeFlagEvaluationBatch> {
+fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEvaluationBatch> {
     let mut agg = match EVP_AGGREGATOR.lock() {
         Ok(g) => g,
         Err(p) => p.into_inner(),
@@ -369,17 +363,20 @@ fn drain_aggregator(
     for (flag_key, mut flag_state) in agg.full_tier.drain() {
         for (k, bucket) in flag_state.buckets {
             // Pull the pruned context captured for this bucket at insertion time.
+            // The rich `BTreeMap` is stored internally; we stringify it into a
+            // JSON-object string only at event-build time so the bincode sidecar
+            // IPC wire stays encodable (bincode cannot carry serde_json::Value).
+            // The flusher re-expands the string into a JSON object before the POST.
             let pruned = flag_state.contexts.remove(&k).unwrap_or_default();
-            let context = if pruned.is_empty() {
-                None
-            } else {
-                Some(FlagEvalEventContext {
-                    evaluation: Some(pruned),
-                    dd: Some(ContextDD {
-                        service: service.to_owned(),
-                    }),
-                })
-            };
+            // `Some(json_string)` when non-empty, `None` when the pruned map is
+            // empty — preserving the "empty context emits no evaluation" behavior.
+            let evaluation = serde_json::to_string(&pruned).ok().filter(|s| s != "{}");
+            let context = evaluation.map(|evaluation| FlagEvalEventContext {
+                evaluation: Some(evaluation),
+                dd: Some(ContextDD {
+                    service: service.to_owned(),
+                }),
+            });
             let runtime_default = k.variant.is_empty();
             let variant = if k.variant.is_empty() {
                 None
@@ -400,7 +397,9 @@ fn drain_aggregator(
             };
             events.push(FfeFlagEvaluationEvent {
                 timestamp: now,
-                flag: FlagKey { key: flag_key.clone() },
+                flag: FlagKey {
+                    key: flag_key.clone(),
+                },
                 first_evaluation: bucket.first_evaluation,
                 last_evaluation: bucket.last_evaluation,
                 evaluation_count: bucket.count,
@@ -482,7 +481,7 @@ pub unsafe extern "C" fn ddog_ffe_flush_flag_evaluation_batch(
         None => return true, // nothing to flush
     };
 
-    sidecar_blocking::enqueue_actions(
+    sidecar_blocking::enqueue_actions_reliable(
         transport,
         instance_id,
         queue_id,
@@ -944,7 +943,10 @@ mod tests {
             std::ptr::null(),
             0,
         );
-        assert!(result.valid, "evaluation must still succeed when EVP is off");
+        assert!(
+            result.valid,
+            "evaluation must still succeed when EVP is off"
+        );
 
         assert!(
             drain_aggregator("svc", "prod", "1.0").is_none(),
@@ -1022,12 +1024,24 @@ mod tests {
         let eval_ms_2 = 2_000i64;
 
         record_flag_evaluation_evp(
-            "my-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &empty_attrs(), eval_ms_1,
+            "my-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &empty_attrs(),
+            eval_ms_1,
         );
         record_flag_evaluation_evp(
-            "my-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &empty_attrs(), eval_ms_2,
+            "my-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &empty_attrs(),
+            eval_ms_2,
         );
 
         let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
@@ -1049,17 +1063,30 @@ mod tests {
         let attrs_b = attrs_with("plan", "premium");
 
         record_flag_evaluation_evp(
-            "ctx-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &attrs_a, 1_000,
+            "ctx-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &attrs_a,
+            1_000,
         );
         record_flag_evaluation_evp(
-            "ctx-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &attrs_b, 1_000,
+            "ctx-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &attrs_b,
+            1_000,
         );
 
         let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
         assert_eq!(
-            batch.flag_evaluations.len(), 2,
+            batch.flag_evaluations.len(),
+            2,
             "different context values must produce two distinct buckets"
         );
     }
@@ -1073,17 +1100,30 @@ mod tests {
         let attrs_b = attrs_with("plan", "free");
 
         record_flag_evaluation_evp(
-            "ctx-flag2", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &attrs_a, 1_000,
+            "ctx-flag2",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &attrs_a,
+            1_000,
         );
         record_flag_evaluation_evp(
-            "ctx-flag2", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &attrs_b, 2_000,
+            "ctx-flag2",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &attrs_b,
+            2_000,
         );
 
         let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
         assert_eq!(
-            batch.flag_evaluations.len(), 1,
+            batch.flag_evaluations.len(),
+            1,
             "same context values must merge into one bucket"
         );
         assert_eq!(batch.flag_evaluations[0].evaluation_count, 2);
@@ -1108,8 +1148,14 @@ mod tests {
 
         // This evaluation should be routed to the degraded tier.
         record_flag_evaluation_evp(
-            "overflow-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-x"), &attrs_with("k", "v"), 1_000,
+            "overflow-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-x"),
+            &attrs_with("k", "v"),
+            1_000,
         );
 
         let agg = match EVP_AGGREGATOR.lock() {
@@ -1117,7 +1163,8 @@ mod tests {
             Err(p) => p.into_inner(),
         };
         assert_eq!(
-            agg.degraded_tier.len(), 1,
+            agg.degraded_tier.len(),
+            1,
             "evaluations past globalCap must land in the degraded tier"
         );
         drop(agg);
@@ -1135,7 +1182,7 @@ mod tests {
                 Err(p) => p.into_inner(),
             };
             agg.full_tier_total = GLOBAL_CAP; // full-tier saturated
-            // Fill the degraded tier to capacity.
+                                              // Fill the degraded tier to capacity.
             for i in 0..DEGRADED_CAP {
                 let key = DegradedTierKey {
                     flag_key: format!("flag-{i}"),
@@ -1149,8 +1196,14 @@ mod tests {
 
         // One more evaluation should increment the drop counter.
         record_flag_evaluation_evp(
-            "drop-me", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            None, &empty_attrs(), 1_000,
+            "drop-me",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            None,
+            &empty_attrs(),
+            1_000,
         );
 
         let agg = match EVP_AGGREGATOR.lock() {
@@ -1171,8 +1224,14 @@ mod tests {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         reset_aggregator();
         record_flag_evaluation_evp(
-            "batch-flag", "variant-x", "alloc-1", REASON_TARGETING_MATCH, ERROR_NONE,
-            Some("user-99"), &empty_attrs(), 5_000,
+            "batch-flag",
+            "variant-x",
+            "alloc-1",
+            REASON_TARGETING_MATCH,
+            ERROR_NONE,
+            Some("user-99"),
+            &empty_attrs(),
+            5_000,
         );
 
         let batch = drain_aggregator("my-service", "staging", "2.0").unwrap();
@@ -1202,17 +1261,29 @@ mod tests {
         reset_aggregator();
         let attrs = attrs_with("plan", "premium");
         record_flag_evaluation_evp(
-            "ctx-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &attrs, 1_000,
+            "ctx-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &attrs,
+            1_000,
         );
 
         let batch = drain_aggregator("frontend", "prod", "1.0").unwrap();
         let ev = &batch.flag_evaluations[0];
-        let context = ev.context.as_ref().expect("full-tier event must carry context");
-        let evaluation = context
+        let context = ev
+            .context
+            .as_ref()
+            .expect("full-tier event must carry context");
+        // `evaluation` is a JSON-object STRING on the wire; parse it back to assert.
+        let evaluation_str = context
             .evaluation
             .as_ref()
             .expect("context.evaluation must be present");
+        let evaluation: serde_json::Value =
+            serde_json::from_str(evaluation_str).expect("evaluation must be a JSON-object string");
         assert_eq!(evaluation.get("plan"), Some(&serde_json::json!("premium")));
         assert_eq!(
             context.dd.as_ref().map(|d| d.service.as_str()),
@@ -1228,18 +1299,33 @@ mod tests {
         reset_aggregator();
         let mut attrs = HashMap::new();
         attrs.insert(Str::from("ok"), Attribute::from("short"));
-        attrs.insert(Str::from("oversized"), Attribute::from("x".repeat(257).as_str()));
+        attrs.insert(
+            Str::from("oversized"),
+            Attribute::from("x".repeat(257).as_str()),
+        );
         record_flag_evaluation_evp(
-            "prune-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &attrs, 1_000,
+            "prune-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &attrs,
+            1_000,
         );
 
         let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
-        let evaluation = batch.flag_evaluations[0]
+        let evaluation_str = batch.flag_evaluations[0]
             .context
             .as_ref()
             .and_then(|c| c.evaluation.as_ref())
             .expect("context.evaluation must be present");
+        // `evaluation` is a JSON-object STRING on the wire; parse it back to assert.
+        let evaluation: serde_json::Value =
+            serde_json::from_str(evaluation_str).expect("evaluation must be a JSON-object string");
+        let evaluation = evaluation
+            .as_object()
+            .expect("evaluation must parse to a JSON object");
         assert!(evaluation.contains_key("ok"), "short value must be kept");
         assert!(
             !evaluation.contains_key("oversized"),
@@ -1253,8 +1339,14 @@ mod tests {
         let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         reset_aggregator();
         record_flag_evaluation_evp(
-            "no-ctx-flag", "on", "alloc-a", REASON_SPLIT, ERROR_NONE,
-            Some("user-1"), &empty_attrs(), 1_000,
+            "no-ctx-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &empty_attrs(),
+            1_000,
         );
 
         let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
@@ -1308,14 +1400,26 @@ mod tests {
         reset_aggregator();
         // Simulate a DEFAULT evaluation (no variant assigned).
         record_flag_evaluation_evp(
-            "default-flag", "", "", REASON_DEFAULT, ERROR_NONE,
-            None, &empty_attrs(), 1_000,
+            "default-flag",
+            "",
+            "",
+            REASON_DEFAULT,
+            ERROR_NONE,
+            None,
+            &empty_attrs(),
+            1_000,
         );
 
         let batch = drain_aggregator("svc", "env", "1").unwrap();
         let ev = &batch.flag_evaluations[0];
-        assert!(ev.runtime_default_used, "absent variant must set runtime_default_used");
-        assert!(ev.variant.is_none(), "absent variant must be None (not empty string)");
+        assert!(
+            ev.runtime_default_used,
+            "absent variant must set runtime_default_used"
+        );
+        assert!(
+            ev.variant.is_none(),
+            "absent variant must be None (not empty string)"
+        );
     }
 
     // Test: killswitch DD_FLAGGING_EVALUATION_COUNTS_ENABLED=false → no recording.
@@ -1328,13 +1432,22 @@ mod tests {
         std::env::set_var("DD_FLAGGING_EVALUATION_COUNTS_ENABLED", "false");
 
         record_flag_evaluation_evp(
-            "ks-flag", "on", "alloc", REASON_SPLIT, ERROR_NONE,
-            None, &empty_attrs(), 1_000,
+            "ks-flag",
+            "on",
+            "alloc",
+            REASON_SPLIT,
+            ERROR_NONE,
+            None,
+            &empty_attrs(),
+            1_000,
         );
 
         // The evp_enabled() check is in ddog_ffe_evaluate(), not in
         // record_flag_evaluation_evp() itself. Test evp_enabled() directly.
-        assert!(!evp_enabled(), "evp_enabled() must return false when env var is 'false'");
+        assert!(
+            !evp_enabled(),
+            "evp_enabled() must return false when env var is 'false'"
+        );
 
         // Drain should return None (nothing was actually recorded via ddog_ffe_evaluate
         // because evp_enabled() would have returned false there).
@@ -1343,10 +1456,16 @@ mod tests {
         reset_aggregator();
 
         std::env::set_var("DD_FLAGGING_EVALUATION_COUNTS_ENABLED", "true");
-        assert!(evp_enabled(), "evp_enabled() must return true when env var is 'true'");
+        assert!(
+            evp_enabled(),
+            "evp_enabled() must return true when env var is 'true'"
+        );
 
         std::env::remove_var("DD_FLAGGING_EVALUATION_COUNTS_ENABLED");
-        assert!(evp_enabled(), "evp_enabled() must return true when env var is absent (default on)");
+        assert!(
+            evp_enabled(),
+            "evp_enabled() must return true when env var is absent (default on)"
+        );
     }
 
     // Test: confirm the existing OTel native path is preserved (non-regression).
