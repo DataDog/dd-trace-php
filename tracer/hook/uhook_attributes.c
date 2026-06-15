@@ -115,12 +115,15 @@ static void dd_fill_span_data(dd_uhook_def *def, ddtrace_span_data *span) {
     }
     if (def->service) {
         zval *service = &span->property_service;
+        bool service_changed = Z_TYPE_P(service) != IS_STRING || !zend_string_equals(Z_STR_P(service), def->service);
         zval_ptr_dtor(service);
         ZVAL_STR_COPY(service, def->service);
-        zend_array *meta = ddtrace_property_array(&span->property_meta);
-        zval val;
-        ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
-        zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
+        if (service_changed) {
+            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zval val;
+            ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
+            zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
+        }
     }
     if (def->type) {
         zval *type = &span->property_type;

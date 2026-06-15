@@ -1845,6 +1845,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.dm", true);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.ksr", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.tid", true);
+        transfer_meta_data(rust_span, serialized_inferred_span, "_dd.svc_src", false);
         transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_ENDPOINT_SCAN, false);
         transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_SECURITY_TEST, false);
 
