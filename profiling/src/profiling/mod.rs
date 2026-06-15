@@ -1779,12 +1779,17 @@ impl Profiler {
             // Casting between two integers of the same size is a no-op, and
             // Rust uses 2's complement for negative numbers.
             let local_root_span_id = context.local_root_span_id as i64;
-            let span_id = context.span_id as i64;
 
             labels.push(Label {
                 key: "local root span id",
                 value: LabelValue::Num(local_root_span_id, ""),
             });
+        }
+
+        if context.span_id != 0 {
+            // Casting between two integers of the same size is a no-op, and
+            // Rust uses 2's complement for negative numbers.
+            let span_id = context.span_id as i64;
 
             labels.push(Label {
                 key: "span id",

@@ -51,6 +51,9 @@ typedef struct {
     zend_long default_priority_sampling;
     zend_long propagated_priority_sampling;
     ddtrace_span_stack *active_stack; // never NULL except tracer is disabled
+#ifdef __linux__
+    ddtrace_root_span_data *otel_context_root_span_override;
+#endif
     ddtrace_span_stack *top_closed_stack;
     HashTable traced_spans; // tie a span to a specific active execute_data
     uint32_t open_spans_count;
