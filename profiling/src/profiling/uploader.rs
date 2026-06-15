@@ -101,7 +101,10 @@ impl Uploader {
         message: Box<UploadRequest>,
         last_cpu: &mut Option<ThreadTime>,
     ) -> anyhow::Result<u16> {
-        let index = message.index;
+        // `index` is `Arc<ProfileIndex>`; unwrap so we can move `tags` out.
+        // In the common case the upload thread holds the only strong ref by
+        // the time we get here, so this is a move rather than a clone.
+        let index = Arc::unwrap_or_clone(message.index);
         let profile = message.profile;
 
         let profiling_library_name: &str = &PROFILER_NAME_STR;

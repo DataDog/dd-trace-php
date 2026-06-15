@@ -1,6 +1,7 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
+import com.datadog.appsec.php.docker.PhpFpm
 import com.datadog.appsec.php.model.Trace
 import org.junit.jupiter.api.Test
 
@@ -102,21 +103,11 @@ trait SamplingTestsInFpm {
     }
 
     void setSamplingPeriod(String period) {
-        flushProfilingData()
-        def res = container.execInContainer(
-                'bash', '-c',
-                """kill -9 `pgrep php-fpm`;
-               export DD_API_SECURITY_SAMPLE_DELAY=$period;
-               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini""")
-        assert res.exitCode == 0
+        new PhpFpm(container).restart([DD_API_SECURITY_SAMPLE_DELAY: period])
     }
 
     private void resetFpm() {
-        flushProfilingData()
-        container.execInContainer(
-                'bash', '-c',
-                '''kill -9 `pgrep php-fpm`;
-               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini''')
+        new PhpFpm(container).restart()
     }
 
     void flushProfilingData() {

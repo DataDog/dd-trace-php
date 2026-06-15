@@ -200,6 +200,7 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice language_version,
                                                 ddog_CharSlice tracer_version,
                                                 uint32_t flush_interval_milliseconds,
+                                                uint32_t retry_interval_milliseconds,
                                                 uint32_t remote_config_poll_interval_millis,
                                                 uint32_t telemetry_heartbeat_interval_millis,
                                                 uint64_t telemetry_extended_heartbeat_interval_millis,
