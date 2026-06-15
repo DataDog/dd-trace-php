@@ -340,7 +340,12 @@ extern "C" {
     /// Must be called from a PHP thread during a request.
     pub fn datadog_php_profiling_vm_interrupt_addr() -> *const AtomicBool;
 
-    /// Returns the ddtrace profiling context API selected during startup.
+    /// Initializes per-thread profiler FFI state.
+    /// # Safety
+    /// Must be called from a PHP thread during a request.
+    pub fn datadog_php_profiling_rinit();
+
+    /// Returns the profiling context API selected for this request.
     pub fn datadog_php_profiling_context_api_name() -> ZaiStr<'static>;
 
     /// Registers the extension. Note that it's kept in a zend_llist and gets

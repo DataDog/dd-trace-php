@@ -22,15 +22,6 @@ BEGIN_EXTERN_C()
  */
 DATADOG_PUBLIC struct ddtrace_profiling_context ddtrace_get_profiling_context(void);
 
-#ifdef __linux__
-/**
- * Provide the active trace information for the profiler from Linux's OTel
- * thread-context TLS slot. If there isn't an active published context, return
- * 0 for both values.
- */
-DATADOG_PUBLIC struct ddtrace_profiling_context ddtrace_get_profiling_otel_context(void);
-#endif
-
 /**
  * Publish the current active tracer context through Linux's OTel thread-context
  * TLS slot. On non-Linux builds this is a no-op.
