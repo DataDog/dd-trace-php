@@ -18,7 +18,7 @@ use libdd_trace_utils::trace_filter::{Span as TraceFilterSpan, TraceFilterer};
 use std::ffi::{c_char, c_void};
 use std::sync::{LazyLock, RwLock};
 
-/// Compile all filter arguments into a `TraceFilterConfig`, or return `None` when all lists
+/// Compile all filter arguments into a `TraceFilterer`, or return `None` when all lists
 /// are empty (no filtering needed).
 pub(crate) fn compile_trace_filter(
     filter_tags_require: &[String],
