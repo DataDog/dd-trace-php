@@ -123,7 +123,7 @@ trait SnapshotTestTrait
      */
     private function stopAndCompareSnapshotSession(
         string $token,
-        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid'],
+        array $fieldsToIgnore = ['metrics.php.compilation.total_time_ms', 'metrics.php.memory.peak_usage_bytes', 'metrics.php.memory.peak_real_usage_bytes', 'meta.error.stack', 'meta._dd.p.tid', 'meta._dd.svc_src'],
         int $numExpectedTraces = 1,
         bool $snapshotMetrics = false,
         array $fieldsToIgnoreMetrics = ['openai.request.duration'],
@@ -136,6 +136,9 @@ trait SnapshotTestTrait
 
         $this->waitForTraces($token, $numExpectedTraces);
 
+        if (!in_array('meta._dd.svc_src', $fieldsToIgnore, true)) {
+            $fieldsToIgnore[] = 'meta._dd.svc_src';
+        }
         $url = self::$testAgentUrl . '/test/session/snapshot?ignores=' . implode(',', $fieldsToIgnore) .
             '&test_session_token=' . $token;
 

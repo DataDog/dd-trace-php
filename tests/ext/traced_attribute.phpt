@@ -79,6 +79,7 @@ spans(\DDTrace\SpanData) (3) {
       _dd.code_origin.frames.2.file => %s
       _dd.code_origin.frames.2.line => 40
       _dd.code_origin.type => exit
+      _dd.svc_src => m
       a => b
       data => dog
   recursion (traced_attribute.php, recursion, cli)
