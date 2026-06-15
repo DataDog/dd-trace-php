@@ -57,7 +57,7 @@
 #include "live_debugger.h"
 #include "standalone_limiter.h"
 #include "priority_sampling/priority_sampling.h"
-#include "profiling.h"
+#include "otel_context.h"
 #include "random.h"
 #include "autoload_php_files.h"
 #include "serializer.h"
@@ -501,6 +501,8 @@ void ddtrace_rinit_early(void) {
 }
 
 void ddtrace_rinit(void) {
+    ddtrace_detach_otel_thread_context();
+
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (datadog_endpoint) {
@@ -609,8 +611,9 @@ void ddtrace_rshutdown(bool fast_shutdown) {
             OBJ_RELEASE(&DDTRACE_G(active_stack)->std);
         }
         DDTRACE_G(active_stack) = NULL;
-        ddtrace_detach_otel_thread_context();
     }
+
+    ddtrace_clear_otel_thread_context_root_span();
 
     ddtrace_ffe_flush_exposures();
     ddtrace_ffe_flush_evaluation_metrics();
@@ -658,7 +661,6 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
     } else if (!datadog_disable) {  // if this is true, the request has not been initialized at all
         ddtrace_close_all_open_spans(false);  // All remaining userland spans (and root span)
         dd_clean_globals();
-        ddtrace_detach_otel_thread_context();
     }
 
     return true;

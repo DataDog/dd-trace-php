@@ -2,6 +2,9 @@
 #include <main/SAPI.h>
 #include "configuration.h"
 #include "ddtrace.h"
+#ifdef __linux__
+#include "otel_context.h"
+#endif
 #include "span.h"
 
 #define NS "DDTrace\\UserRequest\\"
@@ -70,6 +73,11 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_start)
         RETURN_NULL();
     }
 
+    span_data->notify_user_req_end = true;
+#ifdef __linux__
+    ddtrace_set_otel_thread_context_root_span(span);
+#endif
+
     zend_array *replacement_resp = NULL;
     for (size_t i = 0; i < reg_listeners.size; i++) {
         ddtrace_user_req_listeners *listener = reg_listeners.listeners[i];
@@ -80,8 +88,6 @@ PHP_FUNCTION(DDTrace_UserRequest_notify_start)
             zend_array_release(repl);
         }
     }
-
-    span_data->notify_user_req_end = true;
 
     if (replacement_resp != NULL) {
         RETURN_ARR(replacement_resp);
@@ -196,6 +202,9 @@ void ddtrace_user_req_notify_finish(ddtrace_span_data *span)
         ddtrace_user_req_listeners *listener = reg_listeners.listeners[i];
         listener->finish_user_req(listener, &span->std);
     }
+#ifdef __linux__
+    ddtrace_clear_otel_thread_context_root_span();
+#endif
 }
 
 PHP_FUNCTION(DDTrace_UserRequest_set_blocking_function);

@@ -1,7 +1,7 @@
 #include "ddtrace.h"
 #include "configuration.h"
 #include "handlers_fiber.h"
-#include "profiling.h"
+#include "otel_context.h"
 #include "span.h"
 #include <Zend/zend_extensions.h>
 #include <Zend/zend_observer.h>
