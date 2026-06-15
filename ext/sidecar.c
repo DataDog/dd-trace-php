@@ -110,6 +110,7 @@ static void dd_sidecar_post_connect(ddog_SidecarTransport **transport, bool is_f
                                     php_version_rt,
                                     DDOG_CHARSLICE_C(PHP_DDTRACE_VERSION),
                                     get_global_DD_TRACE_AGENT_FLUSH_INTERVAL(),
+                                    get_global_DD_TRACE_RETRY_INTERVAL(),
                                     (int)(get_global_DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS() * 1000),
                                     // for historical reasons in seconds
                                     get_global_DD_TELEMETRY_HEARTBEAT_INTERVAL() * 1000,
