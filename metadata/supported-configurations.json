@@ -2168,6 +2168,13 @@
         "default": "false"
       }
     ],
+    "DD_TRACE_RETRY_INTERVAL": [
+      {
+        "implementation": "B",
+        "type": "int",
+        "default": "100"
+      }
+    ],
     "DD_TRACE_ROADRUNNER_ANALYTICS_ENABLED": [
       {
         "implementation": "A",
