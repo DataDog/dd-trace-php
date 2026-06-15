@@ -25,7 +25,7 @@
 #include "standalone_limiter.h"
 #include "code_origins.h"
 #include "endpoint_guessing.h"
-#include "profiling.h"
+#include "otel_context.h"
 
 #define USE_REALTIME_CLOCK 0
 #define USE_MONOTONIC_CLOCK 1
@@ -145,6 +145,7 @@ void ddtrace_free_span_stacks(bool silent) {
     DDTRACE_G(dropped_spans_count) = 0;
     DDTRACE_G(closed_spans_count) = 0;
     DDTRACE_G(top_closed_stack) = NULL;
+
     ddtrace_detach_otel_thread_context();
 }
 

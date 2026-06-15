@@ -7,8 +7,12 @@
 #include <string.h>
 #include "SAPI.h"
 
-#if CFG_STACK_WALKING_TESTS
+#if CFG_STACK_WALKING_TESTS || defined(__linux__)
 #include <dlfcn.h> // for dlsym
+#endif
+#ifdef __linux__
+#include <stdatomic.h>
+#include <stddef.h>
 #endif
 
 const char *datadog_extension_build_id(void) { return ZEND_EXTENSION_BUILD_ID; }
@@ -16,30 +20,169 @@ const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
 uint8_t *datadog_runtime_id = NULL;
 static const zai_str datadog_php_profiling_context_api_none = ZAI_STRL("none");
-static const zai_str datadog_php_profiling_context_api_otel = ZAI_STRL("ddtrace_get_profiling_otel_context");
+static const zai_str datadog_php_profiling_context_api_otel = ZAI_STRL("otel_thread_ctx_v1");
 static const zai_str datadog_php_profiling_context_api_legacy = ZAI_STRL("ddtrace_get_profiling_context");
-static zai_str datadog_php_profiling_context_api = ZAI_STRL("none");
+
+static ddtrace_profiling_context noop_get_profiling_context(void) {
+    return (ddtrace_profiling_context){0, 0};
+}
+
+static ddtrace_profiling_context datadog_php_profiling_get_context(void);
+
+static ddtrace_profiling_context (*datadog_php_profiling_get_legacy_context)(void) =
+    noop_get_profiling_context;
+
+#ifdef __linux__
+#define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
+#define DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL "otel_thread_ctx_v1"
+
+typedef struct datadog_php_profiling_otel_thread_context_record {
+    uint8_t trace_id[16];
+    uint8_t span_id[8];
+    _Atomic uint8_t valid;
+    uint8_t reserved;
+    uint16_t attrs_data_size;
+    uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
+} datadog_php_profiling_otel_thread_context_record;
+
+_Static_assert(sizeof(datadog_php_profiling_otel_thread_context_record) == 640,
+    "unexpected OTel thread context record size");
+_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, trace_id) == 0,
+    "unexpected OTel thread context trace_id offset");
+_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, span_id) == 16,
+    "unexpected OTel thread context span_id offset");
+_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, valid) == 24,
+    "unexpected OTel thread context valid offset");
+_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, reserved) == 25,
+    "unexpected OTel thread context reserved offset");
+_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data_size) == 26,
+    "unexpected OTel thread context attrs_data_size offset");
+_Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, attrs_data) == 28,
+    "unexpected OTel thread context attrs_data offset");
+
+static __thread void **datadog_php_profiling_otel_thread_ctx_slot = NULL;
+
+static inline uint64_t datadog_php_profiling_read_u64_be(const uint8_t src[8]) {
+    uint64_t be_value;
+    memcpy(&be_value, src, sizeof(be_value));
+
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    return __builtin_bswap64(be_value);
+#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+    return be_value;
+#else
+#error "Unsupported byte order"
+#endif
+}
+
+static inline uint8_t datadog_php_profiling_hex_to_u4(uint8_t hex) {
+    if (hex >= '0' && hex <= '9') {
+        return (uint8_t)(hex - '0');
+    }
+    if (hex >= 'a' && hex <= 'f') {
+        return (uint8_t)(hex - 'a' + 10);
+    }
+    if (hex >= 'A' && hex <= 'F') {
+        return (uint8_t)(hex - 'A' + 10);
+    }
+    return UINT8_MAX;
+}
+
+static bool datadog_php_profiling_parse_u64_hex(const uint8_t hex[16], uint64_t *value) {
+    uint64_t result = 0;
+
+    for (size_t i = 0; i < 16; ++i) {
+        uint8_t nibble = datadog_php_profiling_hex_to_u4(hex[i]);
+        if (nibble == UINT8_MAX) {
+            return false;
+        }
+        result = (result << 4) | nibble;
+    }
+
+    *value = result;
+    return true;
+}
+
+static uint64_t datadog_php_profiling_otel_context_local_root_span_id(
+    const datadog_php_profiling_otel_thread_context_record *record) {
+    if (record->attrs_data_size < 18 || record->attrs_data[0] != 0 || record->attrs_data[1] != 16) {
+        return 0;
+    }
+
+    uint64_t local_root_span_id = 0;
+    if (!datadog_php_profiling_parse_u64_hex(record->attrs_data + 2, &local_root_span_id)) {
+        return 0;
+    }
+
+    return local_root_span_id;
+}
+
+static ddtrace_profiling_context datadog_php_profiling_read_otel_context(void) {
+    ddtrace_profiling_context context = {0, 0};
+    if (!datadog_php_profiling_otel_thread_ctx_slot) {
+        return context;
+    }
+
+    datadog_php_profiling_otel_thread_context_record *record =
+        (datadog_php_profiling_otel_thread_context_record *)*datadog_php_profiling_otel_thread_ctx_slot;
+    if (!record || atomic_load_explicit(&record->valid, memory_order_relaxed) != 1) {
+        return context;
+    }
+
+    atomic_signal_fence(memory_order_acquire);
+
+    context.span_id = datadog_php_profiling_read_u64_be(record->span_id);
+    context.local_root_span_id = datadog_php_profiling_otel_context_local_root_span_id(record);
+
+    atomic_signal_fence(memory_order_acquire);
+
+    if (atomic_load_explicit(&record->valid, memory_order_relaxed) != 1) {
+        return (ddtrace_profiling_context){0, 0};
+    }
+
+    return context;
+}
+
+static void *datadog_php_profiling_find_otel_thread_ctx_symbol(void) {
+    void *tls_symbol = dlsym(RTLD_DEFAULT, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
+    if (tls_symbol) {
+        return tls_symbol;
+    }
+
+    const zend_llist *extensions = &zend_extensions;
+    for (const zend_llist_element *item = extensions->head; item; item = item->next) {
+        const zend_extension *extension = (zend_extension *)item->data;
+        if (extension && extension->handle) {
+            tls_symbol = DL_FETCH_SYMBOL(extension->handle, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
+            if (tls_symbol) {
+                return tls_symbol;
+            }
+        }
+    }
+
+    zend_module_entry *module;
+    ZEND_HASH_FOREACH_PTR(&module_registry, module) {
+        if (module && module->handle) {
+            tls_symbol = DL_FETCH_SYMBOL(module->handle, DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL);
+            if (tls_symbol) {
+                return tls_symbol;
+            }
+        }
+    } ZEND_HASH_FOREACH_END();
+
+    return NULL;
+}
+#endif
 
 static void locate_datadog_runtime_id(const zend_extension *extension) {
     datadog_runtime_id = DL_FETCH_SYMBOL(extension->handle, "datadog_runtime_id");
 }
 
 static void locate_ddtrace_get_profiling_context(const zend_extension *extension) {
-#ifdef __linux__
-    ddtrace_profiling_context (*get_profiling_otel)(void) =
-        DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_otel_context");
-    if (EXPECTED(get_profiling_otel)) {
-        datadog_php_profiling_get_profiling_context = get_profiling_otel;
-        datadog_php_profiling_context_api = datadog_php_profiling_context_api_otel;
-        return;
-    }
-#endif
-
     ddtrace_profiling_context (*get_profiling)(void) =
         DL_FETCH_SYMBOL(extension->handle, "ddtrace_get_profiling_context");
     if (EXPECTED(get_profiling)) {
-        datadog_php_profiling_get_profiling_context = get_profiling;
-        datadog_php_profiling_context_api = datadog_php_profiling_context_api_legacy;
+        datadog_php_profiling_get_legacy_context = get_profiling;
     }
 }
 
@@ -53,10 +196,6 @@ static void locate_datadog_process_tags_get_serialized(const zend_extension *ext
 
 static bool is_ddtrace_extension(const zend_extension *ext) {
     return ext && ext->name && strcmp(ext->name, "ddtrace") == 0;
-}
-
-static ddtrace_profiling_context noop_get_profiling_context(void) {
-    return (ddtrace_profiling_context){0, 0};
 }
 
 static zend_string *noop_get_process_tags_serialized(void) {
@@ -170,9 +309,9 @@ void datadog_php_profiling_startup(zend_extension *extension) {
     _ignore_run_time_cache = strcmp(sapi_module.name, "cli") == 0;
 #endif
 
-    datadog_php_profiling_get_profiling_context = noop_get_profiling_context;
+    datadog_php_profiling_get_profiling_context = datadog_php_profiling_get_context;
+    datadog_php_profiling_get_legacy_context = noop_get_profiling_context;
     datadog_php_profiling_get_process_tags_serialized = noop_get_process_tags_serialized;
-    datadog_php_profiling_context_api = datadog_php_profiling_context_api_none;
 
     /* Due to the optional dependency on ddtrace, the profiling module will be
      * loaded after ddtrace if it's present, so ddtrace should always be found
@@ -197,8 +336,23 @@ void datadog_php_profiling_startup(zend_extension *extension) {
 #endif
 }
 
+void datadog_php_profiling_rinit(void) {
+#ifdef __linux__
+    datadog_php_profiling_otel_thread_ctx_slot =
+        (void **)datadog_php_profiling_find_otel_thread_ctx_symbol();
+#endif
+}
+
 zai_str datadog_php_profiling_context_api_name(void) {
-    return datadog_php_profiling_context_api;
+#ifdef __linux__
+    if (datadog_php_profiling_otel_thread_ctx_slot) {
+        return datadog_php_profiling_context_api_otel;
+    }
+#endif
+    if (datadog_php_profiling_get_legacy_context != noop_get_profiling_context) {
+        return datadog_php_profiling_context_api_legacy;
+    }
+    return datadog_php_profiling_context_api_none;
 }
 
 void *datadog_php_profiling_vm_interrupt_addr(void) { return &EG(vm_interrupt); }
@@ -207,8 +361,18 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
     return zend_hash_str_find_ptr(&module_registry, str, len);
 }
 
+static ddtrace_profiling_context datadog_php_profiling_get_context(void) {
+#ifdef __linux__
+    ddtrace_profiling_context otel_context = datadog_php_profiling_read_otel_context();
+    if (otel_context.local_root_span_id || otel_context.span_id) {
+        return otel_context;
+    }
+#endif
+    return datadog_php_profiling_get_legacy_context();
+}
+
 ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void) =
-    noop_get_profiling_context;
+    datadog_php_profiling_get_context;
 
 zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void) =
     noop_get_process_tags_serialized;

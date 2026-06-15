@@ -73,9 +73,9 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len);
 void *datadog_php_profiling_vm_interrupt_addr(void);
 
 /**
- * For Code Hotspots, we need the tracer's local root span id and the current
- * span id. This is a cross-product struct, so keep it in sync with tracer's
- * version of this struct.
+ * For Code Hotspots, we need the local root span id and the current span id.
+ * The legacy ddtrace_get_profiling_context ABI also uses this struct, so keep
+ * it in sync with tracer's version.
  * todo: re-use the tracer's header?
  */
 typedef struct ddtrace_profiling_context_s {
@@ -83,9 +83,10 @@ typedef struct ddtrace_profiling_context_s {
 } ddtrace_profiling_context;
 
 /**
- * A pointer to the tracer's profiling-context function if it was found,
- * otherwise points to a function which just returns {0, 0}. On Linux this
- * prefers ddtrace_get_profiling_otel_context when available.
+ * A pointer to the profiling-context function. On Linux it first reads the
+ * OTel thread-context ABI directly when available, then falls back to the
+ * tracer's legacy ddtrace_get_profiling_context function if it was found.
+ * Otherwise it returns {0, 0}.
  */
 extern ddtrace_profiling_context (*datadog_php_profiling_get_profiling_context)(void);
 
@@ -103,8 +104,14 @@ extern zend_string *(*datadog_php_profiling_get_process_tags_serialized)(void);
 void datadog_php_profiling_startup(zend_extension *extension);
 
 /**
- * Returns the ddtrace profiling context API selected during zend_extension
- * startup, or "none" when no provider was found.
+ * Called by this zend_extension's .activate handler to initialize per-thread
+ * profiler FFI state.
+ */
+void datadog_php_profiling_rinit(void);
+
+/**
+ * Returns the profiling context API selected for this request, or "none" when
+ * no provider was found.
  */
 zai_str datadog_php_profiling_context_api_name(void);
 
