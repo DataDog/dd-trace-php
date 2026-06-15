@@ -1,6 +1,7 @@
 package com.datadog.appsec.php.integration
 
 import com.datadog.appsec.php.docker.AppSecContainer
+import com.datadog.appsec.php.docker.PhpFpm
 import org.junit.jupiter.api.Test
 
 import java.net.http.HttpResponse
@@ -110,12 +111,6 @@ trait EndpointFallbackSamplingTests extends SamplingTestsInFpm {
     }
 
     void disableEndpointRenaming() {
-        flushProfilingData()
-        def res = container.execInContainer(
-                'bash', '-c',
-                '''kill -9 `pgrep php-fpm`;
-               export DD_TRACE_RESOURCE_RENAMING_ENABLED=false;
-               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini''')
-        assert res.exitCode == 0
+        new PhpFpm(container).restart([DD_TRACE_RESOURCE_RENAMING_ENABLED: 'false'])
     }
 }

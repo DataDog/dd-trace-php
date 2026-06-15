@@ -228,6 +228,12 @@ void dd_find_and_apply_verdict_for_user(zend_string *nullable user_id,
         return;
     }
 
+    if (!dd_req_lifecycle_is_active()) {
+        mlog_g(dd_log_info,
+            "Not running inside a tracked request; skipping user verdict");
+        return;
+    }
+
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
         mlog(dd_log_debug, "No connection; unable to check user");

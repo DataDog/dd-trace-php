@@ -128,8 +128,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        phpVersion: 8.4.21
-        phpSha256Hash: db96ee0a8e5ee7b73a4913a2aeddc162ba2ef16cd34b9347b5b9a6150e1f8e48
+        phpVersion: 8.4.22
+        phpSha256Hash: a012c2c9724baf214a70b41b40a7e130906b8855e54268afa5bc4ae17bc9d823
         phpApi: 20240924
     volumes:
       - ../../:/app
@@ -140,8 +140,8 @@ services:
       context: .
       x-bake: *bake
       args:
-        phpVersion: 8.5.6
-        phpSha256Hash: "169aaa21c2834b38df8e39169f43bc5bea8d4059a816cfbc59be08fc2bae60cd"
+        phpVersion: 8.5.7
+        phpSha256Hash: "e5eba93fd6dd3241d0e61e932eb99a3783b40568553fb0e511b660ecd863a049"
         phpApi: 20250925
     volumes:
       - ../../:/app
