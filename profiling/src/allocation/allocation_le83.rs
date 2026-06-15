@@ -1,4 +1,6 @@
-use crate::allocation::{allocation_profiling_stats_should_collect, collect_allocation};
+use crate::allocation::{
+    allocation_profiling_stats_should_collect, collect_allocation, untrack_allocation,
+};
 use crate::bindings::{
     self as zend, datadog_php_install_handler, datadog_php_zif_handler,
     ddog_php_prof_copy_long_into_zval,
@@ -300,7 +302,7 @@ unsafe extern "C" fn alloc_prof_malloc(len: size_t) -> *mut c_void {
     }
 
     if allocation_profiling_stats_should_collect(len) {
-        collect_allocation(len);
+        collect_allocation(ptr, len);
     }
 
     ptr
@@ -333,6 +335,13 @@ unsafe fn alloc_prof_orig_alloc(len: size_t) -> *mut c_void {
 /// custom handlers won't be installed. We cannot just point to the original
 /// `zend::_zend_mm_free()` as the function definitions differ.
 unsafe extern "C" fn alloc_prof_free(ptr: *mut c_void) {
+    // Check if this was a tracked allocation before freeing. This intentionally
+    // avoids a process-wide heap-live fast-path flag: ZTS SAPIs can run requests
+    // with different INI state on different threads.
+    if !ptr.is_null() {
+        untrack_allocation(ptr);
+    }
+
     tls_zend_mm_state_get!(free)(ptr);
 }
 
@@ -362,14 +371,26 @@ unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *
 
     let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
 
+    // ZendMM allocation failures raise a fatal error and bail out instead of
+    // returning NULL. If realloc returns, prev_ptr has been consumed: untrack it
+    // before any userland-only early return, then let the new allocation be
+    // re-sampled at the reported size.
+    if !prev_ptr.is_null() {
+        untrack_allocation(prev_ptr);
+    }
+
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
-    if zend::ddog_php_prof_get_current_execute_data().is_null() || ptr::eq(ptr, prev_ptr) {
+    if zend::ddog_php_prof_get_current_execute_data().is_null() {
+        return ptr;
+    }
+
+    if ptr.is_null() {
         return ptr;
     }
 
     if allocation_profiling_stats_should_collect(len) {
-        collect_allocation(len);
+        collect_allocation(ptr, len);
     }
 
     ptr

@@ -42,6 +42,6 @@ include = [
     "datadog-ipc",
     "datadog-live-debugger",
     "datadog-live-debugger-ffi",
-    "datadog-remote-config",
+    "libdd-remote-config",
     "uuid"
 ]

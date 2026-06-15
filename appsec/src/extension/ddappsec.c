@@ -573,6 +573,12 @@ PHP_FUNCTION(datadog_appsec_push_addresses)
         RETURN_FALSE;
     }
 
+    if (!dd_req_lifecycle_is_active()) {
+        mlog_g(dd_log_info,
+            "Not running inside a tracked request; skipping push_addresses");
+        RETURN_FALSE;
+    }
+
     zval *addresses;
     zend_string *rasp_rule = NULL;
     zend_string *rule_variant = NULL;

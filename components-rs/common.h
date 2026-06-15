@@ -955,6 +955,8 @@ typedef enum ddog_FieldType {
   DDOG_FIELD_TYPE_LOCAL,
 } ddog_FieldType;
 
+typedef struct ddog_Config ddog_Config;
+
 typedef struct ddog_Entry ddog_Entry;
 
 typedef struct ddog_HashMap_CowStr__Value ddog_HashMap_CowStr__Value;

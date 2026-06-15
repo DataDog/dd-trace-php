@@ -20,14 +20,14 @@ add_custom_target(libdatadog_stamp
         "-DLIBDATADOG=${LIBDATADOG_DIR}"
         "-DSTAMP_FILE=${LIBDATADOG_STAMP_FILE}"
         -P "${CMAKE_CURRENT_LIST_DIR}/update_rust_stamp.cmake"
-    BYPRODUCT ${LIBDATADOG_STAMP_FILE}
+    BYPRODUCTS ${LIBDATADOG_STAMP_FILE}
 )
 
 if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/ddtrace_exports.version")
 add_custom_target(ddtrace_exports
     COMMAND bash -c "{ echo -e '{\\nglobal:'; sed 's/$/;/' '${CMAKE_SOURCE_DIR}'/../datadog.sym; echo -e 'local:\\n*;\\n};'; } > '${EXPORTS_FILE}'"
-    BYPRODUCT ${EXPORTS_FILE}
+    BYPRODUCTS ${EXPORTS_FILE}
     DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
     VERBATIM
 )
@@ -35,7 +35,7 @@ elseif(APPLE)
 set(EXPORTS_FILE "${CMAKE_BINARY_DIR}/datadog_exports.sym")
 add_custom_target(ddtrace_exports
     COMMAND sed "s/^/_/" "${CMAKE_SOURCE_DIR}/../datadog.sym" > "${EXPORTS_FILE}"
-    BYPRODUCT ${EXPORTS_FILE}
+    BYPRODUCTS ${EXPORTS_FILE}
     DEPENDS ${CMAKE_SOURCE_DIR}/../datadog.sym
 )
 endif()
