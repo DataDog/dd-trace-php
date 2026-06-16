@@ -2819,6 +2819,20 @@ PHP_FUNCTION(DDTrace_Internal_flush_ffe_evaluation_metrics) {
     RETURN_BOOL(ddtrace_ffe_flush_evaluation_metrics());
 }
 
+PHP_FUNCTION(DDTrace_Internal_set_ffe_span_enrichment_tags) {
+    zend_string *flags_enc = NULL;
+    zend_string *subjects_enc = NULL;
+    zend_string *runtime_defaults = NULL;
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+        Z_PARAM_STR_OR_NULL(flags_enc)
+        Z_PARAM_STR_OR_NULL(subjects_enc)
+        Z_PARAM_STR_OR_NULL(runtime_defaults)
+    ZEND_PARSE_PARAMETERS_END();
+
+    ddtrace_ffe_set_span_enrichment_tags(flags_enc, subjects_enc, runtime_defaults);
+}
+
 /* {{{ proto array generate_distributed_tracing_headers() */
 PHP_FUNCTION(DDTrace_generate_distributed_tracing_headers) {
     zend_array *inject = NULL;

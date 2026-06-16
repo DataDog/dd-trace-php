@@ -1093,6 +1093,18 @@ namespace DDTrace\Internal {
      */
     function flush_ffe_evaluation_metrics(): bool {}
 
+    /**
+     * Stage the encoded APM feature-flag span enrichment tags in native
+     * request-local memory. The values are written onto the root span's meta
+     * when the root span closes and cleared afterwards (request-scoped). Passing
+     * null/empty for a tag clears that slot. This is gated by
+     * DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED; the provider
+     * only calls it when the gate is on (DG-004 inline accumulation / DG-005).
+     *
+     * @internal
+     */
+    function set_ffe_span_enrichment_tags(?string $flagsEnc, ?string $subjectsEnc, ?string $runtimeDefaults): void {}
+
 }
 
 namespace datadog\appsec\v2 {
