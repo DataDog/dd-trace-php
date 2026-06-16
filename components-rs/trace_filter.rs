@@ -76,7 +76,7 @@ struct Span<'a> {
 
 impl<'a> TraceFilterSpan<'a> for Span<'a> {
     fn resource_normalized(&'a self) -> &'a str {
-        // FIXME: normalization: if resource is empty, name should be used instead
+        // Resource has been normalized on the C side before calling ddog_check_stats_trace_filter
         self.resource_str
     }
 

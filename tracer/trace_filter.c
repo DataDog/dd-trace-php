@@ -83,5 +83,14 @@ bool ddtrace_trace_passes_filter(ddtrace_span_data *span) {
     ddog_CharSlice resource = Z_TYPE_P(root_resource_zv) == IS_STRING
         ? dd_zend_string_to_CharSlice(Z_STR_P(root_resource_zv))
         : DDOG_CHARSLICE_C("");
+    // Temp normalize resource: if it's empty use the name instead
+    if (resource.len == 0) {
+      zval* root_name_zv = &span->root->property_name;
+      ZVAL_DEREF(root_name_zv);
+      resource =
+          Z_TYPE_P(root_name_zv) == IS_STRING
+              ? dd_zend_string_to_CharSlice(Z_STR_P(root_name_zv))
+              : DDOG_CHARSLICE_C("");
+    }
     return ddog_check_stats_trace_filter(resource, span, ddtrace_root_tag_value);
 }
