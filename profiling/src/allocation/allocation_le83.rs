@@ -7,10 +7,10 @@ use crate::bindings::{
 };
 use crate::{RefCellExt, PROFILER_NAME, REQUEST_LOCALS};
 use core::ptr;
-use lazy_static::lazy_static;
 use libc::{c_char, c_int, c_void, size_t};
 use log::{debug, trace, warn};
 use std::sync::atomic::Ordering::Relaxed;
+use std::sync::LazyLock;
 
 #[cfg(feature = "debug_stats")]
 use crate::allocation::{ALLOCATION_PROFILING_COUNT, ALLOCATION_PROFILING_SIZE};
@@ -77,9 +77,7 @@ fn alloc_prof_needs_disabled_for_jit(version: u32) -> bool {
         || (80400..80407).contains(&version)
 }
 
-lazy_static! {
-    static ref JIT_ENABLED: bool = unsafe { zend::ddog_php_jit_enabled() };
-}
+static JIT_ENABLED: LazyLock<bool> = LazyLock::new(|| unsafe { zend::ddog_php_jit_enabled() });
 
 pub fn alloc_prof_ginit() {
     unsafe { zend::ddog_php_opcache_init_handle() };

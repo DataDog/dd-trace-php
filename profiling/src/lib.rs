@@ -35,7 +35,6 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, CStr};
 use core::ptr;
-use lazy_static::lazy_static;
 use libdd_common::{cstr, tag, tag::Tag};
 use log::{debug, error, info, trace, warn};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -44,7 +43,7 @@ use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Once, OnceLock};
+use std::sync::{Arc, LazyLock, Once, OnceLock};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -75,73 +74,73 @@ static mut RUNTIME_PHP_VERSION: &str = {
     }
 };
 
-lazy_static! {
-    /// # Safety
-    /// The first time this is accessed must be after config is initialized in
-    /// the first RINIT and before mshutdown!
-    static ref GLOBAL_TAGS: Vec<Tag> = {
-        let mut tags = vec![
-            tag!("language", "php"),
-            tag!("profiler_version", env!("PROFILER_VERSION")),
-            // SAFETY: calling getpid() is safe.
-            Tag::new("process_id", unsafe { libc::getpid() }.to_string())
-                .expect("process_id tag to be valid"),
-            Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        ];
+/// # Safety
+/// The first time this is accessed must be after config is initialized in
+/// the first RINIT and before mshutdown!
+static GLOBAL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
+    let mut tags = vec![
+        tag!("language", "php"),
+        tag!("profiler_version", env!("PROFILER_VERSION")),
+        // SAFETY: calling getpid() is safe.
+        Tag::new("process_id", unsafe { libc::getpid() }.to_string())
+            .expect("process_id tag to be valid"),
+        Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
+    ];
 
-        // This should probably be "language_version", but this is the
-        // standardized tag name.
-        // SAFETY: PHP_VERSION is safe to access in rinit (only
-        // mutated during minit).
-        add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-        add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-        // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
-        // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-        // `zend-nts-ndebug`
-        let runtime_engine = if cfg!(php_zts) {
-            "zend-zts-ndebug"
-        } else {
-            "zend-nts-ndebug"
-        };
-        add_tag(&mut tags, "runtime_engine", runtime_engine);
-        tags
+    // This should probably be "language_version", but this is the
+    // standardized tag name.
+    // SAFETY: PHP_VERSION is safe to access in rinit (only
+    // mutated during minit).
+    add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
+    add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+    // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
+    // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
+    // `zend-nts-ndebug`
+    let runtime_engine = if cfg!(php_zts) {
+        "zend-zts-ndebug"
+    } else {
+        "zend-nts-ndebug"
     };
+    add_tag(&mut tags, "runtime_engine", runtime_engine);
+    tags
+});
 
-    /// The Server API the profiler is running under.
-    static ref SAPI: Sapi = {
-        #[cfg(not(test))]
-        {
-            // SAFETY: sapi_module is initialized before minit and there should be
-            // no concurrent threads.
-            let sapi_module = unsafe { zend::sapi_module };
-            if sapi_module.name.is_null() {
-                panic!("the sapi_module's name is a null pointer");
-            }
-
-            // SAFETY: value has been checked for NULL; I haven't checked that the
-            // engine ensures its length is less than `isize::MAX`, but it is a
-            // risk I'm willing to take.
-            let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
-            Sapi::from_name(sapi_name.to_string_lossy().as_ref())
+/// The Server API the profiler is running under.
+static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
+    #[cfg(not(test))]
+    {
+        // SAFETY: sapi_module is initialized before minit and there should be
+        // no concurrent threads.
+        let sapi_module = unsafe { zend::sapi_module };
+        if sapi_module.name.is_null() {
+            panic!("the sapi_module's name is a null pointer");
         }
-        // When running `cargo test` we do not link against PHP, so `zend::sapi_name` is not
-        // available and we just return `Sapi::Unkown`
-        #[cfg(test)]
-        {
-            Sapi::Unknown
-        }
-    };
 
-    // SAFETY: PROFILER_NAME is a byte slice that satisfies the safety requirements.
-    // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
-    static ref PROFILER_NAME_STR: &'static str = PROFILER_NAME.to_str().unwrap();
+        // SAFETY: value has been checked for NULL; I haven't checked that the
+        // engine ensures its length is less than `isize::MAX`, but it is a
+        // risk I'm willing to take.
+        let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
+        Sapi::from_name(sapi_name.to_string_lossy().as_ref())
+    }
+    // When running `cargo test` we do not link against PHP, so `zend::sapi_name` is not
+    // available and we just return `Sapi::Unkown`
+    #[cfg(test)]
+    {
+        Sapi::Unknown
+    }
+});
 
-    // SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
-    static ref PROFILER_VERSION_STR: &'static str = unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char) }
+// SAFETY: PROFILER_NAME is a byte slice that satisfies the safety requirements.
+// Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
+static PROFILER_NAME_STR: LazyLock<&'static str> = LazyLock::new(|| PROFILER_NAME.to_str().unwrap());
+
+// SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
+static PROFILER_VERSION_STR: LazyLock<&'static str> = LazyLock::new(|| {
+    unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char) }
         .to_str()
         // Panic: we own this string and it should be UTF8 (see PROFILER_VERSION above).
-        .unwrap();
-}
+        .unwrap()
+});
 
 /// The runtime ID, which is basically a universally unique "pid". This makes
 /// it almost const, the exception being to re-initialize it from a child fork
