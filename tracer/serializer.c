@@ -739,6 +739,13 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
 
     zend_array *parent_meta = ddtrace_property_array(&parent->property_meta);
 
+    zval *parent_svc_src = zend_hash_str_find(parent_meta, ZEND_STRL("_dd.svc_src"));
+    if (parent_svc_src) {
+        zend_array *child_meta = ddtrace_property_array(&span->property_meta);
+        Z_TRY_ADDREF_P(parent_svc_src);
+        zend_hash_str_update(child_meta, ZEND_STRL("_dd.svc_src"), parent_svc_src);
+    }
+
     zval *prop_version = &span->property_version;
     zval_ptr_dtor(prop_version);
     zval *version;
@@ -1838,6 +1845,7 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.dm", true);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.ksr", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.tid", true);
+        transfer_meta_data(rust_span, serialized_inferred_span, "_dd.svc_src", false);
         transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_ENDPOINT_SCAN, false);
         transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_SECURITY_TEST, false);
 

@@ -44,12 +44,14 @@ class DrupalIntegration extends Integration
                     $rootSpan = \DDTrace\root_span();
                     $rootSpan->name = 'drupal.request';
                     $rootSpan->service = $service;
+                    Integration::tagFrameworkServiceSource($rootSpan, 'drupal');
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = self::NAME;
 
                     $span->name = 'drupal.kernel.handle';
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
+                    Integration::tagFrameworkServiceSource($span, 'drupal');
                     $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = self::NAME;
                 }
@@ -59,8 +61,7 @@ class DrupalIntegration extends Integration
         $stackedHttpKernelTracer = static function (SpanData $span) {
             $span->name = 'drupal.httpkernel.handle';
             $span->type = Type::WEB_SERVLET;
-            $span->service = \ddtrace_config_app_name('drupal');
-            $span->meta[Tag::COMPONENT] = self::NAME;
+            Integration::setComponentMetadata($span, 'drupal');
         };
         // See Drupal\Core\DependencyInjection\Compiler\StackedKernelPass
         // If a middleware is tagged with 'responder' => true, then the underlying middleware and the HTTP kernel
@@ -77,8 +78,7 @@ class DrupalIntegration extends Integration
                 'prehook' => static function (SpanData $span) {
                     $span->name = 'drupal.kernel.boot';
                     $span->type = Type::WEB_SERVLET;
-                    $span->service = \ddtrace_config_app_name('drupal');
-                    $span->meta[Tag::COMPONENT] = self::NAME;
+                    Integration::setComponentMetadata($span, 'drupal');
                 }
             ]
         );
@@ -123,8 +123,7 @@ class DrupalIntegration extends Integration
                                 $span = $fnHookData->span();
                                 $span->name = 'drupal.hook.' . $hook;
                                 $span->type = Type::WEB_SERVLET;
-                                $span->service = \ddtrace_config_app_name('drupal');
-                                $span->meta[Tag::COMPONENT] = self::NAME;
+                                Integration::setComponentMetadata($span, 'drupal');
 
                                 $span->meta['drupal.hook'] = $hook;
                                 $span->meta['drupal.module'] = $module;
@@ -164,8 +163,7 @@ class DrupalIntegration extends Integration
                                     $span = $fnHookData->span();
                                     $span->name = 'drupal.hook.' . $hook;
                                     $span->type = Type::WEB_SERVLET;
-                                    $span->service = \ddtrace_config_app_name('drupal');
-                                    $span->meta[Tag::COMPONENT] = self::NAME;
+                                    Integration::setComponentMetadata($span, 'drupal');
                                     $span->resource = $functionName;
 
                                     $span->meta['drupal.hook'] = $hook;
@@ -196,8 +194,7 @@ class DrupalIntegration extends Integration
                 $span = $hook->span();
                 $span->name = 'drupal.view.execute';
                 $span->type = Type::WEB_SERVLET;
-                $span->service = \ddtrace_config_app_name('drupal');
-                $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
+                Integration::setComponentMetadata($span, 'drupal');
 
                 // @var \Drupal\views\Entity\View $storage
                 $storage = $this->storage;
@@ -239,6 +236,7 @@ class DrupalIntegration extends Integration
                 'prehook' => function (SpanData $span, $args) {
                     $span->name = 'drupal.theme.render';
                     $span->service = \ddtrace_config_app_name('drupal');
+                    Integration::tagFrameworkServiceSource($span, 'drupal');
                     $span->type = Type::WEB_SERVLET;
                     $span->meta[Tag::COMPONENT] = DrupalIntegration::NAME;
 
@@ -396,6 +394,7 @@ class DrupalIntegration extends Integration
             static function (SpanData $span) {
                 $span->name = 'symfony.response.send';
                 $span->service = \ddtrace_config_app_name('drupal');
+                Integration::tagFrameworkServiceSource($span, 'drupal');
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = self::NAME;
             }

@@ -665,6 +665,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                     AssignmentReason::Static => REASON_STATIC,
                     AssignmentReason::TargetingMatch => REASON_TARGETING_MATCH,
                     AssignmentReason::Split => REASON_SPLIT,
+                    AssignmentReason::Default => REASON_DEFAULT,
                 },
                 error_code: ERROR_NONE,
                 do_log: assignment.do_log,
@@ -675,6 +676,7 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
             let (error_code, reason) = match &error {
                 EvaluationError::TypeMismatch { .. } => (ERROR_TYPE_MISMATCH, REASON_ERROR),
                 EvaluationError::ConfigurationParseError => (ERROR_CONFIG_PARSE, REASON_ERROR),
+                EvaluationError::FlagConfigurationInvalid => (ERROR_CONFIG_PARSE, REASON_ERROR),
                 EvaluationError::ConfigurationMissing => (ERROR_CONFIG_MISSING, REASON_ERROR),
                 EvaluationError::FlagUnrecognizedOrDisabled => {
                     (ERROR_FLAG_UNRECOGNIZED, REASON_DEFAULT)

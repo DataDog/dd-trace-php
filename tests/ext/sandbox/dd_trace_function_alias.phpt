@@ -29,4 +29,5 @@ spans(\DDTrace\SpanData) (1) {
   bar (alias, bar, cli)
     _dd.p.dm => -0
     _dd.p.tid => %s
+    _dd.svc_src => m
 }

@@ -33,6 +33,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan'
             )->withExactTags([
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
             ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
@@ -71,6 +72,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan route:list'
             )->withExactTags([
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
             ])->withChildren([
                 SpanAssertion::exists(
                     'laravel.provider.load',
@@ -109,6 +111,7 @@ class CommonScenariosTest extends CLITestCase
                 'artisan foo:error'
             )->withExactTags([
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
             ])->withExistingTagsNames([
                 Tag::ERROR_MSG,
                 'error.stack'

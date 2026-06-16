@@ -119,11 +119,13 @@ array(2) {
     ["type"]=>
     string(6) "runner"
     ["meta"]=>
-    array(4) {
+    array(5) {
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["aa"]=>
       string(2) "bb"
       ["runtime-id"]=>

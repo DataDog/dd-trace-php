@@ -50,7 +50,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'web',
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
-                Tag::COMPONENT => 'slim'
+                Tag::COMPONENT => 'slim',
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',
@@ -58,7 +58,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'web',
                     'Slim\Middleware\RoutingMiddleware'
                 )->withExactTags([
-                    Tag::COMPONENT => 'slim'
+                    Tag::COMPONENT => 'slim',
                 ])->withChildren([
                     SpanAssertion::build(
                         'slim.middleware',
@@ -66,7 +66,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Slim\\Views\\TwigMiddleware'
                     )->withExactTags([
-                        Tag::COMPONENT => 'slim'
+                        Tag::COMPONENT => 'slim',
                     ])
                     ->withChildren($children)
                     ->withExistingTagsNames(['error.stack'])
@@ -80,7 +80,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'web',
                 'Slim\\Middleware\\ErrorMiddleware'
             )->withExactTags([
-                Tag::COMPONENT => 'slim'
+                Tag::COMPONENT => 'slim',
             ])->withChildren([
                 SpanAssertion::build(
                     'slim.middleware',
@@ -88,7 +88,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                     'web',
                     'Slim\Middleware\RoutingMiddleware'
                 )->withExactTags([
-                    Tag::COMPONENT => 'slim'
+                    Tag::COMPONENT => 'slim',
                 ])->withChildren([
                     SpanAssertion::build(
                         'slim.middleware',
@@ -96,7 +96,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'web',
                         'Slim\\Views\\TwigMiddleware'
                     )->withExactTags([
-                        Tag::COMPONENT => 'slim'
+                        Tag::COMPONENT => 'slim',
                     ])->withChildren($children)
                 ]),
             ]);
@@ -158,7 +158,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                 'web',
                                 'Closure::__invoke'
                             )->withExactTags([
-                                Tag::COMPONENT => 'slim'
+                                Tag::COMPONENT => 'slim',
                             ])->withChildren([
                                 SpanAssertion::build(
                                     'slim.view',

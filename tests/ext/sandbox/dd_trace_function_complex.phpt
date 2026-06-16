@@ -114,11 +114,13 @@ array(5) {
     ["type"]=>
     string(7) "BarType"
     ["meta"]=>
-    array(7) {
+    array(8) {
       ["_dd.p.dm"]=>
       string(2) "-0"
       ["_dd.p.tid"]=>
       string(16) "%s"
+      ["_dd.svc_src"]=>
+      string(1) "m"
       ["args.0"]=>
       string(18) "tracing is awesome"
       ["retval.first"]=>

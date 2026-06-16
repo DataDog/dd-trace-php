@@ -27,6 +27,7 @@ class CommonScenariosTest extends \DDTrace\Tests\Integrations\CLI\Laravel\V9_X\C
                 'artisan foo:error'
             )->withExactTags([
                 Tag::COMPONENT => 'laravel',
+                '_dd.svc_src' => 'laravel',
             ])->withExistingTagsNames([
                 Tag::ERROR_MSG,
                 'error.stack'

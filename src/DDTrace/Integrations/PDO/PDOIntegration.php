@@ -324,6 +324,7 @@ REGEX;
             Integration::handleInternalSpanServiceName($span, self::NAME, true);
             $span->service = $span->service
                 . '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($storedConnectionInfo[Tag::TARGET_HOST]);
+            $span->meta['_dd.svc_src'] = 'opt.db_client_split_by_instance';
         } else {
             Integration::handleInternalSpanServiceName($span, self::NAME);
         }

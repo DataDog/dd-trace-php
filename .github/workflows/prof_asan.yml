@@ -1,4 +1,4 @@
-name: Profiling ASAN Tests
+name: Profiling ASAN/UBSAN Tests
 
 on:
   pull_request:
@@ -55,11 +55,11 @@ jobs:
           switch-php ${{ matrix.php-build }}
           cd profiling
           export CC=clang-20
-          export CFLAGS='-fsanitize=address  -fno-omit-frame-pointer'
+          export CFLAGS='-fsanitize=address -fsanitize-address-use-after-scope -fno-omit-frame-pointer'
           export LDFLAGS='-fsanitize=address -shared-libasan'
           export RUSTC_LINKER=lld-20
           triplet=$(uname -m)-unknown-linux-gnu
-          RUSTFLAGS='-Zsanitizer=address' cargo +${RUST_TOOLCHAIN} build -Zbuild-std=std,panic_abort --target $triplet --profile profiler-release
+          RUSTFLAGS='-Zsanitizer=address -C force-frame-pointers=yes' cargo +${RUST_TOOLCHAIN} build -Zbuild-std=std,panic_abort --target $triplet --profile profiler-release
           cp -v "$CARGO_TARGET_DIR/$triplet/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
       - name: Run phpt tests
@@ -69,4 +69,71 @@ jobs:
           cd profiling/tests
           cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
           export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
+          export ASAN_OPTIONS="${ASAN_OPTIONS:+$ASAN_OPTIONS:}abort_on_error=1:halt_on_error=1:detect_leaks=1:strict_string_checks=1:detect_stack_use_after_return=1:check_initialization_order=1:detect_container_overflow=1:detect_odr_violation=2:symbolize=1:disable_coredump=0:unmap_shadow_on_exit=1"
+          export LSAN_OPTIONS="${LSAN_OPTIONS:+$LSAN_OPTIONS:}exitcode=23:print_suppressions=0:report_objects=1"
           php run-tests.php -j$(nproc) --show-diff --asan -d extension=datadog-profiling.so phpt
+
+  prof-ubsan:
+    name: PHP 8.5 ${{ matrix.php-build }} UBSAN (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        php-build: [nts, zts]
+        runner: [arm-8core-linux, ubuntu-8-core-latest]
+    env:
+      CARGO_HOME: /rust/cargo
+      RUSTUP_HOME: /rust/rustup
+      CARGO_TARGET_DIR: /tmp/build-cargo
+      UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+    container:
+      image: datadog/dd-trace-ci:php-8.5_bookworm-8
+      options: --user root
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            /rust/cargo/registry/index/
+            /rust/cargo/registry/cache/
+            /rust/cargo/registry/src/
+            /rust/cargo/git/db/
+            /rust/cargo/git/checkouts/
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-deps-c-ubsan-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache Cargo target
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: /tmp/build-cargo/
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-target-c-ubsan-8.5-${{ matrix.php-build }}-${{ github.sha }}-${{ hashFiles('.github/workflows/prof_asan.yml') }}
+
+      - name: Build and install profiler
+        run: |
+          set -eux
+          switch-php ${{ matrix.php-build }}
+          cd profiling
+          export CC=clang-20
+          export CXX=clang++-20
+          export CFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all -fno-omit-frame-pointer'
+          export LDFLAGS='-fsanitize=undefined,local-bounds -fno-sanitize-recover=all'
+          export RUSTC_LINKER=clang-20
+          export RUSTFLAGS='-C link-arg=-fsanitize=undefined,local-bounds -C link-arg=-fno-sanitize-recover=all'
+          cargo build --profile profiler-release
+          cp -v "$CARGO_TARGET_DIR/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
+
+      - name: Run phpt tests
+        run: |
+          set -eux
+          switch-php ${{ matrix.php-build }}
+          cd profiling/tests
+          cp -v $(php-config --prefix)/lib/php/build/run-tests.php .
+          export DD_PROFILING_OUTPUT_PPROF=/tmp/pprof
+          ubsan_runtime=$(clang-20 -print-file-name=libclang_rt.ubsan_standalone-$(uname -m).so)
+          export LD_PRELOAD="$ubsan_runtime${LD_PRELOAD:+:$LD_PRELOAD}"
+          php run-tests.php -j$(nproc) --show-diff -d extension=datadog-profiling.so phpt

@@ -33,4 +33,5 @@ spans(\DDTrace\SpanData) (1) {
   Foo.bar (alias, Foo.bar, cli)
     _dd.p.dm => -0
     _dd.p.tid => %s
+    _dd.svc_src => m
 }
