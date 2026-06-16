@@ -471,6 +471,7 @@ trait RefCellExt<T> {
     where
         F: FnOnce(&mut T) -> R;
 
+    #[inline]
     fn borrow_or_false<F>(&'static self, f: F) -> bool
     where
         F: FnOnce(&T) -> bool,
@@ -478,6 +479,7 @@ trait RefCellExt<T> {
         self.try_with_borrow(f).unwrap_or(false)
     }
 
+    #[inline]
     fn borrow_mut_or_false<F>(&'static self, f: F) -> bool
     where
         F: FnOnce(&mut T) -> bool,
@@ -487,6 +489,7 @@ trait RefCellExt<T> {
 }
 
 impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
+    #[inline]
     fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&T) -> R,
@@ -496,6 +499,7 @@ impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
         })??)
     }
 
+    #[inline]
     fn try_with_borrow_mut<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&mut T) -> R,
