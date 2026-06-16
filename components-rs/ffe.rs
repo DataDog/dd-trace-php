@@ -4,8 +4,9 @@ use datadog_ffe::rules_based::{
     EvaluationError, ExpectedFlagType, Str, UniversalFlagConfig,
 };
 use datadog_ffe::telemetry::flagevaluation::{
-    prune_context, AllocationKey, ContextDD, FfeFlagEvaluationBatch, FfeFlagEvaluationEvent,
-    FlagEvalEventContext, FlagKey, VariantKey, DEGRADED_CAP, GLOBAL_CAP, PER_FLAG_CAP,
+    prune_context, AllocationKey, ContextDD, EvalError, FfeFlagEvaluationBatch,
+    FfeFlagEvaluationEvent, FlagEvalEventContext, FlagKey, VariantKey, DEGRADED_CAP, GLOBAL_CAP,
+    PER_FLAG_CAP,
 };
 use datadog_ffe::telemetry::FfeTelemetryContext;
 use datadog_sidecar::service::blocking::{self as sidecar_blocking, SidecarTransport};
@@ -101,7 +102,8 @@ const TYPE_OBJECT: i32 = 4;
 
 // ── EVP flagevaluation aggregation ────────────────────────────────────────────
 
-/// Full-tier aggregation key: six dimensions, all exact strings, no hash.
+/// Full-tier aggregation key: schema-visible dimensions only, all exact
+/// strings, no hash.
 /// No collision-prone digest — comparable struct identity via
 /// #[derive(Eq, Hash)] so distinct dimensions never alias.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -109,20 +111,20 @@ struct FullTierKey {
     flag_key: String,
     variant: String,
     allocation_key: String,
-    reason: String,
+    error_message: String,
     targeting_key: String,
     /// Type-tagged, length-delimited canonical encoding of pruned context attrs.
     context_key: String,
 }
 
-/// Degraded-tier key: four dimensions only (drops targeting_key + context).
-/// Matches OTel `feature_flag.evaluations` cardinality exactly.
+/// Degraded-tier key: drops targeting_key + context but preserves
+/// schema-visible visible dimensions.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct DegradedTierKey {
     flag_key: String,
     variant: String,
     allocation_key: String,
-    reason: String,
+    error_message: String,
 }
 
 /// Per-bucket aggregation state.
@@ -192,25 +194,19 @@ fn evp_enabled() -> bool {
     }
 }
 
-/// Canonical context key: length-delimited, serde-JSON-encoded sorted context
-/// attributes. No hash — a language-native map key. Distinct attribute maps
-/// produce distinct keys; same maps produce identical keys (deterministic
-/// because keys are sorted).
-fn canonical_context_key(attrs: &HashMap<Str, Attribute>) -> String {
-    // Sort keys for deterministic ordering.
-    let mut pairs: Vec<(&Str, &Attribute)> = attrs.iter().collect();
-    pairs.sort_by_key(|(k, _)| k.as_str());
-
+/// Canonical context key for already-pruned context attributes:
+/// length-delimited, serde-JSON-encoded sorted pairs. No hash — a
+/// language-native map key. Distinct pruned maps produce distinct keys; same
+/// maps produce identical keys because `BTreeMap` iteration is deterministic.
+fn canonical_context_key(attrs: &BTreeMap<String, serde_json::Value>) -> String {
     let mut buf = Vec::new();
-    for (k, v) in &pairs {
+    for (k, v) in attrs {
         // Key: 8-byte big-endian length + raw bytes.
-        append_length_delimited(&mut buf, k.as_str().as_bytes());
+        append_length_delimited(&mut buf, k.as_bytes());
         // Value: serde_json serialization gives a deterministic, type-preserving
         // representation. Strings → `"value"`, numbers → `42`, bools → `true`/`false`.
         // This is wrapped with a length delimiter for unambiguous parsing.
-        if let Ok(json) = serde_json::to_string(v) {
-            append_length_delimited(&mut buf, json.as_bytes());
-        }
+        append_length_delimited(&mut buf, v.to_string().as_bytes());
     }
     // Safety: all content is valid UTF-8.
     String::from_utf8(buf).unwrap_or_default()
@@ -240,24 +236,14 @@ fn pruned_context_map(attrs: &HashMap<Str, Attribute>) -> BTreeMap<String, serde
     prune_context(&raw)
 }
 
-/// Map reason integer to the canonical reason string.
-fn reason_str(reason: i32, error_code: i32) -> String {
-    match reason {
-        REASON_STATIC => "STATIC".to_owned(),
-        REASON_TARGETING_MATCH => "TARGETING_MATCH".to_owned(),
-        REASON_SPLIT => "SPLIT".to_owned(),
-        REASON_DISABLED => "DISABLED".to_owned(),
-        REASON_ERROR => {
-            // Use a more specific error code label when available.
-            match error_code {
-                ERROR_TYPE_MISMATCH => "ERROR_TYPE_MISMATCH".to_owned(),
-                ERROR_CONFIG_PARSE => "ERROR_CONFIG_PARSE".to_owned(),
-                ERROR_FLAG_UNRECOGNIZED => "ERROR_FLAG_UNRECOGNIZED".to_owned(),
-                ERROR_CONFIG_MISSING => "ERROR_CONFIG_MISSING".to_owned(),
-                _ => "ERROR".to_owned(),
-            }
-        }
-        _ => "DEFAULT".to_owned(),
+fn error_message(error_code: i32) -> String {
+    match error_code {
+        ERROR_NONE => String::new(),
+        ERROR_TYPE_MISMATCH => "ERROR_TYPE_MISMATCH".to_owned(),
+        ERROR_CONFIG_PARSE => "ERROR_CONFIG_PARSE".to_owned(),
+        ERROR_FLAG_UNRECOGNIZED => "ERROR_FLAG_UNRECOGNIZED".to_owned(),
+        ERROR_CONFIG_MISSING => "ERROR_CONFIG_MISSING".to_owned(),
+        _ => "ERROR".to_owned(),
     }
 }
 
@@ -278,20 +264,21 @@ fn record_flag_evaluation_evp(
     flag_key: &str,
     variant_str: &str,
     allocation_key_str: &str,
-    reason: i32,
+    _reason: i32,
     error_code: i32,
     targeting_key: Option<&str>,
     attrs: &HashMap<Str, Attribute>,
     eval_ms: i64,
 ) {
-    let reason_s = reason_str(reason, error_code);
+    let pruned = pruned_context_map(attrs);
+    let error_message = error_message(error_code);
     let full_key = FullTierKey {
         flag_key: flag_key.to_owned(),
         variant: variant_str.to_owned(),
         allocation_key: allocation_key_str.to_owned(),
-        reason: reason_s.clone(),
+        error_message: error_message.clone(),
         targeting_key: targeting_key.unwrap_or("").to_owned(),
-        context_key: canonical_context_key(attrs),
+        context_key: canonical_context_key(&pruned),
     };
 
     let mut agg = match EVP_AGGREGATOR.lock() {
@@ -318,7 +305,6 @@ fn record_flag_evaluation_evp(
         .unwrap_or(0);
 
     if current_total < GLOBAL_CAP && flag_count < PER_FLAG_CAP {
-        let pruned = pruned_context_map(attrs);
         let flag_state = agg.full_tier.entry(flag_key.to_owned()).or_default();
         flag_state.contexts.insert(full_key.clone(), pruned);
         flag_state.buckets.insert(full_key, AggBucket::new(eval_ms));
@@ -331,7 +317,7 @@ fn record_flag_evaluation_evp(
         flag_key: flag_key.to_owned(),
         variant: variant_str.to_owned(),
         allocation_key: allocation_key_str.to_owned(),
-        reason: reason_s,
+        error_message,
     };
 
     if let Some(bucket) = agg.degraded_tier.get_mut(&degraded_key) {
@@ -395,6 +381,13 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
             } else {
                 Some(k.targeting_key)
             };
+            let error = if k.error_message.is_empty() {
+                None
+            } else {
+                Some(EvalError {
+                    message: k.error_message,
+                })
+            };
             events.push(FfeFlagEvaluationEvent {
                 timestamp: now,
                 flag: FlagKey {
@@ -405,9 +398,10 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
                 evaluation_count: bucket.count,
                 variant,
                 allocation,
+                targeting_rule: None,
                 targeting_key,
                 context,
-                error: None,
+                error,
                 runtime_default_used: runtime_default,
             });
         }
@@ -417,17 +411,37 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
     // Drain degraded tier.
     for (k, bucket) in agg.degraded_tier.drain() {
         let runtime_default = k.variant.is_empty();
+        let variant = if k.variant.is_empty() {
+            None
+        } else {
+            Some(VariantKey { key: k.variant })
+        };
+        let allocation = if k.allocation_key.is_empty() {
+            None
+        } else {
+            Some(AllocationKey {
+                key: k.allocation_key,
+            })
+        };
+        let error = if k.error_message.is_empty() {
+            None
+        } else {
+            Some(EvalError {
+                message: k.error_message,
+            })
+        };
         events.push(FfeFlagEvaluationEvent {
             timestamp: now,
             flag: FlagKey { key: k.flag_key },
             first_evaluation: bucket.first_evaluation,
             last_evaluation: bucket.last_evaluation,
             evaluation_count: bucket.count,
-            variant: None,
-            allocation: None,
+            variant,
+            allocation,
+            targeting_rule: None,
             targeting_key: None,
             context: None,
-            error: None,
+            error,
             runtime_default_used: runtime_default,
         });
     }
@@ -1054,6 +1068,41 @@ mod tests {
         assert_eq!(ev.last_evaluation, eval_ms_2);
     }
 
+    #[test]
+    fn reason_only_difference_merges_into_single_bucket() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+
+        record_flag_evaluation_evp(
+            "reason-flag",
+            "on",
+            "alloc-a",
+            REASON_STATIC,
+            ERROR_NONE,
+            Some("user-1"),
+            &empty_attrs(),
+            1_000,
+        );
+        record_flag_evaluation_evp(
+            "reason-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &empty_attrs(),
+            2_000,
+        );
+
+        let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
+        assert_eq!(
+            batch.flag_evaluations.len(),
+            1,
+            "OpenFeature reason is not part of EVP cardinality"
+        );
+        assert_eq!(batch.flag_evaluations[0].evaluation_count, 2);
+    }
+
     // Test: differing context attrs → distinct buckets (no key collision).
     #[test]
     fn different_context_values_produce_distinct_full_tier_buckets() {
@@ -1129,6 +1178,50 @@ mod tests {
         assert_eq!(batch.flag_evaluations[0].evaluation_count, 2);
     }
 
+    #[test]
+    fn oversized_context_is_pruned_before_keying() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        let mut oversized_attrs = HashMap::new();
+        oversized_attrs.insert(
+            Str::from("oversized"),
+            Attribute::from("x".repeat(257).as_str()),
+        );
+
+        record_flag_evaluation_evp(
+            "bounded-context-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &oversized_attrs,
+            1_000,
+        );
+        record_flag_evaluation_evp(
+            "bounded-context-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &empty_attrs(),
+            2_000,
+        );
+
+        let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
+        assert_eq!(
+            batch.flag_evaluations.len(),
+            1,
+            "oversized skipped context values must not create hidden buckets"
+        );
+        assert_eq!(batch.flag_evaluations[0].evaluation_count, 2);
+        assert!(
+            batch.flag_evaluations[0].context.is_none(),
+            "the queued snapshot must contain only the bounded pruned context"
+        );
+    }
+
     // Test: full-tier overflow routes to degraded tier.
     // Three named cap constants enforce explicit bounds on each tier.
     #[test]
@@ -1171,6 +1264,48 @@ mod tests {
         reset_aggregator();
     }
 
+    #[test]
+    fn degraded_tier_retains_variant_allocation_and_error() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        {
+            let mut agg = match EVP_AGGREGATOR.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            agg.full_tier_total = GLOBAL_CAP;
+        }
+
+        record_flag_evaluation_evp(
+            "degraded-visible-flag",
+            "on",
+            "alloc-a",
+            REASON_ERROR,
+            ERROR_TYPE_MISMATCH,
+            Some("user-x"),
+            &attrs_with("k", "v"),
+            1_000,
+        );
+
+        let batch = drain_aggregator("svc", "prod", "1.0").unwrap();
+        assert_eq!(batch.flag_evaluations.len(), 1);
+        let ev = &batch.flag_evaluations[0];
+        assert_eq!(ev.variant.as_ref().map(|v| v.key.as_str()), Some("on"));
+        assert_eq!(
+            ev.allocation.as_ref().map(|a| a.key.as_str()),
+            Some("alloc-a")
+        );
+        assert!(
+            ev.targeting_key.is_none(),
+            "degraded tier drops targeting_key"
+        );
+        assert!(ev.context.is_none(), "degraded tier drops context");
+        assert_eq!(
+            ev.error.as_ref().map(|e| e.message.as_str()),
+            Some("ERROR_TYPE_MISMATCH")
+        );
+    }
+
     // Test: degraded-tier overflow increments drop counter.
     #[test]
     fn degraded_tier_overflow_increments_drop_counter() {
@@ -1188,7 +1323,7 @@ mod tests {
                     flag_key: format!("flag-{i}"),
                     variant: "on".to_owned(),
                     allocation_key: "alloc".to_owned(),
-                    reason: "SPLIT".to_owned(),
+                    error_message: String::new(),
                 };
                 agg.degraded_tier.insert(key, AggBucket::new(1_000));
             }
@@ -1374,7 +1509,7 @@ mod tests {
                     flag_key: "f".to_owned(),
                     variant: "on".to_owned(),
                     allocation_key: "a".to_owned(),
-                    reason: "SPLIT".to_owned(),
+                    error_message: String::new(),
                 },
                 AggBucket::new(1_000),
             );
