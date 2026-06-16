@@ -274,6 +274,15 @@ final class ResultMapper
             $exposureData['doLog'] = (bool) $this->read($rawResult, array('do_log', 'doLog'), false);
         }
 
+        // serialId is the selected split's serial id, surfaced from the native
+        // bridge for APM span enrichment. It is only present when the native
+        // result actually carried one; a null/absent value must be left out so
+        // downstream consumers can treat "no serialId" as a runtime default.
+        $serialId = $this->read($rawResult, array('serial_id', 'serialId'), null);
+        if ($serialId !== null) {
+            $exposureData['serialId'] = (int) $serialId;
+        }
+
         return $exposureData;
     }
 

@@ -1878,6 +1878,13 @@ PHP_FUNCTION(DDTrace_ffe_evaluate) {
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("reason"), ddtrace_ffe_effective_reason(result.reason, result.error_code));
     ddtrace_ffe_update_long_property(return_value, ZEND_STRL("errorCode"), result.error_code);
     ddtrace_ffe_update_bool_property(return_value, ZEND_STRL("doLog"), result.do_log);
+    // serialId is only populated when the native result actually carried one
+    // (has_serial_id). It stays null otherwise so the PHP accumulator can use
+    // the Pattern B "missing variant => runtime default" branch, rather than
+    // mistaking a 0 sentinel for a real serial id.
+    if (result.has_serial_id) {
+        ddtrace_ffe_update_long_property(return_value, ZEND_STRL("serialId"), (zend_long)result.serial_id);
+    }
     ddtrace_ffe_update_empty_array_property(return_value, ZEND_STRL("providerState"));
 }
 

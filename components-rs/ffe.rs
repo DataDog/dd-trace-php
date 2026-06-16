@@ -97,6 +97,14 @@ pub struct FfeResult {
     pub allocation_key: MaybeOwnedZendString,
     pub reason: i32,
     pub error_code: i32,
+    // serial_id is the selected split's serial id, carried for APM span
+    // enrichment (ffe_flags_enc). The source field is Option<i32>; since the
+    // C ABI cannot represent Option<i32> as a plain field, we surface the
+    // presence separately via has_serial_id. Consumers MUST gate on
+    // has_serial_id (the Pattern B "missing variant => default" semantic) and
+    // never treat serial_id == 0 as "absent".
+    pub serial_id: i64,
+    pub has_serial_id: bool,
     pub do_log: bool,
     pub valid: bool,
 }
@@ -220,6 +228,8 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                     AssignmentReason::Default => REASON_DEFAULT,
                 },
                 error_code: ERROR_NONE,
+                serial_id: assignment.serial_id.unwrap_or(0) as i64,
+                has_serial_id: assignment.serial_id.is_some(),
                 do_log: assignment.do_log,
                 valid: true,
             }
@@ -244,6 +254,8 @@ fn result_from_assignment(assignment: Result<ffe::Assignment, EvaluationError>) 
                 allocation_key: None,
                 reason,
                 error_code,
+                serial_id: 0,
+                has_serial_id: false,
                 do_log: false,
                 valid: true,
             }
@@ -258,6 +270,8 @@ fn invalid_result() -> FfeResult {
         allocation_key: None,
         reason: REASON_ERROR,
         error_code: ERROR_GENERAL,
+        serial_id: 0,
+        has_serial_id: false,
         do_log: false,
         valid: false,
     }
