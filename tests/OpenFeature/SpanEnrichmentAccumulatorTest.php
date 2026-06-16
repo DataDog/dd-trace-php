@@ -205,6 +205,41 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
         self::assertSame('{"enabled":true,"n":3}', $defaults['flag']);
     }
 
+    /**
+     * Runtime-default rendering must match the frozen Node `String(value)`
+     * (RESEARCH.md:102): null => "null", booleans => "true"/"false", scalars
+     * via string cast, objects via JSON. This locks the scalar/null/bool parity
+     * the L2 decode side expects.
+     *
+     * @dataProvider nodeStringValueRenderings
+     * @param mixed $value
+     */
+    public function testDefaultRenderingMatchesNodeStringValue($value, string $expected): void
+    {
+        $acc = new SpanEnrichmentAccumulator();
+        $acc->addDefault('flag', $value);
+
+        $defaults = json_decode($acc->toSpanTags()[SpanEnrichmentAccumulator::TAG_RUNTIME_DEFAULTS], true);
+
+        self::assertSame($expected, $defaults['flag']);
+    }
+
+    /**
+     * @return array<string, array{0: mixed, 1: string}>
+     */
+    public static function nodeStringValueRenderings(): array
+    {
+        return [
+            'null => "null"'        => [null, 'null'],
+            'true => "true"'        => [true, 'true'],
+            'false => "false"'      => [false, 'false'],
+            'int => decimal string' => [42, '42'],
+            'float => string'       => [4.5, '4.5'],
+            'string passthrough'    => ['plain', 'plain'],
+            'stdClass => JSON'      => [(object) ['a' => 1], '{"a":1}'],
+        ];
+    }
+
     public function testSubjectsTagIsJsonObjectOfBase64(): void
     {
         $acc = new SpanEnrichmentAccumulator();
@@ -249,6 +284,186 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
 
         self::assertFalse($acc->hasData());
         self::assertSame([], $acc->toSpanTags());
+    }
+
+    // ---- CR-01 regression: per-root reset (multi-root + cross-request) -----
+    //
+    // The pre-fix provider only ever ADDED to the per-provider accumulator and
+    // re-staged the FULL accumulated set on every resolve(); clear() had no
+    // production caller. So after root span 1 closed, span 2 re-staged span 1's
+    // data (within-request contamination), and in persistent SAPIs the
+    // accumulator (incl. SHA256 subject keys) leaked across requests. These
+    // tests drive the provider across simulated root-span boundaries and assert
+    // the staged tags reflect ONLY the current root's evaluations.
+
+    public function testSecondRootSpanDoesNotInheritFirstRootSerialIds(): void
+    {
+        // Within ONE request, two sequential root spans. Span 2 must stage only
+        // its own serial id — not span 1's (CR-01 consequence #1).
+        $evaluator = new SpanEnrichmentTestEvaluator();
+        $evaluator->setResult('flag-a', 'a', 'a', ['serialId' => 11, 'doLog' => false]);
+        $evaluator->setResult('flag-b', 'b', 'b', ['serialId' => 22, 'doLog' => false]);
+        $provider = $this->multiRootProvider($evaluator);
+
+        // Root span #1.
+        $provider->enterRootSpan(1);
+        $provider->resolveStringValue('flag-a', 'fallback', new EvaluationContext('user-1'));
+        $firstStaged = $provider->lastStagedTags();
+        self::assertSame([11], $this->decodeFlags($firstStaged));
+
+        // Root span #1 closes (fires the registered one-shot clear).
+        $provider->closeRootSpan(1);
+
+        // Root span #2 — a fresh root in the same request/provider.
+        $provider->enterRootSpan(2);
+        $provider->resolveStringValue('flag-b', 'fallback', new EvaluationContext('user-2'));
+        $secondStaged = $provider->lastStagedTags();
+
+        // BUG (pre-fix): would decode to [11, 22] (span 1's id leaked into span 2).
+        self::assertSame([22], $this->decodeFlags($secondStaged));
+    }
+
+    public function testSecondRootSpanDoesNotInheritFirstRootSubjects(): void
+    {
+        // Hashed subject keys must not carry from root #1 to root #2 (privacy
+        // dimension of CR-01).
+        $evaluator = new SpanEnrichmentTestEvaluator();
+        $evaluator->setResult('flag-a', 'a', 'a', ['serialId' => 11, 'doLog' => true]);
+        $evaluator->setResult('flag-b', 'b', 'b', ['serialId' => 22, 'doLog' => true]);
+        $provider = $this->multiRootProvider($evaluator);
+
+        $provider->enterRootSpan(1);
+        $provider->resolveStringValue('flag-a', 'fallback', new EvaluationContext('alice'));
+        $provider->closeRootSpan(1);
+
+        $provider->enterRootSpan(2);
+        $provider->resolveStringValue('flag-b', 'fallback', new EvaluationContext('bob'));
+        $staged = $provider->lastStagedTags();
+
+        $subjects = json_decode($staged[SpanEnrichmentAccumulator::TAG_SUBJECTS] ?? '{}', true);
+        // Only bob's hashed key may be present; alice's must be gone.
+        self::assertArrayHasKey(hash('sha256', 'bob'), $subjects);
+        self::assertArrayNotHasKey(hash('sha256', 'alice'), $subjects);
+    }
+
+    public function testSecondRootSpanDoesNotInheritFirstRootDefaults(): void
+    {
+        // Runtime defaults must also reset per root span.
+        $evaluator = new SpanEnrichmentTestEvaluator();
+        $evaluator->setResult('flag-a', 'default-a', null, []); // missing variant => default
+        $evaluator->setResult('flag-b', 'default-b', null, []);
+        $provider = $this->multiRootProvider($evaluator);
+
+        $provider->enterRootSpan(1);
+        $provider->resolveStringValue('flag-a', 'fallback', new EvaluationContext('user-1'));
+        $provider->closeRootSpan(1);
+
+        $provider->enterRootSpan(2);
+        $provider->resolveStringValue('flag-b', 'fallback', new EvaluationContext('user-2'));
+        $staged = $provider->lastStagedTags();
+
+        $defaults = json_decode($staged[SpanEnrichmentAccumulator::TAG_RUNTIME_DEFAULTS] ?? '{}', true);
+        self::assertSame(['flag-b' => 'default-b'], $defaults);
+    }
+
+    public function testNewRootResetsEvenWhenPreviousRootWasNeverClosed(): void
+    {
+        // Defensive path: a dropped/abandoned root never fires onClose, so the
+        // provider must still reset when it observes a NEW root id on the next
+        // evaluation (otherwise a dropped root's data leaks into the next root /
+        // next request).
+        $evaluator = new SpanEnrichmentTestEvaluator();
+        $evaluator->setResult('flag-a', 'a', 'a', ['serialId' => 11, 'doLog' => false]);
+        $evaluator->setResult('flag-b', 'b', 'b', ['serialId' => 22, 'doLog' => false]);
+        $provider = $this->multiRootProvider($evaluator);
+
+        $provider->enterRootSpan(1);
+        $provider->resolveStringValue('flag-a', 'fallback', new EvaluationContext('user-1'));
+        // NOTE: no closeRootSpan(1) — the root was dropped/abandoned.
+
+        $provider->enterRootSpan(2);
+        $provider->resolveStringValue('flag-b', 'fallback', new EvaluationContext('user-2'));
+
+        self::assertSame([22], $this->decodeFlags($provider->lastStagedTags()));
+    }
+
+    public function testCrossRequestDoesNotLeakAccumulatedStateOnSharedProvider(): void
+    {
+        // Persistent-SAPI model (php-fpm / RoadRunner / Swoole): ONE provider
+        // instance serves multiple requests. Each request has its own root span.
+        // Request 2 must NOT carry request 1's serial ids or hashed subjects
+        // (CR-01 consequence #2 — the cross-request privacy leak).
+        $evaluator = new SpanEnrichmentTestEvaluator();
+        $evaluator->setResult('flag-a', 'a', 'a', ['serialId' => 11, 'doLog' => true]);
+        $evaluator->setResult('flag-b', 'b', 'b', ['serialId' => 22, 'doLog' => true]);
+        $provider = $this->multiRootProvider($evaluator);
+
+        // ---- Request 1 ----
+        $provider->enterRootSpan(101);
+        $provider->resolveStringValue('flag-a', 'fallback', new EvaluationContext('req1-user'));
+        $provider->closeRootSpan(101); // request ends: root span closes
+
+        // ---- Request 2 (same provider instance) ----
+        $provider->enterRootSpan(202);
+        $provider->resolveStringValue('flag-b', 'fallback', new EvaluationContext('req2-user'));
+        $staged = $provider->lastStagedTags();
+
+        self::assertSame([22], $this->decodeFlags($staged), 'serial ids leaked across requests');
+        $subjects = json_decode($staged[SpanEnrichmentAccumulator::TAG_SUBJECTS] ?? '{}', true);
+        self::assertArrayHasKey(hash('sha256', 'req2-user'), $subjects);
+        self::assertArrayNotHasKey(
+            hash('sha256', 'req1-user'),
+            $subjects,
+            'request 1 hashed subject key leaked into request 2'
+        );
+    }
+
+    public function testRootCloseClearsAccumulatorEvenWithNoSubsequentEval(): void
+    {
+        // After a root span closes, the accumulator must be empty even if no
+        // further evaluation happens (lockstep with the native flush; mirrors
+        // the Node #onSpanFinish cleanup). Otherwise stale data lingers on the
+        // provider until the next eval.
+        $accumulator = new SpanEnrichmentAccumulator();
+        $evaluator = new SpanEnrichmentTestEvaluator();
+        $evaluator->setResult('flag-a', 'a', 'a', ['serialId' => 11, 'doLog' => false]);
+        $provider = $this->multiRootProvider($evaluator, $accumulator);
+
+        $provider->enterRootSpan(1);
+        $provider->resolveStringValue('flag-a', 'fallback', new EvaluationContext('user-1'));
+        self::assertTrue($accumulator->hasData());
+
+        $provider->closeRootSpan(1);
+
+        self::assertFalse($accumulator->hasData(), 'accumulator not cleared on root close');
+    }
+
+    /**
+     * @param array<string, string> $staged
+     * @return array<int, int>
+     */
+    private function decodeFlags(array $staged): array
+    {
+        $flags = $staged[SpanEnrichmentAccumulator::TAG_FLAGS] ?? null;
+        if ($flags === null) {
+            return [];
+        }
+        return (new SpanEnrichmentAccumulator())->decodeDeltaVarint($flags);
+    }
+
+    private function multiRootProvider(
+        Evaluator $evaluator,
+        ?SpanEnrichmentAccumulator $accumulator = null
+    ): MultiRootSpanEnrichmentProvider {
+        $accumulator = $accumulator ?? new SpanEnrichmentAccumulator();
+        $provider = DataDogProvider::createWithDependencies(
+            $evaluator,
+            new NullLogger(LogLevel::EMERGENCY)
+        );
+        self::accessibleProperty($provider, 'spanEnrichmentEnabled')->setValue($provider, true);
+        self::accessibleProperty($provider, 'spanEnrichmentAccumulator')->setValue($provider, $accumulator);
+
+        return new MultiRootSpanEnrichmentProvider($provider, $accumulator);
     }
 
     // ---- DG-004 inline accumulation via DataDogProvider ------------------
@@ -452,5 +667,101 @@ final class SpanEnrichmentTestEvaluator implements Evaluator
             return EvaluationType::OBJECT;
         }
         return EvaluationType::STRING;
+    }
+}
+
+/**
+ * Pure-PHP simulator of the native root-span lifecycle so the CR-01 regression
+ * tests run without the extension. DataDogProvider is `final`, so rather than
+ * subclassing it this wraps a real provider and injects the provider's two
+ * root-span seams via reflection:
+ *  - $rootIdResolver: returns the current simulated root id, standing in for
+ *    spl_object_id(\DDTrace\root_span()).
+ *  - $rootCloseScheduler: records the one-shot accumulator reset that the real
+ *    provider binds to $root->onClose; closeRootSpan() fires it, mirroring
+ *    span.c invoking the onClose handlers before the native flush.
+ *
+ * The provider's real accumulate path runs unchanged; the accumulator IS the
+ * payload that stageSpanEnrichmentTags() pushes to the native store, so the
+ * regression tests assert on the accumulator's toSpanTags() (what would be
+ * staged for the current root).
+ */
+final class MultiRootSpanEnrichmentProvider
+{
+    /** @var DataDogProvider */
+    private $provider;
+
+    /** @var SpanEnrichmentAccumulator */
+    private $accumulator;
+
+    /** @var int|null current simulated root span id (null = no active root). */
+    private $currentRootId = null;
+
+    /** @var array<int, list<callable>> root id => registered one-shot resets. */
+    private $onRootClose = [];
+
+    public function __construct(DataDogProvider $provider, SpanEnrichmentAccumulator $accumulator)
+    {
+        $this->provider = $provider;
+        $this->accumulator = $accumulator;
+
+        self::setProp($provider, 'rootIdResolver', function (): ?int {
+            return $this->currentRootId;
+        });
+        self::setProp($provider, 'rootCloseScheduler', function (int $rootId, callable $reset): void {
+            $this->onRootClose[$rootId][] = $reset;
+        });
+    }
+
+    public function enterRootSpan(int $rootId): void
+    {
+        $this->currentRootId = $rootId;
+    }
+
+    public function closeRootSpan(int $rootId): void
+    {
+        // Fire the resets bound to this root, then drop the active root (the
+        // engine empties $root->onClose after invoking it — one-shot).
+        $callbacks = $this->onRootClose[$rootId] ?? [];
+        unset($this->onRootClose[$rootId]);
+        foreach ($callbacks as $callback) {
+            $callback();
+        }
+        if ($this->currentRootId === $rootId) {
+            $this->currentRootId = null;
+        }
+    }
+
+    /**
+     * @param mixed ...$args
+     */
+    public function resolveStringValue(...$args): void
+    {
+        $this->provider->resolveStringValue(...$args);
+    }
+
+    /**
+     * The encoded tag set that would be staged for the CURRENT root span — i.e.
+     * exactly what stageSpanEnrichmentTags() pushes into the native store.
+     *
+     * @return array<string, string>
+     */
+    public function lastStagedTags(): array
+    {
+        return $this->accumulator->toSpanTags();
+    }
+
+    public function accumulator(): SpanEnrichmentAccumulator
+    {
+        return $this->accumulator;
+    }
+
+    private static function setProp(object $object, string $name, $value): void
+    {
+        $property = (new \ReflectionObject($object))->getProperty($name);
+        if (\PHP_VERSION_ID < 80100) {
+            $property->setAccessible(true);
+        }
+        $property->setValue($object, $value);
     }
 }

@@ -39,6 +39,29 @@ final class DataDogProvider extends AbstractProvider
     private EvaluationMetricRecorder $metricRecorder;
     private bool $spanEnrichmentEnabled = false;
     private ?SpanEnrichmentAccumulator $spanEnrichmentAccumulator = null;
+    /**
+     * Identity (spl_object_id) of the root span the accumulator is currently
+     * bound to. Lets the provider detect a root-span boundary and reset the
+     * accumulator per root span (CR-01: otherwise it grows for the provider's
+     * whole lifetime, contaminating later spans and leaking across requests in
+     * persistent SAPIs).
+     */
+    private ?int $spanEnrichmentRootId = null;
+    /**
+     * Test seam: resolve the current root-span id. Null in production, where
+     * currentRootSpanId() reads \DDTrace\root_span() directly.
+     *
+     * @var (callable(): ?int)|null
+     */
+    private $rootIdResolver = null;
+    /**
+     * Test seam: register a one-shot accumulator-reset bound to a root-span
+     * close. Null in production, where the reset is appended to the root span's
+     * $onClose. Signature: function(int $rootId, callable $reset): void.
+     *
+     * @var (callable(int, callable): void)|null
+     */
+    private $rootCloseScheduler = null;
 
     public function __construct(?LoggerInterface $logger = null)
     {
@@ -208,6 +231,18 @@ final class DataDogProvider extends AbstractProvider
         }
 
         try {
+            // CR-01: reset the accumulator on a root-span boundary so it carries
+            // ONLY the current root span's evaluations. Without this the
+            // per-provider accumulator grows for the provider's whole lifetime,
+            // re-staging stale serial ids / hashed subjects / runtime defaults
+            // onto later root spans (within-request multi-root contamination)
+            // and, since OpenFeature providers are process-level singletons,
+            // across requests in persistent SAPIs (a privacy leak of SHA256
+            // subject keys). The native staging store is flushed + cleared on the
+            // same ddtrace_close_span root branch; here we keep the PHP-side
+            // accumulator in lockstep.
+            $this->resetSpanEnrichmentForRootBoundary();
+
             $exposure = $details->getExposureData();
             $serialId = is_array($exposure) && array_key_exists(self::SERIAL_ID_METADATA_KEY, $exposure)
                 ? $exposure[self::SERIAL_ID_METADATA_KEY]
@@ -236,6 +271,38 @@ final class DataDogProvider extends AbstractProvider
     }
 
     /**
+     * Detect a root-span boundary and, on a change, reset the accumulator so it
+     * only ever carries the active root span's evaluations (CR-01). The reset
+     * fires on ANY transition (a new root, or losing the active root) so a
+     * dropped/abandoned root — which never runs its $onClose handler — cannot
+     * leak into the next root span or the next request. On entering a new root
+     * span a one-shot reset is also bound to that root's close, keeping the
+     * PHP accumulator in lockstep with the native close-span flush.
+     */
+    private function resetSpanEnrichmentForRootBoundary(): void
+    {
+        if ($this->spanEnrichmentAccumulator === null) {
+            return;
+        }
+
+        $rootId = $this->currentRootSpanId();
+        if ($rootId === $this->spanEnrichmentRootId) {
+            return;
+        }
+
+        // Boundary crossed: start clean for the new root (or no-root) context.
+        $this->spanEnrichmentAccumulator->clear();
+        $this->resetSpanEnrichmentStaging();
+        $this->spanEnrichmentRootId = $rootId;
+
+        // Bind a one-shot clear to the new root's close (mirrors the Node
+        // #onSpanFinish cleanup). No root => nothing to bind to.
+        if ($rootId !== null) {
+            $this->scheduleAccumulatorResetOnRootClose($rootId);
+        }
+    }
+
+    /**
      * Push the currently-accumulated, encoded tag set into native request-local
      * memory so the root-span close path can write it onto the root span. Only
      * stages when there is data; the native side stays empty (and the close-span
@@ -255,6 +322,88 @@ final class DataDogProvider extends AbstractProvider
             $tags[SpanEnrichmentAccumulator::TAG_SUBJECTS] ?? null,
             $tags[SpanEnrichmentAccumulator::TAG_RUNTIME_DEFAULTS] ?? null
         );
+    }
+
+    /**
+     * Identity of the currently active root span (or null if there is none /
+     * tracing is off). Used to detect a root-span boundary so the accumulator is
+     * reset per root span rather than growing for the provider's lifetime.
+     *
+     * The resolver is injectable (`$rootIdResolver`) so the lifecycle can be
+     * driven in tests without the native extension; in production it reads
+     * `\DDTrace\root_span()`.
+     */
+    private function currentRootSpanId(): ?int
+    {
+        if ($this->rootIdResolver !== null) {
+            $id = ($this->rootIdResolver)();
+            return $id === null ? null : (int) $id;
+        }
+
+        if (!\function_exists('DDTrace\\root_span')) {
+            return null;
+        }
+
+        $root = \DDTrace\root_span();
+
+        return $root !== null ? \spl_object_id($root) : null;
+    }
+
+    /**
+     * Bind a one-shot reset to the active root span's close so the PHP
+     * accumulator is cleared in lockstep with the native flush (which runs on the
+     * same `ddtrace_close_span` root branch, AFTER the engine invokes the
+     * `$onClose` handlers). Mirrors the frozen Node reference's `#onSpanFinish`
+     * cleanup. The engine empties `$onClose` after firing it, so the closure is
+     * inherently one-shot per root span.
+     *
+     * The scheduler is injectable (`$rootCloseScheduler`) for tests; in
+     * production it appends to the root span's `$onClose`.
+     */
+    private function scheduleAccumulatorResetOnRootClose(int $rootId): void
+    {
+        $reset = function () use ($rootId): void {
+            if ($this->spanEnrichmentRootId === $rootId && $this->spanEnrichmentAccumulator !== null) {
+                $this->spanEnrichmentAccumulator->clear();
+            }
+            // The native staging store is cleared by the close-span flush
+            // itself; nothing to do here for it.
+            if ($this->spanEnrichmentRootId === $rootId) {
+                $this->spanEnrichmentRootId = null;
+            }
+        };
+
+        if ($this->rootCloseScheduler !== null) {
+            ($this->rootCloseScheduler)($rootId, $reset);
+            return;
+        }
+
+        if (!\function_exists('DDTrace\\root_span')) {
+            return;
+        }
+
+        $root = \DDTrace\root_span();
+        if ($root === null) {
+            return;
+        }
+
+        $root->onClose[] = static function () use ($reset): void {
+            $reset();
+        };
+    }
+
+    /**
+     * Clear the native request-local staging slots. Used on a root-span boundary
+     * so a previous (possibly dropped, never-flushed) root's staged tags never
+     * bleed onto a later root span. No-op without the extension or in tests.
+     */
+    private function resetSpanEnrichmentStaging(): void
+    {
+        if (!\function_exists('DDTrace\\Internal\\set_ffe_span_enrichment_tags')) {
+            return;
+        }
+
+        \DDTrace\Internal\set_ffe_span_enrichment_tags(null, null, null);
     }
 
     /**
