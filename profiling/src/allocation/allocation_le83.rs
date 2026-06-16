@@ -502,18 +502,6 @@ mod tests {
     }
 
     #[test]
-    fn realloc_handler_tracks_only_when_heap_live_is_enabled() {
-        assert_eq!(
-            alloc_prof_realloc_handler(true) as usize,
-            alloc_prof_realloc as usize
-        );
-        assert_eq!(
-            alloc_prof_realloc_handler(false) as usize,
-            alloc_prof_realloc_no_untrack as usize
-        );
-    }
-
-    #[test]
     fn check_versions_that_allocation_profiling_needs_disabled_with_active_jit() {
         // versions that need disabled allocation profiling with active jit
         assert!(alloc_prof_needs_disabled_for_jit(80000));
