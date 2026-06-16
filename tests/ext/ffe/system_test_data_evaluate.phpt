@@ -5,6 +5,13 @@ FFE canonical system test data evaluates through the Datadog client
 if (getenv('PHP_PEAR_RUNTESTS') === '1') {
     die('skip: canonical FFE fixtures are not shipped in the PECL test package');
 }
+$root = getenv('TEST_PHP_SRCDIR');
+if (!is_string($root) || $root === '') {
+    $root = dirname(dirname(dirname(__DIR__)));
+}
+if (!is_file($root . '/tests/FeatureFlags/ffe-system-test-data/ufc-config.json')) {
+    die('skip: canonical FFE fixtures submodule is not initialized');
+}
 if (getenv('USE_ZEND_ALLOC') === '0' && !getenv('SKIP_ASAN')) {
     die('skip: canonical FFE fixture sweep is too slow for valgrind');
 }
