@@ -28,7 +28,7 @@ extern bool runtime_config_first_init;
 
 #define DD_BASE(path) "/opt/datadog-php/" path
 
-#if PHP_VERSION_ID >= 80400
+#if (PHP_VERSION_ID >= 70000 && PHP_VERSION_ID < 80000) || PHP_VERSION_ID >= 80400
 #define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
 #else
 #define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "false"

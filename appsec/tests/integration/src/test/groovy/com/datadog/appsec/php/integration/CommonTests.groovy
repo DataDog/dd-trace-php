@@ -892,26 +892,29 @@ trait CommonTests {
             System.getProperty('USE_HELPER_RUST') == null,
             'Skipped: helper explicitly overridden via -PuseHelperRust')
 
+        boolean usesRustHelperByDefault = TestParams.getPhpVersion().startsWith('7.') ||
+                TestParams.phpVersionAtLeast('8.4')
+
         def trace = container.traceFromRequest('/phpinfo.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             def content = resp.body().text
 
-            if (TestParams.phpVersionAtLeast('8.4')) {
+            if (usesRustHelperByDefault) {
                 assert content.contains('Yes (Rust)') :
-                    "PHP >= 8.4 should use Rust helper by default"
+                    "PHP 7.x and >= 8.4 should use Rust helper by default"
             } else {
                 assert content.contains('Yes (C++)') :
-                    "PHP < 8.4 should use C++ helper by default"
+                    "PHP 8.0-8.3 should use C++ helper by default"
             }
         }
 
         Span span = trace.first()
-        if (TestParams.phpVersionAtLeast('8.4')) {
+        if (usesRustHelperByDefault) {
             assert span.meta."_dd.appsec.helper_runtime" == 'rust' :
-                "PHP >= 8.4 should report helper_runtime=rust in span"
+                "PHP 7.x and >= 8.4 should report helper_runtime=rust in span"
         } else {
             assert span.meta."_dd.appsec.helper_runtime" == null :
-                "PHP < 8.4 should not set helper_runtime span tag"
+                "PHP 8.0-8.3 should not set helper_runtime span tag"
         }
     }
 }

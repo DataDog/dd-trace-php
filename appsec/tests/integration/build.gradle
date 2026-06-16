@@ -62,6 +62,10 @@ ext.testMatrix = ['7.0', '7.1', '7.2', '7.3', '7.4', '8.0', '8.1', '8.2', '8.3',
 }
 ext.uuid = "id -u".execute().text.trim()
 
+def rustHelperDefaultForPhp(String phpVersion) {
+    phpVersion.startsWith('7.') || phpVersion in ['8.4', '8.5']
+}
+
 apply from: "$rootDir/gradle/images.gradle"
 
 def dockerMirror = ext.dockerMirror
@@ -644,8 +648,8 @@ def runMainTask = { String phpVersion, String variant ->
             dependsOn 'buildHelperRustWithCoverage'
         } else if (project.hasProperty('useHelperRust')) {
             dependsOn 'buildHelperRust'
-        } else if (phpVersion in ['8.4', '8.5']) {
-            // PHP 8.4+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
+        } else if (rustHelperDefaultForPhp(phpVersion)) {
+            // PHP 7.x and 8.4+ use Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
             dependsOn 'buildHelperRust'
         }
     }
@@ -726,8 +730,8 @@ def runMainTask = { String phpVersion, String variant ->
             dependsOn 'buildHelperRustWithCoverage'
         } else if (project.hasProperty('useHelperRust')) {
             dependsOn 'buildHelperRust'
-        } else if (phpVersion in ['8.4', '8.5']) {
-            // PHP 8.4+ uses Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
+        } else if (rustHelperDefaultForPhp(phpVersion)) {
+            // PHP 7.x and 8.4+ use Rust helper by default via DD_APPSEC_HELPER_RUST_REDIRECTION
             dependsOn 'buildHelperRust'
         } else {
             // C++ helper path: test containers still mount php-helper-rust (for
