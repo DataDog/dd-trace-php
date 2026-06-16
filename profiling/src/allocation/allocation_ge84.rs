@@ -106,7 +106,7 @@ pub fn first_rinit_should_disable_due_to_jit() -> bool {
         && *JIT_ENABLED
 }
 
-pub fn alloc_prof_rinit() {
+pub fn alloc_prof_rinit(heap_live_enabled: bool) {
     let zend_mm_state_init = |mut zend_mm_state: ZendMMState| -> ZendMMState {
         // Safety: `zend_mm_get_heap()` always returns a non-null pointer to a valid heap structure
         let heap = unsafe { zend::zend_mm_get_heap() };
@@ -149,12 +149,14 @@ pub fn alloc_prof_rinit() {
             zend_mm_state.prev_custom_mm_shutdown = None;
         }
 
+        let free_handler = alloc_prof_free_handler(heap_live_enabled);
+
         // install our custom handler to ZendMM
         unsafe {
             zend::zend_mm_set_custom_handlers_ex(
                 heap,
                 Some(alloc_prof_malloc),
-                Some(alloc_prof_free),
+                Some(free_handler),
                 Some(alloc_prof_realloc),
                 Some(alloc_prof_gc),
                 Some(alloc_prof_shutdown),
@@ -176,7 +178,7 @@ pub fn alloc_prof_rinit() {
 }
 
 #[allow(unknown_lints, unpredictable_function_pointer_comparisons)]
-pub fn alloc_prof_rshutdown() {
+pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
     // If `is_zend_mm()` is true, the custom handlers have already been reset
     // to `None`. This is unexpected, therefore we will not touch the ZendMM
     // handlers anymore as resetting to prev handlers might result in segfaults
@@ -209,7 +211,8 @@ pub fn alloc_prof_rshutdown() {
                 &mut custom_mm_shutdown,
             );
         }
-        if custom_mm_free != Some(alloc_prof_free)
+        let free_handler = alloc_prof_free_handler(heap_live_enabled);
+        if custom_mm_free != Some(free_handler)
             || custom_mm_malloc != Some(alloc_prof_malloc)
             || custom_mm_realloc != Some(alloc_prof_realloc)
             || custom_mm_gc != Some(alloc_prof_gc)
@@ -359,11 +362,33 @@ unsafe extern "C" fn alloc_prof_free(
     alloc_prof_free_impl(ptr);
 }
 
+fn alloc_prof_free_handler(heap_live_enabled: bool) -> zend::VmMmCustomFreeFn {
+    if heap_live_enabled {
+        alloc_prof_free
+    } else {
+        alloc_prof_free_noop
+    }
+}
+
+#[cfg(not(php_debug))]
+unsafe extern "C" fn alloc_prof_free_noop(ptr: *mut c_void) {
+    tls_zend_mm_state_get!(free)(ptr);
+}
+
+#[cfg(php_debug)]
+unsafe extern "C" fn alloc_prof_free_noop(
+    ptr: *mut c_void,
+    _file: *const c_char,
+    _line: c_uint,
+    _orig_file: *const c_char,
+    _orig_line: c_uint,
+) {
+    tls_zend_mm_state_get!(free)(ptr);
+}
+
 #[inline(always)]
 unsafe fn alloc_prof_free_impl(ptr: *mut c_void) {
-    // Check if this was a tracked allocation before freeing. This intentionally
-    // avoids a process-wide heap-live fast-path flag: ZTS SAPIs can run requests
-    // with different INI state on different threads.
+    // Heap-live is enabled when this handler is registered.
     if !ptr.is_null() {
         untrack_allocation(ptr);
     }
@@ -520,6 +545,18 @@ unsafe fn alloc_prof_orig_shutdown(full: bool, silent: bool) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn free_handler_tracks_only_when_heap_live_is_enabled() {
+        assert_eq!(
+            alloc_prof_free_handler(true) as usize,
+            alloc_prof_free as zend::VmMmCustomFreeFn as usize
+        );
+        assert_eq!(
+            alloc_prof_free_handler(false) as usize,
+            alloc_prof_free_noop as zend::VmMmCustomFreeFn as usize
+        );
+    }
 
     #[test]
     fn check_versions_that_allocation_profiling_needs_disabled_with_active_jit() {
