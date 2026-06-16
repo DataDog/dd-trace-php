@@ -119,7 +119,7 @@ foreach ($profiler_minor_major_targets as $version) {
 "PHP language tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_buster
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   variables:
     KUBERNETES_CPU_REQUEST: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
@@ -140,8 +140,8 @@ foreach ($profiler_minor_major_targets as $version) {
 
     - command -v switch-php && switch-php "${FLAVOUR}"
     - cd profiling
-    - cargo build --release --all-features
+    - cargo build --profile profiler-release
     - cd ..
-    - echo "extension=/tmp/cargo/release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
+    - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
     - .gitlab/run_php_language_tests.sh
