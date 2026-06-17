@@ -13,6 +13,16 @@ foreach ($profiler_minor_major_targets as $version) {
 }
 ?>
 
+# PHP 8.5 has a known tailcall VM crash; re-enable once PHP 8.5.8 is available.
+.php_language_profiler_targets: &php_language_profiler_targets
+<?php
+foreach ($profiler_minor_major_targets as $version) {
+    if (version_compare($version, "8.5", "<")) {
+        echo "  - \"{$version}\"\n";
+    }
+}
+?>
+
 "profiling tests":
   stage: test
   tags: [ "arch:${ARCH}" ]
@@ -132,7 +142,7 @@ foreach ($profiler_minor_major_targets as $version) {
     XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
   parallel:
     matrix:
-      - PHP_MAJOR_MINOR: *all_profiler_targets
+      - PHP_MAJOR_MINOR: *php_language_profiler_targets
         ARCH: amd64
         FLAVOUR: [nts, zts]
   script:
@@ -144,4 +154,6 @@ foreach ($profiler_minor_major_targets as $version) {
     - cd ..
     - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
+    - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
+    - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     - .gitlab/run_php_language_tests.sh
