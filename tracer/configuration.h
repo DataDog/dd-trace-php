@@ -99,6 +99,7 @@
     CONFIG(SET_LOWERCASE, DD_TRACE_PROPAGATION_STYLE, "datadog,tracecontext,baggage",                          \
            .env_config_fallback = ddtrace_conf_otel_propagators)                                               \
     CONFIG(SET, DD_TRACE_BAGGAGE_TAG_KEYS, "user.id, session.id, account.id")                                  \
+    CONFIG(CUSTOM(INT), DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT, "continue", .parser = dd_parse_propagation_behavior_extract) \
     CONFIG(BOOL, DD_TRACE_IGNORE_AGENT_SAMPLING_RATES, "false", .ini_change = zai_config_system_ini_change)    \
     CONFIG(SET, DD_TRACE_TRACED_INTERNAL_FUNCTIONS, "")                                                        \
     CONFIG(INT, DD_TRACE_DEBUG_PRNG_SEED, "-1", .ini_change = ddtrace_reseed_seed_change)                      \
@@ -190,6 +191,12 @@ enum ddtrace_dbm_propagation_mode {
 enum ddtrace_sampling_rules_format {
     DD_TRACE_SAMPLING_RULES_FORMAT_REGEX,
     DD_TRACE_SAMPLING_RULES_FORMAT_GLOB
+};
+
+enum ddtrace_propagation_behavior_extract {
+    DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_CONTINUE = 0,
+    DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_RESTART,
+    DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_IGNORE,
 };
 
 #define DD_CONFIGURATION DDTRACE_CONFIGURATION
