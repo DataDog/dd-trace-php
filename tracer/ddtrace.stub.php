@@ -1105,6 +1105,17 @@ namespace DDTrace\Internal {
      */
     function set_ffe_span_enrichment_tags(?string $flagsEnc, ?string $subjectsEnc, ?string $runtimeDefaults): void {}
 
+    /**
+     * Identity (spl_object_id) of the active root span, or null when there is
+     * none. Unlike \DDTrace\root_span(), this NEVER creates a root span as a
+     * side effect (it does not call dd_ensure_root_span()). Used by APM
+     * feature-flag span enrichment to detect a root-span boundary while merely
+     * evaluating a flag, without forcing autoroot creation.
+     *
+     * @internal
+     */
+    function peek_root_span_id(): ?int {}
+
 }
 
 namespace datadog\appsec\v2 {

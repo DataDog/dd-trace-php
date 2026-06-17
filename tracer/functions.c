@@ -2123,6 +2123,14 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 waited += 10;
             }
             RETVAL_BOOL(ddog_is_agent_info_ready());
+#ifdef DD_TEST_HELPERS
+        // await_ffe_config is a TEST-ONLY helper: it actively pumps Remote
+        // Config and can block for up to 5s. It exists solely so long-running
+        // CLI test servers (the system-tests parametric app / ffe-dogfooding
+        // harness) can deterministically wait for the pushed UFC before
+        // evaluating. It is compiled in only when DD_TEST_HELPERS is defined
+        // (the standard CI/test/package builds; see config.m4) so it has no
+        // production effect in a hardened build that drops the flag.
         } else if (FUNCTION_NAME_MATCHES("await_ffe_config")) {
             // Block until the sidecar has delivered an FFE (FFE_FLAGS) Remote Config update and the
             // worker has applied it. In long-running CLI servers (e.g. the parametric apps) the
@@ -2143,6 +2151,7 @@ PHP_FUNCTION(dd_trace_internal_fn) {
                 waited += 10;
             }
             RETVAL_BOOL(ddog_ffe_has_config());
+#endif
         } else if (FUNCTION_NAME_MATCHES("get_loaded_remote_configs")) {
             // Returns a PHP array mapping loaded RC config IDs to their content summary.
             // e.g. ["datadog/2/LIVE_DEBUGGING/logProbe_log.../config" => ["type"=>"probe","id"=>"log..."]]
@@ -2851,6 +2860,24 @@ PHP_FUNCTION(DDTrace_Internal_set_ffe_span_enrichment_tags) {
     ZEND_PARSE_PARAMETERS_END();
 
     ddtrace_ffe_set_span_enrichment_tags(flags_enc, subjects_enc, runtime_defaults);
+}
+
+PHP_FUNCTION(DDTrace_Internal_peek_root_span_id) {
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_THROWS();
+    }
+
+    // Non-creating root accessor: read the active root span directly WITHOUT
+    // dd_ensure_root_span(), so resolving the root id while merely evaluating a
+    // feature flag never creates an autoroot span as a side effect. Returns the
+    // span object's identity (spl_object_id == its zend object handle), matching
+    // what PHP's spl_object_id(\DDTrace\root_span()) would yield, so the
+    // PHP-side accumulator can detect a root-span boundary consistently.
+    if (!get_DD_TRACE_ENABLED() || !DDTRACE_G(active_stack) || !DDTRACE_G(active_stack)->root_span) {
+        RETURN_NULL();
+    }
+
+    RETURN_LONG((zend_long) DDTRACE_G(active_stack)->root_span->std.handle);
 }
 
 /* {{{ proto array generate_distributed_tracing_headers() */

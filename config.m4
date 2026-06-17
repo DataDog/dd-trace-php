@@ -262,6 +262,15 @@ if test "$PHP_DDTRACE" != "no"; then
 
   DATADOG_EXTENSION_FLAGS="-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 -Wall -std=gnu11"
 
+  dnl Test-only internal helpers exposed via dd_trace_internal_fn (e.g.
+  dnl await_ffe_config, which actively pumps Remote Config and can block for
+  dnl seconds). Defined for the standard CI/test/package builds the
+  dnl system-tests and ffe-dogfooding harnesses run against; a hardened
+  dnl production build can drop -DDD_TEST_HELPERS to compile these heavyweight
+  dnl test surfaces out of the dispatcher entirely so they have no production
+  dnl effect.
+  DATADOG_EXTENSION_FLAGS="$DATADOG_EXTENSION_FLAGS -DDD_TEST_HELPERS=1"
+
   ALL_DATADOG_SOURCES=" \
     $DATADOG_PHP_SOURCES \
     $ZAI_SOURCES \
