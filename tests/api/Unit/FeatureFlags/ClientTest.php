@@ -151,6 +151,34 @@ final class ClientTest extends TestCase
         );
     }
 
+    public function testGateOffAllocatesNoSpanEnrichmentBinder()
+    {
+        // PR-review should-fix: with the span-enrichment gate off, the Client
+        // must construct NO SpanEnrichmentBinder (DG-005 strict zero-idle). In
+        // this unit context dd_trace_env_config is unavailable, so the gate
+        // reads as off; the private $spanEnrichmentBinder must stay null.
+        $client = new Client(new RecordingLogger());
+
+        $binder = (function () {
+            return $this->spanEnrichmentBinder;
+        })->call($client);
+
+        $this->assertNull($binder);
+    }
+
+    public function testGateOffEvaluationSkipsEnrichmentWithoutError()
+    {
+        // The evaluate() path must short-circuit the enrichment call when no
+        // binder was constructed; it must not fatal or warn about enrichment.
+        $evaluator = new ClientTestEvaluator();
+        $evaluator->setSuccess('flag', 'on', EvaluationReason::SPLIT, 'treatment', array(), array('serialId' => 7));
+        $client = $this->clientForEvaluator($evaluator, new RecordingLogger());
+
+        $details = $client->getStringDetails('flag', 'fallback', array('targetingKey' => 'user-1'));
+
+        $this->assertSame('on', $details->getValue());
+    }
+
     private function clientForEvaluator(Evaluator $evaluator, LoggerInterface $logger)
     {
         $client = new Client($logger);

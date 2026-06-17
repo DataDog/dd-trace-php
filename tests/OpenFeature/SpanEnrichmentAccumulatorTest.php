@@ -9,6 +9,8 @@ use DDTrace\FeatureFlags\EvaluationReason;
 use DDTrace\FeatureFlags\EvaluationType;
 use DDTrace\FeatureFlags\Internal\Evaluator;
 use DDTrace\FeatureFlags\SpanEnrichmentAccumulator;
+use DDTrace\FeatureFlags\SpanEnrichmentBinder;
+use DDTrace\FeatureFlags\SpanEnrichmentRegistry;
 use DDTrace\Log\LogLevel;
 use DDTrace\Log\NullLogger;
 use DDTrace\OpenFeature\DataDogProvider;
@@ -460,8 +462,14 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
             $evaluator,
             new NullLogger(LogLevel::EMERGENCY)
         );
-        self::accessibleProperty($provider, 'spanEnrichmentEnabled')->setValue($provider, true);
-        self::accessibleProperty($provider, 'spanEnrichmentAccumulator')->setValue($provider, $accumulator);
+        // Force-enable enrichment (give the provider a binder) and route the
+        // shared registry at the injected accumulator. The lifecycle now lives
+        // in the registry, so MultiRootSpanEnrichmentProvider drives the
+        // registry's root-span seams rather than the provider's.
+        SpanEnrichmentRegistry::reset();
+        self::accessibleProperty($provider, 'spanEnrichmentBinder')
+            ->setValue($provider, new SpanEnrichmentBinder());
+        SpanEnrichmentRegistry::instance()->setAccumulator($accumulator);
 
         return new MultiRootSpanEnrichmentProvider($provider, $accumulator);
     }
@@ -532,26 +540,25 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
 
     // ---- Case 6: gate-off negative control (DG-005) ----------------------
 
-    public function testGateOffAllocatesNoAccumulatorAndStagesNothing(): void
+    public function testGateOffAllocatesNoBinder(): void
     {
-        // With the gate off the provider must construct NO accumulator at all
-        // (DG-005 zero-idle). We assert that via reflection on a default-built
-        // provider; in this unit context dd_trace_env_config is unavailable, so
-        // the gate reads as off.
+        // With the gate off the provider must construct NO SpanEnrichmentBinder
+        // at all (DG-005 zero-idle; PR-review should-fix). We assert that via
+        // reflection on a default-built provider; in this unit context
+        // dd_trace_env_config is unavailable, so the gate reads as off.
         $provider = new DataDogProvider(new NullLogger(LogLevel::EMERGENCY));
 
-        $enabledProp = self::accessibleProperty($provider, 'spanEnrichmentEnabled');
-        $accProp = self::accessibleProperty($provider, 'spanEnrichmentAccumulator');
+        $binderProp = self::accessibleProperty($provider, 'spanEnrichmentBinder');
 
-        self::assertFalse($enabledProp->getValue($provider));
-        self::assertNull($accProp->getValue($provider));
+        self::assertNull($binderProp->getValue($provider));
     }
 
     public function testGateOffResolveProducesNoSpanTags(): void
     {
+        SpanEnrichmentRegistry::reset();
         $evaluator = new SpanEnrichmentTestEvaluator();
         $evaluator->setResult('flag', 'on', 'on', ['serialId' => 99, 'doLog' => true]);
-        // Gate off: createWithDependencies leaves spanEnrichmentEnabled false.
+        // Gate off: createWithDependencies leaves spanEnrichmentBinder null.
         $provider = DataDogProvider::createWithDependencies(
             $evaluator,
             new NullLogger(LogLevel::EMERGENCY)
@@ -559,10 +566,11 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
 
         $provider->resolveStringValue('flag', 'fallback', new EvaluationContext('user-123'));
 
-        $accProp = self::accessibleProperty($provider, 'spanEnrichmentAccumulator');
-
-        // No accumulator was constructed and nothing was accumulated.
-        self::assertNull($accProp->getValue($provider));
+        // No binder was constructed and nothing was accumulated into the shared
+        // registry.
+        $binderProp = self::accessibleProperty($provider, 'spanEnrichmentBinder');
+        self::assertNull($binderProp->getValue($provider));
+        self::assertSame([], SpanEnrichmentRegistry::instance()->stagedTags());
     }
 
     // ---- helpers ----------------------------------------------------------
@@ -596,10 +604,16 @@ final class SpanEnrichmentAccumulatorTest extends TestCase
             new NullLogger(LogLevel::EMERGENCY)
         );
 
-        // Force-enable the feature and inject a test accumulator so we can
-        // inspect the accumulated state without the native extension.
-        self::accessibleProperty($provider, 'spanEnrichmentEnabled')->setValue($provider, true);
-        self::accessibleProperty($provider, 'spanEnrichmentAccumulator')->setValue($provider, $accumulator);
+        // Force-enable the feature by giving the provider a binder (in
+        // production the gate read does this), and inject the test accumulator
+        // into the SHARED registry that all evaluation paths now feed, so we can
+        // inspect the accumulated state without the native extension. No root
+        // is simulated here, so the registry's no-root path keeps the injected
+        // accumulator (rootId stays null across evaluations).
+        SpanEnrichmentRegistry::reset();
+        self::accessibleProperty($provider, 'spanEnrichmentBinder')
+            ->setValue($provider, new SpanEnrichmentBinder());
+        SpanEnrichmentRegistry::instance()->setAccumulator($accumulator);
 
         return $provider;
     }
@@ -672,19 +686,19 @@ final class SpanEnrichmentTestEvaluator implements Evaluator
 
 /**
  * Pure-PHP simulator of the native root-span lifecycle so the CR-01 regression
- * tests run without the extension. DataDogProvider is `final`, so rather than
- * subclassing it this wraps a real provider and injects the provider's two
- * root-span seams via reflection:
- *  - $rootIdResolver: returns the current simulated root id, standing in for
- *    spl_object_id(\DDTrace\root_span()).
- *  - $rootCloseScheduler: records the one-shot accumulator reset that the real
- *    provider binds to $root->onClose; closeRootSpan() fires it, mirroring
+ * tests run without the extension. The per-root accumulation lifecycle now
+ * lives in the SHARED SpanEnrichmentRegistry, so this drives the REGISTRY's two
+ * root-span seams (setRootSpanSeams) rather than the provider's:
+ *  - rootIdResolver: returns the current simulated root id, standing in for the
+ *    native peek_root_span_id() / spl_object_id(\DDTrace\root_span()).
+ *  - rootCloseScheduler: records the one-shot accumulator reset that the
+ *    registry binds to $root->onClose; closeRootSpan() fires it, mirroring
  *    span.c invoking the onClose handlers before the native flush.
  *
- * The provider's real accumulate path runs unchanged; the accumulator IS the
- * payload that stageSpanEnrichmentTags() pushes to the native store, so the
- * regression tests assert on the accumulator's toSpanTags() (what would be
- * staged for the current root).
+ * The provider's real resolve -> binder -> registry accumulate path runs
+ * unchanged; the shared accumulator IS the payload stage() pushes to the native
+ * store, so the regression tests assert on the registry's staged tags (what
+ * would be staged for the current root).
  */
 final class MultiRootSpanEnrichmentProvider
 {
@@ -705,12 +719,14 @@ final class MultiRootSpanEnrichmentProvider
         $this->provider = $provider;
         $this->accumulator = $accumulator;
 
-        self::setProp($provider, 'rootIdResolver', function (): ?int {
-            return $this->currentRootId;
-        });
-        self::setProp($provider, 'rootCloseScheduler', function (int $rootId, callable $reset): void {
-            $this->onRootClose[$rootId][] = $reset;
-        });
+        SpanEnrichmentRegistry::instance()->setRootSpanSeams(
+            function (): ?int {
+                return $this->currentRootId;
+            },
+            function (int $rootId, callable $reset): void {
+                $this->onRootClose[$rootId][] = $reset;
+            }
+        );
     }
 
     public function enterRootSpan(int $rootId): void
@@ -742,7 +758,7 @@ final class MultiRootSpanEnrichmentProvider
 
     /**
      * The encoded tag set that would be staged for the CURRENT root span — i.e.
-     * exactly what stageSpanEnrichmentTags() pushes into the native store.
+     * exactly what the shared registry's stage() pushes into the native store.
      *
      * @return array<string, string>
      */
@@ -754,14 +770,5 @@ final class MultiRootSpanEnrichmentProvider
     public function accumulator(): SpanEnrichmentAccumulator
     {
         return $this->accumulator;
-    }
-
-    private static function setProp(object $object, string $name, $value): void
-    {
-        $property = (new \ReflectionObject($object))->getProperty($name);
-        if (\PHP_VERSION_ID < 80100) {
-            $property->setAccessible(true);
-        }
-        $property->setValue($object, $value);
     }
 }
