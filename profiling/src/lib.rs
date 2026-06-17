@@ -52,9 +52,25 @@ use uuid::Uuid;
 /// interior null bytes and must be null terminated.
 static PROFILER_NAME: &CStr = c"datadog-profiling";
 
+// SAFETY: PROFILER_NAME is a valid utf8 string.
+static PROFILER_NAME_STR: &'static str = match PROFILER_NAME.to_str() {
+    Ok(s) => s,
+    // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
+    Err(_) => panic!(""),
+};
+
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("PROFILER_VERSION"), "\0").as_bytes();
+
+// SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
+static PROFILER_VERSION_STR: &'static str = const {
+    match unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char).to_str() } {
+        Ok(v) => v,
+        // Panic: we own this string and it should be UTF8 (see PROFILER_VERSION above).
+        Err(_) => panic!("PROFILER_VERSION was not a valid utf-8 string"),
+    }
+};
 
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
@@ -128,18 +144,6 @@ static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
     {
         Sapi::Unknown
     }
-});
-
-// SAFETY: PROFILER_NAME is a byte slice that satisfies the safety requirements.
-// Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
-static PROFILER_NAME_STR: LazyLock<&'static str> = LazyLock::new(|| PROFILER_NAME.to_str().unwrap());
-
-// SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
-static PROFILER_VERSION_STR: LazyLock<&'static str> = LazyLock::new(|| {
-    unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char) }
-        .to_str()
-        // Panic: we own this string and it should be UTF8 (see PROFILER_VERSION above).
-        .unwrap()
 });
 
 /// The runtime ID, which is basically a universally unique "pid". This makes
