@@ -41,8 +41,5 @@ compile to `DO_FCALL` instead of `DO_ICALL`, changing the optimized opcodes.
 
 - `opt/prop_types.phpt`, `opt/gh11170.phpt`, `opt/nullsafe_002.phpt` — cosmetic
   opcode-dump differences (`DO_ICALL` → `DO_FCALL`).
-- `bug66251.phpt` — **not cosmetic**: a real constant-folding divergence (a
-  same-file runtime constant gets folded when it should stay dynamic). Xfailed
-  for now but needs a proper fix / upstream report.
-
-See `INVESTIGATE-opcache-do_icall.md` for the full analysis and reproducer.
+- `bug66251.phpt` — same `< 8.4` condition: with the execute hook installed,
+  opcache folds a same-file runtime constant that should stay dynamic.
