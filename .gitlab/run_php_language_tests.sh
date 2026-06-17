@@ -4,14 +4,18 @@ set -eo pipefail
 # Helper to parse version strings for comparison
 function version { echo "$@" | awk -F. '{ printf("%d%03d%03d%03d\n", $1,$2,$3,$4); }'; }
 
-# Remove extensions whose mere presence pollutes test output (e.g. rdkafka
-# emits CONFWARN lines, breaking Zend/tests/instantiate_all_classes.phpt).
+# Remove extensions whose mere presence pollutes test output or output
+# ordering:
+#  - rdkafka emits CONFWARN lines, breaking Zend/tests/instantiate_all_classes.phpt
+#  - parallel (ZTS-only) defers 'PHP Startup' diagnostics until after the
+#    script's first output, breaking ~56 deprecation/warning-ordering tests
 # Derive the scan dir from the active PHP so this works for every build
 # variant (debug for the tracer job, nts/zts for the profiler job) instead
 # of hardcoding the debug path.
 scan_dir="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')"
 sudo rm -f "${scan_dir}/memcached.ini"
 sudo rm -f "${scan_dir}/rdkafka.ini"
+sudo rm -f "${scan_dir}/parallel.ini"
 if [[ ! "${XFAIL_LIST:-none}" == "none" ]]; then
   cp "${XFAIL_LIST}" /usr/local/src/php/xfail_tests.list
   (

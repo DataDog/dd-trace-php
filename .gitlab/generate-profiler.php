@@ -154,6 +154,5 @@ foreach ($profiler_minor_major_targets as $version) {
     - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
-    - if [ "${FLAVOUR}" = "zts" ]; then cat profiling/tests/php-language-xfail-zts.list >> /tmp/profiler-php-language-xfail.list; fi
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     - .gitlab/run_php_language_tests.sh
