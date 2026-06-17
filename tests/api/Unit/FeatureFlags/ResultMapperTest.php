@@ -244,7 +244,10 @@ final class ResultMapperTest extends TestCase
             array('allocationKey' => 'alloc-1', 'doLog' => true, 'serialId' => 4242),
             $details->getExposureData()
         );
-        $this->assertIsInt($details->getExposureData()['serialId']);
+        // assertSame above already enforces the strict int type (4242 !== "4242");
+        // avoid assertIsInt()/assertInternalType() which are unavailable on the
+        // PHP 7.0 PHPUnit and removed in PHPUnit 9 respectively.
+        $this->assertTrue(is_int($details->getExposureData()['serialId']));
     }
 
     public function testThreadsCamelCaseSerialIdFromObjectResult()
