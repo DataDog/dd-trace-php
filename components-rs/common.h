@@ -786,21 +786,6 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
- * Per-entry callback passed to `RootMetaIterFn`.  Return `false` to stop iteration early.
- */
-typedef bool (*ddog_MetaEntryCb)(void *iter_ctx,
-                                 const char *key,
-                                 uintptr_t key_len,
-                                 const char *val,
-                                 uintptr_t val_len);
-
-/**
- * Slow-path meta iterator.  `NULL` when no regex-key filter entries are present.
- * Iterates all string meta entries, calling `cb` for each; stops when `cb` returns `false`.
- */
-typedef void (*ddog_RootMetaIterFn)(const void *ctx, void *iter_ctx, ddog_MetaEntryCb cb);
-
-/**
  * A 128-bit (16 byte) buffer containing the UUID.
  *
  * # ABI
