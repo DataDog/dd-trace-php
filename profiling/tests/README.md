@@ -11,7 +11,8 @@ that environment for reasons unrelated to profiler correctness.
 | File | Applies to |
 |------|------------|
 | `php-language-xfail.list` | all profiler runs (`nts` + `zts`, all versions) |
-| `php-language-xfail-pre84.list` | PHP < 8.4 only (appended by the job) |
+| `php-language-xfail-${version}.list` | that specific PHP version only (appended by the job if the file exists) |
+| `php-language-xfail-pre84.list` | shared content file; 7.1–8.3 symlink to it |
 
 Version-scoped failures live in their own list so the builds that pass them
 keep running them.
@@ -31,13 +32,17 @@ Fail with the profiler loaded regardless of version/flavour:
   with the profiler enabled; it's a concurrency/session-save-path collision in
   the 64-worker run. Listed because it is flaky under parallelism.
 
-## `php-language-xfail-pre84.list` (PHP < 8.4)
+## `php-language-xfail-${version}.list` (version-specific)
 
-opcache optimizer-output tests that fail only with the profiler on PHP ≤ 8.3.
-On PHP < 8.4 the profiler overrides `zend_execute_internal` (to handle VM
-interrupts while an internal function is on the stack); on 8.4+ that hook is
-not installed (frameless calls), so these pass. Internal calls therefore
-compile to `DO_FCALL` instead of `DO_ICALL`, changing the optimized opcodes.
+For PHP 7.1–8.3 these are symlinks to `php-language-xfail-pre84.list`.
+No file exists for 8.4+, so the job skips the append step for those versions.
+
+`php-language-xfail-pre84.list` contains opcache optimizer-output tests that
+fail only with the profiler on PHP ≤ 8.3. On PHP < 8.4 the profiler overrides
+`zend_execute_internal` (to handle VM interrupts while an internal function is
+on the stack); on 8.4+ that hook is not installed (frameless calls), so these
+pass. Internal calls therefore compile to `DO_FCALL` instead of `DO_ICALL`,
+changing the optimized opcodes.
 
 - `opt/prop_types.phpt`, `opt/gh11170.phpt`, `opt/nullsafe_002.phpt` — cosmetic
   opcode-dump differences (`DO_ICALL` → `DO_FCALL`).
