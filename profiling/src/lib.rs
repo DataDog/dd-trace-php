@@ -53,7 +53,7 @@ use uuid::Uuid;
 static PROFILER_NAME: &CStr = c"datadog-profiling";
 
 // SAFETY: PROFILER_NAME is a valid utf8 string.
-static PROFILER_NAME_STR: &'static str = match PROFILER_NAME.to_str() {
+static PROFILER_NAME_STR: &str = match PROFILER_NAME.to_str() {
     Ok(s) => s,
     // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
     Err(_) => panic!(""),
@@ -64,7 +64,7 @@ static PROFILER_NAME_STR: &'static str = match PROFILER_NAME.to_str() {
 static PROFILER_VERSION: &[u8] = concat!(env!("PROFILER_VERSION"), "\0").as_bytes();
 
 // SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
-static PROFILER_VERSION_STR: &'static str = const {
+static PROFILER_VERSION_STR: &str = const {
     match unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char).to_str() } {
         Ok(v) => v,
         // Panic: we own this string and it should be UTF8 (see PROFILER_VERSION above).
