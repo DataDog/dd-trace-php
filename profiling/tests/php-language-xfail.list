@@ -1,2 +1,4 @@
 Zend/tests/concat_003.phpt
 ext/ffi/tests/list.phpt
+ext/session/tests/bug60634.phpt
+ext/session/tests/user_session_module/bug60634.phpt

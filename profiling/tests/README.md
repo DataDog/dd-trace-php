@@ -24,6 +24,12 @@ Fail with the profiler loaded regardless of version/flavour:
   profiler conflicts with the test's FFI memory management.
 - `Zend/tests/concat_003.phpt` — perf-sensitive (2 s budget); allocation
   profiling overhead can exceed it on CI runners.
+- `ext/session/tests/bug60634.phpt` (also under `user_session_module/` on some
+  versions; both paths are listed) — `die()` inside a session save handler.
+  Fails intermittently in the parallel run with "Cannot call session save
+  handler in a recursive manner". Not a profiler issue: it passes in isolation
+  with the profiler enabled; it's a concurrency/session-save-path collision in
+  the 64-worker run. Listed because it is flaky under parallelism.
 
 ## `php-language-xfail-pre84.list` (PHP < 8.4)
 
