@@ -296,6 +296,13 @@ ddtrace_span_data *ddtrace_open_span(enum ddtrace_span_dataype type) {
         span->parent = NULL;
 
         ddtrace_set_root_span_properties(root);
+
+        if (primary_stack && Z_TYPE(DDTRACE_G(pending_upstream_span_link)) == IS_OBJECT) {
+            // attach upstream link queued by PROPAGATION_BEHAVIOR_EXTRACT=restart
+            zend_array *links = ddtrace_property_array(&span->property_links);
+            zend_hash_next_index_insert(links, &DDTRACE_G(pending_upstream_span_link));
+            ZVAL_NULL(&DDTRACE_G(pending_upstream_span_link));
+        }
     } else {
         ++parent_span->active_child_spans;
 

@@ -617,6 +617,59 @@ void apply_baggage_span_tags(zend_string *key, zval *val, zend_array *meta) {
 void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result *result, ddtrace_root_span_data *span) {
     zval zv;
 
+    int behavior = get_DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT();
+
+    if (behavior == DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_IGNORE) {
+        // behavior=ignore: drop all extracted context including baggage
+        zend_hash_destroy(&result->propagated_tags);
+        zend_hash_destroy(&result->meta_tags);
+        zend_hash_destroy(&result->tracestate_unknown_dd_keys);
+        zend_hash_destroy(&result->baggage);
+        if (result->origin) { zend_string_release(result->origin); }
+        if (result->tracestate) { zend_string_release(result->tracestate); }
+        return;
+    }
+
+    if (behavior == DD_TRACE_PROPAGATION_BEHAVIOR_EXTRACT_RESTART && (result->trace_id.low || result->trace_id.high)) {
+        // behavior=restart: zero trace_id so a fresh trace starts; upstream captured as span link
+        // drop _dd.p.* first so the builder does not include them in link attributes
+        zend_string *mk;
+        zend_string *to_delete[64];
+        int to_delete_count = 0;
+        ZEND_HASH_FOREACH_STR_KEY(&result->meta_tags, mk) {
+            if (mk && ZSTR_LEN(mk) > 6 && strncmp(ZSTR_VAL(mk), "_dd.p.", 6) == 0) {
+                to_delete[to_delete_count++] = mk;
+            }
+        } ZEND_HASH_FOREACH_END();
+        for (int i = 0; i < to_delete_count; i++) {
+            zend_hash_del(&result->meta_tags, to_delete[i]);
+        }
+        zend_hash_clean(&result->propagated_tags);
+
+        zval link_zv;
+        object_init_ex(&link_zv, ddtrace_ce_span_link);
+        ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ(link_zv);
+        ddtrace_build_span_link_from_result(result, link);
+
+        zval reason_val;
+        ZVAL_STR(&reason_val, zend_string_init(ZEND_STRL("reason"), 0));
+        zval reason_str;
+        ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
+        zend_hash_update(Z_ARR(link->property_attributes), Z_STR(reason_val), &reason_str);
+        zval_ptr_dtor(&reason_val);
+
+        result->trace_id = (datadog_trace_id){0};
+        result->parent_id = 0;
+
+        if (span) {
+            zend_array *links = ddtrace_property_array(&span->property_links);
+            zend_hash_next_index_insert(links, &link_zv);
+        } else {
+            zval_ptr_dtor(&DDTRACE_G(pending_upstream_span_link));
+            ZVAL_COPY_VALUE(&DDTRACE_G(pending_upstream_span_link), &link_zv);
+        }
+    }
+
     zend_array *root_meta = span ? ddtrace_property_array(&span->property_meta) : &DDTRACE_G(root_span_tags_preset);
     if (span) {
         zend_string *tagname;

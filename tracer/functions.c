@@ -231,6 +231,22 @@ PHP_METHOD(DDTrace_SpanLink, jsonSerialize) {
     RETURN_ARR(array);
 }
 
+void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *result, ddtrace_span_link *link) {
+    ZVAL_STR(&link->property_trace_id, datadog_trace_id_as_hex_string(result->trace_id));
+    ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result->parent_id));
+    array_init(&link->property_attributes);
+    zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, NULL);
+
+    zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
+    zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys);
+    if (propagated_tags) {
+        zend_string_release(propagated_tags);
+    }
+    if (full_tracestate) {
+        ZVAL_STR(&link->property_trace_state, full_tracestate);
+    }
+}
+
 static ddtrace_distributed_tracing_result dd_parse_distributed_tracing_headers_function(INTERNAL_FUNCTION_PARAMETERS, bool *success);
 ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
     bool success;
@@ -245,19 +261,7 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
         return;
     }
 
-    ZVAL_STR(&link->property_trace_id, datadog_trace_id_as_hex_string(result.trace_id));
-    ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result.parent_id));
-    array_init(&link->property_attributes);
-    zend_hash_copy(Z_ARR(link->property_attributes), &result.meta_tags, NULL);
-
-    zend_string *propagated_tags = ddtrace_format_propagated_tags(&result.propagated_tags, &result.meta_tags);
-    zend_string *full_tracestate = ddtrace_format_tracestate(result.tracestate, 0, result.origin, result.priority_sampling, propagated_tags, &result.tracestate_unknown_dd_keys);
-    if (propagated_tags) {
-        zend_string_release(propagated_tags);
-    }
-    if (full_tracestate) {
-        ZVAL_STR(&link->property_trace_state, full_tracestate);
-    }
+    ddtrace_build_span_link_from_result(&result, link);
 
     result.meta_tags.pDestructor = NULL; // we moved values directly
     zend_hash_destroy(&result.meta_tags);

@@ -2,6 +2,7 @@
 #define DD_DISTRIBUTED_TRACING_HEADERS_H
 
 #include "ddtrace.h"
+#include "span.h"
 #include "priority_sampling/priority_sampling.h"
 #include <zai_string/string.h>
 
@@ -24,5 +25,6 @@ ddtrace_distributed_tracing_result ddtrace_read_distributed_tracing_ids(ddtrace_
 void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result *result, ddtrace_root_span_data *span);
 bool ddtrace_read_zai_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data);
 bool ddtrace_read_array_header(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data);
+void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *result, ddtrace_span_link *link);
 
 #endif // DD_DISTRIBUTED_TRACING_HEADERS_H
