@@ -136,11 +136,13 @@ final class SpanEnrichmentAccumulator
             foreach ($this->subjects as $hashed => $ids) {
                 $encodedSubjects[$hashed] = $this->encodeDeltaVarint(array_keys($ids));
             }
-            $tags[self::TAG_SUBJECTS] = json_encode($encodedSubjects);
+            // JSON_UNESCAPED_UNICODE + JSON_UNESCAPED_SLASHES match Node JSON.stringify
+            // byte-for-byte: raw UTF-8 (no \uXXXX) and bare '/' (base64 ids contain '/').
+            $tags[self::TAG_SUBJECTS] = json_encode($encodedSubjects, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 
         if (count($this->defaults) > 0) {
-            $tags[self::TAG_RUNTIME_DEFAULTS] = json_encode($this->defaults);
+            $tags[self::TAG_RUNTIME_DEFAULTS] = json_encode($this->defaults, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         }
 
         return $tags;
@@ -254,7 +256,10 @@ final class SpanEnrichmentAccumulator
     private function stringifyDefault($value)
     {
         if (is_array($value) || is_object($value)) {
-            $encoded = json_encode($value);
+            // Match Node JSON.stringify: raw UTF-8 (no \uXXXX) and bare '/'. Default
+            // json_encode escapes both, which both breaks byte-parity AND inflates the
+            // length so the 64-char truncation can cut mid-escape-sequence.
+            $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             $valueStr = $encoded === false ? '' : $encoded;
         } elseif (is_bool($value)) {
             // Match the Node String(boolean) form: "true"/"false".
