@@ -622,8 +622,9 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 warn!("{err}");
             }
             locals.tags = tags;
-            locals.profiling_experimental_heap_live_enabled =
-                system_settings.as_ref().profiling_experimental_heap_live_enabled
+            locals.profiling_experimental_heap_live_enabled = system_settings
+                .as_ref()
+                .profiling_experimental_heap_live_enabled
                 && config::profiling_experimental_heap_live_enabled_current();
         }
         locals.system_settings = system_settings;
