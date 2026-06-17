@@ -34,6 +34,10 @@ where `${XFAIL_LIST}` is the shared, tracer-maintained
 Keeping the ZTS-only failures in a separate list means the NTS build still
 exercises those tests (they pass there), so we don't lose coverage.
 
+Tests that require outbound network are **not** listed here; they are skipped
+at runtime via the `SKIP_ONLINE_TESTS=1` env var the job exports (their
+`--SKIPIF--` checks `getenv("SKIP_ONLINE_TESTS")`).
+
 ---
 
 ## `php-language-xfail.list` (all flavours)
@@ -53,17 +57,6 @@ These fail with the profiler loaded on both NTS and ZTS.
   strings stays under a 2 s budget. The allocation profiler adds per-allocation
   overhead that can push CI runners past the threshold. The test is explicitly
   perf-sensitive (it honours `SKIP_PERF_SENSITIVE`).
-
-### Online tests not skipped due to an env-var name mismatch
-
-- `ext/soap/tests/bugs/bug76348.phpt`
-- `ext/standard/tests/network/bug80067.phpt`
-
-  Both `--SKIPIF--` on `getenv("SKIP_ONLINE_TESTS")` (plural), but the profiler
-  job exports `SKIP_ONLINE_TEST` (singular — see
-  `.gitlab/generate-profiler.php`). So they are not skipped and fail without
-  outbound network (`httpbin.org` 503, etc.). **Fixing the variable name to
-  `SKIP_ONLINE_TESTS` would let both be removed from this list.**
 
 ### Server / libcurl-version dependent
 

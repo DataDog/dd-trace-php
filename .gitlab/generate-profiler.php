@@ -136,7 +136,7 @@ foreach ($profiler_minor_major_targets as $version) {
     KUBERNETES_MEMORY_LIMIT: 4Gi
     CARGO_TARGET_DIR: /tmp/cargo
     libdir: /tmp/datadog-profiling
-    SKIP_ONLINE_TEST: "1"
+    SKIP_ONLINE_TESTS: "1"
     REPORT_EXIT_STATUS: "1"
     DD_PROFILING_OUTPUT_PPROF: /tmp/
     XFAIL_LIST: dockerfiles/ci/xfail_tests/${PHP_MAJOR_MINOR}.list
