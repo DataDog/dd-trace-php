@@ -23,8 +23,6 @@ Fail with the profiler loaded on both NTS and ZTS:
   profiler conflicts with the test's FFI memory management.
 - `Zend/tests/concat_003.phpt` — perf-sensitive (2 s budget); allocation
   profiling overhead can exceed it on CI runners.
-- `ext/curl/tests/bug48203_multi.phpt` — depends on the bundled curl test
-  server and the libcurl version; flaky.
 
 ## `php-language-xfail-zts.list`
 
