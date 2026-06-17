@@ -11,8 +11,8 @@ final class Client
     private $evaluator;
     private $logger;
     private $warnedAboutNonProductionRuntime = false;
-    /** @var SpanEnrichmentBinder */
-    private $spanEnrichmentBinder;
+    /** @var SpanEnrichmentBinder|null Null unless the span-enrichment gate is on. */
+    private $spanEnrichmentBinder = null;
 
     public function __construct($logger = null)
     {
@@ -24,9 +24,14 @@ final class Client
         $this->logger = $logger ?: new TriggerErrorLogger();
         // DG-004/DG-005: the native Client does NOT go through the OpenFeature
         // provider, so APM span enrichment is bound here on the same evaluation
-        // path. The binder is a cheap no-op (allocates nothing, stages nothing)
-        // unless the experimental span-enrichment gate is on.
-        $this->spanEnrichmentBinder = new SpanEnrichmentBinder();
+        // path. To stay fully inert with the gate off (PR review should-fix:
+        // gate-off must allocate no binder and read no per-evaluation config),
+        // construct the binder ONLY when the experimental span-enrichment gate
+        // is on; when it is off $spanEnrichmentBinder stays null and evaluate()
+        // skips the enrichment call entirely.
+        if (SpanEnrichmentBinder::gateEnabled()) {
+            $this->spanEnrichmentBinder = new SpanEnrichmentBinder();
+        }
     }
 
     /**
@@ -123,10 +128,13 @@ final class Client
         );
 
         $this->warnIfNonProductionRuntime($details);
-        // APM span enrichment (no-op when the gate is off). Accumulates from the
-        // same EvaluationDetails the caller receives; the native close-span path
-        // writes the staged ffe_* tags onto the root span.
-        $this->spanEnrichmentBinder->accumulate($flagKey, $details, $targetingKey);
+        // APM span enrichment. Skipped entirely with the gate off (no binder was
+        // constructed). When on, accumulates from the same EvaluationDetails the
+        // caller receives into the shared request-scoped registry; the native
+        // close-span path writes the staged ffe_* tags onto the root span.
+        if ($this->spanEnrichmentBinder !== null) {
+            $this->spanEnrichmentBinder->accumulate($flagKey, $details, $targetingKey);
+        }
 
         return $details;
     }
