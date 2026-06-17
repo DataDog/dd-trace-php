@@ -1,5 +1,7 @@
 Zend/tests/concat_003.phpt
 ext/soap/tests/bugs/bug76348.phpt
 ext/curl/tests/bug48203_multi.phpt
+ext/standard/tests/file/include_userstream_003.phpt
+ext/standard/tests/strings/highlight_file.phpt
 ext/standard/tests/network/bug80067.phpt
 ext/ffi/tests/list.phpt
