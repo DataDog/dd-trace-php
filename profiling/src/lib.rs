@@ -244,8 +244,10 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         use std::sync::Mutex;
 
         let fd = loop {
-            // SAFETY:
-            let result = unsafe { libc::dup(libc::STDERR_FILENO) };
+            // F_DUPFD_CLOEXEC (not plain dup) so the duplicate is not inherited
+            // by child processes spawned via proc_open()/exec(). See logging.rs.
+            // SAFETY: just a libc call.
+            let result = unsafe { libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0) };
             if result != -1 {
                 break result;
             } else {
