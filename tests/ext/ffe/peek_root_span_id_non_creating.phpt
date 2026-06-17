@@ -1,7 +1,10 @@
 --TEST--
 FFE span enrichment: DDTrace\Internal\peek_root_span_id() is non-creating and matches spl_object_id(root_span())
 --SKIPIF--
-<?php if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r"); ?>
+<?php
+if (getenv('PHP_PEAR_RUNTESTS') === '1') die("skip: pecl run-tests does not support %r");
+if (PHP_VERSION_ID < 70200) die("skip: spl_object_id() requires PHP 7.2+");
+?>
 --ENV--
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_TRACE_CLI_ENABLED=1

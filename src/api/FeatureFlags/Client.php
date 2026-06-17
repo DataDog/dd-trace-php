@@ -29,7 +29,10 @@ final class Client
         // construct the binder ONLY when the experimental span-enrichment gate
         // is on; when it is off $spanEnrichmentBinder stays null and evaluate()
         // skips the enrichment call entirely.
+        require_once __DIR__ . '/SpanEnrichmentBinder.php';
         if (SpanEnrichmentBinder::gateEnabled()) {
+            require_once __DIR__ . '/SpanEnrichmentAccumulator.php';
+            require_once __DIR__ . '/SpanEnrichmentRegistry.php';
             $this->spanEnrichmentBinder = new SpanEnrichmentBinder();
         }
     }

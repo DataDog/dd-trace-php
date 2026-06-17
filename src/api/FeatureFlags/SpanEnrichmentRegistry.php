@@ -233,6 +233,10 @@ final class SpanEnrichmentRegistry
             return null;
         }
 
+        if (!\function_exists('spl_object_id')) {
+            return null;
+        }
+
         $root = \DDTrace\root_span();
         return $root !== null ? \spl_object_id($root) : null;
     }

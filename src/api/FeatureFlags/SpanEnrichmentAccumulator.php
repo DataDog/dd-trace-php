@@ -18,15 +18,15 @@ namespace DDTrace\FeatureFlags;
  */
 final class SpanEnrichmentAccumulator
 {
-    public const TAG_FLAGS = 'ffe_flags_enc';
-    public const TAG_SUBJECTS = 'ffe_subjects_enc';
-    public const TAG_RUNTIME_DEFAULTS = 'ffe_runtime_defaults';
+    const TAG_FLAGS = 'ffe_flags_enc';
+    const TAG_SUBJECTS = 'ffe_subjects_enc';
+    const TAG_RUNTIME_DEFAULTS = 'ffe_runtime_defaults';
 
-    private const MAX_SERIAL_IDS = 200;
-    private const MAX_SUBJECTS = 10;
-    private const MAX_EXPERIMENTS_PER_SUBJECT = 20;
-    private const MAX_DEFAULTS = 5;
-    private const MAX_DEFAULT_VALUE_LENGTH = 64;
+    const MAX_SERIAL_IDS = 200;
+    const MAX_SUBJECTS = 10;
+    const MAX_EXPERIMENTS_PER_SUBJECT = 20;
+    const MAX_DEFAULTS = 5;
+    const MAX_DEFAULT_VALUE_LENGTH = 64;
 
     /** @var array<int, true> Set of unique serial ids (dedupe-before-encode). */
     private $serialIds = array();
