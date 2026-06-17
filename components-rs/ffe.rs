@@ -102,6 +102,8 @@ const TYPE_OBJECT: i32 = 4;
 
 // ── EVP flagevaluation aggregation ────────────────────────────────────────────
 
+const FLAG_EVALUATION_BATCH_CHUNK_SIZE: usize = 512;
+
 /// Full-tier aggregation key: schema-visible dimensions only, all exact
 /// strings, no hash.
 /// No collision-prone digest — comparable struct identity via
@@ -472,6 +474,21 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
     })
 }
 
+fn split_flag_evaluation_batch(batch: FfeFlagEvaluationBatch) -> Vec<FfeFlagEvaluationBatch> {
+    let FfeFlagEvaluationBatch {
+        context,
+        flag_evaluations,
+    } = batch;
+
+    flag_evaluations
+        .chunks(FLAG_EVALUATION_BATCH_CHUNK_SIZE)
+        .map(move |chunk| FfeFlagEvaluationBatch {
+            context: context.clone(),
+            flag_evaluations: chunk.to_vec(),
+        })
+        .collect()
+}
+
 /// Flush aggregated EVP flag evaluation events to the sidecar.
 ///
 /// # Safety
@@ -495,13 +512,20 @@ pub unsafe extern "C" fn ddog_ffe_flush_flag_evaluation_batch(
         None => return true, // nothing to flush
     };
 
-    sidecar_blocking::enqueue_actions_reliable(
-        transport,
-        instance_id,
-        queue_id,
-        vec![SidecarAction::FfeFlagEvaluationBatch(batch)],
-    )
-    .is_ok()
+    for chunk in split_flag_evaluation_batch(batch) {
+        if sidecar_blocking::enqueue_actions_reliable(
+            transport,
+            instance_id,
+            queue_id,
+            vec![SidecarAction::FfeFlagEvaluationBatch(chunk)],
+        )
+        .is_err()
+        {
+            return false;
+        }
+    }
+
+    true
 }
 
 // ── End EVP aggregation ───────────────────────────────────────────────────────
@@ -1018,6 +1042,50 @@ mod tests {
             Err(poisoned) => poisoned.into_inner(),
         };
         *agg = EvpAggregator::default();
+    }
+
+    #[test]
+    fn split_flag_evaluation_batch_chunks_large_batches() {
+        let event = FfeFlagEvaluationEvent {
+            timestamp: 1,
+            flag: FlagKey {
+                key: "chunk-flag".to_owned(),
+            },
+            first_evaluation: 1,
+            last_evaluation: 1,
+            evaluation_count: 1,
+            variant: Some(VariantKey {
+                key: "on".to_owned(),
+            }),
+            allocation: None,
+            targeting_rule: None,
+            targeting_key: Some("user".to_owned()),
+            context: None,
+            error: None,
+            runtime_default_used: false,
+        };
+        let batch = FfeFlagEvaluationBatch {
+            context: FfeTelemetryContext {
+                service: "svc".to_owned(),
+                env: "prod".to_owned(),
+                version: "1".to_owned(),
+            },
+            flag_evaluations: vec![event; FLAG_EVALUATION_BATCH_CHUNK_SIZE * 2 + 1],
+        };
+
+        let chunks = split_flag_evaluation_batch(batch);
+
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(
+            chunks[0].flag_evaluations.len(),
+            FLAG_EVALUATION_BATCH_CHUNK_SIZE
+        );
+        assert_eq!(
+            chunks[1].flag_evaluations.len(),
+            FLAG_EVALUATION_BATCH_CHUNK_SIZE
+        );
+        assert_eq!(chunks[2].flag_evaluations.len(), 1);
+        assert!(chunks.iter().all(|chunk| chunk.context.service == "svc"));
     }
 
     fn empty_attrs() -> HashMap<Str, Attribute> {
