@@ -2,7 +2,6 @@
 #define DD_DISTRIBUTED_TRACING_HEADERS_H
 
 #include "ddtrace.h"
-#include "span.h"
 #include "priority_sampling/priority_sampling.h"
 #include <zai_string/string.h>
 
