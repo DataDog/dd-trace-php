@@ -11,6 +11,8 @@ final class Client
     private $evaluator;
     private $logger;
     private $warnedAboutNonProductionRuntime = false;
+    /** @var SpanEnrichmentBinder */
+    private $spanEnrichmentBinder;
 
     public function __construct($logger = null)
     {
@@ -20,6 +22,11 @@ final class Client
 
         $this->evaluator = NativeEvaluator::create();
         $this->logger = $logger ?: new TriggerErrorLogger();
+        // DG-004/DG-005: the native Client does NOT go through the OpenFeature
+        // provider, so APM span enrichment is bound here on the same evaluation
+        // path. The binder is a cheap no-op (allocates nothing, stages nothing)
+        // unless the experimental span-enrichment gate is on.
+        $this->spanEnrichmentBinder = new SpanEnrichmentBinder();
     }
 
     /**
@@ -116,6 +123,10 @@ final class Client
         );
 
         $this->warnIfNonProductionRuntime($details);
+        // APM span enrichment (no-op when the gate is off). Accumulates from the
+        // same EvaluationDetails the caller receives; the native close-span path
+        // writes the staged ffe_* tags onto the root span.
+        $this->spanEnrichmentBinder->accumulate($flagKey, $details, $targetingKey);
 
         return $details;
     }
