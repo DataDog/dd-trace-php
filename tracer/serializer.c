@@ -1575,7 +1575,46 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     if (is_first_span) {
         zend_string *process_tags = datadog_process_tags_get_serialized();
         if (ZSTR_LEN(process_tags)) {
-            ddog_add_str_span_meta_zstr(rust_span, "_dd.tags.process", process_tags);
+            const char *svc_tag_appendix = NULL;
+            const char *normalized_default = NULL;
+            zend_string *dd_service = get_DD_SERVICE();
+
+            if (dd_service && ZSTR_LEN(dd_service)) {
+                svc_tag_appendix = ",svc.user:true";
+            } else {
+                zend_array *root_meta = ddtrace_property_array(&span->root->property_meta);
+                if (!zend_hash_str_exists(root_meta, ZEND_STRL("_dd.svc_src"))) {
+                    zval root_svc;
+                    ZVAL_UNDEF(&root_svc);
+                    datadog_convert_to_string(&root_svc, &span->root->property_service);
+                    if (Z_TYPE(root_svc) == IS_STRING && Z_STRLEN(root_svc) > 0) {
+                        normalized_default = ddog_normalize_process_tag_value((ddog_CharSlice){
+                            .ptr = Z_STRVAL(root_svc), .len = Z_STRLEN(root_svc)
+                        });
+                    }
+                    zval_ptr_dtor(&root_svc);
+                }
+            }
+
+            if (svc_tag_appendix || normalized_default) {
+                smart_str combined = {0};
+                smart_str_append(&combined, process_tags);
+                if (svc_tag_appendix) {
+                    smart_str_appends(&combined, svc_tag_appendix);
+                } else {
+                    smart_str_appends(&combined, ",svc.auto:");
+                    smart_str_appends(&combined, normalized_default);
+                }
+                smart_str_0(&combined);
+                ddog_add_str_span_meta_zstr(rust_span, "_dd.tags.process", combined.s);
+                smart_str_free(&combined);
+            } else {
+                ddog_add_str_span_meta_zstr(rust_span, "_dd.tags.process", process_tags);
+            }
+
+            if (normalized_default) {
+                ddog_free_normalized_tag_value(normalized_default);
+            }
         }
     }
 

@@ -46,7 +46,7 @@ if ($i == 300) {
 ?>
 --EXPECTF--
 Included
-string(%d) "entrypoint.basedir:telemetry,entrypoint.name:telemetry_process_tags,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli"
+string(%d) "entrypoint.basedir:telemetry,entrypoint.name:telemetry_process_tags,entrypoint.type:script,entrypoint.workdir:%s,runtime.sapi:cli,svc.auto:telemetry_process_tags.php"
 --CLEAN--
 <?php
 

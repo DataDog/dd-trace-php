@@ -65,4 +65,28 @@ class ProcessTagsWebTest extends WebFrameworkTestCase
         );
         $this->assertEquals($tags['entrypoint.type'], 'script');
     }
+
+    /**
+     * Proves the per-span svc.* design has no static-state leak between
+     * requests served by the same FPM worker: request 1 calls
+     * ini_set('datadog.service', ...) and must report svc.user:true; request 2
+     * reuses the same worker but does not override the service, and must
+     * report svc.auto:<default> (not the leaked svc.user from request 1).
+     */
+    public function testSvcTagDoesNotLeakBetweenRequests()
+    {
+        $tracesUser = $this->tracesFromWebRequest(function () {
+            return $this->call(new RequestSpec(__FUNCTION__ . '_user', 'GET', '/set_service', []));
+        });
+        $userTags = $tracesUser[0][0]['meta']['_dd.tags.process'];
+        $this->assertStringContainsString('svc.user:true', $userTags);
+        $this->assertStringNotContainsString('svc.auto:', $userTags);
+
+        $tracesAuto = $this->tracesFromWebRequest(function () {
+            return $this->call(new RequestSpec(__FUNCTION__ . '_auto', 'GET', '/simple', []));
+        });
+        $autoTags = $tracesAuto[0][0]['meta']['_dd.tags.process'];
+        $this->assertStringNotContainsString('svc.user', $autoTags);
+        $this->assertStringContainsString('svc.auto:', $autoTags);
+    }
 }
