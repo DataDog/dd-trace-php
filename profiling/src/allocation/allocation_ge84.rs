@@ -150,6 +150,7 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
         }
 
         let free_handler = alloc_prof_free_handler(heap_live_enabled);
+        let realloc_handler = alloc_prof_realloc_handler(heap_live_enabled);
 
         // install our custom handler to ZendMM
         unsafe {
@@ -157,7 +158,7 @@ pub fn alloc_prof_rinit(heap_live_enabled: bool) {
                 heap,
                 Some(alloc_prof_malloc),
                 Some(free_handler),
-                Some(alloc_prof_realloc),
+                Some(realloc_handler),
                 Some(alloc_prof_gc),
                 Some(alloc_prof_shutdown),
             );
@@ -212,9 +213,10 @@ pub fn alloc_prof_rshutdown(heap_live_enabled: bool) {
             );
         }
         let free_handler = alloc_prof_free_handler(heap_live_enabled);
+        let realloc_handler = alloc_prof_realloc_handler(heap_live_enabled);
         if custom_mm_free != Some(free_handler)
             || custom_mm_malloc != Some(alloc_prof_malloc)
-            || custom_mm_realloc != Some(alloc_prof_realloc)
+            || custom_mm_realloc != Some(realloc_handler)
             || custom_mm_gc != Some(alloc_prof_gc)
             || custom_mm_shutdown != Some(alloc_prof_shutdown)
         {
@@ -422,6 +424,14 @@ unsafe fn alloc_prof_orig_free(ptr: *mut c_void) {
     zend::_zend_mm_free(heap, ptr);
 }
 
+fn alloc_prof_realloc_handler(heap_live_enabled: bool) -> zend::VmMmCustomReallocFn {
+    if heap_live_enabled {
+        alloc_prof_realloc
+    } else {
+        alloc_prof_realloc_no_untrack
+    }
+}
+
 #[cfg(not(php_debug))]
 unsafe extern "C" fn alloc_prof_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
     alloc_prof_realloc_impl(prev_ptr, len)
@@ -437,6 +447,26 @@ unsafe extern "C" fn alloc_prof_realloc(
     _orig_line: c_uint,
 ) -> *mut c_void {
     alloc_prof_realloc_impl(prev_ptr, len)
+}
+
+#[cfg(not(php_debug))]
+unsafe extern "C" fn alloc_prof_realloc_no_untrack(
+    prev_ptr: *mut c_void,
+    len: size_t,
+) -> *mut c_void {
+    alloc_prof_realloc_no_untrack_impl(prev_ptr, len)
+}
+
+#[cfg(php_debug)]
+unsafe extern "C" fn alloc_prof_realloc_no_untrack(
+    prev_ptr: *mut c_void,
+    len: size_t,
+    _file: *const c_char,
+    _line: c_uint,
+    _orig_file: *const c_char,
+    _orig_line: c_uint,
+) -> *mut c_void {
+    alloc_prof_realloc_no_untrack_impl(prev_ptr, len)
 }
 
 #[inline(always)]
@@ -456,6 +486,23 @@ unsafe fn alloc_prof_realloc_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_
         untrack_allocation(prev_ptr);
     }
 
+    alloc_prof_realloc_sample(ptr, len)
+}
+
+#[inline(always)]
+unsafe fn alloc_prof_realloc_no_untrack_impl(prev_ptr: *mut c_void, len: size_t) -> *mut c_void {
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_COUNT.fetch_add(1, Relaxed);
+    #[cfg(feature = "debug_stats")]
+    ALLOCATION_PROFILING_SIZE.fetch_add(len as u64, Relaxed);
+
+    let ptr = tls_zend_mm_state_get!(realloc)(prev_ptr, len);
+
+    alloc_prof_realloc_sample(ptr, len)
+}
+
+#[inline(always)]
+unsafe fn alloc_prof_realloc_sample(ptr: *mut c_void, len: size_t) -> *mut c_void {
     // during startup, minit, rinit, ... current_execute_data is null
     // we are only interested in allocations during userland operations
     if zend::ddog_php_prof_get_current_execute_data().is_null() {
