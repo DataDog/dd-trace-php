@@ -651,12 +651,9 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         ddtrace_span_link *link = (ddtrace_span_link *)Z_OBJ(link_zv);
         ddtrace_build_span_link_from_result(result, link);
 
-        zval reason_val;
-        ZVAL_STR(&reason_val, zend_string_init(ZEND_STRL("reason"), 0));
         zval reason_str;
         ZVAL_STR(&reason_str, zend_string_init(ZEND_STRL("propagation_behavior_extract"), 0));
-        zend_hash_update(Z_ARR(link->property_attributes), Z_STR(reason_val), &reason_str);
-        zval_ptr_dtor(&reason_val);
+        zend_hash_str_update(Z_ARR(link->property_attributes), ZEND_STRL("reason"), &reason_str);
 
         result->trace_id = (datadog_trace_id){0};
         result->parent_id = 0;
