@@ -327,7 +327,7 @@ unsafe fn alloc_prof_prev_alloc(len: size_t) -> *mut c_void {
     let alloc = tls_zend_mm_state_get!(prev_custom_mm_alloc).unwrap();
     #[cfg(php_debug)]
     {
-        return alloc(len, ptr::null(), 0, ptr::null(), 0);
+        alloc(len, ptr::null(), 0, ptr::null(), 0)
     }
     #[cfg(not(php_debug))]
     alloc(len)
@@ -407,7 +407,7 @@ unsafe fn alloc_prof_prev_free(ptr: *mut c_void) {
     let free = tls_zend_mm_state_get!(prev_custom_mm_free).unwrap();
     #[cfg(php_debug)]
     {
-        return free(ptr, core::ptr::null(), 0, core::ptr::null(), 0);
+        free(ptr, core::ptr::null(), 0, core::ptr::null(), 0)
     }
     #[cfg(not(php_debug))]
     free(ptr)
@@ -530,7 +530,7 @@ unsafe fn alloc_prof_prev_realloc(prev_ptr: *mut c_void, len: size_t) -> *mut c_
     let realloc = tls_zend_mm_state_get!(prev_custom_mm_realloc).unwrap();
     #[cfg(php_debug)]
     {
-        return realloc(prev_ptr, len, ptr::null(), 0, ptr::null(), 0);
+        realloc(prev_ptr, len, ptr::null(), 0, ptr::null(), 0)
     }
     #[cfg(not(php_debug))]
     realloc(prev_ptr, len)
