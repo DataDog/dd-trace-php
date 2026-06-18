@@ -660,6 +660,7 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
 
         result->trace_id = (datadog_trace_id){0};
         result->parent_id = 0;
+        result->priority_sampling = DDTRACE_PRIORITY_SAMPLING_UNKNOWN;
 
         if (span) {
             zend_array *links = ddtrace_property_array(&span->property_links);
