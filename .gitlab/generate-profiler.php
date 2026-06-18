@@ -146,7 +146,7 @@ foreach ($profiler_minor_major_targets as $version) {
         ARCH: amd64
         FLAVOUR: [nts, zts]
   script:
-    - unset DD_SERVICE; unset DD_ENV; env
+    - unset DD_SERVICE; unset DD_ENV
     - command -v switch-php && switch-php "${FLAVOUR}"
     - cd profiling
     - cargo build --profile profiler-release
@@ -154,6 +154,6 @@ foreach ($profiler_minor_major_targets as $version) {
     - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
-    - if [ -f "profiling/tests/php-language-xfail-${PHP_MAJOR_MINOR}.list" ]; then cat "profiling/tests/php-language-xfail-${PHP_MAJOR_MINOR}.list" >> /tmp/profiler-php-language-xfail.list; fi
+    - if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
     - .gitlab/run_php_language_tests.sh
