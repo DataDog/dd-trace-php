@@ -17,6 +17,7 @@ typedef struct {
     int priority_sampling;
     enum dd_sampling_mechanism sampling_mechanism;
     bool conflicting_sampling_priority; // propagated priority does not match tracestate priority
+    zend_string *context_headers; // name of the extractor that produced the trace context (e.g. "datadog", "tracecontext")
 } ddtrace_distributed_tracing_result;
 
 typedef bool (ddtrace_read_header)(zai_str zai_header, const char *lowercase_header, zend_string **header_value, void *data);
