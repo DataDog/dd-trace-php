@@ -634,17 +634,11 @@ void ddtrace_apply_distributed_tracing_result(ddtrace_distributed_tracing_result
         // behavior=restart: zero trace_id so a fresh trace starts; upstream captured as span link
         // drop _dd.p.* first so the builder does not include them in link attributes
         zend_string *mk;
-        zend_string **to_delete = emalloc(zend_hash_num_elements(&result->meta_tags) * sizeof(zend_string *));
-        int to_delete_count = 0;
         ZEND_HASH_FOREACH_STR_KEY(&result->meta_tags, mk) {
             if (mk && ZSTR_LEN(mk) > 6 && strncmp(ZSTR_VAL(mk), "_dd.p.", 6) == 0) {
-                to_delete[to_delete_count++] = mk;
+                zend_hash_del(&result->meta_tags, mk);
             }
         } ZEND_HASH_FOREACH_END();
-        for (int i = 0; i < to_delete_count; i++) {
-            zend_hash_del(&result->meta_tags, to_delete[i]);
-        }
-        efree(to_delete);
         zend_hash_clean(&result->propagated_tags);
 
         zval link_zv;
