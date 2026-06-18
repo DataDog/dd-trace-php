@@ -1,0 +1,251 @@
+name: Profiler gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  actions: read
+  checks: read
+  contents: read
+  pull-requests: read
+  statuses: read
+
+jobs:
+  profiling-required:
+    name: profiling-required
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate required profiling checks
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TIMEOUT_SECONDS: "21600"
+          POLL_SECONDS: "60"
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+
+          const event = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const pr = event.pull_request;
+
+          if (!pr) {
+            console.log('Not a pull request event; nothing to validate.');
+            process.exit(0);
+          }
+
+          const [owner, repo] = process.env.GITHUB_REPOSITORY.split('/');
+          const token = process.env.GITHUB_TOKEN;
+          const apiBase = process.env.GITHUB_API_URL || 'https://api.github.com';
+          const headSha = pr.head.sha;
+          const timeoutSeconds = Number(process.env.TIMEOUT_SECONDS || 21600);
+          const pollSeconds = Number(process.env.POLL_SECONDS || 60);
+          const deadline = Date.now() + timeoutSeconds * 1000;
+
+          const headers = {
+            'Accept': 'application/vnd.github+json',
+            'Authorization': `Bearer ${token}`,
+            'X-GitHub-Api-Version': '2022-11-28',
+            'User-Agent': 'dd-trace-php-profiling-required-gate',
+          };
+
+          const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+          async function requestJson(url) {
+            const response = await fetch(url, { headers });
+            const body = await response.text();
+            if (!response.ok) {
+              throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}: ${body}`);
+            }
+            return body ? JSON.parse(body) : null;
+          }
+
+          function parseNextLink(linkHeader) {
+            if (!linkHeader) {
+              return null;
+            }
+
+            for (const part of linkHeader.split(',')) {
+              const match = part.match(/<([^>]+)>;\s*rel="next"/);
+              if (match) {
+                return match[1];
+              }
+            }
+
+            return null;
+          }
+
+          async function paginate(url) {
+            const items = [];
+
+            while (url) {
+              const response = await fetch(url, { headers });
+              const body = await response.text();
+              if (!response.ok) {
+                throw new Error(`GitHub API request failed: ${response.status} ${response.statusText}: ${body}`);
+              }
+
+              const json = body ? JSON.parse(body) : [];
+              if (Array.isArray(json)) {
+                items.push(...json);
+              } else if (Array.isArray(json.check_runs)) {
+                items.push(...json.check_runs);
+              } else {
+                throw new Error(`Unexpected paginated response from ${url}`);
+              }
+
+              url = parseNextLink(response.headers.get('link'));
+            }
+
+            return items;
+          }
+
+          async function changedFiles() {
+            return paginate(`${apiBase}/repos/${owner}/${repo}/pulls/${pr.number}/files?per_page=100`);
+          }
+
+          function touchesProfilingOwnedPath(files) {
+            return files.some(file =>
+              file.filename.startsWith('profiling/') ||
+              file.filename.startsWith('zend_abstract_interface/')
+            );
+          }
+
+          function runIdFromDetailsUrl(detailsUrl) {
+            if (!detailsUrl) {
+              return null;
+            }
+
+            const match = detailsUrl.match(/\/actions\/runs\/(\d+)/);
+            return match ? match[1] : null;
+          }
+
+          async function workflowNameForCheckRun(checkRun, cache) {
+            const runId = runIdFromDetailsUrl(checkRun.details_url);
+            if (!runId) {
+              return '';
+            }
+
+            if (!cache.has(runId)) {
+              const run = await requestJson(`${apiBase}/repos/${owner}/${repo}/actions/runs/${runId}`);
+              cache.set(runId, run.name || '');
+            }
+
+            return cache.get(runId);
+          }
+
+          async function relevantGithubActionsCheckRuns() {
+            const allCheckRuns = await paginate(`${apiBase}/repos/${owner}/${repo}/commits/${headSha}/check-runs?per_page=100`);
+            const workflowNameCache = new Map();
+            const relevant = [];
+
+            for (const checkRun of allCheckRuns) {
+              if (checkRun.app?.slug !== 'github-actions') {
+                continue;
+              }
+
+              const workflowName = await workflowNameForCheckRun(checkRun, workflowNameCache);
+              const displayName = workflowName ? `${workflowName} / ${checkRun.name}` : checkRun.name;
+
+              if (displayName.startsWith('Profiling ')) {
+                relevant.push({
+                  type: 'GitHub Actions check',
+                  name: displayName,
+                  state: checkRun.status === 'completed' ? checkRun.conclusion : checkRun.status,
+                  terminal: checkRun.status === 'completed',
+                  success: checkRun.status === 'completed' && ['success', 'neutral', 'skipped'].includes(checkRun.conclusion),
+                  url: checkRun.html_url || checkRun.details_url,
+                });
+              }
+            }
+
+            return relevant;
+          }
+
+          function isRelevantGitLabStatus(status) {
+            return status.context.startsWith('dd-gitlab/clippy ') ||
+              status.context === 'dd-gitlab/profiling tests';
+          }
+
+          async function relevantGitLabStatuses() {
+            const combinedStatus = await requestJson(`${apiBase}/repos/${owner}/${repo}/commits/${headSha}/status`);
+            return combinedStatus.statuses
+              .filter(isRelevantGitLabStatus)
+              .map(status => ({
+                type: 'GitLab status',
+                name: status.context,
+                state: status.state,
+                terminal: status.state !== 'pending',
+                success: status.state === 'success',
+                url: status.target_url,
+              }));
+          }
+
+          function printItems(title, items) {
+            console.log(`\n${title}`);
+            if (items.length === 0) {
+              console.log('  none found yet');
+              return;
+            }
+
+            for (const item of items.sort((a, b) => a.name.localeCompare(b.name))) {
+              console.log(`  ${item.success ? 'OK' : item.terminal ? 'FAIL' : 'WAIT'} ${item.name}: ${item.state}${item.url ? ` (${item.url})` : ''}`);
+            }
+          }
+
+          function fail(message, items = []) {
+            console.error(`\n${message}`);
+            if (items.length > 0) {
+              for (const item of items) {
+                console.error(`- ${item.name}: ${item.state}${item.url ? ` (${item.url})` : ''}`);
+              }
+            }
+            process.exit(1);
+          }
+
+          const files = await changedFiles();
+          if (!touchesProfilingOwnedPath(files)) {
+            console.log('No changes under profiling/ or zend_abstract_interface/; profiling gate passes.');
+            process.exit(0);
+          }
+
+          console.log(`PR #${pr.number} touches profiling-owned paths; validating profiler-owned checks on ${headSha}.`);
+
+          while (true) {
+            const githubActionsChecks = await relevantGithubActionsCheckRuns();
+            const gitlabStatuses = await relevantGitLabStatuses();
+            const allItems = [...githubActionsChecks, ...gitlabStatuses];
+
+            printItems('GitHub Actions checks matching "Profiling "', githubActionsChecks);
+            printItems('GitLab statuses matching "dd-gitlab/clippy *" or "dd-gitlab/profiling tests"', gitlabStatuses);
+
+            const requiredGitLabContexts = new Set(gitlabStatuses.map(status => status.name));
+            const missingRequiredChecks = [];
+
+            if (githubActionsChecks.length === 0) {
+              missingRequiredChecks.push('GitHub Actions checks matching "Profiling "');
+            }
+
+            if (!requiredGitLabContexts.has('dd-gitlab/profiling tests')) {
+              missingRequiredChecks.push('GitLab status "dd-gitlab/profiling tests"');
+            }
+
+            const pending = allItems.filter(item => !item.terminal);
+            if (missingRequiredChecks.length > 0 || pending.length > 0) {
+              if (Date.now() >= deadline) {
+                fail(`Timed out waiting for profiling-owned checks to finish or appear. Missing: ${missingRequiredChecks.join(', ') || 'none'}.`, pending);
+              }
+
+              console.log(`\nWaiting ${pollSeconds}s for profiling-owned checks to appear or finish...`);
+              await sleep(pollSeconds * 1000);
+              continue;
+            }
+
+            const failed = allItems.filter(item => !item.success);
+            if (failed.length > 0) {
+              fail('One or more profiling-owned checks failed.', failed);
+            }
+
+            console.log('\nAll profiling-owned checks passed.');
+            process.exit(0);
+          }
+          NODE
