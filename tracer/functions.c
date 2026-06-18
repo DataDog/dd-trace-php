@@ -235,7 +235,10 @@ void ddtrace_build_span_link_from_result(ddtrace_distributed_tracing_result *res
     ZVAL_STR(&link->property_trace_id, datadog_trace_id_as_hex_string(result->trace_id));
     ZVAL_STR(&link->property_span_id, ddtrace_span_id_as_hex_string(result->parent_id));
     array_init(&link->property_attributes);
-    zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, NULL);
+    // The span link owns its own references to the copied values, independent of the
+    // result->meta_tags lifetime: callers may keep meta_tags alive and hand it to other
+    // consumers (e.g. the root span's meta) or destroy it right after.
+    zend_hash_copy(Z_ARR(link->property_attributes), &result->meta_tags, (copy_ctor_func_t)zval_add_ref);
 
     zend_string *propagated_tags = ddtrace_format_propagated_tags(&result->propagated_tags, &result->meta_tags);
     zend_string *full_tracestate = ddtrace_format_tracestate(result->tracestate, 0, result->origin, result->priority_sampling, propagated_tags, &result->tracestate_unknown_dd_keys);
@@ -263,7 +266,8 @@ ZEND_METHOD(DDTrace_SpanLink, fromHeaders) {
 
     ddtrace_build_span_link_from_result(&result, link);
 
-    result.meta_tags.pDestructor = NULL; // we moved values directly
+    // The span link took its own references (zval_add_ref) on the copied values, so destroy
+    // meta_tags normally to release the references it still owns.
     zend_hash_destroy(&result.meta_tags);
     zend_hash_destroy(&result.propagated_tags);
     zend_hash_destroy(&result.tracestate_unknown_dd_keys);
