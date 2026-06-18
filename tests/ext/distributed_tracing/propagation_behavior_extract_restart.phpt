@@ -31,7 +31,8 @@ if ($link !== null) {
     echo "link_trace_id: " . $link->traceId . "\n";
     echo "link_span_id: " . $link->spanId . "\n";
     echo "link_reason: " . ($link->attributes['reason'] ?? 'missing') . "\n";
-    // _dd.p.foo not included (was in upstream _dd.p.* tags, now dropped)
+    echo "link_context_headers: " . ($link->attributes['context_headers'] ?? 'missing') . "\n";
+    // _dd.p.foo captured in link attributes (upstream propagation context preserved in link)
     echo "link_has_foo: " . (isset($link->attributes['_dd.p.foo']) ? "yes" : "no") . "\n";
 }
 
@@ -58,7 +59,8 @@ links_count: 1
 link_trace_id: 0000000000000000000000000000002a
 link_span_id: 000000000000000a
 link_reason: propagation_behavior_extract
-link_has_foo: no
+link_context_headers: datadog
+link_has_foo: yes
 trace_id_valid: yes
 baggage: user.id=123
 foo_in_tags: no
