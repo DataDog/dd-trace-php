@@ -35,6 +35,9 @@ if ($link !== null) {
     echo "link_has_foo: " . (isset($link->attributes['_dd.p.foo']) ? "yes" : "no") . "\n";
 }
 
+$tid = $root->traceId;
+echo "trace_id_valid: " . (preg_match('/^[0-9a-f]{32}$/', $tid) && $tid !== "00000000000000000000000000000000" ? "yes" : "no") . "\n";
+
 // baggage preserved
 $headers = DDTrace\generate_distributed_tracing_headers(['baggage']);
 echo "baggage: " . ($headers['baggage'] ?? 'none') . "\n";
@@ -43,6 +46,9 @@ echo "baggage: " . ($headers['baggage'] ?? 'none') . "\n";
 $dd_headers = DDTrace\generate_distributed_tracing_headers(['datadog']);
 $tags = $dd_headers['x-datadog-tags'] ?? '';
 echo "foo_in_tags: " . (str_contains($tags, '_dd.p.foo') ? "yes" : "no") . "\n";
+
+// upstream sampling priority must not leak into the fresh trace
+echo "sampling_priority: " . ($dd_headers['x-datadog-sampling-priority'] ?? 'none') . "\n";
 
 DDTrace\close_span();
 ?>
@@ -53,5 +59,7 @@ link_trace_id: 0000000000000000000000000000002a
 link_span_id: 000000000000000a
 link_reason: propagation_behavior_extract
 link_has_foo: no
+trace_id_valid: yes
 baggage: user.id=123
 foo_in_tags: no
+sampling_priority: none
