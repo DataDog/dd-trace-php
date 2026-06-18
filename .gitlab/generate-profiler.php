@@ -153,6 +153,9 @@ foreach ($profiler_minor_major_targets as $version) {
     - cd ..
     - echo "extension=/tmp/cargo/profiler-release/libdatadog_php_profiling.so" > /opt/php/${FLAVOUR}/conf.d/profiling.ini
     - php -v
+    # Fail loudly if the profiler did not load: otherwise the language tests
+    # would run profiler-less and pass, giving a false green.
+    - php -m | grep -qx 'datadog-profiling' || { echo 'ERROR: datadog-profiling extension is not loaded'; exit 1; }
     - cat "${XFAIL_LIST}" profiling/tests/php-language-xfail.list > /tmp/profiler-php-language-xfail.list
     - if php -r 'exit(PHP_VERSION_ID < 80400 ? 0 : 1);'; then cat profiling/tests/php-language-xfail-pre84.list >> /tmp/profiler-php-language-xfail.list; fi
     - export XFAIL_LIST=/tmp/profiler-php-language-xfail.list
