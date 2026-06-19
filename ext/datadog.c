@@ -157,6 +157,7 @@ static void dd_activate_once(void) {
     if (dd_main_pid != getpid()) { // equal to session id if not a fork
         datadog_generate_runtime_id();
     }
+    datadog_publish_otel_process_context();
 
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {
