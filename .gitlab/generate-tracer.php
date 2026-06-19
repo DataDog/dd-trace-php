@@ -200,7 +200,6 @@ windows_test_c_job("windows test_c: zts", "zts", [
 "macos test_c":
   stage: test
   tags: ["macos:sonoma-arm64"]
-  timeout: 30m
   variables:
     PHP_MACOS_VERSION: "8.5.7"
     PHP_INSTALL_DIR: "/tmp/php-macos-${PHP_MACOS_VERSION}"
@@ -235,7 +234,7 @@ windows_test_c_job("windows test_c: zts", "zts", [
     - export TEST_PHP_JUNIT="${CI_PROJECT_DIR}/artifacts/tests/php-tests.xml"
     - php --version
     - make -j"$(sysctl -n hw.ncpu)"
-    - make test_c
+    - timeout 20m make test_c
   after_script:
     - mkdir -p "${CI_PROJECT_DIR}/artifacts/diffs"
     - find . -type f \( -name '*.diff' -o -name '*.mem' \) -not -path '*/vendor/*' -exec cp '{}' "${CI_PROJECT_DIR}/artifacts/diffs/" \; || true
