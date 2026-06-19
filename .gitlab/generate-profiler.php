@@ -98,8 +98,13 @@ foreach ($profiler_minor_major_targets as $version) {
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   variables:
     KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 3Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   parallel:
@@ -117,8 +122,13 @@ foreach ($profiler_minor_major_targets as $version) {
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-8.5_bookworm-8
   variables:
     KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 3Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     # CARGO_TARGET_DIR: /mnt/ramdisk/cargo # ramdisk??
     libdir: /tmp/datadog-profiling
   script:
@@ -132,8 +142,13 @@ foreach ($profiler_minor_major_targets as $version) {
   image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   variables:
     KUBERNETES_CPU_REQUEST: 5
+    KUBERNETES_CPU_LIMIT: 5
     KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 3Gi
+    KUBERNETES_HELPER_CPU_REQUEST: 1
+    KUBERNETES_HELPER_CPU_LIMIT: 1
+    KUBERNETES_HELPER_MEMORY_REQUEST: 2Gi
+    KUBERNETES_HELPER_MEMORY_LIMIT: 2Gi
     CARGO_TARGET_DIR: /tmp/cargo
     libdir: /tmp/datadog-profiling
     SKIP_ONLINE_TESTS: "1"
