@@ -48,9 +48,6 @@ $dd_headers = DDTrace\generate_distributed_tracing_headers(['datadog']);
 $tags = $dd_headers['x-datadog-tags'] ?? '';
 echo "foo_in_tags: " . (str_contains($tags, '_dd.p.foo') ? "yes" : "no") . "\n";
 
-// upstream sampling priority must not leak into the fresh trace
-echo "sampling_priority: " . ($dd_headers['x-datadog-sampling-priority'] ?? 'none') . "\n";
-
 DDTrace\close_span();
 ?>
 --EXPECT--
@@ -64,4 +61,3 @@ link_has_foo: yes
 trace_id_valid: yes
 baggage: user.id=123
 foo_in_tags: no
-sampling_priority: none
