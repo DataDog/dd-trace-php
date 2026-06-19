@@ -394,7 +394,6 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
     ddtrace_span_stack *oldstack = (ddtrace_span_stack *)old_obj;
     if (oldstack->parent_stack) { // if this is false, we're copying an initial stack
         stack->root_stack = stack->parent_stack->root_stack;
-        stack->root_span = stack->parent_stack->root_span;
     }
     if (oldstack->root_stack == oldstack) {
         stack->root_stack = stack;
@@ -407,10 +406,9 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
     }
     if (pspan) {
         ZVAL_OBJ_COPY(&stack->property_active, &pspan->std);
+        stack->root_span = SPANDATA(pspan)->root;
     } else {
-        if (oldstack->root_span && oldstack->root_span->stack == oldstack) {
-            stack->root_span = NULL;
-        }
+        stack->root_span = NULL;
         stack->active = NULL;
         ZVAL_NULL(&stack->property_active);
     }
@@ -2401,6 +2399,11 @@ PHP_FUNCTION(DDTrace_try_drop_span) {
 
     ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     if (span->active_child_spans) {
+        RETURN_FALSE;
+    }
+
+    // Assert span stack for manual instantiations of SpanStack/clones.
+    if (!span->stack || span->stack->active != &span->props) {
         RETURN_FALSE;
     }
 
