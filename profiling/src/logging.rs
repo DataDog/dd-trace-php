@@ -14,7 +14,7 @@ pub fn log_init(level_filter: LevelFilter) {
     // Safety: this is safe, it's just "unsafe" because it's a call into C.
     // F_DUPFD_CLOEXEC (not plain dup) so the duplicate is not inherited by
     // child processes spawned via proc_open()/exec(). A leaked stderr dup
-    // keeps run-tests.php worker pipes open and hangs the language tests
+    // keeps pipes open and hangs. Observable in `run-tests.php` in PHP
     // (e.g. ext/curl/tests/curl_setopt_ssl.phpt spawning `openssl s_server`).
     let fd = unsafe { libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0) };
     if fd != -1 {
