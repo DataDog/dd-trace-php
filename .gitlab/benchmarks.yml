@@ -6,10 +6,47 @@ include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-php-laravel-realworld-parallel.yml'
     ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-symfony-realworld-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-php-wordpress-parallel.yml'
+    ref: 'main'
 
 stages:
   - php-laravel-realworld-parallel
   - php-laravel-realworld-parallel-slo
+  - php-symfony-realworld-parallel
+  - php-symfony-realworld-parallel-slo
+  - php-wordpress-parallel
+  - php-wordpress-parallel-slo
+
+linux-php-laravel-realworld-parallel:
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
+
+linux-php-symfony-realworld-parallel:
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
+
+linux-php-wordpress-parallel:
+  needs:
+    - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
+      artifacts: true
+    - job: datadog-setup.php
+      artifacts: true
+  variables:
+    DD_TRACER_ARTIFACT_DIR: "$CI_PROJECT_DIR/packages"
 
 variables:
   BASE_CI_IMAGE: 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/benchmarking-platform:dd-trace-php-82-dev
