@@ -1370,7 +1370,6 @@ dependencies = [
  "dynasmrt",
  "env_logger 0.11.6",
  "http",
- "lazy_static",
  "libc 0.2.177",
  "libdd-alloc",
  "libdd-common",
@@ -2348,7 +2347,6 @@ dependencies = [
  "hyper",
  "hyper-util",
  "rustls",
- "rustls-native-certs",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls",
@@ -2813,6 +2811,7 @@ dependencies = [
  "reqwest",
  "rustls",
  "rustls-native-certs",
+ "rustls-platform-verifier",
  "serde",
  "static_assertions",
  "tempfile",
@@ -2920,6 +2919,7 @@ dependencies = [
  "libdd-shared-runtime",
  "libdd-telemetry",
  "libdd-tinybytes",
+ "libdd-trace-normalization",
  "libdd-trace-obfuscation",
  "libdd-trace-protobuf",
  "libdd-trace-stats",
@@ -2941,9 +2941,12 @@ dependencies = [
 name = "libdd-ddsketch"
 version = "1.0.1"
 dependencies = [
+ "criterion",
  "prost",
  "prost-build",
  "protoc-bin-vendored",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
 ]
 
 [[package]]
@@ -3088,6 +3091,8 @@ dependencies = [
  "serde_json",
  "serde_with",
  "sha2",
+ "strum",
+ "strum_macros",
  "thiserror 2.0.12",
  "time",
  "tokio",
@@ -3271,9 +3276,11 @@ dependencies = [
  "rmp",
  "rmp-serde",
  "rmpv",
+ "rustc-hash 2.1.2",
  "serde",
  "serde_json",
  "tempfile",
+ "thin-vec",
  "tokio",
  "tracing",
  "urlencoding",
@@ -5628,6 +5635,12 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "thin-vec"
+version = "0.2.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0f7e269b48f0a7dd0146680fa24b50cc67fc0373f086a5b2f99bd084639b482"
 
 [[package]]
 name = "thiserror"
