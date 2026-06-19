@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use datadog_ipc::platform::NamedShmHandle;
-use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use datadog_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
 use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
     InstanceId, QueueId, SidecarAction,
