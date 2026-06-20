@@ -610,6 +610,9 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         DDTRACE_G(active_stack) = NULL;
     }
 
+    if (!ddtrace_ffe_flush_flag_evaluation_batch()) {
+        LOG(DEBUG, "Failed sending FFE flag evaluation batch to sidecar");
+    }
     ddtrace_ffe_flush_exposures();
     ddtrace_ffe_flush_evaluation_metrics();
 

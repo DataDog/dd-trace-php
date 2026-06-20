@@ -250,3 +250,17 @@ bool ddtrace_ffe_flush_exposures(void) {
     dd_ffe_clear_exposures();
     return flushed;
 }
+
+bool ddtrace_ffe_flush_flag_evaluation_batch(void) {
+    if (!DATADOG_G(sidecar) || !datadog_sidecar_instance_id || !DATADOG_G(sidecar_queue_id)) {
+        return false;
+    }
+
+    return ddog_ffe_flush_flag_evaluation_batch(
+        &DATADOG_G(sidecar),
+        datadog_sidecar_instance_id,
+        &DATADOG_G(sidecar_queue_id),
+        dd_zend_string_to_CharSlice(get_DD_SERVICE()),
+        dd_zend_string_to_CharSlice(get_DD_ENV()),
+        dd_zend_string_to_CharSlice(get_DD_VERSION()));
+}
