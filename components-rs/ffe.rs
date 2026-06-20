@@ -161,6 +161,7 @@ impl AggBucket {
 #[derive(Default)]
 struct FullTierFlagState {
     buckets: HashMap<FullTierKey, AggBucket>,
+    full_bucket_attempts: usize,
     /// Pruned evaluation context per bucket, captured once at bucket creation.
     /// The context is identical for every evaluation folded into a bucket (it is
     /// part of the bucket identity via `context_key`), so it only needs to be
@@ -257,7 +258,7 @@ fn now_ms() -> i64 {
         .unwrap_or(0)
 }
 
-/// Record one evaluation into the EVP aggregator (two-tier, frozen caps).
+/// Record one evaluation into the EVP aggregator.
 /// Called from `ddog_ffe_evaluate()` if the killswitch is on.
 ///
 /// `variant_str`: empty string means runtime default (absent variant — detected
@@ -300,16 +301,24 @@ fn record_flag_evaluation_evp(
 
     // ── Full-tier insertion (new bucket) ──────────────────────────────────────
     let current_total = agg.full_tier_total;
-    let flag_count = agg
-        .full_tier
-        .get(flag_key)
-        .map(|s| s.buckets.len())
-        .unwrap_or(0);
-
-    if current_total < GLOBAL_CAP && flag_count < PER_FLAG_CAP {
+    let inserted_full = {
         let flag_state = agg.full_tier.entry(flag_key.to_owned()).or_default();
-        flag_state.contexts.insert(full_key.clone(), pruned);
-        flag_state.buckets.insert(full_key, AggBucket::new(eval_ms));
+
+        if flag_state.full_bucket_attempts >= PER_FLAG_CAP {
+            false
+        } else {
+            flag_state.full_bucket_attempts += 1;
+            if current_total < GLOBAL_CAP {
+                flag_state.contexts.insert(full_key.clone(), pruned);
+                flag_state.buckets.insert(full_key, AggBucket::new(eval_ms));
+                true
+            } else {
+                false
+            }
+        }
+    };
+
+    if inserted_full {
         agg.full_tier_total += 1;
         return;
     }
@@ -344,7 +353,7 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
         Err(p) => p.into_inner(),
     };
 
-    let now = now_ms();
+    let flush_ms = now_ms();
     let mut events: Vec<FfeFlagEvaluationEvent> = Vec::new();
 
     // Drain full tier.
@@ -391,7 +400,7 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
                 })
             };
             events.push(FfeFlagEvaluationEvent {
-                timestamp: now,
+                timestamp: flush_ms,
                 flag: FlagKey {
                     key: flag_key.clone(),
                 },
@@ -433,7 +442,7 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
             })
         };
         events.push(FfeFlagEvaluationEvent {
-            timestamp: now,
+            timestamp: flush_ms,
             flag: FlagKey { key: k.flag_key },
             first_evaluation: bucket.first_evaluation,
             last_evaluation: bucket.last_evaluation,
@@ -750,6 +759,10 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use datadog_ffe::telemetry::flagevaluation::{
+        EVAL_SCALE_DEGRADED_BUCKET_TARGET, EVAL_SCALE_FULL_BUCKET_TARGET,
+        EVAL_SCALE_PER_FLAG_BUCKET_TARGET,
+    };
     use crate::bytes::{OwnedZendString, ZendString};
     use std::alloc::{alloc_zeroed, dealloc, Layout};
     use std::ffi::CString;
@@ -1088,6 +1101,16 @@ mod tests {
         assert!(chunks.iter().all(|chunk| chunk.context.service == "svc"));
     }
 
+    #[test]
+    fn cap_sizing_constants_preserve_default_caps() {
+        assert_eq!(EVAL_SCALE_FULL_BUCKET_TARGET, 125_000);
+        assert_eq!(EVAL_SCALE_PER_FLAG_BUCKET_TARGET, 10_000);
+        assert_eq!(EVAL_SCALE_DEGRADED_BUCKET_TARGET, 25_000);
+        assert_eq!(GLOBAL_CAP, 131_072);
+        assert_eq!(PER_FLAG_CAP, 10_000);
+        assert_eq!(DEGRADED_CAP, 32_768);
+    }
+
     fn empty_attrs() -> HashMap<Str, Attribute> {
         HashMap::new()
     }
@@ -1329,6 +1352,64 @@ mod tests {
             agg.degraded_tier.len(),
             1,
             "evaluations past globalCap must land in the degraded tier"
+        );
+        drop(agg);
+        reset_aggregator();
+    }
+
+    #[test]
+    fn global_cap_overflow_counts_new_full_bucket_attempts_per_flag() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        {
+            let mut agg = match EVP_AGGREGATOR.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            agg.full_tier_total = GLOBAL_CAP;
+        }
+
+        record_flag_evaluation_evp(
+            "overflow-attempts-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-1"),
+            &attrs_with("k", "v1"),
+            1_000,
+        );
+        record_flag_evaluation_evp(
+            "overflow-attempts-flag",
+            "on",
+            "alloc-a",
+            REASON_SPLIT,
+            ERROR_NONE,
+            Some("user-2"),
+            &attrs_with("k", "v2"),
+            2_000,
+        );
+
+        let agg = match EVP_AGGREGATOR.lock() {
+            Ok(g) => g,
+            Err(p) => p.into_inner(),
+        };
+        let flag_state = agg
+            .full_tier
+            .get("overflow-attempts-flag")
+            .expect("global-cap overflow should still account full-tier attempts per flag");
+        assert_eq!(flag_state.full_bucket_attempts, 2);
+        assert!(
+            flag_state.buckets.is_empty(),
+            "global-cap overflow must not add full-tier buckets"
+        );
+        assert_eq!(
+            agg.degraded_tier
+                .values()
+                .map(|bucket| bucket.count)
+                .sum::<u64>(),
+            2,
+            "overflowed evaluations should merge into degraded visible bucket"
         );
         drop(agg);
         reset_aggregator();
