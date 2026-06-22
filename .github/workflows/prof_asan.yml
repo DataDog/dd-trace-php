@@ -21,7 +21,7 @@ jobs:
       CARGO_TARGET_DIR: /tmp/build-cargo
       RUST_TOOLCHAIN: nightly-2025-06-13
     container:
-      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-8
+      image: datadog/dd-trace-ci:php-${{matrix.php-version}}_bookworm-9
       # https://docs.github.com/en/actions/creating-actions/dockerfile-support-for-github-actions#user
       options: --user root
 
@@ -86,7 +86,7 @@ jobs:
       CARGO_TARGET_DIR: /tmp/build-cargo
       UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
     container:
-      image: datadog/dd-trace-ci:php-8.5_bookworm-8
+      image: datadog/dd-trace-ci:php-8.5_bookworm-9
       options: --user root
 
     steps:
