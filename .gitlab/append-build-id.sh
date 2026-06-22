@@ -25,7 +25,7 @@ else
     parts[2]=0
     version=$(export IFS=.; (echo "${parts[*]}"))
   fi
-  version="$version+dev+$githash"
+  version="$version+dev.$githash"
   echo -n "$version" > VERSION
   echo "Set version number to $version."
 fi
