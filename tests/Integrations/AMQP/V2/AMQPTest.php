@@ -45,6 +45,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND                  => 'client',
                     Tag::COMPONENT                  => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM                  => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND        => 'queue',
                     Tag::MQ_PROTOCOL                => 'AMQP',
@@ -92,6 +93,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -105,6 +107,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -119,6 +122,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -136,6 +140,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND                  => 'server',
                     Tag::COMPONENT                  => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM                  => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND        => 'queue',
                     Tag::MQ_PROTOCOL                => 'AMQP',
@@ -151,6 +156,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -164,6 +170,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -178,6 +185,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
@@ -195,6 +203,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND                  => 'consumer',
                     Tag::COMPONENT                  => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM                  => 'rabbitmq',
                     Tag::RABBITMQ_ROUTING_KEY       => 'hello',
                     Tag::MQ_DESTINATION_KIND        => 'queue',
@@ -217,6 +226,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
@@ -287,6 +297,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -300,6 +311,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -314,6 +326,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -328,6 +341,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -344,6 +358,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -360,6 +375,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -376,6 +392,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -393,6 +410,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM              => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND    => 'queue',
                     Tag::MQ_PROTOCOL            => 'AMQP',
@@ -408,6 +426,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -421,6 +440,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -435,6 +455,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -452,6 +473,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND                  => 'consumer',
                     Tag::COMPONENT                  => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM                  => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND        => 'queue',
                     Tag::MQ_PROTOCOL                => 'AMQP',
@@ -474,6 +496,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -519,6 +542,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -532,6 +556,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -546,6 +571,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -563,6 +589,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM              => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND    => 'queue',
                     Tag::MQ_PROTOCOL            => 'AMQP',
@@ -573,6 +600,7 @@ class AMQPTest extends IntegrationTestCase
             SpanAssertion::exists('amqp.basic.cancel')->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -587,6 +615,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND              => 'server',
                     Tag::COMPONENT              => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM              => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND    => 'queue',
                     Tag::MQ_PROTOCOL            => 'AMQP',
@@ -624,6 +653,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -637,6 +667,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -651,6 +682,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
@@ -690,6 +722,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -703,6 +736,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -717,6 +751,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -730,6 +765,7 @@ class AMQPTest extends IntegrationTestCase
                 )->withExactTags([
                     Tag::SPAN_KIND                  => 'client',
                     Tag::COMPONENT                  => 'amqp',
+                    '_dd.svc_src' => 'amqp',
                     Tag::MQ_SYSTEM                  => 'rabbitmq',
                     Tag::MQ_DESTINATION_KIND        => 'queue',
                     Tag::MQ_PROTOCOL                => 'AMQP',
@@ -770,6 +806,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -783,6 +820,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -797,6 +835,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -811,6 +850,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -827,6 +867,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -845,6 +886,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'consumer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -866,6 +908,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'process',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -994,6 +1037,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -1007,6 +1051,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -1021,6 +1066,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'client',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',
@@ -1035,6 +1081,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello-1',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
@@ -1051,6 +1098,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::RABBITMQ_ROUTING_KEY       => 'hello-2',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
@@ -1067,6 +1115,7 @@ class AMQPTest extends IntegrationTestCase
             )->withExactTags([
                 Tag::SPAN_KIND                  => 'producer',
                 Tag::COMPONENT                  => 'amqp',
+                '_dd.svc_src' => 'amqp',
                 Tag::MQ_SYSTEM                  => 'rabbitmq',
                 Tag::MQ_DESTINATION_KIND        => 'queue',
                 Tag::MQ_PROTOCOL                => 'AMQP',

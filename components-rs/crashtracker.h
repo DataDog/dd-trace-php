@@ -171,6 +171,25 @@ struct ddog_VoidResult ddog_crasht_report_unhandled_exception(ddog_CharSlice err
                                                               struct ddog_crasht_Handle_StackTrace *runtime_stack);
 
 /**
+ * Register the expected PID of the socket-based crash receiver
+ *
+ * When `collect_all_threads` is enabled and the receiver is reached via a Unix
+ * socket, the crash handler will only grant ptrace permission if the socket
+ * peer's PID matches this registered value.
+ *
+ * Call this after establishing a trusted connection to the sidecar
+ *
+ * # Safety
+ *   This function is safe to call from any thread at any time.
+ */
+void ddog_crasht_set_expected_receiver_pid(int32_t pid);
+
+/**
+ * Returns the currently registered expected receiver PID, or 0 if unset.
+ */
+int32_t ddog_crasht_get_expected_receiver_pid(void);
+
+/**
  * Removes all existing additional tags
  * Expected to be used after a fork, to reset the additional tags on the child
  * ATOMICITY:

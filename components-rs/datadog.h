@@ -407,16 +407,13 @@ bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
  * no stats).  Filters are evaluated against the root span — the decision applies uniformly
  * to all spans of the trace.
  *
- * * **Common case**: `filter_tags` and literal-key `filter_tags_regex` entries — one O(1)
+ * * **When configured**: `filter_tags` and `filter_tags_regex` entries — one
  *   `lookup_fn` call per filter entry.
- * * **Rare case**: `filter_tags_regex` entries with regex key patterns — `iter_fn` is invoked
- *   to scan all meta entries for those filters.  Pass `NULL` when not needed.
  * * **Fast path**: returns `true` immediately when no filters are configured.
  */
 bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    const void *root_span,
-                                   ddog_RootTagLookupFn lookup_fn,
-                                   ddog_RootMetaIterFn iter_fn);
+                                   ddog_RootTagLookupFn lookup_fn);
 
 void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),

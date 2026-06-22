@@ -20,6 +20,7 @@ class DDTrace_Ddtrace extends Zend_Application_Resource_ResourceAbstract
         $span = \DDTrace\root_span();
         $span->name = self::getOperationName();
         $span->service = \ddtrace_config_app_name(self::NAME);
+        Integration::tagFrameworkServiceSource($span, self::NAME);
     }
 
     /**

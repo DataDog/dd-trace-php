@@ -20,25 +20,38 @@ where
     let result = std::thread::Builder::new()
         .name(name.to_string())
         .spawn(move || {
-            /* Thread must not handle signals intended for PHP threads.
-             * See Zend/zend_signal.c for which signals it registers.
+            /* This helper thread has no valid PHP/TSRM context, so it must not
+             * run any PHP signal handler. The Zend Engine registers a fixed set
+             * of signals (see Zend/zend_signal.c), but a PHP script can install
+             * a handler for *any* signal via pcntl_signal() (e.g. SIGCHLD with
+             * pcntl_async_signals(true)). If such a signal is delivered to this
+             * thread, pcntl_signal_handler() dereferences PCNTL_G(spares) with
+             * no thread context and segfaults
+             * (see ext/pcntl/tests/waiting_on_sigchild_pcntl_wait.phpt).
+             *
+             * So block every signal here; async signals are then delivered to a
+             * PHP thread instead. The synchronous fault signals are left
+             * unblocked so a genuine fault on this thread is still reported
+             * (e.g. by the crashtracker) rather than masked.
              */
             unsafe {
                 let mut sigset_mem = MaybeUninit::uninit();
                 let sigset = sigset_mem.as_mut_ptr();
-                libc::sigemptyset(sigset);
+                libc::sigfillset(sigset);
 
-                const SIGNALS: [libc::c_int; 6] = [
-                    libc::SIGPROF, // todo: SIGALRM on __CYGWIN__/__PHASE__
-                    libc::SIGHUP,
-                    libc::SIGINT,
-                    libc::SIGTERM,
-                    libc::SIGUSR1,
-                    libc::SIGUSR2,
+                // Hardware/synchronous fault signals: keep them deliverable to
+                // this thread.
+                const KEEP_UNBLOCKED: [libc::c_int; 6] = [
+                    libc::SIGSEGV,
+                    libc::SIGBUS,
+                    libc::SIGFPE,
+                    libc::SIGILL,
+                    libc::SIGABRT,
+                    libc::SIGTRAP,
                 ];
 
-                for signal in SIGNALS {
-                    libc::sigaddset(sigset, signal);
+                for signal in KEEP_UNBLOCKED {
+                    libc::sigdelset(sigset, signal);
                 }
                 libc::pthread_sigmask(libc::SIG_BLOCK, sigset, std::ptr::null_mut());
             }

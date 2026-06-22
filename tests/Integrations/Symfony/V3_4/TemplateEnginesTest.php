@@ -35,6 +35,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                 'http.status_code' => '200',
                 Tag::SPAN_KIND => 'server',
                 Tag::COMPONENT => 'symfony',
+                '_dd.svc_src' => 'symfony',
             ])->withChildren([
                 SpanAssertion::exists('symfony.httpkernel.kernel.handle')->withChildren([
                     SpanAssertion::exists('symfony.httpkernel.kernel.boot'),
@@ -51,6 +52,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                             'AppBundle\Controller\HomeController::indexAction'
                         )->withExactTags([
                             Tag::COMPONENT => 'symfony',
+                            '_dd.svc_src' => 'symfony',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'symfony.templating.render',
@@ -59,6 +61,7 @@ class TemplateEnginesTest extends WebFrameworkTestCase
                                 'Symfony\Component\Templating\PhpEngine php_template.template.php'
                             )->withExactTags([
                                 Tag::COMPONENT => 'symfony',
+                                '_dd.svc_src' => 'symfony',
                             ]),
                         ]),
                         SpanAssertion::exists('symfony.kernel.response'),
