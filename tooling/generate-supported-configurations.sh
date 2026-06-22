@@ -12,6 +12,7 @@ readonly CONFIG_HEADER_FILES=(
 readonly OTEL_CONFIG_FILES=(
     "ext/otel_config.c"
     "tracer/tracer_otel_config.c"
+    "src/DDTrace/OpenTelemetry/Configuration.php"
 )
 readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
 readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
@@ -117,6 +118,24 @@ function add_supported_entry(&$supported, $name, $entry) {
     // Keep the first-seen source as canonical for duplicate names.
     if (!isset($supported[$name])) {
         $supported[$name] = [$entry];
+    }
+}
+
+function add_otel_entries(&$supported, $names, $metadata) {
+    $names = array_unique($names);
+    sort($names);
+    foreach ($names as $name) {
+        if (isset($metadata[$name])) {
+            // The SDK metadata table is authoritative for OTEL vars: overwrite any
+            // entry derived from an extension CONFIG of the same name (e.g.
+            // OTEL_EXPORTER_OTLP_METRICS_ENDPOINT) so the published default is the
+            // SDK's rather than the extension's runtime resolution.
+            [$type, $default] = $metadata[$name];
+            $supported[$name] = [["implementation" => "A", "type" => $type, "default" => $default]];
+        } else {
+            // Not in the table: an OTEL var resolved by the SDK that we don't model.
+            add_supported_entry($supported, $name, ["implementation" => "A", "type" => "string", "default" => ""]);
+        }
     }
 }
 
@@ -273,16 +292,66 @@ foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLi
     add_supported_entry($supported, $name, $entry);
 }
 
+// Type and default for OTEL configs, sourced from the open-telemetry/sdk PHP
+// package (Common/Configuration/ValueTypes.php and Defaults.php, v1.x), since
+// these vars are resolved by the SDK rather than the extension. SDK enum/mixed
+// types map to the schema's "string", list -> "array", map -> "map", and
+// integer -> "int"; per the schema every default is a string and map/array
+// defaults are "". The *_LOGS_* vars are undefined in the SDK's ValueTypes and
+// mirror their generic OTLP counterparts. The metrics temporality default is the
+// SDK value "cumulative"; DatadogResolver overrides it to "delta" at runtime.
+// These SDK defaults are authoritative even where the extension also defines the
+// config (e.g. OTEL_EXPORTER_OTLP_METRICS_ENDPOINT), so the published default
+// reflects the OTel spec, not the extension's runtime resolution.
+$otelMetadata = [
+    "OTEL_BLRP_EXPORT_TIMEOUT"                          => ["int",    "30000"],
+    "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE"                   => ["int",    "512"],
+    "OTEL_BLRP_MAX_QUEUE_SIZE"                          => ["int",    "2048"],
+    "OTEL_BLRP_SCHEDULE_DELAY"                          => ["int",    "1000"],
+    "OTEL_EXPORTER_OTLP_ENDPOINT"                       => ["string", "http://localhost:4318"],
+    "OTEL_EXPORTER_OTLP_HEADERS"                        => ["map",    ""],
+    "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"                  => ["string", "http://localhost:4318"],
+    "OTEL_EXPORTER_OTLP_LOGS_HEADERS"                   => ["map",    null],
+    "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL"                  => ["string", "http/protobuf"],
+    "OTEL_EXPORTER_OTLP_LOGS_TIMEOUT"                   => ["int",    "10000"],
+    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"               => ["string", "http://localhost:4318"],
+    "OTEL_EXPORTER_OTLP_METRICS_HEADERS"                => ["map",    null],
+    "OTEL_EXPORTER_OTLP_METRICS_PROTOCOL"               => ["string", "http/protobuf"],
+    "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE" => ["string", "cumulative"],
+    "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT"                => ["int",    "10000"],
+    "OTEL_EXPORTER_OTLP_PROTOCOL"                       => ["string", "http/protobuf"],
+    "OTEL_EXPORTER_OTLP_TIMEOUT"                        => ["int",    "10000"],
+    "OTEL_LOG_LEVEL"                                    => ["string", "info"],
+    "OTEL_LOGS_EXPORTER"                                => ["array",  "otlp"],
+    "OTEL_METRICS_EXPORTER"                             => ["array",  "otlp"],
+    "OTEL_METRIC_EXPORT_INTERVAL"                       => ["int",    "60000"],
+    "OTEL_METRIC_EXPORT_TIMEOUT"                        => ["int",    "30000"],
+    "OTEL_PROPAGATORS"                                  => ["array",  "tracecontext,baggage"],
+    "OTEL_RESOURCE_ATTRIBUTES"                          => ["map",    ""],
+    "OTEL_SERVICE_NAME"                                 => ["string", ""],
+    "OTEL_TRACES_EXPORTER"                              => ["array",  "otlp"],
+    "OTEL_TRACES_SAMPLER"                               => ["string", "parentbased_always_on"],
+    "OTEL_TRACES_SAMPLER_ARG"                           => ["string", ""],
+];
+
+// OTEL env vars the C extension reads directly via ZAI_STRL("OTEL_...").
 $otelPaths = ["../ext/otel_config.c", "../tracer/tracer_otel_config.c"];
 foreach ($otelPaths as $otelPath) {
     if (file_exists($otelPath)) {
         preg_match_all('/ZAI_STRL\("(OTEL_[A-Z0-9_]+)"\)/', file_get_contents($otelPath), $m);
-        $otelVars = array_unique($m[1]);
-        sort($otelVars);
-        foreach ($otelVars as $v) {
-            add_supported_entry($supported, $v, ["implementation" => "A", "type" => "string", "default" => ""]);
-        }
+        add_otel_entries($supported, $m[1], $otelMetadata);
     }
+}
+
+// OTEL configs read by the OpenTelemetry SDK rather than the extension (e.g.
+// OTEL_EXPORTER_OTLP_HEADERS), enumerated in the PHP telemetry whitelist.
+// Scope to the OTEL_CONFIG_WHITELIST array literal so unrelated OTEL_ mentions
+// elsewhere in the file (comments, error strings) can't be published.
+$otelWhitelistPath = "../src/DDTrace/OpenTelemetry/Configuration.php";
+if (file_exists($otelWhitelistPath)
+    && preg_match('/OTEL_CONFIG_WHITELIST\s*=\s*\[(.*?)\]/s', file_get_contents($otelWhitelistPath), $whitelistMatch)) {
+    preg_match_all('/\'(OTEL_[A-Z0-9_]+)\'/', $whitelistMatch[1], $m);
+    add_otel_entries($supported, $m[1], $otelMetadata);
 }
 
 $profilingPath = "../profiling/src/config.rs";
