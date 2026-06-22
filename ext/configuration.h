@@ -45,7 +45,7 @@ enum datadog_sidecar_connection_mode {
     CONFIG(STRING, DD_AGENT_HOST, "localhost", .ini_change = zai_config_system_ini_change)                     \
     CONFIG(STRING, DD_DOGSTATSD_URL, "http://localhost:8125")                                                  \
     CONFIG(STRING, DD_DOGSTATSD_HOST, "localhost")                                                             \
-    CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change)                                 \
+    CONFIG(STRING, DD_API_KEY, "", .ini_change = zai_config_system_ini_change, .sensitive = true)              \
     CONFIG(INT, DD_DOGSTATSD_PORT, "8125")                                                                     \
     CONFIG(STRING, DD_ENV, "", .ini_change = datadog_alter_dd_env,                                             \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_env)                                   \
@@ -59,7 +59,7 @@ enum datadog_sidecar_connection_mode {
     CONFIG(BOOL, DD_TRACE_CLI_ENABLED, "true")                                                                 \
     CONFIG(BOOL, DD_TRACE_DEBUG, "false", .ini_change = datadog_alter_dd_trace_debug)                          \
     CONFIG(BOOL, DD_TRACE_ENABLED, "true", .ini_change = datadog_alter_dd_trace_disabled_config,               \
-           .env_config_fallback = ddtrace_conf_otel_traces_exporter)                                           \
+           .env_config_fallback = ddtrace_conf_otel_traces_exporter, .sensitive = true)                        \
     CONFIG(BOOL, DD_INSTRUMENTATION_TELEMETRY_ENABLED, "true", .ini_change = zai_config_system_ini_change)     \
     CONFIG(BOOL, DD_TRACE_HEALTH_METRICS_ENABLED, "false", .ini_change = zai_config_system_ini_change)         \
     CONFIG(DOUBLE, DD_TRACE_HEALTH_METRICS_HEARTBEAT_SAMPLE_RATE, "0.001")                                     \
