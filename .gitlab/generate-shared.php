@@ -14,14 +14,14 @@ stages:
 "C components ASAN":
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/images/mirror/${IMAGE}"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${IMAGE}"
   needs: []
   parallel:
     matrix:
       - IMAGE:
-        - "datadog/dd-trace-ci:centos-7"
-        - "datadog/dd-trace-ci:php-compile-extension-alpine"
-        - "datadog/dd-trace-ci:bookworm-8"
+        - "centos-7"
+        - "php-compile-extension-alpine"
+        - "bookworm-8"
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
     - if [ -d "/opt/catch2" ]; then export CMAKE_PREFIX_PATH=/opt/catch2; fi
@@ -45,7 +45,7 @@ stages:
 "C components UBSAN":
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:bookworm-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:bookworm-8"
   needs: []
   script:
     - if [ -f "/opt/libuv/lib/pkgconfig/libuv.pc" ]; then export PKG_CONFIG_PATH="/opt/libuv/lib/pkgconfig:$PKG_CONFIG_PATH"; fi
@@ -69,7 +69,7 @@ stages:
 "Build & Test Tea":
   tags: [ "arch:amd64" ]
   stage: build
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8"
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *no_asan_minor_major_targets
@@ -98,7 +98,7 @@ stages:
 .tea_test:
   tags: [ "arch:amd64" ]
   stage: test
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8"
   interruptible: true
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
@@ -122,7 +122,7 @@ stages:
   needs: []
   variables:
     PHP_MAJOR_MINOR: "<?= $all_minor_major_targets[count($all_minor_major_targets) - 1] ?>"
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8"
   script:
     - |
       if ! command -v cc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1; then
@@ -185,7 +185,7 @@ foreach (["7.4", "8.0"] as $major_minor):
 ?>
 "ZAI Shared Tests: [<?= $major_minor ?>]":
   extends: .tea_test
-  image: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-8"
+  image: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-<?= $major_minor ?>-shared-ext-8"
   needs:
     - job: "Build & Test Tea"
       parallel:
