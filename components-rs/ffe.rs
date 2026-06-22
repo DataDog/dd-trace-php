@@ -600,6 +600,8 @@ pub extern "C" fn ddog_ffe_evaluate(
     let attrs_for_evp: HashMap<Str, Attribute> = parsed_attributes.clone();
 
     let context = EvaluationContext::new(targeting_key, Arc::new(parsed_attributes));
+    // Capture the evaluation-entry timestamp before native assignment work.
+    let eval_ms = now_ms();
 
     let result = FFE_STATE.with(|state| {
         let state = state.borrow();
@@ -617,7 +619,6 @@ pub extern "C" fn ddog_ffe_evaluate(
     // EVP flagevaluation aggregation (new path — gated by killswitch).
     // The existing OTel record_ffe_evaluation_metric() path (PHP/C) is unaffected.
     if result.valid && evp_enabled() {
-        let eval_ms = now_ms();
         let variant_str = result
             .variant
             .as_ref()
@@ -759,11 +760,11 @@ fn assignment_value_to_json(value: &AssignmentValue) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bytes::{OwnedZendString, ZendString};
     use datadog_ffe::telemetry::flagevaluation::{
         EVAL_SCALE_DEGRADED_BUCKET_TARGET, EVAL_SCALE_FULL_BUCKET_TARGET,
         EVAL_SCALE_PER_FLAG_BUCKET_TARGET,
     };
-    use crate::bytes::{OwnedZendString, ZendString};
     use std::alloc::{alloc_zeroed, dealloc, Layout};
     use std::ffi::CString;
     use std::mem;
