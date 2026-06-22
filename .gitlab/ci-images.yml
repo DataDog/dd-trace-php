@@ -283,3 +283,129 @@ Bookworm:
         - "php-7.4"
         - "php-7.3"
         - "php-7.2"
+
+Publish CentOS:
+  stage: ci-publish
+  rules:
+    - when: manual
+      allow_failure: true
+  needs:
+    - job: CentOS
+  trigger:
+    project: DataDog/public-images
+    branch: main
+  parallel:
+    matrix:
+      - TAG_NAME:
+        - "centos-7"
+        - "php-8.5_centos-7"
+        - "php-8.4_centos-7"
+        - "php-8.3_centos-7"
+        - "php-8.2_centos-7"
+        - "php-8.1_centos-7"
+        - "php-8.0_centos-7"
+        - "php-7.4_centos-7"
+        - "php-7.3_centos-7"
+        - "php-7.2_centos-7"
+        - "php-7.1_centos-7"
+        - "php-7.0_centos-7"
+  variables:
+    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
+    IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
+    IMG_REGISTRIES: "dockerhub"
+
+Publish Bookworm:
+  stage: ci-publish
+  rules:
+    - when: manual
+      allow_failure: true
+  needs:
+    - job: Bookworm
+  trigger:
+    project: DataDog/public-images
+    branch: main
+  parallel:
+    matrix:
+      - TAG_NAME:
+        - "bookworm-8"
+        - "php-8.5_bookworm-8"
+        - "php-8.4_bookworm-8"
+        - "php-8.3_bookworm-8"
+        - "php-8.2_bookworm-8"
+        - "php-8.1_bookworm-8"
+        - "php-8.0_bookworm-8"
+        - "php-8.0-shared-ext-8"
+        - "php-7.4_bookworm-8"
+        - "php-7.4-shared-ext-8"
+        - "php-7.3_bookworm-8"
+        - "php-7.2_bookworm-8"
+        - "php-7.1_bookworm-8"
+        - "php-7.0_bookworm-8"
+  variables:
+    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
+    IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
+    IMG_REGISTRIES: "dockerhub"
+
+Publish Alpine:
+  stage: ci-publish
+  rules:
+    - when: manual
+      allow_failure: true
+  needs:
+    - job: Alpine
+  trigger:
+    project: DataDog/public-images
+    branch: main
+  parallel:
+    matrix:
+      - TAG_NAME:
+        - "php-compile-extension-alpine"
+        - "php-compile-extension-alpine-8.5"
+        - "php-compile-extension-alpine-8.4"
+        - "php-compile-extension-alpine-8.3"
+        - "php-compile-extension-alpine-8.2"
+        - "php-compile-extension-alpine-8.1"
+        - "php-compile-extension-alpine-8.0"
+        - "php-compile-extension-alpine-7.4"
+        - "php-compile-extension-alpine-7.3"
+        - "php-compile-extension-alpine-7.2"
+        - "php-compile-extension-alpine-7.1"
+        - "php-compile-extension-alpine-7.0"
+  variables:
+    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
+    IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
+    IMG_REGISTRIES: "dockerhub"
+
+Publish Windows:
+  stage: ci-publish
+  rules:
+    - when: manual
+      allow_failure: true
+  needs:
+    - job: "Windows 1: Tool Images"
+    - job: "Windows 2: PHP Images"
+  trigger:
+    project: DataDog/public-images
+    branch: main
+  parallel:
+    matrix:
+      - TAG_NAME:
+        - "windows-base-vc15"
+        - "windows-base-vs16"
+        - "windows-base-vs17"
+        - "windows-vc15"
+        - "windows-vs16"
+        - "windows-vs17"
+        - "php-8.5_windows"
+        - "php-8.4_windows"
+        - "php-8.3_windows"
+        - "php-8.2_windows"
+        - "php-8.1_windows"
+        - "php-8.0_windows"
+        - "php-7.4_windows"
+        - "php-7.3_windows"
+        - "php-7.2_windows"
+  variables:
+    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
+    IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
+    IMG_REGISTRIES: "dockerhub"

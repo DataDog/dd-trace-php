@@ -3,6 +3,7 @@ stages:
   - tests
   - deploy
   - ci-build
+  - ci-publish
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
