@@ -20,14 +20,10 @@ This is the preferred way of building the images.
 
 Find your pipeline with the changes you made in
 [GitLab-CI](https://gitlab.ddbuild.io/DataDog/apm-reliability/dd-trace-php/-/pipelines)
-and manually start the jobs to build the images for the OS you need. You need to
-add the following CI variables to the job run:
+and manually start the jobs to build the images for the OS you need (under the `ci-build` stage).
 
-- `CI_REGISTRY_USER`: should be your Docker Hub username
-- `CI_REGISTRY_TOKEN`: should be your access token
-
-In case you don't have one, follow the [docs to create an access
-token](https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token).
+* **Automated Registry Authentication**: The pipeline automatically and securely authenticates with our internal registry (`registry.ddbuild.io`) using the runner's native credentials, pushing built images directly to `registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci`.
+* **Syncing to Docker Hub**: Once the build jobs succeed, manually trigger the corresponding `Publish <OS>` job (under the `ci-publish` stage). This triggers a downstream child pipeline in the `public-images` service to copy the images from our internal registry to the public Docker Hub.
 
 ## Building locally and need more speed?
 
