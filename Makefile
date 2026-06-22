@@ -1214,9 +1214,10 @@ RUN_WEB_BENCHES_WITH_DDPROF ?=
 
 # Note: The "composer show" command below outputs a csv with pairs of dependency;version such as "phpunit/phpunit;9.6.17"
 # Note: We disable composer's "block-insecure" audit so that pinned dependency versions flagged by a
-# security advisory still resolve.
+# security advisory still resolve. The audit.block-insecure setting only exists since Composer 2.4;
+# the Composer 2.2 LTS used for PHP < 7.2 has no such resolver block, so we ignore the failure there.
 define run_composer_with_retry
-	$(COMPOSER) --working-dir=$(if $1,$1,.) config audit.block-insecure false
+	$(COMPOSER) --working-dir=$(if $1,$1,.) config audit.block-insecure false || true
 	for i in $$(seq 1 $(MAX_RETRIES)); do \
 		echo "Attempting composer update (attempt $$i of $(MAX_RETRIES))..."; \
 		$(COMPOSER) --working-dir=$(if $1,$1,.) update $2 && break || (echo "Retry $$i failed, waiting 5 seconds before next attempt..." && sleep 5); \
