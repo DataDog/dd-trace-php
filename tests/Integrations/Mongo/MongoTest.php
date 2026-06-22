@@ -50,6 +50,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.server' => 'mongodb://mongodb-integration:27017',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -79,6 +80,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.server' => 'mongodb://?:?@mongodb-integration:27017',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -108,6 +110,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.server' => 'mongodb://mongodb-integration:27017/' . self::DATABASE,
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -125,6 +128,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -141,6 +145,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.db' => self::DATABASE,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -157,6 +162,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -172,6 +178,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoClient.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -190,6 +197,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoClient.' . $method, 'mongo', 'mongodb', $method)
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -222,6 +230,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.query' => '{"age":{"$gte":18}}',
                     'mongodb.timeout' => '500',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -239,6 +248,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.collection' => 'foo_collection',
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -255,6 +265,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -270,6 +281,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.execute', 'mongo', 'mongodb', 'execute')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -289,6 +301,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -305,6 +318,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -321,6 +335,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.profiling_level' => '2',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -337,6 +352,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -352,6 +368,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ])
         ]);
@@ -370,6 +387,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoDB.' . $method, 'mongo', 'mongodb', $method)
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -404,6 +422,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.db' => self::DATABASE,
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -419,6 +438,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.aggregate', 'mongo', 'mongodb', 'aggregate')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -448,6 +468,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.batchInsert', 'mongo', 'mongodb', 'batchInsert')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -464,6 +485,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"title":"Foo"}',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -481,6 +503,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -496,6 +519,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.createIndex', 'mongo', 'mongodb', 'createIndex')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -511,6 +535,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.deleteIndex', 'mongo', 'mongodb', 'deleteIndex')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -527,6 +552,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -543,6 +569,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -564,6 +591,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -580,6 +608,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -600,6 +629,7 @@ class MongoTest extends IntegrationTestCase
                     'mongodb.bson.id' => '47cc67093475061e3d9536d2',
                     'mongodb.collection' => 'foo_collection',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -619,6 +649,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.group', 'mongo', 'mongodb', 'group')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -634,6 +665,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.insert', 'mongo', 'mongodb', 'insert')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -654,6 +686,7 @@ class MongoTest extends IntegrationTestCase
             )
             ->withExactTags([
                 Tag::COMPONENT => 'mongo',
+                '_dd.svc_src' => 'mongo',
                 Tag::DB_SYSTEM => 'mongodb',
             ]),
         ]);
@@ -670,6 +703,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -685,6 +719,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.save', 'mongo', 'mongodb', 'save')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -701,6 +736,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.read_preference' => MongoClient::RP_NEAREST,
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -716,6 +752,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.setWriteConcern', 'mongo', 'mongodb', 'setWriteConcern')
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -735,6 +772,7 @@ class MongoTest extends IntegrationTestCase
                 ->withExactTags([
                     'mongodb.query' => '{"foo":"bar"}',
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);
@@ -753,6 +791,7 @@ class MongoTest extends IntegrationTestCase
             SpanAssertion::build('MongoCollection.' . $method, 'mongo', 'mongodb', $method)
                 ->withExactTags([
                     Tag::COMPONENT => 'mongo',
+                    '_dd.svc_src' => 'mongo',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ]);

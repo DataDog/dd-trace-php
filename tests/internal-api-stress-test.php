@@ -133,6 +133,7 @@ function generate_garbage()
 
 $minFunctionArgs = [
     'DDTrace\ffe_evaluate' => 4,
+    'DDTrace\Internal\record_ffe_evaluation_metric' => 5,
 ];
 
 function call_function(ReflectionFunction $function)

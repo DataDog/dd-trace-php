@@ -68,7 +68,8 @@ if(ZAI_INCLUDE_DIRS)
 endif()
 target_link_libraries(extension PRIVATE zai)
 
-target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec libxml2_static PCRE2::pcre2)
+find_package(Threads REQUIRED)
+target_link_libraries(extension PRIVATE mpack PhpConfig zai rapidjson_appsec libxml2_static PCRE2::pcre2 Threads::Threads)
 target_include_directories(extension PRIVATE ${EXT_ROOT_INCLUDES})
 
 # gnu unique prevents shared libraries from being unloaded from memory by dlclose

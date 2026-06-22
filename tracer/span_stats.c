@@ -167,7 +167,7 @@ void ddtrace_precompute_span(ddtrace_span_data *span, ddtrace_span_precomputed *
 
     // Stats eligibility fields — fetched once here to avoid duplicate lookups in the two
     // call sites (ddtrace_span_concentrator_feed_cb and ddtrace_feed_span_to_concentrator).
-    pre->has_top_level = ddtrace_span_is_entrypoint_root(span);
+    pre->has_top_level = ddtrace_span_is_entrypoint_root(span) || (span->std.ce == ddtrace_ce_root_span_data && ROOTSPANDATA(&span->std)->parent_id == 0) || (span->parent && !zend_is_identical(&span->property_service, &span->parent->property_service));
     zval *is_measured = pre->metrics ? zend_hash_str_find(pre->metrics, ZEND_STRL("_dd.measured")) : NULL;
     pre->is_measured = is_measured && zval_get_double(is_measured) != 0.0;
     pre->is_partial_snapshot = false;
@@ -389,8 +389,17 @@ static void ddtrace_span_concentrator_feed_cb(const ddog_SpanConcentrator *c, vo
 }
 
 void ddtrace_feed_span_to_concentrator(ddtrace_span_data *span, const ddtrace_span_precomputed *pre) {
-    ddog_CharSlice env_slice     = dd_zend_string_to_CharSlice(pre->env);
-    ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(pre->version);
+    ddog_CharSlice env_slice = dd_zend_string_to_CharSlice(pre->env);
+    // versions can change per service, always look at root span
+    zend_string *version_zstr;
+    zval *root_version_zv = &span->root->property_version;
+    ZVAL_DEREF(root_version_zv);
+    if (Z_TYPE_P(root_version_zv) == IS_STRING && ZSTR_LEN(Z_STR_P(root_version_zv)) > 0) {
+        version_zstr = Z_STR_P(root_version_zv);
+    } else {
+        version_zstr = get_DD_VERSION();
+    }
+    ddog_CharSlice version_slice = dd_zend_string_to_CharSlice(version_zstr);
     // Use the process-level DD_SERVICE as the concentrator key so all spans from this PHP
     // process share one SHM concentrator regardless of per-request service overrides.
     ddog_CharSlice service_slice = dd_zend_string_to_CharSlice(get_global_DD_SERVICE());

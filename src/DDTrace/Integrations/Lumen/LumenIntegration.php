@@ -48,6 +48,7 @@ class LumenIntegration extends Integration
                 $request = $args[0];
                 $rootSpan->name = 'lumen.request';
                 $rootSpan->service = \ddtrace_config_app_name(self::NAME);
+                Integration::tagFrameworkServiceSource($rootSpan, LumenIntegration::NAME);
                 self::addTraceAnalyticsIfEnabled($rootSpan);
                 if (!array_key_exists(Tag::HTTP_URL, $rootSpan->meta)) {
                     $rootSpan->meta[Tag::HTTP_URL] = \DDTrace\Util\Normalizer::urlSanitize($request->getUri());
@@ -69,6 +70,8 @@ class LumenIntegration extends Integration
                     $rootSpan = \DDTrace\root_span();
 
                     $span->service = \ddtrace_config_app_name(self::NAME);
+
+                    Integration::tagFrameworkServiceSource($span, LumenIntegration::NAME);
                     $span->type = 'web';
                     if (count($args) < 1 || !\is_array($args[0])) {
                         return;
@@ -100,6 +103,7 @@ class LumenIntegration extends Integration
 
         $exceptionRender = static function (SpanData $span, $args) {
             $span->service = \ddtrace_config_app_name(self::NAME);
+            Integration::tagFrameworkServiceSource($span, LumenIntegration::NAME);
             $span->type = 'web';
             if (count($args) < 1 || !\is_a($args[0], 'Throwable')) {
                 return;

@@ -22,5 +22,6 @@ enum request_stage {
 zend_array *nullable dd_req_lifecycle_abort(enum request_stage stage,
     dd_result result, struct block_params *nonnull block_params);
 
+bool dd_req_lifecycle_is_active(void);
 zend_object *nullable dd_req_lifecycle_get_cur_span(void);
 zend_string *nullable dd_req_lifecycle_get_client_ip(void);

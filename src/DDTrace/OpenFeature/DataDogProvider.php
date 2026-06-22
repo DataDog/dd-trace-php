@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace DDTrace\OpenFeature;
 
-use DDTrace\FeatureFlags\Client as FeatureFlagsClient;
 use DDTrace\FeatureFlags\EvaluationDetails;
 use DDTrace\FeatureFlags\EvaluationErrorCode;
 use DDTrace\FeatureFlags\EvaluationReason;
+use DDTrace\FeatureFlags\EvaluationType;
+use DDTrace\FeatureFlags\Internal\Evaluator;
+use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetric;
+use DDTrace\FeatureFlags\Internal\Metric\EvaluationMetricRecorder;
+use DDTrace\FeatureFlags\Internal\NativeEvaluator;
 use DDTrace\Log\LoggerInterface;
 use DDTrace\Log\TriggerErrorLogger;
 use OpenFeature\implementation\provider\AbstractProvider;
@@ -21,13 +25,41 @@ use OpenFeature\interfaces\provider\ResolutionDetails as ResolutionDetailsInterf
 
 final class DataDogProvider extends AbstractProvider
 {
+    private const ALLOCATION_KEY_METADATA_KEY = 'allocationKey';
+
     protected static string $NAME = 'Datadog';
 
-    private FeatureFlagsClient $client;
+    private Evaluator $evaluator;
+    private LoggerInterface $warningLogger;
+    private bool $warnedAboutNonProductionRuntime = false;
+    private EvaluationMetricRecorder $metricRecorder;
 
     public function __construct(?LoggerInterface $logger = null)
     {
-        $this->client = new FeatureFlagsClient($logger ?: new TriggerErrorLogger());
+        // Native evaluation metrics are disabled here because OpenFeature owns
+        // the final provider outcome, including OF-level type mismatch mapping.
+        $this->evaluator = NativeEvaluator::create(false);
+        $this->warningLogger = $logger ?: new TriggerErrorLogger();
+        $this->metricRecorder = EvaluationMetricRecorder::createDefault();
+    }
+
+    /**
+     * @internal Tests and Datadog-owned bridge adapters only.
+     */
+    public static function createWithDependencies(
+        ?Evaluator $evaluator = null,
+        ?LoggerInterface $logger = null,
+        $metricRecorder = null
+    ): self {
+        $provider = new self($logger);
+        if ($evaluator !== null) {
+            $provider->evaluator = $evaluator;
+        }
+        if ($metricRecorder !== null) {
+            $provider->metricRecorder = new EvaluationMetricRecorder($metricRecorder);
+        }
+
+        return $provider;
     }
 
     public function resolveBooleanValue(
@@ -80,6 +112,11 @@ final class DataDogProvider extends AbstractProvider
         ?EvaluationContext $context
     ): ResolutionDetailsInterface {
         $details = $this->evaluate($flagKey, $expectedType, $defaultValue, $this->normalizeContext($context));
+        $this->warnIfNonProductionRuntime($details);
+        // The PHP OpenFeature SDK does not pass ResolutionDetails to finally
+        // hooks, so PHP records metrics here after native evaluation has the
+        // final provider result.
+        $this->recordEvaluationMetric($flagKey, $details);
 
         $builder = (new ResolutionDetailsBuilder())
             ->withValue($details->getValue())
@@ -100,6 +137,30 @@ final class DataDogProvider extends AbstractProvider
         return $builder->build();
     }
 
+    private function recordEvaluationMetric(string $flagKey, EvaluationDetails $details): void
+    {
+        $this->metricRecorder->record(EvaluationMetric::create(
+            $flagKey,
+            $details->getVariant(),
+            $details->getReason(),
+            $details->getErrorCode(),
+            $this->allocationKey($details)
+        ));
+    }
+
+    private function allocationKey(EvaluationDetails $details): ?string
+    {
+        $exposure = $details->getExposureData();
+        // This is Datadog-internal evaluator metadata. PHP OpenFeature has no
+        // flagMetadata surface here, so keep the key internal to the provider.
+        $key = self::ALLOCATION_KEY_METADATA_KEY;
+        if (!is_array($exposure) || !isset($exposure[$key]) || !is_string($exposure[$key])) {
+            return null;
+        }
+
+        return $exposure[$key] !== '' ? $exposure[$key] : null;
+    }
+
     /**
      * @param bool|string|int|float|array<string, mixed> $defaultValue
      * @param array<string, mixed> $context
@@ -110,14 +171,22 @@ final class DataDogProvider extends AbstractProvider
         mixed $defaultValue,
         array $context
     ): EvaluationDetails {
-        return match ($expectedType) {
-            FlagValueType::BOOLEAN => $this->client->getBooleanDetails($flagKey, $defaultValue, $context),
-            FlagValueType::STRING => $this->client->getStringDetails($flagKey, $defaultValue, $context),
-            FlagValueType::INTEGER => $this->client->getIntegerDetails($flagKey, $defaultValue, $context),
-            FlagValueType::FLOAT => $this->client->getFloatDetails($flagKey, $defaultValue, $context),
-            FlagValueType::OBJECT => $this->client->getObjectDetails($flagKey, $defaultValue, $context),
+        $evaluationType = match ($expectedType) {
+            FlagValueType::BOOLEAN => EvaluationType::BOOLEAN,
+            FlagValueType::STRING => EvaluationType::STRING,
+            FlagValueType::INTEGER => EvaluationType::INTEGER,
+            FlagValueType::FLOAT => EvaluationType::FLOAT,
+            FlagValueType::OBJECT => EvaluationType::OBJECT,
             default => throw new \InvalidArgumentException('Unknown OpenFeature flag value type: ' . $expectedType),
         };
+
+        return $this->evaluator->evaluate(
+            $flagKey,
+            $evaluationType,
+            $defaultValue,
+            $context['targetingKey'] ?? null,
+            $context['attributes'] ?? []
+        );
     }
 
     /**
@@ -140,6 +209,26 @@ final class DataDogProvider extends AbstractProvider
             'targetingKey' => $context->getTargetingKey(),
             'attributes' => $attributes,
         ];
+    }
+
+    private function warnIfNonProductionRuntime(EvaluationDetails $details): void
+    {
+        if ($this->warnedAboutNonProductionRuntime) {
+            return;
+        }
+
+        $providerState = $details->getProviderState();
+        if (!array_key_exists('productionRuntime', $providerState) || $providerState['productionRuntime'] !== false) {
+            return;
+        }
+
+        $message = $details->getErrorMessage();
+        if (!is_string($message) || $message === '') {
+            $message = 'Datadog-backed PHP OpenFeature evaluation is not fully enabled yet.';
+        }
+
+        $this->warningLogger->warning($message);
+        $this->warnedAboutNonProductionRuntime = true;
     }
 
     private function mapReason(string $reason): string

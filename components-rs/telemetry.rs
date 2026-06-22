@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use datadog_ipc::platform::NamedShmHandle;
-use datadog_sidecar::one_way_shared_memory::{open_named_shm, OneWayShmReader};
+use datadog_ipc::one_way_shared_memory::{open_named_shm, OneWayShmReader};
 use datadog_sidecar::service::{
     blocking::{self, SidecarTransport},
     InstanceId, QueueId, SidecarAction,
@@ -322,7 +322,11 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     }
 
     let shm_path = path_for_telemetry(&service_str, &env_str);
-    let reader = OneWayShmReader::<NamedShmHandle, _>::new(open_named_shm(&shm_path).ok(), shm_path);
+    let reader = OneWayShmReader::<NamedShmHandle, _>::new_with_opener(
+        open_named_shm(&shm_path).ok(),
+        shm_path,
+        |path| open_named_shm(path).ok(),
+    );
     let cached_entry = cache.entry(ShmCacheKey(service_str.into(), env_str.into())).insert(ShmCache {
         reader,
         shared: TelemetryCachedClientShmData::default(),

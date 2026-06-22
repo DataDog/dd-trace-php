@@ -55,6 +55,9 @@
 
 ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
+#define DD_TAG_HTTP_REQH_ENDPOINT_SCAN "http.request.headers.x-datadog-endpoint-scan"
+#define DD_TAG_HTTP_REQH_SECURITY_TEST "http.request.headers.x-datadog-security-test"
+
 extern void (*profiling_notify_trace_finished)(uint64_t local_root_span_id,
                                                zai_str span_type,
                                                zai_str resource);
@@ -736,6 +739,13 @@ void ddtrace_inherit_span_properties(ddtrace_span_data *span, ddtrace_span_data 
 
     zend_array *parent_meta = ddtrace_property_array(&parent->property_meta);
 
+    zval *parent_svc_src = zend_hash_str_find(parent_meta, ZEND_STRL("_dd.svc_src"));
+    if (parent_svc_src) {
+        zend_array *child_meta = ddtrace_property_array(&span->property_meta);
+        Z_TRY_ADDREF_P(parent_svc_src);
+        zend_hash_str_update(child_meta, ZEND_STRL("_dd.svc_src"), parent_svc_src);
+    }
+
     zval *prop_version = &span->property_version;
     zval_ptr_dtor(prop_version);
     zval *version;
@@ -1390,12 +1400,13 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
     }
 
     // Determine sampling before allocating the rust span to avoid unnecessary work.
+    bool p0_trace = ddtrace_fetch_priority_sampling_from_span(span->root) <= 0;
     bool span_sampling_applied = false;
     double span_sampling_rate = 1.0;
     double span_sampling_max_per_second = 0.0;
     bool span_sampling_has_max = false;
 
-    if (!is_inferred_span && zend_hash_num_elements(get_DD_SPAN_SAMPLING_RULES()) && ddtrace_fetch_priority_sampling_from_span(span->root) <= 0) {
+    if (p0_trace && !is_inferred_span && zend_hash_num_elements(get_DD_SPAN_SAMPLING_RULES())) {
         zval *rule;
         ZEND_HASH_FOREACH_VAL(get_DD_SPAN_SAMPLING_RULES(), rule) {
             if (Z_TYPE_P(rule) != IS_ARRAY) {
@@ -1518,20 +1529,20 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
             break;
         }
         ZEND_HASH_FOREACH_END();
+    }
 
 
-        if (!span_sampling_applied && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
-            if (inferred_span) {
-                // Inferred span won't be serialized, so feed it to the concentrator here.
-                ddtrace_span_precomputed inferred_pre;
-                ddtrace_precompute_span(inferred_span, &inferred_pre);
-                ddtrace_feed_span_to_concentrator(inferred_span, &inferred_pre);
-                ddtrace_free_span_precomputed(&inferred_pre);
-            }
-            ddtrace_feed_span_to_concentrator(span, &pre);
-            ddtrace_free_span_precomputed(&pre);
-            return NULL;
+    if (p0_trace && !span_sampling_applied && DATADOG_G(sidecar) && get_DD_TRACE_STATS_COMPUTATION_ENABLED() && ddog_agent_has_stats_computation()) {
+        if (inferred_span) {
+            // Inferred span won't be serialized, so feed it to the concentrator here.
+            ddtrace_span_precomputed inferred_pre;
+            ddtrace_precompute_span(inferred_span, &inferred_pre);
+            ddtrace_feed_span_to_concentrator(inferred_span, &inferred_pre);
+            ddtrace_free_span_precomputed(&inferred_pre);
         }
+        ddtrace_feed_span_to_concentrator(span, &pre);
+        ddtrace_free_span_precomputed(&pre);
+        return NULL;
     }
 
     uintptr_t rust_span_index = ddog_get_trace_size(trace);
@@ -1834,6 +1845,9 @@ ddog_SpanBytes *ddtrace_serialize_span_to_rust_span(ddtrace_span_data *span, ddo
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.dm", true);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.ksr", false);
         transfer_meta_data(rust_span, serialized_inferred_span, "_dd.p.tid", true);
+        transfer_meta_data(rust_span, serialized_inferred_span, "_dd.svc_src", false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_ENDPOINT_SCAN, false);
+        transfer_meta_data(rust_span, serialized_inferred_span, DD_TAG_HTTP_REQH_SECURITY_TEST, false);
 
         ddog_set_span_error(serialized_inferred_span, ddog_get_span_error(rust_span));
     }

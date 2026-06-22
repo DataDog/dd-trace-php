@@ -51,6 +51,10 @@ void ddtrace_drop_rust_string(char *input, uintptr_t len);
 
 struct ddog_Endpoint *datadog_parse_agent_url(ddog_CharSlice url);
 
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_url(ddog_CharSlice url);
+
+struct ddog_Endpoint *datadog_otel_metrics_endpoint_from_agent_url(ddog_CharSlice url);
+
 void datadog_endpoint_as_crashtracker_config(const struct ddog_Endpoint *endpoint,
                                              void (*callback)(ddog_crasht_EndpointConfig, void*),
                                              void *userdata);
@@ -134,6 +138,8 @@ void ddog_init_remote_config(struct ddog_RemoteConfigFlags flags);
 
 struct ddog_RemoteConfigState *ddog_init_remote_config_state(const struct ddog_Endpoint *endpoint,
                                                              bool di_enabled);
+
+uint64_t ddog_remote_config_current_generation(const struct ddog_RemoteConfigState *remote_config);
 
 const char *ddog_remote_config_get_path(const struct ddog_RemoteConfigState *remote_config);
 
@@ -401,16 +407,13 @@ bool ddog_sidecar_telemetry_are_endpoints_collected(ddog_ShmCacheMap *cache,
  * no stats).  Filters are evaluated against the root span — the decision applies uniformly
  * to all spans of the trace.
  *
- * * **Common case**: `filter_tags` and literal-key `filter_tags_regex` entries — one O(1)
+ * * **When configured**: `filter_tags` and `filter_tags_regex` entries — one
  *   `lookup_fn` call per filter entry.
- * * **Rare case**: `filter_tags_regex` entries with regex key patterns — `iter_fn` is invoked
- *   to scan all meta entries for those filters.  Pass `NULL` when not needed.
  * * **Fast path**: returns `true` immediately when no filters are configured.
  */
 bool ddog_check_stats_trace_filter(ddog_CharSlice resource,
                                    const void *root_span,
-                                   ddog_RootTagLookupFn lookup_fn,
-                                   ddog_RootMetaIterFn iter_fn);
+                                   ddog_RootTagLookupFn lookup_fn);
 
 void ddog_init_span_func(void (*free_func)(ddog_OwnedZendString),
                          void (*addref_func)(struct _zend_string*),

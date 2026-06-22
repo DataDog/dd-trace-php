@@ -365,6 +365,7 @@ foreach ($all_minor_major_targets as $major_minor):
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 120m
   script:
     - make test_extension_ci

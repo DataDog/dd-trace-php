@@ -985,7 +985,7 @@ final class MemcachedTest extends IntegrationTestCase
         ]);
     }
 
-    private static function baseTags($expectPeerService = false)
+    private static function baseTags($expectPeerService = false, $svcSrc = 'memcached')
     {
         $tags = [
             'out.host' => self::$host,
@@ -994,6 +994,9 @@ final class MemcachedTest extends IntegrationTestCase
             Tag::COMPONENT => 'memcached',
             Tag::DB_SYSTEM => 'memcached',
         ];
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
 
         if ($expectPeerService) {
             $tags['peer.service'] = 'memcached-integration';
@@ -1017,7 +1020,7 @@ final class MemcachedTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('Memcached.add', 'configured_service', 'memcached', 'add')
-                ->withExactTags(array_merge(self::baseTags(), [
+                ->withExactTags(array_merge(self::baseTags(false, null), [
                     'memcached.query' => 'add ' . Obfuscation::toObfuscatedString('key'),
                     'memcached.command' => 'add',
                     Tag::SPAN_KIND => 'client',

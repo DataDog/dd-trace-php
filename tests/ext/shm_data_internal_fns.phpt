@@ -73,7 +73,7 @@ var_dump(is_array($sampling));
 var_dump(isset($sampling['rate_by_service']));
 var_dump((float)($sampling['rate_by_service']['service:shm_data_test,env:test'] ?? -1));
 
-$apmPath = put_dynamic_config_file(['tracing_sample_rate' => 0.5], 'shm_data_test', 'test');
+$apmPath = put_dynamic_config_file(['tracing_sampling_rate' => 0.5], 'shm_data_test', 'test');
 $probeId = "log1a2b3c4d-0000-0000-0000-000000000001";
 put_rc_file(
     "datadog/2/LIVE_DEBUGGING/logProbe_{$probeId}/config",

@@ -87,6 +87,9 @@ enum datadog_sidecar_connection_mode {
     CONFIG(BOOL, DD_TRACE_AGENTLESS, "false", .ini_change = zai_config_system_ini_change)                      \
     CONFIG(STRING, DD_VERSION, "", .ini_change = datadog_alter_dd_version,                                     \
            .env_config_fallback = ddtrace_conf_otel_resource_attributes_version)                               \
+    CONFIG(STRING, OTEL_EXPORTER_OTLP_METRICS_ENDPOINT, "",                                                    \
+           .ini_change = zai_config_system_ini_change,                                                         \
+           .env_config_fallback = ddtrace_conf_otel_otlp_endpoint)                                             \
     CONFIG(INT, DD_TRACE_BUFFER_SIZE, "2097152", .ini_change = zai_config_system_ini_change)                   \
     CONFIG(INT, DD_TRACE_AGENT_MAX_PAYLOAD_SIZE, "52428800", .ini_change = zai_config_system_ini_change)       \
     CONFIG(INT, DD_TRACE_AGENT_STACK_BACKLOG, "12", .ini_change = zai_config_system_ini_change)                \
@@ -104,6 +107,7 @@ enum datadog_sidecar_connection_mode {
     CONFIG(BOOL, DD_INJECT_FORCE, "false", .ini_change = zai_config_system_ini_change)                         \
     CONFIG(DOUBLE, DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS, "5.0", .ini_change = zai_config_system_ini_change)  \
     CONFIG(BOOL, DD_REMOTE_CONFIG_ENABLED, "true", .ini_change = zai_config_system_ini_change)                 \
+    CONFIG(INT, DD_TRACE_RETRY_INTERVAL, "100", .ini_change = zai_config_system_ini_change)                    \
     CONFIG(BOOL, DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
 
 #define DD_CONFIGURATIONS_ONLY

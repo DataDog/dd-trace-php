@@ -786,21 +786,6 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
- * Per-entry callback passed to `RootMetaIterFn`.  Return `false` to stop iteration early.
- */
-typedef bool (*ddog_MetaEntryCb)(void *iter_ctx,
-                                 const char *key,
-                                 uintptr_t key_len,
-                                 const char *val,
-                                 uintptr_t val_len);
-
-/**
- * Slow-path meta iterator.  `NULL` when no regex-key filter entries are present.
- * Iterates all string meta entries, calling `cb` for each; stops when `cb` returns `false`.
- */
-typedef void (*ddog_RootMetaIterFn)(const void *ctx, void *iter_ctx, ddog_MetaEntryCb cb);
-
-/**
  * A 128-bit (16 byte) buffer containing the UUID.
  *
  * # ABI
@@ -954,6 +939,8 @@ typedef enum ddog_FieldType {
   DDOG_FIELD_TYPE_ARG,
   DDOG_FIELD_TYPE_LOCAL,
 } ddog_FieldType;
+
+typedef struct ddog_Config ddog_Config;
 
 typedef struct ddog_Entry ddog_Entry;
 
@@ -1231,6 +1218,10 @@ typedef struct ddog_FfeExposure {
   uint64_t timestamp_ms;
   ddog_CharSlice flag_key;
   ddog_CharSlice subject_id;
+  /**
+   * UTF-8 JSON object. Empty, invalid, or non-object JSON is serialized as
+   * an empty subject attribute object.
+   */
   ddog_CharSlice subject_attributes_json;
   ddog_CharSlice allocation_key;
   ddog_CharSlice variant;
@@ -1239,15 +1230,38 @@ typedef struct ddog_FfeExposure {
 typedef struct ddog_Slice_FfeExposure {
   /**
    * Should be non-null and suitably aligned for the underlying type. It is
-   * allowed to point to read-only memory if `len` is zero.
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
    */
   const struct ddog_FfeExposure *ptr;
   /**
    * The number of elements (not bytes) that `.ptr` points to. Must be less
-   * than or equal to `isize::MAX`.
+   * than or equal to [isize::MAX].
    */
   uintptr_t len;
 } ddog_Slice_FfeExposure;
+
+typedef struct ddog_FfeEvaluationMetric {
+  ddog_CharSlice flag_key;
+  ddog_CharSlice variant;
+  ddog_CharSlice reason;
+  ddog_CharSlice error_type;
+  ddog_CharSlice allocation_key;
+} ddog_FfeEvaluationMetric;
+
+typedef struct ddog_Slice_FfeEvaluationMetric {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeEvaluationMetric *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeEvaluationMetric;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,

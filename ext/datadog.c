@@ -138,15 +138,17 @@ static int datadog_startup(zend_extension *extension) {
     }
 
 #ifdef DDTRACE
-    ddtrace_startup(extension);
+    ddtrace_startup();
 #endif
 
     return SUCCESS;
 }
 
 static void datadog_shutdown(zend_extension *extension) {
-#ifdef DDTRACE
-    ddtrace_shutdown(extension);
+    UNUSED(extension);
+
+    #ifdef DDTRACE
+    ddtrace_shutdown();
 #endif
 }
 
@@ -158,7 +160,7 @@ static void dd_activate_once(void) {
 
     // must run before the first zai_hook_activate as tracer telemetry setup installs a global hook
     if (!datadog_disable) {
-        // Only set up the sidecar when it's actually needed (appsec, telemetry, or trace sender).
+        // Only set up the sidecar when it's actually needed (appsec, telemetry, trace sender, or OTLP metrics).
         ddog_RemoteConfigFlags flags = {0};
         bool enable_sidecar = datadog_sidecar_should_enable(&flags);
         if (enable_sidecar) {
@@ -567,9 +569,6 @@ static pthread_once_t dd_rinit_once_control = PTHREAD_ONCE_INIT;
 static PHP_RINIT_FUNCTION(datadog) {
     UNUSED(module_number, type);
 
-    // Do after env check, so that RC data is not updated before RC init
-    DATADOG_G(request_initialized) = true;
-
     if (!DATADOG_G(remote_config_state) && datadog_endpoint) {
         DATADOG_G(remote_config_state) = ddog_init_remote_config_state(datadog_endpoint, ddtrace_dynamic_instrumentation_state() == DDOG_DYNAMIC_INSTRUMENTATION_CONFIG_STATE_ENABLED);
     }
@@ -584,12 +583,19 @@ static PHP_RINIT_FUNCTION(datadog) {
 
     datadog_log_rinit(PG(error_log));
 
-    datadog_sidecar_rinit();
-
     datadog_agent_info_rinit();
 
     // Single combined read: applies env, container-hash, and concentrator config.
     datadog_apply_agent_info();
+
+#ifdef DDTRACE
+    ddtrace_rinit_early();
+#endif
+
+    // Do after env check, so that RC data is not updated before RC init
+    DATADOG_G(request_initialized) = true;
+
+    datadog_sidecar_rinit();
 
 #ifdef DDTRACE
     ddtrace_rinit();
@@ -699,22 +705,11 @@ static PHP_MINFO_FUNCTION(datadog) {
 void datadog_internal_handle_fork(void) {
     // CHILD PROCESS
     datadog_sidecar_handle_fork();
-    if (DDTRACE_G(agent_config_reader)) {
-        ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
-        DDTRACE_G(agent_config_reader) = NULL;
-    }
-    if (DATADOG_G(remote_config_state)) {
-        ddog_shutdown_remote_config(DATADOG_G(remote_config_state));
-        DATADOG_G(remote_config_state) = NULL;
-    }
-    if (DATADOG_G(agent_info_reader)) {
-        ddog_drop_agent_info_reader(DATADOG_G(agent_info_reader));
-        DATADOG_G(agent_info_reader) = NULL;
-    }
-    datadog_generate_runtime_id();
 
 #ifdef DDTRACE
     ddtrace_internal_handle_fork();
+#else
+    ddtrace_sidecar_submit_span_data_direct_defaults(&DATADOG_G(sidecar), NULL);
 #endif
 }
 

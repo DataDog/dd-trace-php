@@ -3,6 +3,7 @@ package com.datadog.appsec.php.integration
 import com.datadog.appsec.php.docker.AppSecContainer
 import com.datadog.appsec.php.docker.FailOnUnmatchedTraces
 import com.datadog.appsec.php.docker.InspectContainerHelper
+import com.datadog.appsec.php.docker.PhpFpm
 import groovy.util.logging.Slf4j
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.DisabledIf
@@ -79,21 +80,11 @@ class Apache2FpmTests implements CommonTests, SamplingTestsInFpm, EndpointFallba
     }
 
     void setRateLimit(String limit) {
-        flushProfilingData()
-        def res = container.execInContainer(
-                'bash', '-c',
-                """kill -9 `pgrep php-fpm`;
-               export DD_APPSEC_TRACE_RATE_LIMIT=$limit;
-               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini""")
-        assert res.exitCode == 0
+        new PhpFpm(container).restart([DD_APPSEC_TRACE_RATE_LIMIT: limit])
     }
 
     private void resetFpm() {
-        flushProfilingData()
-        container.execInContainer(
-                'bash', '-c',
-                '''kill -9 `pgrep php-fpm`;
-               php-fpm -y /etc/php-fpm.conf -c /etc/php/php.ini''')
+        new PhpFpm(container).restart()
     }
 
     @Test

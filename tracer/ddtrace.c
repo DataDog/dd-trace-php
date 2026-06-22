@@ -76,7 +76,7 @@
 _Atomic(int64_t) ddtrace_warn_legacy_api;
 
 // put this into startup so that other extensions running code as part of rinit do not crash
-int ddtrace_startup(zend_extension *extension) {
+int ddtrace_startup() {
 #if PHP_VERSION_ID < 80000
     zai_interceptor_startup(datadog_module);
 #else
@@ -93,9 +93,7 @@ int ddtrace_startup(zend_extension *extension) {
     return SUCCESS;
 }
 
-void ddtrace_shutdown(zend_extension *extension) {
-    UNUSED(extension);
-
+void ddtrace_shutdown() {
     if (datadog_disable != 1) {
         ddtrace_internal_handlers_shutdown();
     }
@@ -231,6 +229,8 @@ void ddtrace_activate_late(void) {
 void ddtrace_ginit(zend_datadog_globals *ddtrace_globals) {
 #if PHP_VERSION_ID < 70100
     zai_vm_interrupt = &ddtrace_globals->zai_vm_interrupt;
+#else
+    UNUSED(ddtrace_globals);
 #endif
     zai_hook_ginit();
 }
@@ -442,7 +442,6 @@ static void dd_initialize_request(void) {
     zend_hash_init(&DDTRACE_G(baggage), 8, unused, ZVAL_PTR_DTOR, 0);
 
     ddtrace_asm_event_rinit();
-    ddtrace_live_debugger_rinit();
 
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
@@ -481,23 +480,26 @@ static void dd_initialize_request(void) {
     }
 }
 
-void ddtrace_rinit(void) {
+void ddtrace_rinit_early(void) {
 #if PHP_VERSION_ID < 80000 || (PHP_VERSION_ID >= 80400 && PHP_VERSION_ID < 80500)
     zai_interceptor_rinit();
 #endif
 
     ddtrace_weak_resources_rinit();
+    ddtrace_live_debugger_rinit();
 
     if (!datadog_disable) {
+        DDTRACE_G(active_stack) = NULL; // This should not be necessary, but somehow sometimes it may be a leftover from a previous request.
+
         // With internal functions also being hookable, they must not be hooked before the CG(map_ptr_base) is zeroed
         zai_hook_activate();
-        DDTRACE_G(active_stack) = NULL; // This should not be necessary, but somehow sometimes it may be a leftover from a previous request.
-        DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
 #if PHP_VERSION_ID < 80000
         ddtrace_autoload_rinit();
 #endif
     }
+}
 
+void ddtrace_rinit(void) {
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (datadog_endpoint) {
@@ -508,6 +510,10 @@ void ddtrace_rinit(void) {
             ddog_agent_remote_config_reader_for_anon_shm(ddtrace_coms_agent_config_handle, &DDTRACE_G(agent_config_reader));
 #endif
         }
+    }
+
+    if (!datadog_disable) {
+        DDTRACE_G(active_stack) = ddtrace_init_root_span_stack();
     }
 
     if (get_DD_TRACE_ENABLED()) {
@@ -593,8 +599,6 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         dd_force_shutdown_tracing(fast_shutdown);
     }
 
-    ddtrace_live_debugger_rshutdown();
-
     if (!datadog_disable) {
         dd_shutdown_hooks(fast_shutdown);
 
@@ -607,9 +611,11 @@ void ddtrace_rshutdown(bool fast_shutdown) {
     }
 
     ddtrace_ffe_flush_exposures();
+    ddtrace_ffe_flush_evaluation_metrics();
 
     ddtrace_clean_git_object();
     ddtrace_weak_resources_rshutdown();
+    ddtrace_live_debugger_rshutdown();
 }
 
 void ddtrace_post_deactivate(void) {
@@ -658,7 +664,9 @@ bool datadog_alter_dd_trace_disabled_config(zval *old_value, zval *new_value, ze
 bool ddtrace_update_remote_config_flags(ddog_RemoteConfigFlags *flags) {
     flags->ffe_enabled = get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
     flags->live_debugging_enabled = get_global_DD_DYNAMIC_INSTRUMENTATION_ENABLED();
-    return get_global_DD_TRACE_SIDECAR_TRACE_SENDER() || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED();
+    return get_global_DD_TRACE_SIDECAR_TRACE_SENDER()
+        || get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED()
+        || get_global_DD_METRICS_OTEL_ENABLED();
 }
 
 #if defined(__SANITIZE_ADDRESS__) && !defined(_WIN32)
@@ -683,11 +691,18 @@ void ddtrace_internal_handle_postfork() {
 
 void ddtrace_internal_handle_fork() {
     if (DATADOG_G(sidecar)) {
-        ddtrace_sidecar_submit_root_span_data();
+        // Unconditionally send, even if root span is NULL
+        ddtrace_span_data *root = DDTRACE_G(active_stack) && DDTRACE_G(active_stack)->root_span ? &DDTRACE_G(active_stack)->root_span->span : NULL;
+        ddtrace_sidecar_submit_span_data_direct_defaults(&DATADOG_G(sidecar), root);
     }
 
 #ifndef _WIN32
     if (!get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
+        if (DDTRACE_G(agent_config_reader)) {
+            ddog_agent_remote_config_reader_drop(DDTRACE_G(agent_config_reader));
+            DDTRACE_G(agent_config_reader) = NULL;
+        }
+
         ddtrace_coms_curl_shutdown();
         ddtrace_coms_clean_background_sender_after_fork();
     }

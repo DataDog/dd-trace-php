@@ -59,7 +59,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'roadrunner'
+                        Tag::COMPONENT => 'roadrunner',
+                        '_dd.svc_src' => 'roadrunner',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -73,7 +74,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'roadrunner'
+                        Tag::COMPONENT => 'roadrunner',
+                        '_dd.svc_src' => 'roadrunner',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -88,7 +90,8 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         'error.stack' => '#0 {main}',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'roadrunner'
+                        Tag::COMPONENT => 'roadrunner',
+                        '_dd.svc_src' => 'roadrunner',
                     ])->setError('Exception', 'Uncaught Exception: Error page'),
                 ],
             ]

@@ -6,6 +6,7 @@
 #include "logging.h"
 #include <json/json.h>
 #include "sidecar.h"
+#include "otel_config.h"
 #include <components/log/log.h>
 #include <zai_string/string.h>
 
@@ -127,6 +128,9 @@ static void dd_ini_env_to_ini_name(const zai_str env_name, zai_config_name *ini_
         } else if (env_name.ptr == strstr(env_name.ptr, "DD_DYNAMIC_INSTRUMENTATION_")) {
             ini_name->ptr[sizeof("datadog.dynamic_instrumentation") - 1] = '.';
         }
+    } else if (env_name.ptr == strstr(env_name.ptr, "OTEL_")) {
+        ini_name->len = env_name.len;
+        memcpy(ini_name->ptr, env_name.ptr, env_name.len);
     } else {
         ini_name->len = 0;
         assert(false && "Unexpected env var name: missing 'DD_' prefix");
@@ -142,6 +146,7 @@ bool datadog_config_minit(int module_number) {
         LOG(ERROR, "Unable to load configuration; likely due to json symbols failing to resolve.");
         return false;
     }
+
     // We immediately initialize inis at MINIT, so that we can use a select few values already at minit.
     // Note that we are not calling zai_config_rinit(), i.e. the get_...() functions will not work.
     // This is intentional, so that places wishing to use values pre-RINIT do have to explicitly opt in by using the

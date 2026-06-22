@@ -60,6 +60,7 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
+                    '_dd.svc_src' => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
@@ -104,6 +105,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ])->withChildren([
                 SpanAssertion::exists('mongodb.driver.cmd')
@@ -162,6 +164,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ])->withChildren([
                 SpanAssertion::exists('mongodb.driver.cmd')
@@ -186,6 +189,7 @@ class MongoDBTest extends IntegrationTestCase
             'mongodb.query' => '"?"',
             'span.kind' => 'client',
             Tag::COMPONENT => 'mongodb',
+            '_dd.svc_src' => 'mongodb',
             Tag::DB_SYSTEM => 'mongodb',
         ];
         // On newer versions of the mongodb library, the datadog subscriber is only called after the arguments check
@@ -218,6 +222,7 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
+                    '_dd.svc_src' => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
@@ -299,6 +304,7 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
+                    '_dd.svc_src' => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                 ])->withChildren([
                     SpanAssertion::exists('mongodb.driver.cmd')
@@ -443,6 +449,7 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
+                    '_dd.svc_src' => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                 ]),
         ];
@@ -486,6 +493,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ]),
         ];
@@ -530,6 +538,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ]),
         ];
@@ -586,6 +595,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ]),
         ];
@@ -642,6 +652,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ])
         ];
@@ -713,6 +724,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.updates.0.filter' => '{"brand":"?"}',
                 'mongodb.insertsCount' => 2,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ]),
         ]);
@@ -744,6 +756,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
             ])->setError()
                 ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
@@ -765,6 +778,7 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
+                    '_dd.svc_src' => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                     'peer.service' => self::DATABASE,
                     '_dd.peer.service.source' => 'mongodb.db',
@@ -811,6 +825,7 @@ class MongoDBTest extends IntegrationTestCase
                 'mongodb.updates.0.filter' => '{"brand":"?"}',
                 'mongodb.insertsCount' => 2,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
                 'peer.service' => self::DATABASE,
                 '_dd.peer.service.source' => 'mongodb.db',
@@ -836,6 +851,7 @@ class MongoDBTest extends IntegrationTestCase
                 'out.host' => self::HOST,
                 'out.port' => self::PORT,
                 Tag::COMPONENT => 'mongodb',
+                '_dd.svc_src' => 'mongodb',
                 Tag::DB_SYSTEM => 'mongodb',
                 'peer.service' => self::DATABASE,
                 '_dd.peer.service.source' => 'mongodb.db',
@@ -865,6 +881,7 @@ class MongoDBTest extends IntegrationTestCase
                     'out.host' => self::HOST,
                     'out.port' => self::PORT,
                     Tag::COMPONENT => 'mongodb',
+                    '_dd.svc_src' => 'mongodb',
                     Tag::DB_SYSTEM => 'mongodb',
                     'peer.service' => self::DATABASE,
                     '_dd.peer.service.source' => 'mongodb.db',

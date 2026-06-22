@@ -232,6 +232,10 @@ foreach ($arch_targets as $arch_target) {
     command: ["php", "-S", "<?= $service_bind_address ?>:80", "index.php"]
     variables:
       DD_REQUEST_DUMPER_FILE: dump.json
+      KUBERNETES_SERVICE_CPU_REQUEST: 2
+      KUBERNETES_SERVICE_CPU_LIMIT: 2
+      KUBERNETES_SERVICE_MEMORY_REQUEST: 1Gi
+      KUBERNETES_SERVICE_MEMORY_LIMIT: 1Gi
 
   httpbin-integration:
     name: registry.ddbuild.io/images/mirror/kong/httpbin:0.2.2

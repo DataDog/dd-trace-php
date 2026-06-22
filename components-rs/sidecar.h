@@ -195,10 +195,12 @@ ddog_MaybeError ddog_sidecar_session_set_config(struct ddog_SidecarTransport **t
                                                 ddog_CharSlice session_id,
                                                 const struct ddog_Endpoint *agent_endpoint,
                                                 const struct ddog_Endpoint *dogstatsd_endpoint,
+                                                const struct ddog_Endpoint *otlp_metrics_endpoint,
                                                 ddog_CharSlice language,
                                                 ddog_CharSlice language_version,
                                                 ddog_CharSlice tracer_version,
                                                 uint32_t flush_interval_milliseconds,
+                                                uint32_t retry_interval_milliseconds,
                                                 uint32_t remote_config_poll_interval_millis,
                                                 uint32_t telemetry_heartbeat_interval_millis,
                                                 uint64_t telemetry_extended_heartbeat_interval_millis,
@@ -314,6 +316,22 @@ ddog_MaybeError ddog_sidecar_send_ffe_exposure_batch(struct ddog_SidecarTranspor
                                                      const struct ddog_FfeTelemetryContext *context,
                                                      struct ddog_Slice_FfeExposure exposures);
 
+/**
+ * Send structured FFE evaluation metric events to the sidecar. The sidecar
+ * owns aggregation, OTLP/protobuf serialization, and OTLP HTTP delivery. This
+ * function is caller-driven so SDKs with existing host-language hooks can
+ * safely coexist until they explicitly migrate.
+ *
+ * # Safety
+ * `context` and every element in `metrics` must contain valid UTF-8
+ * `CharSlice` values. Empty `metrics` is a no-op.
+ */
+ddog_MaybeError ddog_sidecar_send_ffe_evaluation_metrics(struct ddog_SidecarTransport **transport,
+                                                         const struct ddog_InstanceId *instance_id,
+                                                         const ddog_QueueId *queue_id,
+                                                         const struct ddog_FfeTelemetryContext *context,
+                                                         struct ddog_Slice_FfeEvaluationMetric metrics);
+
 ddog_MaybeError ddog_sidecar_send_debugger_diagnostics(struct ddog_SidecarTransport **transport,
                                                        const struct ddog_InstanceId *instance_id,
                                                        ddog_QueueId queue_id,
@@ -326,7 +344,8 @@ ddog_MaybeError ddog_sidecar_set_universal_service_tags(struct ddog_SidecarTrans
                                                         ddog_CharSlice env_name,
                                                         ddog_CharSlice app_version,
                                                         const struct ddog_Vec_Tag *global_tags,
-                                                        enum ddog_DynamicInstrumentationConfigState dynamic_instrumentation_state);
+                                                        enum ddog_DynamicInstrumentationConfigState dynamic_instrumentation_state,
+                                                        uint64_t remote_config_generation);
 
 ddog_MaybeError ddog_sidecar_set_request_config(struct ddog_SidecarTransport **transport,
                                                 const struct ddog_InstanceId *instance_id,
