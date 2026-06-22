@@ -333,6 +333,13 @@
         "default": "http://localhost:8125"
       }
     ],
+    "DD_DYNAMIC_INSTRUMENTATION_CAPTURE_TIMEOUT_MS": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "15"
+      }
+    ],
     "DD_DYNAMIC_INSTRUMENTATION_ENABLED": [
       {
         "implementation": "A",

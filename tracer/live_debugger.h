@@ -26,4 +26,7 @@ void dd_free_capture_ephemerals(struct dd_refcounted_linked *ephemerals);
 void ddtrace_sidecar_send_debugger_data(ddog_Vec_DebuggerPayload payloads);
 void ddtrace_sidecar_send_debugger_datum(ddog_DebuggerPayload *payload);
 
+void dd_start_debugger_timeout(void);
+void dd_stop_debugger_timeout(void);
+
 #endif // DD_LIVE_DEBUGGER_H

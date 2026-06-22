@@ -24,6 +24,12 @@ static ddog_CharSlice dd_validate_zstr(zend_string *str) {
 }
 
 static void dd_frames_callback(void (*emit_frame)(const ddog_crasht_RuntimeStackFrame *)) {
+#ifdef ZTS
+    if (!tsrm_is_managed_thread()) {
+        return;
+    }
+#endif
+
     zend_execute_data *call;
 #if PHP_VERSION_ID >= 80400
     zend_execute_data *last_call = NULL;
