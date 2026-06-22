@@ -1,4 +1,5 @@
-FROM datadog/dd-trace-ci:php-compile-extension-alpine
+ARG CI_REGISTRY_IMAGE=datadog/dd-trace-ci
+FROM ${CI_REGISTRY_IMAGE}:php-compile-extension-alpine
 
 ADD 0001-Backport-0a39890c-Fix-libxml2-2.12-build-due-to-API-.patch /patches/0001-Backport-0a39890c-Fix-libxml2-2.12-build-due-to-API-.patch
 ADD 0001-Sync-callback-signature-with-libxml2-2.9.8.patch /patches/0001-Sync-callback-signature-with-libxml2-2.9.8.patch

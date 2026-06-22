@@ -2,7 +2,7 @@ version: '3'
 
 services:
   base:
-    image: 'datadog/dd-trace-ci:centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:centos-7'
     build:
       context: .
       dockerfile: base.Dockerfile
@@ -20,7 +20,7 @@ services:
         phpVersion: "7.0"
         phpTarGzUrl: https://www.php.net/distributions/php-7.0.33.tar.gz
         phpSha256Hash: d71a6ecb6b13dc53fed7532a7f8f949c4044806f067502f8fb6f9facbb40452a
-    image: 'datadog/dd-trace-ci:php-7.0_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.0_centos-7'
 
   php-7.1:
     build:
@@ -31,7 +31,7 @@ services:
         phpVersion: "7.1"
         phpTarGzUrl: https://www.php.net/distributions/php-7.1.33.tar.gz
         phpSha256Hash: 0055f368ffefe51d5a4483755bd17475e88e74302c08b727952831c5b2682ea2
-    image: 'datadog/dd-trace-ci:php-7.1_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.1_centos-7'
 
   php-7.2:
     build:
@@ -42,7 +42,7 @@ services:
         phpVersion: "7.2"
         phpTarGzUrl: https://www.php.net/distributions/php-7.2.34.tar.gz
         phpSha256Hash: 8b2777c741e83f188d3ca6d8e98ece7264acafee86787298fae57e05d0dddc78
-    image: 'datadog/dd-trace-ci:php-7.2_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.2_centos-7'
 
   php-7.3:
     build:
@@ -53,7 +53,7 @@ services:
         phpVersion: "7.3"
         phpTarGzUrl: https://www.php.net/distributions/php-7.3.33.tar.gz
         phpSha256Hash: 9a369c32c6f52036b0a890f290327f148a1904ee66aa56e2c9a7546da6525ec8
-    image: 'datadog/dd-trace-ci:php-7.3_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.3_centos-7'
 
   php-7.4:
     build:
@@ -64,7 +64,7 @@ services:
         phpVersion: "7.4"
         phpTarGzUrl: https://www.php.net/distributions/php-7.4.33.tar.gz
         phpSha256Hash: 5a2337996f07c8a097e03d46263b5c98d2c8e355227756351421003bea8f463e
-    image: 'datadog/dd-trace-ci:php-7.4_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-7.4_centos-7'
 
   php-8.0:
     build:
@@ -75,7 +75,7 @@ services:
         phpVersion: "8.0"
         phpTarGzUrl: https://www.php.net/distributions/php-8.0.30.tar.gz
         phpSha256Hash: 449d2048fcb20a314d8c218097c6d1047a9f1c5bb72aa54d5d3eba0a27a4c80c
-    image: 'datadog/dd-trace-ci:php-8.0_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.0_centos-7'
 
   php-8.1:
     build:
@@ -86,7 +86,7 @@ services:
         phpVersion: "8.1"
         phpTarGzUrl: https://www.php.net/distributions/php-8.1.32.tar.gz
         phpSha256Hash: "4846836d1de27dbd28e89180f073531087029a77e98e8e019b7b2eddbdb1baff"
-    image: 'datadog/dd-trace-ci:php-8.1_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.1_centos-7'
 
   php-8.2:
     build:
@@ -97,7 +97,7 @@ services:
         phpVersion: "8.2"
         phpTarGzUrl: https://www.php.net/distributions/php-8.2.31.tar.gz
         phpSha256Hash: "083c2f61cc5f527eb293c4c468a91af46a9678785957e023b2796a9db290d870"
-    image: 'datadog/dd-trace-ci:php-8.2_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.2_centos-7'
 
   php-8.3:
     build:
@@ -108,7 +108,7 @@ services:
         phpVersion: "8.3"
         phpTarGzUrl: https://www.php.net/distributions/php-8.3.31.tar.gz
         phpSha256Hash: "4e7baaf0a690e954a20e7ced3dd633ce8cb8094e2b6b612a55e703ecbbdcbf4f"
-    image: 'datadog/dd-trace-ci:php-8.3_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.3_centos-7'
 
   php-8.4:
     build:
@@ -119,7 +119,7 @@ services:
         phpVersion: "8.4"
         phpTarGzUrl: https://www.php.net/distributions/php-8.4.22.tar.gz
         phpSha256Hash: "a012c2c9724baf214a70b41b40a7e130906b8855e54268afa5bc4ae17bc9d823"
-    image: 'datadog/dd-trace-ci:php-8.4_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.4_centos-7'
 
   php-8.5:
     build:
@@ -130,4 +130,4 @@ services:
         phpVersion: "8.5"
         phpTarGzUrl: https://www.php.net/distributions/php-8.5.7.tar.gz
         phpSha256Hash: "e5eba93fd6dd3241d0e61e932eb99a3783b40568553fb0e511b660ecd863a049"
-    image: 'datadog/dd-trace-ci:php-8.5_centos-7'
+    image: '${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.5_centos-7'

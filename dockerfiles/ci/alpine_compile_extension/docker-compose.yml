@@ -3,7 +3,7 @@ version: '3.7'
 services:
 
   base-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine
     build:
       context: .
       dockerfile: base.Dockerfile
@@ -15,7 +15,7 @@ services:
         - ../../:/app
 
   7.0-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.0
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.0
     build:
       context: .
       x-bake: *bake
@@ -27,7 +27,7 @@ services:
         - ../../:/app
 
   7.1-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.1
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.1
     build:
       context: .
       x-bake: *bake
@@ -39,7 +39,7 @@ services:
         - ../../:/app
 
   7.2-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.2
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.2
     build:
       context: .
       x-bake: *bake
@@ -51,7 +51,7 @@ services:
         - ../../:/app
 
   7.3-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.3
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.3
     build:
       context: .
       x-bake: *bake
@@ -63,7 +63,7 @@ services:
         - ../../:/app
 
   7.4-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-7.4
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-7.4
     build:
       context: .
       x-bake: *bake
@@ -75,7 +75,7 @@ services:
         - ../../:/app
 
   8.0-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.0
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.0
     build:
       context: .
       x-bake: *bake
@@ -87,7 +87,7 @@ services:
       - ../../:/app
 
   8.1-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.1
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.1
     build:
       context: .
       x-bake: *bake
@@ -99,7 +99,7 @@ services:
       - ../../:/app
 
   8.2-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.2
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.2
     build:
       context: .
       x-bake: *bake
@@ -111,7 +111,7 @@ services:
       - ../../:/app
 
   8.3-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.3
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.3
     build:
       context: .
       x-bake: *bake
@@ -123,7 +123,7 @@ services:
       - ../../:/app
 
   8.4-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.4
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.4
     build:
       context: .
       x-bake: *bake
@@ -135,7 +135,7 @@ services:
       - ../../:/app
 
   8.5-alpine:
-    image: datadog/dd-trace-ci:php-compile-extension-alpine-8.5
+    image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-compile-extension-alpine-8.5
     build:
       context: .
       x-bake: *bake

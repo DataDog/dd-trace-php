@@ -6,7 +6,9 @@ variables:
     value: ""
     description: "Your docker hub personal access token, can be created following this doc https://docs.docker.com/docker-hub/access-tokens/#create-an-access-token"
   CI_REGISTRY:
-    value: "docker.io"
+    value: "registry.ddbuild.io"
+  CI_REGISTRY_IMAGE:
+    value: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
 
 CentOS:
   stage: ci-build
@@ -36,7 +38,28 @@ CentOS:
         - php-7.0
   script:
     - cd dockerfiles/ci/centos/7
-    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - |
+      LOGIN_SERVER=$(echo "$CI_REGISTRY" | cut -d'/' -f1)
+      if [ "$LOGIN_SERVER" = "registry.ddbuild.io" ]; then
+        echo "Using pre-configured runner credentials for registry.ddbuild.io"
+      elif echo "$LOGIN_SERVER" | grep -q "dkr.ecr"; then
+        mkdir -p ~/.docker && echo '{"auths":{}}' > ~/.docker/config.json
+        if ! command -v aws >/dev/null 2>&1; then
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          else
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+          fi
+          unzip -q awscliv2.zip
+          ./aws/install >/dev/null
+          rm -rf aws awscliv2.zip
+        fi
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$LOGIN_SERVER"
+      elif [ -n "$CI_REGISTRY_TOKEN" ]; then
+        mkdir -p ~/.docker && echo '{"auths":{}}' > ~/.docker/config.json
+        echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$LOGIN_SERVER"
+      fi
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Alpine:
@@ -67,7 +90,28 @@ Alpine:
         - 7.0-alpine
   script:
     - cd dockerfiles/ci/alpine_compile_extension
-    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - |
+      LOGIN_SERVER=$(echo "$CI_REGISTRY" | cut -d'/' -f1)
+      if [ "$LOGIN_SERVER" = "registry.ddbuild.io" ]; then
+        echo "Using pre-configured runner credentials for registry.ddbuild.io"
+      elif echo "$LOGIN_SERVER" | grep -q "dkr.ecr"; then
+        mkdir -p ~/.docker && echo '{"auths":{}}' > ~/.docker/config.json
+        if ! command -v aws >/dev/null 2>&1; then
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          else
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+          fi
+          unzip -q awscliv2.zip
+          ./aws/install >/dev/null
+          rm -rf aws awscliv2.zip
+        fi
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$LOGIN_SERVER"
+      elif [ -n "$CI_REGISTRY_TOKEN" ]; then
+        mkdir -p ~/.docker && echo '{"auths":{}}' > ~/.docker/config.json
+        echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$LOGIN_SERVER"
+      fi
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 Bookworm:
@@ -81,11 +125,11 @@ Bookworm:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   variables:
     DDCI_CONFIGURE_OTEL_EXPORTER: "true"
+    MAKE_JOBS: "2"
   parallel:
     matrix:
       - PHP_VERSION:
         - base
-      - PHP_VERSION:
         - php-8.5
         - php-8.4
         - php-8.3
@@ -99,10 +143,30 @@ Bookworm:
         - php-7.2
         - php-7.1
         - php-7.0
-        MAKE_JOBS: ["2"]
   script:
     - cd dockerfiles/ci/bookworm
-    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - |
+      LOGIN_SERVER=$(echo "$CI_REGISTRY" | cut -d'/' -f1)
+      if [ "$LOGIN_SERVER" = "registry.ddbuild.io" ]; then
+        echo "Using pre-configured runner credentials for registry.ddbuild.io"
+      elif echo "$LOGIN_SERVER" | grep -q "dkr.ecr"; then
+        mkdir -p ~/.docker && echo '{"auths":{}}' > ~/.docker/config.json
+        if ! command -v aws >/dev/null 2>&1; then
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          else
+            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+          fi
+          unzip -q awscliv2.zip
+          ./aws/install >/dev/null
+          rm -rf aws awscliv2.zip
+        fi
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$LOGIN_SERVER"
+      elif [ -n "$CI_REGISTRY_TOKEN" ]; then
+        mkdir -p ~/.docker && echo '{"auths":{}}' > ~/.docker/config.json
+        echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$LOGIN_SERVER"
+      fi
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
 .windows_image_build:
@@ -168,7 +232,14 @@ Bookworm:
     New-Item -ItemType Directory -Force -Path $env:DOCKER_CONFIG | Out-Null
     Set-Content -Encoding ascii -Path (Join-Path $env:DOCKER_CONFIG "config.json") -Value '{"auths":{}}'
 
-    $env:CI_REGISTRY_TOKEN | docker login -u "$env:CI_REGISTRY_USER" --password-stdin "$env:CI_REGISTRY"
+    $loginServer = $env:CI_REGISTRY.Split('/')[0]
+    if ($loginServer -eq "registry.ddbuild.io") {
+        Write-Host "Using pre-configured runner credentials for registry.ddbuild.io"
+    } elseif ($loginServer -like "*dkr.ecr*") {
+        aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "$loginServer"
+    } elseif ($env:CI_REGISTRY_TOKEN) {
+        $env:CI_REGISTRY_TOKEN | docker login -u "$env:CI_REGISTRY_USER" --password-stdin "$loginServer"
+    }
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     docker version
