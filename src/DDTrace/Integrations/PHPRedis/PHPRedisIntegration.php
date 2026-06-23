@@ -329,12 +329,15 @@ class PHPRedisIntegration extends Integration
             if (!empty($clusterName)) {
                 $normalizedClusterName = \DDTrace\Util\Normalizer::normalizeHostUdsAsService($clusterName);
                 $span->service = $serviceNamePrefix . $normalizedClusterName;
+                $span->meta['_dd.svc_src'] = 'opt.redis_client_split_by_host';
             } elseif (!empty($firstHostOrUDS)) {
                 $normalizedHost = \DDTrace\Util\Normalizer::normalizeHostUdsAsService($firstHostOrUDS);
                 $span->service = $serviceNamePrefix . $normalizedHost;
+                $span->meta['_dd.svc_src'] = 'opt.redis_client_split_by_host';
             } elseif (!empty($host)) {
                 $normalizedHost = \DDTrace\Util\Normalizer::normalizeHostUdsAsService($host);
                 $span->service = $serviceNamePrefix . $normalizedHost;
+                $span->meta['_dd.svc_src'] = 'opt.redis_client_split_by_host';
             } else {
                 Integration::handleInternalSpanServiceName($span, self::NAME);
             }

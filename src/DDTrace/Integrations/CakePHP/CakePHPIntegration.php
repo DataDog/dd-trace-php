@@ -37,6 +37,7 @@ class CakePHPIntegration extends Integration
             self::$appName = \ddtrace_config_app_name(CakePHPIntegration::NAME);
             self::addTraceAnalyticsIfEnabled($rootSpan);
             $rootSpan->service = self::$appName;
+            Integration::tagFrameworkServiceSource($rootSpan, CakePHPIntegration::NAME);
             if ('cli' === PHP_SAPI) {
                 $rootSpan->name = 'cakephp.console';
                 $rootSpan->resource = !empty($_SERVER['argv'][1])

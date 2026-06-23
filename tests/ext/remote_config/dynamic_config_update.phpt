@@ -19,7 +19,7 @@ reset_request_replayer();
 $rr = new RequestReplayer();
 
 put_dynamic_config_file([
-    "tracing_sample_rate" => 0.5,
+    "tracing_sampling_rate" => 0.5,
     "tracing_header_tags" => [["header" => "foo", "tag_name" => "bar"], ["header" => "other", "tag_name" => "baz"]],
     "log_injection_enabled" => true,
     "tracing_tags" => ["foo:bar", "baz:qux"],

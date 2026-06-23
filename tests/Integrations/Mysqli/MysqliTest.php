@@ -661,6 +661,7 @@ class MysqliTest extends IntegrationTestCase
                     Tag::SPAN_KIND,
                     Tag::COMPONENT,
                     Tag::DB_SYSTEM,
+                    '_dd.svc_src',
                 ]),
         ]);
     }
@@ -682,7 +683,7 @@ class MysqliTest extends IntegrationTestCase
         $this->assertFlameGraph($traces, [
             SpanAssertion::exists('mysqli.__construct', 'mysqli.__construct'),
             SpanAssertion::build('mysqli.query', 'configured_service', 'sql', 'SELECT * from tests')
-                ->withExactTags(self::baseTags())
+                ->withExactTags(self::baseTags(true, false, null))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1,
                 ]),
@@ -702,7 +703,7 @@ class MysqliTest extends IntegrationTestCase
         ]);
     }
 
-    private function baseTags($expectDbName = true, $expectPeerService = false)
+    private function baseTags($expectDbName = true, $expectPeerService = false, $svcSrc = 'mysqli')
     {
         $tags = [
             'out.host' => self::$host,
@@ -712,6 +713,9 @@ class MysqliTest extends IntegrationTestCase
             Tag::COMPONENT => 'mysqli',
             Tag::DB_SYSTEM => 'mysql',
         ];
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
 
         if ($expectDbName) {
             $tags['db.name'] = self::$database;

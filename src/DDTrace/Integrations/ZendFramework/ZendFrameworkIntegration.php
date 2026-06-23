@@ -53,6 +53,7 @@ class ZendFrameworkIntegration extends Integration
                     // For backward compatibility with the legacy API we are not using the integration
                     // name 'zendframework', we are instead using the 'zf1' prefix.
                     $rootSpan->service = \ddtrace_config_app_name('zf1');
+                    Integration::tagFrameworkServiceSource($rootSpan, 'zf1');
                     $controller = $request->getControllerName();
                     $action = $request->getActionName();
                     $route = Zend_Controller_Front::getInstance()->getRouter()->getCurrentRouteName();

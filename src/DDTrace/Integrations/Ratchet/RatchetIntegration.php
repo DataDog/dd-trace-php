@@ -78,6 +78,7 @@ class RatchetIntegration extends Integration
             \DDTrace\collect_code_origins(1);
             if (\dd_trace_env_config("DD_TRACE_HTTP_CLIENT_SPLIT_BY_DOMAIN")) {
                 $span->service = Urls::hostnameForTag($url);
+                $span->meta['_dd.svc_src'] = 'opt.http_client_split_by_domain';
             }
         }, static function (HookData $hook) {
             $span = $hook->data;
@@ -177,6 +178,7 @@ class RatchetIntegration extends Integration
 
             $activeSpan = $hook->span(new SpanStack);
             $activeSpan->service = \ddtrace_config_app_name('ratchet');
+            Integration::tagFrameworkServiceSource($activeSpan, 'ratchet');
             $activeSpan->name = "web.request";
             $activeSpan->type = Type::WEB_SERVLET;
             $activeSpan->meta[Tag::COMPONENT] = self::NAME;
@@ -260,6 +262,9 @@ class RatchetIntegration extends Integration
                     $span = $hook->span($rootTrace ? new SpanStack : null);
                     $span->type = Type::WEBSOCKET;
                     $span->service = $handshake->service;
+                    if (isset($handshake->meta['_dd.svc_src'])) {
+                        $span->meta['_dd.svc_src'] = $handshake->meta['_dd.svc_src'];
+                    }
                     $resourceParts = explode(" ", $handshake->resource, 2);
                     $span->resource = "websocket " . end($resourceParts);
                     $span->meta[Tag::SPAN_KIND] = Tag::SPAN_KIND_VALUE_CONSUMER;

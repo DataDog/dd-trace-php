@@ -46,6 +46,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.route' => 'simple',
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
@@ -58,6 +59,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                                 SpanAssertion::build('laravel.action', 'laravel', 'web', 'simple')
                                 ->withExactTags([
                                     Tag::COMPONENT => 'laravel',
+                                    '_dd.svc_src' => 'laravel',
                                 ]),
                                 SpanAssertion::exists('laravel.event.handle'),
                                 SpanAssertion::exists('laravel.event.handle'),

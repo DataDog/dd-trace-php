@@ -44,6 +44,7 @@ final class NoRootSpanTest extends CLITestCase
                 '_dd.code_origin.frames.1.file' => '%s',
                 '_dd.code_origin.frames.0.file' => '%s',
                 '_dd.code_origin.frames.0.line' => '6',
+                '_dd.svc_src' => 'm',
             ])->withChildren([
                 SpanAssertion::exists(
                     'mysqli_connect',

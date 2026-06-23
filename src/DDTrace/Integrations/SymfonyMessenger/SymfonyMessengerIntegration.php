@@ -229,6 +229,7 @@ class SymfonyMessengerIntegration extends Integration
 
         $span->name = $name;
         $span->service = \ddtrace_config_app_name('symfony');
+        Integration::tagFrameworkServiceSource($span, 'symfony');
         $span->type = 'queue';
         $span->meta[Tag::MQ_SYSTEM] = 'symfony';
         $span->meta[Tag::MQ_DESTINATION_KIND] = 'queue';

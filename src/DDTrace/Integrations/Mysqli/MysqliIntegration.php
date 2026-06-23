@@ -425,6 +425,7 @@ class MysqliIntegration extends Integration
             if (isset($hostInfo[Tag::TARGET_HOST])) {
                 $span->service .=
                     '-' . \DDTrace\Util\Normalizer::normalizeHostUdsAsService($hostInfo[Tag::TARGET_HOST]);
+                $span->meta['_dd.svc_src'] = 'opt.db_client_split_by_instance';
             }
         }
         $dbName = ObjectKVStore::get($mysqli, self::KEY_DATABASE_NAME);

@@ -245,12 +245,23 @@ unsafe extern "C" fn ddog_php_prof_zend_error_observer(
         return;
     }
 
+    // The engine passes a NULL file for fatal errors with no active file
+    // location, e.g. an uncaught exception reported via zend_exception_error
+    // (`zend_error_va(..., file=NULL, ...)`). CStr::from_ptr(NULL) would
+    // strlen(NULL) and segfault, so guard against it. See
+    // Zend/tests/bug50005.phpt and Zend/tests/bug64821.3.phpt.
     #[cfg(zend_error_observer_80)]
-    let filename_str = unsafe { core::ffi::CStr::from_ptr(file) };
+    let filename = if file.is_null() {
+        String::new()
+    } else {
+        unsafe { core::ffi::CStr::from_ptr(file) }
+            .to_string_lossy()
+            .into_owned()
+    };
     #[cfg(not(zend_error_observer_80))]
-    let filename_str = unsafe { zai_str_from_zstr(file.as_mut()) };
-
-    let filename = filename_str.to_string_lossy().into_owned();
+    let filename = unsafe { zai_str_from_zstr(file.as_mut()) }
+        .to_string_lossy()
+        .into_owned();
 
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     if let Some(profiler) = Profiler::get() {

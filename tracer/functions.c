@@ -394,7 +394,6 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
     ddtrace_span_stack *oldstack = (ddtrace_span_stack *)old_obj;
     if (oldstack->parent_stack) { // if this is false, we're copying an initial stack
         stack->root_stack = stack->parent_stack->root_stack;
-        stack->root_span = stack->parent_stack->root_span;
     }
     if (oldstack->root_stack == oldstack) {
         stack->root_stack = stack;
@@ -407,10 +406,9 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
     }
     if (pspan) {
         ZVAL_OBJ_COPY(&stack->property_active, &pspan->std);
+        stack->root_span = SPANDATA(pspan)->root;
     } else {
-        if (oldstack->root_span && oldstack->root_span->stack == oldstack) {
-            stack->root_span = NULL;
-        }
+        stack->root_span = NULL;
         stack->active = NULL;
         ZVAL_NULL(&stack->property_active);
     }
@@ -501,6 +499,12 @@ static zval *ddtrace_span_data_readonly(zend_object *object, zend_string *member
                 zval_ptr_dtor(&span->property_version);
                 ZVAL_EMPTY_STRING(&span->property_version);
             }
+        }
+        if (Z_TYPE_P(value) == IS_STRING && !zend_is_identical(&span->property_service, value)) {
+            zend_array *meta = ddtrace_property_array(&span->property_meta);
+            zval val;
+            ZVAL_NEW_STR(&val, zend_string_init("m", 1, 0));
+            zend_hash_str_update(meta, ZEND_STRL("_dd.svc_src"), &val);
         }
     }
 
@@ -2395,6 +2399,11 @@ PHP_FUNCTION(DDTrace_try_drop_span) {
 
     ddtrace_span_stack *active_stack = DDTRACE_G(active_stack);
     if (span->active_child_spans) {
+        RETURN_FALSE;
+    }
+
+    // Assert span stack for manual instantiations of SpanStack/clones.
+    if (!span->stack || span->stack->active != &span->props) {
         RETURN_FALSE;
     }
 
