@@ -200,6 +200,7 @@ if (PHP_DDTRACE != 'no') {
 	deffile.WriteLine("EXPORTS");
 	var contents = FSO.OpenTextFile(configure_module_dirname + "/datadog.sym", 1).ReadAll();
 	contents = contents.replace(/ddog_crashtracker_entry_point\s*/, ""); // unix-only symbol
+	contents = contents.replace(/otel_thread_ctx_v1\s*/, ""); // linux-only TLS variable
     contents = contents + "\n" + FSO.OpenTextFile(configure_module_dirname + "/datadog-windows.sym", 1).ReadAll();
 	if (!PHP_DDTRACE_SHARED) {
 		contents = contents.replace(/get_module\s*/, "");
