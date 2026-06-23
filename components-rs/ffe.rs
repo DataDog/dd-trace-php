@@ -11,7 +11,10 @@ use datadog_ffe::telemetry::flagevaluation::{
 use datadog_ffe::telemetry::FfeTelemetryContext;
 use datadog_sidecar::service::blocking::{self as sidecar_blocking, SidecarTransport};
 use datadog_sidecar::service::{InstanceId, QueueId, SidecarAction};
+use libdd_common::tag::Tag;
 use libdd_common_ffi::slice::{AsBytes, CharSlice};
+use libdd_telemetry::data::metrics::{MetricNamespace, MetricType};
+use libdd_telemetry::metrics::MetricContext;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
@@ -103,6 +106,10 @@ const TYPE_OBJECT: i32 = 4;
 // ── EVP flagevaluation aggregation ────────────────────────────────────────────
 
 const FLAG_EVALUATION_BATCH_CHUNK_SIZE: usize = 512;
+const FLAG_EVALUATION_ROWS_DROPPED_METRIC: &str = "flagevaluation.rows.dropped";
+const FLAG_EVALUATION_ROWS_DEGRADED_METRIC: &str = "flagevaluation.rows.degraded";
+const FLAG_EVALUATION_REASON_DEGRADED_CAP: &str = "degraded_cap";
+const FLAG_EVALUATION_REASON_CARDINALITY_CAP: &str = "cardinality_cap";
 
 /// Full-tier aggregation key: schema-visible dimensions only, all exact
 /// strings, no hash.
@@ -182,6 +189,17 @@ struct EvpAggregator {
     degraded_tier: HashMap<DegradedTierKey, AggBucket>,
     /// Evaluations dropped past degradedCap (observable counter).
     dropped_degraded_overflow: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct AggregatorTelemetryCounters {
+    rows_dropped_degraded_cap: u64,
+    rows_degraded_cardinality_cap: u64,
+}
+
+struct DrainedAggregator {
+    batch: Option<FfeFlagEvaluationBatch>,
+    counters: AggregatorTelemetryCounters,
 }
 
 lazy_static::lazy_static! {
@@ -348,6 +366,10 @@ fn record_flag_evaluation_evp(
 /// Drain the aggregator and build a `FfeFlagEvaluationBatch`.
 /// Returns `None` if the aggregator is empty.
 fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEvaluationBatch> {
+    drain_aggregator_with_counters(service, env, version).batch
+}
+
+fn drain_aggregator_with_counters(service: &str, env: &str, version: &str) -> DrainedAggregator {
     let mut agg = match EVP_AGGREGATOR.lock() {
         Ok(g) => g,
         Err(p) => p.into_inner(),
@@ -355,6 +377,7 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
 
     let flush_ms = now_ms();
     let mut events: Vec<FfeFlagEvaluationEvent> = Vec::new();
+    let mut rows_degraded_cardinality_cap = 0u64;
 
     // Drain full tier.
     for (flag_key, mut flag_state) in agg.full_tier.drain() {
@@ -421,6 +444,7 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
 
     // Drain degraded tier.
     for (k, bucket) in agg.degraded_tier.drain() {
+        rows_degraded_cardinality_cap = rows_degraded_cardinality_cap.saturating_add(bucket.count);
         let runtime_default = k.variant.is_empty();
         let variant = if k.variant.is_empty() {
             None
@@ -469,18 +493,94 @@ fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEv
         );
     }
 
+    let counters = AggregatorTelemetryCounters {
+        rows_dropped_degraded_cap: dropped_degraded_overflow,
+        rows_degraded_cardinality_cap,
+    };
+
     if events.is_empty() {
-        return None;
+        return DrainedAggregator {
+            batch: None,
+            counters,
+        };
     }
 
-    Some(FfeFlagEvaluationBatch {
-        context: FfeTelemetryContext {
-            service: service.to_owned(),
-            env: env.to_owned(),
-            version: version.to_owned(),
+    DrainedAggregator {
+        batch: Some(FfeFlagEvaluationBatch {
+            context: FfeTelemetryContext {
+                service: service.to_owned(),
+                env: env.to_owned(),
+                version: version.to_owned(),
+            },
+            flag_evaluations: events,
+        }),
+        counters,
+    }
+}
+
+fn register_flag_evaluation_count_metric(transport: &mut Box<SidecarTransport>, metric_name: &str) {
+    let _ = sidecar_blocking::register_telemetry_metric(
+        transport,
+        MetricContext {
+            name: metric_name.to_owned(),
+            namespace: MetricNamespace::Tracers,
+            metric_type: MetricType::Count,
+            tags: Vec::default(),
+            common: true,
         },
-        flag_evaluations: events,
-    })
+    );
+}
+
+fn push_flag_evaluation_telemetry_count(
+    actions: &mut Vec<SidecarAction>,
+    metric_name: &str,
+    count: u64,
+    reason: &str,
+) {
+    if count == 0 {
+        return;
+    }
+    let Ok(reason_tag) = Tag::new("reason", reason) else {
+        return;
+    };
+    actions.push(SidecarAction::AddTelemetryMetricPoint((
+        metric_name.to_owned(),
+        count as f64,
+        vec![reason_tag],
+    )));
+}
+
+fn flag_evaluation_telemetry_actions(counters: AggregatorTelemetryCounters) -> Vec<SidecarAction> {
+    let mut actions = Vec::new();
+    push_flag_evaluation_telemetry_count(
+        &mut actions,
+        FLAG_EVALUATION_ROWS_DROPPED_METRIC,
+        counters.rows_dropped_degraded_cap,
+        FLAG_EVALUATION_REASON_DEGRADED_CAP,
+    );
+    push_flag_evaluation_telemetry_count(
+        &mut actions,
+        FLAG_EVALUATION_ROWS_DEGRADED_METRIC,
+        counters.rows_degraded_cardinality_cap,
+        FLAG_EVALUATION_REASON_CARDINALITY_CAP,
+    );
+    actions
+}
+
+fn emit_flag_evaluation_telemetry(
+    transport: &mut Box<SidecarTransport>,
+    instance_id: &InstanceId,
+    queue_id: &QueueId,
+    counters: AggregatorTelemetryCounters,
+) {
+    let actions = flag_evaluation_telemetry_actions(counters);
+    if actions.is_empty() {
+        return;
+    }
+
+    register_flag_evaluation_count_metric(transport, FLAG_EVALUATION_ROWS_DROPPED_METRIC);
+    register_flag_evaluation_count_metric(transport, FLAG_EVALUATION_ROWS_DEGRADED_METRIC);
+    let _ = sidecar_blocking::enqueue_actions(transport, instance_id, queue_id, actions);
 }
 
 fn split_flag_evaluation_batch(batch: FfeFlagEvaluationBatch) -> Vec<FfeFlagEvaluationBatch> {
@@ -516,7 +616,10 @@ pub unsafe extern "C" fn ddog_ffe_flush_flag_evaluation_batch(
     let env_s = env.to_utf8_lossy().into_owned();
     let version_s = version.to_utf8_lossy().into_owned();
 
-    let batch = match drain_aggregator(&service_s, &env_s, &version_s) {
+    let drained = drain_aggregator_with_counters(&service_s, &env_s, &version_s);
+    emit_flag_evaluation_telemetry(transport, instance_id, queue_id, drained.counters);
+
+    let batch = match drained.batch {
         Some(b) => b,
         None => return true, // nothing to flush
     };
@@ -1677,6 +1780,98 @@ mod tests {
             agg.dropped_degraded_overflow, 0,
             "drain must reset the overflow drop counter after surfacing it"
         );
+    }
+
+    #[test]
+    fn drain_reports_php_side_telemetry_counters() {
+        let _g = EVP_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+        reset_aggregator();
+        {
+            let mut agg = match EVP_AGGREGATOR.lock() {
+                Ok(g) => g,
+                Err(p) => p.into_inner(),
+            };
+            agg.dropped_degraded_overflow = 5;
+            agg.degraded_tier.insert(
+                DegradedTierKey {
+                    flag_key: "degraded-flag".to_owned(),
+                    variant: "on".to_owned(),
+                    allocation_key: "alloc".to_owned(),
+                    error_message: String::new(),
+                },
+                AggBucket {
+                    first_evaluation: 1_000,
+                    last_evaluation: 2_000,
+                    count: 3,
+                },
+            );
+        }
+
+        let drained = drain_aggregator_with_counters("svc", "prod", "1.0");
+
+        assert_eq!(
+            drained.counters,
+            AggregatorTelemetryCounters {
+                rows_dropped_degraded_cap: 5,
+                rows_degraded_cardinality_cap: 3,
+            }
+        );
+        assert_eq!(
+            drained
+                .batch
+                .as_ref()
+                .expect("degraded row should still flush")
+                .flag_evaluations[0]
+                .evaluation_count,
+            3
+        );
+
+        let drained_again = drain_aggregator_with_counters("svc", "prod", "1.0");
+        assert_eq!(
+            drained_again.counters,
+            AggregatorTelemetryCounters::default(),
+            "drain must reset counters after reporting them"
+        );
+        assert!(drained_again.batch.is_none());
+    }
+
+    #[test]
+    fn telemetry_actions_use_fixed_metric_names_and_reasons() {
+        let actions = flag_evaluation_telemetry_actions(AggregatorTelemetryCounters {
+            rows_dropped_degraded_cap: 2,
+            rows_degraded_cardinality_cap: 3,
+        });
+
+        assert_eq!(actions.len(), 2);
+        assert_metric_action(
+            &actions[0],
+            FLAG_EVALUATION_ROWS_DROPPED_METRIC,
+            2.0,
+            "reason:degraded_cap",
+        );
+        assert_metric_action(
+            &actions[1],
+            FLAG_EVALUATION_ROWS_DEGRADED_METRIC,
+            3.0,
+            "reason:cardinality_cap",
+        );
+    }
+
+    fn assert_metric_action(
+        action: &SidecarAction,
+        expected_name: &str,
+        expected_value: f64,
+        expected_tag: &str,
+    ) {
+        match action {
+            SidecarAction::AddTelemetryMetricPoint((name, value, tags)) => {
+                assert_eq!(name, expected_name);
+                assert_eq!(*value, expected_value);
+                assert_eq!(tags.len(), 1);
+                assert_eq!(tags[0].to_string(), expected_tag);
+            }
+            other => panic!("expected telemetry metric point, got {other:?}"),
+        }
     }
 
     // Test: absent variant → runtime_default_used = true (detected from the
