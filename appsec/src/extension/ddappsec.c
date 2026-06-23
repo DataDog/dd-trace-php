@@ -11,6 +11,7 @@
 // for open(2)
 #include <dlfcn.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -55,6 +56,7 @@ static atomic_int _thread_count;
 static void _check_enabled(void);
 #ifdef TESTING
 static void _register_testing_objects(void);
+volatile int ddappsec_debugger_wait_continue;
 #endif
 
 static PHP_MINIT_FUNCTION(ddappsec);
@@ -481,6 +483,32 @@ static PHP_FUNCTION(datadog_appsec_testing_stop_for_debugger)
     RETURN_TRUE;
 }
 
+static PHP_FUNCTION(datadog_appsec_testing_wait_for_debugger)
+{
+    if (zend_parse_parameters_none() == FAILURE) {
+        RETURN_FALSE;
+    }
+    ddappsec_debugger_wait_continue = 0;
+
+    int fd = open(
+        "/tmp/pid", O_CREAT | O_WRONLY | O_TRUNC | O_CLOEXEC, 0600); // NOLINT
+    if (fd < 0) {
+        RETURN_FALSE;
+    }
+    char pid[sizeof("-2147483648")] = "";
+    sprintf(pid, "%" PRIi32, (int32_t)getpid()); // NOLINT
+    ATTR_UNUSED ssize_t unused_ = write(fd, pid, strlen(pid));
+    close(fd);
+
+    while (!ddappsec_debugger_wait_continue) {
+        usleep(10000); // NOLINT
+    }
+    ddappsec_debugger_wait_continue = 0;
+    unlink("/tmp/pid"); // NOLINT
+
+    RETURN_TRUE;
+}
+
 static PHP_FUNCTION(datadog_appsec_testing_request_exec)
 {
     zend_array *data = NULL;
@@ -632,6 +660,7 @@ static const zend_function_entry testing_request_control_functions[] = {
     ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "wait_for_debugger", PHP_FN(datadog_appsec_testing_wait_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {
