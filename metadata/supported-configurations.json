@@ -57,7 +57,7 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "true"
+        "default": "false"
       }
     ],
     "DD_APPSEC_ENABLED": [
@@ -106,7 +106,7 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "false"
+        "default": "true"
       }
     ],
     "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_HTML": [

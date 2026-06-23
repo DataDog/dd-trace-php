@@ -33,9 +33,7 @@ if [[ -n $USE_SSI ]]; then
   ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
   ln -s /appsec/ddappsec.so "$PKG/appsec/ext/$PHP_API/ddappsec${EXT_SUFFIX}.so"
   ln -s /appsec/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper.so"
-  if [[ -f /appsec/libddappsec-helper-rust.so ]]; then
-    ln -sf /appsec/libddappsec-helper-rust.so "$PKG/appsec/lib/libddappsec-helper-rust.so"
-  elif [[ -f /helper-rust/libddappsec-helper.so ]]; then
+  if [[ -f /helper-rust/libddappsec-helper.so ]]; then
     ln -sf /helper-rust/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper-rust.so"
   fi
   ln -s /project/src "$PKG/trace/src"
