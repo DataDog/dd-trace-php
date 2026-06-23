@@ -25,7 +25,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'psr18'
+                    Tag::COMPONENT => 'psr18',
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
@@ -36,6 +36,7 @@ class GuzzleIntegrationTest extends \DDTrace\Tests\Integrations\Guzzle\V6\Guzzle
                             'network.destination.name' => 'example.com',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
                             '_dd.base_service' => 'phpunit'
                         ]),
                 ])

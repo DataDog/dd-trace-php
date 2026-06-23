@@ -114,6 +114,13 @@ makeSpan('op.blocked.regex_require', 'GET /other4', [
     'http.method'     => 'DELETE',
 ]);
 
+// 7. BLOCKED by ignore_resources — resource is empty so name "GET /healthcheck" is used instead and matches the pattern (as per normalization rules).
+makeSpan('GET /healthcheck', '', [
+    'filter_required' => 'yes',
+    'http.method'     => 'GET',
+]);
+
+
 dd_trace_internal_fn('synchronous_flush');
 
 // Capture ALL trace requests from the second flush before consuming them.

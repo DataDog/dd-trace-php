@@ -47,6 +47,7 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'lumen',
+                        '_dd.svc_src' => 'lumen',
                     ])
                     ->withChildren([
                         SpanAssertion::build(
@@ -57,6 +58,7 @@ class DeprecatedResourceNameTest extends WebFrameworkTestCase
                         )->withExactTags([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                             Tag::COMPONENT => 'lumen',
+                            '_dd.svc_src' => 'lumen',
                         ]),
                     ]),
             ]

@@ -84,6 +84,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     'span.kind' => 'producer',
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'm',
                     'websocket.message.type' => 'text',
                 ])
                 ->withExactMetrics([
@@ -95,6 +96,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     'span.kind' => 'client',
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'ratchet',
                     'http.method' => 'GET',
                     'http.url' => 'ws://127.0.0.1:%d',
                     'network.destination.name' => '127.0.0.1',
@@ -106,6 +108,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'ratchet',
                     'websocket.close.code' => '1000',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
@@ -121,6 +124,7 @@ class RatchetTest extends IntegrationTestCase
                         ->withExactTags([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
+                            '_dd.svc_src' => 'ratchet',
                             'websocket.close.code' => '1000',
                         ])
                         ->withExistingTagsNames(["_dd.span_links"])
@@ -129,6 +133,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'ratchet',
                     'websocket.message.type' => 'text',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
@@ -146,6 +151,7 @@ class RatchetTest extends IntegrationTestCase
                         ->withExactTags([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
+                            '_dd.svc_src' => 'ratchet',
                             'websocket.message.type' => 'text',
                         ])
                         ->withExactMetrics([
@@ -158,6 +164,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'ratchet',
                     'websocket.message.type' => 'text',
                     '_dd.dm.service' => 'phpunit',
                     '_dd.dm.resource' => '',
@@ -175,6 +182,7 @@ class RatchetTest extends IntegrationTestCase
                         ->withExactTags([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
+                            '_dd.svc_src' => 'ratchet',
                             'websocket.message.type' => 'text',
                         ])
                         ->withExactMetrics([
@@ -187,6 +195,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     'span.kind' => 'consumer',
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'ratchet',
                     'websocket.message.type' => 'text',
                     '_dd.dm.service' => 'ratchet',
                     '_dd.dm.resource' => 'GET /',
@@ -204,6 +213,7 @@ class RatchetTest extends IntegrationTestCase
                         ->withExactTags([
                             'span.kind' => 'producer',
                             'component' => 'ratchet',
+                            '_dd.svc_src' => 'ratchet',
                             'websocket.message.type' => 'text',
                         ])
                         ->withExactMetrics([
@@ -215,6 +225,7 @@ class RatchetTest extends IntegrationTestCase
             SpanAssertion::build('web.request', 'ratchet', 'web', 'GET /')
                 ->withExactTags([
                     'component' => 'ratchet',
+                    '_dd.svc_src' => 'ratchet',
                     'span.kind' => 'server',
                     'http.url' => 'http://127.0.0.1:%d/',
                     'http.method' => 'GET',
@@ -244,6 +255,7 @@ class RatchetTest extends IntegrationTestCase
                 ->withExactTags([
                     "span.kind" => "client",
                     "component" => "ratchet",
+                    "_dd.svc_src" => "ratchet",
                     "http.method" => "GET",
                     "http.url" => "ws://127.0.0.1:1",
                     "network.destination.name" => "127.0.0.1",

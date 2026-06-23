@@ -577,6 +577,8 @@ fn apple_linker_flags() {
         // Debug builds: allow all undefined symbols.
         println!("cargo:rustc-cdylib-link-arg=-undefined");
         println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
+        println!("cargo:rustc-link-arg=-undefined");
+        println!("cargo:rustc-link-arg=dynamic_lookup");
         return;
     }
 
@@ -624,6 +626,7 @@ fn apple_linker_flags() {
         "_zend_empty_string",
         "_zend_extensions",
         "_zend_flf_functions",
+        "_zend_flf_handlers",
         "_zend_gc_get_status",
         "_zend_generator_check_placeholder_frame",
         "_zend_get_executed_filename_ex",

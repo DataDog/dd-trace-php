@@ -109,7 +109,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple',
             ])->withChildren([
                 SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple')->withExactTags([
-                    Tag::COMPONENT => 'laravel'
+                    Tag::COMPONENT => 'laravel',
                 ]),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
@@ -181,7 +181,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@simple_view',
             ])->withChildren([
                 SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'simple_view')->withExactTags([
-                    Tag::COMPONENT => 'laravel'
+                    Tag::COMPONENT => 'laravel',
                 ]),
                 SpanAssertion::build(
                     'laravel.view.render',
@@ -270,7 +270,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                 'laravel.route.action' => 'App\Http\Controllers\CommonSpecsController@error',
             ])->setError('Exception', 'Controller error', true)->withChildren([
                 SpanAssertion::build('laravel.action', 'swoole_test_app', 'web', 'error')->withExactTags([
-                    Tag::COMPONENT => 'laravel'
+                    Tag::COMPONENT => 'laravel',
                 ])->setError('Exception', 'Controller error', true),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
                 SpanAssertion::exists('laravel.event.handle', null, null, 'swoole_test_app'),
