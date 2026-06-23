@@ -99,8 +99,7 @@ $rr->waitForRequest(function ($request) {
                         "line": 1
                     }
                 ]
-            },
-            "frame_count": %d
+            }
         },
 %A
         "incomplete": false,

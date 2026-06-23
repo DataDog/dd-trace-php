@@ -61,6 +61,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'some.key2' => 'value2',
                             TAG::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'laravel',
+                            '_dd.svc_src' => 'laravel',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('laravel.application.handle')
@@ -70,6 +71,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
+                                            '_dd.svc_src' => 'laravel',
                                         ]),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
@@ -113,6 +115,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
+                                            '_dd.svc_src' => 'laravel',
                                         ])
                                         ->withChildren([
                                             SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
@@ -150,6 +153,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'some.key2' => 'value2',
                             TAG::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'laravel',
+                            '_dd.svc_src' => 'laravel',
                         ])->setError()->withChildren([
                             SpanAssertion::exists('laravel.application.handle')
                                 ->withChildren([
@@ -158,6 +162,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
+                                            '_dd.svc_src' => 'laravel',
                                         ])
                                         ->withExistingTagsNames(['error.stack'])
                                         ->setError('Exception', 'Controller error'),
@@ -198,6 +203,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                             'some.key2' => 'value2',
                             TAG::SPAN_KIND => 'server',
                             Tag::COMPONENT => 'laravel',
+                            '_dd.svc_src' => 'laravel',
                         ])
                         ->withChildren([
                             SpanAssertion::exists('laravel.application.handle')
@@ -207,6 +213,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                                             'some.key1' => 'value',
                                             'some.key2' => 'value2',
                                             Tag::COMPONENT => 'laravel',
+                                            '_dd.svc_src' => 'laravel',
                                         ]),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),
                                     SpanAssertion::exists('laravel.event.handle', null, null, 'laravel'),

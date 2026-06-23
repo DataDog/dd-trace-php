@@ -53,9 +53,11 @@ array(1) {
     ["type"]=>
     string(8) "new.type"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["_dd.base_service"]=>
       string(27) "test_special_attributes.php"
+      ["_dd.svc_src"]=>
+      string(1) "m"
     }
     ["metrics"]=>
     array(1) {

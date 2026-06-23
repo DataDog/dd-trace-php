@@ -66,7 +66,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Closure::__invoke'
                         )->withExactTags([
-                            Tag::COMPONENT => 'slim'
+                            Tag::COMPONENT => 'slim',
                         ])
                     ]),
                 ],
@@ -91,7 +91,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'App\SimpleViewController::index'
                         )->withExactTags([
-                            Tag::COMPONENT => 'slim'
+                            Tag::COMPONENT => 'slim',
                         ])->withChildren([
                             SpanAssertion::build(
                                 'slim.view',
@@ -100,7 +100,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'simple_view.phtml'
                             )->withExactTags([
                                 'slim.view' => 'simple_view.phtml',
-                                Tag::COMPONENT => 'slim'
+                                Tag::COMPONENT => 'slim',
                             ])
                         ])
                     ]),
@@ -127,7 +127,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                                 'web',
                                 'Closure::__invoke'
                             )->withExactTags([
-                                Tag::COMPONENT => 'slim'
+                                Tag::COMPONENT => 'slim',
                             ])->withExistingTagsNames([
                                 'error.stack',
                             ])->setError(null, 'Foo error')
@@ -154,7 +154,7 @@ final class CommonScenariosTest extends WebFrameworkTestCase
                             'web',
                             'Closure::__invoke'
                         )->withExactTags([
-                            Tag::COMPONENT => 'slim'
+                            Tag::COMPONENT => 'slim',
                         ])
                     ]),
                 ],

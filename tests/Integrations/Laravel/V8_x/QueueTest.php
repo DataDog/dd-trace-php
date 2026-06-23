@@ -101,7 +101,8 @@ class QueueTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->withExactTags([
-                                Tag::COMPONENT => 'laravel'
+                                Tag::COMPONENT => 'laravel',
+                                '_dd.svc_src' => 'laravel',
                             ])->withChildren([
                                 $this->spanQueuePush('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
                                     ->withChildren([
@@ -194,7 +195,8 @@ class QueueTest extends WebFrameworkTestCase
                     ->withChildren([
                         SpanAssertion::exists('laravel.action')
                             ->withExactTags([
-                                Tag::COMPONENT => 'laravel'
+                                Tag::COMPONENT => 'laravel',
+                                '_dd.svc_src' => 'laravel',
                             ])->withChildren([
                                 $this->spanQueueLater('database', 'emails', 'Illuminate\Queue\DatabaseQueue')
                                     ->withChildren([
@@ -353,7 +355,8 @@ class QueueTest extends WebFrameworkTestCase
             'web',
             'Illuminate\Queue\Events\JobProcessing'
         )->withExistingTagsNames([
-            Tag::COMPONENT
+            Tag::COMPONENT,
+            '_dd.svc_src',
         ]);
     }
 
@@ -365,7 +368,8 @@ class QueueTest extends WebFrameworkTestCase
             'web',
             'Illuminate\Queue\Events\JobProcessed'
         )->withExistingTagsNames([
-            Tag::COMPONENT
+            Tag::COMPONENT,
+            '_dd.svc_src',
         ]);
     }
 
@@ -378,6 +382,7 @@ class QueueTest extends WebFrameworkTestCase
             Tag::SPAN_KIND                  => 'client',
             Tag::COMPONENT                  => 'laravelqueue',
 
+            '_dd.svc_src' => 'laravelqueue',
             Tag::MQ_SYSTEM                  => 'laravel',
             Tag::MQ_DESTINATION_KIND        => 'queue',
 
@@ -578,6 +583,7 @@ class QueueTest extends WebFrameworkTestCase
         )->withExactTags([
             Tag::SPAN_KIND      => 'client',
             Tag::COMPONENT      => 'laravelqueue',
+            '_dd.svc_src' => 'laravelqueue',
             Tag::MQ_OPERATION   => 'send'
         ])->withExistingTagsNames([
             Tag::LARAVELQ_BATCH_ID

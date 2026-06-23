@@ -34,6 +34,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'Tests\Integration\DummyPipe::someHandler'
                     )->withExactTags([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ]),
                 ]),
         ]);
@@ -57,6 +58,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'Tests\Integration\DummyPipe::someHandler'
                     )->withExactTags([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ]),
                     SpanAssertion::build(
                         'laravel.pipeline.pipe',
@@ -65,6 +67,7 @@ class PipelineTracingTest extends WebFrameworkTestCase
                         'Tests\Integration\DummyPipe::someHandler'
                     )->withExactTags([
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ]),
                 ]),
         ]);

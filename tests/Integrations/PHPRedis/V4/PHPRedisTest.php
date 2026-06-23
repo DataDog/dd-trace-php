@@ -82,6 +82,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'out.port' => $this->port,
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis',
+                '_dd.svc_src' => 'phpredis',
                 Tag::DB_SYSTEM => 'redis',
             ]),
         ]);
@@ -127,6 +128,7 @@ class PHPRedisTest extends IntegrationTestCase
                 'out.port' => $port ?: $this->port,
                 Tag::SPAN_KIND => 'client',
                 Tag::COMPONENT => 'phpredis',
+                '_dd.svc_src' => 'phpredis',
                 Tag::DB_SYSTEM => 'redis',
             ])
             ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack']),
@@ -2106,7 +2108,7 @@ class PHPRedisTest extends IntegrationTestCase
             )
             ->setError()
             ->withExistingTagsNames([Tag::ERROR_MSG, 'error.stack'])
-            ->withExactTags($this->baseTags(), ['out.host' => 'non-existing-host', 'out.port' => '6379']),
+            ->withExactTags($this->baseTags(), ['out.host' => 'non-existing-host', 'out.port' => '6379', '_dd.svc_src' => 'opt.redis_client_split_by_host']),
         ]);
     }
 
@@ -2127,14 +2129,14 @@ class PHPRedisTest extends IntegrationTestCase
                 'redis',
                 "Redis.connect"
             )
-                ->withExactTags($this->baseTags(), [Tag::TARGET_PORT => '6379']),
+                ->withExactTags($this->baseTags(), [Tag::TARGET_PORT => '6379', '_dd.svc_src' => 'opt.redis_client_split_by_host']),
             SpanAssertion::build(
                 "Redis.set",
                 'redis-redis-integration',
                 'redis',
                 "Redis.set"
             )
-                ->withExactTags($this->baseTags('set key value')),
+                ->withExactTags($this->baseTags('set key value'), ['_dd.svc_src' => 'opt.redis_client_split_by_host']),
         ]);
     }
 
@@ -2223,6 +2225,7 @@ class PHPRedisTest extends IntegrationTestCase
         $tags = [
             Tag::SPAN_KIND => 'client',
             Tag::COMPONENT => 'phpredis',
+            '_dd.svc_src' => 'phpredis',
             Tag::DB_SYSTEM => 'redis',
             Tag::TARGET_HOST => 'redis-integration',
         ];

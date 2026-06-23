@@ -322,7 +322,11 @@ unsafe fn ddog_sidecar_telemetry_cache_get_or_update<'a>(
     }
 
     let shm_path = path_for_telemetry(&service_str, &env_str);
-    let reader = OneWayShmReader::<NamedShmHandle, _>::new_with_opener(open_named_shm(&shm_path).ok(), shm_path, |path| open_named_shm(path).ok());
+    let reader = OneWayShmReader::<NamedShmHandle, _>::new_with_opener(
+        open_named_shm(&shm_path).ok(),
+        shm_path,
+        |path| open_named_shm(path).ok(),
+    );
     let cached_entry = cache.entry(ShmCacheKey(service_str.into(), env_str.into())).insert(ShmCache {
         reader,
         shared: TelemetryCachedClientShmData::default(),

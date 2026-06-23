@@ -48,6 +48,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'lumen',
+                        '_dd.svc_src' => 'lumen',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
@@ -63,6 +64,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         )->withExactTags([
                             'lumen.route.action' => 'App\Http\Controllers\ExampleController@simple',
                             Tag::COMPONENT => 'lumen',
+                            '_dd.svc_src' => 'lumen',
                         ]),
                     ]),
             ]

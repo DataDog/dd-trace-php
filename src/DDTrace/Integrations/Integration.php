@@ -81,13 +81,10 @@ abstract class Integration implements \DDTrace\Integration
         $flatServiceNames =
             !$skipFlattening && \dd_trace_env_config('DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED');
 
+        $rootSpan = null;
         if ($flatServiceNames) {
             $rootSpan = \DDTrace\root_span();
-            if ($rootSpan) {
-                $service = $rootSpan->service;
-            } else {
-                $service = \ddtrace_config_app_name($fallbackName);
-            }
+            $service = $rootSpan ? $rootSpan->service : \ddtrace_config_app_name($fallbackName);
         } else {
             $service = $fallbackName;
         }
@@ -97,6 +94,36 @@ abstract class Integration implements \DDTrace\Integration
             $service = $mapping[$service];
         }
         $span->service = $service;
+        unset($span->meta['_dd.svc_src']);
+        if ($flatServiceNames) {
+            if ($rootSpan && isset($rootSpan->meta['_dd.svc_src'])) {
+                $span->meta['_dd.svc_src'] = $rootSpan->meta['_dd.svc_src'];
+            }
+        } else {
+            $span->meta['_dd.svc_src'] = $fallbackName;
+        }
+    }
+
+    public static function tagFrameworkServiceSource(SpanData $span, $integrationName)
+    {
+        if (\dd_trace_env_config('DD_SERVICE')) {
+            unset($span->meta['_dd.svc_src']);
+        } else {
+            $span->meta['_dd.svc_src'] = $integrationName;
+        }
+    }
+
+    /**
+     * Set the standard framework-integration metadata on a span.
+     * When DD_SERVICE is configured the user's value is left untouched.
+     */
+    public static function setComponentMetadata(SpanData $span, $component, $service = null)
+    {
+        if (!\dd_trace_env_config('DD_SERVICE')) {
+            $span->service = $service ?? $component;
+            $span->meta['_dd.svc_src'] = $component;
+        }
+        $span->meta[Tag::COMPONENT] = $component;
     }
 
     public static function handleOrphan(SpanData $span)

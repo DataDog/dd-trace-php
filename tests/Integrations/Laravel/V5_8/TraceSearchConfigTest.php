@@ -51,6 +51,7 @@ class TraceSearchConfigTest extends WebFrameworkTestCase
                         'http.route' => 'simple',
                         TAG::SPAN_KIND => 'server',
                         Tag::COMPONENT => 'laravel',
+                        '_dd.svc_src' => 'laravel',
                     ])
                     ->withExactMetrics([
                         '_dd1.sr.eausr' => 0.3,
