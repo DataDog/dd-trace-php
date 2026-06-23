@@ -57,7 +57,7 @@
       {
         "implementation": "A",
         "type": "boolean",
-        "default": "false"
+        "default": "true"
       }
     ],
     "DD_APPSEC_ENABLED": [

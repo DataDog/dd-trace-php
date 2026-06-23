@@ -13,7 +13,6 @@ if [[ -n $USE_HELPER_RUST ]]; then
   HELPER_PATH=/helper-rust/libddappsec-helper.so
 elif [[ -f /helper-rust/libddappsec-helper.so ]]; then
   # Copy Rust helper for the redirection mechanism
-  # (DD_APPSEC_HELPER_RUST_REDIRECTION defaults to true on PHP 7.x and 8.4+)
   ln -sf /helper-rust/libddappsec-helper.so \
     "$(dirname "$HELPER_PATH")/libddappsec-helper-rust.so"
 fi
@@ -34,6 +33,11 @@ if [[ -n $USE_SSI ]]; then
   ln -s /tracer-ssi/ddtrace.so "$PKG/trace/ext/$PHP_API/ddtrace${EXT_SUFFIX}.so"
   ln -s /appsec/ddappsec.so "$PKG/appsec/ext/$PHP_API/ddappsec${EXT_SUFFIX}.so"
   ln -s /appsec/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper.so"
+  if [[ -f /appsec/libddappsec-helper-rust.so ]]; then
+    ln -sf /appsec/libddappsec-helper-rust.so "$PKG/appsec/lib/libddappsec-helper-rust.so"
+  elif [[ -f /helper-rust/libddappsec-helper.so ]]; then
+    ln -sf /helper-rust/libddappsec-helper.so "$PKG/appsec/lib/libddappsec-helper-rust.so"
+  fi
   ln -s /project/src "$PKG/trace/src"
   HELPER_PATH=/tmp/dd-package/appsec/lib/libddappsec-helper.so
   {
