@@ -11,10 +11,10 @@
 // for open(2)
 #include <dlfcn.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <pthread.h>
 #include <stdatomic.h>
