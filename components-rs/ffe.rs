@@ -365,6 +365,7 @@ fn record_flag_evaluation_evp(
 
 /// Drain the aggregator and build a `FfeFlagEvaluationBatch`.
 /// Returns `None` if the aggregator is empty.
+#[cfg(test)]
 fn drain_aggregator(service: &str, env: &str, version: &str) -> Option<FfeFlagEvaluationBatch> {
     drain_aggregator_with_counters(service, env, version).batch
 }
