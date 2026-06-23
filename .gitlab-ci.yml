@@ -18,7 +18,6 @@ include:
   - project: DataDog/apm-reliability/libdatadog-build
     ref: 5826819695d93286569e70ed087ae6bf906ce2c3
     file: templates/ci_authenticated_job.yml
-  - local: .gitlab/ci-images.yml
 
 generate-templates:
   stage: build
@@ -57,6 +56,7 @@ generate-templates:
     - php ./.gitlab/generate-appsec.php   | tee .gitlab/appsec-gen.yml
     - php ./.gitlab/generate-profiler.php | tee .gitlab/profiler-gen.yml
     - php ./.gitlab/generate-shared.php   | tee .gitlab/shared-gen.yml
+    - php ./.gitlab/generate-ci-images.php | tee .gitlab/ci-images-gen.yml
   variables:
     GIT_SUBMODULE_STRATEGY: none
   artifacts:
@@ -89,6 +89,22 @@ appsec-trigger:
   variables:
     PARENT_PIPELINE_ID: $CI_PIPELINE_ID
     GIT_SUBMODULE_PATHS: libdatadog appsec/third_party/cpp-base64 appsec/third_party/libddwaf appsec/third_party/libddwaf-rust appsec/third_party/msgpack-c
+
+# Manual maintenance pipeline that (re)builds the CI Docker images. Generated
+# from dockerfiles/ci/*/docker-compose.yml + .env so versions live in one place.
+# No strategy: depend — the parent must not wait on these manual jobs.
+ci-images:
+  stage: ci-build
+  rules:
+    - when: manual
+      allow_failure: true
+  needs:
+    - job: generate-templates
+      artifacts: true
+  trigger:
+    include:
+      - artifact: .gitlab/ci-images-gen.yml
+        job: generate-templates
 
 profiler-trigger:
   stage: tests

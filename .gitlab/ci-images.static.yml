@@ -1,99 +1,48 @@
+# DO NOT EDIT THE GENERATED LINUX JOBS — they are produced by
+# .gitlab/generate-ci-images.php from the docker-compose.yml + .env files.
+# This file holds the STATIC preamble (stages, templates) and the Windows jobs,
+# which have no multi-arch manifest and stay hand-maintained.
+
+stages:
+  - ci-build
+  - ci-publish
+
 variables:
-  CI_REGISTRY_IMAGE:
-    value: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
+  CI_REGISTRY_IMAGE: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci"
 
-CentOS:
+.linux_image_build:
   stage: ci-build
   rules:
     - when: manual
       allow_failure: true
   needs: []
-  tags: ["arch:amd64"]
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   variables:
     DDCI_CONFIGURE_OTEL_EXPORTER: "true"
-  parallel:
-    matrix:
-      - PHP_VERSION:
-        - base
-        - php-8.5
-        - php-8.4
-        - php-8.3
-        - php-8.2
-        - php-8.1
-        - php-8.0
-        - php-7.4
-        - php-7.3
-        - php-7.2
-        - php-7.1
-        - php-7.0
-  script:
-    - cd dockerfiles/ci/centos/7
-    - docker buildx bake --no-cache --pull --push $PHP_VERSION
+    KUBERNETES_CPU_REQUEST: "8"
+    KUBERNETES_CPU_LIMIT: "8"
+    KUBERNETES_MEMORY_REQUEST: "16Gi"
+    KUBERNETES_MEMORY_LIMIT: "16Gi"
+    MAKE_JOBS: "$KUBERNETES_CPU_LIMIT"
 
-Alpine:
-  stage: ci-build
+.linux_publish:
+  stage: ci-publish
   rules:
     - when: manual
       allow_failure: true
+  # No deps: a publish just mirrors whatever already exists in
+  # registry.ddbuild.io to Docker Hub, so it can run without (re)building.
   needs: []
-  tags: ["arch:amd64"]
-  timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  trigger:
+    project: DataDog/public-images
+    branch: main
+  # $TAG is supplied per matrix entry by the generated publish jobs.
   variables:
-    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
-  parallel:
-    matrix:
-      - PHP_VERSION:
-        - base-alpine
-        - 8.5-alpine
-        - 8.4-alpine
-        - 8.3-alpine
-        - 8.2-alpine
-        - 8.1-alpine
-        - 8.0-alpine
-        - 7.4-alpine
-        - 7.3-alpine
-        - 7.2-alpine
-        - 7.1-alpine
-        - 7.0-alpine
-  script:
-    - cd dockerfiles/ci/alpine_compile_extension
-    - docker buildx bake --no-cache --pull --push $PHP_VERSION
-
-Bookworm:
-  stage: ci-build
-  rules:
-    - when: manual
-      allow_failure: true
-  needs: []
-  tags: ["arch:amd64"]
-  timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
-  variables:
-    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
-    MAKE_JOBS: "2"
-  parallel:
-    matrix:
-      - PHP_VERSION:
-        - base
-        - php-8.5
-        - php-8.4
-        - php-8.3
-        - php-8.2
-        - php-8.1
-        - php-8.0
-        - php-8.0-shared-ext
-        - php-7.4
-        - php-7.4-shared-ext
-        - php-7.3
-        - php-7.2
-        - php-7.1
-        - php-7.0
-  script:
-    - cd dockerfiles/ci/bookworm
-    - docker buildx bake --no-cache --pull --push $PHP_VERSION
+    IMG_REGISTRIES: "dockerhub"
+    IMG_SIGNING: false
+    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG}"
+    IMG_DESTINATIONS: "dd-trace-ci:${TAG}"
 
 .windows_image_build:
   stage: ci-build
@@ -196,98 +145,6 @@ Bookworm:
         - "php-7.3"
         - "php-7.2"
 
-Publish CentOS:
-  stage: ci-publish
-  rules:
-    - when: manual
-      allow_failure: true
-  needs:
-    - job: CentOS
-  trigger:
-    project: DataDog/public-images
-    branch: main
-  parallel:
-    matrix:
-      - TAG_NAME:
-        - "centos-7"
-        - "php-8.5_centos-7"
-        - "php-8.4_centos-7"
-        - "php-8.3_centos-7"
-        - "php-8.2_centos-7"
-        - "php-8.1_centos-7"
-        - "php-8.0_centos-7"
-        - "php-7.4_centos-7"
-        - "php-7.3_centos-7"
-        - "php-7.2_centos-7"
-        - "php-7.1_centos-7"
-        - "php-7.0_centos-7"
-  variables:
-    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
-    IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
-    IMG_REGISTRIES: "dockerhub"
-
-Publish Bookworm:
-  stage: ci-publish
-  rules:
-    - when: manual
-      allow_failure: true
-  needs:
-    - job: Bookworm
-  trigger:
-    project: DataDog/public-images
-    branch: main
-  parallel:
-    matrix:
-      - TAG_NAME:
-        - "bookworm-9"
-        - "php-8.5_bookworm-9"
-        - "php-8.4_bookworm-9"
-        - "php-8.3_bookworm-9"
-        - "php-8.2_bookworm-9"
-        - "php-8.1_bookworm-9"
-        - "php-8.0_bookworm-9"
-        - "php-8.0-shared-ext-9"
-        - "php-7.4_bookworm-9"
-        - "php-7.4-shared-ext-9"
-        - "php-7.3_bookworm-9"
-        - "php-7.2_bookworm-9"
-        - "php-7.1_bookworm-9"
-        - "php-7.0_bookworm-9"
-  variables:
-    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
-    IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
-    IMG_REGISTRIES: "dockerhub"
-
-Publish Alpine:
-  stage: ci-publish
-  rules:
-    - when: manual
-      allow_failure: true
-  needs:
-    - job: Alpine
-  trigger:
-    project: DataDog/public-images
-    branch: main
-  parallel:
-    matrix:
-      - TAG_NAME:
-        - "php-compile-extension-alpine"
-        - "php-compile-extension-alpine-8.5"
-        - "php-compile-extension-alpine-8.4"
-        - "php-compile-extension-alpine-8.3"
-        - "php-compile-extension-alpine-8.2"
-        - "php-compile-extension-alpine-8.1"
-        - "php-compile-extension-alpine-8.0"
-        - "php-compile-extension-alpine-7.4"
-        - "php-compile-extension-alpine-7.3"
-        - "php-compile-extension-alpine-7.2"
-        - "php-compile-extension-alpine-7.1"
-        - "php-compile-extension-alpine-7.0"
-  variables:
-    IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
-    IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
-    IMG_REGISTRIES: "dockerhub"
-
 Publish Windows:
   stage: ci-publish
   rules:
@@ -321,3 +178,4 @@ Publish Windows:
     IMG_SOURCES: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:${TAG_NAME}"
     IMG_DESTINATIONS: "dd-trace-ci:${TAG_NAME}"
     IMG_REGISTRIES: "dockerhub"
+    IMG_SIGNING: false
