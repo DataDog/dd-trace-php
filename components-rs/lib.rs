@@ -37,6 +37,9 @@ use std::path::Path;
 #[cfg(target_os = "linux")]
 pub use libdd_otel_thread_ctx_ffi::*;
 
+#[cfg(target_os = "linux")]
+use libdd_library_config::tracer_metadata::{store_tracer_metadata, TracerMetadata};
+
 #[no_mangle]
 #[allow(non_upper_case_globals)]
 pub static mut datadog_runtime_id: Uuid = Uuid::nil();
@@ -94,6 +97,35 @@ pub extern "C" fn datadog_format_runtime_id(buf: &mut [u8; 36]) {
     // Safety: datadog_runtime_id is only supposed to be mutated from single-
     // threaded contexts, so reads should always be safe.
     unsafe { datadog_runtime_id.as_hyphenated().encode_lower(buf) };
+}
+
+#[cfg(target_os = "linux")]
+#[no_mangle]
+pub extern "C" fn datadog_publish_otel_process_context() -> bool {
+    let runtime_id = unsafe {
+        (!datadog_runtime_id.is_nil()).then(|| datadog_runtime_id.as_hyphenated().to_string())
+    };
+
+    let metadata = TracerMetadata {
+        runtime_id,
+        tracer_language: "php".to_owned(),
+        threadlocal_attribute_keys: Some(std::vec::Vec::new()),
+        ..Default::default()
+    };
+
+    match store_tracer_metadata(&metadata) {
+        Ok(_) => true,
+        Err(error) => {
+            tracing::debug!("failed to publish OTel process context: {error}");
+            false
+        }
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+#[no_mangle]
+pub extern "C" fn datadog_publish_otel_process_context() -> bool {
+    false
 }
 
 #[must_use]

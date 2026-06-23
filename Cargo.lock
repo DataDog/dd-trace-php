@@ -1325,6 +1325,7 @@ dependencies = [
  "libdd-common-ffi",
  "libdd-crashtracker-ffi",
  "libdd-data-pipeline",
+ "libdd-library-config",
  "libdd-library-config-ffi",
  "libdd-otel-thread-ctx-ffi",
  "libdd-remote-config",
@@ -2969,7 +2970,6 @@ version = "2.0.0"
 dependencies = [
  "anyhow",
  "libc 0.2.177",
- "libdd-otel-thread-ctx",
  "libdd-trace-protobuf",
  "memfd",
  "prost",
@@ -3023,7 +3023,6 @@ version = "1.0.0"
 dependencies = [
  "build_common",
  "cc",
- "libc 0.2.177",
 ]
 
 [[package]]

@@ -19,11 +19,11 @@ fn info_to_concentrator_config(info: &AgentInfoStruct) {
     apply_concentrator_config(
         info.peer_tags.as_deref().unwrap_or(&[]).to_owned(),
         info.span_kinds_stats_computed.as_deref().unwrap_or(&[]).to_owned(),
-        info.filter_tags.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
-        info.filter_tags.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
-        info.filter_tags_regex.as_ref().and_then(|f| f.require.as_deref()).unwrap_or(&[]).to_owned(),
-        info.filter_tags_regex.as_ref().and_then(|f| f.reject.as_deref()).unwrap_or(&[]).to_owned(),
-        info.ignore_resources.as_deref().unwrap_or(&[]).to_owned(),
+        info.filter_tags.require.clone(),
+        info.filter_tags.reject.clone(),
+        info.filter_tags_regex.require.clone(),
+        info.filter_tags_regex.reject.clone(),
+        info.ignore_resources.clone(),
         info.client_drop_p0s.unwrap_or(false),
         info.version.as_deref(),
     );
