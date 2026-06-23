@@ -246,7 +246,7 @@ fn bool_config(value: &bool) -> Cow<'static, str> {
 fn map_config_name(config: &Configs) -> &'static str {
     match config {
         Configs::TracingHeaderTags(_) => "datadog.trace.header_tags",
-        Configs::TracingSampleRate(_) => "datadog.trace.sample_rate",
+        Configs::TracingSamplingRate(_) => "datadog.trace.sample_rate",
         Configs::LogInjectionEnabled(_) => "datadog.logs_injection",
         Configs::TracingTags(_) => "datadog.tags",
         Configs::TracingEnabled(_) => "datadog.trace.enabled",
@@ -260,7 +260,7 @@ fn map_config_name(config: &Configs) -> &'static str {
 fn map_config_value(config: &Configs) -> Cow<'_, str> {
     match config {
         Configs::TracingHeaderTags(tags) => tags.iter().map(|(k, _)| k).join(",").into(),
-        Configs::TracingSampleRate(rate) => rate.to_string().into(),
+        Configs::TracingSamplingRate(rate) => rate.to_string().into(),
         Configs::LogInjectionEnabled(enabled) => bool_config(enabled),
         Configs::TracingTags(tags) => tags.join(",").into(),
         Configs::TracingEnabled(enabled) => bool_config(enabled),
