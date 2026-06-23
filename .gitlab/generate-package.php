@@ -217,9 +217,9 @@ foreach ($build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     CARGO_BUILD_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
   script:
     - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "nts"
     - .gitlab/build-profiler.sh "datadog-profiling/${TRIPLET}/lib/php/${ABI_NO}" "zts"
@@ -259,9 +259,9 @@ foreach ($build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
@@ -293,9 +293,9 @@ if ($suffix == "-alpine") {
       - ARCH: ["amd64", "arm64" ]
   variables:
     MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
   script: .gitlab/build-appsec-helper.sh
   artifacts:
     paths:
@@ -311,9 +311,9 @@ if ($suffix == "-alpine") {
       - ARCH: ["amd64", "arm64" ]
   variables:
     MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 12Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 8Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 12Gi
   script: .gitlab/build-appsec-helper-rust.sh
   artifacts:
     paths:
@@ -350,9 +350,9 @@ foreach ($build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
@@ -418,9 +418,9 @@ foreach ($build_platforms as $platform) {
     ARCH: "<?= $platform['arch'] ?>"
     HOST_OS: "<?= $platform['host_os'] ?>"
     CARGO_BUILD_JOBS: 16
-    KUBERNETES_CPU_REQUEST: 16
-    KUBERNETES_MEMORY_REQUEST: 5Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_CPU_REQUEST: 16
+    KUBERNETES_POD_MEMORY_REQUEST: 5Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
   script:
     - echo "" >> "$BASH_ENV"
     - ./.gitlab/build-sidecar.sh "<?= $suffix ?>"
@@ -465,9 +465,9 @@ foreach ($php_versions_to_abi as $major_minor => $abi_no) {
     TRIPLET: "<?= $platform['triplet'] ?>"
     ARCH: "<?= $platform['arch'] ?>"
     ABI_NO: "<?= $abi_no ?>"
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 8Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 8Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 16Gi
   script:
     # Fix for $BASH_ENV not having a newline at the end of the file
     - echo "" >> "$BASH_ENV"
@@ -499,9 +499,9 @@ foreach ($asan_build_platforms as $platform) {
     ABI_NO: "<?= $abi_no ?>"
     PHP_VERSION: "<?= $major_minor ?>"
     MAKE_JOBS: 12
-    KUBERNETES_CPU_REQUEST: 12
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 8Gi
+    KUBERNETES_POD_CPU_REQUEST: 12
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 8Gi
   script: ./.gitlab/build-tracing-asan.sh
   artifacts:
     paths:
@@ -791,9 +791,9 @@ endforeach;
   stage: verify
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble # TODO: use a proper docker image with make, php and git pre-installed
   variables:
-    KUBERNETES_CPU_REQUEST: 7
-    KUBERNETES_MEMORY_REQUEST: 30Gi
-    KUBERNETES_MEMORY_LIMIT: 40Gi
+    KUBERNETES_POD_CPU_REQUEST: 7
+    KUBERNETES_POD_MEMORY_REQUEST: 30Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 40Gi
     RUST_BACKTRACE: 1
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
@@ -873,9 +873,9 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   variables:
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
   before_script:
 <?php dockerhub_login() ?>
@@ -895,9 +895,9 @@ endforeach;
     - job: datadog-setup.php
       artifacts: true
   variables:
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
   before_script:
 <?php unset_dd_runner_env_vars() ?>
@@ -914,9 +914,9 @@ endforeach;
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   tags: [ "docker-in-docker:amd64" ]
   variables:
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
   needs:
     - job: "package extension: [amd64, x86_64-unknown-linux-gnu]"
       artifacts: true
@@ -963,9 +963,9 @@ endforeach;
   services:
     - !reference [.services, request-replayer]
   variables:
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
     DD_AGENT_HOST: request-replayer
     DD_TRACE_AGENT_PORT: 80
     DD_TRACE_AGENT_FLUSH_INTERVAL: 1000
@@ -1086,9 +1086,9 @@ endforeach;
   image: registry.ddbuild.io/images/mirror/debian:bullseye-slim
   tags: [ "arch:<?= $arch ?>" ]
   variables:
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
     PHP_VERSION: "<?= $major_minor ?>"
   needs:
     - job: "package extension: [<?= $arch ?>, <?= $pkgprefix ?>-unknown-linux-gnu]"
@@ -1108,9 +1108,9 @@ endforeach;
   image: registry.ddbuild.io/images/mirror/alpine:3.12
   tags: [ "arch:amd64" ]
   variables:
-    KUBERNETES_CPU_REQUEST: 2
-    KUBERNETES_MEMORY_REQUEST: 2Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_CPU_REQUEST: 2
+    KUBERNETES_POD_MEMORY_REQUEST: 2Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
   needs:
     - job: "package extension: [amd64, x86_64-alpine-linux-musl]"
       artifacts: true
@@ -1160,9 +1160,9 @@ endforeach;
     - !reference [.services, request-replayer]
     - !reference [.services, httpbin-integration]
   variables:
-    KUBERNETES_CPU_REQUEST: 4
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 5Gi
+    KUBERNETES_POD_CPU_REQUEST: 4
+    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
   parallel:
     matrix:
       - PHP_VERSION: <?= json_encode($all_minor_major_targets), "\n" ?>
@@ -1220,10 +1220,10 @@ endforeach;
   tags: [ "docker-in-docker:amd64" ]
   variables:
     TEST_LIBRARY: php
-    KUBERNETES_CPU_REQUEST: 8
+    KUBERNETES_POD_CPU_REQUEST: 8
     PYTEST_XDIST_AUTO_NUM_WORKERS: 8
-    KUBERNETES_MEMORY_REQUEST: 3Gi
-    KUBERNETES_MEMORY_LIMIT: 4Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 3Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 4Gi
     RUST_BACKTRACE: 1
     BUILD_SH_ARGS: php
     PIP_CACHE_DIR: $CI_PROJECT_DIR/.cache/pip
@@ -1630,8 +1630,8 @@ foreach ($arch_targets as $arch) {
   image: registry.ddbuild.io/images/mirror/php:8.2-cli
   tags: [ "arch:amd64" ]
   variables: # enough memory for the individual artifacts
-    KUBERNETES_MEMORY_REQUEST: 4Gi
-    KUBERNETES_MEMORY_LIMIT: 5Gi
+    KUBERNETES_POD_MEMORY_REQUEST: 4Gi
+    KUBERNETES_POD_MEMORY_LIMIT: 5Gi
   only:
     refs:
       - /^ddtrace-.*$/
