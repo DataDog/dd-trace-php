@@ -201,9 +201,9 @@ static bool _assume_utf8(const char *ct, size_t ct_len)
             for (; c < end && *c == ' '; c++) {}
             if (c < end && *c == '=') {
                 for (c++; c < end - LSTRLEN("utf-8") && *c == ' '; c++) {}
-                if (tolower(*c) == 'u' && tolower(*(c + 1)) == 't' &&
-                    tolower(*(c + 2)) == 'f' && tolower(*(c + 3)) == '-' &&
-                    tolower(*(c + 4)) == '8') {
+                if (c + LSTRLEN("utf-8") <= end && tolower(*c) == 'u' &&
+                    tolower(*(c + 1)) == 't' && tolower(*(c + 2)) == 'f' &&
+                    tolower(*(c + 3)) == '-' && tolower(*(c + 4)) == '8') {
                     return true;
                 }
                 return false;
