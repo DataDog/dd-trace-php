@@ -23,8 +23,9 @@ services:
       args:
         <<: *build-base
         phpVersion: "8.5"
-        phpTarGzUrl: https://www.php.net/distributions/php-8.5.7.tar.gz
-        phpSha256Hash: "e5eba93fd6dd3241d0e61e932eb99a3783b40568553fb0e511b660ecd863a049"
+        # 8.5.8RC1 (RC sources from ~daniels until 8.5.8 GA, ~2 Jul 2026).
+        phpTarGzUrl: https://downloads.php.net/~daniels/php-8.5.8RC1.tar.gz
+        phpSha256Hash: "57f93d2e0d76a26ac955e30cfab81dd910fc48e8bf78b3a15ff67df63a92ac72"
 
   php-8.4:
     image: ${CI_REGISTRY_IMAGE:-datadog/dd-trace-ci}:php-8.4_bookworm-$BOOKWORM_NEXT_VERSION
