@@ -20,11 +20,11 @@ variables:
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
   variables:
     DDCI_CONFIGURE_OTEL_EXPORTER: "true"
-    KUBERNETES_CPU_REQUEST: "8"
-    KUBERNETES_CPU_LIMIT: "8"
-    KUBERNETES_MEMORY_REQUEST: "16Gi"
-    KUBERNETES_MEMORY_LIMIT: "16Gi"
-    MAKE_JOBS: "$KUBERNETES_CPU_LIMIT"
+    # The heavy compile runs on the buildx "ci" builder instance, not this job
+    # pod, so the pod uses cluster defaults (master set no KUBERNETES_* either).
+    # MAKE_JOBS drives the builder's compile parallelism — keep it (was
+    # $KUBERNETES_CPU_LIMIT; pinned to a literal now that the limit is gone).
+    MAKE_JOBS: "8"
 
 .linux_publish:
   stage: ci-publish
