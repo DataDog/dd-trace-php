@@ -250,3 +250,79 @@ bool ddtrace_ffe_flush_exposures(void) {
     dd_ffe_clear_exposures();
     return flushed;
 }
+
+// --- APM feature-flag span enrichment tag staging (PHP-01) ---------------
+//
+// The OpenFeature provider accumulates serial ids / subjects / runtime
+// defaults inline during evaluation (DG-004) and stages the encoded tag set
+// here. The values are flushed into the root span meta when the root span
+// closes (ddtrace_close_span) and cleared on root close / request shutdown so
+// nothing leaks across requests. The whole feature is gated: when the gate is
+// off the provider never stages anything, so this store stays empty and the
+// close-span path is a cheap early-return (DG-005).
+
+static void dd_ffe_set_span_tag(zend_string **slot, zend_string *value) {
+    if (*slot) {
+        zend_string_release(*slot);
+        *slot = NULL;
+    }
+    if (value && ZSTR_LEN(value) > 0) {
+        *slot = zend_string_copy(value);
+    }
+}
+
+void ddtrace_ffe_set_span_enrichment_tags(zend_string *flags_enc, zend_string *subjects_enc, zend_string *runtime_defaults) {
+    dd_ffe_set_span_tag(&DDTRACE_G(ffe_span_flags_enc), flags_enc);
+    dd_ffe_set_span_tag(&DDTRACE_G(ffe_span_subjects_enc), subjects_enc);
+    dd_ffe_set_span_tag(&DDTRACE_G(ffe_span_runtime_defaults), runtime_defaults);
+}
+
+bool ddtrace_ffe_has_span_enrichment_tags(void) {
+    return DDTRACE_G(ffe_span_flags_enc) != NULL
+        || DDTRACE_G(ffe_span_subjects_enc) != NULL
+        || DDTRACE_G(ffe_span_runtime_defaults) != NULL;
+}
+
+void ddtrace_ffe_clear_span_enrichment_tags(void) {
+    if (DDTRACE_G(ffe_span_flags_enc)) {
+        zend_string_release(DDTRACE_G(ffe_span_flags_enc));
+        DDTRACE_G(ffe_span_flags_enc) = NULL;
+    }
+    if (DDTRACE_G(ffe_span_subjects_enc)) {
+        zend_string_release(DDTRACE_G(ffe_span_subjects_enc));
+        DDTRACE_G(ffe_span_subjects_enc) = NULL;
+    }
+    if (DDTRACE_G(ffe_span_runtime_defaults)) {
+        zend_string_release(DDTRACE_G(ffe_span_runtime_defaults));
+        DDTRACE_G(ffe_span_runtime_defaults) = NULL;
+    }
+}
+
+static void dd_ffe_add_span_tag_to_meta(zend_array *meta, const char *key, size_t key_len, zend_string *value) {
+    if (!value || ZSTR_LEN(value) == 0) {
+        return;
+    }
+    zval tag;
+    ZVAL_STR_COPY(&tag, value);
+    zend_hash_str_update(meta, key, key_len, &tag);
+}
+
+void ddtrace_ffe_flush_span_enrichment_tags(zend_array *meta) {
+    // Cheap gate check first: if the feature is off there is nothing staged and
+    // we must do no work (DG-005). zai_config may not be initialized yet during
+    // early shutdown, so fall back to the global value in that case.
+    bool enabled = zai_config_is_initialized()
+        ? get_DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED()
+        : get_global_DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED();
+
+    if (!enabled || !meta || !ddtrace_ffe_has_span_enrichment_tags()) {
+        ddtrace_ffe_clear_span_enrichment_tags();
+        return;
+    }
+
+    dd_ffe_add_span_tag_to_meta(meta, ZEND_STRL("ffe_flags_enc"), DDTRACE_G(ffe_span_flags_enc));
+    dd_ffe_add_span_tag_to_meta(meta, ZEND_STRL("ffe_subjects_enc"), DDTRACE_G(ffe_span_subjects_enc));
+    dd_ffe_add_span_tag_to_meta(meta, ZEND_STRL("ffe_runtime_defaults"), DDTRACE_G(ffe_span_runtime_defaults));
+
+    ddtrace_ffe_clear_span_enrichment_tags();
+}
