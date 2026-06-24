@@ -63,7 +63,7 @@ $asan_build_platforms = [
 $windows_build_platforms = [
     [
         "triplet" => "x86_64-pc-windows-msvc",
-        "image_template" => "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-%s_windows",
+        "image_template" => "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-%s_windows",
         "arch" => "amd64",
         "host_os" => "windows-msvc",
         "targets" => [
