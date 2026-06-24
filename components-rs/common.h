@@ -412,8 +412,11 @@ typedef enum ddog_RemoteConfigCapabilities {
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_ENABLE_LIVE_DEBUGGING = 41,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_DD_MULTICONFIG = 42,
   DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_TRACE_TAGGING_RULES = 43,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_ASM_EXTENDED_DATA_COLLECTION = 44,
   DDOG_REMOTE_CONFIG_CAPABILITIES_APM_TRACING_MULTICONFIG = 45,
   DDOG_REMOTE_CONFIG_CAPABILITIES_FFE_FLAG_CONFIGURATION_RULES = 46,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_DD_DATA_STREAMS_TRANSACTION_EXTRACTORS = 47,
+  DDOG_REMOTE_CONFIG_CAPABILITIES_LLM_OBS_ACTIVATION = 48,
 } ddog_RemoteConfigCapabilities;
 
 typedef enum ddog_RemoteConfigProduct {
@@ -426,6 +429,7 @@ typedef enum ddog_RemoteConfigProduct {
   DDOG_REMOTE_CONFIG_PRODUCT_ASM_FEATURES,
   DDOG_REMOTE_CONFIG_PRODUCT_FFE_FLAGS,
   DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER,
+  DDOG_REMOTE_CONFIG_PRODUCT_LIVE_DEBUGGER_SYMBOL_DB,
 } ddog_RemoteConfigProduct;
 
 typedef enum ddog_SpanProbeTarget {
@@ -478,6 +482,8 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
+typedef struct _zend_string *ddog_OwnedZendString;
+
 typedef struct ddog_FfeResult {
   _zend_string * value_json;
   _zend_string * variant;
@@ -523,8 +529,6 @@ typedef struct ddog_Tag {
   ddog_CharSlice name;
   const struct ddog_DslString *value;
 } ddog_Tag;
-
-typedef struct _zend_string *ddog_OwnedZendString;
 
 typedef struct _zend_string *(*ddog_DynamicConfigUpdate)(ddog_CharSlice config,
                                                          ddog_OwnedZendString value,
@@ -1981,6 +1985,79 @@ typedef struct ddog_Result_TracerMemfdHandle {
   };
 } ddog_Result_TracerMemfdHandle;
 
+/**
+ * Maximum size in bytes of the `attrs_data` field of a thread context record.
+ */
+#define ddog_MAX_ATTRS_DATA_SIZE 612
+/**
+ * Opaque handle to an owned thread context record. Used to allow the FFI to convert
+ * [ThreadContext] to and from raw pointers without exposing Rust ownership details.
+ *
+ * This is intentionally not `repr(C)`: C only ever sees pointers to this token, and cbindgen
+ * emits it as an opaque forward declaration. The public cross-process layout is
+ * `ThreadContextRecord`, not this ownership handle.
+ */
+typedef struct ddog_ThreadContextHandle ddog_ThreadContextHandle;
+typedef struct ddog_OtelThreadContextAttribute {
+  uint8_t key_index;
+  ddog_CharSlice value;
+} ddog_OtelThreadContextAttribute;
+/**
+ * In-memory layout of a thread-level context.
+ *
+ * **CAUTION**: The structure MUST match exactly the OTel thread-level context specification.
+ * It is read by external, out-of-process code. Do not re-order fields or modify in any way,
+ * unless you know exactly what you're doing.
+ *
+ * # Synchronization
+ *
+ * Readers are async-signal handlers. The writer is always stopped while a reader runs.
+ * Sharing memory with a signal handler still requires some form of synchronization, which is
+ * achieved through atomics and compiler fence, using `valid` and/or the TLS slot as
+ * synchronization points.
+ *
+ * - The writer stores `valid = 0` *before* modifying fields in-place, guarded by a fence.
+ * - The writer stores `valid = 1` *after* all fields are populated, guarded by a fence.
+ * - `valid` starts at `1` on construction and is never set to `0` except during an in-place
+ *   update.
+ */
+typedef struct ddog_ThreadContextRecord {
+  /**
+   * Trace identifier; all-zeroes means "no trace".
+   */
+  uint8_t trace_id[16];
+  /**
+   * Span identifier, stored with the exact byte representation provided by the caller.
+   */
+  uint8_t span_id[8];
+  /**
+   * Whether the record is ready/consistent. Always set to `1` except during in-place update
+   * of the current record.
+   */
+  uint8_t valid;
+  uint8_t _reserved;
+  /**
+   * Number of populated bytes in `attrs_data`.
+   */
+  uint16_t attrs_data_size;
+  /**
+   * Packed variable-length key-value records.
+   *
+   * It's a contiguous list of blocks with layout:
+   *
+   * 1. 1-byte `key_index`
+   * 2. 1-byte `val_len`
+   * 3. `val_len` bytes of a string value.
+   *
+   * # Size
+   *
+   * Currently, we always allocate the max recommended size. This potentially wastes a few
+   * hundred bytes per thread, but it guarantees that we can modify the context in-place
+   * without (re)allocation in the hot path. Having a hybrid scheme (starting smaller and
+   * resizing up a few times) is not out of the question.
+   */
+  uint8_t attrs_data[ddog_MAX_ATTRS_DATA_SIZE];
+} ddog_ThreadContextRecord;
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus

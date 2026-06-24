@@ -131,7 +131,7 @@ static void dd_observe_fiber_switch(zend_fiber_context *from, zend_fiber_context
 
     from->reserved[dd_resource_handle] = DDTRACE_G(active_stack);
     DDTRACE_G(active_stack) = to_stack;
-    ddtrace_update_otel_thread_context();
+    ddtrace_switch_otel_thread_context();
 }
 
 static void dd_observe_fiber_init(zend_fiber_context *context) {
