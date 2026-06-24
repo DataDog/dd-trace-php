@@ -8,6 +8,7 @@
 #ifdef __linux__
 #include "configuration.h"
 #include <components-rs/otel-thread-ctx.h>
+#include <stddef.h>
 #include <string.h>
 #endif
 
@@ -15,7 +16,9 @@ ZEND_EXTERN_MODULE_GLOBALS(datadog);
 
 #ifdef __linux__
 _Static_assert(sizeof(ddog_ThreadContextRecord) == 640, "unexpected OTel thread context record size");
-_Static_assert(_Alignof(ddog_ThreadContextRecord) == 8, "unexpected OTel thread context record alignment");
+_Static_assert(_Alignof(ddog_ThreadContextRecord) == 2, "unexpected OTel thread context record alignment");
+_Static_assert(offsetof(ddog_ThreadContextRecord, span_id) == 16, "unexpected OTel span id offset");
+_Static_assert(offsetof(ddog_ThreadContextRecord, attrs_data_size) % _Alignof(uint16_t) == 0, "unaligned OTel attrs data size");
 
 static ddtrace_span_data *ddtrace_otel_context_span(void);
 static inline void ddtrace_write_u64_be(uint8_t dest[8], uint64_t value);
@@ -36,16 +39,13 @@ void ddtrace_detach_otel_thread_context_for_root(ddtrace_root_span_data *root_sp
     }
 }
 
-void ddtrace_update_otel_thread_context_span_id(void) {
+void ddtrace_switch_otel_thread_context(void) {
     ddtrace_span_data *span = ddtrace_otel_context_span();
     if (!span || !span->root) {
         ddtrace_detach_otel_thread_context();
         return;
     }
 
-    uint8_t span_id[8];
-    ddtrace_write_u64_be(span_id, span->span_id);
-    ddog_otel_thread_ctx_record_update_span_id(&span->root->otel_context, &span_id);
     ddog_otel_thread_ctx_attach_record(&span->root->otel_context);
 }
 
@@ -124,15 +124,7 @@ static ddtrace_span_data *ddtrace_otel_context_span(void) {
 }
 
 static inline void ddtrace_write_u64_be(uint8_t dest[8], uint64_t value) {
-    uint64_t be_value =
-#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-        __builtin_bswap64(value);
-#elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
-        value;
-#else
-#error "Unsupported byte order"
-#endif
-    memcpy(dest, &be_value, sizeof(be_value));
+    ddtrace_write_otel_context_u64_be(dest, value);
 }
 
 static void ddtrace_trace_id_to_otel_bytes(datadog_trace_id trace_id, uint8_t dest[16]) {
@@ -145,6 +137,6 @@ void ddtrace_set_otel_thread_context_root_span(zend_object *root_span) {}
 void ddtrace_clear_otel_thread_context_root_span(void) {}
 void ddtrace_detach_otel_thread_context(void) {}
 void ddtrace_detach_otel_thread_context_for_root(ddtrace_root_span_data *root_span) {}
-void ddtrace_update_otel_thread_context_span_id(void) {}
 void ddtrace_update_otel_thread_context(void) {}
+void ddtrace_switch_otel_thread_context(void) {}
 #endif
