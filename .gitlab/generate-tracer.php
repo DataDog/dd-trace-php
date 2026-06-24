@@ -119,7 +119,7 @@ stages:
   variables:
     CONTAINER_NAME: $CI_JOB_NAME_SLUG
     GIT_STRATEGY: none
-    IMAGE: "registry.ddbuild.io/ci/dd-trace-php/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
+    IMAGE: "registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_windows"
   script: |
 <?php windows_git_setup() ?>
 
