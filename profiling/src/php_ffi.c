@@ -20,7 +20,9 @@ const char *datadog_module_build_id(void) { return ZEND_MODULE_BUILD_ID; }
 
 uint8_t *datadog_runtime_id = NULL;
 static const zai_str datadog_php_profiling_context_api_none = ZAI_STRL("none");
+#ifdef __linux__
 static const zai_str datadog_php_profiling_context_api_otel = ZAI_STRL("otel_thread_ctx_v1");
+#endif
 static const zai_str datadog_php_profiling_context_api_legacy = ZAI_STRL("ddtrace_get_profiling_context");
 
 static ddtrace_profiling_context noop_get_profiling_context(void) {
@@ -33,12 +35,11 @@ static ddtrace_profiling_context (*datadog_php_profiling_get_legacy_context)(voi
     noop_get_profiling_context;
 
 #ifdef __linux__
-#define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
 #define DATADOG_PHP_PROFILING_OTEL_TLS_SYMBOL "otel_thread_ctx_v1"
 
 typedef struct datadog_php_profiling_otel_thread_context_record {
     uint8_t trace_id[16];
-    uint8_t span_id[8];
+    uint64_t span_id;
     uint8_t valid;
     uint8_t reserved;
     uint16_t attrs_data_size;
@@ -47,6 +48,8 @@ typedef struct datadog_php_profiling_otel_thread_context_record {
 
 _Static_assert(sizeof(datadog_php_profiling_otel_thread_context_record) == 640,
     "unexpected OTel thread context record size");
+_Static_assert(_Alignof(datadog_php_profiling_otel_thread_context_record) == 8,
+    "unexpected OTel thread context record alignment");
 _Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, trace_id) == 0,
     "unexpected OTel thread context trace_id offset");
 _Static_assert(offsetof(datadog_php_profiling_otel_thread_context_record, span_id) == 16,
@@ -75,74 +78,9 @@ static inline uint64_t datadog_php_profiling_read_u64_be(const uint8_t src[8]) {
 #endif
 }
 
-static inline uint8_t datadog_php_profiling_hex_to_u4(uint8_t hex) {
-    if (hex >= '0' && hex <= '9') {
-        return (uint8_t)(hex - '0');
-    }
-    if (hex >= 'a' && hex <= 'f') {
-        return (uint8_t)(hex - 'a' + 10);
-    }
-    if (hex >= 'A' && hex <= 'F') {
-        return (uint8_t)(hex - 'A' + 10);
-    }
-    return UINT8_MAX;
-}
-
-static bool datadog_php_profiling_parse_u64_hex(const uint8_t hex[16], uint64_t *value) {
-    uint64_t result = 0;
-
-    for (size_t i = 0; i < 16; ++i) {
-        uint8_t nibble = datadog_php_profiling_hex_to_u4(hex[i]);
-        if (nibble == UINT8_MAX) {
-            return false;
-        }
-        result = (result << 4) | nibble;
-    }
-
-    *value = result;
-    return true;
-}
-
-static uint64_t datadog_php_profiling_otel_context_local_root_span_id(
-    const datadog_php_profiling_otel_thread_context_record *record) {
-    enum {
-        attr_key_index_offset = 0,
-        attr_value_len_offset = 1,
-        attr_value_offset = 2,
-        local_root_span_key_index = 0,
-        local_root_span_hex_len = 16,
-        local_root_span_attr_size = attr_value_offset + local_root_span_hex_len,
-    };
-
-    /*
-     * span_id is a fixed record field, but local_root_span_id is published as the first packed
-     * attrs_data entry. We rely on libdd-otel-thread-ctx publishing it at key index 0, matching
-     * the first value in the process context's threadlocal.attribute_key_map:
-     *
-     *   attrs_data[0]     = key index
-     *   attrs_data[1]     = value length
-     *   attrs_data[2..18] = 16 lowercase ASCII hex bytes
-     */
-    if (record->attrs_data_size < local_root_span_attr_size ||
-        record->attrs_data[attr_key_index_offset] != local_root_span_key_index ||
-        record->attrs_data[attr_value_len_offset] != local_root_span_hex_len) {
-        return 0;
-    }
-
-    uint64_t local_root_span_id = 0;
-    if (!datadog_php_profiling_parse_u64_hex(
-            record->attrs_data + attr_value_offset,
-            &local_root_span_id)) {
-        return 0;
-    }
-
-    return local_root_span_id;
-}
-
-static ddtrace_profiling_context datadog_php_profiling_read_otel_context(void) {
-    ddtrace_profiling_context context = {0, 0};
+bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context) {
     if (!datadog_php_profiling_otel_thread_ctx_slot) {
-        return context;
+        return false;
     }
 
     datadog_php_profiling_otel_thread_context_record *record =
@@ -153,13 +91,29 @@ static ddtrace_profiling_context datadog_php_profiling_read_otel_context(void) {
      * updates; this reader fences after observing valid=1 so field reads stay after the guard.
      */
     if (!record || record->valid != 1) {
-        return context;
+        return false;
     }
 
     atomic_signal_fence(memory_order_acquire);
 
-    context.span_id = datadog_php_profiling_read_u64_be(record->span_id);
-    context.local_root_span_id = datadog_php_profiling_otel_context_local_root_span_id(record);
+    context->span_id = datadog_php_profiling_read_u64_be((const uint8_t *)&record->span_id);
+    context->attrs_data_size = record->attrs_data_size;
+    if (context->attrs_data_size > DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE) {
+        return false;
+    }
+    memcpy(context->attrs_data, record->attrs_data, context->attrs_data_size);
+
+    return true;
+}
+
+static ddtrace_profiling_context datadog_php_profiling_read_otel_profiling_context(void) {
+    ddtrace_profiling_context context = {0, 0};
+    datadog_php_profiling_otel_context otel_context;
+    if (!datadog_php_profiling_read_otel_context(&otel_context)) {
+        return context;
+    }
+
+    context.span_id = otel_context.span_id;
 
     return context;
 }
@@ -192,6 +146,11 @@ static void *datadog_php_profiling_find_otel_thread_ctx_symbol(void) {
     } ZEND_HASH_FOREACH_END();
 
     return NULL;
+}
+#else
+bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context) {
+    (void) context;
+    return false;
 }
 #endif
 
@@ -384,7 +343,7 @@ zend_module_entry *datadog_get_module_entry(const char *str, uintptr_t len) {
 
 static ddtrace_profiling_context datadog_php_profiling_get_context(void) {
 #ifdef __linux__
-    ddtrace_profiling_context otel_context = datadog_php_profiling_read_otel_context();
+    ddtrace_profiling_context otel_context = datadog_php_profiling_read_otel_profiling_context();
     if (otel_context.local_root_span_id || otel_context.span_id) {
         return otel_context;
     }

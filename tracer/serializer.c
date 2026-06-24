@@ -39,6 +39,7 @@
 #include "engine_hooks.h"
 #include "git_metadata.h"
 #include "ip_extraction.h"
+#include "otel_context.h"
 #include <components/log/log.h>
 #include "priority_sampling/priority_sampling.h"
 #include "span.h"
@@ -603,6 +604,7 @@ void ddtrace_update_root_id_properties(ddtrace_root_span_data *span) {
         ZVAL_UNDEF(&zv);
     }
     datadog_assign_variable(&span->property_parent_id, &zv);
+    ddtrace_update_otel_thread_context();
 }
 
 struct superglob_equiv {
@@ -2176,4 +2178,3 @@ void ddtrace_serializer_startup()
 {
     ddtrace_user_req_add_listeners(&ser_user_req_listeners);
 }
-
