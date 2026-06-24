@@ -416,7 +416,41 @@ static zend_object *ddtrace_span_stack_clone_obj(zend_object *old_obj) {
     return new_obj;
 }
 
+// A span stack keeps a non-owning pointer to its root span (see ddtrace_init_span_stack, which
+// copies it without taking a reference). Normally the parent-stack reference chain keeps the root
+// span alive for as long as any stack aliases it. Out-of-order root span drops break that
+// invariant: ddtrace_span_alter_root_span_config() (runtime config change) and the rejection
+// branch of ddtrace_drop_span() free the root span while only NULLing the *current* stack's
+// pointer, leaving sibling/descendant stacks dangling. The next cross-stack inherit
+// (ddtrace_inherit_span_properties, reached from ddtrace_set_root_span_properties) then
+// dereferences the freed span. It crashes on the baggage copy specifically once baggage is
+// populated; an empty baggage stays the immutable ZVAL_EMPTY_ARRAY default whose pointer survives
+// the freed read, which is why disabling baggage extraction masks the bug. Scrub every alias when
+// the root span object is actually freed so the weak pointer can never outlive it, regardless of
+// which drop path freed it.
+static void dd_clear_dangling_root_span_aliases(ddtrace_root_span_data *root_span) {
+    zend_objects_store *objects = &EG(objects_store);
+    if (!objects->object_buckets) {
+        return;
+    }
+    zend_object **end = objects->object_buckets + 1;
+    zend_object **obj_ptr = objects->object_buckets + objects->top;
+    do {
+        obj_ptr--;
+        zend_object *obj = *obj_ptr;
+        if (IS_OBJ_VALID(obj) && obj->ce == ddtrace_ce_span_stack) {
+            ddtrace_span_stack *stack = (ddtrace_span_stack *)obj;
+            if (stack->root_span == root_span) {
+                stack->root_span = NULL;
+            }
+        }
+    } while (obj_ptr != end);
+}
+
 static void ddtrace_span_data_free_storage(zend_object *object) {
+    if (object->ce == ddtrace_ce_root_span_data) {
+        dd_clear_dangling_root_span_aliases((ddtrace_root_span_data *)object);
+    }
     zend_object_std_dtor(object);
     // Prevent use after free after zend_objects_store_free_object_storage is called (e.g. preloading) [PHP < 8.1]
     memset(object->properties_table, 0, sizeof(ddtrace_span_data) - XtOffsetOf(ddtrace_span_data, std.properties_table));
