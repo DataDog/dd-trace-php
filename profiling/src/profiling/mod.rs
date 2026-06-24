@@ -165,6 +165,127 @@ pub struct Label {
     pub value: LabelValue,
 }
 
+#[derive(Debug, Clone, Default)]
+struct ProfileTagOverrides {
+    service: Option<String>,
+    env: Option<String>,
+    version: Option<String>,
+}
+
+impl ProfileTagOverrides {
+    fn is_empty(&self) -> bool {
+        self.service.is_none() && self.env.is_none() && self.version.is_none()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct SampleContext {
+    labels: Vec<Label>,
+    tag_overrides: ProfileTagOverrides,
+}
+
+#[derive(Debug)]
+struct OTelSampleContext {
+    span_id: u64,
+    local_root_span_id: Option<u64>,
+    tag_overrides: ProfileTagOverrides,
+}
+
+#[cfg(target_os = "linux")]
+static OTEL_THREAD_ATTRIBUTE_KEY_MAP: OnceLock<Vec<String>> = OnceLock::new();
+
+#[cfg(target_os = "linux")]
+fn otel_thread_attribute_key_map() -> Option<&'static [String]> {
+    if let Some(key_map) = OTEL_THREAD_ATTRIBUTE_KEY_MAP.get() {
+        return Some(key_map.as_slice());
+    }
+
+    match libdd_library_config::otel_process_ctx::linux::read_threadlocal_attribute_key_map() {
+        Ok(Some(key_map)) => {
+            let _ = OTEL_THREAD_ATTRIBUTE_KEY_MAP.set(key_map);
+            OTEL_THREAD_ATTRIBUTE_KEY_MAP.get().map(Vec::as_slice)
+        }
+        Ok(None) => None,
+        Err(err) => {
+            trace!("failed to read OTel process context key map: {err}");
+            None
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn parse_u64_hex(value: &str) -> Option<u64> {
+    if value.len() != 16 {
+        return None;
+    }
+    u64::from_str_radix(value, 16).ok()
+}
+
+#[cfg(target_os = "linux")]
+fn current_otel_sample_context() -> Option<OTelSampleContext> {
+    let mut context: crate::bindings::datadog_php_profiling_otel_context =
+        unsafe { std::mem::zeroed() };
+    if !unsafe { crate::bindings::datadog_php_profiling_read_otel_context(&mut context) } {
+        return None;
+    }
+
+    let mut sample_context = OTelSampleContext {
+        span_id: context.span_id,
+        local_root_span_id: None,
+        tag_overrides: ProfileTagOverrides::default(),
+    };
+
+    let Some(key_map) = otel_thread_attribute_key_map() else {
+        return Some(sample_context);
+    };
+
+    let attrs_data_size = context.attrs_data_size as usize;
+    if attrs_data_size > context.attrs_data.len() {
+        return Some(sample_context);
+    }
+
+    let attrs_data = &context.attrs_data[..attrs_data_size];
+    let mut offset = 0;
+    while offset + 2 <= attrs_data.len() {
+        let key_index = attrs_data[offset] as usize;
+        let value_len = attrs_data[offset + 1] as usize;
+        let value_start = offset + 2;
+        let value_end = value_start + value_len;
+        if value_end > attrs_data.len() {
+            break;
+        }
+
+        if let Some(key) = key_map.get(key_index) {
+            if let Ok(value) = str::from_utf8(&attrs_data[value_start..value_end]) {
+                match key.as_str() {
+                    "datadog.local_root_span_id" => {
+                        sample_context.local_root_span_id = parse_u64_hex(value);
+                    }
+                    "service.name" if !value.is_empty() => {
+                        sample_context.tag_overrides.service = Some(value.to_owned());
+                    }
+                    "service.version" if !value.is_empty() => {
+                        sample_context.tag_overrides.version = Some(value.to_owned());
+                    }
+                    "deployment.environment.name" if !value.is_empty() => {
+                        sample_context.tag_overrides.env = Some(value.to_owned());
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        offset = value_end;
+    }
+
+    Some(sample_context)
+}
+
+#[cfg(not(target_os = "linux"))]
+fn current_otel_sample_context() -> Option<OTelSampleContext> {
+    None
+}
+
 impl<'a> From<&'a Label> for ApiLabel<'a> {
     fn from(label: &'a Label) -> Self {
         let key = label.key;
@@ -1163,8 +1284,8 @@ impl Profiler {
                 let depth = frames.len();
                 let (wall_time, cpu_time) = CLOCKS.with_borrow_mut(Clocks::rotate_clocks);
 
-                let labels = Profiler::common_labels(0);
-                let n_labels = labels.len();
+                let sample_context = Profiler::common_context(0);
+                let n_labels = sample_context.labels.len();
 
                 let timestamp = self.get_timeline_timestamp();
 
@@ -1176,7 +1297,7 @@ impl Profiler {
                         cpu_time,
                         ..Default::default()
                     },
-                    labels,
+                    sample_context,
                     timestamp,
                 ) {
                     Ok(_) => trace!(
@@ -1224,8 +1345,8 @@ impl Profiler {
                         (0, 0, 0, NO_TIMESTAMP)
                     };
 
-                let labels = Profiler::common_labels(0);
-                let n_labels = labels.len();
+                let sample_context = Profiler::common_context(0);
+                let n_labels = sample_context.labels.len();
 
                 // Note: heap_live_samples/heap_live_size are NOT included here.
                 // They are emitted in batches at profile export time (like .NET profiler).
@@ -1238,7 +1359,8 @@ impl Profiler {
                     ..Default::default()
                 };
 
-                let message = self.prepare_sample_message(frames, sample_values, labels, timestamp);
+                let message =
+                    self.prepare_sample_message(frames, sample_values, sample_context, timestamp);
 
                 // Pre-clone Arcs before try_send consumes `message`, but only
                 // insert into the tracker after a successful send to avoid
@@ -1292,21 +1414,21 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let mut labels = Profiler::common_labels(2);
+                let mut sample_context = Profiler::common_context(2);
 
-                labels.push(Label {
+                sample_context.labels.push(Label {
                     key: "exception type",
                     value: LabelValue::Str(exception.clone().into()),
                 });
 
                 if let Some(message) = message {
-                    labels.push(Label {
+                    sample_context.labels.push(Label {
                         key: "exception message",
                         value: LabelValue::Str(message.into()),
                     });
                 }
 
-                let n_labels = labels.len();
+                let n_labels = sample_context.labels.len();
 
                 let timestamp = self.get_timeline_timestamp();
 
@@ -1316,7 +1438,7 @@ impl Profiler {
                         exception: 1,
                         ..Default::default()
                     },
-                    labels,
+                    sample_context,
                     timestamp,
                 ) {
                     Ok(_) => trace!(
@@ -1340,9 +1462,11 @@ impl Profiler {
 
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all))]
     pub fn collect_compile_string(&self, now: i64, duration: i64, filename: String, line: u32) {
-        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len());
-        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
-        let n_labels = labels.len();
+        let mut sample_context = Profiler::common_context(Self::TIMELINE_COMPILE_FILE_LABELS.len());
+        sample_context
+            .labels
+            .extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
+        let n_labels = sample_context.labels.len();
 
         match self.prepare_and_send_message(
             Backtrace::new(vec![ZendFrame {
@@ -1354,7 +1478,7 @@ impl Profiler {
                 timeline: duration,
                 ..Default::default()
             },
-            labels,
+            sample_context,
             now,
         ) {
             Ok(_) => {
@@ -1376,14 +1500,17 @@ impl Profiler {
         filename: String,
         include_type: &str,
     ) {
-        let mut labels = Profiler::common_labels(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
-        labels.extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
-        labels.push(Label {
+        let mut sample_context =
+            Profiler::common_context(Self::TIMELINE_COMPILE_FILE_LABELS.len() + 1);
+        sample_context
+            .labels
+            .extend_from_slice(Self::TIMELINE_COMPILE_FILE_LABELS);
+        sample_context.labels.push(Label {
             key: "filename",
             value: LabelValue::Str(Cow::from(filename)),
         });
 
-        let n_labels = labels.len();
+        let n_labels = sample_context.labels.len();
 
         match self.prepare_and_send_message(
             Backtrace::new(vec![ZendFrame {
@@ -1395,7 +1522,7 @@ impl Profiler {
                 timeline: duration,
                 ..Default::default()
             },
-            labels,
+            sample_context,
             now,
         ) {
             Ok(_) => {
@@ -1413,14 +1540,14 @@ impl Profiler {
     #[cfg(php_zts)]
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_thread_start_end(&self, now: i64, event: &'static str) {
-        let mut labels = Profiler::common_labels(1);
+        let mut sample_context = Profiler::common_context(1);
 
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "event",
             value: LabelValue::Str(std::borrow::Cow::Borrowed(event)),
         });
 
-        let n_labels = labels.len();
+        let n_labels = sample_context.labels.len();
 
         match self.prepare_and_send_message(
             Backtrace::new(vec![ZendFrame {
@@ -1432,7 +1559,7 @@ impl Profiler {
                 timeline: 1,
                 ..Default::default()
             },
-            labels,
+            sample_context,
             now,
         ) {
             Ok(_) => {
@@ -1447,18 +1574,18 @@ impl Profiler {
     /// This function can be called to collect any fatal errors
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_fatal(&self, now: i64, file: String, line: u32, message: String) {
-        let mut labels = Profiler::common_labels(2);
+        let mut sample_context = Profiler::common_context(2);
 
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "event",
             value: LabelValue::Str("fatal".into()),
         });
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "message",
             value: LabelValue::Str(message.into()),
         });
 
-        let n_labels = labels.len();
+        let n_labels = sample_context.labels.len();
 
         match self.prepare_and_send_message(
             Backtrace::new(vec![ZendFrame {
@@ -1470,7 +1597,7 @@ impl Profiler {
                 timeline: 1,
                 ..Default::default()
             },
-            labels,
+            sample_context,
             now,
         ) {
             Ok(_) => {
@@ -1494,18 +1621,18 @@ impl Profiler {
         line: u32,
         reason: &'static str,
     ) {
-        let mut labels = Profiler::common_labels(2);
+        let mut sample_context = Profiler::common_context(2);
 
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "event",
             value: LabelValue::Str("opcache_restart".into()),
         });
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "reason",
             value: LabelValue::Str(reason.into()),
         });
 
-        let n_labels = labels.len();
+        let n_labels = sample_context.labels.len();
 
         match self.prepare_and_send_message(
             Backtrace::new(vec![ZendFrame {
@@ -1517,7 +1644,7 @@ impl Profiler {
                 timeline: 1,
                 ..Default::default()
             },
-            labels,
+            sample_context,
             now,
         ) {
             Ok(_) => {
@@ -1532,14 +1659,14 @@ impl Profiler {
     /// This function can be called to collect any kind of inactivity that is happening
     #[cfg_attr(feature = "tracing", tracing::instrument(skip_all, level = "debug"))]
     pub fn collect_idle(&self, now: i64, duration: i64, reason: &'static str) {
-        let mut labels = Profiler::common_labels(1);
+        let mut sample_context = Profiler::common_context(1);
 
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "event",
             value: LabelValue::Str(reason.into()),
         });
 
-        let n_labels = labels.len();
+        let n_labels = sample_context.labels.len();
 
         match self.prepare_and_send_message(
             Backtrace::new(vec![ZendFrame {
@@ -1551,7 +1678,7 @@ impl Profiler {
                 timeline: duration,
                 ..Default::default()
             },
-            labels,
+            sample_context,
             now,
         ) {
             Ok(_) => {
@@ -1574,28 +1701,28 @@ impl Profiler {
         collected: i64,
         #[cfg(php_gc_status)] runs: i64,
     ) {
-        let mut labels = Profiler::common_labels(4);
+        let mut sample_context = Profiler::common_context(4);
 
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "event",
             value: LabelValue::Str(Cow::Borrowed("gc")),
         });
 
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "gc reason",
             value: LabelValue::Str(Cow::from(reason)),
         });
 
         #[cfg(php_gc_status)]
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "gc runs",
             value: LabelValue::Num(runs, "count"),
         });
-        labels.push(Label {
+        sample_context.labels.push(Label {
             key: "gc collected",
             value: LabelValue::Num(collected, "count"),
         });
-        let n_labels = labels.len();
+        let n_labels = sample_context.labels.len();
 
         match self.prepare_and_send_message(
             Backtrace::new(vec![ZendFrame {
@@ -1607,7 +1734,7 @@ impl Profiler {
                 timeline: duration,
                 ..Default::default()
             },
-            labels,
+            sample_context,
             now,
         ) {
             Ok(_) => {
@@ -1719,9 +1846,9 @@ impl Profiler {
         match result {
             Ok(frames) => {
                 let depth = frames.len();
-                let labels = Profiler::common_labels(0);
+                let sample_context = Profiler::common_context(0);
 
-                let n_labels = labels.len();
+                let n_labels = sample_context.labels.len();
 
                 let mut values = SampleValues::default();
                 set_value(&mut values);
@@ -1729,7 +1856,7 @@ impl Profiler {
                 match self.prepare_and_send_message(
                     frames,
                     values,
-                    labels,
+                    sample_context,
                     NO_TIMESTAMP,
                 ) {
                     Ok(_) => trace!(
@@ -1760,7 +1887,7 @@ impl Profiler {
     ///
     /// * `n_extra_labels` - Reserve room for extra labels, such as when the
     ///   caller adds gc or exception labels.
-    fn common_labels(n_extra_labels: usize) -> Vec<Label> {
+    fn common_context(n_extra_labels: usize) -> SampleContext {
         let mut labels = Vec::with_capacity(5 + n_extra_labels);
         labels.push(Label {
             key: "thread id",
@@ -1772,29 +1899,41 @@ impl Profiler {
             value: LabelValue::Str(get_current_thread_name().into()),
         });
 
-        // SAFETY: this is set to a noop version if ddtrace wasn't found, and
-        // we're getting the profiling context on a PHP thread.
-        let context = unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
-        if context.local_root_span_id != 0 {
-            // Casting between two integers of the same size is a no-op, and
-            // Rust uses 2's complement for negative numbers.
-            let local_root_span_id = context.local_root_span_id as i64;
+        let mut tag_overrides = ProfileTagOverrides::default();
+        if let Some(context) = current_otel_sample_context() {
+            if let Some(local_root_span_id) = context.local_root_span_id {
+                labels.push(Label {
+                    key: "local root span id",
+                    value: LabelValue::Num(local_root_span_id as i64, ""),
+                });
+            }
 
-            labels.push(Label {
-                key: "local root span id",
-                value: LabelValue::Num(local_root_span_id, ""),
-            });
-        }
+            if context.span_id != 0 {
+                labels.push(Label {
+                    key: "span id",
+                    value: LabelValue::Num(context.span_id as i64, ""),
+                });
+            }
 
-        if context.span_id != 0 {
-            // Casting between two integers of the same size is a no-op, and
-            // Rust uses 2's complement for negative numbers.
-            let span_id = context.span_id as i64;
+            tag_overrides = context.tag_overrides;
+        } else {
+            // SAFETY: this is set to a noop version if ddtrace wasn't found, and
+            // we're getting the profiling context on a PHP thread.
+            let context =
+                unsafe { datadog_php_profiling_get_profiling_context.unwrap_unchecked()() };
+            if context.local_root_span_id != 0 {
+                labels.push(Label {
+                    key: "local root span id",
+                    value: LabelValue::Num(context.local_root_span_id as i64, ""),
+                });
+            }
 
-            labels.push(Label {
-                key: "span id",
-                value: LabelValue::Num(span_id, ""),
-            });
+            if context.span_id != 0 {
+                labels.push(Label {
+                    key: "span id",
+                    value: LabelValue::Num(context.span_id as i64, ""),
+                });
+            }
         }
 
         #[cfg(php_has_fibers)]
@@ -1811,27 +1950,93 @@ impl Profiler {
                 });
             }
         }
-        labels
+        SampleContext {
+            labels,
+            tag_overrides,
+        }
+    }
+
+    #[cfg(test)]
+    fn common_labels(n_extra_labels: usize) -> Vec<Label> {
+        Self::common_context(n_extra_labels).labels
     }
 
     fn prepare_and_send_message(
         &self,
         frames: Backtrace,
         samples: SampleValues,
-        labels: Vec<Label>,
+        context: SampleContext,
         timestamp: i64,
     ) -> Result<(), Box<TrySendError<ProfilerMessage>>> {
-        let message = self.prepare_sample_message(frames, samples, labels, timestamp);
+        let message = self.prepare_sample_message(frames, samples, context, timestamp);
         self.message_sender
             .try_send(ProfilerMessage::Sample(message))
             .map_err(Box::new)
+    }
+
+    fn sample_tags(&self, overrides: &ProfileTagOverrides) -> Arc<Vec<Tag>> {
+        if overrides.is_empty() {
+            return TAGS.with_borrow(Arc::clone);
+        }
+
+        let service = overrides
+            .service
+            .as_ref()
+            .and_then(|value| Self::sample_tag("service", value));
+        let env = overrides
+            .env
+            .as_ref()
+            .and_then(|value| Self::sample_tag("env", value));
+        let version = overrides
+            .version
+            .as_ref()
+            .and_then(|value| Self::sample_tag("version", value));
+
+        if service.is_none() && env.is_none() && version.is_none() {
+            return TAGS.with_borrow(Arc::clone);
+        }
+
+        let base = TAGS.with_borrow(Arc::clone);
+        let mut tags = Vec::with_capacity(base.len() + 3);
+        tags.extend(
+            base.iter()
+                .filter(|tag| {
+                    let tag = tag.as_ref();
+                    !((service.is_some() && tag.starts_with("service:"))
+                        || (env.is_some() && tag.starts_with("env:"))
+                        || (version.is_some() && tag.starts_with("version:")))
+                })
+                .cloned(),
+        );
+
+        if let Some(tag) = service {
+            tags.push(tag);
+        }
+        if let Some(tag) = env {
+            tags.push(tag);
+        }
+        if let Some(tag) = version {
+            tags.push(tag);
+        }
+
+        Arc::new(tags)
+    }
+
+    fn sample_tag(key: &'static str, value: &str) -> Option<Tag> {
+        match Tag::new(key, value) {
+            Ok(tag) => Some(tag),
+            Err(err) => {
+                warn!("invalid OTel {key} tag: {err}");
+                None
+            }
+        }
     }
 
     fn prepare_sample_message(
         &self,
         frames: Backtrace,
         samples: SampleValues,
-        labels: Vec<Label>,
+        context: SampleContext,
         timestamp: i64,
     ) -> SampleMessage {
         // If profiling is disabled, these will naturally return empty Vec.
@@ -1842,13 +2047,13 @@ impl Profiler {
         let sample_types = self.sample_types_filter.sample_types();
         let sample_values = self.sample_types_filter.filter(samples);
 
-        let tags = TAGS.with_borrow(Arc::clone);
+        let tags = self.sample_tags(&context.tag_overrides);
 
         SampleMessage {
             key: Arc::new(ProfileIndex { sample_types, tags }),
             value: SampleData {
                 frames: Arc::new(frames),
-                labels: Arc::new(labels),
+                labels: Arc::new(context.labels),
                 sample_values,
                 timestamp,
             },
@@ -1941,7 +2146,15 @@ mod tests {
 
         let profiler = Profiler::new(&settings);
 
-        let message: SampleMessage = profiler.prepare_sample_message(frames, samples, labels, 900);
+        let message: SampleMessage = profiler.prepare_sample_message(
+            frames,
+            samples,
+            SampleContext {
+                labels,
+                tag_overrides: ProfileTagOverrides::default(),
+            },
+            900,
+        );
 
         assert_eq!(
             message.key.sample_types,

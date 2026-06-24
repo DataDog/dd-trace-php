@@ -20,6 +20,8 @@
 #include <elf.h>
 #endif
 
+#define DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE 612
+
 // Needed for `zend_observer_error_register` starting from PHP 8
 #if CFG_ZEND_ERROR_OBSERVER // defined by build.rs
 #include <Zend/zend_errors.h>
@@ -82,6 +84,12 @@ typedef struct ddtrace_profiling_context_s {
     uint64_t local_root_span_id, span_id;
 } ddtrace_profiling_context;
 
+typedef struct datadog_php_profiling_otel_context_s {
+    uint64_t span_id;
+    uint16_t attrs_data_size;
+    uint8_t attrs_data[DATADOG_PHP_PROFILING_OTEL_ATTRS_DATA_SIZE];
+} datadog_php_profiling_otel_context;
+
 /**
  * A pointer to the profiling-context function. On Linux it first reads the
  * OTel thread-context ABI directly when available, then falls back to the
@@ -108,6 +116,12 @@ void datadog_php_profiling_startup(zend_extension *extension);
  * profiler FFI state.
  */
 void datadog_php_profiling_rinit(void);
+
+/**
+ * Copies the current OTel thread context for Rust-side decoding. Returns false
+ * when the OTel TLS slot is unavailable, empty, or currently invalid.
+ */
+bool datadog_php_profiling_read_otel_context(datadog_php_profiling_otel_context *context);
 
 /**
  * Returns the profiling context API selected for this request, or "none" when

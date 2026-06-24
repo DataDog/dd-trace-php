@@ -12,6 +12,10 @@
 #include "priority_sampling/priority_sampling.h"
 #include "inferred_proxy_headers.h"
 
+#ifdef __linux__
+#include <components-rs/otel-thread-ctx.h>
+#endif
+
 #define DDTRACE_DROPPED_SPAN (-1ull)
 #define DDTRACE_SILENTLY_DROPPED_SPAN (-2ull)
 
@@ -141,6 +145,9 @@ struct ddtrace_root_span_data {
     zval property_trace_id;
     zval property_git_metadata;
     zval property_inferred_span;
+#ifdef __linux__
+    ddog_ThreadContextRecord otel_context;
+#endif
 };
 
 static inline ddtrace_root_span_data *ROOTSPANDATA(zend_object *obj) {
