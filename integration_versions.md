@@ -14,7 +14,7 @@
 | ext-sqlsrv                  | 5.3.0                  | 5.13.1                 |
 | ext-swoole                  | 5.1.6                  | 6.0.0                  |
 | google/cloud-spanner        | 1.105.0                | 1.105.0                |
-| guzzlehttp/guzzle           | 5.3.4                  | 6.5.8                  |
+| guzzlehttp/guzzle           | 5.3.4                  | 7.10.0                 |
 | laminas-api-tools/api-tools | 1.7.0                  | 1.7.0                  |
 | laminas/laminas-log         | 2.6.0                  | 2.17.1                 |
 | laminas/laminas-mvc         | 3.3.5                  | 3.8.0                  |

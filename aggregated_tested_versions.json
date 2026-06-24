@@ -100,7 +100,8 @@
   ],
   "guzzlehttp/guzzle": [
     "5.3.4",
-    "6.5.8"
+    "6.5.8",
+    "7.10.0"
   ],
   "laminas-api-tools/api-tools": [
     "1.7.0"
