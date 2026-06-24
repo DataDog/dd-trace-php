@@ -798,6 +798,7 @@ endforeach;
     DOCKER_COMPOSE_DOWNLOAD_NAME: docker-compose-linux-x86_64
   before_script:
 <?php dockerhub_login() ?>
+    - apt-get update
     - apt install -y php git make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/${DOCKER_COMPOSE_DOWNLOAD_NAME} -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
@@ -879,6 +880,7 @@ endforeach;
     RUST_BACKTRACE: 1
   before_script:
 <?php dockerhub_login() ?>
+    - apt-get update
     - apt install -y make
     - mkdir build
     - mv packages build
@@ -944,6 +946,7 @@ endforeach;
         # - symfony
   before_script:
 <?php dockerhub_login() ?>
+    - apt-get update
     - apt install -y make curl
     - curl -L --fail https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64 -o /usr/local/bin/docker-compose
     - chmod +x /usr/local/bin/docker-compose
