@@ -501,8 +501,6 @@ void ddtrace_rinit_early(void) {
 }
 
 void ddtrace_rinit(void) {
-    ddtrace_detach_otel_thread_context();
-
     if (!DDTRACE_G(agent_config_reader) && !get_global_DD_TRACE_IGNORE_AGENT_SAMPLING_RATES()) {
         if (get_global_DD_TRACE_SIDECAR_TRACE_SENDER()) {
             if (datadog_endpoint) {
@@ -612,8 +610,6 @@ void ddtrace_rshutdown(bool fast_shutdown) {
         }
         DDTRACE_G(active_stack) = NULL;
     }
-
-    ddtrace_clear_otel_thread_context_root_span();
 
     ddtrace_ffe_flush_exposures();
     ddtrace_ffe_flush_evaluation_metrics();
