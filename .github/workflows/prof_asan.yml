@@ -127,25 +127,6 @@ jobs:
           cargo build --profile profiler-release
           cp -v "$CARGO_TARGET_DIR/profiler-release/libdatadog_php_profiling.so" "$(php-config --extension-dir)/datadog-profiling.so"
 
-      # TODO(parallel): the php-8.5_bookworm-8 image ships parallel 1.2.13, which
-      # has a bug that intermittently trips UBSAN. Install the fixed 1.2.14 over
-      # it (ZTS-only; parallel requires ZTS). Remove this step once the CI images
-      # are rebuilt with parallel >= 1.2.14.
-      - name: Install fixed parallel 1.2.14 (ZTS only, temporary until images rebuilt)
-        if: matrix.php-build == 'zts'
-        run: |
-          set -eux
-          switch-php zts
-          scan_dir="$(php -r 'echo PHP_CONFIG_FILE_SCAN_DIR;')"
-          # pecl refuses to reinstall while the extension is loaded, so move its
-          # ini aside during the build, then restore it so the test run loads the
-          # freshly installed parallel.so. Use the direct package URL because the
-          # channel REST cache in the image can lag behind new releases.
-          mv "$scan_dir/parallel.ini" /tmp/parallel.ini.disabled
-          yes '' | pecl install -f https://pecl.php.net/get/parallel-1.2.14.tgz
-          mv /tmp/parallel.ini.disabled "$scan_dir/parallel.ini"
-          php --ri parallel | grep -i version
-
       - name: Run phpt tests
         run: |
           set -eux
