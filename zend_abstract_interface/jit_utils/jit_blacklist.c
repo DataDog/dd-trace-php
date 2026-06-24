@@ -94,6 +94,10 @@ typedef union _zend_op_trace_info {
 #define ZEND_FUNC_INFO(op_array) \
 	((zend_func_info*)((op_array)->reserved[zend_func_info_rid]))
 
+#if !defined(ZEND_FUNC_JIT_ON_HOT_TRACE)
+#define ZEND_FUNC_JIT_ON_HOT_TRACE (1u << 16)
+#endif
+
 static void *opcache_handle;
 static void zai_jit_find_opcache_handle(void *ext) {
     zend_extension *extension = (zend_extension *)ext;
@@ -168,7 +172,7 @@ int zai_get_zend_func_rid(zend_op_array *op_array) {
             }
 
             for (int i = 0; i < ZEND_MAX_RESERVED_RESOURCES; ++i) {
-                if (check_pointer_near(op_array->reserved, op_array->arg_info)) {
+                if (check_pointer_near(op_array->reserved[i], op_array->arg_info)) {
                     return (zend_func_info_rid = i);
                 }
             }
@@ -192,7 +196,11 @@ void zai_jit_blacklist_function_inlining(zend_op_array *op_array) {
     // now in PHP < 8.1, zend_func_info_rid is set (on newer versions it's in zend_func_info.h)
 
     zend_jit_op_array_trace_extension *jit_extension = (zend_jit_op_array_trace_extension *)ZEND_FUNC_INFO(op_array);
-    if (!jit_extension) {
+    if (!jit_extension || !zai_is_mapped(jit_extension, sizeof(*jit_extension))) {
+        return;
+    }
+
+    if (!(jit_extension->func_info.flags & ZEND_FUNC_JIT_ON_HOT_TRACE)) {
         return;
     }
 

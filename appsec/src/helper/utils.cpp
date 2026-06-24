@@ -15,13 +15,14 @@
 namespace dds {
 std::string read_file(std::string_view filename)
 {
-    std::ifstream file(filename.data(), std::ios::in);
+    const std::string path{filename};
+    std::ifstream file(path, std::ios::in);
     if (!file) {
         throw std::system_error(errno, std::generic_category());
     }
 
-    struct stat statbuf {};
-    auto rc = stat(std::string{filename}.c_str(), &statbuf);
+    struct stat statbuf{};
+    auto rc = stat(path.c_str(), &statbuf);
     auto file_size = rc == 0 ? statbuf.st_size : 0;
     std::string buffer(file_size, '\0');
     buffer.resize(file_size);

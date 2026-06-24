@@ -1,0 +1,28 @@
+{
+    "name": "datadog/laminas-appsec-integration",
+    "description": "Laminas MVC 3.3 app for AppSec integration tests",
+    "type": "project",
+    "license": "BSD-3-Clause",
+    "require": {
+        "php": "^7.3 || ~8.0.0 || ~8.1.0",
+        "laminas/laminas-component-installer": "^2.4",
+        "laminas/laminas-development-mode": "^3.2",
+        "laminas/laminas-mvc": "3.3.*",
+        "laminas/laminas-authentication": "^2.9",
+        "laminas/laminas-db": "^2.13",
+        "laminas/laminas-session": "^2.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "Application\\": "module/Application/src/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "laminas/laminas-component-installer": true
+        },
+        "platform": {
+            "php": "7.3.33"
+        }
+    }
+}

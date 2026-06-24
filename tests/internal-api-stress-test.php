@@ -131,7 +131,10 @@ function generate_garbage()
     return $garbage;
 }
 
-$minFunctionArgs = [];
+$minFunctionArgs = [
+    'DDTrace\ffe_evaluate' => 4,
+    'DDTrace\Internal\record_ffe_evaluation_metric' => 5,
+];
 
 function call_function(ReflectionFunction $function)
 {

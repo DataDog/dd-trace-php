@@ -16,26 +16,15 @@ use libdd_common::Endpoint;
 use libdd_common_ffi::slice::AsBytes;
 use libdd_common_ffi::{CharSlice, self as ffi, MaybeError};
 use libdd_telemetry_ffi::try_c;
-#[cfg(any(windows, php_shared_build))]
-use spawn_worker::LibDependency;
 #[cfg(windows)]
-use spawn_worker::get_trampoline_target_data;
-
-
-#[cfg(php_shared_build)]
-extern "C" {
-    #[linkage="extern_weak"]
-    static DDTRACE_MOCK_PHP: *mut u8;
-    #[linkage="extern_weak"]
-    static DDTRACE_MOCK_PHP_SIZE: *mut usize;
-}
+use spawn_worker::{get_trampoline_target_data, LibDependency};
 
 #[cfg(php_shared_build)]
 fn run_sidecar(mut cfg: config::Config) -> anyhow::Result<SidecarTransport> {
-    if !unsafe { DDTRACE_MOCK_PHP_SIZE }.is_null() {
-        let mock = unsafe { std::slice::from_raw_parts(DDTRACE_MOCK_PHP, *DDTRACE_MOCK_PHP_SIZE) };
-        cfg.library_dependencies
-            .push(LibDependency::Binary(mock));
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("DD_SIDECAR_DISABLE_DIRECT_EXEC").map(|s| s.is_empty()).unwrap_or(true)
+        && std::env::var_os("DD_SPAWN_WORKER_USE_EXEC").map(|s| s.is_empty()).unwrap_or(true) {
+        cfg.spawn_without_trampoline = true;
     }
     datadog_sidecar::start_or_connect_to_sidecar(cfg)
 }
@@ -171,11 +160,7 @@ pub extern "C" fn ddog_sidecar_connect_php(
 }
 
 #[no_mangle]
-#[allow(non_upper_case_globals)]
-pub static mut ddtrace_sidecar: *mut SidecarTransport = std::ptr::null_mut();
-
-#[no_mangle]
-pub extern "C" fn ddtrace_sidecar_reconnect(
+pub extern "C" fn datadog_sidecar_reconnect(
     transport: &mut Box<SidecarTransport>,
     factory: unsafe extern "C" fn() -> Option<Box<SidecarTransport>>,
 ) {

@@ -2,9 +2,11 @@
 
 namespace DDTrace\Tests\Integrations\PDO;
 
+use DDTrace\Integrations\PDO\PDOIntegration;
 use DDTrace\Tag;
 use DDTrace\Tests\Common\IntegrationTestCase;
 use DDTrace\Tests\Common\SpanAssertion;
+use ReflectionMethod;
 use function DDTrace\close_span;
 use function DDTrace\start_trace_span;
 
@@ -185,7 +187,7 @@ final class PDOTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'pdo-mysql-integration', 'sql', 'PDO.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance')),
         ]);
     }
 
@@ -199,7 +201,7 @@ final class PDOTest extends IntegrationTestCase
 
         $this->assertSpans($traces, [
             SpanAssertion::build('PDO.__construct', 'my-pdo-mysql-integration', 'sql', 'PDO.__construct')
-                ->withExactTags($this->baseTags()),
+                ->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance')),
         ]);
     }
 
@@ -510,14 +512,14 @@ final class PDOTest extends IntegrationTestCase
                 'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance')),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )
-                ->withExactTags($this->baseTags())
+                ->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance'))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
@@ -549,14 +551,14 @@ final class PDOTest extends IntegrationTestCase
                 'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
-            )->withExactTags($this->baseTags()),
+            )->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance')),
             SpanAssertion::build(
                 'PDOStatement.execute',
                 'pdo-mysql-integration',
                 'sql',
                 "SELECT * FROM tests WHERE id = ?"
             )
-                ->withExactTags($this->baseTags())
+                ->withExactTags($this->baseTags(false, 'opt.db_client_split_by_instance'))
                 ->withExactMetrics([
                     Tag::DB_ROW_COUNT => 1.0,
                     Tag::ANALYTICS_KEY => 1.0,
@@ -820,7 +822,7 @@ final class PDOTest extends IntegrationTestCase
         $this->assertSpans($traces, [
             SpanAssertion::exists('PDO.__construct'),
             SpanAssertion::build('PDO.exec', 'configured_service', 'sql', $query)
-                ->withExactTags($this->baseTags())
+                ->withExactTags($this->baseTags(false, null))
                 ->withExactMetrics([Tag::DB_ROW_COUNT => 1.0, Tag::ANALYTICS_KEY => 1.0]),
             SpanAssertion::exists('PDO.commit'),
         ], false);
@@ -887,7 +889,7 @@ final class PDOTest extends IntegrationTestCase
         return "mysql:host=" . self::MYSQL_HOST . ";dbname=" . self::$database;
     }
 
-    protected function baseTags($expectPeerService = false)
+    protected function baseTags($expectPeerService = false, $svcSrc = 'pdo')
     {
         $tags = [
             'db.engine' => 'mysql',
@@ -899,6 +901,9 @@ final class PDOTest extends IntegrationTestCase
             Tag::DB_SYSTEM => 'mysql',
             Tag::DB_TYPE => 'mysql',
         ];
+        if ($svcSrc !== null) {
+            $tags['_dd.svc_src'] = $svcSrc;
+        }
 
         if ($expectPeerService) {
             $tags['peer.service'] = self::$database;
@@ -906,5 +911,34 @@ final class PDOTest extends IntegrationTestCase
         }
 
         return $tags;
+    }
+
+    /**
+     * @dataProvider dsnDbNameCases
+     */
+    public function testParseDsnDbNameQuoteHandling($dsn, $expectedDbName)
+    {
+        $method = new ReflectionMethod(PDOIntegration::class, 'parseDsn');
+        $method->setAccessible(true);
+        $tags = $method->invoke(null, $dsn);
+
+        if ($expectedDbName === null) {
+            $this->assertArrayNotHasKey(Tag::DB_NAME, $tags);
+        } else {
+            $this->assertSame($expectedDbName, $tags[Tag::DB_NAME]);
+        }
+    }
+
+    public function dsnDbNameCases()
+    {
+        return [
+            'unquoted dbname'                   => ['pgsql:host=h;dbname=milk',    'milk'],
+            'paired single quotes stripped'     => ["pgsql:host=h;dbname='milk'",  'milk'],
+            'double quotes preserved as-is'     => ['pgsql:host=h;dbname="milk"',  '"milk"'],
+            'unpaired leading quote preserved'  => ["pgsql:host=h;dbname='milk",   "'milk"],
+            'unpaired trailing quote preserved' => ["pgsql:host=h;dbname=milk'",   "milk'"],
+            'empty quoted dbname omitted'       => ["pgsql:host=h;dbname=''",      null],
+            'database= alias also stripped'     => ["mysql:host=h;database='foo'", 'foo'],
+        ];
     }
 }

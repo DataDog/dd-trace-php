@@ -271,7 +271,6 @@ trait CommonTests {
     @Test
     void 'trace without event'() {
         def respContentType = null
-        def respContentLength = null
         def trace = container.traceFromRequest('/hello.php') { HttpResponse<InputStream> resp ->
             assert resp.statusCode() == 200
             def headerContentType = resp.headers().firstValue('Content-Type')
@@ -286,6 +285,28 @@ trait CommonTests {
         assert span.meta."http.response.headers.content-type" == respContentType
         assert span.meta."http.response.headers.content-encoding" == 'foobar'
         assert span.meta."http.response.headers.content-language" == 'en'
+    }
+
+    @Test
+    void 'response with zero content-length'() {
+        def trace = container.traceFromRequest('/zero_content_length.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        def spanContentLength = trace.first().meta."http.response.headers.content-length"
+        assert spanContentLength instanceof String
+        assert spanContentLength == '0'
+    }
+
+    @Test
+    void 'response with non-zero content-length'() {
+        def trace = container.traceFromRequest('/non_zero_content_length.php') { HttpResponse<InputStream> resp ->
+            assert resp.statusCode() == 200
+        }
+
+        def spanContentLength = trace.first().meta."http.response.headers.content-length"
+        assert spanContentLength instanceof String
+        assert spanContentLength == '12'
     }
 
     @Test
@@ -875,22 +896,22 @@ trait CommonTests {
             assert resp.statusCode() == 200
             def content = resp.body().text
 
-            if (TestParams.phpVersionAtLeast('8.5')) {
+            if (TestParams.phpVersionAtLeast('8.4')) {
                 assert content.contains('Yes (Rust)') :
-                    "PHP >= 8.5 should use Rust helper by default"
+                    "PHP >= 8.4 should use Rust helper by default"
             } else {
                 assert content.contains('Yes (C++)') :
-                    "PHP < 8.5 should use C++ helper by default"
+                    "PHP < 8.4 should use C++ helper by default"
             }
         }
 
         Span span = trace.first()
-        if (TestParams.phpVersionAtLeast('8.5')) {
+        if (TestParams.phpVersionAtLeast('8.4')) {
             assert span.meta."_dd.appsec.helper_runtime" == 'rust' :
-                "PHP >= 8.5 should report helper_runtime=rust in span"
+                "PHP >= 8.4 should report helper_runtime=rust in span"
         } else {
             assert span.meta."_dd.appsec.helper_runtime" == null :
-                "PHP < 8.5 should not set helper_runtime span tag"
+                "PHP < 8.4 should not set helper_runtime span tag"
         }
     }
 }

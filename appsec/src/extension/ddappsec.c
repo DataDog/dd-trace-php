@@ -26,8 +26,10 @@
 #include "compatibility.h"
 #include "configuration.h"
 #include "ddappsec.h"
+#include "ddappsec_arginfo.h"
 #include "dddefs.h"
 #include "ddtrace.h"
+#include "duration_acc.h"
 #include "entity_body.h"
 #include "helper_process.h"
 #include "ip_extraction.h"
@@ -36,7 +38,6 @@
 #include "network.h"
 #include "php_compat.h"
 #include "php_objects.h"
-#include "rasp.h"
 #include "request_abort.h"
 #include "request_lifecycle.h"
 #include "tags.h"
@@ -130,7 +131,7 @@ static void ddappsec_sort_modules(void *base, size_t count, size_t siz,
 
     // Reorder ddappsec to ensure it's always after ddtrace
     for (Bucket *module = base, *end = module + count, *ddappsec_module = NULL;
-         module < end; ++module) {
+        module < end; ++module) {
         zend_module_entry *m = (zend_module_entry *)Z_PTR(module->val);
         if (m->name == ddappsec_module_entry.name) {
             ddappsec_module = module;
@@ -205,11 +206,13 @@ static PHP_MINIT_FUNCTION(ddappsec)
 
     dd_phpobj_startup(module_number);
 
+    dd_log_startup_before_cfg();
+
     if (!dd_config_minit(module_number)) {
         return FAILURE;
     }
 
-    dd_log_startup();
+    dd_phpobj_reg_funcs(ext_functions);
 
 #ifdef TESTING
     _register_testing_objects();
@@ -221,7 +224,7 @@ static PHP_MINIT_FUNCTION(ddappsec)
     dd_user_tracking_startup();
     dd_request_abort_startup();
     dd_tags_startup();
-    dd_rasp_startup();
+    dd_duration_startup();
     dd_ip_extraction_startup();
     dd_entity_body_startup();
     dd_backtrace_startup();
@@ -240,7 +243,8 @@ static PHP_MSHUTDOWN_FUNCTION(ddappsec)
     // no other thread is running now. reset config to global config only.
     runtime_config_first_init = false;
 
-    dd_rasp_shutdown();
+    dd_telemetry_mshutdown();
+    dd_duration_shutdown();
     dd_tags_shutdown();
     dd_request_abort_shutdown();
     dd_user_tracking_shutdown();
@@ -414,7 +418,7 @@ static void _check_enabled(void)
     };
 }
 
-static PHP_FUNCTION(datadog_appsec_is_enabled)
+PHP_FUNCTION(datadog_appsec_is_enabled)
 {
     if (zend_parse_parameters_none() == FAILURE) {
         RETURN_FALSE;
@@ -561,58 +565,57 @@ static PHP_FUNCTION(datadog_appsec_testing_send_invalid_command)
     }
 }
 
-static PHP_FUNCTION(datadog_appsec_push_addresses)
+PHP_FUNCTION(datadog_appsec_push_addresses)
 {
-    struct timespec start;
-    UNUSED(clock_gettime(CLOCK_MONOTONIC_RAW, &start));
-    UNUSED(return_value);
     if (!DDAPPSEC_G(active)) {
-        mlog(dd_log_debug, "Trying to access to push_addresses "
-                           "function while appsec is disabled");
-        return;
-    }
-
-    zval *addresses = NULL;
-    zend_string *rasp_rule = NULL;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|S", &addresses, &rasp_rule) ==
-        FAILURE) {
+        mlog(dd_log_debug, "Trying to access to push_addresses function while "
+                           "appsec is disabled");
         RETURN_FALSE;
     }
 
-    if (Z_TYPE_P(addresses) != IS_ARRAY) {
+    if (!dd_req_lifecycle_is_active()) {
+        mlog_g(dd_log_info,
+            "Not running inside a tracked request; skipping push_addresses");
+        RETURN_FALSE;
+    }
+
+    zval *addresses;
+    zend_string *rasp_rule = NULL;
+    zend_string *rule_variant = NULL;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "a|SS", &addresses, &rasp_rule,
+            &rule_variant) == FAILURE) {
         RETURN_FALSE;
     }
 
     if (rasp_rule && ZSTR_LEN(rasp_rule) > 0 &&
         !get_global_DD_APPSEC_RASP_ENABLED()) {
-        return;
+        mlog(dd_log_debug, "RASP is not enabled; skipping push_addresses");
+        RETURN_FALSE;
     }
 
     dd_conn *conn = dd_helper_mgr_cur_conn();
     if (conn == NULL) {
         mlog_g(dd_log_debug, "No connection; skipping push_addresses");
-        return;
+        RETURN_FALSE;
     }
 
-    struct req_exec_opts opts = {.rasp_rule = rasp_rule};
+    struct req_exec_opts opts = {
+        .rasp_rule = rasp_rule, .rule_variant = rule_variant};
     struct block_params block_params = {0};
+    struct timespec start = dd_monotime_start();
     dd_result res =
         dd_request_exec(conn, Z_ARRVAL_P(addresses), &opts, &block_params);
 
     if (opts.rasp_rule && ZSTR_LEN(opts.rasp_rule) > 0) {
-        struct timespec end;
-        UNUSED(clock_gettime(CLOCK_MONOTONIC_RAW, &end));
-        double elapsed_us =
-            (((double)(end.tv_sec - start.tv_sec) *
-                 // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                 (int64_t)1000000) +
-                // NOLINTNEXTLINE(cppcoreguidelines-avoid-magic-numbers,readability-magic-numbers)
-                ((double)(end.tv_nsec - start.tv_nsec) / 1000.0));
-        dd_rasp_account_duration_us(elapsed_us);
+        dd_duration_rasp_ext_account(&start);
+    } else {
+        dd_duration_waf_ext_account(&start);
     }
 
     dd_req_lifecycle_abort(REQUEST_STAGE_MID_REQUEST, res, &block_params);
     dd_request_abort_destroy_block_params(&block_params);
+
+    RETURN_TRUE;
 }
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
@@ -623,24 +626,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(request_exec_arginfo, 0, 1, _IS_BOOL, 0)
 ZEND_ARG_TYPE_INFO(0, data, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(
-    push_addresses_arginfo, 0, 0, IS_VOID, 1)
-ZEND_ARG_INFO(0, addresses)
-ZEND_ARG_INFO(0, rasp)
-ZEND_END_ARG_INFO()
-
 // clang-format off
-static const zend_function_entry functions[] = {
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "is_enabled", PHP_FN(datadog_appsec_is_enabled), void_ret_bool_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_APPSEC_NS "push_addresses", PHP_FN(datadog_appsec_push_addresses), push_addresses_arginfo, 0, NULL, NULL)
+// Available under either DD_APPSEC_TESTING or DD_APPSEC_TESTING_INVALID_COMMAND
+static const zend_function_entry testing_request_control_functions[] = {
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
+    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_functions[] = {
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rinit", PHP_FN(datadog_appsec_testing_rinit), void_ret_bool_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "rshutdown", PHP_FN(datadog_appsec_testing_rshutdown), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "helper_mgr_acquire_conn", PHP_FN(datadog_appsec_testing_helper_mgr_acquire_conn), void_ret_bool_arginfo, 0, NULL, NULL)
     ZEND_RAW_FENTRY(DD_TESTING_NS "stop_for_debugger", PHP_FN(datadog_appsec_testing_stop_for_debugger), void_ret_bool_arginfo, 0, NULL, NULL)
-    ZEND_RAW_FENTRY(DD_TESTING_NS "request_exec", PHP_FN(datadog_appsec_testing_request_exec), request_exec_arginfo, 0, NULL, NULL)
     PHP_FE_END
 };
 static const zend_function_entry testing_invalid_command_functions[] = {
@@ -651,15 +647,18 @@ static const zend_function_entry testing_invalid_command_functions[] = {
 
 static void _register_testing_objects(void)
 {
-    dd_phpobj_reg_funcs(functions);
+    bool invalid_command = get_global_DD_APPSEC_TESTING_INVALID_COMMAND();
+    bool full_testing = get_global_DD_APPSEC_TESTING();
 
-    if (get_global_DD_APPSEC_TESTING_INVALID_COMMAND()) {
+    if (invalid_command) {
         dd_phpobj_reg_funcs(testing_invalid_command_functions);
     }
 
-    if (!get_global_DD_APPSEC_TESTING()) {
-        return;
+    if (invalid_command || full_testing) {
+        dd_phpobj_reg_funcs(testing_request_control_functions);
     }
 
-    dd_phpobj_reg_funcs(testing_functions);
+    if (full_testing) {
+        dd_phpobj_reg_funcs(testing_functions);
+    }
 }

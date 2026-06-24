@@ -40,9 +40,27 @@ pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zval);
 #[cfg(php8)]
 pub type VmZendThrowExceptionHook = unsafe extern "C" fn(*mut zend_object);
 
+#[cfg(not(all(php_debug, php_zend_mm_set_custom_handlers_ex)))]
 pub type VmMmCustomAllocFn = unsafe extern "C" fn(size_t) -> *mut c_void;
+#[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))]
+pub type VmMmCustomAllocFn =
+    unsafe extern "C" fn(size_t, *const c_char, c_uint, *const c_char, c_uint) -> *mut c_void;
+#[cfg(not(all(php_debug, php_zend_mm_set_custom_handlers_ex)))]
 pub type VmMmCustomReallocFn = unsafe extern "C" fn(*mut c_void, size_t) -> *mut c_void;
+#[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))]
+pub type VmMmCustomReallocFn = unsafe extern "C" fn(
+    *mut c_void,
+    size_t,
+    *const c_char,
+    c_uint,
+    *const c_char,
+    c_uint,
+) -> *mut c_void;
+#[cfg(not(all(php_debug, php_zend_mm_set_custom_handlers_ex)))]
 pub type VmMmCustomFreeFn = unsafe extern "C" fn(*mut c_void);
+#[cfg(all(php_debug, php_zend_mm_set_custom_handlers_ex))]
+pub type VmMmCustomFreeFn =
+    unsafe extern "C" fn(*mut c_void, *const c_char, c_uint, *const c_char, c_uint);
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
 pub type VmMmCustomGcFn = unsafe extern "C" fn() -> size_t;
 #[cfg(php_zend_mm_set_custom_handlers_ex)]
@@ -364,6 +382,13 @@ extern "C" {
     pub fn ddog_test_php_prof_function_run_time_cache(
         func: &zend_function,
     ) -> Option<&mut [usize; 2]>;
+
+    /// mock for testing; passthrough stub for zend_generator_check_placeholder_frame
+    /// so `cargo test` builds don't need PHP's Zend symbols at link time.
+    #[cfg(feature = "stack_walking_tests")]
+    pub fn ddog_test_zend_generator_check_placeholder_frame(
+        ptr: *mut zend_execute_data,
+    ) -> *mut zend_execute_data;
 
     /// Returns the PHP_VERSION_ID of the engine at run-time, not the version
     /// the extension was built against at compile-time.

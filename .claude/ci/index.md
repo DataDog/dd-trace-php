@@ -181,106 +181,25 @@ curl -s -H "PRIVATE-TOKEN: $GITLAB_PERSONAL_ACCESS_TOKEN" \
 
 ### Checking CI (Gitlab)
 
-Use `.claude/ci/check-ci` to follow a pipeline until all jobs complete.
+Use the `/check-ci` skill — it encapsulates the full procedure: starting
+`check-ci` and `ci-watch` in the background, speaking the result, and
+investigating failures. See
+[`.claude/skills/check-ci/SKILL.md`](../skills/check-ci/SKILL.md).
 
-Results are written to `/tmp/gitlab_<pipeline_id>/`:
-- `success.txt` — `<job_id>\t<job_name>` per line
-- `failure.txt` — same format for failed jobs
-- `fail_logs/<job_id>.log` — full job trace for each failure
+Quick reference for the underlying tools:
 
-Exit codes: 0 = all passed, 1 = failures or threshold reached.
-
-#### Invocation pattern
-
-Available options: `--commit <ref>` OR `--pipeline <id>`,
-`--discovery-timeout <s>` (default 60), `--poll-interval <s>` (default 60),
-`--max-failures <n>` (default 50), `--timeout <s>` (default 7200 = 2 h),
-`--list-jobs` (see below).
-
-##### `--list-jobs`
-
-Prints all jobs grouped by pipeline with their status, then exits
-immediately — does not monitor or download logs. Useful for a quick
-snapshot of what ran and what failed:
-
-```bash
-.claude/ci/check-ci --commit HEAD --list-jobs
-```
-
-Output format:
-
-```
-Pipeline 105413994 (status: failed):
-  failed    test_extension_ci: [7.2]
-  success   compile extension: debug [8.3]
-  ...
-```
-
-#### Monitor CI
-
-If --list-jobs is not passed, check-ci will run until all monitored pipelines
-finish, until a timeout, or until the maximum number of failures is reached.
-
-**Step 1 — Start check-ci in the background (Bash tool,
-`run_in_background: true`):**
-
-```bash
-PYTHONUNBUFFERED=1 .claude/ci/check-ci [OPTIONS]
-```
-
-Do NOT add `&` or `mktemp` — run the command directly and let
-`run_in_background: true` handle backgrounding. `PYTHONUNBUFFERED=1`
-is required so Python flushes stdout into the task output file.
-The Bash tool returns immediately with a line like:
-```
-Output is being written to: /path/to/tasks/<id>.output
-```
-Note that path — it is the output file for the next step.
-
-**Step 2 — Run ci-watch in the background (Bash tool,
-`run_in_background: true`):**
-
-```bash
-.claude/ci/ci-watch [--start-offset N] OUTPUT_FILE
-```
-
-`ci-watch` tails the output file and exits when there is something to
-act on. Run it with `run_in_background: true` — you will be notified
-when it completes. While it runs, you can do other work.
-
-Exit codes:
-- 0 — all pipelines completed (no failures)
-- 1 — one or more FAILED: lines detected
-- 2 — stale: no new output for 5 minutes
-- 3 — check-ci timed out
-
-On exit, ci-watch always prints `RESUME_OFFSET: <N>`. Record this
-value — pass it as `--start-offset N` when re-running ci-watch to
-skip already-processed content and wait for further failures.
-
-When ci-watch completes, immediately call the `speak_when_done` MCP tool:
-- "All CI jobs passed" if exit 0.
-- "<N> CI jobs failed" if exit 1 (count is
-  `grep "^FAILED:" OUTPUT_FILE | wc -l`).
-- "CI monitor timed out" if exit 2 or 3.
-
-**Step 3 — Act on the result**
-
-Choose mong these actions, as appropriate:
-
-- **Just report:** summarise the result to the user and stop.
-- **Investigate failures:** read `fail_logs/<job_id>.log` under the
-  output directory for each failed job and diagnose the root cause.
-- **Wait for more failures:** if check-ci is still running and you want
-  to keep watching after investigating, re-run ci-watch with
-  `--start-offset <RESUME_OFFSET>` (back to Step 2).
-- **Kill check-ci:** if you want to stop monitoring entirely, kill it
-  by its task ID or PID (noted from Step 1).
-- **Push fixes**: if a) the user asked you to (NOT OTHERWISE), AND b)
-  you have made changes to fix the CI failures AND c) the current
-  branch has an upstream branch, then commit and push. Then go back to
-  Step 1. If any of the three preconditions don't match, stop and
-  report the results (and your findings, if any).
+- `check-ci` options: `--commit <ref>` OR `--pipeline <id>` (GitLab only,
+  skips GitHub), `--discovery-timeout <s>` (default 60),
+  `--poll-interval <s>` (default 60), `--max-failures <n>` (default 50),
+  `--timeout <s>` (default 7200 = 2 h), `--list-jobs`.
+- When `--commit` is used, both GitLab and GitHub Actions are monitored.
+  GitHub monitoring requires `ddtool auth github login --org DataDog`; if
+  unavailable, a warning is printed and only GitLab is monitored.
+- Results land in `/tmp/gitlab_<pipeline_id>/`: `success.txt`,
+  `failure.txt` (GitHub entries prefixed `[GH]`),
+  `fail_logs/<job_id>.log`, `gh_fail_logs/gh_<job_id>.log`.
+- `--list-jobs` prints a grouped job table (GitLab + GitHub Actions) and
+  exits immediately — useful for a quick snapshot without monitoring.
 
 ### Downloading artifacts
 
@@ -414,8 +333,9 @@ Python-based `datadog/system-tests` framework; lives in `../../../system-tests/`
 
 → **[system-tests.md](system-tests.md)**
 Covers: `System Tests: [default]`, `System Tests: [parametric]`,
-`System Tests: [APPSEC_API_SECURITY*]`, `System Tests: [INTEGRATIONS]`,
-`System Tests: [CROSSED_TRACING_LIBRARIES]`
+`System Tests: [APPSEC_API_SECURITY*]`, `System Tests: [APPSEC_RUNTIME_ACTIVATION]`,
+`System Tests: [INTEGRATIONS]`, `System Tests: [CROSSED_TRACING_LIBRARIES]`,
+`System Tests: [php-fpm-8.5, default]`, `System Tests: [php-fpm-8.5]` (matrix)
 
 → **[system-tests-onboarding.md](system-tests-onboarding.md)**
 Covers: `configure_system_tests` and onboarding/SSI scenario groups

@@ -2,13 +2,30 @@
 
 set -e
 
+# Retry a command up to 3 times with 10s backoff before signaling infra failure.
+# All failures in this script are infrastructure failures (package downloads,
+# network), not test failures — so exhausted retries exit 75 (EX_TEMPFAIL)
+# to trigger GitLab's infra-retry rule rather than marking the job as failed.
+retry_or_tempfail() {
+    local n=1
+    until "$@"; do
+        if [ "$n" -ge 3 ]; then
+            echo "Infrastructure command failed after $n attempts, signaling retry (exit 75): $*" >&2
+            exit 75
+        fi
+        echo "Command failed (attempt $n/3): $* — retrying in 10s..." >&2
+        n=$((n + 1))
+        sleep 10
+    done
+}
+
 mkdir -p /run/nginx
 
-apk add --no-cache nginx curl
+retry_or_tempfail apk add --no-cache nginx curl
 
 # Installing php
 if [ ! -z "${PHP_PACKAGE}" ]; then
-    apk add --no-cache ${PHP_PACKAGE}
+    retry_or_tempfail apk add --no-cache ${PHP_PACKAGE}
 fi
 
 # Preparing PHP
@@ -44,7 +61,7 @@ if [ "$INSTALL_TYPE" = "native_package" ]; then
     apk add --no-cache $(pwd)/build/packages/*$(uname -m)*.apk --allow-untrusted
 else
     echo "Installing dd-trace-php using the new PHP installer"
-    apk add --no-cache libgcc
+    retry_or_tempfail apk add --no-cache libgcc
     installable_bundle=$(find "$(pwd)/build/packages" -maxdepth 1 -name "dd-library-php-*-$(uname -m)-linux-musl.tar.gz")
     $PHP_BIN datadog-setup.php --file "$installable_bundle" --php-bin all --enable-appsec
 fi

@@ -1266,7 +1266,10 @@ void zai_hook_rshutdown(void) {
     }
 }
 
-void zai_hook_gshutdown(void) { free(zai_hook_tls); }
+void zai_hook_gshutdown(void) {
+    free(zai_hook_tls);
+    zai_hook_tls = NULL;
+}
 
 void zai_hook_mshutdown(void) {
     zend_hash_destroy(&zai_hook_static);

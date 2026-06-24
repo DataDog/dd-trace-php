@@ -11,8 +11,21 @@
 void dd_telemetry_add_metric(zend_string *nonnull name_zstr, double value,
     zend_string *nonnull tags_zstr, ddtrace_metric_type type);
 
-void dd_telemetry_add_sdk_event(char *nonnull event_type, size_t event_type_len);
+void dd_telemetry_add_sdk_event(
+    char *nonnull event_type, size_t event_type_len);
+void dd_telemetry_add_missing_user_login(const char *nonnull event_type,
+    size_t event_type_len, const char *nonnull framework, size_t framework_len);
+void dd_telemetry_add_missing_user_id(const char *nonnull event_type,
+    size_t event_type_len, const char *nonnull framework, size_t framework_len);
 void dd_telemetry_startup(void);
+void dd_telemetry_mshutdown(void);
+
+void dd_telemetry_rinit(void);
+void dd_telemetry_note_helper_string_meta(const char *nonnull key,
+    size_t key_len, const char *nonnull val, size_t val_len);
+
+// NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+void dd_telemetry_submit_duration_ext(double waf_ext_us, double rasp_ext_us);
 
 void dd_telemetry_helper_conn_error(void);
 void dd_telemetry_helper_conn_success(void);

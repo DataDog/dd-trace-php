@@ -478,6 +478,37 @@ typedef struct ddog_SidecarTransport ddog_SidecarTransport;
  */
 typedef struct ddog_SpanConcentrator ddog_SpanConcentrator;
 
+typedef struct ddog_FfeResult {
+  _zend_string * value_json;
+  _zend_string * variant;
+  _zend_string * allocation_key;
+  int32_t reason;
+  int32_t error_code;
+  bool do_log;
+  bool valid;
+} ddog_FfeResult;
+
+typedef struct ddog_FfeAttribute {
+  ddog_CharSlice key;
+  int32_t value_type;
+  ddog_CharSlice string_value;
+  double number_value;
+  bool bool_value;
+} ddog_FfeAttribute;
+
+/**
+ * Flags selecting which Remote Config products/capabilities to subscribe to.
+ *
+ * Passed as a single C-ABI struct so call sites can use designated initializers
+ * and name the flags, instead of a positional sequence of bool args.
+ */
+typedef struct ddog_RemoteConfigFlags {
+  bool live_debugging_enabled;
+  bool appsec_activation;
+  bool appsec_config;
+  bool ffe_enabled;
+} ddog_RemoteConfigFlags;
+
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
  * never from C.
@@ -755,21 +786,6 @@ typedef const char *(*ddog_RootTagLookupFn)(const void *ctx,
                                             uintptr_t *out_len);
 
 /**
- * Per-entry callback passed to `RootMetaIterFn`.  Return `false` to stop iteration early.
- */
-typedef bool (*ddog_MetaEntryCb)(void *iter_ctx,
-                                 const char *key,
-                                 uintptr_t key_len,
-                                 const char *val,
-                                 uintptr_t val_len);
-
-/**
- * Slow-path meta iterator.  `NULL` when no regex-key filter entries are present.
- * Iterates all string meta entries, calling `cb` for each; stops when `cb` returns `false`.
- */
-typedef void (*ddog_RootMetaIterFn)(const void *ctx, void *iter_ctx, ddog_MetaEntryCb cb);
-
-/**
  * A 128-bit (16 byte) buffer containing the UUID.
  *
  * # ABI
@@ -923,6 +939,8 @@ typedef enum ddog_FieldType {
   DDOG_FIELD_TYPE_ARG,
   DDOG_FIELD_TYPE_LOCAL,
 } ddog_FieldType;
+
+typedef struct ddog_Config ddog_Config;
 
 typedef struct ddog_Entry ddog_Entry;
 
@@ -1078,6 +1096,9 @@ typedef enum ddog_TelemetryWorkerBuilderStrProperty {
   DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_KERNEL_RELEASE,
   DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_HOST_KERNEL_VERSION,
   DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_RUNTIME_ID,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_SESSION_ID,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_PARENT_SESSION_ID,
+  DDOG_TELEMETRY_WORKER_BUILDER_STR_PROPERTY_ROOT_SESSION_ID,
 } ddog_TelemetryWorkerBuilderStrProperty;
 
 typedef struct ddog_TelemetryWorkerBuilder ddog_TelemetryWorkerBuilder;
@@ -1171,6 +1192,11 @@ typedef struct ddog_NativeFile {
   struct ddog_PlatformHandle_File *handle;
 } ddog_NativeFile;
 
+typedef struct ddog_SidecarFlushOptions {
+  bool traces_and_stats;
+  bool telemetry;
+} ddog_SidecarFlushOptions;
+
 typedef struct ddog_TracerHeaderTags {
   ddog_CharSlice lang;
   ddog_CharSlice lang_version;
@@ -1181,6 +1207,61 @@ typedef struct ddog_TracerHeaderTags {
   bool client_computed_top_level;
   bool client_computed_stats;
 } ddog_TracerHeaderTags;
+
+typedef struct ddog_FfeTelemetryContext {
+  ddog_CharSlice service;
+  ddog_CharSlice env;
+  ddog_CharSlice version;
+} ddog_FfeTelemetryContext;
+
+typedef struct ddog_FfeExposure {
+  uint64_t timestamp_ms;
+  ddog_CharSlice flag_key;
+  ddog_CharSlice subject_id;
+  /**
+   * UTF-8 JSON object. Empty, invalid, or non-object JSON is serialized as
+   * an empty subject attribute object.
+   */
+  ddog_CharSlice subject_attributes_json;
+  ddog_CharSlice allocation_key;
+  ddog_CharSlice variant;
+} ddog_FfeExposure;
+
+typedef struct ddog_Slice_FfeExposure {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeExposure *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeExposure;
+
+typedef struct ddog_FfeEvaluationMetric {
+  ddog_CharSlice flag_key;
+  ddog_CharSlice variant;
+  ddog_CharSlice reason;
+  ddog_CharSlice error_type;
+  ddog_CharSlice allocation_key;
+} ddog_FfeEvaluationMetric;
+
+typedef struct ddog_Slice_FfeEvaluationMetric {
+  /**
+   * Should be non-null and suitably aligned for the underlying type. It is
+   * allowed but not recommended for the pointer to be null when the len is
+   * zero.
+   */
+  const struct ddog_FfeEvaluationMetric *ptr;
+  /**
+   * The number of elements (not bytes) that `.ptr` points to. Must be less
+   * than or equal to [isize::MAX].
+   */
+  uintptr_t len;
+} ddog_Slice_FfeEvaluationMetric;
 
 /**
  * Holds the raw parts of a Rust Vec; it should only be created from Rust,
@@ -1427,6 +1508,11 @@ typedef struct ddog_crasht_Slice_I32 {
 
 typedef struct ddog_crasht_Config {
   struct ddog_crasht_Slice_CharSlice additional_files;
+  /**
+   * If true, the receiver will collect stack traces for all threads in the crashing process
+   * (not just the crashing thread) using ptrace-based remote unwinding.
+   */
+  bool collect_all_threads;
   bool create_alt_stack;
   bool demangle_names;
   /**
@@ -1434,6 +1520,11 @@ typedef struct ddog_crasht_Config {
    * If None, the crashtracker will infer the agent host from env variables.
    */
   struct ddog_crasht_EndpointConfig endpoint;
+  /**
+   * Maximum number of non-crashing threads to collect when `collect_all_threads` is true.
+   * If 0, uses the default (`libdd_crashtracker::default_max_threads()`).
+   */
+  uintptr_t max_threads;
   /**
    * Optional filename for a unix domain socket if the receiver is used asynchonously
    */

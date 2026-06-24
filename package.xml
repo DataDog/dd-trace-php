@@ -75,7 +75,7 @@ ${changelog}
             <!-- code, PHP and test files -->${codefiles}
             <file name="config.m4" role="src" />
             <file name="config.w32" role="src" />
-            <file name="ddtrace.sym" role="src" />
+            <file name="datadog.sym" role="src" />
             <file name="compile_rust.sh" role="src" />
             <file name="VERSION" role="src" />
 

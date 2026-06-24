@@ -313,9 +313,9 @@ for architecture in "${architectures[@]}"; do
     ########################
     stubs=(
         "$3/src/ddtrace_php_api.stubs.php"
-        "$3/ext/ddtrace.stub.php"
-        "$3/ext/hook/uhook.stub.php"
-        "$3/ext/hook/uhook_attributes.stub.php"
+        "$3/tracer/ddtrace.stub.php"
+        "$3/tracer/hook/uhook.stub.php"
+        "$3/tracer/hook/uhook_attributes.stub.php"
     )
 
     mergedStubs=""

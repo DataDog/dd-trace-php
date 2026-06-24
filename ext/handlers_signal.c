@@ -34,7 +34,7 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     sigprocmask(SIG_UNBLOCK, &x, NULL);
     // ensures no double-processing when the signal was delivered normally.
     if (REMOTE_CONFIG_NEEDS_POLLING_AFTER_SIGNAL) {
-        ddtrace_check_for_new_config_now();
+        datadog_check_for_new_config_now();
     }
 }
 
@@ -99,9 +99,10 @@ static void dd_handle_signal(zif_handler original_function, INTERNAL_FUNCTION_PA
     x(usleep) \
     x(time_nanosleep) \
 
+// Beware of uppercase names. class/function tables are lowercase keys!
 #define BLOCKMETH(x) \
-    x(PDO, __construct) \
-    x(PDO, connect) \
+    x(pdo, __construct) \
+    x(pdo, connect) \
     x(mysqli, __construct) \
     x(mysqli, real_connect)
 
@@ -109,7 +110,7 @@ BLOCK(BLOCKSIGFN)
 
 BLOCKMETH(BLOCKSIGMETH)
 
-void ddtrace_signal_block_handlers_startup() {
+void datadog_signal_block_handlers_startup() {
 #define BLOCKFNENTRY(function) { ZEND_STRL(#function), &dd_handle_signal_zif_##function, ZEND_FN(dd_handle_signal_##function) },
     datadog_php_zif_handler handlers[] = { BLOCK(BLOCKFNENTRY) };
 

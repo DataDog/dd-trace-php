@@ -24,11 +24,13 @@ var_dump(dd_trace_serialize_closed_spans()[0]["meta"]);
 
 ?>
 --EXPECTF--
-array(4) {
+array(5) {
   ["_dd.p.dm"]=>
   string(2) "-0"
   ["_dd.p.tid"]=>
   string(16) "%s"
+  ["_dd.tags.process"]=>
+  string(%d) "%s"
   ["http.request.headers.0"]=>
   string(16) "http_zero_header"
   ["runtime-id"]=>

@@ -38,6 +38,7 @@ __thread char _dd_strerror_buf[1024]; // NOLINT
 const int _dd_size_source_prefix = sizeof(__FILE__) - sizeof("logging.c");
 
 static atomic_bool _initialized;
+bool _dd_log_config_ready;
 // mutex used for two purpose:
 //  * initialization (we do it lazily on first log message, not MINIT)
 //  * avoid two threads writing lines to the log file the same time
@@ -82,14 +83,19 @@ static void _dd_log_errf(const char *format, ...)
     va_end(args);
 }
 
-void dd_log_startup(void)
+void dd_log_startup_before_cfg(void)
 {
 #ifdef ZTS
     _mutex = tsrm_mutex_alloc();
 #endif
 
     _find_strerror_r();
+}
 
+void dd_log_startup_after_cfg(void)
+{
+    _dd_log_config_ready = true;
+    atomic_store_explicit(&_initialized, false, memory_order_release);
 #ifdef TESTING
     _register_testing_objects();
 #endif
@@ -117,7 +123,7 @@ static void _find_strerror_r(void)
 static void _ensure_init(void)
 {
 #ifdef ZTS
-    /* assert: mlog is not called before dd_log_startup */
+    /* assert: dd_log_startup_before_cfg() must precede any mlog call */
     assert(_mutex != NULL);
 #endif
 
@@ -144,6 +150,11 @@ static void _ensure_init(void)
 
 static dd_result _do_dd_log_init(void) // guarded by mutex
 {
+    if (!_dd_log_config_ready) {
+        _log_strategy = log_use_php_err_rep;
+        return dd_success;
+    }
+
     const char *path = ""; // compiler can't tell it's always used initialized
     zend_string *log_file = get_global_DD_APPSEC_LOG_FILE();
 
@@ -206,7 +217,7 @@ static int _dd_log_level_from_str(const char *nullable log_level)
         goto err;
     }
 
-    size_t len = strlen((const char *)log_level);
+    size_t len = strlen(log_level);
     if (dd_string_equals_lc(log_level, len, ZEND_STRL("off"))) {
         return dd_log_off;
     }
@@ -404,7 +415,10 @@ static void _format_time(
     char *buf, size_t buf_size, struct timespec *time, int precision)
 {
     struct tm tm = {0};
-    gmtime_r(&time->tv_sec, &tm);
+    if (gmtime_r(&time->tv_sec, &tm) == NULL) {
+        *buf = '\0';
+        return;
+    }
     size_t len = strftime(buf, buf_size, "%FT%T", &tm);
     size_t left_size = buf_size - len;
     if (UNEXPECTED(left_size > buf_size)) {
@@ -493,6 +507,7 @@ void dd_log_shutdown(void)
     _mlog_fd = -1;
     _log_strategy = log_use_nothing;
     atomic_store(&_initialized, false);
+    _dd_log_config_ready = false;
 }
 
 const char *nonnull _strerror_r(int err, char *nonnull buf, size_t buflen)

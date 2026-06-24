@@ -101,18 +101,19 @@ impl Uploader {
         message: Box<UploadRequest>,
         last_cpu: &mut Option<ThreadTime>,
     ) -> anyhow::Result<u16> {
-        let index = message.index;
+        // `index` is `Arc<ProfileIndex>`; unwrap so we can move `tags` out.
+        // In the common case the upload thread holds the only strong ref by
+        // the time we get here, so this is a move rather than a clone.
+        let index = Arc::unwrap_or_clone(message.index);
         let profile = message.profile;
 
-        let profiling_library_name: &str = &PROFILER_NAME_STR;
-        let profiling_library_version: &str = &PROFILER_VERSION_STR;
         let agent_endpoint = &self.endpoint;
         let endpoint = Endpoint::try_from(agent_endpoint)?;
 
         let tags = Arc::unwrap_or_clone(index.tags);
         let mut exporter = libdd_profiling::exporter::ProfileExporter::new(
-            profiling_library_name,
-            profiling_library_version,
+            PROFILER_NAME_STR,
+            PROFILER_VERSION_STR,
             "php",
             tags,
             endpoint,

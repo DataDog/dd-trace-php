@@ -19,6 +19,9 @@ pub struct ZendString {
 #[repr(transparent)]
 pub struct OwnedZendString(pub NonNull<ZendString>);
 
+/// cbindgen:ignore
+pub type MaybeOwnedZendString = Option<OwnedZendString>;
+
 impl OwnedZendString {
     pub fn from_copy(mut ptr: NonNull<ZendString>) -> Self {
         unsafe { DDOG_ADDREF_ZEND_STRING.unwrap_unchecked()(ptr.as_mut()) };
@@ -243,12 +246,12 @@ pub extern "C" fn ddog_add_str_span_meta_CharSlice(
 
 #[no_mangle]
 pub extern "C" fn ddog_del_span_meta_zstr(ptr: &mut SpanBytes, key: &mut ZendString) {
-    ptr.meta.remove(&convert_zend_to_bytes_string(key));
+    ptr.meta.remove_slow(&convert_zend_to_bytes_string(key));
 }
 
 #[no_mangle]
 pub extern "C" fn ddog_del_span_meta_str(ptr: &mut SpanBytes, key: *const c_char) {
-    ptr.meta.remove(&convert_literal_to_bytes_string(key));
+    ptr.meta.remove_slow(&convert_literal_to_bytes_string(key));
 }
 
 #[no_mangle]
@@ -287,7 +290,7 @@ pub extern "C" fn ddog_has_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut Zend
 
 #[no_mangle]
 pub extern "C" fn ddog_del_span_metrics_zstr(ptr: &mut SpanBytes, key: &mut ZendString) {
-    ptr.metrics.remove(&convert_zend_to_bytes_string(key));
+    ptr.metrics.remove_slow(&convert_zend_to_bytes_string(key));
 }
 
 #[no_mangle]
@@ -313,7 +316,7 @@ pub extern "C" fn ddog_get_span_metrics_str(
 
 #[no_mangle]
 pub extern "C" fn ddog_del_span_metrics_str(ptr: &mut SpanBytes, key: *const c_char) {
-    ptr.metrics.remove(&convert_literal_to_bytes_string(key));
+    ptr.metrics.remove_slow(&convert_literal_to_bytes_string(key));
 }
 
 #[no_mangle]

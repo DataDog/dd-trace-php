@@ -40,7 +40,10 @@ match_log("/Trying to access to track_custom_event function while appsec is disa
 
 ?>
 --EXPECTF--
+Deprecated: Function datadog\appsec\track_user_login_success_event() is deprecated in %s on line %d
 NULL
+
+Deprecated: Function datadog\appsec\track_user_login_failure_event() is deprecated in %s on line %d
 NULL
 NULL
 found message in log matching /Trying to access to track_user_login_success_event function while appsec is disabled/

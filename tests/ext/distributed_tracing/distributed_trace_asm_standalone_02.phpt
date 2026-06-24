@@ -12,6 +12,7 @@ DD_APM_TRACING_ENABLED=0
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/../sandbox/dd_dumper.inc';
 
 $outer = DDTrace\start_span();
 $outer->name = 'outer';
@@ -21,7 +22,7 @@ $inner->name = 'inner';
 DDTrace\close_span();
 DDTrace\close_span();
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--

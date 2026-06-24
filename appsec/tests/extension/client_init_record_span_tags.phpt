@@ -110,6 +110,7 @@ Array
 (
     [%s] => %d
     [_dd.appsec.enabled] => 1
+    [_dd.appsec.waf.duration_ext] => %f
     [_sampling_priority_v1] => 1
     [metric_1] => 2
     [metric_2] => 10

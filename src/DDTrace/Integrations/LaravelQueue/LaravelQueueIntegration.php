@@ -166,6 +166,7 @@ class LaravelQueueIntegration extends Integration
                         $span->name = 'laravel.queue.action';
                         $span->type = 'queue';
                         $span->service = LaravelQueueIntegration::getServiceName();
+                        Integration::tagFrameworkServiceSource($span, LaravelQueueIntegration::NAME);
                         $span->resource = $class . '@' . $method;
                         $span->meta[Tag::COMPONENT] = LaravelQueueIntegration::NAME;
 
@@ -295,6 +296,7 @@ class LaravelQueueIntegration extends Integration
     ) {
         $span->name = $name;
         $span->service = self::getServiceName();
+        Integration::tagFrameworkServiceSource($span, LaravelQueueIntegration::NAME);
         $span->type = 'queue';
         $span->meta[Tag::SPAN_KIND] = 'client';
         $span->meta[Tag::COMPONENT] = self::NAME;

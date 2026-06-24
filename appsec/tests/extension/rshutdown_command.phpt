@@ -29,7 +29,7 @@ $c = $helper->get_commands();
 print_r($c[0]);
 
 ?>
---EXPECT--
+--EXPECTF--
 bool(true)
 bool(true)
 Array

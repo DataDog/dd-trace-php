@@ -19,7 +19,7 @@ $(CENTOS6_PHP_VERSIONS): %.centos6:
 #  2. From this folder:
 #       - Example alpine: make verify_alpine DOCKER_IMAGE=alpine:3.10 PHP_PACKAGE="php7 php7-fpm"
 #       - Example centos: make verify_centos DOCKER_IMAGE=centos:7 PHP_MAJOR=7 PHP_MINOR=4
-#       - Example debian: make verify_debian DOCKER_IMAGE=debian:buster INSTALL_MODE=sury PHP_VERSION=7.4
+#       - Example debian: make verify_debian DOCKER_IMAGE=debian:bookworm INSTALL_MODE=sury PHP_VERSION=7.4
 verify_alpine:
 	docker-compose run --rm \
 		-e VERIFY_APACHE=no \

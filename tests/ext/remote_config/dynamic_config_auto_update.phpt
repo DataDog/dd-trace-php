@@ -6,7 +6,7 @@ Test dynamic config update
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
-DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
+DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_TRACE_AGENT_FLUSH_INTERVAL=333
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=0
 DD_EXCEPTION_REPLAY_ENABLED=1
@@ -32,7 +32,7 @@ $path = put_dynamic_config_file([
     "code_origin_enabled" => false,
 ]);
 
-sleep(20); // signal interrupts interrupt the sleep().
+dd_trace_internal_fn("await_remote_config");
 
 var_dump(ini_get("datadog.logs_injection"));
 var_dump(ini_get("datadog.dynamic_instrumentation.enabled"));
@@ -42,7 +42,7 @@ var_dump(ini_get("datadog.code_origin_for_spans_enabled"));
 del_rc_file($path);
 
 print "After RC:\n";
-sleep(20);
+dd_trace_internal_fn("await_remote_config");
 
 var_dump(ini_get("datadog.logs_injection"));
 var_dump(ini_get("datadog.dynamic_instrumentation.enabled"));

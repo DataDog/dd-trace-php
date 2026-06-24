@@ -1,12 +1,11 @@
-#ifndef DDTRACE_TELEMETRY_H
-#define DDTRACE_TELEMETRY_H
+#ifndef DATADOG_TELEMETRY_H
+#define DATADOG_TELEMETRY_H
 
 #include <components-rs/telemetry.h>
 #include <php.h>
 
 #include "components-rs/common.h"
-#include "ddtrace_export.h"
-#include "span.h"
+#include "datadog_export.h"
 
 void ddtrace_integration_error_telemetryf(ddog_Log source, const char *format, ...);
 #define INTEGRATION_ERROR_TELEMETRY(source, format, ...) { ddtrace_integration_error_telemetryf(DDOG_LOG_##source, format, ##__VA_ARGS__); }
@@ -23,22 +22,19 @@ typedef struct _trace_api_metrics {
     int errors_status_code;
 } trace_api_metrics;
 
-ddog_SidecarActionsBuffer *ddtrace_telemetry_buffer(void);
-ddog_ShmCacheMap *ddtrace_telemetry_cache(void);
+ddog_SidecarActionsBuffer *datadog_telemetry_buffer(void);
+ddog_ShmCacheMap *datadog_telemetry_cache(void);
 const char *ddtrace_telemetry_redact_file(const char *file);
-void ddtrace_telemetry_first_init(void);
-void ddtrace_telemetry_rinit(void);
-void ddtrace_telemetry_rshutdown(void);
-void ddtrace_telemetry_notify_integration(const char *name, size_t name_len);
-void ddtrace_telemetry_notify_integration_version(const char *name, size_t name_len, const char *version, size_t version_len);
-void ddtrace_telemetry_finalize();
-void ddtrace_telemetry_lifecycle_end(void);
-void ddtrace_telemetry_register_services(ddog_SidecarTransport **sidecar);
-void ddtrace_telemetry_inc_spans_created(ddtrace_span_data *span);
-void ddtrace_telemetry_send_trace_api_metrics(trace_api_metrics metrics);
+void datadog_telemetry_rinit(void);
+void datadog_telemetry_rshutdown(void);
+void datadog_telemetry_finalize(void);
+void datadog_telemetry_lifecycle_end(void);
+void datadog_telemetry_register_services(ddog_SidecarTransport **sidecar);
 
 // public API
-DDTRACE_PUBLIC void ddtrace_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns);
-DDTRACE_PUBLIC bool ddtrace_metric_add_point(zend_string *name, double value, zend_string *tags);
+DATADOG_PUBLIC void datadog_metric_register_buffer(zend_string *name, ddog_MetricType type, ddog_MetricNamespace ns);
+DATADOG_PUBLIC bool datadog_metric_add_point(zend_string *name, double value, zend_string *tags);
+
+DATADOG_PUBLIC extern bool datadog_loaded_by_ssi;
 
 #endif // DDTRACE_TELEMETRY_H

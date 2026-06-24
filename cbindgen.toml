@@ -24,6 +24,7 @@ rename_types = "PascalCase"
 "ZendString" = "_zend_string"
 "FILE" = "FILE"
 "EndpointConfig" = "ddog_crasht_EndpointConfig"
+"MaybeOwnedZendString" = "_zend_string *"
 
 [enum]
 prefix_with_name = true
@@ -41,6 +42,6 @@ include = [
     "datadog-ipc",
     "datadog-live-debugger",
     "datadog-live-debugger-ffi",
-    "datadog-remote-config",
+    "libdd-remote-config",
     "uuid"
 ]

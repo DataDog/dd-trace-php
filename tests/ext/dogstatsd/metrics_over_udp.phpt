@@ -57,8 +57,8 @@ $server->close();
 
 ?>
 --EXPECT--
-counter-simple:42|c|#service:metrics_over_udp.php,foo:bar,bar:true
-gogogadget:21.4|g|#service:metrics_over_udp.php
-my_disti:22.22|d|#service:metrics_over_udp.php,distri:bution
-my_histo:22.22|h|#service:metrics_over_udp.php,histo:gram
-set:7|s|#service:metrics_over_udp.php,set:7
+counter-simple:42|c|#env:none,service:metrics_over_udp.php,foo:bar,bar:true
+gogogadget:21.4|g|#env:none,service:metrics_over_udp.php
+my_disti:22.22|d|#env:none,service:metrics_over_udp.php,distri:bution
+my_histo:22.22|h|#env:none,service:metrics_over_udp.php,histo:gram
+set:7|s|#env:none,service:metrics_over_udp.php,set:7

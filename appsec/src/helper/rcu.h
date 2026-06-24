@@ -5,8 +5,8 @@
 #include <cassert>
 #include <memory>
 #include <mutex>
-#include <vector>
 #include <spdlog/spdlog.h>
+#include <vector>
 
 /*
  * A simple RCU implementation, using a global generation counter and per-reader
@@ -192,7 +192,8 @@ public:
         : data_ptr{initial_data.release()}
     {}
 
-    ~rcu_manager() {
+    ~rcu_manager()
+    {
         auto *data = data_ptr.exchange(nullptr, std::memory_order_release);
         if (data) {
             delete data;
@@ -225,10 +226,7 @@ public:
     }
 
     // for internal use by rcu_read_guard
-    T *get_data_acq() const
-    {
-        return data_ptr.load(std::memory_order_acquire);
-    }
+    T *get_data_acq() const { return data_ptr.load(std::memory_order_acquire); }
 
     void collect_garbage()
     {

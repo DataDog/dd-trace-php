@@ -35,7 +35,6 @@ use bindings::{
 use clocks::*;
 use core::ffi::{c_char, c_int, CStr};
 use core::ptr;
-use lazy_static::lazy_static;
 use libdd_common::{cstr, tag, tag::Tag};
 use log::{debug, error, info, trace, warn};
 use profiling::{LocalRootSpanResourceMessage, Profiler, VmInterrupt};
@@ -44,7 +43,7 @@ use std::borrow::Cow;
 use std::cell::{BorrowError, BorrowMutError, RefCell};
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use std::sync::{Arc, Once, OnceLock};
+use std::sync::{Arc, LazyLock, Once, OnceLock};
 use std::thread::{AccessError, LocalKey};
 use std::time::{Duration, Instant};
 use uuid::Uuid;
@@ -53,9 +52,25 @@ use uuid::Uuid;
 /// interior null bytes and must be null terminated.
 static PROFILER_NAME: &CStr = c"datadog-profiling";
 
+// SAFETY: PROFILER_NAME is a valid utf8 string.
+static PROFILER_NAME_STR: &str = match PROFILER_NAME.to_str() {
+    Ok(s) => s,
+    // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
+    Err(_) => panic!(""),
+};
+
 /// Version of the profiling module and zend_extension. Must not contain any
 /// interior null bytes and must be null terminated.
 static PROFILER_VERSION: &[u8] = concat!(env!("PROFILER_VERSION"), "\0").as_bytes();
+
+// SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
+static PROFILER_VERSION_STR: &str = const {
+    match unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char).to_str() } {
+        Ok(v) => v,
+        // Panic: we own this string and it should be UTF8 (see PROFILER_VERSION above).
+        Err(_) => panic!("PROFILER_VERSION was not a valid utf-8 string"),
+    }
+};
 
 /// Version ID of PHP at run-time, not the version it was built against at
 /// compile-time. Its value is overwritten during minit.
@@ -75,73 +90,61 @@ static mut RUNTIME_PHP_VERSION: &str = {
     }
 };
 
-lazy_static! {
-    /// # Safety
-    /// The first time this is accessed must be after config is initialized in
-    /// the first RINIT and before mshutdown!
-    static ref GLOBAL_TAGS: Vec<Tag> = {
-        let mut tags = vec![
-            tag!("language", "php"),
-            tag!("profiler_version", env!("PROFILER_VERSION")),
-            // SAFETY: calling getpid() is safe.
-            Tag::new("process_id", unsafe { libc::getpid() }.to_string())
-                .expect("process_id tag to be valid"),
-            Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
-        ];
+/// # Safety
+/// The first time this is accessed must be after config is initialized in
+/// the first RINIT and before mshutdown!
+static GLOBAL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
+    let mut tags = vec![
+        tag!("language", "php"),
+        tag!("profiler_version", env!("PROFILER_VERSION")),
+        // SAFETY: calling getpid() is safe.
+        Tag::new("process_id", unsafe { libc::getpid() }.to_string())
+            .expect("process_id tag to be valid"),
+        Tag::new("runtime-id", runtime_id().to_string()).expect("runtime-id tag to be valid"),
+    ];
 
-        // This should probably be "language_version", but this is the
-        // standardized tag name.
-        // SAFETY: PHP_VERSION is safe to access in rinit (only
-        // mutated during minit).
-        add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
-        add_tag(&mut tags, "php.sapi", SAPI.as_ref());
-        // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
-        // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
-        // `zend-nts-ndebug`
-        let runtime_engine = if cfg!(php_zts) {
-            "zend-zts-ndebug"
-        } else {
-            "zend-nts-ndebug"
-        };
-        add_tag(&mut tags, "runtime_engine", runtime_engine);
-        tags
+    // This should probably be "language_version", but this is the
+    // standardized tag name.
+    // SAFETY: PHP_VERSION is safe to access in rinit (only
+    // mutated during minit).
+    add_tag(&mut tags, "runtime_version", unsafe { RUNTIME_PHP_VERSION });
+    add_tag(&mut tags, "php.sapi", SAPI.as_ref());
+    // In case we ever add PHP debug build support, we should add `zend-zts-debug` and
+    // `zend-nts-debug`. For the time being we only support `zend-zts-ndebug` and
+    // `zend-nts-ndebug`
+    let runtime_engine = if cfg!(php_zts) {
+        "zend-zts-ndebug"
+    } else {
+        "zend-nts-ndebug"
     };
+    add_tag(&mut tags, "runtime_engine", runtime_engine);
+    tags
+});
 
-    /// The Server API the profiler is running under.
-    static ref SAPI: Sapi = {
-        #[cfg(not(test))]
-        {
-            // SAFETY: sapi_module is initialized before minit and there should be
-            // no concurrent threads.
-            let sapi_module = unsafe { zend::sapi_module };
-            if sapi_module.name.is_null() {
-                panic!("the sapi_module's name is a null pointer");
-            }
-
-            // SAFETY: value has been checked for NULL; I haven't checked that the
-            // engine ensures its length is less than `isize::MAX`, but it is a
-            // risk I'm willing to take.
-            let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
-            Sapi::from_name(sapi_name.to_string_lossy().as_ref())
+/// The Server API the profiler is running under.
+static SAPI: LazyLock<Sapi> = LazyLock::new(|| {
+    #[cfg(not(test))]
+    {
+        // SAFETY: sapi_module is initialized before minit and there should be
+        // no concurrent threads.
+        let sapi_module = unsafe { zend::sapi_module };
+        if sapi_module.name.is_null() {
+            panic!("the sapi_module's name is a null pointer");
         }
-        // When running `cargo test` we do not link against PHP, so `zend::sapi_name` is not
-        // available and we just return `Sapi::Unkown`
-        #[cfg(test)]
-        {
-            Sapi::Unknown
-        }
-    };
 
-    // SAFETY: PROFILER_NAME is a byte slice that satisfies the safety requirements.
-    // Panic: we own this string and it should be UTF8 (see PROFILER_NAME above).
-    static ref PROFILER_NAME_STR: &'static str = PROFILER_NAME.to_str().unwrap();
-
-    // SAFETY: PROFILER_VERSION is a byte slice that satisfies the safety requirements.
-    static ref PROFILER_VERSION_STR: &'static str = unsafe { CStr::from_ptr(PROFILER_VERSION.as_ptr() as *const c_char) }
-        .to_str()
-        // Panic: we own this string and it should be UTF8 (see PROFILER_VERSION above).
-        .unwrap();
-}
+        // SAFETY: value has been checked for NULL; I haven't checked that the
+        // engine ensures its length is less than `isize::MAX`, but it is a
+        // risk I'm willing to take.
+        let sapi_name = unsafe { CStr::from_ptr(sapi_module.name) };
+        Sapi::from_name(sapi_name.to_string_lossy().as_ref())
+    }
+    // When running `cargo test` we do not link against PHP, so `zend::sapi_name` is not
+    // available and we just return `Sapi::Unkown`
+    #[cfg(test)]
+    {
+        Sapi::Unknown
+    }
+});
 
 /// The runtime ID, which is basically a universally unique "pid". This makes
 /// it almost const, the exception being to re-initialize it from a child fork
@@ -152,7 +155,7 @@ lazy_static! {
 static RUNTIME_ID: OnceLock<Uuid> = OnceLock::new();
 // If ddtrace is loaded, we fetch the uuid from there instead
 extern "C" {
-    pub static ddtrace_runtime_id: *const Uuid;
+    pub static datadog_runtime_id: *const Uuid;
 }
 
 /// Module dependencies for the profiler extension.
@@ -244,8 +247,10 @@ extern "C" fn minit(_type: c_int, module_number: c_int) -> ZendResult {
         use std::sync::Mutex;
 
         let fd = loop {
-            // SAFETY:
-            let result = unsafe { libc::dup(libc::STDERR_FILENO) };
+            // F_DUPFD_CLOEXEC (not plain dup) so the duplicate is not inherited
+            // by child processes spawned via proc_open()/exec(). See logging.rs.
+            // SAFETY: just a libc call.
+            let result = unsafe { libc::fcntl(libc::STDERR_FILENO, libc::F_DUPFD_CLOEXEC, 0) };
             if result != -1 {
                 break result;
             } else {
@@ -418,6 +423,7 @@ pub struct RequestLocals {
     /// the initial settings, or possibly the values which were available
     /// in MINIT.
     pub system_settings: ptr::NonNull<SystemSettings>,
+    pub profiling_experimental_heap_live_enabled: bool,
 
     pub interrupt_count: AtomicU32,
     pub vm_interrupt_addr: *const AtomicBool,
@@ -443,6 +449,7 @@ impl Default for RequestLocals {
             git_repository_url: None,
             tags: vec![],
             system_settings: SystemSettings::get(),
+            profiling_experimental_heap_live_enabled: false,
             interrupt_count: AtomicU32::new(0),
             vm_interrupt_addr: ptr::null_mut(),
         }
@@ -470,6 +477,7 @@ trait RefCellExt<T> {
     where
         F: FnOnce(&mut T) -> R;
 
+    #[inline]
     fn borrow_or_false<F>(&'static self, f: F) -> bool
     where
         F: FnOnce(&T) -> bool,
@@ -477,6 +485,7 @@ trait RefCellExt<T> {
         self.try_with_borrow(f).unwrap_or(false)
     }
 
+    #[inline]
     fn borrow_mut_or_false<F>(&'static self, f: F) -> bool
     where
         F: FnOnce(&mut T) -> bool,
@@ -486,6 +495,7 @@ trait RefCellExt<T> {
 }
 
 impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
+    #[inline]
     fn try_with_borrow<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&T) -> R,
@@ -495,6 +505,7 @@ impl<T> RefCellExt<T> for LocalKey<RefCell<T>> {
         })??)
     }
 
+    #[inline]
     fn try_with_borrow_mut<F, R>(&'static self, f: F) -> Result<R, RefCellExtError>
     where
         F: FnOnce(&mut T) -> R,
@@ -524,7 +535,7 @@ thread_local! {
 /// Gets the runtime-id for the process. Do not call before RINIT!
 fn runtime_id() -> &'static Uuid {
     RUNTIME_ID
-        .get_or_init(|| unsafe { ddtrace_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
+        .get_or_init(|| unsafe { datadog_runtime_id.as_ref() }.map_or_else(Uuid::new_v4, |u| *u))
 }
 
 extern "C" fn activate() {
@@ -613,6 +624,10 @@ extern "C" fn rinit(_type: c_int, _module_number: c_int) -> ZendResult {
                 warn!("{err}");
             }
             locals.tags = tags;
+            locals.profiling_experimental_heap_live_enabled = system_settings
+                .as_ref()
+                .profiling_experimental_heap_live_enabled
+                && config::profiling_experimental_heap_live_enabled_current();
         }
         locals.system_settings = system_settings;
     });
@@ -866,6 +881,19 @@ unsafe extern "C" fn minfo(module_ptr: *mut zend::ModuleEntry) {
                     } else {
                         no_all
                     }
+                );
+                zend::php_info_print_table_row(
+                    2,
+                    c"Experimental Heap Live Profiling Enabled".as_ptr(),
+                    if system_settings.profiling_experimental_heap_live_enabled {
+                        yes
+                    } else if !system_settings.profiling_allocation_enabled {
+                        c"false (requires allocation profiling)".as_ptr()
+                    } else if system_settings.profiling_enabled {
+                        no
+                    } else {
+                        no_all
+                    },
                 );
                 zend::php_info_print_table_row(
                     2,

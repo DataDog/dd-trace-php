@@ -50,6 +50,7 @@ class SymfonyIntegration extends Integration
                     $service = \ddtrace_config_app_name('symfony');
                     $rootSpan->name = 'symfony.request';
                     $rootSpan->service = $service;
+                    Integration::tagFrameworkServiceSource($rootSpan, SymfonyIntegration::NAME);
                     $rootSpan->meta[Tag::SPAN_KIND] = 'server';
                     $rootSpan->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                     SymfonyIntegration::addTraceAnalyticsIfEnabled($rootSpan);
@@ -58,6 +59,7 @@ class SymfonyIntegration extends Integration
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = $service;
+                    Integration::tagFrameworkServiceSource($span, SymfonyIntegration::NAME);
                     $span->meta[Tag::SPAN_KIND] = 'server';
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 },
@@ -77,6 +79,7 @@ class SymfonyIntegration extends Integration
                     $span->resource = \get_class($this);
                     $span->type = Type::WEB_SERVLET;
                     $span->service = \ddtrace_config_app_name('symfony');
+                    Integration::tagFrameworkServiceSource($span, SymfonyIntegration::NAME);
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
                 },
             ]
@@ -86,7 +89,7 @@ class SymfonyIntegration extends Integration
             'Doctrine\ORM\UnitOfWork',
             'executeInserts',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_signup_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_signup_event_automated')) {
                     return;
                 }
 
@@ -115,7 +118,7 @@ class SymfonyIntegration extends Integration
                     $user = $userEntity->getUserIdentifier();
                 }
 
-                \datadog\appsec\track_user_signup_event_automated($user, $user, []);
+                \datadog\appsec\internal\track_user_signup_event_automated('symfony', $user, $user, []);
             }
         );
 
@@ -124,7 +127,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationSuccess',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -140,7 +143,8 @@ class SymfonyIntegration extends Integration
                 $metadata = [];
                 $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
-                \datadog\appsec\track_user_login_success_event_automated(
+                \datadog\appsec\internal\track_user_login_success_event_automated(
+                    'symfony',
                     $user,
                     $user,
                     $metadata
@@ -153,10 +157,13 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Guard\Authenticator\AbstractFormLoginAuthenticator',
             'onAuthenticationFailure',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\internal\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -165,10 +172,13 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onFailure',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\internal\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -177,7 +187,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Firewall\AbstractAuthenticationListener',
             'onSuccess',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -192,7 +202,8 @@ class SymfonyIntegration extends Integration
                 $metadata = [];
                 $user = \method_exists($token, 'getUsername') ? $token->getUsername() : '';
 
-                \datadog\appsec\track_user_login_success_event_automated(
+                \datadog\appsec\internal\track_user_login_success_event_automated(
+                    'symfony',
                     $user,
                     $user,
                     $metadata
@@ -205,10 +216,13 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationFailure',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_failure_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_failure_event_automated')) {
                     return;
                 }
-                \datadog\appsec\track_user_login_failure_event_automated(null, null, false, []);
+                $login = SymfonyIntegration::extractLoginFromAuthFailure(
+                    $args[0] ?? null, $args[1] ?? null
+                );
+                \datadog\appsec\internal\track_user_login_failure_event_automated('symfony', $login, null, false, []);
             }
         );
 
@@ -217,7 +231,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Http\Authenticator\FormLoginAuthenticator',
             'onAuthenticationSuccess',
             static function($This, $scope, $args) {
-                if (!function_exists('\datadog\appsec\track_user_login_success_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_user_login_success_event_automated')) {
                     return;
                 }
                 if (!isset($args[1])) {
@@ -240,7 +254,8 @@ class SymfonyIntegration extends Integration
                     ? $user->getUserIdentifier()
                     : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
-                \datadog\appsec\track_user_login_success_event_automated(
+                \datadog\appsec\internal\track_user_login_success_event_automated(
+                    'symfony',
                     $userIdentifier,
                     $userIdentifier,
                     $metadata
@@ -252,7 +267,7 @@ class SymfonyIntegration extends Integration
             'Symfony\Component\Security\Core\Authorization\AccessDecisionManagerInterface',
             'decide',
             static function($This, $scope, $args, $result) {
-                if (!function_exists('\datadog\appsec\track_authenticated_user_event_automated')) {
+                if (!function_exists('\datadog\appsec\internal\track_authenticated_user_event_automated')) {
                     return;
                 }
 
@@ -273,7 +288,7 @@ class SymfonyIntegration extends Integration
                     : (method_exists($user, 'getUsername') ? $user->getUsername() : '');
 
                 // Track the access check
-                \datadog\appsec\track_authenticated_user_event_automated($userIdentifier);
+                \datadog\appsec\internal\track_authenticated_user_event_automated('symfony', $userIdentifier);
             }
         );
 
@@ -314,6 +329,7 @@ class SymfonyIntegration extends Integration
                     $span->name = 'symfony.console.command.run';
                     $span->resource = $commandName ?: $span->name;
                     $span->service = \ddtrace_config_app_name(SymfonyIntegration::$frameworkPrefix);
+                    Integration::tagFrameworkServiceSource($span, SymfonyIntegration::$frameworkPrefix);
                     $span->type = Type::CLI;
                     $span->meta['symfony.console.command.class'] = \get_class($this);
                     $span->meta[Tag::COMPONENT] = SymfonyIntegration::NAME;
@@ -432,7 +448,7 @@ class SymfonyIntegration extends Integration
 
                 // Try with locale suffix (Symfony i18n routing convention)
                 if ($path === null) {
-                    $locale = $request->get('_locale');
+                    $locale = $request->attributes->get('_locale');
                     if ($locale !== null) {
                         $path = EndpointCatalog::pathForRoute($route_name . '.' . $locale, $container);
                     }
@@ -455,6 +471,7 @@ class SymfonyIntegration extends Integration
 
                 $span->name = 'symfony.kernel.handle';
                 $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                Integration::tagFrameworkServiceSource($span, self::$frameworkPrefix);
                 $span->type = Type::WEB_SERVLET;
                 $span->meta[Tag::COMPONENT] = self::NAME;
 
@@ -471,7 +488,7 @@ class SymfonyIntegration extends Integration
                     $rootSpan->meta[Tag::HTTP_STATUS_CODE] = $response->getStatusCode();
                 }
 
-                $route_name = $request->get('_route');
+                $route_name = $request->attributes->get('_route');
                 if ($route_name !== null) {
                     if (dd_trace_env_config("DD_HTTP_SERVER_ROUTE_BASED_NAMING")) {
                         $rootSpan->resource = $route_name;
@@ -480,7 +497,7 @@ class SymfonyIntegration extends Integration
                     $handle_http_route($route_name, $request, $rootSpan);
                 }
 
-                $parameters = $request->get('_route_params');
+                $parameters = $request->attributes->get('_route_params');
                 if (!empty($parameters) &&
                     is_array($parameters) &&
                     function_exists('datadog\appsec\push_addresses')) {
@@ -535,6 +552,7 @@ class SymfonyIntegration extends Integration
                                             $span->resource = $controllerName;
                                             $span->type = Type::WEB_SERVLET;
                                             $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                                            Integration::tagFrameworkServiceSource($span, self::$frameworkPrefix);
                                             $span->meta[Tag::COMPONENT] = self::NAME;
 
                                             \DDTrace\remove_hook($hook->id);
@@ -550,6 +568,7 @@ class SymfonyIntegration extends Integration
                                         $span->resource = $controllerName;
                                         $span->type = Type::WEB_SERVLET;
                                         $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                                        Integration::tagFrameworkServiceSource($span, self::$frameworkPrefix);
                                         $span->meta[Tag::COMPONENT] = self::NAME;
 
                                         \DDTrace\remove_hook($hook->id);
@@ -562,6 +581,7 @@ class SymfonyIntegration extends Integration
 
                 $span->name = $span->resource = 'symfony.' . $eventName;
                 $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+                Integration::tagFrameworkServiceSource($span, self::$frameworkPrefix);
                 $span->meta[Tag::COMPONENT] = self::NAME;
                 if ($event === null) {
                     return;
@@ -607,6 +627,7 @@ class SymfonyIntegration extends Integration
         $exceptionHandlingTracer = static function(SpanData $span, $args, $retval) {
             $span->name = $span->resource = 'symfony.kernel.handleException';
             $span->service = \ddtrace_config_app_name(self::$frameworkPrefix);
+            Integration::tagFrameworkServiceSource($span, self::$frameworkPrefix);
             $span->meta[Tag::COMPONENT] = self::NAME;
             \DDTrace\root_span()->exception = $args[0];
 
@@ -626,6 +647,7 @@ class SymfonyIntegration extends Integration
         $traceRender = function(SpanData $span, $args) {
             $span->name = 'symfony.templating.render';
             $span->service = \ddtrace_config_app_name(SymfonyIntegration::$frameworkPrefix);
+            Integration::tagFrameworkServiceSource($span, SymfonyIntegration::$frameworkPrefix);
             $span->type = Type::WEB_SERVLET;
 
             $resourceName = count($args) > 0 ? get_class($this) . ' ' . $args[0] : get_class($this);
@@ -656,6 +678,65 @@ class SymfonyIntegration extends Integration
                 $hook->data = true;
             });
         }
+    }
+
+    /**
+     * Extract the attempted login name from a Symfony authentication failure.
+     *
+     * Three sources in order of preference:
+     *   A) AuthenticationException::getToken() — set by AuthenticationProviderManager (legacy system)
+     *   B) Walk exception chain for UserNotFoundException / UsernameNotFoundException
+     *   C) Session '_security.last_username' — set by form login before calling authenticate
+     */
+    public static function extractLoginFromAuthFailure($request, $exception)
+    {
+        $login = null;
+
+        // Path A: token attached by AuthenticationProviderManager (Symfony 5.x legacy path)
+        if ($exception !== null && \method_exists($exception, 'getToken')) {
+            $token = $exception->getToken();
+            if ($token) {
+                $login = \method_exists($token, 'getUserIdentifier')
+                    ? $token->getUserIdentifier()
+                    : (\method_exists($token, 'getUsername') ? $token->getUsername() : null);
+            }
+        }
+
+        // Path B: UserNotFoundException / UsernameNotFoundException carries the identifier
+        if (!$login && $exception !== null) {
+            $e = $exception;
+            while ($e !== null) {
+                if (\method_exists($e, 'getUserIdentifier')) {
+                    $id = $e->getUserIdentifier();
+                    if ($id) {
+                        $login = $id;
+                        break;
+                    }
+                } elseif (\method_exists($e, 'getUsername')) {
+                    $name = $e->getUsername();
+                    if ($name) {
+                        $login = $name;
+                        break;
+                    }
+                }
+                $e = \method_exists($e, 'getPrevious') ? $e->getPrevious() : null;
+            }
+        }
+
+        // Path C: session '_security.last_username' — most reliable for form-based logins;
+        // set before authenticate() is called so it survives even when exceptions don't carry tokens
+        if (!$login && $request !== null && \method_exists($request, 'hasSession')) {
+            try {
+                if ($request->hasSession()) {
+                    $sessionLogin = $request->getSession()->get('_security.last_username');
+                    if ($sessionLogin) {
+                        $login = $sessionLogin;
+                    }
+                }
+            } catch (\Throwable $ignored) {}
+        }
+
+        return $login ?: null;
     }
 
     /**

@@ -179,7 +179,7 @@ static dd_result _dd_command_exec(dd_conn *nonnull conn,
                 "Response message for %.*s does not have the expected form",
                 NAME_L);
 
-            return dd_error;
+            return dd_network;
         }
         if (res != dd_success && res != dd_should_block &&
             res != dd_should_redirect && res != dd_should_record) {
@@ -293,7 +293,7 @@ static inline ATTR_WARN_UNUSED mpack_error_t _imsg_destroy(
 
 static void _imsg_cleanup(dd_imsg *nullable *imsg)
 {
-    dd_imsg **imsg_c = (dd_imsg * nullable * nonnull) imsg;
+    dd_imsg **imsg_c = imsg;
     if (*imsg_c) {
         UNUSED(_imsg_destroy(*imsg_c));
     }
@@ -504,12 +504,14 @@ static void dd_command_process_settings(mpack_node_t root);
  *    4: [metrics: map]
  * )
  */
-#define RESP_INDEX_ACTION_PARAMS 0
-#define RESP_INDEX_APPSEC_SPAN_DATA 1
-#define RESP_INDEX_FORCE_KEEP 2
-#define RESP_INDEX_SETTINGS 3
-#define RESP_INDEX_SPAN_META 4
-#define RESP_INDEX_SPAN_METRICS 5
+enum {
+    RESP_INDEX_ACTION_PARAMS = 0,
+    RESP_INDEX_APPSEC_SPAN_DATA = 1,
+    RESP_INDEX_FORCE_KEEP = 2,
+    RESP_INDEX_SETTINGS = 3,
+    RESP_INDEX_SPAN_META = 4,
+    RESP_INDEX_SPAN_METRICS = 5,
+};
 
 dd_result dd_command_proc_resp_verd_span_data(
     mpack_node_t root, void *unspecnull _ctx)
@@ -701,14 +703,20 @@ void dd_command_process_meta(mpack_node_t root, zend_object *nonnull span)
             has_schemas = true;
         }
 
-        bool res = dd_trace_span_add_tag_str(span, key_str, key_len,
-            mpack_node_str(value), mpack_node_strlen(value));
+        const char *val_str = mpack_node_str(value);
+        size_t val_len = mpack_node_strlen(value);
+
+        bool res =
+            dd_trace_span_add_tag_str(span, key_str, key_len, val_str, val_len);
 
         if (!res) {
             mlog(dd_log_warning, "Failed to add tag %.*s", (int)key_len,
                 key_str);
             return;
         }
+
+        dd_telemetry_note_helper_string_meta(
+            key_str, key_len, val_str, val_len);
     }
 
     if (has_schemas && !get_DD_APM_TRACING_ENABLED()) {
@@ -805,7 +813,7 @@ static void _dump_out_msg(dd_log_level_t lvl, zend_llist *iovecs)
     zend_llist_position pos;
     int i = 1;
     for (struct iovec *iov = zend_llist_get_first_ex(iovecs, &pos); iov;
-         iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
+        iov = zend_llist_get_next_ex(iovecs, &pos), i++) {
         zend_string *zstr = php_base64_encode(iov->iov_base, iov->iov_len);
         if (ZSTR_LEN(zstr) > INT_MAX) {
             return;

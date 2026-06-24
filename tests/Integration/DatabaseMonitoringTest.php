@@ -407,4 +407,49 @@ class DatabaseMonitoringTest extends IntegrationTestCase
             ])
         ]);
     }
+
+    public function testDynamicServiceMode()
+    {
+        // dynamic_service is equivalent to service + DD_DBM_INJECT_SQL_BASEHASH=true:
+        // service-style comment (no traceparent) plus the base hash, even though
+        // DD_DBM_INJECT_SQL_BASEHASH is left unset.
+        self::putEnv('DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=true');
+        self::putEnv('DD_DBM_PROPAGATION_MODE=dynamic_service');
+        self::putEnv('DD_TRACE_DEBUG_PRNG_SEED=42');
+
+        \dd_trace_internal_fn('reload_process_tags');
+        \dd_trace_internal_fn('set_container_tags_hash', 'abc123');
+
+        try {
+            $hook = \DDTrace\install_hook(self::class . "::instrumented", function (HookData $hook) {
+                $hook->span()->service = "testdb";
+                $hook->span()->name = "instrumented";
+                DatabaseIntegrationHelper::injectDatabaseIntegrationData($hook, 'mysql', 1);
+            });
+
+            $this->assertNotNull(\DDTrace\System\process_tags_base_hash(), 'process_tags_base_hash() is null');
+
+            $traces = $this->isolateTracer(function () use (&$commentedQuery) {
+                \DDTrace\start_trace_span();
+                $commentedQuery = $this->instrumented(0, "SELECT 1");
+                \DDTrace\close_span();
+            });
+        } finally {
+            \DDTrace\remove_hook($hook);
+        }
+
+        // service-style: a ddsh base hash is injected, but no traceparent
+        $this->assertRegularExpression(
+            '/^\/\*dddbs=\'testdb\',ddps=\'phpunit\',ddsh=\'[0-9a-f]+\'\*\/ SELECT 1$/',
+            $commentedQuery
+        );
+
+        $ddshValue = preg_replace('/^.*ddsh=\'([^\']+)\'.*$/', '$1', $commentedQuery);
+        $propagatedHash = $traces[0][1]['meta']['_dd.propagated_hash'] ?? null;
+        $this->assertNotNull($propagatedHash, '_dd.propagated_hash not found in span');
+        $this->assertSame($ddshValue, $propagatedHash, 'ddsh in SQL comment does not match _dd.propagated_hash in span');
+
+        // dynamic_service is not full mode, so the trace-injected marker must be absent
+        $this->assertArrayNotHasKey('_dd.dbm_trace_injected', $traces[0][1]['meta']);
+    }
 }

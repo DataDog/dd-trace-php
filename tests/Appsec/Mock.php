@@ -243,24 +243,29 @@ if (!function_exists('datadog\appsec\appsecMockEnabled')) {
     }
 }
 
-if (!function_exists('datadog\appsec\track_user_login_success_event_automated')) {
+namespace datadog\appsec\internal;
+
+if (!function_exists('datadog\appsec\internal\track_user_login_success_event_automated')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_user_login_success_event_automated($userLogin, $userId, $metadata)
+    function track_user_login_success_event_automated(string $framework, $userLogin, $userId, $metadata)
     {
-        if (!appsecMockEnabled()) {
+        if (!\datadog\appsec\appsecMockEnabled()) {
             return;
         }
         $event = [
+            'framework' => $framework,
             'userLogin' => $userLogin,
             'userId' => $userId,
             'metadata' => $metadata,
 
         ];
-        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event_automated');
+        \datadog\appsec\AppsecStatus::getInstance()->addEvent($event, 'track_user_login_success_event_automated');
     }
 }
+
+namespace datadog\appsec;
 
 if (!function_exists('datadog\appsec\track_user_login_success_event')) {
     /**
@@ -280,25 +285,30 @@ if (!function_exists('datadog\appsec\track_user_login_success_event')) {
     }
 }
 
-if (!function_exists('datadog\appsec\track_user_login_failure_event_automated')) {
+namespace datadog\appsec\internal;
+
+if (!function_exists('datadog\appsec\internal\track_user_login_failure_event_automated')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_user_login_failure_event_automated($userLogin, $userId, $exists, $metadata)
+    function track_user_login_failure_event_automated(string $framework, $userLogin, $userId, $exists, $metadata)
     {
-        if (!appsecMockEnabled()) {
+        if (!\datadog\appsec\appsecMockEnabled()) {
             return;
         }
         $event = [
+            'framework' => $framework,
             'userLogin' => $userLogin,
             'userId' => $userId,
             'exists' => $exists,
             'metadata' => $metadata,
 
         ];
-        AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event_automated');
+        \datadog\appsec\AppsecStatus::getInstance()->addEvent($event, 'track_user_login_failure_event_automated');
     }
 }
+
+namespace datadog\appsec;
 
 if (!function_exists('datadog\appsec\track_user_login_failure_event')) {
     /**
@@ -318,24 +328,29 @@ if (!function_exists('datadog\appsec\track_user_login_failure_event')) {
     }
 }
 
-if (!function_exists('datadog\appsec\track_user_signup_event_automated')) {
+namespace datadog\appsec\internal;
+
+if (!function_exists('datadog\appsec\internal\track_user_signup_event_automated')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_user_signup_event_automated($userLogin, $userId, $metadata)
+    function track_user_signup_event_automated(string $framework, $userLogin, $userId, $metadata)
     {
-        if (!appsecMockEnabled()) {
+        if (!\datadog\appsec\appsecMockEnabled()) {
             return;
         }
         $event = [
+            'framework' => $framework,
             'userLogin' => $userLogin,
             'userId' => $userId,
             'metadata' => $metadata,
 
         ];
-        AppsecStatus::getInstance()->addEvent($event, 'track_user_signup_event_automated');
+        \datadog\appsec\AppsecStatus::getInstance()->addEvent($event, 'track_user_signup_event_automated');
     }
 }
+
+namespace datadog\appsec;
 
 if (!function_exists('datadog\appsec\track_user_signup_event')) {
     /**
@@ -354,21 +369,26 @@ if (!function_exists('datadog\appsec\track_user_signup_event')) {
     }
 }
 
-if (!function_exists('datadog\appsec\track_authenticated_user_event_automated')) {
+namespace datadog\appsec\internal;
+
+if (!function_exists('datadog\appsec\internal\track_authenticated_user_event_automated')) {
     /**
      * This function is exposed by appsec but here we are mocking it for tests
      */
-    function track_authenticated_user_event_automated($userId)
+    function track_authenticated_user_event_automated(string $framework, $userId)
     {
-        if (!appsecMockEnabled()) {
+        if (!\datadog\appsec\appsecMockEnabled()) {
             return;
         }
         $event = [
+            'framework' => $framework,
             'userId' => $userId,
         ];
-        AppsecStatus::getInstance()->addEvent($event, 'track_authenticated_user_event_automated');
+        \datadog\appsec\AppsecStatus::getInstance()->addEvent($event, 'track_authenticated_user_event_automated');
     }
 }
+
+namespace datadog\appsec;
 
 if (!function_exists('datadog\appsec\track_authenticated_user_event')) {
     /**

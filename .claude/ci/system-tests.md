@@ -8,24 +8,36 @@ image, `before_script` (Docker + Python setup, clone of `system-tests` repo,
 artifact placement, `./build.sh`), and artifact collection. Each concrete job
 extends this template and runs `./run.sh` with the appropriate scenario.
 
-| CI Job | Scenario argument | What it does |
-|--------|-------------------|--------------|
-| `System Tests: [default]` | *(none -- default scenario)* | Core tracer + AppSec default scenario |
-| `System Tests: [APPSEC_API_SECURITY]` | `APPSEC_API_SECURITY` | API Security with schema types |
-| `System Tests: [APPSEC_API_SECURITY_RC]` | `APPSEC_API_SECURITY_RC` | API Security remote config |
-| `System Tests: [APPSEC_API_SECURITY_NO_RESPONSE_BODY]` | `APPSEC_API_SECURITY_NO_RESPONSE_BODY` | API Security without response body |
-| `System Tests: [INTEGRATIONS]` | `INTEGRATIONS` | Library integrations scenario |
-| `System Tests: [CROSSED_TRACING_LIBRARIES]` | `CROSSED_TRACING_LIBRARIES` | Cross-library distributed tracing |
-| `System Tests: [parametric]` | `PARAMETRIC` | Parametric tests (language-agnostic API conformance) |
-| `System Tests: [tracer-release]` | *(dynamic)* | Tracer release scenarios; master/scheduled only, 4h timeout |
+| CI Job | Weblog | Scenario argument | What it does |
+|--------|--------|-------------------|--------------|
+| `System Tests: [default]` | `apache-mod-8.0` (default) | *(none -- default scenario)* | Core tracer + AppSec default scenario |
+| `System Tests: [APPSEC_API_SECURITY]` | `apache-mod-8.0` (default) | `APPSEC_API_SECURITY` | API Security with schema types |
+| `System Tests: [APPSEC_API_SECURITY_RC]` | `apache-mod-8.0` (default) | `APPSEC_API_SECURITY_RC` | API Security remote config |
+| `System Tests: [APPSEC_API_SECURITY_NO_RESPONSE_BODY]` | `apache-mod-8.0` (default) | `APPSEC_API_SECURITY_NO_RESPONSE_BODY` | API Security without response body |
+| `System Tests: [APPSEC_RUNTIME_ACTIVATION]` | `apache-mod-8.0` (default) | `APPSEC_RUNTIME_ACTIVATION` | AppSec activation via remote config |
+| `System Tests: [INTEGRATIONS]` | `apache-mod-8.0` (default) | `INTEGRATIONS` | Library integrations scenario |
+| `System Tests: [CROSSED_TRACING_LIBRARIES]` | `apache-mod-8.0` (default) | `CROSSED_TRACING_LIBRARIES` | Cross-library distributed tracing |
+| `System Tests: [php-fpm-8.5, default]` | `php-fpm-8.5` | *(none -- default scenario)* | Default scenario on PHP 8.5 FPM weblog |
+| `System Tests: [php-fpm-8.5]: [APPSEC_API_SECURITY]` | `php-fpm-8.5` | `APPSEC_API_SECURITY` | API Security on PHP 8.5 FPM weblog |
+| `System Tests: [php-fpm-8.5]: [APPSEC_API_SECURITY_RC]` | `php-fpm-8.5` | `APPSEC_API_SECURITY_RC` | API Security RC on PHP 8.5 FPM weblog |
+| `System Tests: [php-fpm-8.5]: [APPSEC_API_SECURITY_NO_RESPONSE_BODY]` | `php-fpm-8.5` | `APPSEC_API_SECURITY_NO_RESPONSE_BODY` | API Security (no response body) on PHP 8.5 |
+| `System Tests: [php-fpm-8.5]: [APPSEC_RUNTIME_ACTIVATION]` | `php-fpm-8.5` | `APPSEC_RUNTIME_ACTIVATION` | AppSec runtime activation on PHP 8.5 FPM |
+| `System Tests: [php-fpm-8.5]: [INTEGRATIONS]` | `php-fpm-8.5` | `INTEGRATIONS` | Integrations on PHP 8.5 FPM weblog |
+| `System Tests: [php-fpm-8.5]: [CROSSED_TRACING_LIBRARIES]` | `php-fpm-8.5` | `CROSSED_TRACING_LIBRARIES` | Cross-library tracing on PHP 8.5 FPM |
+| `System Tests: [parametric]` | runner image | `PARAMETRIC` | Parametric tests (language-agnostic API conformance) |
+| `System Tests: [tracer-release]` | `apache-mod-8.0` (default) | *(dynamic)* | Tracer release scenarios; master/scheduled only, 4h timeout |
 
 Runner: `docker-in-docker:amd64`
 Image: `python:3.12-slim-bullseye` (the job itself installs Docker
 inside the container)
 
 The `System Tests` job (the matrix one) uses `parallel: matrix:` to
-expand into five parallel jobs, one per `TESTSUITE` value. The
-`[default]` and `[parametric]` jobs are separate definitions.
+expand into six parallel jobs, one per `TESTSUITE` value. The
+`[default]` and `[parametric]` jobs are separate definitions. The
+`[php-fpm-8.5, default]` and `[php-fpm-8.5]` jobs mirror the default
+and matrix jobs but use `BUILD_SH_ARGS: php-fpm-8.5` (i.e., `./build.sh
+php-fpm-8.5`) to target the PHP 8.5 FPM weblog variant. GitLab names the
+matrix expansions `System Tests: [php-fpm-8.5]: [TESTSUITE]`.
 
 ### Upstream dependencies (CI only)
 

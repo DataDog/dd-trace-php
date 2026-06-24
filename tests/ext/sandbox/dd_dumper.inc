@@ -40,6 +40,7 @@ function dd_dump_spans($skipMeta = false)
             }
             echo PHP_EOL;
             unset($span["meta"]["runtime-id"]);
+            unset($span["meta"]["_dd.tags.process"]);
             foreach ($span['meta'] as $k => $v) {
                 echo str_repeat(' ', $indent) . '  ' . $k . ' => ' . $v . PHP_EOL;
             }
@@ -74,4 +75,17 @@ function dd_dump_spans($skipMeta = false)
         }
     }
     echo '}' . PHP_EOL;
+}
+
+function dd_clean_spans() {
+    $spans = dd_trace_serialize_closed_spans();
+    foreach ($spans as &$span) {
+        if (isset($span['meta'])) {
+            unset($span['meta']['_dd.tags.process']);
+            if (empty($span['meta'])) {
+                unset($span['meta']);
+            }
+        }
+    }
+    return $spans;
 }

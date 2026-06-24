@@ -67,7 +67,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                 ]),
         ]);
     }
@@ -101,6 +102,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                     // Note that the leaf span is guzzle, not the curl inside
                     '_dd.code_origin.frames.1.file' => '%s/GuzzleIntegrationTest.php',
                     '_dd.code_origin.frames.1.line' => '%d',
@@ -116,7 +118,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'network.destination.name' => 'example.com',
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
-                            Tag::COMPONENT => 'guzzle'
+                            Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
                         ]),
                 ])
         ]);
@@ -135,7 +138,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                 ]),
         ]);
     }
@@ -154,7 +158,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                 ]),
         ]);
     }
@@ -296,7 +301,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }
@@ -347,7 +353,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }
@@ -367,7 +374,8 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'opt.http_client_split_by_domain',
                 ]),
         ]);
     }
@@ -398,6 +406,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'network.destination.name' => HTTPBIN_SERVICE_HOST,
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
                             '_dd.base_service' => 'top_level_app',
                         ])
                         ->withChildren([
@@ -428,6 +437,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
                     Tag::COMPONENT => 'guzzle',
+                    '_dd.svc_src' => 'guzzle',
                 ])
                 ->withChildren([
                     SpanAssertion::build('GuzzleHttp\Client.transfer', 'guzzle', 'http', 'transfer')
@@ -438,6 +448,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                             'http.status_code' => '200',
                             TAG::SPAN_KIND => 'client',
                             Tag::COMPONENT => 'guzzle',
+                            '_dd.svc_src' => 'guzzle',
                             'peer.service' => 'example.com',
                             'peer.service' => 'example.com',
                             '_dd.peer.service.source' => 'network.destination.name',
@@ -465,7 +476,7 @@ class GuzzleIntegrationTest extends IntegrationTestCase
                     'http.status_code' => '200',
                     'network.destination.name' => 'example.com',
                     TAG::SPAN_KIND => 'client',
-                    Tag::COMPONENT => 'guzzle'
+                    Tag::COMPONENT => 'guzzle',
                 ]),
         ]);
     }

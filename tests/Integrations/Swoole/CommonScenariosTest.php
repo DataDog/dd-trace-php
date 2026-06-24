@@ -28,6 +28,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
             'DD_TRACE_CLI_ENABLED' => 'true',
             'DD_TRACE_RESOURCE_URI_QUERY_PARAM_ALLOWED' => '*',
             'DD_TRACE_DEBUG' => 'true',
+            'DD_TRACE_SIDECAR_TRACE_SENDER' => 'false',
         ]);
     }
 
@@ -73,7 +74,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'swoole'
+                        Tag::COMPONENT => 'swoole',
                     ]),
                 ],
                 'A simple GET request with a view' => [
@@ -87,7 +88,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.url' => 'http://localhost/simple_view?key=value&<redacted>',
                         'http.status_code' => '200',
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'swoole'
+                        Tag::COMPONENT => 'swoole',
                     ]),
                 ],
                 'A GET request with an exception' => [
@@ -102,7 +103,7 @@ class CommonScenariosTest extends WebFrameworkTestCase
                         'http.status_code' => '500',
                         'error.stack' => (PHP_VERSION_ID >= 80400 ? "#0 [internal function]: {closure:" . dirname(__DIR__, 2) . "/Frameworks/Swoole/index.php:9}()" : "#0 [internal function]: {closure}()") . "\n#1 {main}",
                         Tag::SPAN_KIND => 'server',
-                        Tag::COMPONENT => 'swoole'
+                        Tag::COMPONENT => 'swoole',
                     ])->setError('Exception', 'Uncaught Exception: Error page'),
                 ],
             ]

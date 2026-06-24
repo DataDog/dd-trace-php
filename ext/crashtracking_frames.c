@@ -7,6 +7,7 @@
 #include <jit_utils/is_mapped.h>
 
 #include "sidecar.h"
+#include "ffi_utils.h"
 
 static ddog_CharSlice dd_validate_zstr(zend_string *str) {
     if (zai_is_mapped(str, XtOffsetOf(zend_string, val))) {
@@ -95,6 +96,7 @@ static void dd_frames_callback(void (*emit_frame)(const ddog_crasht_RuntimeStack
             if (!zai_is_mapped(opline, sizeof(zend_op))) {
                 frame.column = -1;
                 EMIT(&frame);
+                call = call->prev_execute_data;
                 continue;
             }
 
@@ -176,7 +178,7 @@ static void dd_frames_callback(void (*emit_frame)(const ddog_crasht_RuntimeStack
     }
 }
 
-void ddtrace_register_crashtracking_frames_collection() {
+void datadog_register_crashtracking_frames_collection() {
     ddog_crasht_register_runtime_frame_callback(dd_frames_callback);
 }
 

@@ -17,6 +17,8 @@ CentOS:
   tags: ["arch:amd64"]
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
   parallel:
     matrix:
       - PHP_VERSION:
@@ -46,6 +48,8 @@ Alpine:
   tags: ["arch:amd64"]
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
   parallel:
     matrix:
       - PHP_VERSION:
@@ -75,10 +79,13 @@ Bookworm:
   tags: ["arch:amd64"]
   timeout: 4h
   image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
   parallel:
     matrix:
       - PHP_VERSION:
         - base
+      - PHP_VERSION:
         - php-8.5
         - php-8.4
         - php-8.3
@@ -92,38 +99,116 @@ Bookworm:
         - php-7.2
         - php-7.1
         - php-7.0
+        MAKE_JOBS: ["2"]
   script:
     - cd dockerfiles/ci/bookworm
     - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx bake --no-cache --pull --push $PHP_VERSION
 
-Buster:
+.windows_image_build:
   stage: ci-build
   rules:
     - when: manual
       allow_failure: true
   needs: []
-  tags: ["arch:amd64"]
-  timeout: 4h
-  image: 486234852809.dkr.ecr.us-east-1.amazonaws.com/docker:29.4.0-noble
+  tags: ["windows-v2:2019"]
+  timeout: 6h
+  variables:
+    DDCI_CONFIGURE_OTEL_EXPORTER: "true"
+    GIT_STRATEGY: none
+  script: |
+    # Kill leftover containers; a previous run may still hold php_ddtrace.dll open.
+    $containers = docker ps -aq 2>$null
+    if ($containers) { docker rm -f $containers 2>$null }
+
+    # Use cmd.exe rd from the parent dir: handles junctions/symlinks that PS5.1 Remove-Item cannot.
+    Write-Host "Performing workspace cleanup..."
+    $workspace = $PWD.Path
+    Push-Location ..
+    cmd /c "rd /s /q ""$workspace"""
+    if (-not (Test-Path $workspace)) {
+        New-Item -ItemType Directory -Path $workspace -Force | Out-Null
+    }
+    Pop-Location
+    $remaining = Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue
+    if ($remaining) { Write-Host "WARNING: could not remove: $($remaining.Name -join ', ')" }
+    Write-Host "Cleanup complete."
+
+    # PS 5.1 ignores $PSNativeCommandUseErrorActionPreference; use $LASTEXITCODE checks instead.
+    $ErrorActionPreference = 'Stop'
+
+    # Manual git clone with proper config.
+    Write-Host "Cloning repository..."
+    git config --global core.longpaths true
+    git config --global core.symlinks true
+    git clone --branch $env:CI_COMMIT_REF_NAME $env:CI_REPOSITORY_URL .
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: git clone failed. Remaining workspace contents:"
+        Get-ChildItem -Force | Select-Object Name
+        exit $LASTEXITCODE
+    }
+    git checkout $env:CI_COMMIT_SHA
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    # Initialize submodules.
+    Write-Host "Initializing submodules..."
+    git submodule update --init --recursive
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Write-Host "Git setup complete."
+
+    # Download docker-compose to the workspace.
+    Write-Host "Downloading docker-compose..."
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $dockerCompose = "$PWD\docker-compose.exe"
+    Start-BitsTransfer -Source "https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-windows-x86_64.exe" -Destination $dockerCompose
+
+    cd dockerfiles\ci\windows
+
+    $env:DOCKER_CONFIG = Join-Path $env:CI_PROJECT_DIR ".docker"
+    New-Item -ItemType Directory -Force -Path $env:DOCKER_CONFIG | Out-Null
+    Set-Content -Encoding ascii -Path (Join-Path $env:DOCKER_CONFIG "config.json") -Value '{"auths":{}}'
+
+    $env:CI_REGISTRY_TOKEN | docker login -u "$env:CI_REGISTRY_USER" --password-stdin "$env:CI_REGISTRY"
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    docker version
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    & $dockerCompose version
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+    foreach ($target in ($env:WINDOWS_IMAGE_TARGETS -split ' ')) {
+      if ([string]::IsNullOrWhiteSpace($target)) { continue }
+
+      Write-Host "Building Windows CI image target $target..."
+      & $dockerCompose build --pull --no-cache $target
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      Write-Host "Pushing Windows CI image target $target..."
+      & $dockerCompose push $target
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+"Windows 1: Tool Images":
+  extends: .windows_image_build
   parallel:
     matrix:
-      - PHP_VERSION:
-        - base
-        - php-8.5
-        - php-8.4
-        - php-8.3
-        - php-8.2
-        - php-8.1
-        - php-8.0
-        - php-8.0-shared-ext
-        - php-7.4
-        - php-7.4-shared-ext
-        - php-7.3
-        - php-7.2
-        - php-7.1
-        - php-7.0
-  script:
-    - cd dockerfiles/ci/buster
-    - echo "$CI_REGISTRY_TOKEN" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
-    - docker buildx bake --no-cache --pull --push $PHP_VERSION
+      - WINDOWS_IMAGE_TARGETS:
+        - "vc15"
+        - "vs16"
+        - "vs17"
+
+"Windows 2: PHP Images":
+  extends: .windows_image_build
+  parallel:
+    matrix:
+      - WINDOWS_IMAGE_TARGETS:
+        - "php-8.5"
+        - "php-8.4"
+        - "php-8.3"
+        - "php-8.2"
+        - "php-8.1"
+        - "php-8.0"
+        - "php-7.4"
+        - "php-7.3"
+        - "php-7.2"

@@ -55,8 +55,8 @@ for architecture in "${architectures[@]}"; do
 
     mkdir -p ${gnu}/loader ${musl}/loader
 
-    stripto libddtrace_php_${architecture}.so ${gnu}/loader/libddtrace_php.so
-    stripto libddtrace_php_${architecture}-alpine.so ${musl}/loader/libddtrace_php.so
+    stripto libdatadog_php_${architecture}.so ${gnu}/loader/libdatadog_php.so
+    stripto libdatadog_php_${architecture}-alpine.so ${musl}/loader/libdatadog_php.so
 
     stripto dd_library_loader-${architecture}-linux-gnu.so ${gnu}/loader/dd_library_loader.so
     stripto dd_library_loader-${architecture}-linux-musl.so ${musl}/loader/dd_library_loader.so

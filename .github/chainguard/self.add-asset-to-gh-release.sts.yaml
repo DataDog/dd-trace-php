@@ -1,0 +1,11 @@
+issuer: https://token.actions.githubusercontent.com
+
+subject_pattern: "repo:DataDog/dd-trace-php:ref:refs/heads/.+"
+
+claim_pattern:
+  event_name: workflow_dispatch
+  repository: DataDog/dd-trace-php
+  job_workflow_ref: DataDog/dd-trace-php/\.github/workflows/add-asset-to-gh-release\.yml@refs/heads/.+
+
+permissions:
+  contents: write

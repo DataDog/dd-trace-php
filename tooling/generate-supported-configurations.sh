@@ -9,12 +9,15 @@ readonly CONFIG_HEADER_FILES=(
     "ext/configuration.h"
     "appsec/src/extension/configuration.h"
 )
-readonly OTEL_CONFIG_FILE="ext/otel_config.c"
+readonly OTEL_CONFIG_FILES=(
+    "ext/otel_config.c"
+    "tracer/tracer_otel_config.c"
+)
 readonly PROFILING_CONFIG_FILE="profiling/src/config.rs"
 readonly GENERATOR_SCRIPT_FILE="tooling/generate-supported-configurations.sh"
 readonly CONFIG_GENERATION_INPUT_FILES=(
     "${CONFIG_HEADER_FILES[@]}"
-    "${OTEL_CONFIG_FILE}"
+    "${OTEL_CONFIG_FILES[@]}"
     "${PROFILING_CONFIG_FILE}"
     "${GENERATOR_SCRIPT_FILE}"
 )
@@ -270,17 +273,19 @@ foreach (explode("|NEXT_CONFIG|", file_get_contents("php://stdin")) as $configLi
     add_supported_entry($supported, $name, $entry);
 }
 
-$otelPath = getenv('DDTRACE_SUPPORTED_CONFIG_OTEL_FILE') ?: "../ext/otel_config.c";
-if (file_exists($otelPath)) {
-    preg_match_all('/ZAI_STRL\("(OTEL_[A-Z0-9_]+)"\)/', file_get_contents($otelPath), $m);
-    $otelVars = array_unique($m[1]);
-    sort($otelVars);
-    foreach ($otelVars as $v) {
-        add_supported_entry($supported, $v, ["implementation" => "A", "type" => "string", "default" => ""]);
+$otelPaths = ["../ext/otel_config.c", "../tracer/tracer_otel_config.c"];
+foreach ($otelPaths as $otelPath) {
+    if (file_exists($otelPath)) {
+        preg_match_all('/ZAI_STRL\("(OTEL_[A-Z0-9_]+)"\)/', file_get_contents($otelPath), $m);
+        $otelVars = array_unique($m[1]);
+        sort($otelVars);
+        foreach ($otelVars as $v) {
+            add_supported_entry($supported, $v, ["implementation" => "A", "type" => "string", "default" => ""]);
+        }
     }
 }
 
-$profilingPath = getenv('DDTRACE_SUPPORTED_CONFIG_PROFILING_FILE') ?: "../profiling/src/config.rs";
+$profilingPath = "../profiling/src/config.rs";
 add_rust_profiling_configurations($supported, $profilingPath);
 
 if (empty($supported)) {
@@ -383,6 +388,7 @@ extract_c_supported_configurations() {
     # across developer machines and CI runners.
     "${CPP_COMPILER_CMD[@]}" $(php-config --includes) -I.. -I../ext -I../zend_abstract_interface -I../src/dogstatsd -I../components-rs -x c -E - <<CODE | grep -A9999 -m1 -F "JSON_CONFIGURATION_MARKER" | tail -n+2
 #undef __linux__
+#define DDTRACE
 #include "$header"
 
 #undef PHP_VERSION_ID
@@ -394,7 +400,7 @@ extract_c_supported_configurations() {
 #define DD_SIDECAR_TRACE_SENDER_DEFAULT false
 #endif
 #undef DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT
-#if PHP_VERSION_ID >= 80500
+#if PHP_VERSION_ID >= 80400
 #define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "true"
 #else
 #define DD_APPSEC_HELPER_RUST_REDIRECTION_DEFAULT "false"
@@ -411,7 +417,11 @@ extract_c_supported_configurations() {
 #define CALIAS(type, name, default_value, aliases, ...) type, #name, default_value EXPAND(ALT##aliases) |NEXT_CONFIG|
 
 JSON_CONFIGURATION_MARKER
+#ifdef DD_ALL_CONFIGURATIONS
+DD_ALL_CONFIGURATIONS
+#else
 DD_CONFIGURATION
+#endif
 
 CODE
 }
@@ -420,4 +430,4 @@ CODE
     for header in "${CONFIG_HEADER_FILES[@]}"; do
         extract_c_supported_configurations "../$header"
     done
-} | DDTRACE_SUPPORTED_CONFIG_OTEL_FILE="../${OTEL_CONFIG_FILE}" DDTRACE_SUPPORTED_CONFIG_PROFILING_FILE="../${PROFILING_CONFIG_FILE}" php "$PHP_CODE_FILE"
+} | php "$PHP_CODE_FILE"

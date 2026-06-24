@@ -13,7 +13,7 @@ DD_TRACE_AGENT_PORT=80
 DD_TRACE_GENERATE_ROOT_SPAN=0
 DD_DOGSTATSD_URL=unix:///tmp/ddtrace-test-metric_probe.socket
 DD_DYNAMIC_INSTRUMENTATION_ENABLED=1
-DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.01
+DD_REMOTE_CONFIG_POLL_INTERVAL_SECONDS=0.1
 DD_VERSION=1.2.3
 --INI--
 datadog.trace.agent_test_session_token=live-debugger/metric_probe
@@ -45,4 +45,4 @@ $server->close();
 @unlink("/tmp/ddtrace-test-metric_probe.socket");
 ?>
 --EXPECT--
-dynamic.instrumentation.metric.probe.foo:123|c|#service:debugger_metric_probe.php,version:1.2.3,x-datadog-test-session-token:live-debugger/metric_probe
+dynamic.instrumentation.metric.probe.foo:123|c|#env:none,service:debugger_metric_probe.php,version:1.2.3,x-datadog-test-session-token:live-debugger/metric_probe

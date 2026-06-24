@@ -4,6 +4,7 @@ Reserved OTel attributes that have special meaning
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include __DIR__ . '/sandbox/dd_dumper.inc';
 
 function greet($name)
 {
@@ -26,7 +27,7 @@ function greet($name)
 
 greet('World');
 
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
 
 ?>
 --EXPECTF--
@@ -52,9 +53,11 @@ array(1) {
     ["type"]=>
     string(8) "new.type"
     ["meta"]=>
-    array(1) {
+    array(2) {
       ["_dd.base_service"]=>
       string(27) "test_special_attributes.php"
+      ["_dd.svc_src"]=>
+      string(1) "m"
     }
     ["metrics"]=>
     array(1) {

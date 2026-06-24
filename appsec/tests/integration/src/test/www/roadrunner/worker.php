@@ -18,6 +18,8 @@ $router = new \App\Router();
 $router->addRoute('/', new \App\HomePageHandler());
 $router->addRoute('/json', new \App\JsonHandler());
 $router->addRoute('/xml', new \App\XmlHandler());
+$router->addRoute('/post-respond-lfi', new \App\PostRespondLfiHandler());
+$router->addRoute('/post-respond-track-user', new \App\PostRespondTrackUserHandler());
 
 while ($req = $httpWorker->waitRequest()) {
     /** @var \Spiral\RoadRunner\Http\Request $req */
@@ -47,4 +49,9 @@ while ($req = $httpWorker->waitRequest()) {
         );
     }
 //    \dd_trace_close_all_spans_and_flush();
+    // Post-respond hook: fires after request_shutdown has been sent inside respond().
+    if (isset($GLOBALS['_rr_post_respond'])) {
+        ($GLOBALS['_rr_post_respond'])();
+        unset($GLOBALS['_rr_post_respond']);
+    }
 }

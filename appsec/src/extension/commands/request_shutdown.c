@@ -29,7 +29,7 @@ static const dd_command_spec _spec = {
     .name = "request_shutdown",
     .name_len = sizeof("request_shutdown") - 1,
     .num_args =
-        4, // a map, api sec sampling key, sidecar queue id, and input_truncated
+        4, // a map, api sec sampling key, sidecar queue id, input_truncated
     .outgoing_cb = _request_pack,
     .incoming_cb = dd_command_proc_resp_verd_span_data,
     .config_features_cb = dd_command_process_config_features_unexpected,
@@ -130,7 +130,7 @@ static void _pack_headers_no_cookies_llist(
 
     zend_llist_position pos;
     for (sapi_header_struct *header = zend_llist_get_first_ex(hl, &pos); header;
-         header = zend_llist_get_next_ex(hl, &pos)) {
+        header = zend_llist_get_next_ex(hl, &pos)) {
         const char *pcol = memchr(header->header, ':', header->header_len);
         if (!pcol) {
             continue;
@@ -172,7 +172,7 @@ static void _pack_headers_no_cookies_llist(
         mpack_start_array(w, zend_llist_count(coll));
         zend_llist_position p;
         for (struct _header_val *hv = zend_llist_get_first_ex(coll, &p); hv;
-             hv = zend_llist_get_next_ex(coll, &p)) {
+            hv = zend_llist_get_next_ex(coll, &p)) {
             dd_mpack_write_nullable_str_lim(
                 w, hv->val, hv->len, DD_MPACK_DEF_STRING_LIMIT);
         }
@@ -189,7 +189,7 @@ static const char *nullable _header_content_type_llist(
 {
     zend_llist_position pos;
     for (sapi_header_struct *header = zend_llist_get_first_ex(hl, &pos); header;
-         header = zend_llist_get_next_ex(hl, &pos)) {
+        header = zend_llist_get_next_ex(hl, &pos)) {
         if (header->header_len >= LSTRLEN("content-type") &&
             strncasecmp(header->header, LSTRARG("content-type")) == 0) {
             const char *pcol = memchr(header->header, ':', header->header_len);

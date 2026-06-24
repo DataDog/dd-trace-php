@@ -284,6 +284,13 @@
         "default": "true"
       }
     ],
+    "DD_DBM_ALWAYS_APPEND_SQL_COMMENT": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_DBM_INJECT_SQL_BASEHASH": [
       {
         "implementation": "A",
@@ -382,6 +389,13 @@
         "default": "false"
       }
     ],
+    "DD_EXPERIMENTAL_FLAGGING_PROVIDER_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
+      }
+    ],
     "DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED": [
       {
         "implementation": "B",
@@ -436,6 +450,13 @@
         "implementation": "A",
         "type": "boolean",
         "default": "true"
+      }
+    ],
+    "DD_LOGS_OTEL_ENABLED": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_LOG_BACKTRACE": [
@@ -642,6 +663,13 @@
         "implementation": "A",
         "type": "map",
         "default": ""
+      }
+    ],
+    "DD_TELEMETRY_EXTENDED_HEARTBEAT_INTERVAL": [
+      {
+        "implementation": "A",
+        "type": "int",
+        "default": "86400"
       }
     ],
     "DD_TELEMETRY_HEARTBEAT_INTERVAL": [
@@ -2140,6 +2168,13 @@
         "default": "false"
       }
     ],
+    "DD_TRACE_RETRY_INTERVAL": [
+      {
+        "implementation": "B",
+        "type": "int",
+        "default": "100"
+      }
+    ],
     "DD_TRACE_ROADRUNNER_ANALYTICS_ENABLED": [
       {
         "implementation": "A",
@@ -2186,6 +2221,13 @@
         "implementation": "A",
         "type": "string",
         "default": "glob"
+      }
+    ],
+    "DD_TRACE_SECURE_RANDOM": [
+      {
+        "implementation": "A",
+        "type": "boolean",
+        "default": "false"
       }
     ],
     "DD_TRACE_SHUTDOWN_TIMEOUT": [
@@ -2608,6 +2650,20 @@
     "DD_VERSION": [
       {
         "implementation": "A",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_ENDPOINT": [
+      {
+        "implementation": "D",
+        "type": "string",
+        "default": ""
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": [
+      {
+        "implementation": "D",
         "type": "string",
         "default": ""
       }

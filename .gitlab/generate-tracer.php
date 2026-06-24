@@ -67,14 +67,13 @@ stages:
 "compile extension: debug":
   stage: compile
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   parallel:
     matrix:
       - PHP_MAJOR_MINOR: *all_minor_major_targets
         ARCH: *arch_targets
   variables:
     host_os: linux-gnu
-    SHARED: "1"
     WITH_ASAN: "0"
     CARGO_HOME: "/rust/cargo/"
     SWITCH_PHP_VERSION: "debug"
@@ -140,7 +139,7 @@ stages:
     docker exec ${CONTAINER_NAME} powershell.exe "cd app; switch-php nts; C:\php\SDK\phpize.bat; .\configure.bat --enable-debug-pack; nmake"
 
     # Set test environment variables
-    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0; setx DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED 0"
+    docker exec ${CONTAINER_NAME} powershell.exe "setx DD_AUTOLOAD_NO_COMPILE true; setx DATADOG_HAVE_DEV_ENV 1; setx DD_TRACE_GIT_METADATA_ENABLED 0"
 
     # Run extension tests
     docker exec ${CONTAINER_NAME} powershell.exe 'cd app; $env:_DD_DEBUG_SIDECAR_LOG_LEVEL=trace; $env:_DD_DEBUG_SIDECAR_LOG_METHOD="""file://${pwd}\sidecar.log"""; C:\php\php.exe -n -d memory_limit=-1 -d output_buffering=0 run-tests.php -g FAIL,XFAIL,BORK,WARN,LEAK,XLEAK,SKIP --show-diff -p C:\php\php.exe -d "extension=${pwd}\x64\Release\php_ddtrace.dll" "${pwd}\tests\ext"'
@@ -187,7 +186,7 @@ stages:
 .base_test:
   stage: test
   tags: [ "arch:${ARCH}" ]
-  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-7
+  image: registry.ddbuild.io/images/mirror/datadog/dd-trace-ci:php-${PHP_MAJOR_MINOR}_bookworm-8
   timeout: 60m
   interruptible: true
   rules:
@@ -204,6 +203,8 @@ stages:
     DATADOG_HAVE_DEV_ENV: 1
     HTTPBIN_HOSTNAME: httpbin-integration
     HTTPBIN_PORT: 8080
+    RUST_BACKTRACE: 1
+<?php sidecar_logs(); ?>
   before_script:
 <?php before_script_steps(true) ?>
     - .gitlab/wait-for-service-ready.sh
@@ -213,7 +214,6 @@ stages:
   variables:
     SWITCH_PHP_VERSION: debug-zts-asan
     ASAN_OPTIONS: abort_on_error=1:disable_coredump=0:unmap_shadow_on_exit=1
-<?php sidecar_logs(); ?>
 
 <?php
 foreach ($asan_minor_major_targets as $major_minor):
@@ -365,6 +365,7 @@ foreach ($all_minor_major_targets as $major_minor):
     MAX_TEST_PARALLELISM: 4
     PHP_MAJOR_MINOR: "<?= $major_minor ?>"
     ARCH: "amd64"
+    KUBERNETES_POD_ANNOTATIONS_1: "ci.ddbuild.io/enforce-static-cpus=true"
   timeout: 120m
   script:
     - make test_extension_ci
@@ -385,6 +386,26 @@ foreach ($all_minor_major_targets as $major_minor):
   script:
     - make test_unit PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
 <?php after_script(); ?>
+
+<?php if (version_compare($major_minor, "8.0", ">=")): ?>
+"Feature flags tests: [<?= $major_minor ?>]":
+  extends: .debug_test
+  needs:
+    - job: "compile extension: debug"
+      parallel:
+        matrix:
+          - PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+            ARCH: "amd64"
+      artifacts: true
+    - job: "Prepare code"
+      artifacts: true
+  variables:
+    PHP_MAJOR_MINOR: "<?= $major_minor ?>"
+    ARCH: "amd64"
+  script:
+    - make test_featureflags PHPUNIT_JUNIT="artifacts/tests/php-tests.xml" <?= ASSERT_NO_MEMLEAKS ?>
+<?php after_script(); ?>
+<?php endif; ?>
 
 "API unit tests: [<?= $major_minor ?>]":
   extends: .debug_test
@@ -505,7 +526,6 @@ foreach ($all_minor_major_targets as $major_minor):
 <?php if (version_compare($major_minor, "7.2", ">=")): /* too expensive */ ?>
     DD_INSTRUMENTATION_TELEMETRY_ENABLED: 0
 <?php endif; ?>
-<?php sidecar_logs(); ?>
   timeout: 40m
   retry:
     max: 2
@@ -615,7 +635,7 @@ foreach ($services as $part => $service) {
 <?php if ($sapi): ?>
     DD_TRACE_TEST_SAPI: "<?= $sapi ?>"
 <?php endif; ?>
-<?php if (str_contains($target, "kafk")): ?>
+<?php if (str_contains($target, "kafka")): ?>
     WAIT_FOR: zookeeper:2181 kafka-integration:9092
     CI_DEBUG_SERVICES: "true"
 <?php endif; ?>

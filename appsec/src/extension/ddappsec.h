@@ -13,6 +13,7 @@
 #include <stdbool.h>
 
 #include "attributes.h"
+#include "php_compat.h"
 
 typedef enum _enabled_configuration {
     APPSEC_UNSET_STATE = 0,
@@ -37,6 +38,7 @@ ZEND_BEGIN_MODULE_GLOBALS(ddappsec)
     bool to_be_configured : 1;
 
     bool skip_rshutdown : 1;
+    // used to avoid a bailout during request shutdown
     bool during_request_shutdown : 1;
 ZEND_END_MODULE_GLOBALS(ddappsec)
 // clang-format on

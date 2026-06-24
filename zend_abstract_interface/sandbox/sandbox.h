@@ -126,6 +126,7 @@ typedef struct zai_exception_state_s {
 
 typedef struct zai_engine_state_s {
     zend_execute_data *current_execute_data;
+    uint32_t jit_trace_num;
 } zai_engine_state;
 
 typedef struct zai_sandbox_s {
@@ -157,10 +158,12 @@ void zai_sandbox_error_state_restore(zai_error_state *es);
 inline void zai_sandbox_exception_state_backup(zai_exception_state *es) {
     if (UNEXPECTED(EG(exception) != NULL)) {
         es->exception = EG(exception);
-        es->prev_exception = EG(prev_exception);
-        es->opline_before_exception = EG(opline_before_exception);
         EG(exception) = NULL;
+#if PHP_VERSION_ID < 80600
+        es->prev_exception = EG(prev_exception);
         EG(prev_exception) = NULL;
+#endif
+        es->opline_before_exception = EG(opline_before_exception);
     } else {
         es->exception = NULL;
         es->prev_exception = NULL;
@@ -174,7 +177,9 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
 
     if (es->exception) {
         EG(exception) = es->exception;
+#if PHP_VERSION_ID < 80600
         EG(prev_exception) = es->prev_exception;
+#endif
         if (EG(current_execute_data)) {
             // ensure that we continue handling an exception if we were handling one before the sandbox call
             EG(current_execute_data)->opline = EG(exception_op);
@@ -185,10 +190,12 @@ inline void zai_sandbox_exception_state_restore(zai_exception_state *es) {
 
 inline void zai_sandbox_engine_state_backup(zai_engine_state *es) {
     es->current_execute_data = EG(current_execute_data);
+    es->jit_trace_num = EG(jit_trace_num);
 }
 
 inline void zai_sandbox_engine_state_restore(zai_engine_state *es) {
     EG(current_execute_data) = es->current_execute_data;
+    EG(jit_trace_num) = es->jit_trace_num;
 }
 
 inline void zai_sandbox_open(zai_sandbox *sandbox) {

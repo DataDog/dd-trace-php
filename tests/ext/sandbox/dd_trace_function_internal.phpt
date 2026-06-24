@@ -7,6 +7,7 @@ DD_TRACE_TRACED_INTERNAL_FUNCTIONS=array_sum
 DD_CODE_ORIGIN_FOR_SPANS_ENABLED=0
 --FILE--
 <?php
+include 'dd_dumper.inc';
 use DDTrace\SpanData;
 
 var_dump(DDTrace\trace_function('array_sum', function (SpanData $span) {
@@ -17,8 +18,8 @@ var_dump(array_sum([1, 3, 5]));
 
 echo "---\n";
 
-var_dump(dd_trace_serialize_closed_spans());
-var_dump(dd_trace_serialize_closed_spans());
+var_dump(dd_clean_spans());
+var_dump(dd_clean_spans());
 ?>
 --EXPECTF--
 bool(true)

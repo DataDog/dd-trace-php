@@ -72,9 +72,7 @@ pub mod allocation_ge84;
 pub mod allocation_le83;
 
 /// Default sampling interval in bytes (4 MiB).
-// SAFETY: value is > 0.
-pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 =
-    unsafe { NonZero::new_unchecked(1024 * 4096) };
+pub const DEFAULT_ALLOCATION_SAMPLING_INTERVAL: NonZeroU32 = NonZero::new(1024 * 4096).unwrap();
 
 /// Sampling distance feed into poison sampling algo. This must be > 0.
 pub static ALLOCATION_PROFILING_INTERVAL: AtomicU64 =
@@ -135,8 +133,13 @@ impl AllocationProfilingStats {
     }
 }
 
+/// Collect an allocation sample and optionally track it for live heap profiling.
+///
+/// # Arguments
+/// * `ptr` - The pointer returned by the allocator (used for live heap tracking)
+/// * `len` - The size of the allocation in bytes
 #[cold]
-pub fn collect_allocation(len: size_t) {
+pub fn collect_allocation(ptr: *mut c_void, len: size_t) {
     if let Some(profiler) = Profiler::get() {
         // Check if there's a pending time interrupt that we can handle now
         // instead of waiting for an interrupt handler. This is slightly more
@@ -150,11 +153,28 @@ pub fn collect_allocation(len: size_t) {
         unsafe {
             profiler.collect_allocations(
                 zend::ddog_php_prof_get_current_execute_data(),
+                ptr,
                 1_i64,
                 len as i64,
                 (interrupt_count > 0).then_some(interrupt_count),
             )
         };
+    }
+}
+
+/// Called when an allocation is no longer live, such as `free` or successful
+/// `realloc`. If this pointer was tracked for live heap, remove it from the
+/// live set.
+#[inline]
+pub fn untrack_allocation(ptr: *mut c_void) {
+    if let Some(profiler) = Profiler::get() {
+        if let Some(sample) = profiler.untrack_allocation(ptr as usize) {
+            trace!(
+                "Untracked allocation at {:#x} ({} bytes)",
+                ptr as usize,
+                sample.allocation_size
+            );
+        }
     }
 }
 
@@ -192,13 +212,18 @@ pub unsafe fn minit(settings: &SystemSettings) {
 }
 
 pub fn rinit() {
-    let allocation_enabled = REQUEST_LOCALS
-        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
+    let (allocation_enabled, heap_live_enabled) = REQUEST_LOCALS
+        .try_with_borrow(|locals| {
+            (
+                locals.system_settings().profiling_allocation_enabled,
+                locals.profiling_experimental_heap_live_enabled,
+            )
+        })
         .unwrap_or_else(|err| {
             // Debug rather than error because this is every request, could
             // be very spammy.
             debug!("Allocation profiling rinit failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
-            false
+            (false, false)
         });
 
     if !allocation_enabled {
@@ -206,19 +231,24 @@ pub fn rinit() {
     }
 
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-    allocation_le83::alloc_prof_rinit();
+    allocation_le83::alloc_prof_rinit(heap_live_enabled);
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_rinit();
+    allocation_ge84::alloc_prof_rinit(heap_live_enabled);
 }
 
 pub fn alloc_prof_rshutdown() {
-    let allocation_enabled = REQUEST_LOCALS
-        .try_with_borrow(|locals| locals.system_settings().profiling_allocation_enabled)
+    let (allocation_enabled, heap_live_enabled) = REQUEST_LOCALS
+        .try_with_borrow(|locals| {
+            (
+                locals.system_settings().profiling_allocation_enabled,
+                locals.profiling_experimental_heap_live_enabled,
+            )
+        })
         .unwrap_or_else(|err| {
             // Debug rather than error because this is every request, could
             // be very spammy.
             debug!("Allocation profiling rshutdown failed because it failed to borrow the request locals. Please report this to Datadog: {err}");
-            false
+            (false, false)
         });
 
     if !allocation_enabled {
@@ -226,9 +256,9 @@ pub fn alloc_prof_rshutdown() {
     }
 
     #[cfg(not(php_zend_mm_set_custom_handlers_ex))]
-    allocation_le83::alloc_prof_rshutdown();
+    allocation_le83::alloc_prof_rshutdown(heap_live_enabled);
     #[cfg(php_zend_mm_set_custom_handlers_ex)]
-    allocation_ge84::alloc_prof_rshutdown();
+    allocation_ge84::alloc_prof_rshutdown(heap_live_enabled);
 }
 
 #[track_caller]

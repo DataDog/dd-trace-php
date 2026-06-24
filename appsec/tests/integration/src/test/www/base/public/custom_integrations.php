@@ -18,6 +18,10 @@ foreach ($_GET['integrations'] as $int) {
         system('true');
     } elseif ($int === 'redis') {
         new Redis();
+    } elseif ($int === 'fs') {
+        // Triggers the filesystem integration via deferred-loaded fopen() hook.
+        $fp = fopen('/dev/null', 'r');
+        if ($fp) { fclose($fp); }
     } else {
         http_response_code(400);
     }

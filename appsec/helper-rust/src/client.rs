@@ -41,8 +41,7 @@ mod metrics;
 pub mod protocol;
 
 /// Smart pointer that tracks worker count for a service.
-/// Increments on creation/clone, decrements on drop.
-#[derive(Clone)]
+/// Increments on creation, decrements on drop.
 struct TrackedService {
     service: Arc<Service>,
 }
@@ -358,7 +357,7 @@ async fn do_request_loop_iter(
     cancel_token: &CancellationToken,
 ) -> anyhow::Result<()> {
     // wait for any number of config_syncs, followed by request_init
-    let mut req_ctx = match recv_command(framed, cancel_token).await? {
+    let req_init_args = match recv_command(framed, cancel_token).await? {
         protocol::Command::RequestInit(req) => {
             let service = client.get_service();
             let config_snapshot = service.config_snapshot();
@@ -373,19 +372,7 @@ async fn do_request_loop_iter(
                 return Ok(());
             }
 
-            let mut req_ctx = ReqContext::new(service, config_snapshot.clone());
-            let result = req_ctx
-                .run_waf(req.data, &protocol::RequestExecOptions::regular())
-                .map_err(FatalRequestError)?;
-
-            let resp = protocol::CommandResponse::RequestInit(protocol::RequestInitResp {
-                triggers: &result.triggers,
-                actions: &result.actions,
-                force_keep: req_ctx.should_force_keep(service, result.waf_keep),
-                settings: req_ctx.settings(),
-            });
-            send_command_resp(framed, resp).await?;
-            req_ctx
+            req
         }
 
         protocol::Command::ConfigSync(args) => {
@@ -409,6 +396,39 @@ async fn do_request_loop_iter(
             anyhow::bail!("unexpected command {:?}", command);
         }
     };
+
+    let mut req_ctx = {
+        let service = client.get_service();
+        ReqContext::new(service, service.config_snapshot().clone())
+    };
+
+    let result = run_request(client, framed, cancel_token, &mut req_ctx, req_init_args).await;
+
+    // submit unconditionally: even if a fatal error coccurs
+    submit_context_telemetry_metrics(client, &mut req_ctx);
+    submit_service_telemetry(client, client.get_service());
+
+    result
+}
+
+async fn run_request(
+    client: &mut Client,
+    framed: &mut tokio_util::codec::Framed<UnixStream, protocol::CommandCodec>,
+    cancel_token: &CancellationToken,
+    req_ctx: &mut ReqContext,
+    req_init: Box<protocol::RequestInitArgs>,
+) -> anyhow::Result<()> {
+    let result = req_ctx
+        .run_waf(req_init.data, &protocol::RequestExecOptions::regular())
+        .map_err(FatalRequestError)?;
+
+    let resp = protocol::CommandResponse::RequestInit(protocol::RequestInitResp {
+        triggers: &result.triggers,
+        actions: &result.actions,
+        force_keep: req_ctx.should_force_keep(client.get_service(), result.waf_keep),
+        settings: req_ctx.settings(),
+    });
+    send_command_resp(framed, resp).await?;
 
     loop {
         match recv_command(framed, cancel_token).await? {
@@ -468,13 +488,14 @@ async fn do_request_loop_iter(
                     .run_waf(data, &protocol::RequestExecOptions::regular())
                     .map_err(FatalRequestError)?;
 
+                req_ctx.record_shutdown_context(req.input_truncated);
+
                 // span metrics / meta
                 let mut span_submitter = metrics::CollectingMetricsSubmitter::default();
                 req_ctx.generate_span_metrics(&mut span_submitter);
                 req_ctx.generate_meta(&mut span_submitter);
 
-                let service = client.get_service();
-                let force_keep = req_ctx.should_force_keep(service, result.waf_keep);
+                let force_keep = req_ctx.should_force_keep(client.get_service(), result.waf_keep);
 
                 let resp =
                     protocol::CommandResponse::RequestShutdown(protocol::RequestShutdownResp {
@@ -486,9 +507,6 @@ async fn do_request_loop_iter(
                         metrics: span_submitter.take_metrics(),
                     });
                 send_command_resp(framed, resp).await?;
-
-                submit_context_telemetry_metrics(client, &mut req_ctx, req.input_truncated);
-                submit_service_telemetry(client, service);
 
                 break;
             }
@@ -525,11 +543,7 @@ fn submit_service_telemetry(client: &Client, service: &Service) {
     }
 }
 
-fn submit_context_telemetry_metrics(
-    client: &Client,
-    req_ctx: &mut ReqContext,
-    input_truncated: bool,
-) {
+fn submit_context_telemetry_metrics(client: &Client, req_ctx: &mut ReqContext) {
     let Some(ref sidecar_settings) = client.sidecar_settings else {
         warn!("Cannot submit context telemetry metrics: sidecar_settings not set");
         return;
@@ -543,7 +557,7 @@ fn submit_context_telemetry_metrics(
         &client.metrics_last_registered,
     );
 
-    let waf_metrics = req_ctx.take_waf_metrics(input_truncated);
+    let waf_metrics = req_ctx.take_waf_metrics();
     waf_metrics.generate_telemetry_metrics(&mut *tel_metric_submitter);
 }
 
@@ -587,6 +601,22 @@ impl ReqContext {
         }
     }
 
+    /// Records a WAF evaluation error against the appropriate metric: appsec.waf.error
+    /// for non-RASP runs, appsec.rasp.error for RASP runs (RFC-1012).
+    fn record_eval_error(&mut self, error_code: i32, options: &protocol::RequestExecOptions) {
+        match &options.run_type {
+            WafRunType::NonRasp => self.waf_metrics.record_non_rasp_error_eval(error_code),
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => self.waf_metrics.record_rasp_error_eval(
+                error_code,
+                rule_type,
+                rule_variant.as_deref().unwrap_or(""),
+            ),
+        }
+    }
+
     fn run_waf(
         &mut self,
         data: libddwaf::object::WafMap,
@@ -601,7 +631,13 @@ impl ReqContext {
         let res = match maybe_res {
             Ok(res) => res,
             Err(err) => {
-                self.waf_metrics.record_non_rasp_error_eval();
+                let error_code = match err {
+                    libddwaf::RunError::InternalError => -3i32,
+                    libddwaf::RunError::InvalidObject => -2i32,
+                    libddwaf::RunError::InvalidArgument => -1i32,
+                    _ => -127i32,
+                };
+                self.record_eval_error(error_code, options);
                 anyhow::bail!("WAF evaluation error: {}", err);
             }
         };
@@ -632,8 +668,15 @@ impl ReqContext {
             WafRunType::NonRasp => {
                 self.waf_metrics.record_non_rasp_eval(&run_output);
             }
-            WafRunType::RaspRule(rule_type) => {
-                self.waf_metrics.record_rasp_eval(rule_type, &run_output);
+            WafRunType::RaspRule {
+                rule_type,
+                rule_variant,
+            } => {
+                self.waf_metrics.record_rasp_eval(
+                    rule_type,
+                    rule_variant.as_deref().unwrap_or(""),
+                    &run_output,
+                );
             }
         }
 
@@ -697,17 +740,19 @@ impl ReqContext {
     }
 
     fn should_force_keep(&mut self, service: &Service, waf_keep: bool) -> bool {
-        // cache limiter result (called once per request)
-        let limiter_allows = match self.limiter_result {
+        // The limiter slot is only consumed when the WAF triggered; clean requests
+        // must not burn a slot even if this function is called multiple times.
+        if !waf_keep {
+            return false;
+        }
+        match self.limiter_result {
             Some(result) => result,
             None => {
                 let result = service.should_force_keep();
                 self.limiter_result = Some(result);
                 result
             }
-        };
-
-        limiter_allows && waf_keep
+        }
     }
 
     fn settings(&self) -> HashMap<&'static str, String> {
@@ -717,8 +762,14 @@ impl ReqContext {
         )])
     }
 
-    pub fn take_waf_metrics(&mut self, input_truncated: bool) -> metrics::WafMetrics {
+    pub fn record_shutdown_context(&mut self, input_truncated: bool) {
         self.waf_metrics.set_input_truncated(input_truncated);
+    }
+
+    pub fn take_waf_metrics(&mut self) -> metrics::WafMetrics {
+        self.waf_metrics
+            .set_rate_limited(matches!(self.limiter_result, Some(false)));
+
         std::mem::take(&mut self.waf_metrics)
     }
 }

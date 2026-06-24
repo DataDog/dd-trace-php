@@ -5,10 +5,10 @@
 // (https://www.datadoghq.com/). Copyright 2021 Datadog, Inc.
 #pragma once
 
+#include "attributes.h"
 #include "configuration.h"
 #include "php_helpers.h"
 #include <stdbool.h>
-#include "attributes.h"
 
 /* log levels - the first argument to the mlog helper
  * The lower the number, the higher the priority */
@@ -24,6 +24,7 @@ typedef enum {
 
 // these are only in the header to support the macros/inline functions
 extern const int _dd_size_source_prefix;
+extern bool _dd_log_config_ready;
 #ifdef ZTS
 #    define STRERROR_R_BUF_SIZE 1024
 extern __thread char _dd_strerror_buf[STRERROR_R_BUF_SIZE];
@@ -31,11 +32,16 @@ extern __thread char _dd_strerror_buf[STRERROR_R_BUF_SIZE];
 
 static inline dd_log_level_t dd_log_level(void)
 {
-    return (dd_log_level_t)(runtime_config_first_init ? get_DD_APPSEC_LOG_LEVEL()
-                                                      : get_global_DD_APPSEC_LOG_LEVEL());
+    if (!_dd_log_config_ready) {
+        return dd_log_warning;
+    }
+    return (dd_log_level_t)(runtime_config_first_init
+                                ? get_DD_APPSEC_LOG_LEVEL()
+                                : get_global_DD_APPSEC_LOG_LEVEL());
 }
 
-void dd_log_startup(void);
+void dd_log_startup_before_cfg(void);
+void dd_log_startup_after_cfg(void);
 void dd_log_shutdown(void);
 const char *nonnull _strerror_r(int err, char *nonnull buf, size_t buflen);
 

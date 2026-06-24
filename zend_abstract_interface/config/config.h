@@ -103,6 +103,7 @@ void zai_config_replace_runtime_config(zai_config_id id, zval *value);
 
 extern uint16_t zai_config_memoized_entries_count;
 extern zai_config_memoized_entry zai_config_memoized_entries[ZAI_CONFIG_ENTRIES_COUNT_MAX];
+extern bool zai_config_first_rinit_done;
 
 // assertions + error_zal
 // If caller wants to return to userland: Caller must refcount++ & dtor

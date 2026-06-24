@@ -19,6 +19,7 @@ DD_TRACE_AUTOFINISH_SPANS=1
 DD_INSTRUMENTATION_TELEMETRY_ENABLED=1
 DD_AGENT_HOST=
 DD_AUTOLOAD_NO_COMPILE=
+DD_TRACE_RETRY_INTERVAL=
 DD_TRACE_GIT_METADATA_ENABLED=0
 DD_TRACE_IGNORE_AGENT_SAMPLING_RATES=1
 DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED=0
@@ -92,8 +93,8 @@ Array
 
     [2] => Array
         (
-            [name] => DD_TRACE_IGNORE_AGENT_SAMPLING_RATES
-            [value] => 1
+            [name] => DD_TRACE_GIT_METADATA_ENABLED
+            [value] => 0
             [origin] => env_var
             [config_id] => 
             [seq_id] => 
@@ -101,7 +102,7 @@ Array
 
     [3] => Array
         (
-            [name] => DD_TRACE_GENERATE_ROOT_SPAN
+            [name] => DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
             [value] => 0
             [origin] => env_var
             [config_id] => 
@@ -110,8 +111,8 @@ Array
 
     [4] => Array
         (
-            [name] => DD_TRACE_GIT_METADATA_ENABLED
-            [value] => 0
+            [name] => DD_TRACE_IGNORE_AGENT_SAMPLING_RATES
+            [value] => 1
             [origin] => env_var
             [config_id] => 
             [seq_id] => 
@@ -119,7 +120,7 @@ Array
 
     [5] => Array
         (
-            [name] => DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+            [name] => DD_TRACE_GENERATE_ROOT_SPAN
             [value] => 0
             [origin] => env_var
             [config_id] => 

@@ -2,6 +2,23 @@
 Client-side SHM span stats are computed and flushed to the agent on trace flush
 --SKIPIF--
 <?php include __DIR__ . '/../includes/skipif_no_dev_env.inc'; ?>
+<?php
+if (PHP_VERSION_ID < 70400) die("skip: Before PHP 7.4, the skip-task would cause the sidecar to fetch the info already.");
+if (PHP_VERSION_ID >= 80100) {
+    echo "nocache\n";
+}
+$ctx = stream_context_create([
+    'http' => [
+        'method' => 'PUT',
+        'header' => [
+            'Content-Type: application/json',
+            'X-Datadog-Test-Session-Token: client_side_stats',
+        ],
+        'content' => json_encode(['version' => '7.65.0', 'client_drop_p0s' => true]),
+    ]
+]);
+file_get_contents('http://request-replayer/set-agent-info', false, $ctx);
+?>
 --ENV--
 DD_AGENT_HOST=request-replayer
 DD_TRACE_AGENT_PORT=80
@@ -21,8 +38,7 @@ include __DIR__ . '/../includes/request_replayer.inc';
 
 $rr = new RequestReplayer();
 
-// Block until the sidecar has received the agent's /info response so that
-// ddog_is_agent_info_ready() returns true before stats are computed.
+// Block until the sidecar has received the agent's /info response before stats are computed
 dd_trace_internal_fn('await_agent_info');
 
 $root = \DDTrace\start_trace_span();
@@ -31,7 +47,7 @@ $root->resource = "GET /test";
 $root->service = "stats-test-service";
 \DDTrace\close_span();
 
-dd_trace_internal_fn('synchronous_flush');
+dd_trace_internal_fn('synchronous_flush', 5000);
 $rr->waitForDataAndReplay();
 
 // The request-replayer stores the msgpack-decoded body as JSON, with OkSummary/ErrorSummary

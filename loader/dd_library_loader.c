@@ -35,7 +35,7 @@ static bool debug_logs = false;
 static bool force_load = false;
 static char *telemetry_forwarder_path = NULL;
 static char *package_path = NULL;
-static void *libddtrace_php_handle = NULL;
+static void *libdatadog_php_handle = NULL;
 
 static unsigned int php_api_no = 0;
 static const char *runtime_version = "unknown";
@@ -74,12 +74,12 @@ PHP_INI_END()
 static void ddloader_telemetryf(telemetry_reason reason, injected_ext *config, const char *error, const char *format, ...);
 
 static char *ddtrace_pre_load_hook(injected_ext *config) {
-    // Load libddtrace_php.so, on which ddtrace.so implicitly depends. Implicit
-    // because there's no DT_NEEDED(libddtrace_php.so) entry in ddtrace.so.
-    // This has unfortunate side effects. Resolution of libddtrace_php.so
+    // Load libdatadog_php.so, on which ddtrace.so implicitly depends. Implicit
+    // because there's no DT_NEEDED(libdatadog_php.so) entry in ddtrace.so.
+    // This has unfortunate side effects. Resolution of libdatadog_php.so
     // symbols against the handle of ddtrace.so (usually stored in
     // module_ext->handle) will fail. Some code e.g. in zai or the profiler
-    // tries to resolve libddtrace_php.so symbols using module_ext->handle
+    // tries to resolve libdatadog_php.so symbols using module_ext->handle
     // (these symbols are in ddtrace.so in the monolithic build). As a
     // consequence, this can only work if actually module_ext->handle is NULL (=
     // RTLD_DEFAULT) and the global namespace is searched. And, because of this,
@@ -87,39 +87,39 @@ static char *ddtrace_pre_load_hook(injected_ext *config) {
     // PHP from calling dlclose() on module shutdown, which we have to work
     // around in ddloader_zend_extension_shutdown().
     //
-    // Adding DT_NEEDED(libddtrace_php.so) would be possible on glibc because it
+    // Adding DT_NEEDED(libdatadog_php.so) would be possible on glibc because it
     // checks already loaded libraries first (with even a fallback to DT_SONAME
     // as key). Musl only checks already loaded libraries if these were loaded
     // without a path (only that sets dso->shortname).
-    char *libddtrace_php;
-    int res = asprintf(&libddtrace_php, "%s/%sloader/libddtrace_php.so", package_path, OS_PATH);
+    char *libdatadog_php;
+    int res = asprintf(&libdatadog_php, "%s/%sloader/libdatadog_php.so", package_path, OS_PATH);
     if (res == -1) {
         return "asprintf error";
     }
-    if (access(libddtrace_php, F_OK)) {
-        free(libddtrace_php);
+    if (access(libdatadog_php, F_OK)) {
+        free(libdatadog_php);
 
         // Test without the OS_PATH (e.g. linux-gnu/)
-        res = asprintf(&libddtrace_php, "%s/loader/libddtrace_php.so", package_path);
+        res = asprintf(&libdatadog_php, "%s/loader/libdatadog_php.so", package_path);
         if (res == -1) {
             return "asprintf error";
         }
 
-        if (access(libddtrace_php, F_OK)) {
-            free(libddtrace_php);
-            LOG(config, INFO, "libddtrace_php.so not found during 'ddtrace' pre-load hook.")
+        if (access(libdatadog_php, F_OK)) {
+            free(libdatadog_php);
+            LOG(config, INFO, "libdatadog_php.so not found during 'ddtrace' pre-load hook.")
             return NULL;
         }
     }
 
-    LOG(config, INFO, "Found %s during 'ddtrace' pre-load hook. Load it.", libddtrace_php)
-    void *handle = DL_LOAD(libddtrace_php);
-    free(libddtrace_php);
+    LOG(config, INFO, "Found %s during 'ddtrace' pre-load hook. Load it.", libdatadog_php)
+    void *handle = DL_LOAD(libdatadog_php);
+    free(libdatadog_php);
     if (!handle) {
         return dlerror();
     }
 
-    libddtrace_php_handle = handle;
+    libdatadog_php_handle = handle;
     return NULL;
 }
 
@@ -253,13 +253,13 @@ static void ddtrace_pre_minit_hook(injected_ext *config, zend_module_entry *modu
     }
 
     // Let ddtrace knows that it was loaded by the loader
-    bool *ddtrace_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(config->so_handle, "ddtrace_loaded_by_ssi");
-    if (ddtrace_loaded_by_ssi) {
-        *ddtrace_loaded_by_ssi = true;
+    bool *datadog_loaded_by_ssi = (bool *)DL_FETCH_SYMBOL(config->so_handle, "datadog_loaded_by_ssi");
+    if (datadog_loaded_by_ssi) {
+        *datadog_loaded_by_ssi = true;
     }
-    bool *ddtrace_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(config->so_handle, "ddtrace_ssi_forced_injection_enabled");
-    if (ddtrace_ssi_forced_injection_enabled) {
-        *ddtrace_ssi_forced_injection_enabled = force_load;
+    bool *datadog_ssi_forced_injection_enabled = (bool *)DL_FETCH_SYMBOL(config->so_handle, "datadog_ssi_forced_injection_enabled");
+    if (datadog_ssi_forced_injection_enabled) {
+        *datadog_ssi_forced_injection_enabled = force_load;
     }
 }
 
@@ -793,7 +793,7 @@ static int ddloader_load_extension(unsigned int php_api_no, char *module_build_i
 
     /**
      * At that point, we don't know if the module will be registered or not by the PHP configuration.
-     * So we register it under the a temporary name, add set an optional dependencies to be sure that
+     * So we register it under a temporary name, and set optional dependencies to be sure that
      * our injected extension will be started up after the real one (if it's loaded!), and finally we
      * wrap the MINIT function to perform our checks there.
      */
@@ -1012,13 +1012,23 @@ static void ddloader_zend_extension_shutdown(zend_extension *ext) {
             }
             ext_config->so_handle = NULL;
         }
+
+        // Make sure to reset everything for simple apache reload
+        ext_config->injection_success = false;
+        ext_config->injection_error = NULL;
+        ext_config->module_number = 0;
+        *ext_config->extra_config = 0;
+        *ext_config->logs = 0;
     }
 
-    if (libddtrace_php_handle) {
+    if (libdatadog_php_handle) {
         // This still won't unload it
-        DL_UNLOAD(libddtrace_php_handle);
-        libddtrace_php_handle = NULL;
+        DL_UNLOAD(libdatadog_php_handle);
+        libdatadog_php_handle = NULL;
     }
+
+    injection_forced = false;
+    already_done = false;
 }
 
 // Define fake version information to force the engine to always call ddloader_api_no_check / ddloader_build_id_check
